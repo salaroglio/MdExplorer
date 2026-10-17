@@ -313,7 +313,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   }
 
   awaitedIcon(state: string): string {
-    return ({ waiting: 'schedule', tostart: 'pending_actions', declined: 'do_not_disturb_on', working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
+    return ({ waiting: 'schedule', tostart: 'pending_actions', asked: 'person', declined: 'do_not_disturb_on', working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
   }
 
   private fromMessage(m: MailboxMessage): MailItem {
@@ -479,8 +479,11 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     return artifact === 'pending' || artifact === 'rejected' ? artifact : null;
   }
 
-  /** Il pulsante premuto che aspetta la scelta di chi fa ogni passo (agenti di un team). */
-  choosing: { reply: MailReply; targets: ReplyTarget[]; picks: { [step: string]: string } } | null = null;
+  /**
+   * Il pulsante premuto che aspetta qualcosa da chi preme: la scelta di chi fa ogni passo (agenti o ruoli di un team) e,
+   * per l'esito del passo di una persona, i valori che porta.
+   */
+  choosing: { reply: MailReply; targets: ReplyTarget[]; picks: { [step: string]: string }; values: { [name: string]: string }; valueNames: string[] } | null = null;
 
   /**
    * Un pulsante di risposta: invia il messaggio che la scheda dell'agente dichiara per quella risposta. Se fa partire un
@@ -494,23 +497,26 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       next: (res) => {
         // Un pulsante del workflow non sveglia l'agente che l'ha proposto: fa partire i passi del giro, ciascuno avviato poi
         // da chi ne risponde. Il controllo «lavoro non salvato» lo fa chi li avvia.
-        const workflow = (res.targets || []).length > 0;
+        // Il «tocca a te» di una persona: il pulsante è il suo esito, chiude il passo e non sveglia nessun agente.
+        const workflow = (res.targets || []).length > 0 || !!message.personStep;
         const toChoose = (res.targets || []).filter(t => t.needsChoice);
-        if (!toChoose.length) { this.send(r.message, true, undefined, workflow); return; }
-        this.choosing = { reply: r, targets: toChoose, picks: {} };
+        const valueNames = message.personStep ? Object.keys(r.values || {}) : [];
+        if (!toChoose.length && !valueNames.length) { this.send(r.message, true, undefined, workflow); return; }
+        this.choosing = { reply: r, targets: toChoose, picks: {}, values: {}, valueNames };
       },
       error: (err) => this.showError(err),
     });
   }
 
   canConfirmChoice(): boolean {
-    return !!this.choosing && this.choosing.targets.every(t => !!this.choosing!.picks[t.step]) && !this.sending;
+    return !!this.choosing && this.choosing.targets.every(t => !!this.choosing!.picks[t.step])
+      && this.choosing.valueNames.every(n => !!(this.choosing!.values[n] || '').trim()) && !this.sending;
   }
 
   confirmChoice(): void {
     if (!this.canConfirmChoice()) return;
     const c = this.choosing!;
-    this.send(c.reply.message, true, { ...c.picks }, true);
+    this.send(c.reply.message, true, { ...c.picks }, true, c.valueNames.length ? { ...c.values } : undefined);
   }
 
   /** Il campo libero: l'agente lo riceve con il suo messaggio citato. */
@@ -518,13 +524,13 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.send(this.replyDraft.trim(), false);
   }
 
-  private send(body: string, choice: boolean, assign?: { [step: string]: string }, workflow = false): void {
+  private send(body: string, choice: boolean, assign?: { [step: string]: string }, workflow = false, values?: { [name: string]: string }): void {
     const message = this.selected?.message;
     if (!message || !body) return;
     this.sending = true;
     // Rispondere sveglia l'agente: prima si dice se nella cartella c'è lavoro che lui non vedrebbe.
     (workflow ? of(true) : this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent)).pipe(
-      switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id, assign) : EMPTY),
+      switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id, assign, values) : EMPTY),
       finalize(() => { this.sending = false; }),
     ).subscribe({
       next: (res) => {

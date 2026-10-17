@@ -19,6 +19,10 @@ namespace MdExplorer.Features.Agents
         public const string AssignmentEn = "[ASSIGNMENT]";
         public const string FreeReplyIt = "[RISPOSTA LIBERA]";
         public const string FreeReplyEn = "[FREE REPLY]";
+        /// <summary>Il mittente del «tocca a te» di un passo di una persona: non è un agente, è il workflow.</summary>
+        public const string PersonStepSender = "workflow";
+        /// <summary>L'origine (<c>TriggerSource</c>) del «tocca a te»: i suoi pulsanti chiudono il passo, non svegliano un agente.</summary>
+        public const string PersonStepSource = "person-step";
 
         /// <summary>«it» o qualunque altra cosa (inglese): come <c>IUiLanguage.Current</c>.</summary>
         public static bool IsItalian(string lang) => lang == "it";
@@ -76,6 +80,40 @@ namespace MdExplorer.Features.Agents
             if (action.Round > 1) text.Append(Say($", giro {action.Round}", $", round {action.Round}"));
             if (action.Attempt > 1) text.Append(Say($", tentativo {action.Attempt}", $", attempt {action.Attempt}"));
             return text.Append('.').ToString();
+        }
+
+        /// <summary>
+        /// «Tocca a te»: il passo di una persona (workflow v3, F4). Il compito, che cosa riceve (con le versioni approvate),
+        /// che cosa scrive prima di chiudere, e come si chiude: con uno dei pulsanti.
+        /// </summary>
+        public static string PersonTurn(string lang, SchedulerAction action, string roundId)
+        {
+            var it = IsItalian(lang);
+            string Say(string i, string e) => it ? i : e;
+            var step = action.Step;
+            var text = new StringBuilder(Say($"Tocca a te: «{step.Label}» (ruolo {step.Person}).", $"Your turn: «{step.Label}» (role {step.Person})."));
+            if (!string.IsNullOrWhiteSpace(action.Task)) text.Append("\n\n" + action.Task.Trim());
+            if (action.Inputs.Count > 0)
+            {
+                text.Append(Say("\n\nChe cosa ricevi:", "\n\nWhat you receive:"));
+                foreach (var input in action.Inputs)
+                {
+                    if (input.Text != null) { text.Append($"\n- {input.Id}: {input.Text}"); continue; }
+                    text.Append($"\n- {input.Id}:");
+                    foreach (var f in input.Files)
+                        text.Append($"\n  - {f.Path} — " + Say($"uscita «{f.Output}» di «{f.StepLabel}», approvata", $"output «{f.Output}» of «{f.StepLabel}», approved")
+                                    + (f.Commit == null ? "" : Say($" nel commit {f.Commit}", $" in commit {f.Commit}")));
+                }
+            }
+            if (action.Outputs.Count > 0)
+            {
+                text.Append(Say("\n\nPrima di chiudere scrivi, fai il commit e pubblica:", "\n\nBefore closing, write, commit and publish:"));
+                foreach (var o in action.Outputs)
+                    text.Append($"\n- {o.Id}: {o.Path}" + (string.IsNullOrWhiteSpace(o.Note) ? "" : " — " + o.Note.Trim()));
+            }
+            text.Append(Say("\n\nChiudi il passo con uno dei pulsanti qui sotto.", "\n\nClose the step with one of the buttons below."));
+            text.Append(Say($"\n\nGiro {roundId}, passo «{step.Label}».", $"\n\nRound {roundId}, step «{step.Label}»."));
+            return text.ToString();
         }
 
         /// <summary>La persona ha scritto con parole sue a un messaggio che proponeva pulsanti.</summary>

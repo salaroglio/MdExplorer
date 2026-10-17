@@ -28,6 +28,8 @@ export interface MailboxMessage {
   awaited?: AwaitedWork[];
   /** A un messaggio con pulsanti la persona ha già risposto (pulsante del workflow, o una risposta scritta dopo). */
   answered?: boolean;
+  /** «Tocca a te»: il passo di una persona nel workflow. I pulsanti sono i suoi esiti e chiudono il passo. */
+  personStep?: boolean;
 }
 
 /** Un lavoro chiesto a un altro agente, visto da chi lo aspetta. */
@@ -60,7 +62,9 @@ export interface TeamMember {
 export interface ReplyTarget {
   step: string;
   label: string;
-  agent: string;
+  agent: string | null;
+  /** Il passo di una persona: il suo ruolo. */
+  person?: string | null;
   needsChoice: boolean;
   owners: TeamMember[];
 }
@@ -72,7 +76,7 @@ export interface AwaitedWork {
    * tostart = aspetta che il responsabile lo avvii · declined = il responsabile non l'ha avviato · working = sta lavorando ·
    * approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed
    */
-  state: 'waiting' | 'tostart' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
+  state: 'waiting' | 'tostart' | 'asked' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
   /** Il motivo del rifiuto, quando c'è. */
   note?: string | null;
   /** Un passo di un giro del workflow: il suo titolo e chi ne risponde (waiting = aspetta i passi prima di lui). */
@@ -80,6 +84,8 @@ export interface AwaitedWork {
   owner?: string | null;
   /** Il turno che ha consegnato il passo non ti ha scritto: il messaggio non arriverà. */
   silent?: boolean;
+  /** Il passo di una persona: il suo ruolo (asked = tocca a lei). */
+  person?: string | null;
   /** L'id del passo nel workflow (nei passi di un giro). */
   step?: string;
   /** Il passo è di chi non risponde più dell'agente e tu, che ne rispondi, puoi prenderlo («Prendo io»). */
@@ -117,6 +123,8 @@ export interface MailReply {
   description: string;
   /** Il messaggio che l'agente riceve. */
   message: string;
+  /** L'esito del passo di una persona: i valori che porta, da scrivere prima di premere (nome → vuoto). */
+  values?: { [name: string]: string } | null;
 }
 
 export interface MailboxInbox {
@@ -265,10 +273,11 @@ export class MailboxService {
 
   /** choice = true: body è il messaggio di uno dei pulsanti proposti; false: testo libero, che arriva con il messaggio citato.
    *  messageId: il messaggio a cui si risponde (senza, l'ultimo del thread). */
-  reply(conversationId: string, body: string, choice = false, messageId?: string, assign?: { [step: string]: string }):
+  reply(conversationId: string, body: string, choice = false, messageId?: string, assign?: { [step: string]: string },
+        values?: { [name: string]: string }):
     Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }> {
     return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }>(
-      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId, assign });
+      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId, assign, values });
   }
 
   // ---- 4b: osservabilità e governo dei thread ----

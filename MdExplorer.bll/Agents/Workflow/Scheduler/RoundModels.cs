@@ -31,8 +31,13 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// perché va in ferie). Lo scrive solo chi ne risponde adesso; da lì il passo è del nuovo.
         /// </summary>
         public const string Assigned = "assigned";
+        /// <summary>
+        /// Il passo di una persona: il suo computer le ha messo in posta «tocca a te» (workflow v3, F4). Porta il commit del
+        /// progetto in quel momento: i documenti che la persona scrive sono quelli cambiati da lì.
+        /// </summary>
+        public const string Asked = "asked";
 
-        public static readonly string[] All = { Held, Started, Delivered, Approved, Rejected, Done, Declined, Failed, Replied, Assigned };
+        public static readonly string[] All = { Held, Started, Delivered, Approved, Rejected, Done, Declined, Failed, Replied, Assigned, Asked };
     }
 
     public class RoundEvent
@@ -60,17 +65,27 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         [JsonPropertyName("owner")] public string Owner { get; set; }
         /// <summary><see cref="RoundEventType.Delivered"/>: il ramo pubblicato dell'agente.</summary>
         [JsonPropertyName("branch")] public string Branch { get; set; }
-        /// <summary><see cref="RoundEventType.Delivered"/>: i file consegnati, dalla radice del progetto.</summary>
+        /// <summary>
+        /// <see cref="RoundEventType.Delivered"/>: i file consegnati, dalla radice del progetto. <see cref="RoundEventType.Done"/>
+        /// del passo di una persona: i documenti che ha scritto.
+        /// </summary>
         [JsonPropertyName("files")] public List<string> Files { get; set; }
         /// <summary>
         /// <see cref="RoundEventType.Delivered"/>, <see cref="RoundEventType.Approved"/>, <see cref="RoundEventType.Rejected"/>:
-        /// il commit consegnato, cioè la versione esatta che la persona ha visto e giudicato.
+        /// il commit consegnato, cioè la versione esatta che la persona ha visto e giudicato. <see cref="RoundEventType.Asked"/>:
+        /// il commit del progetto quando il passo è toccato alla persona; <see cref="RoundEventType.Done"/> di una persona:
+        /// il commit dei documenti che ha scritto.
         /// </summary>
         [JsonPropertyName("commit")] public string Commit { get; set; }
         /// <summary><see cref="RoundEventType.Approved"/>: il commit del ramo principale in cui la versione approvata è entrata.</summary>
         [JsonPropertyName("merge")] public string Merge { get; set; }
         /// <summary>Il turno dell'agente (RunId) che ha prodotto l'evento: lega consegna e approvazione al passo.</summary>
         [JsonPropertyName("run")] public string Run { get; set; }
+        /// <summary>
+        /// <see cref="RoundEventType.Done"/> del passo di una persona: i file che ha ricevuto, come <c>percorso@commit</c>.
+        /// L'esito vale per quelle versioni (un'approvazione pura dice che cosa ha approvato).
+        /// </summary>
+        [JsonPropertyName("received")] public List<string> Received { get; set; }
         [JsonPropertyName("engine")] public string Engine { get; set; }
         [JsonPropertyName("model")] public string Model { get; set; }
     }

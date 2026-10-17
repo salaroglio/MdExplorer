@@ -2025,7 +2025,8 @@
     "TOSTART_DECLINE_LABEL": "Perché non lo avvii? {{from}} lo legge",
     "TOSTART_DECLINE_PLACEHOLDER": "Per esempio: il bando non ci riguarda, ne parliamo a voce",
     "TOSTART_DECLINE_CONFIRM": "Non avviarlo",
-    "CHOOSE_OWNER_TITLE": "Chi lo fa? Questo agente ha più responsabili: da qui in poi il passo è di chi scegli, e lavora sul suo computer.",
+    "CHOOSE_OWNER_TITLE": "Chi lo fa? Più persone possono farlo: da qui in poi il passo è di chi scegli, e lavora sul suo computer.",
+    "OUTCOME_VALUE": "Scrivi {{name}}",
     "CHOOSE_OWNER_STEP": "«{{step}}» ({{agent}})",
     "CHOOSE_OWNER_PICK": "Scegli una persona",
     "TOSTART_PASS": "Passa a un collega",
@@ -2036,6 +2037,7 @@
     "TOSTART_PASSED": "«{{step}}» passato a {{to}}: ora è nella posta di chi lo riceve.",
     "TOSTART_DECLINED": "L'incarico per {{agent}} non è partito: chi l'ha chiesto vede il tuo motivo.",
     "TOSTART_NO_CARD": "Non trovo la scheda di {{agent}} nel progetto: non posso aprire la schermata di lancio.",
+    "AWAITED_asked": "tocca a una persona",
     "AWAITED_tostart": "aspetta che il responsabile lo avvii",
     "AWAITED_declined": "il responsabile non lo ha avviato"
   },

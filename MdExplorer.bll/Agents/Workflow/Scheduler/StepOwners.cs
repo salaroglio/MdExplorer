@@ -39,8 +39,12 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
     public static class StepOwners
     {
         /// <param name="responsiblesOf">Le email di chi risponde di un agente, dal documento delle responsabilità.</param>
-        public static StepOwner Of(WorkflowDescriptor wf, RoundState round, WorkflowStep step, Func<string, IReadOnlyList<string>> responsiblesOf)
+        /// <param name="membersOf">Le email di chi ha un ruolo: per i passi delle persone (workflow v3, F4).</param>
+        public static StepOwner Of(WorkflowDescriptor wf, RoundState round, WorkflowStep step, Func<string, IReadOnlyList<string>> responsiblesOf,
+            Func<string, IReadOnlyList<string>> membersOf = null)
         {
+            if (step.IsPerson) return OfPerson(wf, round, step, membersOf ?? throw new ArgumentNullException(nameof(membersOf),
+                $"step '{step.Id}' is a person's step: who has the role «{step.Person}» is needed."));
             var team = responsiblesOf(step.Agent) ?? Array.Empty<string>();
             var chosen = Chosen(wf, round, step, new HashSet<string>(StringComparer.Ordinal));
             if (chosen != null)
@@ -76,6 +80,73 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                     $"«{step.Label}»: agent '{step.Agent}' has more than one owner ({string.Join(", ", team)}) and no one has chosen who gets it. " +
                     "Whoever starts the step chooses; if it starts by itself, the workflow author must make it follow a step of the same agent."),
             };
+        }
+
+        /// <summary>
+        /// Il passo di una persona è di chi ha il suo ruolo. Con una persona sola è suo. Con un team: chi è scritto nel registro
+        /// (un «passato a», la scelta di chi ha premuto il pulsante che lo fa partire, chi ha già agito), altrimenti la prima
+        /// persona del team che ha agito sui passi da cui viene (chi ha fatto la sintesi la legge anche). Se nessuno, si sceglie.
+        /// </summary>
+        private static StepOwner OfPerson(WorkflowDescriptor wf, RoundState round, WorkflowStep step, Func<string, IReadOnlyList<string>> membersOf)
+        {
+            var team = membersOf(step.Person) ?? Array.Empty<string>();
+            if (team.Count == 0)
+                return new StepOwner { Problem = UiText.Say(
+                    $"«{step.Label}»: nessuno ha il ruolo «{step.Person}» nel documento delle responsabilità.",
+                    $"«{step.Label}»: no one has the role «{step.Person}» in the responsibilities document.") };
+            if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
+
+            bool InTeam(string email) => !string.IsNullOrWhiteSpace(email) && team.Contains(email.Trim(), StringComparer.OrdinalIgnoreCase);
+            var written = Written(round, step);
+            if (written != null)
+                return InTeam(written)
+                    ? new StepOwner { Email = written.Trim().ToLowerInvariant() }
+                    : new StepOwner
+                    {
+                        Problem = UiText.Say(
+                            $"«{step.Label}» è di {written}, che non ha più il ruolo «{step.Person}» (ce l'hanno {string.Join(", ", team)}): uno di loro lo prende con «Prendo io».",
+                            $"«{step.Label}» belongs to {written}, who no longer has the role «{step.Person}» (it belongs to {string.Join(", ", team)}): one of them takes it with «I'll take it»."),
+                        CanTake = team.Select(e => e.ToLowerInvariant()).ToList(),
+                    };
+
+            // Risalendo il workflow: il primo del team che ha agito (avviato, consegnato, approvato, premuto un pulsante).
+            var seen = new HashSet<string>(StringComparer.Ordinal) { step.Id };
+            var queue = new Queue<string>(Sources(wf, step));
+            while (queue.Count > 0)
+            {
+                var id = queue.Dequeue();
+                if (id == null || !seen.Add(id)) continue;
+                var actor = round.EventsOf(id).Select(e => e.By).FirstOrDefault(InTeam);
+                if (actor != null) return new StepOwner { Email = actor.Trim().ToLowerInvariant() };
+                var upstream = wf.Step(id);
+                if (upstream != null) foreach (var s in Sources(wf, upstream)) queue.Enqueue(s);
+            }
+            return new StepOwner
+            {
+                NeedsChoice = true,
+                Problem = UiText.Say(
+                    $"«{step.Label}»: il ruolo «{step.Person}» è di più persone ({string.Join(", ", team)}) e nessuno ha scelto a chi tocca. " +
+                    "Lo sceglie chi fa partire il passo; se parte da solo, deve venire da un passo in cui una di loro ha già agito.",
+                    $"«{step.Label}»: the role «{step.Person}» belongs to more than one person ({string.Join(", ", team)}) and no one has chosen whose turn it is. " +
+                    "Whoever starts the step chooses; if it starts by itself, it must follow a step one of them has already acted on."),
+            };
+        }
+
+        /// <summary>Chi il registro dice per il passo: un «passato a», la scelta del pulsante che lo fa partire, chi ha già agito.</summary>
+        private static string Written(RoundState round, WorkflowStep step)
+        {
+            var own = round.EventsOf(step.Id).ToList();
+            var passed = own.LastOrDefault(e => e.Type == RoundEventType.Assigned && !string.IsNullOrWhiteSpace(e.Owner));
+            if (passed != null) return passed.Owner.Trim();
+            var t = step.Trigger;
+            if (t?.Kind == WorkflowTriggerKind.Reply)
+            {
+                var pressed = round.EventsOf(t.FromStep).LastOrDefault(e => e.Type == RoundEventType.Replied
+                                                                            && string.Equals(e.Reply, t.ReplyId, StringComparison.OrdinalIgnoreCase));
+                if (pressed?.Assign != null && pressed.Assign.TryGetValue(step.Id, out var to) && !string.IsNullOrWhiteSpace(to))
+                    return to.Trim();
+            }
+            return own.FirstOrDefault(e => e.Type != RoundEventType.Replied && !string.IsNullOrWhiteSpace(e.By))?.By.Trim();
         }
 
         /// <summary>La persona scritta nel registro, o ereditata dal passo da cui viene; null se nessuno l'ha ancora detto.</summary>

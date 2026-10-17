@@ -60,7 +60,7 @@
                 (click)="select(item)">
           <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
           <span class="row-dot"></span>
-          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : item.round?.stopped ? 'pause_circle' : 'account_tree') : 'hub' }}</mat-icon>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? (item.message?.personStep ? 'person' : 'smart_toy') : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : item.round?.stopped ? 'pause_circle' : 'account_tree') : 'hub' }}</mat-icon>
           <span class="row-main">
             <span class="row-top">
               <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
@@ -122,7 +122,7 @@
             <div class="round-step" *ngFor="let w of selected.round.steps" [ngClass]="'awaited-' + w.state" [title]="w.note || ''">
               <mat-icon>{{ awaitedIcon(w.state) }}</mat-icon>
               <span class="step-label">{{ w.label }}</span>
-              <span class="step-owner">{{ w.owner || w.agent }}</span>
+              <span class="step-owner">{{ w.owner || w.agent || w.person }}</span>
               <span class="flexExpand"></span>
               <span class="step-silent" *ngIf="w.silent" [title]="'AGENT_MAIL.STEP_SILENT_TIP' | translate">{{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span>
               <button mat-stroked-button class="btn-take-step" *ngIf="w.canTake && !showArchive" (click)="takeStep(selected, w)"
@@ -221,9 +221,14 @@
                 <p class="reply-option-description">{{ r.description }}</p>
                 <!-- Un passo di un agente con un team: chi preme sceglie chi lo fa, e da lì ne risponde quella persona. -->
                 <div class="choose-owner" *ngIf="choosing?.reply === r">
-                  <div class="reply-label">{{ 'AGENT_MAIL.CHOOSE_OWNER_TITLE' | translate }}</div>
+                  <!-- L'esito del passo di una persona porta dei valori: li scrive lei, diventano variabili del giro. -->
+                  <div class="choose-row" *ngFor="let n of choosing.valueNames">
+                    <label [for]="'value-' + n">{{ 'AGENT_MAIL.OUTCOME_VALUE' | translate: { name: n } }}</label>
+                    <input [id]="'value-' + n" class="reply-text" type="text" [(ngModel)]="choosing.values[n]">
+                  </div>
+                  <div class="reply-label" *ngIf="choosing.targets.length">{{ 'AGENT_MAIL.CHOOSE_OWNER_TITLE' | translate }}</div>
                   <div class="choose-row" *ngFor="let t of choosing.targets">
-                    <label [for]="'owner-' + t.step">{{ 'AGENT_MAIL.CHOOSE_OWNER_STEP' | translate: { step: t.label, agent: t.agent } }}</label>
+                    <label [for]="'owner-' + t.step">{{ 'AGENT_MAIL.CHOOSE_OWNER_STEP' | translate: { step: t.label, agent: t.agent || t.person } }}</label>
                     <select [id]="'owner-' + t.step" [(ngModel)]="choosing.picks[t.step]">
                       <option [ngValue]="undefined" disabled>{{ 'AGENT_MAIL.CHOOSE_OWNER_PICK' | translate }}</option>
                       <option *ngFor="let o of t.owners" [ngValue]="o.email">{{ o.name ? o.name + ' (' + o.email + ')' : o.email }}</option>

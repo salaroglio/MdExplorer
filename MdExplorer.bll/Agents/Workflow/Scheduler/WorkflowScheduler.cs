@@ -22,6 +22,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// <summary>Il responsabile non l'ha avviato.</summary>
         Declined,
         Failed,
+        /// <summary>Il passo di una persona: «tocca a te» è nella sua posta, aspetta un esito.</summary>
+        Asked,
         /// <summary>Un giro di un ciclo «for» è approvato, ma ne mancano altri.</summary>
         RoundApproved,
         /// <summary>Finito: approvato (o concluso, se non produce artefatti) in tutti i giri che deve fare.</summary>
@@ -80,6 +82,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         Hold,
         /// <summary>Il passo dovrebbe partire ma non può: c'è un motivo da dire.</summary>
         Blocked,
+        /// <summary>Il passo di una persona: «tocca a te» nella sua posta, con il compito e i pulsanti degli esiti.</summary>
+        Ask,
     }
 
     /// <summary>Una cosa da fare per un passo dei miei agenti. L'esecutore la fa e scrive l'evento corrispondente.</summary>
@@ -92,6 +96,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// <summary>Il lavoro della scheda che il passo fa, e che cosa fa (dalla scheda).</summary>
         public string Skill { get; set; }
         public string SkillDescription { get; set; }
+        /// <summary><see cref="SchedulerActionKind.Ask"/>: il compito della persona, con le variabili sostituite.</summary>
+        public string Task { get; set; }
         /// <summary>Il brief con le variabili sostituite: ciò che il workflow aggiunge al lavoro. Null se non c'è.</summary>
         public string Brief { get; set; }
         /// <summary>Gli ingressi del lavoro, nell'ordine della scheda, risolti per il giro.</summary>
@@ -130,14 +136,17 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             view.RejectionsInRound = current.Count(e => e.Type == RoundEventType.Rejected);
             var last = current.Where(e => e.Attempt == view.Attempt).Last();
 
-            // Un giro conta quando è approvato (con artefatto) o concluso (senza).
-            var producing = step.Produces.Count > 0;
+            // Un giro conta quando è approvato (con artefatto) o concluso (senza). Il passo di una persona si chiude con il
+            // suo esito: i suoi documenti non passano da un'approvazione (se serve, è un altro passo, decisione A di F0).
+            var producing = step.Produces.Count > 0 && !step.IsPerson;
             var closing = producing ? RoundEventType.Approved : RoundEventType.Done;
             var closedRounds = events.Where(e => e.Type == closing).Select(e => e.Round).Distinct().Count();
 
-            var lastApprovedDelivery = events.Where(e => e.Type == RoundEventType.Delivered
-                                                         && events.Any(a => a.Type == RoundEventType.Approved && a.Round == e.Round && a.Attempt == e.Attempt))
-                                             .LastOrDefault();
+            var lastApprovedDelivery = step.IsPerson
+                ? events.LastOrDefault(e => e.Type == RoundEventType.Done)
+                : events.Where(e => e.Type == RoundEventType.Delivered
+                                    && events.Any(a => a.Type == RoundEventType.Approved && a.Round == e.Round && a.Attempt == e.Attempt))
+                        .LastOrDefault();
             view.ApprovedFiles = lastApprovedDelivery?.Files?.ToList() ?? (IReadOnlyList<string>)Array.Empty<string>();
             view.ApprovedCommit = lastApprovedDelivery == null ? null
                 : events.LastOrDefault(a => a.Type == RoundEventType.Approved && a.Round == lastApprovedDelivery.Round
@@ -146,6 +155,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             view.Status = last.Type switch
             {
                 RoundEventType.Held => StepStatus.Held,
+                RoundEventType.Asked => StepStatus.Asked,
                 RoundEventType.Started => StepStatus.Working,
                 // Senza artefatto non c'è niente da approvare: una consegna vuota vale come conclusa.
                 RoundEventType.Delivered => producing ? StepStatus.Delivered : StepStatus.Working,
@@ -187,10 +197,16 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var variables = round.Variables;
             var actions = new List<SchedulerAction>();
 
-            // I passi delle persone non si avviano: aspettano loro (sprint workflow v3, F4).
-            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && !s.IsPerson && isMine(s)))
+            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && isMine(s)))
             {
                 var view = views[step.Id];
+                // Il passo di una persona non si avvia: le tocca, e lo chiude lei con un esito (workflow v3, F4).
+                if (step.IsPerson)
+                {
+                    if (view.Status == StepStatus.NotStarted && TriggerSatisfied(wf, round, views, step))
+                        actions.Add(BeginPerson(wf, step, views, variables));
+                    continue;
+                }
                 // Un lancio lo fa la persona: lo schedulatore non apre i giri, li prosegue.
                 if (step.Trigger.Kind == WorkflowTriggerKind.Launch) continue;
 
@@ -255,6 +271,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             {
                 case StepStatus.Finished:
                 case StepStatus.Held:
+                case StepStatus.Asked:
                 case StepStatus.Working:
                 case StepStatus.RoundApproved:
                 case StepStatus.Delivered:
@@ -321,6 +338,16 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         }
 
         /// <summary>
+        /// Il «tocca a te» di un passo di una persona, ricomposto dal registro: per rimetterlo in posta su un computer che
+        /// non l'ha (un cambio di responsabile) e per sapere, quando chiude, quali versioni ha ricevuto.
+        /// </summary>
+        public static SchedulerAction Ask(WorkflowDescriptor wf, RoundState round, WorkflowStep step)
+        {
+            if (!step.IsPerson) throw new InvalidOperationException($"step '{step.Id}' is an agent's step, not a person's.");
+            return BeginPerson(wf, step, Views(wf, round), round.Variables);
+        }
+
+        /// <summary>
         /// Un passo rifiutato che la persona fa ripartire: lo stesso incarico, al tentativo dopo, con il motivo del rifiuto.
         /// Se non si può comporre (un ingresso non c'è più) si dice perché invece di partire sul niente.
         /// </summary>
@@ -371,25 +398,65 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             }
 
             if (missing.Count > 0 || empty.Count > 0)
-            {
-                var reasons = new List<string>();
-                if (missing.Count > 0)
-                    reasons.Add(UiText.Say($"nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}",
-                                           $"the round is missing the value of {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}"));
-                reasons.AddRange(empty);
-                return new SchedulerAction
-                {
-                    Kind = SchedulerActionKind.Blocked, Step = step, Round = round, Attempt = attempt,
-                    Reason = UiText.Say($"«{step.Label}» non può partire: {string.Join("; ", reasons)}.",
-                                        $"«{step.Label}» cannot start: {string.Join("; ", reasons)}."),
-                };
-            }
+                return Blocked(step, round, attempt, missing, empty);
 
             return new SchedulerAction
             {
                 Kind = step.Start == WorkflowStart.AskOwner ? SchedulerActionKind.Hold : SchedulerActionKind.Start,
                 Step = step, Round = round, Attempt = attempt, Skill = skill.Id, SkillDescription = skill.Description,
                 Brief = brief, Inputs = inputs, Outputs = step.Outputs.ToList(), ReworkNote = reworkNote,
+            };
+        }
+
+        /// <summary>
+        /// Il passo di una persona: il compito con le variabili del giro, gli ingressi risolti come per un agente, i documenti
+        /// che scrive, gli esiti. Se manca qualcosa non le tocca e si dice perché: come a un agente.
+        /// </summary>
+        private static SchedulerAction BeginPerson(WorkflowDescriptor wf, WorkflowStep step, IReadOnlyDictionary<string, StepView> views,
+            IReadOnlyDictionary<string, string> variables)
+        {
+            var missing = new List<string>();
+            string Fill(string text) => text == null ? null : Placeholder.Replace(text, m =>
+            {
+                if (variables.TryGetValue(m.Groups[1].Value, out var v)) return v;
+                missing.Add(m.Groups[1].Value);
+                return m.Value;
+            });
+            var task = Fill(step.Task);
+            var inputs = new List<AssignmentInput>();
+            var empty = new List<string>();
+            foreach (var (name, value) in step.Inputs)
+            {
+                var input = new AssignmentInput { Id = name };
+                if (value.Text != null) input.Text = Fill(value.Text);
+                else
+                {
+                    var why = FilesOf(wf, step, views, value, input.Files);
+                    if (input.Files.Count == 0) empty.Add(UiText.Say($"l'ingresso «{name}» non ha file ({why})", $"input «{name}» has no file ({why})"));
+                    else if (why != null) empty.Add(UiText.Say($"l'ingresso «{name}» è incompleto ({why})", $"input «{name}» is incomplete ({why})"));
+                }
+                inputs.Add(input);
+            }
+            if (missing.Count > 0 || empty.Count > 0)
+                return Blocked(step, 1, 1, missing, empty);
+            return new SchedulerAction
+            {
+                Kind = SchedulerActionKind.Ask, Step = step, Task = task, Inputs = inputs, Outputs = step.Outputs.ToList(),
+            };
+        }
+
+        private static SchedulerAction Blocked(WorkflowStep step, int round, int attempt, List<string> missing, List<string> empty)
+        {
+            var reasons = new List<string>();
+            if (missing.Count > 0)
+                reasons.Add(UiText.Say($"nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}",
+                                       $"the round is missing the value of {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}"));
+            reasons.AddRange(empty);
+            return new SchedulerAction
+            {
+                Kind = SchedulerActionKind.Blocked, Step = step, Round = round, Attempt = attempt,
+                Reason = UiText.Say($"«{step.Label}» non può partire: {string.Join("; ", reasons)}.",
+                                    $"«{step.Label}» cannot start: {string.Join("; ", reasons)}."),
             };
         }
 

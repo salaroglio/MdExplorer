@@ -62,7 +62,15 @@ namespace MdExplorer.Services.AgentRun
         /// sempre. <paramref name="assign"/>: a chi va ogni passo che il pulsante fa partire, per gli agenti di un team (W22).
         /// Throws <see cref="InvalidOperationException"/>, con cosa fare, se manca una scelta o non va bene.
         /// </summary>
-        bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null);
+        /// <paramref name="values"/>: i valori che la persona ha scritto per l'esito di un suo passo (workflow v3, F4).
+        bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null,
+            IReadOnlyDictionary<string, string> values = null);
+
+        /// <summary>
+        /// Il «tocca a te» del passo di una persona non aspetta più un esito: l'ha dato, o il passo non c'è più. Per la posta:
+        /// un messaggio chiuso non è «da fare».
+        /// </summary>
+        bool IsPersonStepClosed(AgentMessage message);
 
         /// <summary>I passi che un pulsante farebbe partire, con chi ne può rispondere: per far scegliere chi preme (W22).</summary>
         IReadOnlyList<ReplyTarget> ReplyTargets(string projectPath, AgentMessage answered, string replyId);
@@ -145,11 +153,13 @@ namespace MdExplorer.Services.AgentRun
         public string Step { get; init; }
         public string Label { get; init; }
         public string Agent { get; init; }
+        /// <summary>Il passo di una persona: il suo ruolo (e <see cref="Agent"/> è null).</summary>
+        public string Person { get; init; }
         /// <summary>Chi ne risponde, se si sa.</summary>
         public string Owner { get; init; }
         /// <summary>Il passo è di chi non risponde più dell'agente e io posso prenderlo («Prendo io»).</summary>
         public bool CanTake { get; init; }
-        /// <summary>waiting · tostart · declined · working · approval · approved · rejected · done · failed</summary>
+        /// <summary>waiting · tostart · asked (tocca a una persona) · declined · working · approval · approved · rejected · done · failed</summary>
         public string State { get; init; }
         public string Note { get; init; }
         /// <summary>
@@ -165,6 +175,8 @@ namespace MdExplorer.Services.AgentRun
         public string Step { get; init; }
         public string Label { get; init; }
         public string Agent { get; init; }
+        /// <summary>Il passo di una persona: il suo ruolo (e <see cref="Agent"/> è null).</summary>
+        public string Person { get; init; }
         public IReadOnlyList<AgentOwnerPerson> Owners { get; init; } = Array.Empty<AgentOwnerPerson>();
         /// <summary>Più responsabili: chi preme deve scegliere.</summary>
         public bool NeedsChoice => Owners.Count > 1;
@@ -345,18 +357,24 @@ namespace MdExplorer.Services.AgentRun
 
         public IReadOnlyList<ReplyTarget> ReplyTargets(string projectPath, AgentMessage answered, string replyId)
         {
-            var link = answered == null ? null : LinkOfRun(projectPath, answered.RunId);
+            var link = answered == null ? null : SourceOf(projectPath, answered);
             var wf = link == null ? null : WorkflowFor(projectPath, link.RoundId);
             if (wf == null) return Array.Empty<ReplyTarget>();
             return wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.Reply && s.Trigger.FromStep == link.Step
                                        && string.Equals(s.Trigger.ReplyId, replyId, StringComparison.OrdinalIgnoreCase))
-                .Select(s => new ReplyTarget { Step = s.Id, Label = s.Label, Agent = s.Agent, Owners = Team(projectPath, s.Agent) })
+                .Select(s => new ReplyTarget { Step = s.Id, Label = s.Label, Agent = s.Agent, Person = s.Person, Owners = TeamOf(projectPath, s) })
                 .ToList();
         }
 
-        public bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null)
+        public bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null,
+            IReadOnlyDictionary<string, string> values = null)
         {
             if (answered == null || chosen == null) return false;
+            if (answered.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource)
+            {
+                ClosePersonStep(answered, chosen, assign, values);
+                return true;
+            }
             var wf = Workflow(projectPath, out var jsonPath);
             if (wf == null) return false;
             var link = LinkOfRun(projectPath, answered.RunId);
@@ -369,25 +387,7 @@ namespace MdExplorer.Services.AgentRun
                 throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Questo pulsante è di prima dello schedulatore e non porta i suoi valori: rilancia la ricerca per avere i pulsanti nuovi.", "This button predates the scheduler and does not carry its values: launch the search again to get the new buttons."));
 
             // Chi preme sceglie a chi va ogni passo di un agente con un team (W22); con un solo responsabile non c'è scelta.
-            var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var t in ReplyTargets(projectPath, answered, chosen.Id))
-            {
-                string to = null;
-                assign?.TryGetValue(t.Step, out to);
-                if (string.IsNullOrWhiteSpace(to))
-                {
-                    if (t.NeedsChoice)
-                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
-                            $"«{t.Label}»: l'agente '{t.Agent}' ha più responsabili ({string.Join(", ", t.Owners.Select(o => o.Email))}): scegli a chi va.",
-                            $"«{t.Label}»: agent '{t.Agent}' has more than one owner ({string.Join(", ", t.Owners.Select(o => o.Email))}): choose who gets it."));
-                    continue;
-                }
-                if (!t.Owners.Any(o => string.Equals(o.Email, to.Trim(), StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
-                        $"«{t.Label}»: {to} non risponde dell'agente '{t.Agent}' (ne rispondono {(t.Owners.Count == 0 ? "nessuno" : string.Join(", ", t.Owners.Select(o => o.Email)))}).",
-                        $"«{t.Label}»: {to} is not an owner of agent '{t.Agent}' (owners: {(t.Owners.Count == 0 ? "none" : string.Join(", ", t.Owners.Select(o => o.Email)))})."));
-                assignments[t.Step] = to.Trim().ToLowerInvariant();
-            }
+            var assignments = Assignments(projectPath, answered, chosen.Id, assign);
 
             var source = wf.Step(link.Step);
             var target = Locked(projectPath, () =>
@@ -432,6 +432,160 @@ namespace MdExplorer.Services.AgentRun
             });
             if (target != null) Evaluate(projectPath, target);
             return true;
+        }
+
+        /// <summary>
+        /// Chi preme un pulsante sceglie a chi va ogni passo che fa partire, quando il suo agente o il suo ruolo è di un team
+        /// (W22); con una persona sola non c'è scelta. Throws con cosa fare se manca una scelta o non va bene.
+        /// </summary>
+        private Dictionary<string, string> Assignments(string projectPath, AgentMessage answered, string replyId, IReadOnlyDictionary<string, string> assign)
+        {
+            var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var t in ReplyTargets(projectPath, answered, replyId))
+            {
+                var who = t.Person != null
+                    ? MdExplorer.Features.Services.UiText.Say($"il ruolo «{t.Person}»", $"the role «{t.Person}»")
+                    : MdExplorer.Features.Services.UiText.Say($"l'agente '{t.Agent}'", $"agent '{t.Agent}'");
+                string to = null;
+                assign?.TryGetValue(t.Step, out to);
+                if (string.IsNullOrWhiteSpace(to))
+                {
+                    if (t.NeedsChoice)
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                            $"«{t.Label}»: {who} è di più persone ({string.Join(", ", t.Owners.Select(o => o.Email))}): scegli a chi va.",
+                            $"«{t.Label}»: {who} belongs to more than one person ({string.Join(", ", t.Owners.Select(o => o.Email))}): choose who gets it."));
+                    continue;
+                }
+                if (!t.Owners.Any(o => string.Equals(o.Email, to.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                        $"«{t.Label}»: {to} non è fra chi ha {who} ({(t.Owners.Count == 0 ? "nessuno" : string.Join(", ", t.Owners.Select(o => o.Email)))}).",
+                        $"«{t.Label}»: {to} is not among those who have {who} ({(t.Owners.Count == 0 ? "no one" : string.Join(", ", t.Owners.Select(o => o.Email)))})."));
+                assignments[t.Step] = to.Trim().ToLowerInvariant();
+            }
+            return assignments;
+        }
+
+        /// <summary>
+        /// La persona chiude il suo passo con un esito (workflow v3, F4). Solo chi ne risponde, solo mentre le tocca. Prima si
+        /// controllano i valori dell'esito e i documenti che il passo dichiara: scritti, nel commit, pubblicati. Poi il registro
+        /// scrive l'esito (con i valori e le scelte per i passi che fa partire) e la chiusura (documenti, commit, versioni ricevute).
+        /// </summary>
+        private void ClosePersonStep(AgentMessage message, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign,
+            IReadOnlyDictionary<string, string> values)
+        {
+            var projectPath = message.ProjectPath;
+            var wf = WorkflowFor(projectPath, message.WorkflowRound)
+                ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Il progetto non ha un workflow attivo.", "The project has no active workflow."));
+            var step = wf.Step(message.WorkflowStep);
+            if (step?.IsPerson != true)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il passo '{message.WorkflowStep}' non è il passo di una persona nel workflow del giro.", $"Step '{message.WorkflowStep}' is not a person's step in the round's workflow."));
+            var outcome = step.Outcomes.FirstOrDefault(o => string.Equals(o.Id, chosen.Id, StringComparison.Ordinal))
+                ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"'{chosen.Id}' non è un esito di «{step.Label}».", $"'{chosen.Id}' is not an outcome of «{step.Label}»."));
+
+            var carried = new Dictionary<string, string>(StringComparer.Ordinal);
+            var missing = new List<string>();
+            foreach (var name in outcome.Values)
+            {
+                string v = null;
+                values?.TryGetValue(name, out v);
+                if (string.IsNullOrWhiteSpace(v)) missing.Add(name);
+                else carried[name] = v.Trim();
+            }
+            if (missing.Count > 0)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"«{outcome.Label}» porta {string.Join(", ", missing.Select(n => "{" + n + "}"))}: scrivilo prima di premere.",
+                    $"«{outcome.Label}» carries {string.Join(", ", missing.Select(n => "{" + n + "}"))}: write it before pressing."));
+
+            var assignments = Assignments(projectPath, message, outcome.Id, assign);
+            var me = Me(projectPath);
+            Locked(projectPath, () =>
+            {
+                var round = RoundLedger.Load(_store.Root(projectPath), message.WorkflowRound);
+                var owner = OwnerOf(projectPath, wf, round, step);
+                if (!Same(owner.Email, me))
+                    throw new InvalidOperationException(owner.Email != null
+                        ? MdExplorer.Features.Services.UiText.Say($"«{step.Label}» tocca a {owner.Email}: lo chiude lei, dal suo computer.", $"«{step.Label}» is {owner.Email}'s turn: they close it, from their own computer.")
+                        : owner.Problem);
+                var view = WorkflowScheduler.View(wf, round, step);
+                if (view.Status != StepStatus.Asked)
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» non aspetta un esito ({view.Status}).", $"«{step.Label}» is not waiting for an outcome ({view.Status})."));
+
+                var (files, commit) = PersonDocuments(projectPath, step, view.Last?.Commit);
+                var received = WorkflowScheduler.Ask(wf, round, step).Inputs.SelectMany(i => i.Files)
+                    .Select(f => f.Commit == null ? f.Path : f.Path + "@" + f.Commit).ToList();
+                var now = DateTime.UtcNow;
+                RoundLedger.Append(_store.Root(projectPath), message.WorkflowRound, step.Id, null, new RoundEvent
+                {
+                    Type = RoundEventType.Replied, At = now, By = me, Reply = outcome.Id,
+                    Values = carried.Count > 0 ? carried : null, Assign = assignments.Count > 0 ? assignments : null,
+                });
+                Write(projectPath, message.WorkflowRound, step, new RoundEvent
+                {
+                    Type = RoundEventType.Done, At = now, By = me, Files = files, Commit = commit,
+                    Received = received.Count > 0 ? received : null,
+                }, $"giro {message.WorkflowRound}: «{step.Label}» — {outcome.Label}");
+            });
+            MarkRead(message.Id);
+            _logger.LogInformation("[Workflow] giro {Round}: «{Step}» chiuso da {Me} con «{Outcome}»", message.WorkflowRound, step.Label, me, outcome.Label);
+            Evaluate(projectPath, message.WorkflowRound);
+        }
+
+        /// <summary>
+        /// I documenti che il passo di una persona dichiara (<c>produces</c>): per ognuno almeno un file cambiato da quando il
+        /// passo le è toccato, senza modifiche fuori dal commit, e il commit pubblicato (chi viene dopo lo legge dal suo
+        /// computer). Niente di questo si indovina: manca qualcosa = si dice che cosa fare. Torna i file e il loro ultimo commit.
+        /// </summary>
+        private (List<string> Files, string Commit) PersonDocuments(string projectPath, WorkflowStep step, string askedCommit)
+        {
+            if (step.Outputs.Count == 0) return (null, null);
+            string Say(string it, string en) => MdExplorer.Features.Services.UiText.Say(it, en);
+            if (string.IsNullOrWhiteSpace(askedCommit))
+                throw new InvalidOperationException(Say($"Il registro non dice da quale commit «{step.Label}» è toccato a te: non si può sapere quali documenti hai scritto.",
+                    $"The ledger does not say from which commit «{step.Label}» became your turn: there is no way to know which documents you wrote."));
+
+            var prefix = Git(projectPath, "rev-parse", "--show-prefix").Out.Trim();
+            var dirty = Git(projectPath, "status", "--porcelain=v1", "--untracked-files=all").Out
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Length > 3 ? l.Substring(3).Trim().Trim('"') : "")
+                .Select(p => p.Contains(" -> ") ? p.Substring(p.IndexOf(" -> ", StringComparison.Ordinal) + 4) : p)
+                .Where(p => p.StartsWith(prefix, StringComparison.Ordinal)).Select(p => p.Substring(prefix.Length)).ToList();
+            var diff = Git(projectPath, "diff", "--name-only", "--relative", askedCommit, "HEAD");
+            if (diff.Code != 0)
+                throw new InvalidOperationException(Say($"Non riesco a confrontare i documenti con il commit {askedCommit}: {diff.Err.Trim()}",
+                    $"I cannot compare the documents with commit {askedCommit}: {diff.Err.Trim()}"));
+            var changed = diff.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
+
+            var files = new List<string>();
+            foreach (var o in step.Outputs)
+            {
+                var notCommitted = dirty.Where(p => WorkflowScheduler.Matches(o.Path, p)).ToList();
+                if (notCommitted.Count > 0)
+                    throw new InvalidOperationException(Say($"«{o.Id}»: {string.Join(", ", notCommitted)} ha modifiche fuori dal commit. Fai il commit e pubblicalo, poi chiudi il passo.",
+                        $"«{o.Id}»: {string.Join(", ", notCommitted)} has changes outside the commit. Commit and publish them, then close the step."));
+                var mine = changed.Where(p => WorkflowScheduler.Matches(o.Path, p)).ToList();
+                if (mine.Count == 0)
+                    throw new InvalidOperationException(Say($"«{o.Id}»: da quando il passo ti è toccato non hai scritto {o.Path}. Scrivilo, fai il commit e pubblicalo, poi chiudi il passo.",
+                        $"«{o.Id}»: since the step became your turn you have not written {o.Path}. Write it, commit and publish it, then close the step."));
+                files.AddRange(mine);
+            }
+            var last = Git(projectPath, new[] { "log", "-1", "--format=%H", askedCommit + "..HEAD", "--" }.Concat(files).ToArray()).Out.Trim();
+            var upstream = Git(projectPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}");
+            if (upstream.Code != 0)
+                throw new InvalidOperationException(Say("Il ramo non ha un remoto: pubblicalo, così chi viene dopo legge i tuoi documenti.",
+                    "The branch has no remote: publish it, so whoever comes next can read your documents."));
+            if (Git(projectPath, "merge-base", "--is-ancestor", last, "@{u}").Code != 0)
+                throw new InvalidOperationException(Say($"Il commit dei tuoi documenti ({last}) non è pubblicato su {upstream.Out.Trim()}: pubblicalo, poi chiudi il passo.",
+                    $"The commit of your documents ({last}) is not published on {upstream.Out.Trim()}: publish it, then close the step."));
+            return (files.Distinct().ToList(), last);
+        }
+
+        public bool IsPersonStepClosed(AgentMessage message)
+        {
+            if (message?.TriggerSource != MdExplorer.Features.Agents.AgentTexts.PersonStepSource || message.WorkflowRound == null) return false;
+            var wf = WorkflowFor(message.ProjectPath, message.WorkflowRound);
+            var step = wf?.Step(message.WorkflowStep);
+            if (step == null) return true;
+            return WorkflowScheduler.View(wf, RoundLedger.Load(_store.Root(message.ProjectPath), message.WorkflowRound), step).Status != StepStatus.Asked;
         }
 
         public void OnOwnerStarted(AgentMessage message)
@@ -488,7 +642,9 @@ namespace MdExplorer.Services.AgentRun
                                 Withdraw(projectPath, id, step, owner.Email ?? owner.Problem);
                                 continue;
                             }
-                            if (view.Status == StepStatus.Held && !HasPendingAssignment(projectPath, id, step.Id))
+                            if (view.Status == StepStatus.Asked && !HasPersonMessage(projectPath, id, step.Id))
+                                Execute(projectPath, id, WorkflowScheduler.Ask(wf, round, step), startedBy: null, resumed: true);
+                            else if (view.Status == StepStatus.Held && !HasPendingAssignment(projectPath, id, step.Id))
                                 Execute(projectPath, id, WorkflowScheduler.Resume(wf, round, step), startedBy: null, resumed: true);
                             else if (view.Status == StepStatus.Delivered)
                                 AdoptDelivery(projectPath, id, step, view.Last);
@@ -661,18 +817,19 @@ namespace MdExplorer.Services.AgentRun
             {
                 StepStatus.NotStarted => "waiting",
                 StepStatus.Held => "tostart",
+                StepStatus.Asked => "asked",
                 StepStatus.Declined => "declined",
                 StepStatus.Working or StepStatus.RoundApproved => "working",
                 StepStatus.Delivered => "approval",
                 StepStatus.Rejected => "rejected",
                 StepStatus.Failed => "failed",
-                StepStatus.Finished => step.Produces.Count > 0 ? "approved" : "done",
+                StepStatus.Finished => step.Produces.Count > 0 && !step.IsPerson ? "approved" : "done",
                 _ => "working",
             };
             return new RoundProgress
             {
                 Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
-                Agent = step.Agent, Owner = owner.Email, State = state,
+                Agent = step.Agent, Person = step.Person, Owner = owner.Email, State = state,
                 CanTake = owner.CanTake.Any(e => Same(e, Me(projectPath))),
                 Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
                 Silent = state is "approval" or "approved" or "done" && Silent(round, step, wrote),
@@ -689,7 +846,12 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>Chi risponde del passo, dal registro e dal documento delle responsabilità (W22).</summary>
         private StepOwner OwnerOf(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step)
-            => StepOwners.Of(wf, round, step, agent => Team(projectPath, agent).Select(o => o.Email).ToList());
+            => StepOwners.Of(wf, round, step, agent => Team(projectPath, agent).Select(o => o.Email).ToList(),
+                role => AgentOwnerRule.Members(_ownership.GetActiveOwnership(projectPath), role).Select(o => o.Email).ToList());
+
+        /// <summary>Chi può fare un passo: chi risponde del suo agente, o chi ha il suo ruolo.</summary>
+        private IReadOnlyList<AgentOwnerPerson> TeamOf(string projectPath, WorkflowStep step)
+            => step.IsPerson ? AgentOwnerRule.Members(_ownership.GetActiveOwnership(projectPath), step.Person) : Team(projectPath, step.Agent);
 
         /// <summary>Chi risponde di un agente: una persona o un team.</summary>
         private IReadOnlyList<AgentOwnerPerson> Team(string projectPath, string agent)
@@ -702,10 +864,20 @@ namespace MdExplorer.Services.AgentRun
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
             db.BeginTransaction();
             var dal = db.GetDal<AgentMessage>();
-            var held = dal.GetList().ToList().Where(m => m.State == AgentMessage.StateEnum.Pending && m.WorkflowRound == roundId
+            // Il «tocca a te» di una persona è già consegnato (processed) appena entra in posta: lo si ritira finché non è archiviato.
+            var held = dal.GetList().ToList().Where(m => (m.State == AgentMessage.StateEnum.Pending
+                                                          || m.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource && m.ArchivedAt == null)
+                                                         && m.WorkflowRound == roundId
                                                          && m.WorkflowStep == step.Id && AgentPathComparer.Equals(m.ProjectPath, projectPath)).ToList();
             foreach (var m in held)
             {
+                if (m.ToAgent == ConversationHopGuard.UserRecipient)
+                {
+                    // Il «tocca a te» di un passo di una persona: non è un lavoro fallito, è passato a un altro.
+                    m.ArchivedAt = m.ReadAt = DateTime.UtcNow;
+                    dal.Save(m);
+                    continue;
+                }
                 m.State = AgentMessage.StateEnum.Failed;
                 m.Error = MdExplorer.Features.Services.UiText.Say($"«{step.Label}» ora è di {who}: lo riprende il suo MdExplorer.", $"«{step.Label}» now belongs to {who}: their MdExplorer picks it up.");
                 m.ProcessedAt = DateTime.UtcNow;
@@ -716,6 +888,30 @@ namespace MdExplorer.Services.AgentRun
             db.Commit();
             if (held.Count > 0)
                 _logger.LogInformation("[Workflow] giro {Round}: «{Step}» passato a {Who}, tolto dalla posta di questo computer", roundId, step.Label, who);
+        }
+
+        /// <summary>Questo computer ha già messo in posta il «tocca a te» del passo (anche se la persona l'ha archiviato).</summary>
+        private bool HasPersonMessage(string projectPath, string roundId, string stepId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var found = db.GetDal<AgentMessage>().GetList().ToList().Any(m => m.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource
+                                                                           && m.WorkflowRound == roundId && m.WorkflowStep == stepId
+                                                                           && AgentPathComparer.Equals(m.ProjectPath, projectPath));
+            db.Commit();
+            return found;
+        }
+
+        private void MarkRead(Guid messageId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentMessage>();
+            var m = dal.GetList().FirstOrDefault(x => x.Id == messageId);
+            if (m != null && m.ReadAt == null) { m.ReadAt = DateTime.UtcNow; dal.Save(m); }
+            db.Commit();
         }
 
         private bool HasPendingAssignment(string projectPath, string roundId, string stepId)
@@ -787,7 +983,7 @@ namespace MdExplorer.Services.AgentRun
                         if (_told.TryAdd($"{projectPath}|{roundId}|{s.Id}|owner|{owners[s.Id].Problem}", 0))
                         {
                             _logger.LogWarning("[Workflow] giro {Round}: {Problem}", roundId, owners[s.Id].Problem);
-                            TellUser(projectPath, s.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                            TellUser(projectPath, s.Agent ?? MdExplorer.Features.Agents.AgentTexts.PersonStepSender, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
                                 $"Il giro {roundId} è fermo: {owners[s.Id].Problem}", $"Round {roundId} is stopped: {owners[s.Id].Problem}"));
                         }
                     foreach (var action in actions)
@@ -810,9 +1006,14 @@ namespace MdExplorer.Services.AgentRun
                 if (_told.TryAdd($"{projectPath}|{roundId}|{step.Id}|{action.Round}|{action.Attempt}|{action.Reason}", 0))
                 {
                     _logger.LogWarning("[Workflow] giro {Round}: {Reason}", roundId, action.Reason);
-                    TellUser(projectPath, step.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                    TellUser(projectPath, step.Agent ?? MdExplorer.Features.Agents.AgentTexts.PersonStepSender, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
                         $"Il giro {roundId} è fermo: {action.Reason}", $"Round {roundId} is stopped: {action.Reason}"));
                 }
+                return;
+            }
+            if (action.Kind == SchedulerActionKind.Ask)
+            {
+                AskPerson(projectPath, roundId, action, resumed);
                 return;
             }
 
@@ -859,6 +1060,58 @@ namespace MdExplorer.Services.AgentRun
         }
 
         // ---- registro e git ----
+
+        /// <summary>
+        /// «Tocca a te» nella posta della persona: il compito, che cosa riceve, che cosa scrive, e gli esiti come pulsanti.
+        /// La prima volta il registro scrive «asked» con il commit del progetto (da lì si contano i suoi documenti); ripreso su
+        /// un altro computer, il messaggio torna in posta e il registro resta com'è. Va chiamato sotto il lock.
+        /// </summary>
+        private void AskPerson(string projectPath, string roundId, SchedulerAction action, bool resumed)
+        {
+            var step = action.Step;
+            var replies = step.Outcomes.Select(o => new ResolvedReply
+            {
+                Id = o.Id, Label = o.Label, Message = o.Label,
+                Description = o.Values.Count == 0 ? "" : MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                    "Porta " + string.Join(", ", o.Values.Select(v => "{" + v + "}")) + ".", "Carries " + string.Join(", ", o.Values.Select(v => "{" + v + "}")) + "."),
+                Values = o.Values.ToDictionary(v => v, _ => "", StringComparer.Ordinal),
+            }).ToList();
+            string head = null;
+            if (!resumed)
+            {
+                var h = Git(projectPath, "rev-parse", "HEAD");
+                if (h.Code != 0)
+                {
+                    _logger.LogError("[Workflow] giro {Round}: «{Step}» non può toccare alla persona, il progetto non ha un commit: {Err}", roundId, step.Label, h.Err);
+                    return;
+                }
+                head = h.Out.Trim();
+            }
+            var result = _mailbox.Enqueue(new EnqueueRequest
+            {
+                ProjectPath = projectPath,
+                FromAgent = MdExplorer.Features.Agents.AgentTexts.PersonStepSender,
+                ToAgent = ConversationHopGuard.UserRecipient,
+                Body = MdExplorer.Features.Agents.AgentTexts.PersonTurn(_language.Current, action, roundId),
+                Replies = System.Text.Json.JsonSerializer.Serialize(replies),
+                TriggerSource = MdExplorer.Features.Agents.AgentTexts.PersonStepSource,
+                WorkflowRound = roundId,
+                WorkflowStep = step.Id,
+                WorkflowRoundNo = 1,
+                WorkflowAttempt = 1,
+            });
+            if (!result.Accepted)
+            {
+                _logger.LogError("[Workflow] giro {Round}: «tocca a te» di «{Step}» non entrato in posta: {Why}", roundId, step.Label, result.RejectionReason);
+                return;
+            }
+            if (!resumed)
+                Write(projectPath, roundId, step, new RoundEvent
+                {
+                    Type = RoundEventType.Asked, At = DateTime.UtcNow, By = Me(projectPath), Commit = head,
+                }, $"giro {roundId}: «{step.Label}» tocca a {Me(projectPath)}");
+            _logger.LogInformation("[Workflow] giro {Round}: «{Step}» tocca a {Me}{Resumed}", roundId, step.Label, Me(projectPath), resumed ? " (ripreso)" : "");
+        }
 
         /// <summary>Scrive un evento nel file del passo e lo committa (solo quei file). Va chiamato sotto il lock.</summary>
         private void Write(string projectPath, string roundId, WorkflowStep step, RoundEvent evt, string commitMessage)
@@ -926,6 +1179,15 @@ namespace MdExplorer.Services.AgentRun
             }
             return found.OrderBy(r => r.Header.StartedAt).ToList();
         }
+
+        /// <summary>
+        /// Il passo sotto il cui messaggio stanno i pulsanti: il «tocca a te» di una persona lo porta scritto; il messaggio di un
+        /// agente lo ricava dal turno che l'ha scritto.
+        /// </summary>
+        private Link SourceOf(string projectPath, AgentMessage message)
+            => message.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource && message.WorkflowRound != null
+                ? new Link { RoundId = message.WorkflowRound, Step = message.WorkflowStep }
+                : LinkOfRun(projectPath, message.RunId);
 
         /// <summary>Il passo di un giro che un incarico dello schedulatore fa partire: scritto sul messaggio.</summary>
         private Link LinkOfMessage(Guid messageId)

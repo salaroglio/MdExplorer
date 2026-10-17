@@ -2025,7 +2025,8 @@
     "TOSTART_DECLINE_LABEL": "Why don't you start it? {{from}} reads it",
     "TOSTART_DECLINE_PLACEHOLDER": "For example: this tender is not for us, let's talk",
     "TOSTART_DECLINE_CONFIRM": "Don't start it",
-    "CHOOSE_OWNER_TITLE": "Who does it? This agent has more than one responsible: from here on the step belongs to whom you choose, and works on their computer.",
+    "CHOOSE_OWNER_TITLE": "Who does it? More than one person can do it: from here on the step belongs to whom you choose, and works on their computer.",
+    "OUTCOME_VALUE": "Write {{name}}",
     "CHOOSE_OWNER_STEP": "«{{step}}» ({{agent}})",
     "CHOOSE_OWNER_PICK": "Choose a person",
     "TOSTART_PASS": "Pass to a colleague",
@@ -2036,6 +2037,7 @@
     "TOSTART_PASSED": "«{{step}}» passed to {{to}}: it is now in their mail.",
     "TOSTART_DECLINED": "The assignment for {{agent}} did not start: whoever asked sees your reason.",
     "TOSTART_NO_CARD": "I can't find {{agent}}'s card in the project: I can't open the launch screen.",
+    "AWAITED_asked": "a person's turn",
     "AWAITED_tostart": "waiting for its owner to start it",
     "AWAITED_declined": "its owner did not start it"
   },

@@ -50,7 +50,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 var view = views[step.Id];
                 DateTime? since = view.Status switch
                 {
-                    StepStatus.Held or StepStatus.Working => view.Last?.At,
+                    StepStatus.Held or StepStatus.Asked or StepStatus.Working => view.Last?.At,
                     StepStatus.NotStarted when step.Trigger.Kind != WorkflowTriggerKind.Launch
                                                && WorkflowScheduler.TriggerSatisfied(wf, round, views, step)
                         => LastNews(wf, round, step),

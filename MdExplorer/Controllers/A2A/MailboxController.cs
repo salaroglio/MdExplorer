@@ -455,6 +455,23 @@ namespace MdExplorer.Controllers.A2A
 
             var toAgent = lastToUser.FromAgent;
 
+            // Il «tocca a te» di un passo di una persona (workflow v3, F4): un pulsante è il suo esito e chiude il passo; non
+            // c'è un agente a cui rispondere, né testo libero.
+            if (lastToUser.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource)
+            {
+                if (request.Choice != true)
+                    return UnprocessableEntity(new { error = UiText.Say("Questo passo si chiude con uno dei suoi pulsanti.", "This step is closed with one of its buttons.") });
+                var outcomes = string.IsNullOrWhiteSpace(lastToUser.Replies)
+                    ? new List<ResolvedReply>()
+                    : System.Text.Json.JsonSerializer.Deserialize<List<ResolvedReply>>(lastToUser.Replies) ?? new List<ResolvedReply>();
+                var outcome = outcomes.FirstOrDefault(r => string.Equals(r.Message?.Trim(), request.Body.Trim(), StringComparison.Ordinal));
+                if (outcome == null)
+                    return UnprocessableEntity(new { error = UiText.Say($"'{request.Body.Trim()}' non è un esito di questo passo.", $"'{request.Body.Trim()}' is not an outcome of this step.") });
+                try { _workflow.TryReply(conversation.ProjectPath, lastToUser, outcome, request.Assign, request.Values); }
+                catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
+                return Ok(new { accepted = true, conversationId = convId.ToString(), toAgent, workflow = true });
+            }
+
             // L'ordine lo garantisce il servizio, non l'agente: finché l'artefatto del turno che ha scritto quel
             // messaggio non è approvato, la risposta non parte. Rispondere prima farebbe proseguire un lavoro
             // la cui base nessuno ha ancora approvato; rifiutato, quel ramo è chiuso.
@@ -705,6 +722,11 @@ namespace MdExplorer.Controllers.A2A
         /// </summary>
         private bool Answered(AgentMessage m)
         {
+            if (m.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource)
+            {
+                try { return _workflow.IsPersonStepClosed(m); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] passo {Step} del giro {Round} non letto", m.WorkflowStep, m.WorkflowRound); return false; }
+            }
             if (!string.IsNullOrEmpty(m.RunId))
             {
                 try { if (_workflow.ProgressOfRun(m.ProjectPath, m.RunId).Count > 0) return true; }
@@ -1102,7 +1124,7 @@ namespace MdExplorer.Controllers.A2A
                     if (progress.Count > 0)
                         context.AwaitedByRun[m.RunId] = progress.Select(p => (object)new
                         {
-                            messageId = p.Id, agent = p.Agent, state = p.State, note = p.Note,
+                            messageId = p.Id, agent = p.Agent, person = p.Person, state = p.State, note = p.Note,
                             label = p.Label, owner = p.Owner, round = p.Round, silent = p.Silent,
                         }).ToList();
                 }
@@ -1125,7 +1147,10 @@ namespace MdExplorer.Controllers.A2A
                 : System.Text.Json.JsonSerializer.Deserialize<List<MdExplorer.Features.Agents.ResolvedReply>>(m.Replies),
             // La scheda dell'agente dichiara le sue risposte: allora non c'è un campo libero, perché promettere
             // una conversazione a un agente che accetta solo quelle sarebbe falso.
-            declaresReplies = context != null && context.DeclaresReplies.Contains(m.ProjectPath + "\n" + m.FromAgent),
+            declaresReplies = m.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource
+                              || context != null && context.DeclaresReplies.Contains(m.ProjectPath + "\n" + m.FromAgent),
+            // Il «tocca a te» di un passo di una persona: i pulsanti sono i suoi esiti e chiudono il passo.
+            personStep = m.TriggerSource == MdExplorer.Features.Agents.AgentTexts.PersonStepSource,
             // L'artefatto del turno che ha scritto questo messaggio: pending = ancora da decidere, rejected =
             // rifiutato. In entrambi i casi non si risponde (vedi Reply). null = nessun artefatto.
             artifact = context != null && !string.IsNullOrEmpty(m.RunId) && context.ArtifactByRun.TryGetValue(m.RunId, out var artifactStatus)
@@ -1185,6 +1210,8 @@ namespace MdExplorer.Controllers.A2A
         public string? MessageId { get; set; }
         /// <summary>Con un workflow: a chi va ogni passo che il pulsante fa partire (id del passo → email), per gli agenti di un team.</summary>
         public Dictionary<string, string>? Assign { get; set; }
+        /// <summary>L'esito del passo di una persona: i valori che porta (nome → valore), scritti da lei.</summary>
+        public Dictionary<string, string>? Values { get; set; }
     }
 
     public class ArchiveManyRequest

@@ -91,6 +91,25 @@ namespace MdExplorer.Features.Agents
     /// </summary>
     public static class AgentOwnerRule
     {
+        /// <summary>
+        /// Chi ha un ruolo (workflow v3): le persone delle righe di <c>responsabilita.md</c> con quel ruolo. Più righe sono un
+        /// team: chi fa partire il passo sceglie.
+        /// </summary>
+        public static IReadOnlyList<AgentOwnerPerson> Members(IEnumerable<OwnershipEntry> ownership, string role)
+        {
+            var name = (role ?? string.Empty).Trim();
+            return (ownership ?? Enumerable.Empty<OwnershipEntry>())
+                .Where(e => e != null && !string.IsNullOrWhiteSpace(e.GitEmail) && string.Equals(e.Role?.Trim(), name, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(e => e.GitEmail.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new AgentOwnerPerson
+                {
+                    Email = g.Key.ToLowerInvariant(),
+                    Name = g.Select(e => e.Responsible).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
+                    Role = name,
+                })
+                .ToList();
+        }
+
         public static AgentOwnerVerdict Decide(IEnumerable<OwnershipEntry> ownership, string agentName, string localEmail)
         {
             var name = (agentName ?? string.Empty).Trim();
