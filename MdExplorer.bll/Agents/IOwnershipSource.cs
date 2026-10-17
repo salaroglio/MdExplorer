@@ -10,5 +10,11 @@ namespace MdExplorer.Features.Agents
     {
         /// <summary>Le righe di <c>responsabilita.md</c>, o null se il progetto non ne ha (città spenta, documento assente o con errori).</summary>
         IReadOnlyList<OwnershipEntry> GetActiveOwnership(string projectPath);
+
+        /// <summary>
+        /// Tutte le righe dei ruoli, anche quelle che nessuno ha ancora preso (senza responsabile né email): ciò che serve
+        /// per sapere quali ruoli esistono e di quali agenti sono, come nel diagramma del workflow. Null come sopra.
+        /// </summary>
+        IReadOnlyList<OwnershipEntry> GetRoleRows(string projectPath);
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MdExplorer.Features.Agents;
 using Microsoft.Extensions.Logging;
 
@@ -29,6 +30,21 @@ namespace MdExplorer.Services
         }
 
         public IReadOnlyList<OwnershipEntry> GetActiveOwnership(string projectPath)
+        {
+            var parsed = Read(projectPath);
+            return parsed != null && parsed.Entries.Count > 0 ? parsed.Entries : null;
+        }
+
+        public IReadOnlyList<OwnershipEntry> GetRoleRows(string projectPath)
+        {
+            var parsed = Read(projectPath);
+            if (parsed == null) return null;
+            var rows = parsed.Entries.Concat(parsed.OpenRoles).ToList();
+            return rows.Count > 0 ? rows : null;
+        }
+
+        /// <summary>Il documento letto, o null (con il motivo nel log) se non si applica o non si legge.</summary>
+        private OwnershipParseResult Read(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
                 return null;
@@ -68,7 +84,7 @@ namespace MdExplorer.Services
                 return null;
             }
 
-            return parsed.Entries.Count > 0 ? parsed.Entries : null;
+            return parsed;
         }
     }
 }

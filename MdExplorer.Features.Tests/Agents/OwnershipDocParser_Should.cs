@@ -95,16 +95,38 @@ mde_type: ownership
         [TestMethod]
         public void Flag_a_missing_email_row()
         {
+            // Una persona senza email non si riconosce: è un errore, non un ruolo aperto.
             var doc = @"---
 mde_type: ownership
 ---
-| Ruolo | Git Email |
-|-------|-----------|
-| WSAA |  |
+| Ruolo | Responsabile | Git Email |
+|-------|--------------|-----------|
+| WSAA | Anna |  |
 ";
             var result = OwnershipDocParser.Parse(doc);
             Assert.IsTrue(result.HasErrors);
             Assert.AreEqual(0, result.Entries.Count);
+            Assert.AreEqual(0, result.OpenRoles.Count);
+        }
+
+        [TestMethod]
+        public void Read_a_row_without_a_person_as_a_role_nobody_took_yet()
+        {
+            var doc = @"---
+mde_type: ownership
+---
+| Ruolo | Responsabile | Git Email | Agenti |
+|-------|--------------|-----------|--------|
+| Account manager |  |  | account-manager |
+| Tecnica | Marco | marco@x.it | responsabile-tecnico |
+| Direzione |  |  |  |
+";
+            var result = OwnershipDocParser.Parse(doc);
+            Assert.IsFalse(result.HasErrors, string.Join(" | ", result.Errors));
+            Assert.AreEqual("marco@x.it", result.Entries.Single().GitEmail, "in Entries solo le righe di una persona");
+            CollectionAssert.AreEqual(new[] { "Account manager", "Direzione" }, result.OpenRoles.Select(r => r.Role).ToList());
+            CollectionAssert.AreEqual(new[] { "account-manager" }, result.OpenRoles[0].Agents.ToList());
+            Assert.IsNull(result.OpenRoles[0].GitEmail);
         }
 
         [TestMethod]

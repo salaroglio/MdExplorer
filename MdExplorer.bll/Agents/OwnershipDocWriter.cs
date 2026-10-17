@@ -63,11 +63,38 @@ namespace MdExplorer.Features.Agents
                 var last = i + 1;
                 while (last + 1 < lines.Count && OwnershipDocParser.LooksLikeTableRow(lines[last + 1])) last++;
 
-                // The role is the agent's own name: a second person taking the same agent gets the same role, and the
-                // rows of one role are its team. The group renames the role as it likes.
+                // The role: the one of a row that already cites the agent (an open role the group prepared, or a colleague
+                // who took it before: then the rows of that role are its team); otherwise the agent's own name, which the
+                // group renames as it likes. An open row that cites only this agent is filled in place.
+                string Column(string[] cells, string canonical)
+                {
+                    var at = Array.IndexOf(columns, canonical);
+                    return at >= 0 && at < cells.Length ? cells[at].Trim() : string.Empty;
+                }
+                bool Cites(string[] cells) => OwnershipDocParser.SplitAgents(Column(cells, "agents"))
+                    .Any(a => string.Equals(a, agentName.Trim(), StringComparison.OrdinalIgnoreCase));
+                bool IsOpen(string[] cells) => Column(cells, "gitEmail").Length == 0 && Column(cells, "responsible").Length == 0;
+
+                string role = null;
+                for (var r = i + 2; r <= last; r++)
+                {
+                    var cells = OwnershipDocParser.SplitRow(lines[r]);
+                    if (!Cites(cells)) continue;
+                    role ??= Column(cells, "role");
+                    if (!IsOpen(cells) || OwnershipDocParser.SplitAgents(Column(cells, "agents")).Count != 1) continue;
+                    lines[r] = "| " + string.Join(" | ", columns.Select((c, k) => c switch
+                    {
+                        "responsible" => Clean(responsible),
+                        "gitEmail" => gitEmail.Trim().ToLowerInvariant(),
+                        _ => k < cells.Length ? cells[k].Trim() : string.Empty,
+                    })) + " |";
+                    return string.Join(newline, lines);
+                }
+                if (string.IsNullOrWhiteSpace(role)) role = agentName.Trim();
+
                 var row = columns.Select(c => c switch
                 {
-                    "role" => agentName.Trim(),
+                    "role" => role,
                     "responsible" => Clean(responsible),
                     "gitEmail" => gitEmail.Trim().ToLowerInvariant(),
                     "agents" => agentName.Trim(),

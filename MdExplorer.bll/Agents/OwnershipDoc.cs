@@ -28,6 +28,12 @@ namespace MdExplorer.Features.Agents
         /// <summary>Il doc dichiara <c>mde_type: ownership</c> nel frontmatter.</summary>
         public bool IsOwnershipDoc { get; init; }
         public IReadOnlyList<OwnershipEntry> Entries { get; init; } = Array.Empty<OwnershipEntry>();
+        /// <summary>
+        /// I ruoli che nessuno ha ancora preso: righe con il ruolo (e gli agenti) ma senza responsabile né email. Esistono
+        /// per il workflow e per il diagramma; non sono in <see cref="Entries"/>, perché lì ogni riga è di una persona.
+        /// Quando qualcuno dichiara suo l'agente, MdExplorer riempie la riga (<see cref="OwnershipDocWriter"/>).
+        /// </summary>
+        public IReadOnlyList<OwnershipEntry> OpenRoles { get; init; } = Array.Empty<OwnershipEntry>();
         /// <summary>Errori strutturali (tabella assente, colonna «Ambito» da rinominare, cella obbligatoria mancante).</summary>
         public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 
@@ -96,6 +102,7 @@ namespace MdExplorer.Features.Agents
             }
 
             var entries = new List<OwnershipEntry>();
+            var open = new List<OwnershipEntry>();
             var rowNum = 0;
             foreach (var row in table.Rows)
             {
@@ -106,6 +113,18 @@ namespace MdExplorer.Features.Agents
                 if (string.IsNullOrWhiteSpace(role))
                 {
                     errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum}: ruolo mancante.", $"Row {rowNum}: role missing."));
+                    continue;
+                }
+                var responsible = Cell(table, row, "responsible");
+                if (string.IsNullOrWhiteSpace(gitEmail) && string.IsNullOrWhiteSpace(responsible))
+                {
+                    // Un ruolo che nessuno ha ancora preso: c'è, ma non è di nessuno.
+                    open.Add(new OwnershipEntry
+                    {
+                        Role = role.Trim(),
+                        Description = Cell(table, row, "description")?.Trim(),
+                        Agents = SplitAgents(Cell(table, row, "agents")),
+                    });
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(gitEmail))
@@ -128,6 +147,7 @@ namespace MdExplorer.Features.Agents
             {
                 IsOwnershipDoc = true,
                 Entries = entries,
+                OpenRoles = open,
                 Errors = errors,
             };
         }
@@ -138,7 +158,7 @@ namespace MdExplorer.Features.Agents
             return idx < row.Length ? row[idx] : null;
         }
 
-        private static IReadOnlyList<string> SplitAgents(string cell)
+        internal static IReadOnlyList<string> SplitAgents(string cell)
         {
             if (string.IsNullOrWhiteSpace(cell)) return Array.Empty<string>();
             return cell

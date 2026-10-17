@@ -208,7 +208,7 @@ namespace MdExplorer.Features.Commands
 
             var wf = parsed.Descriptor;
             // Senza documento delle responsabilità gli omini dicono «responsabile di» e l'agente: non si inventa un ruolo.
-            var ownership = _ownership?.GetActiveOwnership(root);
+            var ownership = _ownership?.GetRoleRows(root);
             var folder = Path.GetRelativePath(root, Path.GetDirectoryName(absolutePath)).Replace('\\', '/');
             var diagram = WorkflowPlantuml.Render(wf,
                 agent => wf.Cards.Agents.TryGetValue(agent, out var card) ? card.Path : null,

@@ -56,6 +56,33 @@ namespace MdExplorer.Features.Tests.Agents
             CollectionAssert.AreEqual(new[] { "legale", "legale" }, parsed.Entries.Select(e => e.Role).ToList(), "one role, two people: its team");
         }
 
+        private const string Prepared = "---\nmde_type: ownership\n---\n# Chi\n\n" +
+            "| Ruolo | Responsabile | Git Email | Agenti |\n|---|---|---|---|\n" +
+            "| Account manager |  |  | account-manager |\n| Tecnica |  |  | responsabile-tecnico |\n| Direzione |  |  |  |\n\nFine.\n";
+
+        [TestMethod]
+        public void Fill_the_row_of_the_role_the_group_prepared()
+        {
+            var written = OwnershipDocWriter.AddRow(Prepared, "responsabile-tecnico", "Marco", "Marco@x.it");
+
+            StringAssert.Contains(written, "| Tecnica | Marco | marco@x.it | responsabile-tecnico |\n| Direzione |  |  |  |\n\nFine.");
+            var parsed = OwnershipDocParser.Parse(written);
+            Assert.IsFalse(parsed.HasErrors, string.Join(" | ", parsed.Errors));
+            Assert.AreEqual("Tecnica", parsed.Entries.Single().Role, "il ruolo resta quello preparato, non il nome dell'agente");
+            CollectionAssert.AreEqual(new[] { "Account manager", "Direzione" }, parsed.OpenRoles.Select(r => r.Role).ToList());
+        }
+
+        [TestMethod]
+        public void Give_a_second_person_the_role_of_the_first()
+        {
+            var written = OwnershipDocWriter.AddRow(Prepared, "account-manager", "Anna", "anna@x.it");
+            written = OwnershipDocWriter.AddRow(written, "account-manager", "Lia", "lia@x.it");
+
+            var parsed = OwnershipDocParser.Parse(written);
+            Assert.IsFalse(parsed.HasErrors, string.Join(" | ", parsed.Errors));
+            CollectionAssert.AreEqual(new[] { "Account manager", "Account manager" }, parsed.Entries.Select(e => e.Role).ToList(), "due persone, un ruolo: il team");
+        }
+
         [TestMethod]
         public void Keep_windows_line_endings()
         {

@@ -325,11 +325,15 @@ namespace MdExplorer.Features.Tests.Commands
         /// <summary>Il documento delle responsabilità della gara: i ruoli degli omini.</summary>
         private sealed class GaraOwnership : MdExplorer.Features.Agents.IOwnershipSource
         {
-            public System.Collections.Generic.IReadOnlyList<MdExplorer.Features.Agents.OwnershipEntry> GetActiveOwnership(string projectPath) => new[]
+            public System.Collections.Generic.IReadOnlyList<MdExplorer.Features.Agents.OwnershipEntry> GetActiveOwnership(string projectPath) =>
+                throw new AssertFailedException("il diagramma legge tutte le righe dei ruoli, anche quelle non prese");
+
+            public System.Collections.Generic.IReadOnlyList<MdExplorer.Features.Agents.OwnershipEntry> GetRoleRows(string projectPath) => new[]
             {
                 new MdExplorer.Features.Agents.OwnershipEntry { Role = "Account manager", GitEmail = "anna@x.it", Agents = new[] { "account-manager" } },
                 new MdExplorer.Features.Agents.OwnershipEntry { Role = "Responsabile tecnico", GitEmail = "marco@x.it", Agents = new[] { "responsabile-tecnico" } },
-                new MdExplorer.Features.Agents.OwnershipEntry { Role = "Responsabile legale", GitEmail = "anna@x.it", Agents = new[] { "responsabile-legale" } },
+                // Un ruolo che nessuno ha ancora preso: l'omino ha comunque il suo nome.
+                new MdExplorer.Features.Agents.OwnershipEntry { Role = "Responsabile legale", Agents = new[] { "responsabile-legale" } },
                 new MdExplorer.Features.Agents.OwnershipEntry { Role = "Direzione", GitEmail = "dir@x.it" },
             };
         }

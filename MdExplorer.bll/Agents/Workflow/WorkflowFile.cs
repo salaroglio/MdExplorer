@@ -107,7 +107,8 @@ namespace MdExplorer.Features.Agents.Workflow
                 problem = UiText.Say($"'{relative}' ha errori: ", $"'{relative}' has errors: ") + string.Join(" | ", parsed.Errors);
                 return null;
             }
-            return parsed.Entries.Select(e => e.Role).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            // Anche i ruoli che nessuno ha ancora preso: esistono, e il workflow li può nominare. Chi li fa lo dice il giro.
+            return parsed.Entries.Concat(parsed.OpenRoles).Select(e => e.Role).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         /// <summary>Il percorso completo del file, solo se è un workflow dentro il progetto e c'è: altrimenti un errore che dice perché.</summary>
