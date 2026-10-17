@@ -348,7 +348,9 @@ namespace MdExplorer.Services.AgentRun
                     stopped.Add(r);
             }
             db.Commit();
-            return stopped.OrderByDescending(r => r.DecidedAt ?? r.CreatedAt).ToList();
+            // Un lavoro di un giro rifatto ha un incarico nuovo: il vecchio resta concluso, ma il lavoro non è fermo.
+            return stopped.Where(r => _workflow?.IsSuperseded(r) != true)
+                .OrderByDescending(r => r.DecidedAt ?? r.CreatedAt).ToList();
         }
 
         public AgentMergeRequest Rework(Guid id)

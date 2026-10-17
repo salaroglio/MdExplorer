@@ -5,8 +5,8 @@ namespace MdExplorer.Features.Commands.pdf
 {
     public class FromExternalDataToPlantumlPdf : FromExternalDataToPlantuml, ICommandPdf
     {
-        public FromExternalDataToPlantumlPdf(ILogger<FromExternalDataToPlantuml> logger)
-            : base(logger)
+        public FromExternalDataToPlantumlPdf(ILogger<FromExternalDataToPlantuml> logger, MdExplorer.Features.Agents.IOwnershipSource ownership = null)
+            : base(logger, ownership)
         {
         }
     }

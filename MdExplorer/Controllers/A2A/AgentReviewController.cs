@@ -102,7 +102,7 @@ namespace MdExplorer.Controllers.A2A
 
                     // Approvato ma non ancora nella cartella: sta sul ramo principale di origin, e arriva
                     // con «Scarica tutto». Dirlo è diverso da «non trovato».
-                    var approved = inside && await _worktree.ReadFileAtAsync(root, "origin/HEAD", path) != null;
+                    var approved = inside && await _worktree.ReadFileAtAsync(root, await _worktree.OriginDefaultAsync(root), path) != null;
                     return new { path, state = approved ? "toPull" : "missing", requestId = (Guid?)null, agentName = (string)null };
                 }
             }

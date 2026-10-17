@@ -1940,6 +1940,8 @@
     "DISABLED": "Memory (Fuseki) is not enabled for this project."
   },
   "AGENT_MAIL": {
+    "STEP_CLOSED": "The step is closed: the outcome is written in the round ledger.",
+    "OUTCOMES_LABEL": "Close the step with an outcome",
     "REPLIES_LABEL": "What you can reply to {{agent}}",
     "REPLIES_NONE": "With this message {{agent}} is not asking you anything.",
     "REPLY_FREE_LABEL": "Or write to {{agent}} in your own words",

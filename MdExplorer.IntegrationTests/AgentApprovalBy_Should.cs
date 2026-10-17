@@ -170,6 +170,11 @@ namespace MdExplorer.IntegrationTests
             svc.Rework(request.Id);
             var again = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "tecnico" && x.WorkflowAttempt == 2));
             Assert.AreEqual("manca il RPO", again.Single(x => x.ToAgent == "tecnico" && x.WorkflowAttempt == 2).ReworkNote);
+
+            // Ripartito, il rifiuto non è più un lavoro fermo: in posta non resta «da fare» (visto nella prova di F8).
+            Assert.IsFalse(svc.Stopped(path).Any(r => r.Id == request.Id), "il passo è ripartito: il vecchio rifiuto non è fermo");
+            var (_, after) = await ctx.GetJson("/api/A2A/mailbox/inbox?projectPath=" + Uri.EscapeDataString(path));
+            Assert.AreEqual(0, after.RootElement.GetProperty("todo").GetInt32(), "niente da fare: il lavoro è ripartito");
         }
 
         private static WorkflowDescriptor Wf(string path)

@@ -702,12 +702,19 @@ namespace MdExplorer.Controllers.A2A
 
             bool InProject(string path) => string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(path, projectPath);
             // Una consegna che decide un altro (chi approva per ruolo, F5) non è da fare qui.
-            var stopped = requests.Where(r => InProject(r.ProjectPath) && !DecidedElsewhere(r)).ToList();
+            var stopped = requests.Where(r => InProject(r.ProjectPath) && !DecidedElsewhere(r) && !Superseded(r)).ToList();
             var pendingRuns = stopped.Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending && !string.IsNullOrEmpty(r.RunId))
                 .Select(r => r.RunId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var choices = withReplies.Where(m => InProject(m.ProjectPath) && HasReplies(m)
                                                  && !(m.RunId != null && pendingRuns.Contains(m.RunId)) && !Answered(m)).Count();
             return AwaitingOwner(projectPath).Count + stopped.Count + federation.Count(r => InProject(r.ProjectPath)) + choices;
+        }
+
+        /// <summary>Un rifiuto il cui passo del giro è già ripartito non è più da fare.</summary>
+        private bool Superseded(AgentMergeRequest r)
+        {
+            try { return _workflow.IsSuperseded(r); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] non so se la richiesta {Id} è stata rifatta", r.Id); return false; }
         }
 
         private bool DecidedElsewhere(AgentMergeRequest r)

@@ -223,6 +223,12 @@ namespace MdExplorer.Services.AgentRun
         Task<string> ReadFileAtAsync(string projectPath, string commit, string relativePath, CancellationToken ct = default);
 
         /// <summary>
+        /// Il ramo principale di origin (<c>origin/main</c>), lo stesso in cui un'approvazione fonde la consegna: chi
+        /// chiede dove sta un documento approvato e chi lo fonde devono guardare lo stesso posto.
+        /// </summary>
+        Task<string> OriginDefaultAsync(string projectPath, CancellationToken ct = default);
+
+        /// <summary>
         /// Il posto di lavoro dell'agente ha qualcosa da passare? Vero se ci sono file non committati (anche nuovi) o
         /// commit non ancora in <c>origin/&lt;default&gt;</c>. Falso per un posto appena preparato, e anche quando
         /// l'agente non ha un posto. Serve a decidere se una catena ha senso: chi non ha scritto niente non ha niente
@@ -593,6 +599,9 @@ namespace MdExplorer.Services.AgentRun
             }
             finally { gate.Release(); }
         }
+
+        public async Task<string> OriginDefaultAsync(string projectPath, CancellationToken ct = default)
+            => "origin/" + await ResolveDefaultBranchAsync(projectPath, ct);
 
         public async Task<string> ReadFileAtAsync(string projectPath, string commit, string relativePath, CancellationToken ct = default)
         {
@@ -1359,6 +1368,13 @@ namespace MdExplorer.Services.AgentRun
                 var name = outp.Trim();
                 var slash = name.IndexOf('/');
                 return slash >= 0 ? name.Substring(slash + 1) : name;   // "origin/main" → "main"
+            }
+            // Un repository creato con «git init» + «remote add» non ha origin/HEAD: lo dice il remoto stesso.
+            var (lc, ls, _) = await GitAsync(worktreePath, new[] { "ls-remote", "--symref", "origin", "HEAD" }, ct);
+            if (lc == 0)
+            {
+                var line = (ls ?? string.Empty).Split('\n').FirstOrDefault(l => l.StartsWith("ref: refs/heads/", StringComparison.Ordinal));
+                if (line != null) return line.Substring("ref: refs/heads/".Length).Split('\t')[0].Trim();
             }
             _logger.LogWarning("[Worktree] default branch del remote non risolvibile in '{Path}': uso 'main'.", worktreePath);
             return "main";

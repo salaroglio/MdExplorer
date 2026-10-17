@@ -52,6 +52,12 @@ namespace MdExplorer.Services.AgentRun
         bool TryRework(AgentMergeRequest request);
 
         /// <summary>
+        /// Un lavoro rifiutato di un giro che è già ripartito: nel registro il suo passo ha un tentativo dopo il suo. Non è
+        /// più fermo, quindi non è «da fare». False anche per un lavoro che non è di un giro.
+        /// </summary>
+        bool IsSuperseded(AgentMergeRequest request);
+
+        /// <summary>
         /// Per un lavoro rifiutato di un giro: quante volte si può ancora far ripartire. Null = senza limite, o non è di un giro
         /// (<paramref name="linked"/> dice quale dei due).
         /// </summary>
@@ -321,6 +327,15 @@ namespace MdExplorer.Services.AgentRun
                 CommitAndPublish(request.ProjectPath, link.RoundId, message + $" ({step.ApprovalBy})");
             });
             Evaluate(request.ProjectPath, link.RoundId);
+        }
+
+        public bool IsSuperseded(AgentMergeRequest request)
+        {
+            if (request?.Status != AgentMergeRequest.StatusEnum.Rejected) return false;
+            var link = LinkOfRun(request.ProjectPath, request.RunId);
+            if (link == null) return false;
+            var round = RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId);
+            return round.EventsOf(link.Step).Any(e => e.Round == link.Round && e.Attempt > link.Attempt);
         }
 
         public bool TryRework(AgentMergeRequest request)

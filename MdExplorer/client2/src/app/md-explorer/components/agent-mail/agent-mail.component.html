@@ -147,7 +147,7 @@
             <mat-icon>arrow_back</mat-icon> {{ r.from }}
           </button>
           <div class="detail-head">
-            <mat-icon class="head-icon">smart_toy</mat-icon>
+            <mat-icon class="head-icon">{{ selected.message?.personStep ? 'person' : 'smart_toy' }}</mat-icon>
             <span class="head-from">{{ selected.from }}</span>
             <span class="flexExpand"></span>
             <span class="head-when">{{ selected.when | date:'medium' }}</span>
@@ -212,10 +212,12 @@
             </div>
 
             <ng-container *ngIf="selected.message.replies?.length">
-              <div class="reply-label">{{ 'AGENT_MAIL.REPLIES_LABEL' | translate: { agent: selected.from } }}</div>
+              <div class="reply-label">{{ (selected.message.personStep ? 'AGENT_MAIL.OUTCOMES_LABEL' : 'AGENT_MAIL.REPLIES_LABEL') | translate: { agent: selected.from } }}</div>
+              <!-- Il passo di una persona si chiude una volta sola: dopo, gli esiti non si premono più. -->
+              <p class="reply-none" *ngIf="selected.message.personStep && selected.message.answered">{{ 'AGENT_MAIL.STEP_CLOSED' | translate }}</p>
               <div class="reply-option" *ngFor="let r of selected.message.replies">
                 <button mat-raised-button color="primary" class="btn-reply-option"
-                        [disabled]="sending || !!replyLock()" (click)="replyWith(r)">
+                        [disabled]="sending || !!replyLock() || (selected.message.personStep && selected.message.answered)" (click)="replyWith(r)">
                   <mat-icon>send</mat-icon> {{ r.label }}
                 </button>
                 <p class="reply-option-description">{{ r.description }}</p>
@@ -248,8 +250,10 @@
               {{ 'AGENT_MAIL.REPLIES_NONE' | translate: { agent: selected.from } }}
             </p>
 
-            <!-- Il campo libero c'è sempre: per chiedere all'agente che cosa è successo, o dirgli ciò che la scheda
-                 non prevede. L'agente lo riceve con il suo messaggio citato. -->
+            <!-- Il campo libero c'è sempre sotto il messaggio di un agente: per chiedergli che cosa è successo, o dirgli
+                 ciò che la scheda non prevede. L'agente lo riceve con il suo messaggio citato. Il passo di una persona no:
+                 non c'è un agente che legga, e il passo si chiude con un esito. -->
+            <ng-container *ngIf="!selected.message.personStep">
             <label class="reply-label" for="agent-mail-reply">{{ (selected.message.replies?.length
                 ? 'AGENT_MAIL.REPLY_FREE_LABEL' : 'AGENT_MAIL.REPLY_LABEL') | translate: { agent: selected.from } }}</label>
             <p class="reply-free-hint">{{ 'AGENT_MAIL.REPLY_FREE_HINT' | translate: { agent: selected.from } }}</p>
@@ -260,6 +264,7 @@
                 <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
               </button>
             </div>
+            </ng-container>
           </div>
         </div>
 

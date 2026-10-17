@@ -1940,6 +1940,8 @@
     "DISABLED": "La memoria (Fuseki) non è abilitata per questo progetto."
   },
   "AGENT_MAIL": {
+    "STEP_CLOSED": "Il passo è chiuso: l'esito è scritto nel registro del giro.",
+    "OUTCOMES_LABEL": "Chiudi il passo con un esito",
     "REPLIES_LABEL": "Che cosa puoi rispondere a {{agent}}",
     "REPLIES_NONE": "Con questo messaggio {{agent}} non ti chiede niente.",
     "REPLY_FREE_LABEL": "Oppure scrivi a {{agent}} con parole tue",

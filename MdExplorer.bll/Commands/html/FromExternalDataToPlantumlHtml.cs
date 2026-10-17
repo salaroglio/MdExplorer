@@ -8,8 +8,8 @@ namespace MdExplorer.Features.Commands.html
         /// <summary>Runs on slide decks: plantuml(@json|@yaml) becomes a PlantUML diagram like any other.</summary>
         public bool WorksInSlides => true;
 
-        public FromExternalDataToPlantumlHtml(ILogger<FromExternalDataToPlantuml> logger)
-            : base(logger)
+        public FromExternalDataToPlantumlHtml(ILogger<FromExternalDataToPlantuml> logger, MdExplorer.Features.Agents.IOwnershipSource ownership = null)
+            : base(logger, ownership)
         {
         }
     }

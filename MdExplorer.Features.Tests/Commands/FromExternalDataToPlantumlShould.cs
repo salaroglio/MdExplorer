@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace MdExplorer.Features.Tests.Commands
 {
@@ -466,6 +467,18 @@ a2a:
             AssertContains(transformed, "o_decisione_partecipa --> s_offerta : incarico: codice");
             AssertContains(transformed, "f_ricerca_0 ..> s_offerta : riceve");
             AssertContains(transformed, "tocca a una persona: lo chiude con un esito");
+        }
+
+        [TestMethod]
+        public void TakeTheRolesInEveryVariantTheFactoryBuilds()
+        {
+            // La fabbrica dei comandi passa i servizi per NOME di parametro del primo costruttore: una variante (pagina, PDF,
+            // markdown) senza «ownership» disegnerebbe gli omini senza ruolo, in silenzio (visto nella prova di F8).
+            var variants = typeof(FromExternalDataToPlantuml).Assembly.GetTypes()
+                .Where(t => typeof(FromExternalDataToPlantuml).IsAssignableFrom(t) && !t.IsAbstract).ToList();
+            Assert.IsTrue(variants.Count >= 3, "pagina, PDF e markdown");
+            foreach (var t in variants)
+                Assert.IsTrue(t.GetConstructors()[0].GetParameters().Any(p => p.Name == "ownership"), t.Name + " non riceve i ruoli");
         }
 
         [TestMethod]
