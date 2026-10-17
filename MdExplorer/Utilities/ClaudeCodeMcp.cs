@@ -100,14 +100,12 @@ namespace MdExplorer.Utilities
             if (string.IsNullOrWhiteSpace(mcpExecutable))
             {
                 return new(ClaudeMcpRegistrationOutcome.McpExecutableNotFound,
-                    "MdExplorer.Mcp non trovato accanto al servizio né nella sua build: l'MCP di MdExplorer non è " +
-                    "registrato per Claude Code. Ricompila o reinstalla MdExplorer e riapri il progetto.");
+                    MdExplorer.Features.Services.UiText.Say("MdExplorer.Mcp non trovato accanto al servizio né nella sua build: l'MCP di MdExplorer non è registrato per Claude Code. Ricompila o reinstalla MdExplorer e riapri il progetto.", "MdExplorer.Mcp not found next to the service or in its build: the MdExplorer MCP is not registered for Claude Code. Rebuild or reinstall MdExplorer and open the project again."));
             }
             if (!ClaudeCodeProcessLauncher.IsResolvable())
             {
                 return new(ClaudeMcpRegistrationOutcome.ClaudeNotInstalled,
-                    "Claude Code CLI non trovato nel PATH: l'MCP di MdExplorer non è registrato per Claude Code. " +
-                    "Installa Claude Code e riapri il progetto.");
+                    MdExplorer.Features.Services.UiText.Say("Claude Code CLI non trovato nel PATH: l'MCP di MdExplorer non è registrato per Claude Code. Installa Claude Code e riapri il progetto.", "Claude Code CLI not found in the PATH: the MdExplorer MCP is not registered for Claude Code. Install Claude Code and open the project again."));
             }
 
             var configPath = UserConfigFilePath();
@@ -122,7 +120,7 @@ namespace MdExplorer.Utilities
             if (existing.Command != null && SamePath(existing.Command, mcpExecutable)
                 && existing.Arguments.SequenceEqual(wantedArguments, StringComparer.Ordinal))
             {
-                return new(ClaudeMcpRegistrationOutcome.AlreadyRegistered, $"'{ServerName}' già registrato in {configPath}.");
+                return new(ClaudeMcpRegistrationOutcome.AlreadyRegistered, MdExplorer.Features.Services.UiText.Say($"'{ServerName}' già registrato in {configPath}.", $"'{ServerName}' already registered in {configPath}."));
             }
 
             var replacing = existing.Command != null;
@@ -151,7 +149,7 @@ namespace MdExplorer.Utilities
             if (!SamePath(now.Command, mcpExecutable))
             {
                 return new(ClaudeMcpRegistrationOutcome.Failed,
-                    $"`claude mcp add` ha risposto 0, ma in {configPath} '{ServerName}' punta a '{now.Command ?? "(niente)"}'.");
+                    MdExplorer.Features.Services.UiText.Say($"`claude mcp add` ha risposto 0, ma in {configPath} '{ServerName}' punta a '{now.Command ?? "(niente)"}'.", $"`claude mcp add` returned 0, but in {configPath} '{ServerName}' points to '{now.Command ?? "(nothing)"}'."));
             }
 
             return replacing
@@ -217,7 +215,7 @@ namespace MdExplorer.Utilities
             if (string.IsNullOrEmpty(appData))
             {
                 if (playwright != null)
-                    throw new InvalidOperationException("Cartella dati dell'utente non disponibile: non posso preparare il server Playwright per i test e2e.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Cartella dati dell'utente non disponibile: non posso preparare il server Playwright per i test e2e.", "User data folder not available: I cannot prepare the Playwright server for the e2e tests."));
                 Console.WriteLine("[ClaudeCodeMcp] Cartella dati dell'utente non disponibile: la sessione Claude Code parte senza gli strumenti di MdExplorer.");
                 return null;
             }
@@ -323,14 +321,14 @@ namespace MdExplorer.Utilities
             psi.StandardErrorEncoding = Encoding.UTF8;
 
             using var process = Process.Start(psi);
-            if (process == null) return (-1, "processo non avviato");
+            if (process == null) return (-1, MdExplorer.Features.Services.UiText.Say("processo non avviato", "process not started"));
             process.StandardInput.Close();
             var stdout = process.StandardOutput.ReadToEndAsync();
             var stderr = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(CliTimeoutMs))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
-                return (-1, $"nessuna risposta in {CliTimeoutMs / 1000} secondi");
+                return (-1, MdExplorer.Features.Services.UiText.Say($"nessuna risposta in {CliTimeoutMs / 1000} secondi", $"no answer within {CliTimeoutMs / 1000} seconds"));
             }
             return (process.ExitCode, (stdout.Result + " " + stderr.Result).Trim());
         }

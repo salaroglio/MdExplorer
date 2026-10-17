@@ -201,7 +201,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         private static string QuoteRule(string rule)
         {
             if (rule.IndexOf('"') >= 0)
-                throw new ArgumentException($"Una regola di permesso non può contenere virgolette doppie: {rule}", nameof(rule));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say($"Una regola di permesso non può contenere virgolette doppie: {rule}", $"A permission rule cannot contain double quotes: {rule}"), nameof(rule));
             return System.Text.RegularExpressions.Regex.IsMatch(rule, @"^[A-Za-z0-9_\-.:,/=@]+$") ? rule : "\"" + rule + "\"";
         }
 
@@ -221,7 +221,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// </summary>
         public Task StartAsync(CancellationToken ct = default)
         {
-            if (_process != null) throw new InvalidOperationException("Sessione già avviata");
+            if (_process != null) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Sessione già avviata", "Session already started"));
 
             // `--bare` spegne anche OAuth e portachiavi: senza API key nell'ambiente il CLI
             // risponderebbe «Not logged in» al primo turno, cioè con un errore che non dice
@@ -230,9 +230,12 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ClaudeCodeSessionOptions.ApiKeyEnvVariable)))
             {
                 throw new InvalidOperationException(
-                    $"Opzione Bare attiva ma la variabile {ClaudeCodeSessionOptions.ApiKeyEnvVariable} non è impostata. " +
-                    "Con --bare Claude Code non legge né OAuth né portachiavi: l'accesso con l'abbonamento " +
-                    "non funziona. Imposta una API key oppure lascia Bare = false.");
+                    MdExplorer.Features.Services.UiText.Say($"Opzione Bare attiva ma la variabile {ClaudeCodeSessionOptions.ApiKeyEnvVariable} non è impostata. " +
+                        "Con --bare Claude Code non legge né OAuth né portachiavi: l'accesso con l'abbonamento " +
+                        "non funziona. Imposta una API key oppure lascia Bare = false.",
+                        $"Bare option is on but the variable {ClaudeCodeSessionOptions.ApiKeyEnvVariable} is not set. " +
+                        "With --bare Claude Code reads neither OAuth nor the keychain: subscription login " +
+                        "does not work. Set an API key or leave Bare = false."));
             }
 
             var arguments = BuildArguments(_modelId, _options);
@@ -258,8 +261,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             else if (!string.IsNullOrEmpty(_workingDirectory))
             {
                 throw new InvalidOperationException(
-                    $"Working directory inesistente: '{_workingDirectory}'. " +
-                    "Claude Code va lanciato dentro il progetto, non altrove.");
+                    MdExplorer.Features.Services.UiText.Say($"Working directory inesistente: '{_workingDirectory}'. Claude Code va lanciato dentro il progetto, non altrove.",
+                        $"Working directory does not exist: '{_workingDirectory}'. Claude Code must run inside the project, nowhere else."));
             }
 
             _process = new Process { StartInfo = psi };
@@ -268,7 +271,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
             if (!_process.Start())
             {
-                throw new InvalidOperationException($"Avvio di `claude {arguments}` fallito");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Avvio di `claude {arguments}` fallito", $"Starting `claude {arguments}` failed"));
             }
 
             _logger.LogInformation("[ClaudeCodeSession] Avviato pid={Pid} cwd={Cwd} args={Args}",
@@ -305,7 +308,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             [EnumeratorCancellation] CancellationToken ct = default)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ClaudeCodeSession));
-            if (_process == null) throw new InvalidOperationException("Sessione non avviata");
+            if (_process == null) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Sessione non avviata", "Session not started"));
 
             await _promptGate.WaitAsync(ct).ConfigureAwait(false);
             LastUsedUtc = DateTime.UtcNow;
@@ -340,11 +343,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     {
                         string reason;
                         if (idleCts.IsCancellationRequested)
-                            reason = $"Claude Code fermo da {PROMPT_IDLE_TIMEOUT_MS / 1000}s: turno interrotto";
+                            reason = MdExplorer.Features.Services.UiText.Say($"Claude Code fermo da {PROMPT_IDLE_TIMEOUT_MS / 1000}s: turno interrotto", $"Claude Code idle for {PROMPT_IDLE_TIMEOUT_MS / 1000}s: turn interrupted");
                         else if (hardCts.IsCancellationRequested)
-                            reason = $"Claude Code oltre il tetto di {PROMPT_HARD_TIMEOUT_MS / 60000} minuti: turno interrotto";
+                            reason = MdExplorer.Features.Services.UiText.Say($"Claude Code oltre il tetto di {PROMPT_HARD_TIMEOUT_MS / 60000} minuti: turno interrotto", $"Claude Code over the {PROMPT_HARD_TIMEOUT_MS / 60000}-minute cap: turn interrupted");
                         else
-                            reason = "Turno annullato";
+                            reason = MdExplorer.Features.Services.UiText.Say("Turno annullato", "Turn cancelled");
                         channel.Writer.TryComplete(new OperationCanceledException(reason));
                     }
                     else channel.Writer.TryComplete();
@@ -453,8 +456,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         public async Task SetModelAsync(string modelId, CancellationToken ct = default)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ClaudeCodeSession));
-            if (_process == null || _processExited) throw new InvalidOperationException("Sessione non avviata o già terminata");
-            if (string.IsNullOrWhiteSpace(modelId)) throw new ArgumentException("Il modello è obbligatorio", nameof(modelId));
+            if (_process == null || _processExited) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Sessione non avviata o già terminata", "Session not started or already ended"));
+            if (string.IsNullOrWhiteSpace(modelId)) throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Il modello è obbligatorio", "The model is required"), nameof(modelId));
             if (string.Equals(modelId, _modelId, StringComparison.Ordinal)) return;
 
             await _promptGate.WaitAsync(ct).ConfigureAwait(false);
@@ -482,7 +485,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                     {
                         throw new TimeoutException(
-                            $"Claude Code non ha confermato il cambio di modello a '{modelId}' entro {CONTROL_TIMEOUT_MS / 1000} secondi.");
+                            MdExplorer.Features.Services.UiText.Say($"Claude Code non ha confermato il cambio di modello a '{modelId}' entro {CONTROL_TIMEOUT_MS / 1000} secondi.", $"Claude Code did not confirm the model change to '{modelId}' within {CONTROL_TIMEOUT_MS / 1000} seconds."));
                     }
                 }
                 finally
@@ -492,7 +495,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
                 if (error != null)
                 {
-                    throw new InvalidOperationException($"Claude Code non ha cambiato modello a '{modelId}': {error}");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Claude Code non ha cambiato modello a '{modelId}': {error}", $"Claude Code did not change model to '{modelId}': {error}"));
                 }
 
                 var previous = _modelId;
@@ -527,7 +530,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 if (_processExited || _process?.StandardInput == null)
                 {
                     throw new InvalidOperationException(
-                        "Il processo Claude Code non è in esecuzione." + DescribeStderr());
+                        MdExplorer.Features.Services.UiText.Say("Il processo Claude Code non è in esecuzione.", "The Claude Code process is not running.") + DescribeStderr());
                 }
                 await _process.StandardInput.WriteLineAsync(json.AsMemory(), ct).ConfigureAwait(false);
                 await _process.StandardInput.FlushAsync().ConfigureAwait(false);
@@ -567,7 +570,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             {
                 _logger.LogInformation("[ClaudeCodeSession] Reader loop chiuso");
                 var ex = new InvalidOperationException(
-                    "Claude Code ha chiuso stdout senza concludere il turno." + DescribeStderr());
+                    MdExplorer.Features.Services.UiText.Say("Claude Code ha chiuso stdout senza concludere il turno.", "Claude Code closed stdout without finishing the turn.") + DescribeStderr());
                 _activeTurnCompletion?.TrySetException(ex);
                 _activeStreamChannel?.Writer.TryComplete(ex);
             }
@@ -660,9 +663,12 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 // silenzio dal CLI: se accettassimo un modo diverso da quello chiesto,
                 // gireremmo con permessi che non abbiamo scelto — e non ce ne accorgeremmo.
                 var ex = new InvalidOperationException(
-                    $"Claude Code gira con permissionMode='{effectiveMode}' invece di " +
-                    $"'{REQUESTED_PERMISSION_MODE}'. Il CLI ha ignorato la modalità richiesta: " +
-                    "la sessione viene rifiutata perché la superficie di esecuzione non è quella decisa.");
+                    MdExplorer.Features.Services.UiText.Say($"Claude Code gira con permissionMode='{effectiveMode}' invece di " +
+                        $"'{REQUESTED_PERMISSION_MODE}'. Il CLI ha ignorato la modalità richiesta: " +
+                        "la sessione viene rifiutata perché la superficie di esecuzione non è quella decisa.",
+                        $"Claude Code runs with permissionMode='{effectiveMode}' instead of " +
+                        $"'{REQUESTED_PERMISSION_MODE}'. The CLI ignored the requested mode: " +
+                        "the session is refused because its execution surface is not the one decided."));
                 _activeTurnCompletion?.TrySetException(ex);
                 _activeStreamChannel?.Writer.TryComplete(ex);
             }
@@ -824,7 +830,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     ? r.GetString()
                     : subtype;
                 completion.TrySetException(new InvalidOperationException(
-                    $"Claude Code ha chiuso il turno in errore ({subtype}): {message}"));
+                    MdExplorer.Features.Services.UiText.Say($"Claude Code ha chiuso il turno in errore ({subtype}): {message}", $"Claude Code ended the turn with an error ({subtype}): {message}")));
                 return;
             }
 
@@ -862,7 +868,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         {
             var lines = _stderrRing.ToArray();
             if (lines.Length == 0) return string.Empty;
-            return " Ultime righe di stderr: " + string.Join(" | ", lines);
+            return MdExplorer.Features.Services.UiText.Say(" Ultime righe di stderr: ", " Last stderr lines: ") + string.Join(" | ", lines);
         }
 
         private void OnProcessExited(object sender, EventArgs e)
@@ -873,7 +879,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             _logger.LogInformation("[ClaudeCodeSession] Processo terminato (ExitCode={ExitCode})", exitCode);
 
             var ex = new InvalidOperationException(
-                $"Il processo Claude Code è terminato (exit code {exitCode?.ToString() ?? "?"})." + DescribeStderr());
+                MdExplorer.Features.Services.UiText.Say($"Il processo Claude Code è terminato (exit code {exitCode?.ToString() ?? "?"}).", $"The Claude Code process ended (exit code {exitCode?.ToString() ?? "?"}).") + DescribeStderr());
             _activeTurnCompletion?.TrySetException(ex);
             _activeStreamChannel?.Writer.TryComplete(ex);
             foreach (var pending in _pendingControl.Values) pending.TrySetException(ex);

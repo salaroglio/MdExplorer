@@ -155,7 +155,8 @@ namespace MdExplorer.Features.Services.AI
         {
             if (invocation == null)
                 throw new ArgumentNullException(nameof(invocation),
-                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+                    MdExplorer.Features.Services.UiText.Say("CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.",
+                        "CopilotInvocation is required: a headless run must carry its own context (working dir + environment), never inherit it from shared state."));
 
             _logger.LogInformation("[CopilotCliProvider.RunHeadlessAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
 
@@ -177,7 +178,8 @@ namespace MdExplorer.Features.Services.AI
         {
             if (invocation == null)
                 throw new ArgumentNullException(nameof(invocation),
-                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+                    MdExplorer.Features.Services.UiText.Say("CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.",
+                        "CopilotInvocation is required: a headless run must carry its own context (working dir + environment), never inherit it from shared state."));
 
             if (!IsAvailable())
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
@@ -726,9 +728,12 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 var exited = process.HasExited;
                 var code = exited ? process.ExitCode.ToString() : "n/d";
                 throw new InvalidOperationException(
-                    $"Copilot CLI ha chiuso l'ingresso prima di ricevere il prompt " +
-                    $"({prompt?.Length ?? 0} caratteri; processo terminato: {exited}, exit code: {code}). " +
-                    "Di solito significa che il CLI ha rifiutato gli argomenti e si e' fermato subito.", ex);
+                    MdExplorer.Features.Services.UiText.Say($"Copilot CLI ha chiuso l'ingresso prima di ricevere il prompt " +
+                        $"({prompt?.Length ?? 0} caratteri; processo terminato: {exited}, exit code: {code}). " +
+                        "Di solito significa che il CLI ha rifiutato gli argomenti e si e' fermato subito.",
+                        $"Copilot CLI closed its input before receiving the prompt " +
+                        $"({prompt?.Length ?? 0} characters; process exited: {exited}, exit code: {code}). " +
+                        "It usually means the CLI rejected the arguments and stopped right away."), ex);
             }
         }
 

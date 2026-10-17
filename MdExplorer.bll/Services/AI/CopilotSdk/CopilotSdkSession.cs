@@ -493,11 +493,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 case SessionErrorEvent error:
                     // Fatal for the answer, and Idle is not guaranteed to follow: without this the
                     // caller would sit on the idle timeout for five minutes before learning why.
-                    FailTurn(turn, "Copilot ha segnalato un errore: " + (error.Data?.Message ?? error.Data?.ErrorType ?? "(senza messaggio)"));
+                    FailTurn(turn, MdExplorer.Features.Services.UiText.Say("Copilot ha segnalato un errore: ", "Copilot reported an error: ") + (error.Data?.Message ?? error.Data?.ErrorType ?? MdExplorer.Features.Services.UiText.Say("(senza messaggio)", "(no message)")));
                     break;
 
                 case SessionShutdownEvent shutdown:
-                    FailTurn(turn, "La sessione Copilot si è chiusa durante la risposta"
+                    FailTurn(turn, MdExplorer.Features.Services.UiText.Say("La sessione Copilot si è chiusa durante la risposta", "The Copilot session closed during the answer")
                         + (string.IsNullOrWhiteSpace(shutdown.Data?.ErrorReason) ? "" : ": " + shutdown.Data.ErrorReason));
                     break;
 
@@ -557,25 +557,25 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 var names = string.Join(", ", files.Select(Relative));
                 if (result.ToolUnavailable != null)
                 {
-                    Write(turn.Channel, CopilotChatChunk.KindTool, "Diagrammi di " + names + " NON verificati: " + result.ToolUnavailable);
+                    Write(turn.Channel, CopilotChatChunk.KindTool, MdExplorer.Features.Services.UiText.Say("Diagrammi di " + names + " NON verificati: ", "Diagrams of " + names + " NOT checked: ") + result.ToolUnavailable);
                     return null;
                 }
                 if (!result.HasProblems)
                 {
-                    Write(turn.Channel, CopilotChatChunk.KindTool, $"MdExplorer: diagrammi di {names} verificati ✓");
+                    Write(turn.Channel, CopilotChatChunk.KindTool, MdExplorer.Features.Services.UiText.Say($"MdExplorer: diagrammi di {names} verificati ✓", $"MdExplorer: diagrams of {names} checked ✓"));
                     return null;
                 }
 
                 lock (turn) turn.ProblemsHandedBack = true;
                 _logger.LogInformation("[CopilotSdkSession] {Count} problemi nei diagrammi di {Files}, rimandati al modello", result.Problems.Count, names);
-                Write(turn.Channel, CopilotChatChunk.KindTool, $"MdExplorer: {Problems(result)} nei diagrammi di {names}, rimandati a Copilot");
+                Write(turn.Channel, CopilotChatChunk.KindTool, MdExplorer.Features.Services.UiText.Say($"MdExplorer: {Problems(result)} nei diagrammi di {names}, rimandati a Copilot", $"MdExplorer: {Problems(result)} in the diagrams of {names}, handed back to Copilot"));
                 return new PostToolUseHookOutput { AdditionalContext = result.ForModel() };
             }
             catch (Exception ex)
             {
                 // A failing check must not stop the agent's work — but it is said, not swallowed.
                 _logger.LogWarning(ex, "[CopilotSdkSession] verifica dei diagrammi dopo {Tool} fallita", input.ToolName);
-                Write(turn.Channel, CopilotChatChunk.KindTool, "Verifica dei diagrammi non riuscita: " + ex.Message);
+                Write(turn.Channel, CopilotChatChunk.KindTool, MdExplorer.Features.Services.UiText.Say("Verifica dei diagrammi non riuscita: ", "Checking the diagrams failed: ") + ex.Message);
                 return null;
             }
         }
@@ -603,7 +603,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     texts = turn.WrittenMarkdown.Where(File.Exists).Select(f => (Relative(f), ReadShared(f))).ToList();
                     // Only the messages since the last check: after a block the old message with the
                     // wrong diagram stays in the chat, and the corrected one is a new message.
-                    texts.AddRange(turn.UncheckedAnswers.Select(a => ("la tua risposta", a)));
+                    texts.AddRange(turn.UncheckedAnswers.Select(a => (MdExplorer.Features.Services.UiText.Say("la tua risposta", "your answer"), a)));
                     turn.UncheckedAnswers.Clear();
                 }
                 if (texts.Count == 0) return null;
@@ -613,7 +613,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
                 if (result.ToolUnavailable != null)
                 {
-                    Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ MdExplorer non ha potuto verificare i diagrammi PlantUML: " + result.ToolUnavailable);
+                    Write(turn.Channel, CopilotChatChunk.KindMessage, MdExplorer.Features.Services.UiText.Say("\n\n⚠️ MdExplorer non ha potuto verificare i diagrammi PlantUML: ", "\n\n⚠️ MdExplorer could not check the PlantUML diagrams: ") + result.ToolUnavailable);
                     return null;
                 }
 
@@ -624,9 +624,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 if (!result.HasProblems)
                 {
                     Write(turn.Channel, CopilotChatChunk.KindMessage,
-                        $"\n\n✓ MdExplorer ha verificato {Diagrams(result.Diagrams)} PlantUML" +
+                        MdExplorer.Features.Services.UiText.Say($"\n\n✓ MdExplorer ha verificato {Diagrams(result.Diagrams)} PlantUML", $"\n\n✓ MdExplorer checked {Diagrams(result.Diagrams)} PlantUML") +
                         (handedBack || round > 0
-                            ? (result.Diagrams == 1 ? ", corretto" : ", corretti") + " da Copilot dopo la verifica."
+                            ? MdExplorer.Features.Services.UiText.Say((result.Diagrams == 1 ? ", corretto" : ", corretti") + " da Copilot dopo la verifica.", ", fixed by Copilot after the check.")
                             : "."));
                     return null;
                 }
@@ -636,19 +636,19 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     lock (turn) { turn.CorrectionRounds++; turn.ProblemsHandedBack = true; }
                     _logger.LogInformation("[CopilotSdkSession] {Count} problemi nei diagrammi alla chiusura, giro {Round}", result.Problems.Count, round + 1);
                     Write(turn.Channel, CopilotChatChunk.KindTool,
-                        $"MdExplorer: {Problems(result)} nei diagrammi, Copilot li corregge (giro {round + 1} di {MAX_DIAGRAM_CORRECTION_ROUNDS})");
+                        MdExplorer.Features.Services.UiText.Say($"MdExplorer: {Problems(result)} nei diagrammi, Copilot li corregge (giro {round + 1} di {MAX_DIAGRAM_CORRECTION_ROUNDS})", $"MdExplorer: {Problems(result)} in the diagrams, Copilot fixes them (round {round + 1} of {MAX_DIAGRAM_CORRECTION_ROUNDS})"));
                     return new AgentStopHookOutput { Decision = "block", Reason = result.ForModel() };
                 }
 
                 _logger.LogWarning("[CopilotSdkSession] diagrammi ancora con problemi dopo {Rounds} giri", MAX_DIAGRAM_CORRECTION_ROUNDS);
                 Write(turn.Channel, CopilotChatChunk.KindMessage,
-                    $"\n\n⚠️ MdExplorer: dopo {MAX_DIAGRAM_CORRECTION_ROUNDS} giri di correzione restano problemi nei diagrammi PlantUML:" + result.ForUser());
+                    MdExplorer.Features.Services.UiText.Say($"\n\n⚠️ MdExplorer: dopo {MAX_DIAGRAM_CORRECTION_ROUNDS} giri di correzione restano problemi nei diagrammi PlantUML:", $"\n\n⚠️ MdExplorer: after {MAX_DIAGRAM_CORRECTION_ROUNDS} correction rounds the PlantUML diagrams still have problems:") + result.ForUser());
                 return null;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[CopilotSdkSession] verifica dei diagrammi alla chiusura fallita");
-                Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ Verifica dei diagrammi PlantUML non riuscita: " + ex.Message);
+                Write(turn.Channel, CopilotChatChunk.KindMessage, MdExplorer.Features.Services.UiText.Say("\n\n⚠️ Verifica dei diagrammi PlantUML non riuscita: ", "\n\n⚠️ Checking the PlantUML diagrams failed: ") + ex.Message);
                 return null;
             }
         }
@@ -764,9 +764,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         }
 
         private static string Problems(PlantumlVerification result)
-            => result.Problems.Count == 1 ? "1 problema" : result.Problems.Count + " problemi";
+            => result.Problems.Count == 1 ? MdExplorer.Features.Services.UiText.Say("1 problema", "1 problem") : result.Problems.Count + MdExplorer.Features.Services.UiText.Say(" problemi", " problems");
 
-        private static string Diagrams(int count) => count == 1 ? "1 diagramma" : count + " diagrammi";
+        private static string Diagrams(int count) => count == 1 ? MdExplorer.Features.Services.UiText.Say("1 diagramma", "1 diagram") : count + MdExplorer.Features.Services.UiText.Say(" diagrammi", " diagrams");
 
         // GHCP001: the SDK marks PermissionDecision "for evaluation purposes only". It is also the
         // only way to approve a tool — OnPermissionRequest must return it — so the diagnostic is
@@ -796,10 +796,10 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private static string DescribeCancellation(CancellationTokenSource idleCts, CancellationTokenSource hardCts)
         {
             if (idleCts.IsCancellationRequested)
-                return $"Copilot non dà segni di vita da {PROMPT_IDLE_TIMEOUT_MS / 1000} secondi";
+                return MdExplorer.Features.Services.UiText.Say($"Copilot non dà segni di vita da {PROMPT_IDLE_TIMEOUT_MS / 1000} secondi", $"Copilot has shown no sign of life for {PROMPT_IDLE_TIMEOUT_MS / 1000} seconds");
             if (hardCts.IsCancellationRequested)
-                return $"Copilot ha superato il tetto di {PROMPT_HARD_TIMEOUT_MS / 60000} minuti per una risposta";
-            return "Richiesta annullata";
+                return MdExplorer.Features.Services.UiText.Say($"Copilot ha superato il tetto di {PROMPT_HARD_TIMEOUT_MS / 60000} minuti per una risposta", $"Copilot went over the {PROMPT_HARD_TIMEOUT_MS / 60000}-minute cap for an answer");
+            return MdExplorer.Features.Services.UiText.Say("Richiesta annullata", "Request cancelled");
         }
 
         public async ValueTask DisposeAsync()
@@ -809,7 +809,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
             // Whoever is reading must not be left hanging on a channel nobody will close.
             _activeTurn?.Channel.Writer.TryComplete(
-                new OperationCanceledException("Sessione Copilot chiusa mentre la risposta era in corso"));
+                new OperationCanceledException(MdExplorer.Features.Services.UiText.Say("Sessione Copilot chiusa mentre la risposta era in corso", "Copilot session closed while the answer was in progress")));
             _activeTurn = null;
 
             var session = _session;

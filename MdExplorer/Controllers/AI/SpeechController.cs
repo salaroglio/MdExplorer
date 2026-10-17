@@ -64,7 +64,7 @@ namespace MdExplorer.Controllers.AI
         {
             if (audio == null || audio.Length == 0)
             {
-                return BadRequest(new { error = "Nessun audio ricevuto: il campo 'audio' è vuoto." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun audio ricevuto: il campo 'audio' è vuoto.", "No audio received: the 'audio' field is empty.") });
             }
 
             try
@@ -98,7 +98,7 @@ namespace MdExplorer.Controllers.AI
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Dettatura] trascrizione fallita");
-                return StatusCode(500, new { error = "La trascrizione non è riuscita: " + ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("La trascrizione non è riuscita: ", "Transcription failed: ") + ex.Message });
             }
         }
     }

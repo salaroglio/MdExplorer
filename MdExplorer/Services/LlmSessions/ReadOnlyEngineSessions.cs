@@ -76,9 +76,10 @@ namespace MdExplorer.Services.LlmSessions
         /// <summary>Why the project's engine cannot answer here; null when it can.</summary>
         public static string WhyNot(MarkAgentEngine engine) => IsResolvable(engine) switch
         {
-            null => "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.",
-            false => $"Il motore del progetto ({MarkAgentEngines.CommandOf(engine)}) non si trova nel PATH del servizio: " +
-                     "se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm.",
+            null => MdExplorer.Features.Services.UiText.Say("Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.", "The project has no MarkAgent engine: choose it in the project settings."),
+            false => MdExplorer.Features.Services.UiText.Say(
+                $"Il motore del progetto ({MarkAgentEngines.CommandOf(engine)}) non si trova nel PATH del servizio: se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm.",
+                $"The project's engine ({MarkAgentEngines.CommandOf(engine)}) is not in the service PATH: if you installed it with nvm, start MdExplorer from a shell that loads nvm."),
             _ => null,
         };
 

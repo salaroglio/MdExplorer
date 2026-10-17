@@ -153,9 +153,11 @@ namespace MdExplorer.Hubs
             }
 
             whyNot = hasProjectConnId
-                ? $"la chat è legata alla connessione di progetto '{projectConnId}', che non corrisponde a nessun progetto aperto "
-                  + "(di solito perché quella connessione è stata sostituita da una riconnessione)"
-                : "la chat non ha ancora ricevuto quale progetto sta guardando";
+                ? MdExplorer.Features.Services.UiText.Say($"la chat è legata alla connessione di progetto '{projectConnId}', che non corrisponde a nessun progetto aperto "
+                  + "(di solito perché quella connessione è stata sostituita da una riconnessione)",
+                  $"the chat is bound to the project connection '{projectConnId}', which matches no open project "
+                  + "(usually because that connection was replaced by a reconnection)")
+                : MdExplorer.Features.Services.UiText.Say("la chat non ha ancora ricevuto quale progetto sta guardando", "the chat has not yet been told which project it is looking at");
 
             _logger.LogWarning("⚠️ Unable to get project path ({WhyNot}). AiChat connectionId={AiChatConnId}, projectConnId={ProjectConnId}",
                 whyNot, Context?.ConnectionId, hasProjectConnId ? projectConnId : "not set");
@@ -238,7 +240,7 @@ namespace MdExplorer.Hubs
             {
                 _logger.LogWarning(ex, "[SendMessageWithContext] Failed to read context files");
                 await Clients.Caller.SendAsync("ReceiveError",
-                    "Lettura dei file di contesto fallita: " + ex.Message, channelId);
+                    MdExplorer.Features.Services.UiText.Say("Lettura dei file di contesto fallita: ", "Reading the context files failed: ") + ex.Message, channelId);
                 return;
             }
 
@@ -255,7 +257,7 @@ namespace MdExplorer.Hubs
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                throw new InvalidOperationException("Nessun progetto aperto per questa connessione.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione.", "No project open for this connection."));
             }
             var normalizedProject = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
@@ -284,11 +286,11 @@ namespace MdExplorer.Hubs
                 if (!isMarkdown && !MdExplorer.Abstractions.Services.TextFileClassifier
                         .IsEligibleTextFile(candidate, _defaultTextExtensions))
                 {
-                    throw new InvalidOperationException($"path non è un file markdown né un file di testo indicizzabile: {rawPath}");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"path non è un file markdown né un file di testo indicizzabile: {rawPath}", $"path is neither a markdown file nor an indexable text file: {rawPath}"));
                 }
                 if (!System.IO.File.Exists(candidate))
                 {
-                    throw new FileNotFoundException($"file non trovato: {rawPath}");
+                    throw new FileNotFoundException(MdExplorer.Features.Services.UiText.Say($"file non trovato: {rawPath}", $"file not found: {rawPath}"));
                 }
 
                 var relative = candidate.Substring(normalizedProject.Length).Replace(Path.DirectorySeparatorChar, '/');
@@ -329,7 +331,7 @@ namespace MdExplorer.Hubs
             if (_e2eLaunch != null && _e2eLaunch.IsRunning(Context.ConnectionId))
             {
                 await Clients.Caller.SendAsync("ReceiveError",
-                    "È in corso un lancio di test e2e: aspetta che finisca o interrompilo dalla finestra dei test.", string.IsNullOrEmpty(channelId) ? "default" : channelId);
+                    MdExplorer.Features.Services.UiText.Say("È in corso un lancio di test e2e: aspetta che finisca o interrompilo dalla finestra dei test.", "An e2e test run is in progress: wait for it to finish or stop it from the tests window."), string.IsNullOrEmpty(channelId) ? "default" : channelId);
                 await Clients.Caller.SendAsync("StreamComplete", string.IsNullOrEmpty(channelId) ? "default" : channelId);
                 return;
             }
@@ -435,7 +437,7 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(acpEx, "[SendMessage] Copilot fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Copilot non è partito: " + acpEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("Copilot non è partito: ", "Copilot did not start: ") + acpEx.Message, channelId);
                             response = string.Empty;
                         }
                         _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
@@ -454,14 +456,14 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(midEx, "[SendMessage] Claude Code interrotto a metà stream");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Stream di Claude Code interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                                MdExplorer.Features.Services.UiText.Say("Stream di Claude Code interrotto: ", "Claude Code stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception ccEx)
                         {
                             _logger.LogError(ccEx, "[SendMessage] Claude Code fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Claude Code non è partito: " + ccEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("Claude Code non è partito: ", "Claude Code did not start: ") + ccEx.Message, channelId);
                             response = string.Empty;
                         }
                         _logger.LogInformation($"[SendMessage] Claude Code streaming completato, lunghezza risposta: {response?.Length ?? 0}");
@@ -479,14 +481,14 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(midEx, "[SendMessage] opencode interrotto a metà stream");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Stream di opencode interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                                MdExplorer.Features.Services.UiText.Say("Stream di opencode interrotto: ", "opencode stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception ocEx)
                         {
                             _logger.LogError(ocEx, "[SendMessage] opencode fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "opencode non è partito: " + ocEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("opencode non è partito: ", "opencode did not start: ") + ocEx.Message, channelId);
                             response = string.Empty;
                         }
                         _logger.LogInformation($"[SendMessage] opencode streaming completato, lunghezza risposta: {response?.Length ?? 0}");
@@ -826,13 +828,13 @@ namespace MdExplorer.Hubs
             var projectPath = GetProjectPath(out var whyNoProject);
             if (string.IsNullOrEmpty(projectPath))
             {
-                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { $"Non so in quale progetto lavorare: {whyNoProject}. Riapri il progetto." } }, channelId);
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { MdExplorer.Features.Services.UiText.Say($"Non so in quale progetto lavorare: {whyNoProject}. Riapri il progetto.", $"I do not know which project to work in: {whyNoProject}. Reopen the project.") } }, channelId);
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }
             if (_chatTurnsInFlight.TryGetValue(connectionId, out var turns) && turns > 0)
             {
-                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "MarkAgent sta rispondendo in chat: aspetta la fine della risposta, poi lancia i test." } }, channelId);
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { MdExplorer.Features.Services.UiText.Say("MarkAgent sta rispondendo in chat: aspetta la fine della risposta, poi lancia i test.", "MarkAgent is answering in the chat: wait for the answer to finish, then launch the tests.") } }, channelId);
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }
@@ -969,13 +971,13 @@ namespace MdExplorer.Hubs
         private sealed class ClaudeCodeMidStreamException : Exception
         {
             public ClaudeCodeMidStreamException(Exception inner)
-                : base("Lo stream di Claude Code è fallito dopo il primo frammento", inner) { }
+                : base(MdExplorer.Features.Services.UiText.Say("Lo stream di Claude Code è fallito dopo il primo frammento", "The Claude Code stream failed after the first chunk"), inner) { }
         }
 
         private sealed class OpenCodeMidStreamException : Exception
         {
             public OpenCodeMidStreamException(Exception inner)
-                : base("Lo stream di opencode è fallito dopo il primo frammento", inner) { }
+                : base(MdExplorer.Features.Services.UiText.Say("Lo stream di opencode è fallito dopo il primo frammento", "The opencode stream failed after the first chunk"), inner) { }
         }
 
 
@@ -1011,15 +1013,17 @@ namespace MdExplorer.Hubs
         {
             if (_claudeCodePool == null)
             {
-                throw new InvalidOperationException("ClaudeCodeSessionPool non registrato");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("ClaudeCodeSessionPool non registrato", "ClaudeCodeSessionPool not registered"));
             }
 
             var projectPath = GetProjectPath(out var whyNoProject);
             if (string.IsNullOrEmpty(projectPath))
             {
                 throw new InvalidOperationException(
-                    "Non so in quale progetto lavorare, e Claude Code va lanciato dentro il progetto, non altrove: "
-                    + $"{whyNoProject}. Riapri il progetto.");
+                    MdExplorer.Features.Services.UiText.Say("Non so in quale progetto lavorare, e Claude Code va lanciato dentro il progetto, non altrove: "
+                    + $"{whyNoProject}. Riapri il progetto.",
+                    "I do not know which project to work in, and Claude Code must run inside the project, nowhere else: "
+                    + $"{whyNoProject}. Reopen the project."));
             }
 
             var effectiveModel = string.IsNullOrEmpty(modelId) ? MdExplorer.Utilities.MarkAgentEngines.ClaudeDefaultModel : modelId;
@@ -1158,15 +1162,17 @@ namespace MdExplorer.Hubs
         {
             if (_openCodePool == null)
             {
-                throw new InvalidOperationException("OpenCodeSessionPool non registrato");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("OpenCodeSessionPool non registrato", "OpenCodeSessionPool not registered"));
             }
 
             var projectPath = GetProjectPath(out var whyNoProject);
             if (string.IsNullOrEmpty(projectPath))
             {
                 throw new InvalidOperationException(
-                    "Non so in quale progetto lavorare, e opencode va eseguito dentro il progetto, non altrove: "
-                    + $"{whyNoProject}. Riapri il progetto.");
+                    MdExplorer.Features.Services.UiText.Say("Non so in quale progetto lavorare, e opencode va eseguito dentro il progetto, non altrove: "
+                    + $"{whyNoProject}. Riapri il progetto.",
+                    "I do not know which project to work in, and opencode must run inside the project, nowhere else: "
+                    + $"{whyNoProject}. Reopen the project."));
             }
 
             var session = await _openCodePool.GetOrCreateAsync(Context.ConnectionId, projectPath, modelId);
@@ -1290,7 +1296,7 @@ namespace MdExplorer.Hubs
             if (string.IsNullOrEmpty(projectPath))
             {
                 throw new InvalidOperationException(
-                    $"Non so in quale progetto lavorare, quindi non avvio Copilot: {whyNoProject}. Riapri il progetto.");
+                    MdExplorer.Features.Services.UiText.Say($"Non so in quale progetto lavorare, quindi non avvio Copilot: {whyNoProject}. Riapri il progetto.", $"I do not know which project to work in, so I am not starting Copilot: {whyNoProject}. Reopen the project."));
             }
 
             // No model = the CLI chooses. There used to be "claude-sonnet-5" here, one of four
@@ -1537,7 +1543,7 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(acpEx, "[RegenerateAiResponse] Copilot fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Copilot non è partito: " + acpEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("Copilot non è partito: ", "Copilot did not start: ") + acpEx.Message, channelId);
                         }
                     }
                     else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode)
@@ -1550,13 +1556,13 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(midEx, "[RegenerateAiResponse] Claude Code interrotto a metà stream");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Stream di Claude Code interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                                MdExplorer.Features.Services.UiText.Say("Stream di Claude Code interrotto: ", "Claude Code stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception ccEx)
                         {
                             _logger.LogError(ccEx, "[RegenerateAiResponse] Claude Code fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Claude Code non è partito: " + ccEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("Claude Code non è partito: ", "Claude Code did not start: ") + ccEx.Message, channelId);
                         }
                     }
                     else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.OpenCode)
@@ -1569,13 +1575,13 @@ namespace MdExplorer.Hubs
                         {
                             _logger.LogError(midEx, "[RegenerateAiResponse] opencode interrotto a metà stream");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "Stream di opencode interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                                MdExplorer.Features.Services.UiText.Say("Stream di opencode interrotto: ", "opencode stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception ocEx)
                         {
                             _logger.LogError(ocEx, "[RegenerateAiResponse] opencode fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
-                                "opencode non è partito: " + ocEx.Message, channelId);
+                                MdExplorer.Features.Services.UiText.Say("opencode non è partito: ", "opencode did not start: ") + ocEx.Message, channelId);
                         }
                     }
                     else

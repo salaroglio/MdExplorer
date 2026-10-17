@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -87,8 +88,8 @@ namespace MdExplorer.Services.Git
         {
             var view = await _changes.GetAsync(projectPath, agentName, ct);
             if (view.Problem != null) return Refuse(view.Problem);
-            if (view.NotAGitRepository) return Refuse("Questa cartella non è un repository git.");
-            if (view.Repos == null || view.Repos.Count == 0) return Refuse("Nessun repository da pubblicare.");
+            if (view.NotAGitRepository) return Refuse(UiText.Say("Questa cartella non è un repository git.", "This folder is not a git repository."));
+            if (view.Repos == null || view.Repos.Count == 0) return Refuse(UiText.Say("Nessun repository da pubblicare.", "No repository to push."));
 
             var root = view.Repos[0];
             var submodules = view.Repos.Skip(1).ToList();
@@ -103,24 +104,27 @@ namespace MdExplorer.Services.Git
             foreach (var s in submodules.Where(NeedsPublishing))
             {
                 if (s.NotInitialized)
-                    return Refuse($"'{s.Path}' non è popolato, ma il progetto ne registra un commit diverso: " +
-                                  "va scaricato prima di poter pubblicare.");
+                    return Refuse(UiText.Say(
+                        $"'{s.Path}' non è popolato, ma il progetto ne registra un commit diverso: va scaricato prima di poter pubblicare.",
+                        $"'{s.Path}' is not populated, but the project records a different commit for it: it must be pulled before you can push."));
 
                 if (s.Detached)
-                    return Refuse($"'{s.Path}' ha HEAD staccato: il suo lavoro non sta su nessun ramo e non è " +
-                                  "pubblicabile. Mettilo su un ramo, poi ripeti.");
+                    return Refuse(UiText.Say(
+                        $"'{s.Path}' ha HEAD staccato: il suo lavoro non sta su nessun ramo e non è pubblicabile. Mettilo su un ramo, poi ripeti.",
+                        $"'{s.Path}' has a detached HEAD: its work is not on any branch and cannot be pushed. Put it on a branch, then try again."));
 
                 if (string.IsNullOrEmpty(s.Upstream))
-                    return Refuse($"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non è pubblicabile " +
-                                  "così com'è.");
+                    return Refuse(UiText.Say(
+                        $"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non è pubblicabile così com'è.",
+                        $"'{s.Path}' has no remote branch configured: its work cannot be pushed as it is."));
             }
 
             if (root.Ahead > 0)
             {
                 if (root.Detached)
-                    return Refuse("Il progetto ha HEAD staccato: non c'è un ramo da pubblicare.");
+                    return Refuse(UiText.Say("Il progetto ha HEAD staccato: non c'è un ramo da pubblicare.", "The project has a detached HEAD: there is no branch to push."));
                 if (string.IsNullOrEmpty(root.Upstream))
-                    return Refuse("Il progetto non ha un ramo remoto configurato: non c'è dove pubblicare.");
+                    return Refuse(UiText.Say("Il progetto non ha un ramo remoto configurato: non c'è dove pubblicare.", "The project has no remote branch configured: there is nowhere to push."));
             }
 
             // Prima si scarica, poi si pubblica: un repository che è anche indietro verrebbe rifiutato
@@ -128,9 +132,9 @@ namespace MdExplorer.Services.Git
             foreach (var r in view.Repos)
             {
                 if (r.MergeInProgress)
-                    return Refuse($"'{r.Label}' ha un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di pubblicare.");
+                    return Refuse(UiText.Say($"'{r.Label}' ha un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di pubblicare.", $"'{r.Label}' has a merge left half done: finish it with a commit, or abort it, before pushing."));
                 if (r.Ahead > 0 && r.Behind > 0)
-                    return Refuse($"'{r.Label}' ha {r.Behind} commit da scaricare: prima scarica, poi pubblica.");
+                    return Refuse(UiText.Say($"'{r.Label}' ha {r.Behind} commit da scaricare: prima scarica, poi pubblica.", $"'{r.Label}' has {r.Behind} commits to pull: pull first, then push."));
             }
 
             var steps = new List<PushStep>();
@@ -139,10 +143,10 @@ namespace MdExplorer.Services.Git
             // pubblicare: dopo un commit il messaggio diceva «resta indietro» di file appena pubblicati.
             var leftBehind = view.Repos
                 .Where(r => r.Uncommitted.Count > 0)
-                .Select(r => $"{r.Uncommitted.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'")
+                .Select(r => UiText.Say($"{r.Uncommitted.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'", $"{r.Uncommitted.Count} uncommitted files in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'"))
                 // Solo se il submodule e' piu' AVANTI: uno rimasto indietro va allineato, non registrato.
                 .Concat(view.Repos.Where(r => r.PointerMoved && (r.Relation == null || r.Relation == SubmoduleRelation.Ahead))
-                    .Select(r => $"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (va committato lì)"))
+                    .Select(r => UiText.Say($"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (va committato lì)", $"the new commit of '{r.Path}' is not recorded in the project yet (it must be committed there)")))
                 .ToList();
 
             // ---- 2) i figli, dal più profondo: un submodule dentro un submodule va prima del suo ----
@@ -155,7 +159,7 @@ namespace MdExplorer.Services.Git
                 steps.Add(new PushStep
                 {
                     Repo = s.Path, Label = s.Path, Ok = res.Success,
-                    Outcome = res.Success ? (res.Message ?? "pubblicato") : (res.ErrorMessage ?? "non riuscito"),
+                    Outcome = res.Success ? (res.Message ?? UiText.Say("pubblicato", "pushed")) : (res.ErrorMessage ?? UiText.Say("non riuscito", "failed")),
                 });
 
                 if (!res.Success)
@@ -174,7 +178,7 @@ namespace MdExplorer.Services.Git
                 steps.Add(new PushStep
                 {
                     Repo = string.Empty, Label = root.Label, Ok = res.Success,
-                    Outcome = res.Success ? (res.Message ?? "pubblicato") : (res.ErrorMessage ?? "non riuscito"),
+                    Outcome = res.Success ? (res.Message ?? UiText.Say("pubblicato", "pushed")) : (res.ErrorMessage ?? UiText.Say("non riuscito", "failed")),
                 });
                 if (!res.Success)
                     return new SafePushResult { Success = false, Steps = steps, LeftBehind = leftBehind };

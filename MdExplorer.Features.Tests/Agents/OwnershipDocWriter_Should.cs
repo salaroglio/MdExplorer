@@ -72,7 +72,7 @@ namespace MdExplorer.Features.Tests.Agents
         {
             var noTable = Assert.ThrowsException<InvalidOperationException>(
                 () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\nSolo testo.\n", "legale", "Anna", "anna@x.it"));
-            StringAssert.Contains(noTable.Message, "non ha una tabella");
+            StringAssert.Contains(noTable.Message, "has no table");
 
             var noAgents = Assert.ThrowsException<InvalidOperationException>(
                 () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ambito | Git Email |\n|--|--|\n", "legale", "Anna", "anna@x.it"));

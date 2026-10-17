@@ -18,7 +18,7 @@ namespace MdExplorer.Services.AgentRun
             using var p = Process.Start(psi);
             var outTask = p.StandardOutput.ReadToEndAsync();
             var errTask = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(60000)) { try { p.Kill(true); } catch { } return (-1, "", "git non ha risposto in 60 secondi"); }
+            if (!p.WaitForExit(60000)) { try { p.Kill(true); } catch { } return (-1, "", MdExplorer.Features.Services.UiText.Say("git non ha risposto in 60 secondi", "git did not answer within 60 seconds")); }
             return (p.ExitCode, outTask.Result, errTask.Result);
         }
 
@@ -32,7 +32,7 @@ namespace MdExplorer.Services.AgentRun
             if (commit.Code != 0 && !commit.Out.Contains("nothing to commit") && !commit.Err.Contains("nothing to commit"))
                 return "commit: " + (commit.Err.Trim().Length > 0 ? commit.Err.Trim() : commit.Out.Trim());
             var push = Run(projectPath, "push", "--quiet");
-            return push.Code != 0 ? "committato ma non pubblicato: " + push.Err.Trim() : null;
+            return push.Code != 0 ? MdExplorer.Features.Services.UiText.Say("committato ma non pubblicato: ", "committed but not pushed: ") + push.Err.Trim() : null;
         }
     }
 }

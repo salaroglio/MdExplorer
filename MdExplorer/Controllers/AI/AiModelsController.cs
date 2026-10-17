@@ -87,7 +87,7 @@ namespace MdExplorer.Controllers.AI
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error reading cached models");
-                return StatusCode(500, new { error = "Impossibile leggere l'elenco dei modelli salvati: " + ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Impossibile leggere l'elenco dei modelli salvati: ", "Cannot read the list of saved models: ") + ex.Message });
             }
         }
 

@@ -58,7 +58,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         {
             if (_disposed) throw new ObjectDisposedException(nameof(OpenCodeSessionPool));
             if (string.IsNullOrEmpty(connectionId))
-                throw new ArgumentException("connectionId obbligatoria", nameof(connectionId));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("connectionId obbligatoria", "connectionId is required"), nameof(connectionId));
 
             if (_sessions.TryGetValue(connectionId, out var fast) && SameProject(fast, workingDirectory))
             {
@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 {
                     await session.DisposeAsync().ConfigureAwait(false);
                     if (_sessions.TryGetValue(connectionId, out var winner)) return winner;
-                    throw new InvalidOperationException("Registrazione della sessione opencode fallita e nessun vincitore trovato");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Registrazione della sessione opencode fallita e nessun vincitore trovato", "opencode session registration failed and no winner found"));
                 }
 
                 _logger.LogInformation("[OpenCodeSessionPool] Creata sessione per {ConnectionId} (totale={Total})",

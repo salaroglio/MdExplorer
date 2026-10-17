@@ -38,7 +38,7 @@ namespace MdExplorer.Service.Controllers.Diagrams
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Source))
             {
-                return BadRequest(new { error = "source is required: il sorgente del diagramma, da @startuml a @enduml." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("source is required: il sorgente del diagramma, da @startuml a @enduml.", "source is required: the diagram source, from @startuml to @enduml.") });
             }
 
             try
@@ -61,7 +61,7 @@ namespace MdExplorer.Service.Controllers.Diagrams
                 return StatusCode(500, new
                 {
                     ok = false,
-                    toolUnavailable = $"La verifica non e' stata eseguita: {ex.Message}. Il diagramma non e' stato giudicato."
+                    toolUnavailable = MdExplorer.Features.Services.UiText.Say($"La verifica non e' stata eseguita: {ex.Message}. Il diagramma non e' stato giudicato.", $"The check was not run: {ex.Message}. The diagram was not judged.")
                 });
             }
         }

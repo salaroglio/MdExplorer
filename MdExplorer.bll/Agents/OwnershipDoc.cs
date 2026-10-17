@@ -77,13 +77,13 @@ namespace MdExplorer.Features.Agents
             var table = ParseFirstTable(body);
             if (table == null)
             {
-                errors.Add("Documento di ownership senza tabella: attesa una tabella markdown con colonne Ambito | Responsabile | Git Email | Agenti.");
+                errors.Add(MdExplorer.Features.Services.UiText.Say("Documento di ownership senza tabella: attesa una tabella markdown con colonne Ambito | Responsabile | Git Email | Agenti.", "Ownership document without a table: expected a markdown table with the columns Ambito | Responsabile | Git Email | Agenti."));
                 return new OwnershipParseResult { IsOwnershipDoc = true, Errors = errors };
             }
 
             if (!table.ColumnIndex.ContainsKey("scope") || !table.ColumnIndex.ContainsKey("gitEmail"))
             {
-                errors.Add("La tabella di ownership deve avere almeno le colonne 'Ambito' e 'Git Email'.");
+                errors.Add(MdExplorer.Features.Services.UiText.Say("La tabella di ownership deve avere almeno le colonne 'Ambito' e 'Git Email'.", "The ownership table must have at least the columns 'Ambito' and 'Git Email'."));
                 return new OwnershipParseResult { IsOwnershipDoc = true, Errors = errors };
             }
 
@@ -98,17 +98,17 @@ namespace MdExplorer.Features.Agents
 
                 if (string.IsNullOrWhiteSpace(scope))
                 {
-                    errors.Add($"Riga {rowNum}: ambito mancante.");
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum}: ambito mancante.", $"Row {rowNum}: scope missing."));
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(gitEmail))
                 {
-                    errors.Add($"Riga {rowNum} ('{scope}'): Git Email del responsabile mancante.");
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum} ('{scope}'): Git Email del responsabile mancante.", $"Row {rowNum} ('{scope}'): the owner's Git Email is missing."));
                     continue;
                 }
                 if (!seenScopes.Add(scope.Trim()))
                 {
-                    errors.Add($"Ambito duplicato: '{scope.Trim()}' compare più di una volta (gli ambiti devono essere univoci).");
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito duplicato: '{scope.Trim()}' compare più di una volta (gli ambiti devono essere univoci).", $"Scope '{scope.Trim()}' is duplicated: it appears more than once (scopes must be unique)."));
                     continue;
                 }
 
@@ -271,12 +271,12 @@ namespace MdExplorer.Features.Agents
             foreach (var e in parsed.Entries)
             {
                 if (!participants.Contains(e.GitEmail))
-                    errors.Add($"Ambito '{e.Scope}': il responsabile '{e.GitEmail}' non è tra i participants del progetto.");
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito '{e.Scope}': il responsabile '{e.GitEmail}' non è tra i participants del progetto.", $"Scope '{e.Scope}': owner '{e.GitEmail}' is not among the project participants."));
 
                 foreach (var agent in e.Agents)
                 {
                     if (!agents.Contains(agent))
-                        errors.Add($"Ambito '{e.Scope}': l'agente '{agent}' non esiste nel registry del progetto.");
+                        errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito '{e.Scope}': l'agente '{agent}' non esiste nel registry del progetto.", $"Scope '{e.Scope}': agent '{agent}' does not exist in the project registry."));
                 }
             }
 

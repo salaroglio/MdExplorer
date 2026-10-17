@@ -72,8 +72,9 @@ namespace MdExplorer.Services.AgentRun
             var configPath = ClaudeCodeMcp.WriteSessionConfig(groups, nonce: nonce, mdexplorerEnvironment: request.Environment ?? new System.Collections.Generic.Dictionary<string, string>());
             if (configPath == null)
                 return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
-                    $"Agente '{request.AgentName}': il server MCP di MdExplorer non si trova, e senza gli strumenti della città " +
-                    "un agente non può lavorare. Controlla l'installazione di MdExplorer (cartella mcp).");
+                    MdExplorer.Features.Services.UiText.Say(
+                        $"Agente '{request.AgentName}': il server MCP di MdExplorer non si trova, e senza gli strumenti della città un agente non può lavorare. Controlla l'installazione di MdExplorer (cartella mcp).",
+                        $"Agent '{request.AgentName}': MdExplorer's MCP server cannot be found, and without the city's tools an agent cannot work. Check the MdExplorer installation (mcp folder)."));
 
             var model = string.IsNullOrWhiteSpace(request.RequestedModel) ? MarkAgentEngines.ClaudeDefaultModel : request.RequestedModel;
             var session = new ClaudeCodeSession(_loggerFactory.CreateLogger<ClaudeCodeSession>(), request.WorkingDirectory ?? request.ProjectPath,

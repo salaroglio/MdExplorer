@@ -132,7 +132,7 @@ namespace MdExplorer.Features.Commands
             if (!isWorkflow && !DirectiveToBlock.TryGetValue(directive, out _))
             {
                 var supported = string.Join(", ", DirectiveToBlock.Keys.Append(WorkflowDirective).Select(_ => "@" + _));
-                return ErrorBlock(match, $"direttiva @{directive} sconosciuta — quelle disponibili sono {supported}");
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say($"direttiva @{directive} sconosciuta — quelle disponibili sono {supported}", $"unknown directive @{directive} — the available ones are {supported}"));
             }
 
             var fileContent = ReadExternalFile(fileName, requestInfo, out var absolutePath, out var readError);
@@ -145,8 +145,9 @@ namespace MdExplorer.Features.Commands
             // ```plantuml up to the FIRST backtick, so the diagram would silently come out truncated.
             if (fileContent.IndexOf('`') > -1 || extraDirectives.IndexOf('`') > -1)
             {
-                return ErrorBlock(match, "il contenuto include un backtick (`), che chiuderebbe il blocco in anticipo — " +
-                                         "toglilo dal file oppure incolla il diagramma a mano");
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say(
+                    "il contenuto include un backtick (`), che chiuderebbe il blocco in anticipo — toglilo dal file oppure incolla il diagramma a mano",
+                    "the content includes a backtick (`), which would close the block early — remove it from the file or paste the diagram by hand"));
             }
 
             if (isWorkflow)
@@ -160,7 +161,7 @@ namespace MdExplorer.Features.Commands
                 var jsonError = ValidateJson(fileContent);
                 if (jsonError != null)
                 {
-                    return ErrorBlock(match, $"il file non è JSON valido: {jsonError}");
+                    return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say($"il file non è JSON valido: {jsonError}", $"the file is not valid JSON: {jsonError}"));
                 }
             }
 
@@ -195,7 +196,7 @@ namespace MdExplorer.Features.Commands
             if (!parsed.IsValid)
             {
                 var errors = parsed.Issues.Where(i => i.Severity == WorkflowSeverity.Error).Select(i => "• " + i).ToList();
-                return ErrorBlock(match, $"il workflow ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, non lo disegno:\n" + string.Join("\n", errors));
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say($"il workflow ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, non lo disegno:\n", $"the workflow has {errors.Count} {(errors.Count == 1 ? "error" : "errors")}, I am not drawing it:\n") + string.Join("\n", errors));
             }
 
             var root = requestInfo?.CurrentRoot;
@@ -207,7 +208,7 @@ namespace MdExplorer.Features.Commands
             if (trimmedDirectives.Length > 0)
                 diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");
             if (diagram.IndexOf('`') > -1)
-                return ErrorBlock(match, "il workflow contiene un backtick (`), che chiuderebbe il blocco in anticipo: toglilo dai titoli");
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say("il workflow contiene un backtick (`), che chiuderebbe il blocco in anticipo: toglilo dai titoli", "the workflow contains a backtick (`), which would close the block early: remove it from the titles"));
 
             _logger.LogInformation("[FromExternalDataToPlantuml] @workflow expanded from {Path}", absolutePath);
             return "\n\n```plantuml\n" + diagram + "```\n\n";
@@ -300,7 +301,7 @@ namespace MdExplorer.Features.Commands
             {
                 _logger.LogError(ex, "[FromExternalDataToPlantuml] Error reading external file: {FileName}", fileName);
                 absoluteFilePath = null;
-                error = $"errore leggendo il file: {ex.Message}";
+                error = MdExplorer.Features.Services.UiText.Say($"errore leggendo il file: {ex.Message}", $"error reading the file: {ex.Message}");
                 return null;
             }
         }

@@ -78,11 +78,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             if (resolved == null)
             {
                 throw new InvalidOperationException(
-                    "Claude Code CLI non trovato nel PATH. Attesi: " +
+                    MdExplorer.Features.Services.UiText.Say("Claude Code CLI non trovato nel PATH. Attesi: ", "Claude Code CLI not found in the PATH. Expected: ") +
                     (OperatingSystem.IsWindows()
-                        ? "claude.exe, claude.cmd o claude.ps1"
+                        ? MdExplorer.Features.Services.UiText.Say("claude.exe, claude.cmd o claude.ps1", "claude.exe, claude.cmd or claude.ps1")
                         : "claude") +
-                    ". Installalo con `npm i -g @anthropic-ai/claude-code` e verifica con `claude --version`.");
+                    MdExplorer.Features.Services.UiText.Say(". Installalo con `npm i -g @anthropic-ai/claude-code` e verifica con `claude --version`.", ". Install it with `npm i -g @anthropic-ai/claude-code` and check with `claude --version`."));
             }
 
             if (OperatingSystem.IsWindows())

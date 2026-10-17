@@ -45,9 +45,11 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         /// PATH of an interactive shell (nvm adds it from .bashrc) but not necessarily in the PATH of a
         /// service started otherwise: the message says so, since that is the usual cause.
         /// </summary>
-        private const string PosixNotFound =
+        private static string PosixNotFound => MdExplorer.Features.Services.UiText.Say(
             "Copilot CLI non trovato nel PATH del servizio. Installalo con 'npm install -g @github/copilot'; " +
-            "se è già installato (per esempio con nvm), avvia MdExplorer da una shell che abbia la cartella di npm nel PATH.";
+            "se è già installato (per esempio con nvm), avvia MdExplorer da una shell che abbia la cartella di npm nel PATH.",
+            "Copilot CLI not found in the service PATH. Install it with 'npm install -g @github/copilot'; " +
+            "if it is already installed (for example with nvm), start MdExplorer from a shell that has the npm folder in the PATH.");
 
         /// <summary>The absolute path of "copilot" in the PATH (POSIX), or null.</summary>
         private static string PosixPath()

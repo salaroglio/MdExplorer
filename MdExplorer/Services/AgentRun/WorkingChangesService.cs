@@ -256,8 +256,7 @@ namespace MdExplorer.Services.AgentRun
             _logger = logger;
         }
 
-        private const string AgentDeskPullBlocker =
-            "Nel posto di lavoro di un agente gli scaricamenti li decide il run, non si fanno da qui.";
+        private static string AgentDeskPullBlocker => MdExplorer.Features.Services.UiText.Say("Nel posto di lavoro di un agente gli scaricamenti li decide il run, non si fanno da qui.", "In an agent's workplace the run decides the pulls: they are not done from here.");
 
         public async Task<WorkingChangesView> GetAsync(string projectPath, string agentName, CancellationToken ct = default)
         {
@@ -327,9 +326,9 @@ namespace MdExplorer.Services.AgentRun
                         PointerMoved = moved.Contains(s.Path),
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
-                        CommitBlocker = "Submodule non popolato: non c'è niente da committare finché non viene scaricato.",
-                        PushBlocker = "Submodule non popolato: non c'è niente da pubblicare.",
-                        PullBlocker = "Submodule non popolato: prima va scaricato con «Allinea».",
+                        CommitBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: non c'è niente da committare finché non viene scaricato.", "Submodule not populated: there is nothing to commit until it is pulled."),
+                        PushBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: non c'è niente da pubblicare.", "Submodule not populated: there is nothing to push."),
+                        PullBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: prima va scaricato con «Allinea».", "Submodule not populated: first pull it with «Align»."),
                         AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
                     };
                     continue;
@@ -344,9 +343,9 @@ namespace MdExplorer.Services.AgentRun
                         NotInitialized = true,
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
-                        CommitBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
-                        PushBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
-                        PullBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
+                        CommitBlocker = MdExplorer.Features.Services.UiText.Say($"La cartella '{s.Path}' non esiste sul disco.", $"The folder '{s.Path}' does not exist on disk."),
+                        PushBlocker = MdExplorer.Features.Services.UiText.Say($"La cartella '{s.Path}' non esiste sul disco.", $"The folder '{s.Path}' does not exist on disk."),
+                        PullBlocker = MdExplorer.Features.Services.UiText.Say($"La cartella '{s.Path}' non esiste sul disco.", $"The folder '{s.Path}' does not exist on disk."),
                         AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
                     };
                     continue;
@@ -427,22 +426,22 @@ namespace MdExplorer.Services.AgentRun
                 .FirstOrDefault(b => b != null);
 
             var mergeMessage = merge.InProgress
-                ? "Unione in corso: va conclusa con un commit, oppure annullata."
+                ? MdExplorer.Features.Services.UiText.Say("Unione in corso: va conclusa con un commit, oppure annullata.", "Merge in progress: finish it with a commit, or abort it.")
                 : null;
 
             var commitBlocker =
-                detached ? "HEAD staccato: un commit fatto qui non finirebbe su nessun ramo e resterebbe orfano."
+                detached ? MdExplorer.Features.Services.UiText.Say("HEAD staccato: un commit fatto qui non finirebbe su nessun ramo e resterebbe orfano.", "Detached HEAD: a commit made here would land on no branch and be orphaned.")
                 : RepoWorkflowGuard.MergeCommitBlocker(merge) ?? pointerBlocker;
 
             var unpublishedChild = children.FirstOrDefault(c => c.RecordedCommitUnknown != null || c.RecordedCommitUnpublished);
             var pushBlocker =
-                detached ? "HEAD staccato: non c'è un ramo da pubblicare."
+                detached ? MdExplorer.Features.Services.UiText.Say("HEAD staccato: non c'è un ramo da pubblicare.", "Detached HEAD: there is no branch to push.")
                 : mergeMessage != null ? mergeMessage
-                : upstream == null ? "Nessun ramo remoto configurato: non c'è dove pubblicare."
-                : behind > 0 ? $"Il remoto ha {behind} commit che qui mancano: prima scarica, poi pubblica."
+                : upstream == null ? MdExplorer.Features.Services.UiText.Say("Nessun ramo remoto configurato: non c'è dove pubblicare.", "No remote branch configured: there is nowhere to push.")
+                : behind > 0 ? MdExplorer.Features.Services.UiText.Say($"Il remoto ha {behind} commit che qui mancano: prima scarica, poi pubblica.", $"The remote has {behind} commits missing here: pull first, then push.")
                 : unpublishedChild != null
                     ? unpublishedChild.RecordedCommitUnknown
-                      ?? $"Prima pubblica '{unpublishedChild.Path}': qui si registra un suo commit che non è ancora sul suo remoto."
+                      ?? MdExplorer.Features.Services.UiText.Say($"Prima pubblica '{unpublishedChild.Path}': qui si registra un suo commit che non è ancora sul suo remoto.", $"Push '{unpublishedChild.Path}' first: this records one of its commits that is not yet on its remote.")
                 : null;
 
             string pullBlocker;
@@ -450,11 +449,11 @@ namespace MdExplorer.Services.AgentRun
             else if (mergeMessage != null) pullBlocker = mergeMessage;
             else if (detached)
                 pullBlocker = depth == 0
-                    ? "HEAD staccato: non c'è un ramo da aggiornare."
+                    ? MdExplorer.Features.Services.UiText.Say("HEAD staccato: non c'è un ramo da aggiornare.", "Detached HEAD: there is no branch to update.")
                     : detachedTarget == null
-                        ? "HEAD staccato su un commit che non sta sul ramo principale di questo submodule: va rimesso su un ramo a mano."
+                        ? MdExplorer.Features.Services.UiText.Say("HEAD staccato su un commit che non sta sul ramo principale di questo submodule: va rimesso su un ramo a mano.", "Detached HEAD on a commit that is not on this submodule's main branch: put it back on a branch by hand.")
                         : null;
-            else if (upstream == null) pullBlocker = "Nessun ramo remoto configurato: non c'è da dove scaricare.";
+            else if (upstream == null) pullBlocker = MdExplorer.Features.Services.UiText.Say("Nessun ramo remoto configurato: non c'è da dove scaricare.", "No remote branch configured: there is nowhere to pull from.");
             else if (behind > 0 && ahead > 0 && children.Count > 0)
                 // Tu e il remoto avete spostato lo stesso submodule? Scaricando adesso git si
                 // fermerebbe con un conflitto sulla cartella (provato in sandbox l'01/10/2026).
@@ -668,10 +667,10 @@ namespace MdExplorer.Services.AgentRun
             string projectPath, string agentName, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
-                return (null, null, ChangesContextKind.User, "Nessun progetto aperto.");
+                return (null, null, ChangesContextKind.User, MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto.", "No project open."));
 
             if (string.IsNullOrWhiteSpace(agentName))
-                return (projectPath, "Il tuo lavoro", ChangesContextKind.User, null);
+                return (projectPath, MdExplorer.Features.Services.UiText.Say("Il tuo lavoro", "Your work"), ChangesContextKind.User, null);
 
             string worktree;
             try { worktree = await _worktree.FindAgentWorktreeAsync(projectPath, agentName, ct); }
@@ -679,7 +678,7 @@ namespace MdExplorer.Services.AgentRun
 
             if (worktree == null || !Directory.Exists(worktree))
                 return (null, agentName, ChangesContextKind.Agent,
-                    $"'{agentName}' non occupa nessun posto di lavoro: il suo lavoro va prima rimesso su un posto dalla revisione.");
+                    MdExplorer.Features.Services.UiText.Say($"'{agentName}' non occupa nessun posto di lavoro: il suo lavoro va prima rimesso su un posto dalla revisione.", $"'{agentName}' occupies no workplace: its work must first be put back on one from the review."));
 
             return (worktree, agentName, ChangesContextKind.Agent, null);
         }
@@ -867,8 +866,7 @@ namespace MdExplorer.Services.AgentRun
 
             var probe = await _git.RunAsync(dir, new[] { "rev-list", "--max-count=1", sha, "--not", "--remotes" }, ct);
             if (!probe.Ok)
-                return (true, $"Il commit {sha.Substring(0, Math.Min(8, sha.Length))} registrato per " +
-                              $"'{submodulePath}' non è verificabile qui: {probe.Describe()}");
+                return (true, MdExplorer.Features.Services.UiText.Say($"Il commit {sha.Substring(0, Math.Min(8, sha.Length))} registrato per '{submodulePath}' non è verificabile qui: {probe.Describe()}", $"The commit {sha.Substring(0, Math.Min(8, sha.Length))} recorded for '{submodulePath}' cannot be verified here: {probe.Describe()}"));
 
             return (!string.IsNullOrWhiteSpace(probe.Stdout), null);
         }
@@ -936,16 +934,16 @@ namespace MdExplorer.Services.AgentRun
                     // Il caso che rompe il repository per gli altri, e l'unico che va detto sempre:
                     // vale anche con HEAD staccato, dove 'Ahead' e' 0 e non segnalerebbe niente.
                     warnings.Add(s.Detached
-                        ? $"'{s.Path}' ha HEAD staccato e il commit registrato non è su nessun remoto: non è pubblicabile finché non lo metti su un ramo."
-                        : $"'{s.Path}' punta a un commit non pubblicato: va pubblicato per primo, altrimenti chi clona trova un riferimento inesistente.");
+                        ? MdExplorer.Features.Services.UiText.Say($"'{s.Path}' ha HEAD staccato e il commit registrato non è su nessun remoto: non è pubblicabile finché non lo metti su un ramo.", $"'{s.Path}' has a detached HEAD and the recorded commit is on no remote: it cannot be pushed until you put it on a branch.")
+                        : MdExplorer.Features.Services.UiText.Say($"'{s.Path}' punta a un commit non pubblicato: va pubblicato per primo, altrimenti chi clona trova un riferimento inesistente.", $"'{s.Path}' points to an unpushed commit: push it first, otherwise whoever clones finds a reference that does not exist."));
                 }
                 else if (s.Ahead > 0)
                 {
-                    warnings.Add($"'{s.Path}' ha {s.Ahead} commit non pushati.");
+                    warnings.Add(MdExplorer.Features.Services.UiText.Say($"'{s.Path}' ha {s.Ahead} commit non pushati.", $"'{s.Path}' has {s.Ahead} unpushed commits."));
                 }
                 else if (!s.NotInitialized && s.Upstream == null && s.Branch != null)
                 {
-                    warnings.Add($"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non è pubblicabile così com'è.");
+                    warnings.Add(MdExplorer.Features.Services.UiText.Say($"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non è pubblicabile così com'è.", $"'{s.Path}' has no remote branch configured: its work cannot be pushed as it is."));
                 }
             }
             return warnings;

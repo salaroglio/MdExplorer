@@ -322,7 +322,7 @@ namespace MdExplorer.Features.Commands
                     else
                     {
                         // data-mde-missing-diagram: the static export lists it in its report.
-                        referenceUrl = "<pre class=\"mde-readonly-note\" data-mde-missing-diagram=\"true\">(diagramma PlantUML non ancora generato: apri il documento in MdExplorer per generarlo)</pre>";
+                        referenceUrl = "<pre class=\"mde-readonly-note\" data-mde-missing-diagram=\"true\">" + MdExplorer.Features.Services.UiText.Say("(diagramma PlantUML non ancora generato: apri il documento in MdExplorer per generarlo)", "(PlantUML diagram not generated yet: open the document in MdExplorer to generate it)") + "</pre>";
                     }
                 }
                 catch (Exception ex)

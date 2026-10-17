@@ -500,8 +500,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     return BadRequest(new
                     {
-                        error = $"Gruppo sconosciuto '{string.Join("', '", unknown)}'. " +
-                                $"Gli id validi sono: {string.Join(", ", catalog.Select(g => g.Id))}."
+                        error = MdExplorer.Features.Services.UiText.Say($"Gruppo sconosciuto '{string.Join("', '", unknown)}'. Gli id validi sono: {string.Join(", ", catalog.Select(g => g.Id))}.", $"Unknown group '{string.Join("', '", unknown)}'. The valid ids are: {string.Join(", ", catalog.Select(g => g.Id))}.")
                     });
                 }
 
@@ -733,7 +732,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public IActionResult SetAgentWorktreesSetting([FromBody] SetAgentWorktreesRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required") });
 
             try
             {

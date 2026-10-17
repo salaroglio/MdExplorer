@@ -47,9 +47,9 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
                     (loggedIn.ValueKind == JsonValueKind.True || loggedIn.ValueKind == JsonValueKind.False))
                 {
                     return loggedIn.GetBoolean()
-                        ? AgenticEnvironmentUsability.Ok("Accesso fatto.")
+                        ? AgenticEnvironmentUsability.Ok(MdExplorer.Features.Services.UiText.Say("Accesso fatto.", "Logged in."))
                         : AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.NotLoggedIn,
-                            "Claude Code è installato ma l'accesso non è stato fatto: lancia `claude` e fai il login.");
+                            MdExplorer.Features.Services.UiText.Say("Claude Code è installato ma l'accesso non è stato fatto: lancia `claude` e fai il login.", "Claude Code is installed but not logged in: run `claude` and log in."));
                 }
             }
             catch (JsonException)
@@ -60,14 +60,16 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
             // Una versione che non conosce `auth status`, o una risposta di forma nuova: non si
             // indovina se l'accesso c'è. Si riporta ciò che si è letto.
             return AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.Error,
-                $"`claude auth status` non ha risposto con il campo loggedIn (exit {exitCode}): " +
-                $"{FirstLine(string.IsNullOrWhiteSpace(stderr) ? stdout : stderr)}. Aggiorna Claude Code e riprova.");
+                MdExplorer.Features.Services.UiText.Say($"`claude auth status` non ha risposto con il campo loggedIn (exit {exitCode}): " +
+                    $"{FirstLine(string.IsNullOrWhiteSpace(stderr) ? stdout : stderr)}. Aggiorna Claude Code e riprova.",
+                    $"`claude auth status` did not answer with the loggedIn field (exit {exitCode}): " +
+                    $"{FirstLine(string.IsNullOrWhiteSpace(stderr) ? stdout : stderr)}. Update Claude Code and try again."));
         }
 
         internal static string FirstLine(string text)
         {
             var line = (text ?? string.Empty).Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
-            if (line == null) return "nessuna uscita";
+            if (line == null) return MdExplorer.Features.Services.UiText.Say("nessuna uscita", "no output");
             return line.Length > 200 ? line.Substring(0, 200) + "…" : line;
         }
     }
@@ -104,14 +106,14 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
             if (exitCode != 0)
             {
                 return AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.Error,
-                    $"`opencode models` è uscito con codice {exitCode}: " +
+                    MdExplorer.Features.Services.UiText.Say($"`opencode models` è uscito con codice {exitCode}: ", $"`opencode models` exited with code {exitCode}: ") +
                     $"{ClaudeCodeEnvironmentCheck.FirstLine(string.IsNullOrWhiteSpace(stderr) ? stdout : stderr)}.");
             }
 
             return models > 0
-                ? AgenticEnvironmentUsability.Ok(models == 1 ? "1 modello disponibile." : $"{models} modelli disponibili.")
+                ? AgenticEnvironmentUsability.Ok(models == 1 ? MdExplorer.Features.Services.UiText.Say("1 modello disponibile.", "1 model available.") : MdExplorer.Features.Services.UiText.Say($"{models} modelli disponibili.", $"{models} models available."))
                 : AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.NoModels,
-                    "opencode è installato ma non elenca nessun modello: lancia `opencode auth login` e collega un fornitore.");
+                    MdExplorer.Features.Services.UiText.Say("opencode è installato ma non elenca nessun modello: lancia `opencode auth login` e collega un fornitore.", "opencode is installed but lists no model: run `opencode auth login` and connect a provider."));
         }
     }
 
@@ -148,9 +150,9 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
             {
                 var status = await client.GetAuthStatusAsync(ct).ConfigureAwait(false);
                 return status.IsAuthenticated
-                    ? AgenticEnvironmentUsability.Ok("Accesso fatto.")
+                    ? AgenticEnvironmentUsability.Ok(MdExplorer.Features.Services.UiText.Say("Accesso fatto.", "Logged in."))
                     : AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.NotLoggedIn,
-                        "Copilot CLI è installato ma l'accesso non è stato fatto: lancia `copilot login`" +
+                        MdExplorer.Features.Services.UiText.Say("Copilot CLI è installato ma l'accesso non è stato fatto: lancia `copilot login`", "Copilot CLI is installed but not logged in: run `copilot login`") +
                         (string.IsNullOrWhiteSpace(status.StatusMessage) ? "." : $" ({status.StatusMessage})."));
             }
             finally

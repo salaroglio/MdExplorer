@@ -82,7 +82,7 @@ namespace MdExplorer.IntegrationTests
             var ex = Assert.ThrowsException<ArgumentException>(() => new OpenCodeSession(
                 NullLogger<OpenCodeSession>.Instance, server,
                 Path.Combine(_dir, "questa-non-esiste"), "opencode/big-pickle"));
-            StringAssert.Contains(ex.Message, "non esiste");
+            StringAssert.Contains(ex.Message, "does not exist");
         }
 
         [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]

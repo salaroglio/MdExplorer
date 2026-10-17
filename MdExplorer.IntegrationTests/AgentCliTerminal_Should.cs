@@ -30,7 +30,7 @@ namespace MdExplorer.IntegrationTests
             // processo senza nome.
             var ex = Assert.ThrowsException<InvalidOperationException>(
                 () => MarkAgentEngines.CommandOf(MarkAgentEngine.None));
-            StringAssert.Contains(ex.Message, "ambiente agentico");
+            StringAssert.Contains(ex.Message, "agentic environment");
         }
 
         [TestMethod]

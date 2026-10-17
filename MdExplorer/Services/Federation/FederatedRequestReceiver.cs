@@ -94,9 +94,9 @@ namespace MdExplorer.Services.Federation
         {
             if (payload == null) throw new ArgumentNullException(nameof(payload));
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException("projectPath richiesto per materializzare il gate.", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath richiesto per materializzare il gate.", "projectPath is required to create the gate."), nameof(projectPath));
             if (string.IsNullOrWhiteSpace(payload.TargetAgent))
-                throw new ArgumentException("targetAgent richiesto: non so quale agente locale proporre.", nameof(payload));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("targetAgent richiesto: non so quale agente locale proporre.", "targetAgent is required: I do not know which local agent to propose."), nameof(payload));
             if (string.IsNullOrWhiteSpace(payload.Message))
                 throw new ArgumentException("message richiesto.", nameof(payload));
 

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,7 +37,7 @@ namespace MdExplorer.Services.Git
 
         /// <summary>Motivo leggibile, per messaggi che l'utente deve poter capire.</summary>
         public string Describe()
-            => ExitCode == NativeGitRunner.GitNotFoundExit ? "git non trovato nel PATH"
+            => ExitCode == NativeGitRunner.GitNotFoundExit ? UiText.Say("git non trovato nel PATH", "git not found in PATH")
              : ExitCode == NativeGitRunner.GitBadWorkingDirExit ? Stderr
              : ExitCode == NativeGitRunner.GitTimeoutExit ? "timeout"
              : $"exit {ExitCode}: {Stderr?.Trim()}";
@@ -98,7 +99,7 @@ namespace MdExplorer.Services.Git
                 if (!Directory.Exists(workingDirectory))
                 {
                     _logger.LogError("[git] cartella di lavoro inesistente: {Dir}", workingDirectory);
-                    return new GitResult { ExitCode = GitBadWorkingDirExit, Stdout = string.Empty, Stderr = $"cartella di lavoro inesistente: {workingDirectory}" };
+                    return new GitResult { ExitCode = GitBadWorkingDirExit, Stdout = string.Empty, Stderr = UiText.Say($"cartella di lavoro inesistente: {workingDirectory}", $"working directory does not exist: {workingDirectory}") };
                 }
                 _logger.LogError(ex, "[git] non trovato nel PATH");
                 return new GitResult { ExitCode = GitNotFoundExit, Stdout = string.Empty, Stderr = ex.Message };

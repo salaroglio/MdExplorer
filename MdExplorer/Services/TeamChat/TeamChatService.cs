@@ -136,7 +136,7 @@ namespace MdExplorer.Services.TeamChat
         private HttpRequestMessage CreateRequest(HttpMethod method, string url, string roomId, HttpContent content = null)
         {
             var key = _keys.Find(roomId)
-                ?? throw new InvalidOperationException($"Stanza {roomId} senza chiave del progetto: la chat va aperta da un progetto con il room secret.");
+                ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Stanza {roomId} senza chiave del progetto: la chat va aperta da un progetto con il room secret.", $"Room {roomId} has no project key: the chat must be opened from a project with the room secret."));
             var request = new HttpRequestMessage(method, url);
             request.Headers.Add("X-Room-Token", key.JoinToken);
             var master = _relaySettings.ResolveApiKey(key.ProjectPath);
@@ -163,7 +163,7 @@ namespace MdExplorer.Services.TeamChat
                 // Il relay riceve una busta chiusa: testo, nome ed email stanno dentro, cifrati.
                 var json = JsonSerializer.Serialize(new
                 {
-                    content = ChatEnvelope.Seal(_keys.Find(roomId) ?? throw new InvalidOperationException($"Stanza {roomId} senza chiave del progetto."), message),
+                    content = ChatEnvelope.Seal(_keys.Find(roomId) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Stanza {roomId} senza chiave del progetto.", $"Room {roomId} has no project key.")), message),
                     senderName = "",
                     senderEmail = "",
                     timestamp = message.Timestamp,

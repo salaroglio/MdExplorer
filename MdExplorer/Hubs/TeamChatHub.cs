@@ -56,7 +56,7 @@ namespace MdExplorer.Hubs
             // La chiave della stanza la registra room-info (dal progetto): senza, la chat sarebbe muta
             // in silenzio (messaggi non letti né spediti). Succede se il servizio è ripartito sotto la UI.
             if (_roomKeys.Find(roomId) == null)
-                throw new HubException("La stanza non ha la chiave del progetto: riapri la chat dal progetto.");
+                throw new HubException(MdExplorer.Features.Services.UiText.Say("La stanza non ha la chiave del progetto: riapri la chat dal progetto.", "The room has no project key: open the chat again from the project."));
 
             _logger.LogInformation("Client {ConnectionId} joining room {RoomId} as {UserName}",
                 connectionId, roomId, user.UserName);

@@ -57,8 +57,7 @@ namespace MdExplorer.Utilities
             if (string.IsNullOrWhiteSpace(exe))
             {
                 throw new InvalidOperationException(
-                    "MdExplorer.Mcp non trovato accanto al servizio né nella sua build: non si può sapere " +
-                    "quali gruppi di funzionalità MCP esistono. Ricompila o reinstalla MdExplorer.");
+                    MdExplorer.Features.Services.UiText.Say("MdExplorer.Mcp non trovato accanto al servizio né nella sua build: non si può sapere quali gruppi di funzionalità MCP esistono. Ricompila o reinstalla MdExplorer.", "MdExplorer.Mcp not found next to the service or in its build: there is no way to know which MCP feature groups exist. Rebuild or reinstall MdExplorer."));
             }
 
             var stamp = File.GetLastWriteTimeUtc(exe);
@@ -86,7 +85,7 @@ namespace MdExplorer.Utilities
             psi.ArgumentList.Add("--list-groups");
 
             using var process = Process.Start(psi)
-                ?? throw new InvalidOperationException($"Non si riesce ad avviare '{exe} --list-groups'.");
+                ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Non si riesce ad avviare '{exe} --list-groups'.", $"Cannot start '{exe} --list-groups'."));
 
             var stdout = process.StandardOutput.ReadToEnd();
             var stderr = process.StandardError.ReadToEnd();
@@ -94,13 +93,13 @@ namespace MdExplorer.Utilities
             {
                 try { process.Kill(entireProcessTree: true); } catch { }
                 throw new InvalidOperationException(
-                    $"'{exe} --list-groups' non ha risposto entro {CatalogTimeoutMs / 1000} secondi.");
+                    MdExplorer.Features.Services.UiText.Say($"'{exe} --list-groups' non ha risposto entro {CatalogTimeoutMs / 1000} secondi.", $"'{exe} --list-groups' did not answer within {CatalogTimeoutMs / 1000} seconds."));
             }
 
             if (process.ExitCode != 0)
             {
                 throw new InvalidOperationException(
-                    $"'{exe} --list-groups' è uscito con codice {process.ExitCode}. {stderr}".Trim());
+                    MdExplorer.Features.Services.UiText.Say($"'{exe} --list-groups' è uscito con codice {process.ExitCode}. {stderr}", $"'{exe} --list-groups' exited with code {process.ExitCode}. {stderr}").Trim());
             }
 
             using var doc = JsonDocument.Parse(stdout);
@@ -116,7 +115,7 @@ namespace MdExplorer.Utilities
             if (groups.Count == 0)
             {
                 throw new InvalidOperationException(
-                    $"'{exe} --list-groups' non ha dichiarato nessun gruppo: il server è stato costruito male.");
+                    MdExplorer.Features.Services.UiText.Say($"'{exe} --list-groups' non ha dichiarato nessun gruppo: il server è stato costruito male.", $"'{exe} --list-groups' declared no groups: the server was built wrongly."));
             }
 
             return groups;

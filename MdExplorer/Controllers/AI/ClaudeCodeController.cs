@@ -46,7 +46,7 @@ namespace MdExplorer.Controllers.AI
         {
             if (_modelDiscovery == null)
             {
-                return StatusCode(500, new { error = "ClaudeCodeModelDiscovery non registrato: controlla Startup.cs" });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("ClaudeCodeModelDiscovery non registrato: controlla Startup.cs", "ClaudeCodeModelDiscovery not registered: check Startup.cs") });
             }
             try
             {

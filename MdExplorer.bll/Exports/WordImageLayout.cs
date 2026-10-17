@@ -44,7 +44,7 @@ namespace MdExplorer.Features.Exports
         public static int CenterStandaloneImages(string docxPath)
         {
             if (string.IsNullOrWhiteSpace(docxPath))
-                throw new ArgumentException("Serve il percorso del documento Word.", nameof(docxPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Serve il percorso del documento Word.", "The path of the Word document is needed."), nameof(docxPath));
 
             using var document = WordprocessingDocument.Open(docxPath, true);
             var body = document.MainDocumentPart?.Document?.Body;

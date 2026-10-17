@@ -22,7 +22,7 @@ namespace MdExplorer.IntegrationTests
             var ex = Assert.ThrowsException<InvalidOperationException>(() => CodeDescriptionModes.Parse("sempre", "'program'"));
             StringAssert.Contains(ex.Message, "'program'");
             StringAssert.Contains(ex.Message, "codeGraph.describe");
-            StringAssert.Contains(ex.Message, "«all» o «onDemand»");
+            StringAssert.Contains(ex.Message, "«all» or «onDemand»");
         }
     }
 }

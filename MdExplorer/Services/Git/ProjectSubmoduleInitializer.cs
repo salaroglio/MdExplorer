@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -154,9 +155,13 @@ namespace MdExplorer.Services.Git
                 var stillMissing = await MissingSubmodulesAsync(projectPath, ct);
                 if (stillMissing.Count > 0)
                 {
-                    var reason = $"git non ha segnalato errori ma {string.Join(", ", stillMissing)} " +
-                                 "risulta ancora vuoto. Prova ad aprire un terminale nel progetto e a lanciare " +
-                                 "'git submodule update --init --recursive' per vedere cosa dice.";
+                    var reason = UiText.Say(
+                        $"git non ha segnalato errori ma {string.Join(", ", stillMissing)} " +
+                        "risulta ancora vuoto. Prova ad aprire un terminale nel progetto e a lanciare " +
+                        "'git submodule update --init --recursive' per vedere cosa dice.",
+                        $"git reported no errors but {string.Join(", ", stillMissing)} " +
+                        "is still empty. Try opening a terminal in the project and running " +
+                        "'git submodule update --init --recursive' to see what it says.");
                     _logger.LogError("[Submodule] '{Path}': {Reason}", projectPath, reason);
                     await NotifyAsync("submoduleInitFailed", new { projectPath, submodules = stillMissing, error = reason }, ct);
                     return new SubmoduleEnsureResult { Missing = missing, Success = false, Error = reason };
@@ -214,19 +219,26 @@ namespace MdExplorer.Services.Git
                 || stderr.Contains("Permission denied", StringComparison.OrdinalIgnoreCase)
                 || stderr.Contains("terminal prompts disabled", StringComparison.OrdinalIgnoreCase))
             {
-                return $"Il codice in {quali} è su un repository che richiede credenziali che qui non ci sono. " +
-                       "Le credenziali del progetto principale non valgono automaticamente per i sottomoduli: " +
-                       "configurale per quel repository (Git → gestione account) e riapri il progetto.";
+                return UiText.Say(
+                    $"Il codice in {quali} è su un repository che richiede credenziali che qui non ci sono. " +
+                    "Le credenziali del progetto principale non valgono automaticamente per i sottomoduli: " +
+                    "configurale per quel repository (Git → gestione account) e riapri il progetto.",
+                    $"The code in {quali} is on a repository that needs credentials this machine does not have. " +
+                    "The main project's credentials do not automatically apply to submodules: " +
+                    "set them up for that repository (Git → account management) and reopen the project.");
             }
 
             if (stderr.Contains("could not resolve host", StringComparison.OrdinalIgnoreCase)
                 || stderr.Contains("Could not resolve", StringComparison.OrdinalIgnoreCase))
             {
-                return $"{quali} non è raggiungibile: sembra che la rete non ci sia. " +
-                       "Il progetto si apre lo stesso, ma il codice resta vuoto finché non riapri con la rete.";
+                return UiText.Say(
+                    $"{quali} non è raggiungibile: sembra che la rete non ci sia. " +
+                    "Il progetto si apre lo stesso, ma il codice resta vuoto finché non riapri con la rete.",
+                    $"{quali} cannot be reached: the network seems to be down. " +
+                    "The project opens anyway, but the code stays empty until you reopen it with the network.");
             }
 
-            return $"Non sono riuscito a popolare {quali}: {res.Describe()}";
+            return UiText.Say($"Non sono riuscito a popolare {quali}: {res.Describe()}", $"I could not populate {quali}: {res.Describe()}");
         }
 
         private async Task NotifyAsync(string method, object payload, CancellationToken ct)

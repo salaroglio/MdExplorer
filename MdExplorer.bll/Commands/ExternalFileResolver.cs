@@ -60,7 +60,7 @@ namespace MdExplorer.Features.Commands
 
             if (!absolutePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
             {
-                error = "il percorso esce dalla cartella del progetto";
+                error = MdExplorer.Features.Services.UiText.Say("il percorso esce dalla cartella del progetto", "the path goes outside the project folder");
                 return null;
             }
 
@@ -81,14 +81,14 @@ namespace MdExplorer.Features.Commands
 
             if (!File.Exists(absolutePath))
             {
-                error = $"file non trovato — cercato in {absolutePath}";
+                error = MdExplorer.Features.Services.UiText.Say($"file non trovato — cercato in {absolutePath}", $"file not found — looked in {absolutePath}");
                 return null;
             }
 
             var fileInfo = new FileInfo(absolutePath);
             if (fileInfo.Length > maxSizeBytes)
             {
-                error = $"file troppo grande ({fileInfo.Length / 1024} KB): il limite è {maxSizeBytes / 1024} KB";
+                error = MdExplorer.Features.Services.UiText.Say($"file troppo grande ({fileInfo.Length / 1024} KB): il limite è {maxSizeBytes / 1024} KB", $"file too large ({fileInfo.Length / 1024} KB): the limit is {maxSizeBytes / 1024} KB");
                 return null;
             }
 

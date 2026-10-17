@@ -118,7 +118,7 @@ namespace MdExplorer.IntegrationTests
             var ex = Assert.ThrowsException<System.InvalidOperationException>(
                 () => svc.Save("/percorso/mai/aperto", null, "k", false));
 
-            StringAssert.Contains(ex.Message, "Nessun progetto registrato",
+            StringAssert.Contains(ex.Message, "No project registered",
                 "il messaggio deve dire cosa fare, non solo che è fallito");
         }
 

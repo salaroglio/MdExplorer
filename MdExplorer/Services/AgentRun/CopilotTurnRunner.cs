@@ -51,9 +51,9 @@ namespace MdExplorer.Services.AgentRun
                 && !IsCopilot(request.RequestedProvider))
             {
                 return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
-                    $"L'agente '{request.AgentName}' dichiara 'runtime.provider: {request.RequestedProvider}' " +
-                    $"ma questo turno è eseguito da Copilot CLI. Correggi il blocco runtime: della card, " +
-                    $"oppure configura il progetto per usare quel provider.");
+                    MdExplorer.Features.Services.UiText.Say(
+                        $"L'agente '{request.AgentName}' dichiara 'runtime.provider: {request.RequestedProvider}' ma questo turno è eseguito da Copilot CLI. Correggi il blocco runtime: della card, oppure configura il progetto per usare quel provider.",
+                        $"Agent '{request.AgentName}' declares 'runtime.provider: {request.RequestedProvider}' but this turn is run by Copilot CLI. Fix the runtime: block of the card, or set the project to use that provider."));
             }
 
             // Identità e working dir viaggiano nell'invocation, non sul singleton: isolamento
@@ -88,16 +88,15 @@ namespace MdExplorer.Services.AgentRun
                 if (model != null && LooksLikeModelUnavailable(run.Error))
                 {
                     return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
-                        $"Il modello '{model}' dichiarato dall'agente '{request.AgentName}' non è disponibile su questo " +
-                        $"account Copilot. Correggi 'runtime.model:' nella card, oppure verifica che l'abbonamento lo " +
-                        $"includa. Nessun ripiego su un altro modello: l'agente gira con quello dichiarato o non gira. " +
-                        $"(CLI: {run.Error?.Trim()})",
+                        MdExplorer.Features.Services.UiText.Say(
+                            $"Il modello '{model}' dichiarato dall'agente '{request.AgentName}' non è disponibile su questo account Copilot. Correggi 'runtime.model:' nella card, oppure verifica che l'abbonamento lo includa. Nessun ripiego su un altro modello: l'agente gira con quello dichiarato o non gira. (CLI: {run.Error?.Trim()})",
+                            $"The model '{model}' declared by agent '{request.AgentName}' is not available on this Copilot account. Fix 'runtime.model:' in the card, or check that the subscription includes it. No fallback to another model: the agent runs with the declared one or does not run. (CLI: {run.Error?.Trim()})"),
                         run.Text);
                 }
 
                 var detail = string.IsNullOrWhiteSpace(run.Error)
-                    ? $"Copilot CLI è uscito con codice {run.ExitCode} senza messaggio d'errore."
-                    : $"Copilot CLI è uscito con codice {run.ExitCode}: {run.Error}";
+                    ? MdExplorer.Features.Services.UiText.Say($"Copilot CLI è uscito con codice {run.ExitCode} senza messaggio d'errore.", $"Copilot CLI exited with code {run.ExitCode} and no error message.")
+                    : MdExplorer.Features.Services.UiText.Say($"Copilot CLI è uscito con codice {run.ExitCode}: {run.Error}", $"Copilot CLI exited with code {run.ExitCode}: {run.Error}");
                 return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, detail, run.Text);
             }
 

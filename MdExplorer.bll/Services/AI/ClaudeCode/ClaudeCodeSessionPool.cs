@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         {
             if (_disposed) throw new ObjectDisposedException(nameof(ClaudeCodeSessionPool));
             if (string.IsNullOrEmpty(connectionId))
-                throw new ArgumentException("connectionId obbligatoria", nameof(connectionId));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("connectionId obbligatoria", "connectionId is required"), nameof(connectionId));
             options ??= ClaudeCodeSessionOptions.Default;
 
             if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast, workingDirectory, modelId) && ProfileFits(fast, options))
@@ -144,7 +144,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     // Non dovrebbe accadere sotto il gate; difensivo.
                     await session.DisposeAsync().ConfigureAwait(false);
                     if (_sessions.TryGetValue(connectionId, out var winner)) return winner;
-                    throw new InvalidOperationException("Registrazione della sessione fallita e nessun vincitore trovato");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Registrazione della sessione fallita e nessun vincitore trovato", "Session registration failed and no winner found"));
                 }
 
                 _logger.LogInformation("[ClaudeCodeSessionPool] Creata sessione per {ConnectionId} (totale={Total})",

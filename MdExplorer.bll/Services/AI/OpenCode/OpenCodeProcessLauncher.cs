@@ -83,16 +83,20 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         public static ProcessStartInfo BuildServeStartInfo(string password, IReadOnlyDictionary<string, string> extraEnvironment = null)
         {
             if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentException("Il server opencode va avviato con una password.", nameof(password));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Il server opencode va avviato con una password.", "The opencode server must be started with a password."), nameof(password));
 
             var resolved = ResolvePath();
             if (resolved == null)
             {
                 throw new InvalidOperationException(
-                    "opencode non è installato su questa macchina, o non è nel PATH del servizio. " +
-                    $"Cercato '{ExecutableName}' in ogni cartella del PATH. Installalo con " +
-                    "`npm i -g opencode-ai`, oppure scegli un altro motore per MarkAgent nelle " +
-                    "impostazioni del progetto.");
+                    MdExplorer.Features.Services.UiText.Say("opencode non è installato su questa macchina, o non è nel PATH del servizio. " +
+                        $"Cercato '{ExecutableName}' in ogni cartella del PATH. Installalo con " +
+                        "`npm i -g opencode-ai`, oppure scegli un altro motore per MarkAgent nelle " +
+                        "impostazioni del progetto.",
+                        "opencode is not installed on this machine, or it is not in the service PATH. " +
+                        $"Looked for '{ExecutableName}' in every PATH folder. Install it with " +
+                        "`npm i -g opencode-ai`, or choose another MarkAgent engine in the " +
+                        "project settings."));
             }
 
             var psi = new ProcessStartInfo

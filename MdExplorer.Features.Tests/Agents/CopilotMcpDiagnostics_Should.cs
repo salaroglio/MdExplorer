@@ -23,10 +23,10 @@ namespace MdExplorer.Features.Tests.Agents
         {
             var notice = CopilotMcpDiagnostics.NoticeFor(new[] { ("mdexplorer", "failed", "spawn C:\\Program Files\\MdExplorer\\MdExplorer.Mcp.exe ENOENT") });
 
-            StringAssert.Contains(notice, "non è connesso");
+            StringAssert.Contains(notice, "is not connected");
             StringAssert.Contains(notice, "failed");
             StringAssert.Contains(notice, "ENOENT");
-            StringAssert.Contains(notice, "li verifica comunque MdExplorer", "the diagrams are still checked: say it");
+            StringAssert.Contains(notice, "MdExplorer still checks", "the diagrams are still checked: say it");
         }
 
         [TestMethod]
@@ -34,7 +34,7 @@ namespace MdExplorer.Features.Tests.Agents
         {
             var notice = CopilotMcpDiagnostics.NoticeFor(new[] { ("github-mcp-server", "connected", (string)null) });
 
-            StringAssert.Contains(notice, "non è nella configurazione");
+            StringAssert.Contains(notice, "is not in the Copilot configuration");
             StringAssert.Contains(notice, "mcp-config.json");
         }
 

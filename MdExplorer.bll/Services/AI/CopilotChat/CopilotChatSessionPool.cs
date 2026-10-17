@@ -216,7 +216,8 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             if (profile == null) return await GetOrCreateAsync(connectionId, workingDirectory, modelId, ct).ConfigureAwait(false);
             if (_transportSource.Current() != CopilotChatTransport.Sdk)
                 throw new InvalidOperationException(
-                    "Questa funzione con Copilot richiede il trasporto SDK: l'impostazione CopilotChatTransport è su ACP, che non sa aggiungere server MCP, negare la shell o la scrittura, né riprendere una conversazione.");
+                    MdExplorer.Features.Services.UiText.Say("Questa funzione con Copilot richiede il trasporto SDK: l'impostazione CopilotChatTransport è su ACP, che non sa aggiungere server MCP, negare la shell o la scrittura, né riprendere una conversazione.",
+                        "This feature with Copilot needs the SDK transport: the CopilotChatTransport setting is on ACP, which cannot add MCP servers, deny the shell or writing, or resume a conversation."));
 
             if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast.Session, workingDirectory, modelId, CopilotChatTransport.Sdk)
                 && fast.Session.ProfileKey == profile.Key)
@@ -323,7 +324,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     new PlantumlBlockVerifier(_plantumlServer.CheckAsync), null, resumeSessionId, extraRoots),
                 CopilotChatTransport.Acp => new CopilotAcpChatSession(
                     _loggerFactory.CreateLogger<CopilotAcpSession>(), workingDirectory, modelId),
-                _ => throw new InvalidOperationException($"Trasporto Copilot sconosciuto: {transport}")
+                _ => throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Trasporto Copilot sconosciuto: {transport}", $"Unknown Copilot transport: {transport}"))
             };
 
         /// <summary>

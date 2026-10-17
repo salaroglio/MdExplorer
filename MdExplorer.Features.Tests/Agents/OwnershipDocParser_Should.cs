@@ -78,7 +78,7 @@ mde_type: ownership
             var result = OwnershipDocParser.Parse(doc);
             Assert.IsTrue(result.IsOwnershipDoc);
             Assert.IsTrue(result.HasErrors);
-            Assert.IsTrue(result.Errors.Any(e => e.Contains("duplicato")), string.Join(" | ", result.Errors));
+            Assert.IsTrue(result.Errors.Any(e => e.Contains("duplicated")), string.Join(" | ", result.Errors));
             Assert.AreEqual(1, result.Entries.Count, "la seconda riga duplicata non entra");
         }
 

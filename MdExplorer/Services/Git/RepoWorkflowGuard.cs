@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -222,8 +223,11 @@ namespace MdExplorer.Services.Git
                              await SubmoduleRelation.IsAncestorAsync(_git, dir, mine, theirs, ct)))
                     continue;
 
-                return $"Tu e il remoto avete portato '{line.Path}' a due versioni diverse. Prima scarica dentro '{line.Path}' " +
-                       "(«Aggiorna all'ultima»), poi committa qui la versione unita, e solo dopo scarica questo repository.";
+                return UiText.Say(
+                    $"Tu e il remoto avete portato '{line.Path}' a due versioni diverse. Prima scarica dentro '{line.Path}' " +
+                    "(«Aggiorna all'ultima»), poi committa qui la versione unita, e solo dopo scarica questo repository.",
+                    $"You and the remote took '{line.Path}' to two different versions. First pull inside '{line.Path}' " +
+                    "(«Update to latest»), then commit the merged version here, and only then pull this repository.");
             }
             return null;
         }
@@ -240,13 +244,19 @@ namespace MdExplorer.Services.Git
         {
             if (merge == null || !merge.InProgress) return null;
             if (merge.SubmoduleConflicts.Count > 0)
-                return $"Unione in corso con un conflitto sulla versione di '{merge.SubmoduleConflicts[0]}': " +
-                       $"annulla l'unione, scarica prima dentro '{merge.SubmoduleConflicts[0]}', committa il progetto e poi scarica di nuovo.";
+                return UiText.Say(
+                    $"Unione in corso con un conflitto sulla versione di '{merge.SubmoduleConflicts[0]}': " +
+                    $"annulla l'unione, scarica prima dentro '{merge.SubmoduleConflicts[0]}', committa il progetto e poi scarica di nuovo.",
+                    $"Merge in progress with a conflict on the version of '{merge.SubmoduleConflicts[0]}': " +
+                    $"abort the merge, first pull inside '{merge.SubmoduleConflicts[0]}', commit the project and then pull again.");
             if (merge.StillMarked.Count > 0)
-                return "Unione in corso: " + string.Join(", ", merge.StillMarked.Take(5)) +
+                return UiText.Say("Unione in corso: ", "Merge in progress: ") + string.Join(", ", merge.StillMarked.Take(5)) +
                        (merge.StillMarked.Count > 5 ? "…" : "") +
-                       (merge.StillMarked.Count == 1 ? " contiene" : " contengono") +
-                       " ancora i segni di conflitto (<<<<<<<). Correggi, poi committa; oppure annulla l'unione.";
+                       UiText.Say(
+                           (merge.StillMarked.Count == 1 ? " contiene" : " contengono") +
+                           " ancora i segni di conflitto (<<<<<<<). Correggi, poi committa; oppure annulla l'unione.",
+                           (merge.StillMarked.Count == 1 ? " still contains" : " still contain") +
+                           " conflict markers (<<<<<<<). Fix them, then commit; or abort the merge.");
             return null;
         }
 
@@ -257,11 +267,17 @@ namespace MdExplorer.Services.Git
         public static string PointerCommitBlocker(string submodulePath, string relation) => relation switch
         {
             SubmoduleRelation.Behind or SubmoduleRelation.Unknown =>
-                $"'{submodulePath}' è più indietro della versione che il progetto registra: committando la riporteresti indietro. " +
-                $"Prima allinea '{submodulePath}' (pannello «da scaricare»).",
+                UiText.Say(
+                    $"'{submodulePath}' è più indietro della versione che il progetto registra: committando la riporteresti indietro. " +
+                    $"Prima allinea '{submodulePath}' (pannello «da scaricare»).",
+                    $"'{submodulePath}' is behind the version the project records: committing would take it back. " +
+                    $"First align '{submodulePath}' («To pull» panel)."),
             SubmoduleRelation.Diverged =>
-                $"'{submodulePath}' diverge dalla versione che il progetto registra: committando scarteresti quella versione. " +
-                $"Prima «Aggiorna all'ultima» dentro '{submodulePath}', che unisce i due lavori.",
+                UiText.Say(
+                    $"'{submodulePath}' diverge dalla versione che il progetto registra: committando scarteresti quella versione. " +
+                    $"Prima «Aggiorna all'ultima» dentro '{submodulePath}', che unisce i due lavori.",
+                    $"'{submodulePath}' diverges from the version the project records: committing would discard that version. " +
+                    $"First «Update to latest» inside '{submodulePath}', which merges the two pieces of work."),
             _ => null,
         };
 

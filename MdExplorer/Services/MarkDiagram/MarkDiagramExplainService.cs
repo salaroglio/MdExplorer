@@ -111,7 +111,7 @@ namespace MdExplorer.Services.MarkDiagram
             {
                 await SendAsync(connectionId, new { phase = "start", box = boxName });
 
-                await SendStatusAsync(connectionId, boxName, "Cerco il motore AI configurato...");
+                await SendStatusAsync(connectionId, boxName, MdExplorer.Features.Services.UiText.Say("Cerco il motore AI configurato...", "Looking for the configured AI engine..."));
 
                 if (!TryResolveEngine(projectPath, out var engine, out var modelId, out var whyNot))
                 {
@@ -125,8 +125,8 @@ namespace MdExplorer.Services.MarkDiagram
                 var documentName = System.IO.Path.GetFileName(context?.DocumentPath ?? string.Empty);
                 await SendStatusAsync(connectionId, boxName,
                     string.IsNullOrWhiteSpace(documentName)
-                        ? "Leggo il documento..."
-                        : $"Leggo {documentName}...");
+                        ? MdExplorer.Features.Services.UiText.Say("Leggo il documento...", "Reading the document...")
+                        : MdExplorer.Features.Services.UiText.Say($"Leggo {documentName}...", $"Reading {documentName}..."));
 
                 var documentText = ReadDocument(context, projectPath, out var truncated);
 
@@ -149,8 +149,10 @@ namespace MdExplorer.Services.MarkDiagram
 
                 var relationCount = context?.Relations?.Count ?? 0;
                 await SendStatusAsync(connectionId, boxName,
-                    $"Chiedo a {engineLabel} di spiegare \"{boxName}\" " +
-                    $"({relationCount} relazioni, {documentText.Length / 1000} KB di documento)...");
+                    MdExplorer.Features.Services.UiText.Say($"Chiedo a {engineLabel} di spiegare \"{boxName}\" " +
+                        $"({relationCount} relazioni, {documentText.Length / 1000} KB di documento)...",
+                        $"Asking {engineLabel} to explain \"{boxName}\" " +
+                        $"({relationCount} relations, {documentText.Length / 1000} KB of document)..."));
 
                 var answer = new StringBuilder();
                 await foreach (var chunk in _sessions.AskAsync(connectionId, projectPath, document, engine, modelId, userPrompt, cts.Token))
@@ -219,7 +221,7 @@ namespace MdExplorer.Services.MarkDiagram
             try
             {
                 await SendAsync(connectionId, new { phase = "start", box = boxName });
-                await SendStatusAsync(connectionId, boxName, "Riprendo il filo del discorso...");
+                await SendStatusAsync(connectionId, boxName, MdExplorer.Features.Services.UiText.Say("Riprendo il filo del discorso...", "Picking up the conversation..."));
 
                 if (!TryResolveEngine(conversation.ProjectPath, out var engine, out var modelId, out var whyNot))
                 {
@@ -352,7 +354,7 @@ namespace MdExplorer.Services.MarkDiagram
             {
                 _logger.LogError(ex, "[MarkDiagram] Blocco di modifica malformato");
                 throw new InvalidOperationException(
-                    "Ho preparato una modifica ma non sono riuscito a rileggerla. Riprova a chiedermela.", ex);
+                    MdExplorer.Features.Services.UiText.Say("Ho preparato una modifica ma non sono riuscito a rileggerla. Riprova a chiedermela.", "I prepared an edit but could not read it back. Ask me for it again."), ex);
             }
         }
 
@@ -425,11 +427,11 @@ namespace MdExplorer.Services.MarkDiagram
 
             try
             {
-                await SendStatusAsync(connectionId, boxName, "Applico la modifica al documento...");
+                await SendStatusAsync(connectionId, boxName, MdExplorer.Features.Services.UiText.Say("Applico la modifica al documento...", "Applying the edit to the document..."));
 
                 var fullPath = ResolveDocumentPath(conversation.Context, conversation.ProjectPath);
                 if (fullPath == null || !System.IO.File.Exists(fullPath))
-                    throw new InvalidOperationException("Non trovo più il documento da modificare.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Non trovo più il documento da modificare.", "I can no longer find the document to edit."));
 
                 var original = System.IO.File.ReadAllText(fullPath);
                 var updated = original;
@@ -442,14 +444,16 @@ namespace MdExplorer.Services.MarkDiagram
                 {
                     var sorgenteVecchio = conversation.Context?.PlantumlSource?.Trim();
                     if (string.IsNullOrWhiteSpace(sorgenteVecchio))
-                        throw new InvalidOperationException("Non ho il sorgente originale del diagramma.");
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Non ho il sorgente originale del diagramma.", "I do not have the original source of the diagram."));
 
                     var occorrenze = ContaOccorrenze(updated, sorgenteVecchio);
                     if (occorrenze != 1)
                         throw new InvalidOperationException(
                             occorrenze == 0
-                                ? "Il diagramma nel documento non è più quello che avevo letto: forse è stato modificato nel frattempo. Non tocco nulla."
-                                : $"Il sorgente del diagramma compare {occorrenze} volte nel documento: non so quale intendi. Non tocco nulla.");
+                                ? MdExplorer.Features.Services.UiText.Say("Il diagramma nel documento non è più quello che avevo letto: forse è stato modificato nel frattempo. Non tocco nulla.",
+                                    "The diagram in the document is no longer the one I read: it may have been changed in the meantime. I am not touching anything.")
+                                : MdExplorer.Features.Services.UiText.Say($"Il sorgente del diagramma compare {occorrenze} volte nel documento: non so quale intendi. Non tocco nulla.",
+                                    $"The diagram source appears {occorrenze} times in the document: I do not know which one you mean. I am not touching anything."));
 
                     updated = updated.Replace(sorgenteVecchio, proposal.NewPlantuml.Trim());
                 }
@@ -466,14 +470,16 @@ namespace MdExplorer.Services.MarkDiagram
                     if (n != 1)
                         throw new InvalidOperationException(
                             n == 0
-                                ? $"Non trovo nel documento il testo «{Abbrevia(edit.Find)}». Non applico nulla."
-                                : $"Il testo «{Abbrevia(edit.Find)}» compare {n} volte: non so quale cambiare. Non applico nulla.");
+                                ? MdExplorer.Features.Services.UiText.Say($"Non trovo nel documento il testo «{Abbrevia(edit.Find)}». Non applico nulla.",
+                                    $"I cannot find the text «{Abbrevia(edit.Find)}» in the document. I am not applying anything.")
+                                : MdExplorer.Features.Services.UiText.Say($"Il testo «{Abbrevia(edit.Find)}» compare {n} volte: non so quale cambiare. Non applico nulla.",
+                                    $"The text «{Abbrevia(edit.Find)}» appears {n} times: I do not know which one to change. I am not applying anything."));
 
                     updated = updated.Replace(edit.Find, edit.Replace ?? string.Empty);
                 }
 
                 if (updated == original)
-                    throw new InvalidOperationException("La modifica non cambierebbe nulla nel documento.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La modifica non cambierebbe nulla nel documento.", "The edit would not change anything in the document."));
 
                 ScriviInModoAtomico(fullPath, updated);
                 conversation.DocumentChanged = true;

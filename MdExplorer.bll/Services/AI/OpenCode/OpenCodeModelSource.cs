@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (!res.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException(
-                    $"opencode non ha restituito i provider ({(int)res.StatusCode}): {Truncate(payload, 300)}");
+                    MdExplorer.Features.Services.UiText.Say($"opencode non ha restituito i provider ({(int)res.StatusCode}): {Truncate(payload, 300)}", $"opencode did not return the providers ({(int)res.StatusCode}): {Truncate(payload, 300)}"));
             }
 
             using var doc = JsonDocument.Parse(payload);
@@ -63,7 +63,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (!root.TryGetProperty("providers", out var providers) || providers.ValueKind != JsonValueKind.Array)
             {
                 throw new InvalidOperationException(
-                    $"La risposta di /config/providers non ha l'elenco 'providers': {Truncate(payload, 300)}");
+                    MdExplorer.Features.Services.UiText.Say($"La risposta di /config/providers non ha l'elenco 'providers': {Truncate(payload, 300)}", $"The /config/providers answer has no 'providers' list: {Truncate(payload, 300)}"));
             }
 
             var result = new List<AiProviderModel>();

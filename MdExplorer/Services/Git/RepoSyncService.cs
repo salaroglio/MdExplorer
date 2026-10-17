@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -165,7 +166,7 @@ namespace MdExplorer.Services.Git
 
                 var fetch = await _transport.FetchAsync(dir, "origin", ct);
                 // Un remoto che non risponde non ferma gli altri: lo si scrive sulla sua riga.
-                _remotes.Set(dir, fetch.Ok ? null : $"Il remoto non ha risposto: {fetch.Error}");
+                _remotes.Set(dir, fetch.Ok ? null : UiText.Say($"Il remoto non ha risposto: {fetch.Error}", $"The remote did not answer: {fetch.Error}"));
                 outcomes.Add(new RepoFetchOutcome { Repo = repo.Path, Label = repo.Label, Ok = fetch.Ok, Error = fetch.Ok ? null : fetch.Error });
             }
             return outcomes;
@@ -176,7 +177,7 @@ namespace MdExplorer.Services.Git
             var (view, row, refused) = await FindAsync(projectPath, agentName, repo, ct);
             if (refused != null) return Refuse(refused);
             if (row.PushBlocker != null) return Refuse(row.PushBlocker);
-            if (row.Ahead <= 0) return Refuse($"In '{row.Label}' non c'è niente da pubblicare.");
+            if (row.Ahead <= 0) return Refuse(UiText.Say($"In '{row.Label}' non c'è niente da pubblicare.", $"In '{row.Label}' there is nothing to push."));
 
             // La copia di un agente non si pubblica col nome locale del ramo: su origin quel nome non esiste, e
             // nascerebbe un secondo ramo che nessuna richiesta di approvazione guarda.
@@ -184,14 +185,14 @@ namespace MdExplorer.Services.Git
             {
                 var problem = await _requests.PublishCopyAsync(projectPath, agentName, view.RootPath, row.Branch, ct);
                 return problem == null
-                    ? new RepoActionResult { Success = true, Message = $"Lavoro nella copia di '{agentName}' pubblicato." }
-                    : new RepoActionResult { Success = false, Message = $"Pubblicazione non riuscita ({problem})." };
+                    ? new RepoActionResult { Success = true, Message = UiText.Say($"Lavoro nella copia di '{agentName}' pubblicato.", $"Work in the copy of '{agentName}' pushed.") }
+                    : new RepoActionResult { Success = false, Message = UiText.Say($"Pubblicazione non riuscita ({problem}).", $"Push failed ({problem}).") };
             }
 
             var res = await _git.PushAsync(DirOf(view.RootPath, row.Path));
             return res.Success
-                ? new RepoActionResult { Success = true, Message = $"'{row.Label}' pubblicato." }
-                : new RepoActionResult { Success = false, Message = res.ErrorMessage ?? "Pubblicazione non riuscita." };
+                ? new RepoActionResult { Success = true, Message = UiText.Say($"'{row.Label}' pubblicato.", $"'{row.Label}' pushed.") }
+                : new RepoActionResult { Success = false, Message = res.ErrorMessage ?? UiText.Say("Pubblicazione non riuscita.", "Push failed.") };
         }
 
         public async Task<RepoActionResult> PullAsync(string projectPath, string repo, CancellationToken ct = default)
@@ -212,7 +213,7 @@ namespace MdExplorer.Services.Git
                     ? new RepoActionResult
                     {
                         Success = true,
-                        Message = res.HasChanges ? $"'{row.Label}' aggiornato." : $"'{row.Label}' era già aggiornato.",
+                        Message = res.HasChanges ? UiText.Say($"'{row.Label}' aggiornato.", $"'{row.Label}' updated.") : UiText.Say($"'{row.Label}' era già aggiornato.", $"'{row.Label}' was already up to date."),
                         Warnings = res.Warnings ?? Array.Empty<string>(),
                     }
                     : new RepoActionResult { Success = false, Message = await DescribeFailedPullAsync(dir, row.Label, res.ErrorMessage, ct) };
@@ -238,21 +239,21 @@ namespace MdExplorer.Services.Git
                 // già garantito che il commit in checkout stia su quel ramo.
                 var target = row.DetachedTarget;
                 var fetch = await _transport.FetchAsync(dir, "origin", ct);
-                if (!fetch.Ok) return Fail($"'{row.Label}': il remoto non ha risposto ({fetch.Error}).");
+                if (!fetch.Ok) return Fail(UiText.Say($"'{row.Label}': il remoto non ha risposto ({fetch.Error}).", $"'{row.Label}': the remote did not answer ({fetch.Error})."));
 
                 var local = await _runner.RunAsync(dir, new[] { "show-ref", "--verify", "--quiet", $"refs/heads/{target}" }, ct);
                 var checkout = local.Ok
                     ? await _runner.RunAsync(dir, new[] { "checkout", target }, ct)
                     : await _runner.RunAsync(dir, new[] { "checkout", "-b", target, "--track", $"origin/{target}" }, ct);
-                if (!checkout.Ok) return Fail($"'{row.Label}' non è tornato sul ramo '{target}': {checkout.Describe()}");
+                if (!checkout.Ok) return Fail(UiText.Say($"'{row.Label}' non è tornato sul ramo '{target}': {checkout.Describe()}", $"'{row.Label}' did not go back to branch '{target}': {checkout.Describe()}"));
 
                 var ff = await _runner.RunAsync(dir, new[] { "merge", "--ff-only", $"origin/{target}" }, ct);
                 if (!ff.Ok)
                     return new RepoActionResult
                     {
                         Success = true,
-                        Message = $"'{row.Label}' è tornato sul ramo '{target}'.",
-                        Warnings = new[] { $"'{row.Label}': il ramo '{target}' ha commit tuoi che il remoto non ha, quindi non è stato portato in cima. Scarica di nuovo da qui per unirli." },
+                        Message = UiText.Say($"'{row.Label}' è tornato sul ramo '{target}'.", $"'{row.Label}' is back on branch '{target}'."),
+                        Warnings = new[] { UiText.Say($"'{row.Label}': il ramo '{target}' ha commit tuoi che il remoto non ha, quindi non è stato portato in cima. Scarica di nuovo da qui per unirli.", $"'{row.Label}': branch '{target}' has commits of yours that the remote does not have, so it was not brought to the tip. Pull again from here to merge them.") },
                     };
             }
             else
@@ -266,7 +267,7 @@ namespace MdExplorer.Services.Git
             return new RepoActionResult
             {
                 Success = true,
-                Message = $"'{row.Label}' aggiornato all'ultima versione.",
+                Message = UiText.Say($"'{row.Label}' aggiornato all'ultima versione.", $"'{row.Label}' updated to the latest version."),
                 Warnings = nested.Notes,
             };
         }
@@ -275,13 +276,13 @@ namespace MdExplorer.Services.Git
         {
             var view = await _changes.GetAsync(projectPath, null, ct);
             if (view.Problem != null) return Refuse(view.Problem);
-            if (view.NotAGitRepository) return Refuse("Questa cartella non è un repository git.");
+            if (view.NotAGitRepository) return Refuse(UiText.Say("Questa cartella non è un repository git.", "This folder is not a git repository."));
 
             string only = null;
             if (!string.IsNullOrWhiteSpace(repo))
             {
                 var row = Find(view, repo);
-                if (row == null || row.Depth == 0) return Refuse($"'{repo}' non è un submodule di questo progetto.");
+                if (row == null || row.Depth == 0) return Refuse(UiText.Say($"'{repo}' non è un submodule di questo progetto.", $"'{repo}' is not a submodule of this project."));
                 if (row.AlignBlocker != null) return Refuse(row.AlignBlocker);
                 only = row.Path;
             }
@@ -302,8 +303,8 @@ namespace MdExplorer.Services.Git
 
             var view = await _changes.GetAsync(projectPath, null, ct);
             if (view.Problem != null) return Refuse(view.Problem);
-            if (view.NotAGitRepository) return Refuse("Questa cartella non è un repository git.");
-            if (view.Repos == null || view.Repos.Count == 0) return Refuse("Nessun repository da aggiornare.");
+            if (view.NotAGitRepository) return Refuse(UiText.Say("Questa cartella non è un repository git.", "This folder is not a git repository."));
+            if (view.Repos == null || view.Repos.Count == 0) return Refuse(UiText.Say("Nessun repository da aggiornare.", "No repository to update."));
 
             var root = view.Repos[0];
             if (root.RemoteProblem != null) return Refuse($"'{root.Label}': {root.RemoteProblem}");
@@ -327,13 +328,13 @@ namespace MdExplorer.Services.Git
 
             var branch = await CurrentBranchAsync(dir, ct);
             if (branch == null)
-                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Problem = "Il progetto non è su un ramo: gli aggiornamenti della sorgente si scaricano stando su un ramo." };
+                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Problem = UiText.Say("Il progetto non è su un ramo: gli aggiornamenti della sorgente si scaricano stando su un ramo.", "The project is not on a branch: updates from the source are pulled while on a branch.") };
 
             if (fetch)
             {
                 var fetched = await _transport.FetchAsync(dir, UpstreamRemote, ct);
                 if (!fetched.Ok)
-                    return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Problem = $"La sorgente non risponde: {fetched.Error}" };
+                    return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Problem = UiText.Say($"La sorgente non risponde: {fetched.Error}", $"The source does not answer: {fetched.Error}") };
             }
 
             var count = await _runner.RunAsync(dir, new[] { "rev-list", "--count", $"HEAD..{UpstreamRemote}/{branch}" }, ct);
@@ -348,14 +349,14 @@ namespace MdExplorer.Services.Git
         {
             var (view, row, refused) = await FindAsync(projectPath, null, string.Empty, ct);
             if (refused != null) return Refuse(refused);
-            if (row.MergeInProgress) return Refuse($"In '{row.Label}' c'è un'unione rimasta a metà: chiudila o annullala prima di scaricare gli aggiornamenti.");
+            if (row.MergeInProgress) return Refuse(UiText.Say($"In '{row.Label}' c'è un'unione rimasta a metà: chiudila o annullala prima di scaricare gli aggiornamenti.", $"In '{row.Label}' a merge was left half done: finish or abort it before downloading the updates."));
             var dir = view.RootPath;
 
             var status = await UpstreamStatusAsync(projectPath, fetch: true, ct);
-            if (!status.HasUpstream) return Refuse("Questo progetto non ha una sorgente da cui scaricare aggiornamenti (un remoto chiamato 'upstream').");
+            if (!status.HasUpstream) return Refuse(UiText.Say("Questo progetto non ha una sorgente da cui scaricare aggiornamenti (un remoto chiamato 'upstream').", "This project has no source to download updates from (a remote called 'upstream')."));
             if (status.Problem != null) return Fail(status.Problem);
             if (status.Behind == 0)
-                return new RepoActionResult { Success = true, Message = "Il progetto ha già l'ultima versione della sorgente." };
+                return new RepoActionResult { Success = true, Message = UiText.Say("Il progetto ha già l'ultima versione della sorgente.", "The project already has the latest version of the source.") };
 
             var before = await HeadsAsync(view, ct);
             var merge = await _runner.RunAsync(dir, new[] { "merge", "--no-edit", $"{UpstreamRemote}/{status.Branch}" }, ct);
@@ -366,8 +367,11 @@ namespace MdExplorer.Services.Git
                 if (resolved.Done)
                 {
                     merge = resolved.Commit.Value;
-                    notes.Add("La sorgente e questo computer avevano cambiato tutti e due .development.yml: li ho uniti voce per voce, " +
-                              "tenendo le tue voci e aggiungendo quelle nuove.");
+                    notes.Add(UiText.Say(
+                        "La sorgente e questo computer avevano cambiato tutti e due .development.yml: li ho uniti voce per voce, " +
+                        "tenendo le tue voci e aggiungendo quelle nuove.",
+                        "The source and this computer had both changed .development.yml: I merged them entry by entry, " +
+                        "keeping your entries and adding the new ones."));
                 }
                 else if (resolved.Problem != null)
                 {
@@ -385,9 +389,14 @@ namespace MdExplorer.Services.Git
 
                 var files = (conflicts.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
                 return Fail(files.Count > 0
-                    ? $"Gli aggiornamenti toccano file che hai cambiato anche tu ({string.Join(", ", files)}): non ho scaricato niente e il progetto è com'era. " +
-                      "Committa o annulla le tue modifiche a quei file e riprova."
-                    : $"Gli aggiornamenti non sono stati scaricati e il progetto è com'era: {merge.Describe()}");
+                    ? UiText.Say(
+                        $"Gli aggiornamenti toccano file che hai cambiato anche tu ({string.Join(", ", files)}): non ho scaricato niente e il progetto è com'era. " +
+                        "Committa o annulla le tue modifiche a quei file e riprova.",
+                        $"The updates touch files you changed too ({string.Join(", ", files)}): I downloaded nothing and the project is as it was. " +
+                        "Commit or undo your changes to those files and try again.")
+                    : UiText.Say(
+                        $"Gli aggiornamenti non sono stati scaricati e il progetto è com'era: {merge.Describe()}",
+                        $"The updates were not downloaded and the project is as it was: {merge.Describe()}"));
             }
 
             _logger.LogInformation("[Flusso] '{Repo}': {Count} aggiornamenti dalla sorgente ({Branch}).", row.Label, status.Behind, status.Branch);
@@ -399,13 +408,15 @@ namespace MdExplorer.Services.Git
             {
                 var push = await _transport.PushAsync(dir, "origin", status.Branch, ct);
                 if (!push.Ok)
-                    warnings.Add($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «da pushare».");
+                    warnings.Add(UiText.Say($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «da pushare».", $"The updates are in your folder, but I could not push them to 'origin': {push.Error}. Push them from the «To push» panel."));
             }
 
             return await WithChangesAsync(new RepoActionResult
             {
                 Success = true,
-                Message = status.Behind == 1 ? "Scaricato 1 aggiornamento dalla sorgente." : $"Scaricati {status.Behind} aggiornamenti dalla sorgente.",
+                Message = status.Behind == 1
+                    ? UiText.Say("Scaricato 1 aggiornamento dalla sorgente.", "Downloaded 1 update from the source.")
+                    : UiText.Say($"Scaricati {status.Behind} aggiornamenti dalla sorgente.", $"Downloaded {status.Behind} updates from the source."),
                 Warnings = warnings,
             }, view, before, ct);
         }
@@ -433,18 +444,24 @@ namespace MdExplorer.Services.Git
             try { merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout, out conflict); }
             catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
             {
-                return (false, default, $"Gli aggiornamenti toccano {file}, che hai cambiato anche tu, e non l'ho potuto unire voce per voce ({ex.Message}): " +
-                                     "non ho scaricato niente e il progetto è com'era.");
+                return (false, default, UiText.Say(
+                    $"Gli aggiornamenti toccano {file}, che hai cambiato anche tu, e non l'ho potuto unire voce per voce ({ex.Message}): " +
+                    "non ho scaricato niente e il progetto è com'era.",
+                    $"The updates touch {file}, which you changed too, and I could not merge it entry by entry ({ex.Message}): " +
+                    "I downloaded nothing and the project is as it was."));
             }
             if (merged == null)
-                return (false, default, $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
-                                     "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, committa, e riprova.");
+                return (false, default, UiText.Say(
+                    $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
+                    "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, committa, e riprova.",
+                    $"The updates change the entry «{conflict}» in {file}, which you changed too in another way: " +
+                    "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again."));
 
             await File.WriteAllTextAsync(Path.Combine(dir, file), merged, ct);
             var add = await _runner.RunAsync(dir, new[] { "add", "--", file }, ct);
-            if (!add.Ok) return (false, default, $"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}");
+            if (!add.Ok) return (false, default, UiText.Say($"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}", $"{file} merged, but I cannot add it to the merge: {add.Describe()}"));
             var commit = await _runner.RunAsync(dir, new[] { "commit", "--no-edit" }, ct);
-            if (!commit.Ok) return (false, default, $"{file} unito, ma l'unione non si chiude: {commit.Describe()}");
+            if (!commit.Ok) return (false, default, UiText.Say($"{file} unito, ma l'unione non si chiude: {commit.Describe()}", $"{file} merged, but the merge does not close: {commit.Describe()}"));
             _logger.LogInformation("[Flusso] {File} unito voce per voce con gli aggiornamenti della sorgente in {Dir}", file, dir);
             return (true, commit, null);
         }
@@ -460,17 +477,17 @@ namespace MdExplorer.Services.Git
         {
             var (view, row, refused) = await FindAsync(projectPath, null, repo, ct);
             if (refused != null) return Refuse(refused);
-            if (!row.MergeInProgress) return Refuse($"In '{row.Label}' non c'è nessuna unione in corso.");
+            if (!row.MergeInProgress) return Refuse(UiText.Say($"In '{row.Label}' non c'è nessuna unione in corso.", $"In '{row.Label}' there is no merge in progress."));
 
             var dir = DirOf(view.RootPath, row.Path);
             var abort = await _runner.RunAsync(dir, new[] { "merge", "--abort" }, ct);
-            if (!abort.Ok) return Fail($"L'unione in '{row.Label}' non è stata annullata: {abort.Describe()}");
+            if (!abort.Ok) return Fail(UiText.Say($"L'unione in '{row.Label}' non è stata annullata: {abort.Describe()}", $"The merge in '{row.Label}' was not aborted: {abort.Describe()}"));
 
             _logger.LogInformation("[Flusso] unione annullata in '{Repo}'.", row.Label);
             return new RepoActionResult
             {
                 Success = true,
-                Message = $"Unione annullata: '{row.Label}' è tornato a prima dello scaricamento.",
+                Message = UiText.Say($"Unione annullata: '{row.Label}' è tornato a prima dello scaricamento.", $"Merge aborted: '{row.Label}' is back to before the pull."),
                 ContentChanged = true,
                 ChangedFiles = row.Conflicts.Select(p => Prefixed(row.Path, p)).ToList(),
             };
@@ -483,11 +500,11 @@ namespace MdExplorer.Services.Git
         {
             var view = await _changes.GetAsync(projectPath, agentName, ct);
             if (view.Problem != null) return (view, null, view.Problem);
-            if (view.NotAGitRepository) return (view, null, "Questa cartella non è un repository git.");
+            if (view.NotAGitRepository) return (view, null, UiText.Say("Questa cartella non è un repository git.", "This folder is not a git repository."));
 
             var row = Find(view, repo);
             return row == null
-                ? (view, null, $"'{repo}' non è un repository di questo progetto.")
+                ? (view, null, UiText.Say($"'{repo}' non è un repository di questo progetto.", $"'{repo}' is not a repository of this project."))
                 : (view, row, null);
         }
 
@@ -581,9 +598,9 @@ namespace MdExplorer.Services.Git
             {
                 Success = true,
                 Message = done == 0
-                    ? "I submodule erano già alla versione che il progetto registra."
-                    : done == 1 ? "1 submodule allineato alla versione che il progetto registra."
-                    : $"{done} submodule allineati alla versione che il progetto registra.",
+                    ? UiText.Say("I submodule erano già alla versione che il progetto registra.", "The submodules were already at the version the project records.")
+                    : done == 1 ? UiText.Say("1 submodule allineato alla versione che il progetto registra.", "1 submodule aligned to the version the project records.")
+                    : UiText.Say($"{done} submodule allineati alla versione che il progetto registra.", $"{done} submodules aligned to the version the project records."),
                 Warnings = aligned.Notes,
             };
         }
@@ -596,9 +613,12 @@ namespace MdExplorer.Services.Git
         {
             var merging = await _runner.RunAsync(dir, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct);
             if (merging.Ok)
-                return $"In '{label}' il tuo lavoro e quello scaricato toccano le stesse righe: l'unione è rimasta a metà. " +
-                       "Correggi i file in conflitto e committa, oppure annulla l'unione per tornare a prima.";
-            return $"'{label}' non è stato aggiornato e niente è cambiato: {error}";
+                return UiText.Say(
+                    $"In '{label}' il tuo lavoro e quello scaricato toccano le stesse righe: l'unione è rimasta a metà. " +
+                    "Correggi i file in conflitto e committa, oppure annulla l'unione per tornare a prima.",
+                    $"In '{label}' your work and the pulled work touch the same lines: the merge was left half done. " +
+                    "Fix the conflicting files and commit, or abort the merge to go back.");
+            return UiText.Say($"'{label}' non è stato aggiornato e niente è cambiato: {error}", $"'{label}' was not updated and nothing changed: {error}");
         }
 
         private static RepoActionResult Refuse(string why) => new RepoActionResult { Success = false, Refused = why };

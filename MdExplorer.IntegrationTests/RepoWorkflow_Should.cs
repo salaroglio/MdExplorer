@@ -303,7 +303,7 @@ namespace MdExplorer.IntegrationTests
 
             var refused = await Sync(ctx, s => s.PushAsync(path, null, ""));
             Assert.IsNotNull(refused.Refused);
-            StringAssert.Contains(refused.Refused, "scarica");
+            StringAssert.Contains(refused.Refused, "pull");
 
             // Scaricato (file diversi: git unisce da solo), si pubblica.
             Assert.IsTrue((await Sync(ctx, s => s.PullAsync(path, ""))).Success);
@@ -326,7 +326,7 @@ namespace MdExplorer.IntegrationTests
             var pulled = await Sync(ctx, s => s.PullAsync(path, ""));
             Assert.IsFalse(pulled.Success);
             Assert.IsNull(pulled.Refused);
-            StringAssert.Contains(pulled.Message, "unione");
+            StringAssert.Contains(pulled.Message, "merge");
 
             var root = (await View(ctx, path)).Repos[0];
             Assert.IsTrue(root.MergeInProgress, "lo stato a metà si vede sulla riga.");

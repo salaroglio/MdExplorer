@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
         public static ProcessStartInfo BuildStartInfo(string resolvedPath, IReadOnlyList<string> arguments)
         {
             if (string.IsNullOrWhiteSpace(resolvedPath))
-                throw new ArgumentException("Serve il percorso del CLI, già risolto nel PATH.", nameof(resolvedPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Serve il percorso del CLI, già risolto nel PATH.", "The CLI path, already resolved in the PATH, is required."), nameof(resolvedPath));
 
             var psi = new ProcessStartInfo
             {
@@ -75,7 +75,7 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
         {
             using var process = new Process { StartInfo = BuildStartInfo(resolvedPath, arguments) };
             if (!process.Start())
-                throw new InvalidOperationException($"Il processo '{resolvedPath}' non è partito.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il processo '{resolvedPath}' non è partito.", $"The process '{resolvedPath}' did not start."));
 
             // Nessuno scrive su stdin: va chiuso, altrimenti un CLI che lo legge resta in attesa.
             process.StandardInput.Close();

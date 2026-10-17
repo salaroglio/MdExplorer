@@ -156,7 +156,7 @@ namespace MdExplorer.Service.Controllers
         {
             var lang = request?.Language?.Trim().ToLowerInvariant();
             if (!SupportedLanguages.Contains(lang))
-                return BadRequest(new { error = $"Lingua '{request?.Language}' non supportata. Ammesse: {string.Join(", ", SupportedLanguages)}" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"Lingua '{request?.Language}' non supportata. Ammesse: {string.Join(", ", SupportedLanguages)}", $"Language '{request?.Language}' not supported. Allowed: {string.Join(", ", SupportedLanguages)}") });
 
             _session.BeginTransaction();
             try
@@ -309,7 +309,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     // Un CLI agentico ha bisogno di un terminale sulla macchina dell'utente, e non
                     // esiste uno schema di URL da passare al browser come per vscode:// e jetbrains://.
-                    return BadRequest(new { error = "Il CLI dell'ambiente agentico non si può aprire in modalità Docker: serve un terminale sulla macchina." });
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Il CLI dell'ambiente agentico non si può aprire in modalità Docker: serve un terminale sulla macchina.", "The agentic environment CLI cannot be opened in Docker mode: it needs a terminal on the machine.") });
                 }
 
                 var hostUrl = TryBuildHostEditorUrl(path, selectedIde);
@@ -342,13 +342,13 @@ namespace MdExplorer.Service.Controllers
 
                 if (engine == MarkAgentEngine.None)
                 {
-                    return BadRequest(new { error = "Questo progetto non ha un ambiente agentico: scegline uno in Impostazioni → AI & RAG, oppure seleziona un altro editor." });
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Questo progetto non ha un ambiente agentico: scegline uno in Impostazioni → AI & RAG, oppure seleziona un altro editor.", "This project has no agentic environment: choose one in Settings → AI & RAG, or select another editor.") });
                 }
 
                 var command = MarkAgentEngines.CommandOf(engine);
                 if (!IsAgentCliInstalled(engine))
                 {
-                    return BadRequest(new { error = $"'{command}' non è installato su questa macchina, o non è nel PATH del servizio: è il CLI dell'ambiente agentico di questo progetto." });
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"'{command}' non è installato su questa macchina, o non è nel PATH del servizio: è il CLI dell'ambiente agentico di questo progetto.", $"'{command}' is not installed on this machine, or is not in the service PATH: it is the CLI of this project's agentic environment.") });
                 }
 
                 // È un programma interattivo: si apre un terminale sulla RADICE del progetto, e il

@@ -115,7 +115,7 @@ namespace MdExplorer.Services.Federation
         public void Save(string projectPath, string relayUrl, string apiKeyPlain, bool clearApiKey)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException("projectPath è obbligatorio", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required"), nameof(projectPath));
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
@@ -124,7 +124,7 @@ namespace MdExplorer.Services.Federation
             {
                 var project = FindProject(db, projectPath)
                     ?? throw new InvalidOperationException(
-                        $"Nessun progetto registrato per il percorso '{projectPath}': apri il progetto prima di configurarne il relay.");
+                        MdExplorer.Features.Services.UiText.Say($"Nessun progetto registrato per il percorso '{projectPath}': apri il progetto prima di configurarne il relay.", $"No project registered for the path '{projectPath}': open the project before configuring its relay."));
 
                 var dal = db.GetDal<ProjectRelaySettings>();
                 var settings = dal.GetList().FirstOrDefault(s => s.Project.Id == project.Id)

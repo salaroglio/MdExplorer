@@ -214,7 +214,7 @@ namespace MdExplorer.Features.Tests.ClaudeCode
                     () => session.StartAsync());
 
                 StringAssert.Contains(ex.Message, ClaudeCodeSessionOptions.ApiKeyEnvVariable);
-                StringAssert.Contains(ex.Message, "abbonamento");
+                StringAssert.Contains(ex.Message, "subscription");
             }
             finally
             {

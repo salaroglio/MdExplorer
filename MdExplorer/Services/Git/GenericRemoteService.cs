@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -48,11 +49,11 @@ namespace MdExplorer.Services.Git
             };
 
             if (string.IsNullOrWhiteSpace(request.RepositoryPath) || !Directory.Exists(request.RepositoryPath))
-                return Fail($"La cartella del progetto non esiste: {request.RepositoryPath}");
+                return Fail(UiText.Say($"La cartella del progetto non esiste: {request.RepositoryPath}", $"The project folder does not exist: {request.RepositoryPath}"));
             if (!Repository.IsValid(request.RepositoryPath))
-                return Fail("La cartella del progetto non è un repository git: inizializzalo prima");
+                return Fail(UiText.Say("La cartella del progetto non è un repository git: inizializzalo prima", "The project folder is not a git repository: initialize it first"));
             if (string.IsNullOrWhiteSpace(request.RemoteUrl))
-                return Fail("L'URL del repository remoto è obbligatorio");
+                return Fail(UiText.Say("L'URL del repository remoto è obbligatorio", "The remote repository URL is required"));
 
             try
             {

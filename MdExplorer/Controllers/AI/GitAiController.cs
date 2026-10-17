@@ -53,7 +53,7 @@ namespace MdExplorer.Controllers.AI
         {
             var message = _gitCommitAiService.CleanCommitMessage(request?.Raw ?? string.Empty);
             if (string.IsNullOrWhiteSpace(message))
-                return UnprocessableEntity(new { error = "MarkAgent non ha scritto un messaggio di commit utilizzabile." });
+                return UnprocessableEntity(new { error = MdExplorer.Features.Services.UiText.Say("MarkAgent non ha scritto un messaggio di commit utilizzabile.", "MarkAgent did not write a usable commit message.") });
             return Ok(new { message });
         }
 

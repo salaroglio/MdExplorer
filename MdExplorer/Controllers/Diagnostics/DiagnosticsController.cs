@@ -62,7 +62,7 @@ namespace MdExplorer.Controllers.Diagnostics
 
         [HttpPost("StartupNotices/{id}/dismiss")]
         public IActionResult DismissNotice(string id, [FromServices] MdExplorer.Services.Java.StartupNotices notices)
-            => notices.Dismiss(id) ? Ok(new { dismissed = id }) : NotFound(new { error = $"avviso '{id}' non trovato" });
+            => notices.Dismiss(id) ? Ok(new { dismissed = id }) : NotFound(new { error = MdExplorer.Features.Services.UiText.Say($"avviso '{id}' non trovato", $"notice '{id}' not found") });
 
         /// <summary>GET api/Diagnostics/Java?path=… — la sonda di un java: versione maggiore, riga grezza, eseguibile o no. Senza path: il JavaPath impostato.</summary>
         [HttpGet("Java")]
@@ -78,7 +78,7 @@ namespace MdExplorer.Controllers.Diagnostics
         public IActionResult JavaBest([FromServices] MdExplorer.Features.Utilities.IJavaLocator locator)
         {
             var best = locator.FindBest(MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor);
-            if (best == null) return NotFound(new { error = $"Nessun Java {MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor} trovato sul computer", candidates = MdExplorer.Features.Utilities.JavaDiscovery.EnumerateCandidates() });
+            if (best == null) return NotFound(new { error = MdExplorer.Features.Services.UiText.Say($"Nessun Java {MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor} trovato sul computer", $"No Java {MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor} found on the computer"), candidates = MdExplorer.Features.Utilities.JavaDiscovery.EnumerateCandidates() });
             return Ok(new { best.Path, best.Major, best.Raw });
         }
 

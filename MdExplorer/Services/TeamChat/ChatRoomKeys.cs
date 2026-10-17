@@ -60,7 +60,7 @@ namespace MdExplorer.Services.TeamChat
         private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         /// <summary>Testo che si mostra al posto di una busta che il segreto del progetto non apre.</summary>
-        public const string Unreadable = "🔒 Messaggio non leggibile: è stato scritto con un altro segreto del progetto.";
+        public static string Unreadable => MdExplorer.Features.Services.UiText.Say("🔒 Messaggio non leggibile: è stato scritto con un altro segreto del progetto.", "🔒 Unreadable message: it was written with a different project secret.");
 
         public static string Seal(ChatRoomKey key, ChatMessageDto message)
             => FederationCrypto.EncryptChat(key.RoomSecret, key.RoomId, JsonSerializer.Serialize(new Sealed
@@ -97,7 +97,7 @@ namespace MdExplorer.Services.TeamChat
             if (user == null || !FederationCrypto.IsChatEnvelope(user.UserName)) return user;
             try
             {
-                if (key == null) throw new FederationCryptoException("nessuna chiave per la stanza");
+                if (key == null) throw new FederationCryptoException(MdExplorer.Features.Services.UiText.Say("nessuna chiave per la stanza", "no key for the room"));
                 var plain = JsonSerializer.Deserialize<SealedUser>(FederationCrypto.DecryptChat(key.RoomSecret, key.RoomId, user.UserName), Json);
                 user.UserId = plain?.UserId ?? user.UserId;
                 user.UserName = plain?.UserName ?? "";
@@ -120,7 +120,7 @@ namespace MdExplorer.Services.TeamChat
             if (message == null || !FederationCrypto.IsChatEnvelope(message.Content)) return message;
             try
             {
-                if (key == null) throw new FederationCryptoException("nessuna chiave per la stanza");
+                if (key == null) throw new FederationCryptoException(MdExplorer.Features.Services.UiText.Say("nessuna chiave per la stanza", "no key for the room"));
                 var plain = JsonSerializer.Deserialize<Sealed>(FederationCrypto.DecryptChat(key.RoomSecret, key.RoomId, message.Content), Json);
                 message.Content = plain?.Content ?? "";
                 message.SenderName = plain?.SenderName ?? "";

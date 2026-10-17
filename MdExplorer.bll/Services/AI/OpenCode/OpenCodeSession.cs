@@ -105,8 +105,8 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
             {
                 throw new ArgumentException(
-                    $"La cartella del progetto non esiste: '{workingDirectory}'. opencode lavora dentro il " +
-                    "progetto, non altrove.", nameof(workingDirectory));
+                    MdExplorer.Features.Services.UiText.Say($"La cartella del progetto non esiste: '{workingDirectory}'. opencode lavora dentro il progetto, non altrove.",
+                        $"The project folder does not exist: '{workingDirectory}'. opencode works inside the project, nowhere else."), nameof(workingDirectory));
             }
 
             WorkingDirectory = Path.GetFullPath(workingDirectory);
@@ -266,7 +266,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (i <= 0 || i == model.Length - 1)
             {
                 throw new ArgumentException(
-                    $"Il modello di opencode si scrive 'provider/modello' (es. 'opencode/big-pickle'), ricevuto '{model}'.",
+                    MdExplorer.Features.Services.UiText.Say($"Il modello di opencode si scrive 'provider/modello' (es. 'opencode/big-pickle'), ricevuto '{model}'.", $"An opencode model is written 'provider/model' (e.g. 'opencode/big-pickle'), received '{model}'."),
                     nameof(model));
             }
             return (model.Substring(0, i), model.Substring(i + 1));
@@ -278,7 +278,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (!response.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException(
-                    $"opencode ha rifiutato il messaggio ({(int)response.StatusCode}): {Truncate(payload, 400)}");
+                    MdExplorer.Features.Services.UiText.Say($"opencode ha rifiutato il messaggio ({(int)response.StatusCode}): {Truncate(payload, 400)}", $"opencode refused the message ({(int)response.StatusCode}): {Truncate(payload, 400)}"));
             }
 
             using var doc = JsonDocument.Parse(payload);
@@ -317,7 +317,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             var message = error.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object
                           && data.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String
                 ? m.GetString() : error.GetRawText();
-            throw new InvalidOperationException($"opencode ha chiuso il turno in errore ({name}): {Truncate(message, 400)}");
+            throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"opencode ha chiuso il turno in errore ({name}): {Truncate(message, 400)}", $"opencode ended the turn with an error ({name}): {Truncate(message, 400)}"));
         }
 
         private static OpenCodeTurnUsage ReadUsage(JsonElement info)
@@ -398,7 +398,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (!res.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException(
-                    $"opencode non ha creato la sessione ({(int)res.StatusCode}): {Truncate(payload, 400)}");
+                    MdExplorer.Features.Services.UiText.Say($"opencode non ha creato la sessione ({(int)res.StatusCode}): {Truncate(payload, 400)}", $"opencode did not create the session ({(int)res.StatusCode}): {Truncate(payload, 400)}"));
             }
 
             using var doc = JsonDocument.Parse(payload);
@@ -406,7 +406,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (string.IsNullOrEmpty(SessionId))
             {
                 throw new InvalidOperationException(
-                    $"opencode ha risposto alla creazione della sessione senza un id: {Truncate(payload, 400)}");
+                    MdExplorer.Features.Services.UiText.Say($"opencode ha risposto alla creazione della sessione senza un id: {Truncate(payload, 400)}", $"opencode answered the session creation without an id: {Truncate(payload, 400)}"));
             }
 
             _logger.LogInformation("[opencode] sessione {Session} su {Dir}", SessionId, WorkingDirectory);
@@ -509,7 +509,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 var what = props.TryGetProperty("permission", out var perKind) ? perKind.GetString() : "?";
                 if (permissionId == null) return;
                 _ = RejectPermissionAsync(askingSession, permissionId, what);
-                _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, $"{what} · negato durante i test"));
+                _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, MdExplorer.Features.Services.UiText.Say($"{what} · negato durante i test", $"{what} · denied during the tests")));
                 return;
             }
 

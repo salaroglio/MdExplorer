@@ -86,7 +86,7 @@ namespace MdExplorer.Services.AgentRegistry
                 {
                     var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
                     if (db == null)
-                        throw new InvalidOperationException("IUserSettingsDB non risolvibile: impossibile riconciliare AgentIdentity.");
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("IUserSettingsDB non risolvibile: impossibile riconciliare AgentIdentity.", "IUserSettingsDB cannot be resolved: AgentIdentity cannot be reconciled."));
 
                     db.BeginTransaction();
                     var rows = db.GetDal<AgentIdentity>().GetList().ToList()
@@ -134,10 +134,10 @@ namespace MdExplorer.Services.AgentRegistry
         {
             var normalized = Normalize(projectPath);
             if (string.IsNullOrWhiteSpace(normalized))
-                throw new ArgumentException("projectPath mancante.", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath mancante.", "projectPath missing."), nameof(projectPath));
             var name = agentName?.Trim();
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("agentName mancante.", nameof(agentName));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("agentName mancante.", "agentName missing."), nameof(agentName));
 
             var sync = _locks.GetOrAdd(normalized, _ => new object());
             lock (sync) // Monitor rientrante: RefreshCatalog riprende lo stesso lock senza deadlock.
@@ -147,18 +147,18 @@ namespace MdExplorer.Services.AgentRegistry
                     string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
 
                 if (entry == null)
-                    throw new InvalidOperationException($"Agente '{name}' non trovato nel progetto.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Agente '{name}' non trovato nel progetto.", $"Agent '{name}' not found in the project."));
                 if (entry.IsExcluded)
                     throw new InvalidOperationException(
-                        $"Agente '{name}' escluso dal registry e non affidabile: {entry.RegistrationError}");
+                        MdExplorer.Features.Services.UiText.Say($"Agente '{name}' escluso dal registry e non affidabile: {entry.RegistrationError}", $"Agent '{name}' is excluded from the registry and not reliable: {entry.RegistrationError}"));
                 if (entry.IdentityId == null)
-                    throw new InvalidOperationException($"Agente '{name}' senza identità persistita.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Agente '{name}' senza identità persistita.", $"Agent '{name}' has no persisted identity."));
 
                 using (var scope = _scopeFactory.CreateScope())
                 {
                     var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
                     if (db == null)
-                        throw new InvalidOperationException("IUserSettingsDB non risolvibile.");
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("IUserSettingsDB non risolvibile.", "IUserSettingsDB cannot be resolved."));
 
                     db.BeginTransaction();
                     var dal = db.GetDal<AgentIdentity>();
@@ -166,7 +166,7 @@ namespace MdExplorer.Services.AgentRegistry
                     if (row == null)
                     {
                         db.Commit();
-                        throw new InvalidOperationException($"Identità dell'agente '{name}' non più presente.");
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Identità dell'agente '{name}' non più presente.", $"The identity of agent '{name}' is no longer there."));
                     }
 
                     row.Trusted = trusted;
@@ -234,7 +234,7 @@ namespace MdExplorer.Services.AgentRegistry
                             Name = null,
                             Kind = AgentIdentity.KindEnum.Llm,
                             AgentFilePath = f.Path,
-                            ParseError = $"Impossibile leggere il file: {ex.Message}",
+                            ParseError = MdExplorer.Features.Services.UiText.Say($"Impossibile leggere il file: {ex.Message}", $"Cannot read the file: {ex.Message}"),
                         });
                         continue;
                     }
@@ -311,7 +311,7 @@ namespace MdExplorer.Services.AgentRegistry
                     {
                         Name = null,
                         Kind = AgentIdentity.KindEnum.Algorithmic,
-                        ParseError = $"{agent.GetType().Name}.GetCard() ha sollevato: {ex.Message}",
+                        ParseError = MdExplorer.Features.Services.UiText.Say($"{agent.GetType().Name}.GetCard() ha sollevato: {ex.Message}", $"{agent.GetType().Name}.GetCard() threw: {ex.Message}"),
                     });
                     continue;
                 }

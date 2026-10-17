@@ -71,9 +71,12 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                 case "acp": return CopilotChatTransport.Acp;
                 default:
                     throw new InvalidOperationException(
-                        $"L'impostazione '{SettingName}' vale '{raw}', che non so interpretare: " +
-                        "i valori ammessi sono 'sdk' (quello normale) e 'acp' (la strada vecchia, di riserva). " +
-                        "Correggila, oppure cancellala per tornare a 'sdk'.");
+                        MdExplorer.Features.Services.UiText.Say($"L'impostazione '{SettingName}' vale '{raw}', che non so interpretare: " +
+                            "i valori ammessi sono 'sdk' (quello normale) e 'acp' (la strada vecchia, di riserva). " +
+                            "Correggila, oppure cancellala per tornare a 'sdk'.",
+                            $"The setting '{SettingName}' is '{raw}', which I cannot interpret: " +
+                            "allowed values are 'sdk' (the normal one) and 'acp' (the old fallback route). " +
+                            "Fix it, or delete it to go back to 'sdk'."));
             }
         }
     }

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using LibGit2Sharp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -155,7 +156,7 @@ public async Task<GitOperationResult> PullAsync(string repositoryPath)
                     return new GitOperationResult
                     {
                         Success = false,
-                        ErrorMessage = "C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di scaricare ancora.",
+                        ErrorMessage = UiText.Say("C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di scaricare ancora.", "A merge was left half done: finish it with a commit, or abort it, before pulling again."),
                         Duration = stopwatch.Elapsed
                     };
                 }
@@ -205,7 +206,7 @@ public async Task<GitOperationResult> PullAsync(string repositoryPath)
                 {
                     var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
                     if (!submoduleResult.Success)
-                        warnings.Add($"I submodule non sono stati aggiornati: {submoduleResult.ErrorMessage}");
+                        warnings.Add(UiText.Say($"I submodule non sono stati aggiornati: {submoduleResult.ErrorMessage}", $"The submodules were not updated: {submoduleResult.ErrorMessage}"));
                 }
 
                 _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
@@ -513,7 +514,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                         return new GitOperationResult
                 {
                     Success = false,
-                    ErrorMessage = $"Clone failed: impossibile consegnare la credenziale a git: {approve.Error}",
+                    ErrorMessage = UiText.Say($"Clone failed: impossibile consegnare la credenziale a git: {approve.Error}", $"Clone failed: cannot hand the credential to git: {approve.Error}"),
                     Duration = stopwatch.Elapsed
                 };
                     }
@@ -560,7 +561,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 {
                     var head = await _transport.SetRemoteHeadAsync(localPath, "origin", branchName.Trim());
                     if (!head.Ok)
-                        cloneMessage += $" (warning: origin/HEAD non spostato su '{branchName.Trim()}': {head.Error}; gli agenti partiranno dal ramo predefinito del remoto)";
+                        cloneMessage += UiText.Say($" (warning: origin/HEAD non spostato su '{branchName.Trim()}': {head.Error}; gli agenti partiranno dal ramo predefinito del remoto)", $" (warning: origin/HEAD not moved to '{branchName.Trim()}': {head.Error}; agents will start from the remote's default branch)");
                 }
 
                 // Populate submodules after clone (native git; no-op when .gitmodules absent)
@@ -1008,7 +1009,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                     return new GitOperationResult
                     {
                         Success = false,
-                        ErrorMessage = "C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di cambiare ramo.",
+                        ErrorMessage = UiText.Say("C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di cambiare ramo.", "A merge was left half done: finish it with a commit, or abort it, before switching branch."),
                         Duration = stopwatch.Elapsed
                     };
                 }
@@ -1020,7 +1021,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                         return new GitOperationResult
                         {
                             Success = false,
-                            ErrorMessage = "Il ramo non è stato cambiato. " + string.Join(" ", blockers),
+                            ErrorMessage = UiText.Say("Il ramo non è stato cambiato. ", "The branch was not switched. ") + string.Join(" ", blockers),
                             Duration = stopwatch.Elapsed
                         };
                     }

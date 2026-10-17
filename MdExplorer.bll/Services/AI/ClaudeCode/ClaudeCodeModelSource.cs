@@ -68,7 +68,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             using var process = new Process { StartInfo = psi };
             if (!process.Start())
             {
-                throw new InvalidOperationException($"Avvio di `claude {Arguments}` fallito");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Avvio di `claude {Arguments}` fallito", $"Starting `claude {Arguments}` failed"));
             }
 
             var stderr = new StringBuilder();
@@ -105,13 +105,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
                 process.WaitForExit(2000);
                 throw new InvalidOperationException(
-                    "Claude Code si è chiuso senza rispondere alla richiesta dei modelli" +
+                    MdExplorer.Features.Services.UiText.Say("Claude Code si è chiuso senza rispondere alla richiesta dei modelli", "Claude Code closed without answering the model request") +
                     (process.HasExited ? $" (exit {process.ExitCode})" : "") + StderrSuffix(stderr));
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 throw new TimeoutException(
-                    $"Claude Code non ha elencato i modelli entro {Timeout.TotalSeconds:0} secondi{StderrSuffix(stderr)}");
+                    MdExplorer.Features.Services.UiText.Say($"Claude Code non ha elencato i modelli entro {Timeout.TotalSeconds:0} secondi", $"Claude Code did not list the models within {Timeout.TotalSeconds:0} seconds") + StderrSuffix(stderr));
             }
             finally
             {
@@ -159,16 +159,16 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
             if (response.TryGetProperty("subtype", out var subtype) && subtype.GetString() == "error")
             {
-                var error = response.TryGetProperty("error", out var e) ? e.GetString() : "(nessun motivo)";
-                throw new InvalidOperationException($"Claude Code ha rifiutato la richiesta dei modelli: {error}");
+                var error = response.TryGetProperty("error", out var e) ? e.GetString() : MdExplorer.Features.Services.UiText.Say("(nessun motivo)", "(no reason)");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Claude Code ha rifiutato la richiesta dei modelli: {error}", $"Claude Code refused the model request: {error}"));
             }
 
             if (!response.TryGetProperty("response", out var inner) || inner.ValueKind != JsonValueKind.Object
                 || !inner.TryGetProperty("models", out var models) || models.ValueKind != JsonValueKind.Array)
             {
                 throw new InvalidOperationException(
-                    "Claude Code ha risposto a initialize senza l'elenco dei modelli: " +
-                    "questa versione del CLI non lo espone. Aggiorna Claude Code (`claude update`).");
+                    MdExplorer.Features.Services.UiText.Say("Claude Code ha risposto a initialize senza l'elenco dei modelli: questa versione del CLI non lo espone. Aggiorna Claude Code (`claude update`).",
+                        "Claude Code answered initialize without the model list: this CLI version does not expose it. Update Claude Code (`claude update`)."));
             }
 
             var result = new List<AiProviderModel>();
@@ -212,7 +212,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
             if (result.Count == 0)
             {
-                throw new InvalidOperationException("Claude Code ha risposto con un elenco di modelli vuoto.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Claude Code ha risposto con un elenco di modelli vuoto.", "Claude Code answered with an empty model list."));
             }
             return result;
         }

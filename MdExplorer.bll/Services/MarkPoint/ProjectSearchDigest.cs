@@ -25,7 +25,7 @@ namespace MdExplorer.Features.Services.MarkPoint
         public static IReadOnlyList<string> Parse(string answer)
         {
             var payload = Payload(answer ?? string.Empty)
-                ?? throw new FormatException("MarkAgent non ha indicato le parole da cercare nel formato atteso.");
+                ?? throw new FormatException(MdExplorer.Features.Services.UiText.Say("MarkAgent non ha indicato le parole da cercare nel formato atteso.", "MarkAgent did not give the words to search in the expected format."));
             try
             {
                 using var json = JsonDocument.Parse(payload);
@@ -34,7 +34,7 @@ namespace MdExplorer.Features.Services.MarkPoint
                     || keywords.ValueKind != JsonValueKind.Array
                     || keywords.EnumerateArray().Any(k => k.ValueKind != JsonValueKind.String))
                 {
-                    throw new FormatException("MarkAgent non ha indicato le parole da cercare nel formato atteso.");
+                    throw new FormatException(MdExplorer.Features.Services.UiText.Say("MarkAgent non ha indicato le parole da cercare nel formato atteso.", "MarkAgent did not give the words to search in the expected format."));
                 }
                 return keywords.EnumerateArray()
                     .Select(k => k.GetString().Trim())
@@ -44,7 +44,7 @@ namespace MdExplorer.Features.Services.MarkPoint
             }
             catch (JsonException ex)
             {
-                throw new FormatException("MarkAgent non ha indicato le parole da cercare nel formato atteso.", ex);
+                throw new FormatException(MdExplorer.Features.Services.UiText.Say("MarkAgent non ha indicato le parole da cercare nel formato atteso.", "MarkAgent did not give the words to search in the expected format."), ex);
             }
         }
 

@@ -50,7 +50,7 @@ namespace MdExplorer.Utilities
             MarkAgentEngine.OpenCode => OpenCodeId,
             MarkAgentEngine.Claude => ClaudeId,
             MarkAgentEngine.None => NoneId,
-            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Motore di MarkAgent sconosciuto."),
+            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),
         };
 
         public static bool TryParseId(string id, out MarkAgentEngine engine)
@@ -75,7 +75,7 @@ namespace MdExplorer.Utilities
             HarnessTarget.OpenCode => MarkAgentEngine.OpenCode,
             HarnessTarget.Claude => MarkAgentEngine.Claude,
             HarnessTarget.None => MarkAgentEngine.None,
-            _ => throw new ArgumentOutOfRangeException(nameof(harness), harness, "Harness sconosciuto."),
+            _ => throw new ArgumentOutOfRangeException(nameof(harness), harness, MdExplorer.Features.Services.UiText.Say("Harness sconosciuto.", "Unknown harness.")),
         };
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace MdExplorer.Utilities
             MarkAgentEngine.OpenCode => HarnessTarget.OpenCode,
             MarkAgentEngine.Claude => HarnessTarget.Claude,
             MarkAgentEngine.None => HarnessTarget.None,
-            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Motore di MarkAgent sconosciuto."),
+            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),
         };
 
         public static MarkAgentEngine Resolve(string stored, string projectPath, out bool linked)
@@ -154,8 +154,8 @@ namespace MdExplorer.Utilities
                 if (!TryParseId(stored, out var chosen))
                 {
                     throw new InvalidOperationException(
-                        $"Motore di MarkAgent sconosciuto ('{stored}') per il progetto '{projectPath}'. " +
-                        $"Valori ammessi: {AllowedIds}.");
+                        MdExplorer.Features.Services.UiText.Say($"Motore di MarkAgent sconosciuto ('{stored}') per il progetto '{projectPath}'. Valori ammessi: {AllowedIds}.",
+                            $"Unknown MarkAgent engine ('{stored}') for project '{projectPath}'. Allowed values: {AllowedIds}."));
                 }
                 linked = false;
                 return chosen;
@@ -179,8 +179,8 @@ namespace MdExplorer.Utilities
             MarkAgentEngine.OpenCode => "opencode",
             MarkAgentEngine.Claude => "claude",
             MarkAgentEngine.None => throw new InvalidOperationException(
-                "Questo progetto non ha un ambiente agentico: non c'è nessun CLI da aprire."),
-            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Motore di MarkAgent sconosciuto."),
+                MdExplorer.Features.Services.UiText.Say("Questo progetto non ha un ambiente agentico: non c'è nessun CLI da aprire.", "This project has no agentic environment: there is no CLI to open.")),
+            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),
         };
 
         /// <summary>

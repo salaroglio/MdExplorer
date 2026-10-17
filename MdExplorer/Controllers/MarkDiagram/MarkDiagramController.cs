@@ -85,7 +85,7 @@ namespace MdExplorer.Controllers.MarkDiagram
 
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest("Nessun progetto aperto per questa connessione: la spiegazione cerca nei documenti del progetto.");
+                return BadRequest(MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione: la spiegazione cerca nei documenti del progetto.", "No project open for this connection: the explanation searches the project documents."));
 
             try
             {
@@ -115,7 +115,7 @@ namespace MdExplorer.Controllers.MarkDiagram
                 request.ConnectionId, request.Question, CancellationToken.None);
 
             if (!accepted)
-                return Conflict(new { message = "Nessuna conversazione aperta su un box del diagramma." });
+                return Conflict(new { message = MdExplorer.Features.Services.UiText.Say("Nessuna conversazione aperta su un box del diagramma.", "No conversation open on a diagram box.") });
 
             return Ok(new { started = true });
         }
@@ -133,7 +133,7 @@ namespace MdExplorer.Controllers.MarkDiagram
 
             var applied = await _explainService.ApplyEditAsync(request.ConnectionId, CancellationToken.None);
             if (!applied)
-                return Conflict(new { message = "Nessuna modifica in attesa di conferma." });
+                return Conflict(new { message = MdExplorer.Features.Services.UiText.Say("Nessuna modifica in attesa di conferma.", "No edit waiting for confirmation.") });
 
             return Ok(new { started = true });
         }

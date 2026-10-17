@@ -78,7 +78,7 @@ namespace MdExplorer.Services.MarkDiagram
             MarkAgentEngine engine, string model, string prompt, [EnumeratorCancellation] CancellationToken ct)
         {
             if (engine is not (MarkAgentEngine.Claude or MarkAgentEngine.Copilot or MarkAgentEngine.OpenCode))
-                throw new InvalidOperationException("Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.", "The project has no MarkAgent engine: choose it in the project settings."));
 
             var state = _states.GetOrAdd(connectionId, _ => new State());
             await state.Gate.WaitAsync(ct).ConfigureAwait(false);

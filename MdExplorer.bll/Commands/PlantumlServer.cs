@@ -70,8 +70,9 @@ namespace MdExplorer.Features.Commands
                 if (string.IsNullOrEmpty(paths.JarPath) || !File.Exists(paths.JarPath))
                 {
                     return PlantumlCheckOutcome.Unavailable(
-                        $"plantuml.jar non trovato. Cercato nell'impostazione 'PlantumlLocalPath' e in " +
-                        $"'{Path.Combine(AppContext.BaseDirectory, "Binaries")}'.");
+                        MdExplorer.Features.Services.UiText.Say(
+                            $"plantuml.jar non trovato. Cercato nell'impostazione 'PlantumlLocalPath' e in '{Path.Combine(AppContext.BaseDirectory, "Binaries")}'.",
+                            $"plantuml.jar not found. Looked in the 'PlantumlLocalPath' setting and in '{Path.Combine(AppContext.BaseDirectory, "Binaries")}'."));
                 }
 
                 var arguments = new StringBuilder();
@@ -90,8 +91,9 @@ namespace MdExplorer.Features.Commands
                     // altrimenti chi chiama lo scambia per un diagramma sbagliato.
                     _logger.LogWarning(ex, "[PlantumlServer] java non eseguibile: {JavaPath}", paths.JavaPath);
                     return PlantumlCheckOutcome.Unavailable(
-                        $"java non eseguibile ('{paths.JavaPath}'). Impostane il percorso in 'JavaPath' " +
-                        "oppure installa un JRE e rendilo raggiungibile dal PATH.");
+                        MdExplorer.Features.Services.UiText.Say(
+                            $"java non eseguibile ('{paths.JavaPath}'). Impostane il percorso in 'JavaPath' oppure installa un JRE e rendilo raggiungibile dal PATH.",
+                            $"java cannot be run ('{paths.JavaPath}'). Set its path in 'JavaPath' or install a JRE and make it reachable from the PATH."));
                 }
             }
         }

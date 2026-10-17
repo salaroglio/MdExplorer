@@ -162,7 +162,7 @@ namespace MdExplorer.IntegrationTests
             // Non "nessuna modifica": un agente senza posto di lavoro è una condizione che
             // l'utente può risolvere, e va detta.
             Assert.AreEqual(HttpStatusCode.UnprocessableEntity, res.StatusCode);
-            StringAssert.Contains(await res.Content.ReadAsStringAsync(), "posto di lavoro");
+            StringAssert.Contains(await res.Content.ReadAsStringAsync(), "occupies no workplace");
         }
 
         [TestMethod]

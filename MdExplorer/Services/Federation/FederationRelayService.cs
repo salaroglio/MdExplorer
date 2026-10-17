@@ -262,8 +262,8 @@ namespace MdExplorer.Services.Federation
                     return status;
                 if (DateTime.UtcNow >= until)
                     return status.State == RoomJoinState.NoRoom
-                        ? new RoomStatus { State = RoomJoinState.NoRoom, Message = "La città di questo progetto non ha una stanza aperta: serve la città attiva, un origin git e l'email dell'identità." }
-                        : new RoomStatus { State = RoomJoinState.Unreachable, Message = $"Il relay non ha risposto entro {timeout.TotalSeconds:0} secondi." };
+                        ? new RoomStatus { State = RoomJoinState.NoRoom, Message = MdExplorer.Features.Services.UiText.Say("La città di questo progetto non ha una stanza aperta: serve la città attiva, un origin git e l'email dell'identità.", "The city of this project has no open room: it needs the city on, a git origin and the identity email.") }
+                        : new RoomStatus { State = RoomJoinState.Unreachable, Message = MdExplorer.Features.Services.UiText.Say($"Il relay non ha risposto entro {timeout.TotalSeconds:0} secondi.", $"The relay did not answer within {timeout.TotalSeconds:0} seconds.") };
                 await Task.Delay(250, ct);
             }
         }
@@ -782,12 +782,12 @@ namespace MdExplorer.Services.Federation
                     // throttlato: il primo fallimento e poi uno ogni 20.
                     socket.OnError += (s, err) =>
                         SetStatus(RoomJoinState.Rejected, err == "Invalid API key"
-                            ? "il relay ha rifiutato la chiave master: non è quella giusta (toglila o correggila nelle impostazioni del progetto)."
-                            : $"il relay ha rifiutato la connessione: {err}");
+                            ? MdExplorer.Features.Services.UiText.Say("il relay ha rifiutato la chiave master: non è quella giusta (toglila o correggila nelle impostazioni del progetto).", "the relay refused the master key: it is not the right one (remove or fix it in the project settings).")
+                            : MdExplorer.Features.Services.UiText.Say($"il relay ha rifiutato la connessione: {err}", $"the relay refused the connection: {err}"));
                     socket.OnReconnectError += (s, ex) =>
                     {
                         var n = System.Threading.Interlocked.Increment(ref _connectFailures);
-                        SetStatus(RoomJoinState.Unreachable, $"relay irraggiungibile: {ex.Message}");
+                        SetStatus(RoomJoinState.Unreachable, MdExplorer.Features.Services.UiText.Say($"relay irraggiungibile: {ex.Message}", $"relay unreachable: {ex.Message}"));
                         if (n == 1 || n % 20 == 0)
                             _logger.LogWarning("[Federation] stanza {Room}: connessione al relay fallita (tentativo {N}): {Msg}",
                                 _announce?.RoomId, n, ex.Message);
@@ -840,7 +840,7 @@ namespace MdExplorer.Services.Federation
                 try { await socket.ConnectAsync(); }
                 catch (Exception ex)
                 {
-                    SetStatus(RoomJoinState.Unreachable, $"relay irraggiungibile: {ex.Message}");
+                    SetStatus(RoomJoinState.Unreachable, MdExplorer.Features.Services.UiText.Say($"relay irraggiungibile: {ex.Message}", $"relay unreachable: {ex.Message}"));
                     _logger.LogWarning(ex, "[Federation] connessione al relay fallita (riproverà)");
                 }
             }
@@ -872,8 +872,8 @@ namespace MdExplorer.Services.Federation
                             }
                             var registered = ack.TryGetProperty("registered", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.True;
                             SetStatus(RoomJoinState.Joined, registered
-                                ? "stanza registrata sul relay con la chiave master: da ora chi ha il repo entra col solo room secret."
-                                : "il relay ha ammesso la città nella stanza.");
+                                ? MdExplorer.Features.Services.UiText.Say("stanza registrata sul relay con la chiave master: da ora chi ha il repo entra col solo room secret.", "room registered on the relay with the master key: from now on whoever has the repo joins with the room secret alone.")
+                                : MdExplorer.Features.Services.UiText.Say("il relay ha ammesso la città nella stanza.", "the relay admitted the city into the room."));
                             _remotePresence.Clear();
                             if (ack.TryGetProperty("roster", out var roster) && roster.ValueKind == System.Text.Json.JsonValueKind.Array)
                             {
@@ -900,9 +900,9 @@ namespace MdExplorer.Services.Federation
             /// <summary>Il rifiuto del relay detto all'utente con cosa fare.</summary>
             private static string DescribeRejection(string code, string error) => code switch
             {
-                "room-not-registered" => "la stanza non è ancora registrata sul relay. La prima volta serve la chiave master del relay: inseriscila nelle impostazioni del progetto (Città degli agenti), poi si può togliere.",
-                "bad-token" => "il relay conosce questa stanza con un altro room secret: controlla che agentCity.roomSecret in .development.yml sia quello del repo (fai il pull).",
-                _ => $"il relay ha rifiutato l'ingresso nella stanza: {error}",
+                "room-not-registered" => MdExplorer.Features.Services.UiText.Say("la stanza non è ancora registrata sul relay. La prima volta serve la chiave master del relay: inseriscila nelle impostazioni del progetto (Città degli agenti), poi si può togliere.", "the room is not registered on the relay yet. The first time the relay master key is needed: enter it in the project settings (Agent city), then it can be removed."),
+                "bad-token" => MdExplorer.Features.Services.UiText.Say("il relay conosce questa stanza con un altro room secret: controlla che agentCity.roomSecret in .development.yml sia quello del repo (fai il pull).", "the relay knows this room with a different room secret: check that agentCity.roomSecret in .development.yml is the one in the repo (pull)."),
+                _ => MdExplorer.Features.Services.UiText.Say($"il relay ha rifiutato l'ingresso nella stanza: {error}", $"the relay refused entry into the room: {error}"),
             };
 
             private async Task AnnounceAsync(SocketIOClient.SocketIO socket, FederationAnnounce a)
@@ -923,7 +923,7 @@ namespace MdExplorer.Services.Federation
             {
                 var socket = _socket;
                 if (socket == null || !socket.Connected)
-                    throw new InvalidOperationException("connessione alla stanza non attiva: impossibile spedire.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("connessione alla stanza non attiva: impossibile spedire.", "connection to the room not active: cannot send."));
 
                 var tcs = new TaskCompletionSource<RelayDelivery>(TaskCreationOptions.RunContinuationsAsynchronously);
                 await socket.EmitAsync("send", response =>

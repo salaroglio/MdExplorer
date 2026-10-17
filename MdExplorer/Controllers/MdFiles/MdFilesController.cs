@@ -703,7 +703,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return BadRequest(new SaveAnnotatedScreenshotResponse
                     {
                         Success = false,
-                        ErrorMessage = "Lo screenshot si incolla solo in un documento markdown (.md): il file aperto non lo è."
+                        ErrorMessage = MdExplorer.Features.Services.UiText.Say("Lo screenshot si incolla solo in un documento markdown (.md): il file aperto non lo è.", "A screenshot can only be pasted into a markdown document (.md): the open file is not one.")
                     });
                 }
 
@@ -804,7 +804,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         return Conflict(new SaveAnnotatedScreenshotResponse
                         {
                             Success = false,
-                            ErrorMessage = "Il punto scelto nel documento è cambiato mentre annotavi: l'immagine non è stata inserita. Ricarica il documento e riprova."
+                            ErrorMessage = MdExplorer.Features.Services.UiText.Say("Il punto scelto nel documento è cambiato mentre annotavi: l'immagine non è stata inserita. Ricarica il documento e riprova.", "The chosen point in the document changed while you were annotating: the image was not inserted. Reload the document and try again.")
                         });
                     }
                     if (edit.Status == MarkdownEditStatus.InvalidRange)
@@ -1808,11 +1808,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentPath = GetProjectPath();
             if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione", "No project open for this connection") });
             }
             if (_indexingPipelineService == null)
             {
-                return StatusCode(503, new { error = "Indexing pipeline non disponibile" });
+                return StatusCode(503, new { error = MdExplorer.Features.Services.UiText.Say("Indexing pipeline non disponibile", "Indexing pipeline not available") });
             }
 
             _logger.LogInformation("[ReindexProject] Forced full reindex requested for '{Path}'", currentPath);
@@ -1833,17 +1833,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentPath = GetProjectPath();
             if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione", "No project open for this connection") });
             }
             if (_textIndexingService == null)
             {
-                return StatusCode(503, new { error = "Text indexing non disponibile" });
+                return StatusCode(503, new { error = MdExplorer.Features.Services.UiText.Say("Text indexing non disponibile", "Text indexing not available") });
             }
 
             var (enabled, extensions) = GetTextIndexingSettings();
             if (!enabled || extensions == null || extensions.Count == 0)
             {
-                return Conflict(new { error = "L'indicizzazione dei file di testo è disattivata per questo progetto (IndexAllTextFiles OFF)." });
+                return Conflict(new { error = MdExplorer.Features.Services.UiText.Say("L'indicizzazione dei file di testo è disattivata per questo progetto (IndexAllTextFiles OFF).", "Text file indexing is turned off for this project (IndexAllTextFiles OFF).") });
             }
 
             _logger.LogInformation("[ReindexTextFiles] Forced text reindex requested for '{Path}'", currentPath);
@@ -3727,7 +3727,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return Conflict(new
                 {
                     error = "document-changed",
-                    message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                    message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
                 });
             }
 
@@ -3840,7 +3840,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return Conflict(new
                     {
                         error = "document-changed",
-                        message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                        message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
                     });
                 case ListItemMovePlanStatus.NoChange:
                     return Ok(new { status = "no-change", sourceHash = request.SourceHash });
@@ -3896,20 +3896,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private static string ListItemMoveRefusalMessage(ListItemMoveRefusal refusal) => refusal switch
         {
             ListItemMoveRefusal.NotAListItem =>
-                "Non trovo più questa voce nel file: ricarica la pagina e riprova.",
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questa voce nel file: ricarica la pagina e riprova.", "This item is no longer in the file: reload the page and try again."),
             ListItemMoveRefusal.SingleItem =>
-                "L'elenco ha una voce sola: non c'è dove spostarla.",
+                MdExplorer.Features.Services.UiText.Say("L'elenco ha una voce sola: non c'è dove spostarla.", "The list has one item only: there is nowhere to move it."),
             ListItemMoveRefusal.PositionOutOfRange =>
-                "Quella posizione non esiste nell'elenco: ricarica la pagina e riprova.",
+                MdExplorer.Features.Services.UiText.Say("Quella posizione non esiste nell'elenco: ricarica la pagina e riprova.", "That position does not exist in the list: reload the page and try again."),
             ListItemMoveRefusal.MarkerWidthDiffers =>
-                "In questo elenco numerato lo spostamento cambierebbe la larghezza del numero (da 9 a 10 o viceversa) e le righe della voce non sarebbero più allineate: spostala nel file.",
+                MdExplorer.Features.Services.UiText.Say("In questo elenco numerato lo spostamento cambierebbe la larghezza del numero (da 9 a 10 o viceversa) e le righe della voce non sarebbero più allineate: spostala nel file.", "In this numbered list the move would change the width of the number (9 to 10 or back) and the item's lines would no longer line up: move it in the file."),
             ListItemMoveRefusal.EmptyFirstLine =>
-                "Questa voce inizia con la riga vuota: spostala nel file.",
+                MdExplorer.Features.Services.UiText.Say("Questa voce inizia con la riga vuota: spostala nel file.", "This item starts with an empty line: move it in the file."),
             ListItemMoveRefusal.ChangesOtherBlocks =>
-                "Spostare questa voce cambierebbe altro nel file (un elenco impaginato diversamente, un altro blocco): spostala nel file.",
+                MdExplorer.Features.Services.UiText.Say("Spostare questa voce cambierebbe altro nel file (un elenco impaginato diversamente, un altro blocco): spostala nel file.", "Moving this item would change something else in the file (a list laid out differently, another block): move it in the file."),
             ListItemMoveRefusal.FragmentOrderFixed =>
-                "Le voci di questo elenco hanno un data-fragment-index scritto a mano: spostarle non cambierebbe l'ordine in cui compaiono. Cambia gli indici nel file.",
-            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+                MdExplorer.Features.Services.UiText.Say("Le voci di questo elenco hanno un data-fragment-index scritto a mano: spostarle non cambierebbe l'ordine in cui compaiono. Cambia gli indici nel file.", "The items of this list have a hand-written data-fragment-index: moving them would not change the order they appear in. Change the indexes in the file."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
         };
 
         /// <summary>
@@ -3960,7 +3960,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return Conflict(new
                     {
                         error = "document-changed",
-                        message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                        message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
                     });
                 case SlideTransitionPlanStatus.NoChange:
                     return Ok(new { status = "no-change", sourceHash = request.SourceHash });
@@ -4016,16 +4016,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private static string SlideTransitionRefusalMessage(SlideTransitionRefusal refusal) => refusal switch
         {
             SlideTransitionRefusal.UnknownTransition =>
-                "Questa transizione non esiste: scegline una dell'elenco.",
+                MdExplorer.Features.Services.UiText.Say("Questa transizione non esiste: scegline una dell'elenco.", "That transition does not exist: choose one from the list."),
             SlideTransitionRefusal.NotADeck =>
-                "Questo file non è una presentazione (manca il front matter con document_type: slides).",
+                MdExplorer.Features.Services.UiText.Say("Questo file non è una presentazione (manca il front matter con document_type: slides).", "This file is not a slide deck (no front matter with document_type: slides)."),
             SlideTransitionRefusal.NotASlide =>
-                "Non trovo più questa slide nel file (forse è stata scritta da un comando): ricarica la pagina e riprova.",
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questa slide nel file (forse è stata scritta da un comando): ricarica la pagina e riprova.", "This slide is no longer in the file (maybe a command wrote it): reload the page and try again."),
             SlideTransitionRefusal.UnsupportedLayout =>
-                "Il file è scritto in una forma che da qui non si modifica in modo sicuro (un commento .slide: su più righe, o il front matter su una riga): cambia la transizione nel file.",
+                MdExplorer.Features.Services.UiText.Say("Il file è scritto in una forma che da qui non si modifica in modo sicuro (un commento .slide: su più righe, o il front matter su una riga): cambia la transizione nel file.", "The file is written in a form that cannot be safely edited from here (a .slide: comment on several lines, or a one-line front matter): change the transition in the file."),
             SlideTransitionRefusal.ChangesOtherContent =>
-                "Scrivere la transizione cambierebbe altro nella presentazione: cambiala nel file.",
-            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+                MdExplorer.Features.Services.UiText.Say("Scrivere la transizione cambierebbe altro nella presentazione: cambiala nel file.", "Writing the transition would change something else in the deck: change it in the file."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
         };
 
         private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
@@ -4038,24 +4038,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private static string RenderedTextRefusalMessage(RenderedTextRefusal refusal) => refusal switch
         {
             RenderedTextRefusal.BlockNotFound =>
-                "Non trovo più questo blocco nel file: ricarica la pagina e riprova.",
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questo blocco nel file: ricarica la pagina e riprova.", "This block is no longer in the file: reload the page and try again."),
             RenderedTextRefusal.UnsupportedContent =>
-                "Questo blocco contiene elementi che non si correggono dalla pagina (formule, note…): correggilo nel file.",
+                MdExplorer.Features.Services.UiText.Say("Questo blocco contiene elementi che non si correggono dalla pagina (formule, note…): correggilo nel file.", "This block contains elements that cannot be corrected from the page (formulas, notes…): correct it in the file."),
             RenderedTextRefusal.RenderedTextMismatch =>
-                "La pagina mostra questo blocco diversamente da com'è scritto nel file (per esempio con emoji interattive): correggilo nel file.",
+                MdExplorer.Features.Services.UiText.Say("La pagina mostra questo blocco diversamente da com'è scritto nel file (per esempio con emoji interattive): correggilo nel file.", "The page shows this block differently from how it is written in the file (for example with interactive emoji): correct it in the file."),
             RenderedTextRefusal.LineBreakNotAllowed =>
-                "Dalla pagina si corregge solo il testo: gli a capo non si aggiungono né si tolgono.",
+                MdExplorer.Features.Services.UiText.Say("Dalla pagina si corregge solo il testo: gli a capo non si aggiungono né si tolgono.", "From the page only the text is corrected: line breaks are not added or removed."),
             RenderedTextRefusal.ProtectedContentTouched =>
-                "Emoji, immagini, caselle e indirizzi dei link non si cambiano dalla pagina: correggi solo il testo intorno.",
+                MdExplorer.Features.Services.UiText.Say("Emoji, immagini, caselle e indirizzi dei link non si cambiano dalla pagina: correggi solo il testo intorno.", "Emoji, images, checkboxes and link addresses cannot be changed from the page: correct only the text around them."),
             RenderedTextRefusal.FormattingNotAllowed =>
-                "Il testo scritto ha una formattazione (grassetto, corsivo, link) che lì non c'è: dalla pagina non si aggiunge formattazione.",
+                MdExplorer.Features.Services.UiText.Say("Il testo scritto ha una formattazione (grassetto, corsivo, link) che lì non c'è: dalla pagina non si aggiunge formattazione.", "The text you typed has formatting (bold, italic, link) that is not there: formatting cannot be added from the page."),
             RenderedTextRefusal.EditTooLarge =>
-                "La correzione cambia troppo testo in una volta: falla in più passi.",
+                MdExplorer.Features.Services.UiText.Say("La correzione cambia troppo testo in una volta: falla in più passi.", "The correction changes too much text at once: do it in several steps."),
             RenderedTextRefusal.BlockDeletionNotAllowed =>
-                "Qui cancellare tutto il testo non toglie il blocco in modo sicuro (una voce con sotto-voci, un titolo sottolineato, un blocco in una citazione): toglilo nel file.",
+                MdExplorer.Features.Services.UiText.Say("Qui cancellare tutto il testo non toglie il blocco in modo sicuro (una voce con sotto-voci, un titolo sottolineato, un blocco in una citazione): toglilo nel file.", "Deleting all the text here does not safely remove the block (an item with sub-items, an underlined title, a block inside a quote): remove it in the file."),
                         RenderedTextRefusal.VerificationFailed =>
-                "Quello che hai scritto verrebbe letto come Markdown (un link, un'emoji, un simbolo) e la pagina non lo mostrerebbe così: cambialo e riprova.",
-            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+                MdExplorer.Features.Services.UiText.Say("Quello che hai scritto verrebbe letto come Markdown (un link, un'emoji, un simbolo) e la pagina non lo mostrerebbe così: cambialo e riprova.", "What you typed would be read as Markdown (a link, an emoji, a symbol) and the page would not show it like that: change it and try again."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
         };
 
         /// <summary>
@@ -4078,7 +4078,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             if (!TryParseBlockPosition(request.AnchorPosition, out var position))
             {
-                return BadRequest(new { error = $"AnchorPosition '{request.AnchorPosition}' non valida: 'before' oppure 'after'" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"AnchorPosition '{request.AnchorPosition}' non valida: 'before' oppure 'after'", $"AnchorPosition '{request.AnchorPosition}' is not valid: 'before' or 'after'") });
             }
 
             var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
@@ -4094,7 +4094,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return Conflict(new
                 {
                     error = "document-changed",
-                    message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                    message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
                 });
             }
 
@@ -4149,12 +4149,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
             fullPath = null;
             if (string.IsNullOrWhiteSpace(path))
             {
-                return BadRequest(new { error = "DocumentPath è obbligatorio con un'ancora" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("DocumentPath è obbligatorio con un'ancora", "DocumentPath is required with an anchor") });
             }
             var projectPath = GetProjectPath(connectionId);
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return BadRequest(new { error = "Nessun progetto aperto" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto", "No project open") });
             }
 
             var candidate = Path.GetFullPath(path);
@@ -4163,7 +4163,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 || !candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
                 || !System.IO.File.Exists(candidate))
             {
-                return BadRequest(new { error = "Il documento deve essere un .md esistente dentro il progetto aperto" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Il documento deve essere un .md esistente dentro il progetto aperto", "The document must be an existing .md inside the open project") });
             }
             fullPath = candidate;
             return null;

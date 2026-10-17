@@ -47,7 +47,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
         public Task SetModelAsync(string modelId, CancellationToken ct = default)
             => throw new NotSupportedException(
-                "Il trasporto ACP non sa cambiare modello a conversazione aperta: serve una sessione nuova.");
+                MdExplorer.Features.Services.UiText.Say("Il trasporto ACP non sa cambiare modello a conversazione aperta: serve una sessione nuova.", "The ACP transport cannot change model during an open conversation: a new session is needed."));
 
         public async IAsyncEnumerable<CopilotChatChunk> PromptAsync(
             string text,

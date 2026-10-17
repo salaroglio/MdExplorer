@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Services.AI
             if (string.IsNullOrWhiteSpace(directory))
             {
                 throw new InvalidOperationException(
-                    "opencode va eseguito dentro il progetto: WorkingDirectory non è stata impostata.");
+                    MdExplorer.Features.Services.UiText.Say("opencode va eseguito dentro il progetto: WorkingDirectory non è stata impostata.", "opencode must run inside the project: WorkingDirectory was not set."));
             }
 
             await using var session = new OpenCodeSession(_logger, _server, directory, modelId);
@@ -139,8 +139,8 @@ namespace MdExplorer.Features.Services.AI
         public Task SetSystemPromptAsync(string systemPrompt)
         {
             throw new NotSupportedException(
-                "opencode prende le istruzioni dai file del progetto (AGENTS.md e la cartella .opencode), " +
-                "non da un prompt di sistema impostato da MdExplorer.");
+                MdExplorer.Features.Services.UiText.Say("opencode prende le istruzioni dai file del progetto (AGENTS.md e la cartella .opencode), non da un prompt di sistema impostato da MdExplorer.",
+                    "opencode takes its instructions from the project files (AGENTS.md and the .opencode folder), not from a system prompt set by MdExplorer."));
         }
 
         public Task<string> GetSystemPromptAsync() => Task.FromResult<string>(null);

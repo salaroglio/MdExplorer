@@ -115,7 +115,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during search for term: '{term}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca", "Error during the search"), details = ex.Message });
             }
         }
 
@@ -193,7 +193,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during advanced search for term: '{request.SearchTerm}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca avanzata", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca avanzata", "Error during the advanced search"), details = ex.Message });
             }
         }
 
@@ -226,7 +226,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during file search for term: '{term}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca dei file", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca dei file", "Error during the file search"), details = ex.Message });
             }
         }
 
@@ -243,7 +243,7 @@ namespace MdExplorer.Service.Controllers.Search
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione: la ricerca nel contenuto richiede un progetto aperto (ConnectionId valido)." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione: la ricerca nel contenuto richiede un progetto aperto (ConnectionId valido).", "No project open for this connection: content search needs an open project (valid ConnectionId).") });
             }
 
             try
@@ -264,7 +264,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during content search for term: '{term}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca nel contenuto", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca nel contenuto", "Error during the content search"), details = ex.Message });
             }
         }
 
@@ -303,7 +303,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during link search for term: '{term}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca dei link", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca dei link", "Error during the link search"), details = ex.Message });
             }
         }
 
@@ -337,7 +337,7 @@ namespace MdExplorer.Service.Controllers.Search
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione: la ricerca nei file di testo richiede un progetto aperto (ConnectionId valido)." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione: la ricerca nei file di testo richiede un progetto aperto (ConnectionId valido).", "No project open for this connection: text file search needs an open project (valid ConnectionId).") });
             }
 
             var (enabled, _) = ReadTextIndexingSettings();
@@ -365,7 +365,7 @@ namespace MdExplorer.Service.Controllers.Search
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[SearchController] Error during text content search for term: '{term}'");
-                return StatusCode(500, new { error = "Errore durante la ricerca nei file di testo", details = ex.Message });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say("Errore durante la ricerca nei file di testo", "Error during the text file search"), details = ex.Message });
             }
         }
 

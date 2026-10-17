@@ -22,8 +22,8 @@ namespace MdExplorer.Features.Git
         {
             conflict = null;
             var b = Load(baseText);
-            var o = Load(ours) ?? throw new InvalidOperationException("La tua versione di .development.yml non è un documento YAML con delle voci.");
-            var t = Load(theirs) ?? throw new InvalidOperationException("La versione della sorgente di .development.yml non è un documento YAML con delle voci.");
+            var o = Load(ours) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La tua versione di .development.yml non è un documento YAML con delle voci.", "Your version of .development.yml is not a YAML document with entries."));
+            var t = Load(theirs) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La versione della sorgente di .development.yml non è un documento YAML con delle voci.", "The source version of .development.yml is not a YAML document with entries."));
             var merged = MergeMapping(b, o, t, "", ref conflict);
             if (conflict != null) return null;
 

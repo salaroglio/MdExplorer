@@ -55,21 +55,21 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             {
                 if (profile.DenyShell && request is PermissionRequestShell shell)
                     return new Verdict(false, "eseguire: " + shell.FullCommandText,
-                        profile.DenyReason ?? "durante i test e2e la shell è disattivata, per proteggere le credenziali");
+                        profile.DenyReason ?? MdExplorer.Features.Services.UiText.Say("durante i test e2e la shell è disattivata, per proteggere le credenziali", "during e2e tests the shell is disabled, to protect the credentials"));
                 if (profile.DenyWrite && request is PermissionRequestWrite anyWrite)
                     return new Verdict(false, "scrivere " + anyWrite.FileName,
-                        profile.DenyReason ?? "questa sessione è in sola lettura");
+                        profile.DenyReason ?? MdExplorer.Features.Services.UiText.Say("questa sessione è in sola lettura", "this session is read-only"));
                 if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
                     return new Verdict(false, "leggere " + read.Path,
-                        "è un file di credenziali: durante i test e2e le usa solo il server Playwright");
+                        MdExplorer.Features.Services.UiText.Say("è un file di credenziali: durante i test e2e le usa solo il server Playwright", "it is a credentials file: during e2e tests only the Playwright server uses it"));
                 if (request is PermissionRequestMcp tool && profile.DeniedMcpTools.Any(d =>
                         string.Equals(d, tool.ToolName, StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(d, tool.ServerName + "/" + tool.ToolName, StringComparison.OrdinalIgnoreCase)))
                     return new Verdict(false, $"usare lo strumento MCP {tool.ServerName}/{tool.ToolName}",
-                        "durante i test e2e questo strumento è vietato: può leggere le credenziali aggirando i divieti");
+                        MdExplorer.Features.Services.UiText.Say("durante i test e2e questo strumento è vietato: può leggere le credenziali aggirando i divieti", "during e2e tests this tool is forbidden: it could read the credentials and get around the bans"));
                 if (request is PermissionRequestWrite write && IsProtected(write.FileName, workingDirectory, profile))
                     return new Verdict(false, "scrivere " + write.FileName,
-                        "durante i test e2e la configurazione degli agenti non si modifica");
+                        MdExplorer.Features.Services.UiText.Say("durante i test e2e la configurazione degli agenti non si modifica", "during e2e tests the agents configuration is not changed"));
             }
             return Decide(request, workingDirectory, extraRoots);
         }
@@ -126,11 +126,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
                 case PermissionRequestUrl url:
                     return new Verdict(false, "aprire " + url.Url,
-                        "la chat di MDE non autorizza l'accesso a indirizzi web");
+                        MdExplorer.Features.Services.UiText.Say("la chat di MDE non autorizza l'accesso a indirizzi web", "the MDE chat does not allow access to web addresses"));
 
                 default:
                     return new Verdict(false, "richiesta di tipo " + (request?.Kind ?? "sconosciuto"),
-                        "la chat di MDE non autorizza questo tipo di richiesta");
+                        MdExplorer.Features.Services.UiText.Say("la chat di MDE non autorizza questo tipo di richiesta", "the MDE chat does not allow this kind of request"));
             }
         }
 
@@ -144,9 +144,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             var what = $"{verb} {path}";
 
             if (string.IsNullOrWhiteSpace(path))
-                return new Verdict(false, what, "percorso vuoto");
+                return new Verdict(false, what, MdExplorer.Features.Services.UiText.Say("percorso vuoto", "empty path"));
             if (string.IsNullOrWhiteSpace(workingDirectory))
-                return new Verdict(false, what, "la sessione non ha una cartella di progetto");
+                return new Verdict(false, what, MdExplorer.Features.Services.UiText.Say("la sessione non ha una cartella di progetto", "the session has no project folder"));
 
             var root = Path.GetFullPath(workingDirectory);
             var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
@@ -160,7 +160,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
             return inside
                 ? new Verdict(true, what, null)
-                : new Verdict(false, what, "è fuori dalla cartella del progetto e dalle radici di codice collegate");
+                : new Verdict(false, what, MdExplorer.Features.Services.UiText.Say("è fuori dalla cartella del progetto e dalle radici di codice collegate", "it is outside the project folder and the linked code roots"));
         }
     }
 }

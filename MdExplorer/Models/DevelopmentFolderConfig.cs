@@ -352,7 +352,7 @@ namespace MdExplorer.Service.Models
         {
             if (string.IsNullOrWhiteSpace(value)) return OnDemand;
             if (value == All || value == OnDemand) return value;
-            throw new System.InvalidOperationException($"{where}: codeGraph.describe vale «{value}», ma può essere solo «{All}» o «{OnDemand}». Correggilo nel .development.yml o dalla finestra «Ambiente di sviluppo».");
+            throw new System.InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"{where}: codeGraph.describe vale «{value}», ma può essere solo «{All}» o «{OnDemand}». Correggilo nel .development.yml o dalla finestra «Ambiente di sviluppo».", $"{where}: codeGraph.describe is «{value}», but it can only be «{All}» or «{OnDemand}». Fix it in .development.yml or from the «Development environment» window."));
         }
     }
 

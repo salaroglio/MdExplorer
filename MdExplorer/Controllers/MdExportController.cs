@@ -200,7 +200,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     ContentType = "application/json",
                     StatusCode = 404,
-                    Content = $"{{\"error\":\"Template non trovato\",\"details\":\"{ex.Message.Replace("\"", "\\\"")}\"}}"
+                    Content = System.Text.Json.JsonSerializer.Serialize(new { error = MdExplorer.Features.Services.UiText.Say("Template non trovato", "Template not found"), details = ex.Message })
                 };
             }
             catch (Exception ex)
@@ -694,7 +694,7 @@ namespace MdExplorer.Service.Controllers
                     
                 if (!System.IO.File.Exists(absoluteTemplatePath))
                 {
-                    throw new FileNotFoundException($"Template Word non trovato: {absoluteTemplatePath}. Percorso relativo: {currentReferencePath}");
+                    throw new FileNotFoundException(MdExplorer.Features.Services.UiText.Say($"Template Word non trovato: {absoluteTemplatePath}. Percorso relativo: {currentReferencePath}", $"Word template not found: {absoluteTemplatePath}. Relative path: {currentReferencePath}"));
                 }
                   
                 var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from {PandocMarkdownDialect} {createTocScriptCommand} --reference-doc ""{currentReferencePath}""";

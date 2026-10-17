@@ -139,7 +139,7 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
                 if (!status.Installed)
                 {
                     status.Reason = AgenticEnvironmentReasons.NotInstalled;
-                    status.Detail = $"'{check.Id}' non è nel PATH del servizio.";
+                    status.Detail = MdExplorer.Features.Services.UiText.Say($"'{check.Id}' non è nel PATH del servizio.", $"'{check.Id}' is not in the service PATH.");
                     return status;
                 }
 
@@ -148,7 +148,7 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
                 // WaitAsync oltre al token: un controllo che ignora la cancellazione non deve
                 // tenere fermi gli altri due né chi aspetta la risposta.
                 var usability = await check.CheckUsableAsync(timeout.Token).WaitAsync(_timeout, ct).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException($"Il controllo di '{check.Id}' non ha restituito un esito.");
+                    ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il controllo di '{check.Id}' non ha restituito un esito.", $"The check of '{check.Id}' returned no outcome."));
 
                 status.Usable = usability.Usable;
                 status.Reason = usability.Usable ? null : usability.Reason ?? AgenticEnvironmentReasons.Error;
@@ -158,7 +158,7 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
             {
                 status.Usable = false;
                 status.Reason = AgenticEnvironmentReasons.Timeout;
-                status.Detail = $"'{check.Id}' non ha risposto entro {_timeout.TotalSeconds:0.#} secondi.";
+                status.Detail = MdExplorer.Features.Services.UiText.Say($"'{check.Id}' non ha risposto entro {_timeout.TotalSeconds:0.#} secondi.", $"'{check.Id}' did not answer within {_timeout.TotalSeconds:0.#} seconds.");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

@@ -168,7 +168,7 @@ namespace MdExplorer.Features.Tests.Commands
             var transformed = Transform("```plantuml(@json, ./manca.json)\n```");
 
             AssertContains(transformed, "mde-plantuml-include-error");
-            AssertContains(transformed, "file non trovato");
+            AssertContains(transformed, "file not found");
             Assert.IsFalse(transformed.Contains("@startjson"), "no diagram may be produced from a missing file");
         }
 
@@ -178,7 +178,7 @@ namespace MdExplorer.Features.Tests.Commands
             var transformed = Transform("```plantuml(@json, ../../../etc/passwd)\n```");
 
             AssertContains(transformed, "mde-plantuml-include-error");
-            AssertContains(transformed, "esce dalla cartella del progetto");
+            AssertContains(transformed, "goes outside the project folder");
         }
 
         [TestMethod]
@@ -200,7 +200,7 @@ namespace MdExplorer.Features.Tests.Commands
 
             AssertContains(transformed, "mde-plantuml-include-error");
             // HttpUtility.HtmlEncode turns the accented "è" into &#232;, so match the ASCII part.
-            AssertContains(transformed, "JSON valido");
+            AssertContains(transformed, "not valid JSON");
         }
 
         [TestMethod]

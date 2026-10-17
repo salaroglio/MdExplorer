@@ -56,7 +56,7 @@ namespace MdExplorer.Service.Controllers.MarkSearch
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione: Mark Search richiede un progetto aperto (ConnectionId valido)." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione: Mark Search richiede un progetto aperto (ConnectionId valido).", "No project open for this connection: Mark Search needs an open project (valid ConnectionId).") });
             }
 
             var folder = Path.Combine(projectPath, ".md", TempFolderName);

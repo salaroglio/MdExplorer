@@ -146,14 +146,14 @@ namespace MdExplorer.Service.Utilities
         public static ProcessStartInfo BuildAgentCliStartInfo(string projectPath, string command)
         {
             if (string.IsNullOrWhiteSpace(command))
-                throw new ArgumentException("Nessun comando da aprire.", nameof(command));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Nessun comando da aprire.", "No command to open."), nameof(command));
 
             // Solo un nome di comando: qui non deve poter entrare niente che il terminale
             // interpreti come altro (l'ambiente arriva da un file del repository).
             foreach (var c in command)
             {
                 if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-                    throw new ArgumentException($"Nome di comando non ammesso: '{command}'.", nameof(command));
+                    throw new ArgumentException(MdExplorer.Features.Services.UiText.Say($"Nome di comando non ammesso: '{command}'.", $"Command name not allowed: '{command}'."), nameof(command));
             }
 
             var path = projectPath ?? string.Empty;
@@ -174,8 +174,7 @@ namespace MdExplorer.Service.Utilities
             if (!OperatingSystem.IsLinux())
             {
                 throw new InvalidOperationException(
-                    "L'apertura del CLI agentico in un terminale è realizzata per Windows e Linux. " +
-                    $"Su {Environment.OSVersion.Platform} apri tu un terminale nella cartella del progetto ed esegui '{command}'.");
+                    MdExplorer.Features.Services.UiText.Say($"L'apertura del CLI agentico in un terminale è realizzata per Windows e Linux. Su {Environment.OSVersion.Platform} apri tu un terminale nella cartella del progetto ed esegui '{command}'.", $"Opening the agentic CLI in a terminal is implemented for Windows and Linux. On {Environment.OSVersion.Platform} open a terminal in the project folder yourself and run '{command}'."));
             }
 
             // `exec bash` alla fine: quando il CLI esce la finestra resta, come -NoExit su Windows —
@@ -198,9 +197,7 @@ namespace MdExplorer.Service.Utilities
             }
 
             throw new InvalidOperationException(
-                "Nessun emulatore di terminale trovato su questa macchina (cercati: "
-                + string.Join(", ", LinuxTerminals.Select(t => t.Command))
-                + $"). Installane uno, oppure apri tu un terminale nel progetto ed esegui '{command}'.");
+                MdExplorer.Features.Services.UiText.Say($"Nessun emulatore di terminale trovato su questa macchina (cercati: {string.Join(", ", LinuxTerminals.Select(t => t.Command))}). Installane uno, oppure apri tu un terminale nel progetto ed esegui '{command}'.", $"No terminal emulator found on this machine (looked for: {string.Join(", ", LinuxTerminals.Select(t => t.Command))}). Install one, or open a terminal in the project yourself and run '{command}'."));
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Agents
                 foreach (var needed in new[] { ("scope", "Ambito"), ("gitEmail", "Git Email"), ("agents", "Agenti") })
                     if (!columns.Contains(needed.Item1))
                         throw new InvalidOperationException(
-                            $"La tabella del documento delle responsabilità non ha la colonna '{needed.Item2}': aggiungila e riprova.");
+                            MdExplorer.Features.Services.UiText.Say($"La tabella del documento delle responsabilità non ha la colonna '{needed.Item2}': aggiungila e riprova.", $"The table of the responsibilities document has no column '{needed.Item2}': add it and try again."));
 
                 var last = i + 1;
                 var scopeColumn = Array.IndexOf(columns, "scope");
@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Agents
             }
 
             throw new InvalidOperationException(
-                "Il documento delle responsabilità non ha una tabella con le colonne Ambito | Responsabile | Git Email | Agenti: aggiungila e riprova.");
+                MdExplorer.Features.Services.UiText.Say("Il documento delle responsabilità non ha una tabella con le colonne Ambito | Responsabile | Git Email | Agenti: aggiungila e riprova.", "The responsibilities document has no table with the columns Ambito | Responsabile | Git Email | Agenti: add it and try again."));
         }
 
         /// <summary>A cell is one line without the column separator.</summary>

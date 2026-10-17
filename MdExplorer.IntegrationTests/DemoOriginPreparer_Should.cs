@@ -163,7 +163,7 @@ namespace MdExplorer.IntegrationTests
             var outcome = Preparer().Prepare(work);
 
             Assert.AreEqual(DemoOriginStatus.Failed, outcome.Status);
-            StringAssert.Contains(outcome.Error, "esiste già");
+            StringAssert.Contains(outcome.Error, "already exists");
             CollectionAssert.AreEqual(configBefore, File.ReadAllBytes(Path.Combine(work, ".git", "config")),
                 "se non può prepararlo, non lascia il clone a metà");
             Assert.AreEqual(DemoUrl, Git(work, "remote", "get-url", "origin").Trim());

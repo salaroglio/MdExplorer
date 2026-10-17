@@ -113,8 +113,8 @@ namespace MdExplorer.Features.Services.AI
             if (!IsAvailable())
             {
                 throw new InvalidOperationException(
-                    "Claude Code CLI non disponibile: `claude` non è nel PATH. " +
-                    "Installalo con `npm i -g @anthropic-ai/claude-code` e fai il login.");
+                    MdExplorer.Features.Services.UiText.Say("Claude Code CLI non disponibile: `claude` non è nel PATH. Installalo con `npm i -g @anthropic-ai/claude-code` e fai il login.",
+                        "Claude Code CLI not available: `claude` is not in the PATH. Install it with `npm i -g @anthropic-ai/claude-code` and log in."));
             }
 
             var args = new StringBuilder("-p --output-format json --permission-mode dontAsk");
@@ -141,7 +141,7 @@ namespace MdExplorer.Features.Services.AI
             using var process = new Process { StartInfo = psi };
             if (!process.Start())
             {
-                throw new InvalidOperationException("Avvio di `claude -p` fallito");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Avvio di `claude -p` fallito", "Starting `claude -p` failed"));
             }
 
             // Il prompt viaggia su stdin, non sulla riga di comando: nessun limite di
@@ -160,7 +160,7 @@ namespace MdExplorer.Features.Services.AI
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 try { process.Kill(entireProcessTree: true); } catch { }
-                throw new TimeoutException($"Claude Code non ha risposto entro {ONESHOT_TIMEOUT_MS / 1000}s");
+                throw new TimeoutException(MdExplorer.Features.Services.UiText.Say($"Claude Code non ha risposto entro {ONESHOT_TIMEOUT_MS / 1000}s", $"Claude Code did not answer within {ONESHOT_TIMEOUT_MS / 1000}s"));
             }
 
             var stdout = await stdoutTask.ConfigureAwait(false);
@@ -169,8 +169,8 @@ namespace MdExplorer.Features.Services.AI
             if (process.ExitCode != 0)
             {
                 throw new InvalidOperationException(
-                    $"Claude Code è uscito con codice {process.ExitCode}. " +
-                    (string.IsNullOrWhiteSpace(stderr) ? "(stderr vuoto)" : stderr.Trim()));
+                    MdExplorer.Features.Services.UiText.Say($"Claude Code è uscito con codice {process.ExitCode}. ", $"Claude Code exited with code {process.ExitCode}. ") +
+                    (string.IsNullOrWhiteSpace(stderr) ? MdExplorer.Features.Services.UiText.Say("(stderr vuoto)", "(empty stderr)") : stderr.Trim()));
             }
 
             return ExtractResultText(stdout, stderr);
@@ -186,8 +186,8 @@ namespace MdExplorer.Features.Services.AI
             if (string.IsNullOrWhiteSpace(stdout))
             {
                 throw new InvalidOperationException(
-                    "Claude Code non ha prodotto output. " +
-                    (string.IsNullOrWhiteSpace(stderr) ? "(stderr vuoto)" : stderr.Trim()));
+                    MdExplorer.Features.Services.UiText.Say("Claude Code non ha prodotto output. ", "Claude Code produced no output. ") +
+                    (string.IsNullOrWhiteSpace(stderr) ? MdExplorer.Features.Services.UiText.Say("(stderr vuoto)", "(empty stderr)") : stderr.Trim()));
             }
 
             using var doc = JsonDocument.Parse(stdout);
@@ -195,15 +195,15 @@ namespace MdExplorer.Features.Services.AI
 
             if (root.TryGetProperty("is_error", out var isError) && isError.ValueKind == JsonValueKind.True)
             {
-                var subtype = root.TryGetProperty("subtype", out var st) ? st.GetString() : "sconosciuto";
+                var subtype = root.TryGetProperty("subtype", out var st) ? st.GetString() : MdExplorer.Features.Services.UiText.Say("sconosciuto", "unknown");
                 var detail = root.TryGetProperty("result", out var r) ? r.GetString() : null;
-                throw new InvalidOperationException($"Claude Code ha risposto in errore ({subtype}): {detail}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Claude Code ha risposto in errore ({subtype}): {detail}", $"Claude Code answered with an error ({subtype}): {detail}"));
             }
 
             if (!root.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.String)
             {
                 throw new InvalidOperationException(
-                    "La risposta di Claude Code non contiene il campo 'result': forma del JSON inattesa.");
+                    MdExplorer.Features.Services.UiText.Say("La risposta di Claude Code non contiene il campo 'result': forma del JSON inattesa.", "The Claude Code answer has no 'result' field: unexpected JSON shape."));
             }
 
             return result.GetString();
@@ -222,7 +222,7 @@ namespace MdExplorer.Features.Services.AI
             if (!IsAvailable())
             {
                 throw new InvalidOperationException(
-                    "Claude Code CLI non disponibile: `claude` non è nel PATH.");
+                    MdExplorer.Features.Services.UiText.Say("Claude Code CLI non disponibile: `claude` non è nel PATH.", "Claude Code CLI not available: `claude` is not in the PATH."));
             }
 
             var session = new ClaudeCodeSession(_logger, WorkingDirectory, modelId);

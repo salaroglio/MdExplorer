@@ -28,21 +28,25 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             if (servers == null) return null;
 
             var ours = servers.FirstOrDefault(s => string.Equals(s.Name, MdExplorerServer, StringComparison.OrdinalIgnoreCase));
-            const string consequence =
+            var consequence = MdExplorer.Features.Services.UiText.Say(
                 " Copilot non può usare gli strumenti di MdExplorer (ricerca nei documenti, agenti…)." +
-                " I diagrammi PlantUML che scrive li verifica comunque MdExplorer.";
+                " I diagrammi PlantUML che scrive li verifica comunque MdExplorer.",
+                " Copilot cannot use the MdExplorer tools (document search, agents…)." +
+                " MdExplorer still checks the PlantUML diagrams it writes.");
 
             if (ours.Name == null)
             {
-                return "⚠️ Il server MCP di MdExplorer non è nella configurazione di Copilot" +
-                       " (.copilot/mcp-config.json nella cartella utente, scritta da MdExplorer all'apertura di un progetto)." +
+                return MdExplorer.Features.Services.UiText.Say("⚠️ Il server MCP di MdExplorer non è nella configurazione di Copilot" +
+                       " (.copilot/mcp-config.json nella cartella utente, scritta da MdExplorer all'apertura di un progetto).",
+                       "⚠️ The MdExplorer MCP server is not in the Copilot configuration" +
+                       " (.copilot/mcp-config.json in the user folder, written by MdExplorer when a project opens).") +
                        consequence;
             }
 
             var status = ours.Status ?? string.Empty;
             if (status == "connected" || status == "pending") return null;
 
-            return $"⚠️ Il server MCP di MdExplorer non è connesso a Copilot (stato: {status}" +
+            return MdExplorer.Features.Services.UiText.Say($"⚠️ Il server MCP di MdExplorer non è connesso a Copilot (stato: {status}", $"⚠️ The MdExplorer MCP server is not connected to Copilot (status: {status}") +
                    (string.IsNullOrWhiteSpace(ours.Error) ? ")." : $" — {ours.Error.Trim()}).") +
                    consequence;
         }

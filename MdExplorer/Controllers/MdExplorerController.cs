@@ -240,9 +240,14 @@ namespace MdExplorer.Controllers
                     ContentType = "text/html; charset=utf-8",
                     Content = "<!doctype html><html><head><meta charset=\"utf-8\"></head>" +
                               "<body style=\"font-family:sans-serif;padding:24px;line-height:1.5\">" +
-                              $"<h3>Il file non c'è nella tua cartella</h3><p><code>{shown}</code></p>" +
-                              "<p>Se è il lavoro di un agente appena approvato, è già pubblicato nel repository: " +
-                              "scarica gli aggiornamenti (pull) dalla barra git e riaprilo.</p></body></html>",
+                              MdExplorer.Features.Services.UiText.Say(
+                                  $"<h3>Il file non c'è nella tua cartella</h3><p><code>{shown}</code></p>" +
+                                  "<p>Se è il lavoro di un agente appena approvato, è già pubblicato nel repository: " +
+                                  "scarica gli aggiornamenti (pull) dalla barra git e riaprilo.</p>",
+                                  $"<h3>The file is not in your folder</h3><p><code>{shown}</code></p>" +
+                                  "<p>If it is the work of an agent just approved, it is already published in the repository: " +
+                                  "pull the updates from the git bar and open it again.</p>") +
+                              "</body></html>",
                 };
             }
 
@@ -406,13 +411,13 @@ namespace MdExplorer.Controllers
 
             var projectPath = GetProjectPath();
             if (string.IsNullOrEmpty(projectPath))
-                return NotFound("Nessun progetto aperto per risolvere il worktree.");
+                return NotFound(MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per risolvere il worktree.", "No project open to resolve the worktree."));
 
             string worktreeRoot;
             try { worktreeRoot = await _worktree.FindAgentWorktreeAsync(projectPath, agent); }
-            catch (ArgumentException) { return BadRequest($"Agente '{agent}' non valido."); }
+            catch (ArgumentException) { return BadRequest(MdExplorer.Features.Services.UiText.Say($"Agente '{agent}' non valido.", $"Agent '{agent}' is not valid.")); }
             if (worktreeRoot == null || !Directory.Exists(worktreeRoot))
-                return NotFound($"Nessun worktree per l'agente '{agent}'.");
+                return NotFound(MdExplorer.Features.Services.UiText.Say($"Nessun worktree per l'agente '{agent}'.", $"No worktree for agent '{agent}'."));
 
             var rootPathSystem = worktreeRoot + Path.DirectorySeparatorChar;
             var relativePathFile = "/" + (url ?? string.Empty);
@@ -423,19 +428,19 @@ namespace MdExplorer.Controllers
             if (!IsUnderRoot(worktreeRoot, Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart('/', '\\')))))
             {
                 _logger.LogWarning("❌ [MdExplorerWorktree] path traversal bloccato: '{Rel}' fuori da '{Root}'", relativePathFile, worktreeRoot);
-                return BadRequest("Percorso non valido.");
+                return BadRequest(MdExplorer.Features.Services.UiText.Say("Percorso non valido.", "Path not valid."));
             }
 
             // Asset non-md (immagini, ecc.): risolti dalla root del WORKTREE.
             if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
                 var asset = CreateAResponseForNotMdFile(rootPathSystem, relativePathFile, relativePathExtension);
-                return asset == null ? NotFound($"File non trovato nel worktree: {relativePathFile}") : (IActionResult)asset;
+                return asset == null ? NotFound(MdExplorer.Features.Services.UiText.Say($"File non trovato nel worktree: {relativePathFile}", $"File not found in the worktree: {relativePathFile}")) : (IActionResult)asset;
             }
 
             var fullPathFile = ManageIfThePathContainsExtensionMdOrNot(rootPathSystem, relativePathFile, relativePathExtension);
             if (!System.IO.File.Exists(fullPathFile))
-                return NotFound($"'{relativePathFile}' non presente nel worktree di '{agent}'.");
+                return NotFound(MdExplorer.Features.Services.UiText.Say($"'{relativePathFile}' non presente nel worktree di '{agent}'.", $"'{relativePathFile}' is not in the worktree of '{agent}'."));
 
             string markdownTxt;
             using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -488,24 +493,24 @@ namespace MdExplorer.Controllers
                 as MdExplorer.Services.AgentRun.IAgentMergeRequestService;
             var request = requests?.Get(id);
             if (request == null)
-                return NotFound($"Richiesta '{id}' non trovata.");
+                return NotFound(MdExplorer.Features.Services.UiText.Say($"Richiesta '{id}' non trovata.", $"Request '{id}' not found."));
 
             var projectRoot = request.ProjectPath;
             var relativePathFile = "/" + (url ?? string.Empty);
             var relativePathExtension = Path.GetExtension(relativePathFile);
             var fullPathFile = Path.GetFullPath(Path.Combine(projectRoot, relativePathFile.TrimStart('/', '\\')));
             if (!IsUnderRoot(projectRoot, fullPathFile))
-                return BadRequest("Percorso non valido.");
+                return BadRequest(MdExplorer.Features.Services.UiText.Say("Percorso non valido.", "Path not valid."));
 
             if (relativePathExtension != ".md")
             {
                 var asset = CreateAResponseForNotMdFile(projectRoot + Path.DirectorySeparatorChar, relativePathFile, relativePathExtension);
-                return asset == null ? NotFound($"File non trovato nel progetto: {relativePathFile}") : (IActionResult)asset;
+                return asset == null ? NotFound(MdExplorer.Features.Services.UiText.Say($"File non trovato nel progetto: {relativePathFile}", $"File not found in the project: {relativePathFile}")) : (IActionResult)asset;
             }
 
             var markdownTxt = await _worktree.ReadFileAtAsync(projectRoot, request.HeadSha, relativePathFile);
             if (markdownTxt == null)
-                return NotFound($"'{relativePathFile.TrimStart('/')}' non fa parte della consegna di '{request.AgentName}'.");
+                return NotFound(MdExplorer.Features.Services.UiText.Say($"'{relativePathFile.TrimStart('/')}' non fa parte della consegna di '{request.AgentName}'.", $"'{relativePathFile.TrimStart('/')}' is not part of the delivery of '{request.AgentName}'."));
 
             var monitoredMd = new MonitoredMDModel
             {
@@ -812,11 +817,11 @@ namespace MdExplorer.Controllers
             }
             if (!System.IO.File.Exists(fullPath))
             {
-                return CodeRootMessagePage($"{logicalPath}: il file non c'è ({fullPath}).", rootPathSystem, connectionId, theme);
+                return CodeRootMessagePage(MdExplorer.Features.Services.UiText.Say($"{logicalPath}: il file non c'è ({fullPath}).", $"{logicalPath}: the file is not there ({fullPath})."), rootPathSystem, connectionId, theme);
             }
             if (!TextFileView.IsText(fullPath))
             {
-                return CodeRootMessagePage($"{logicalPath}: non è un file di testo, qui non si può mostrare.", rootPathSystem, connectionId, theme);
+                return CodeRootMessagePage(MdExplorer.Features.Services.UiText.Say($"{logicalPath}: non è un file di testo, qui non si può mostrare.", $"{logicalPath}: it is not a text file, it cannot be shown here."), rootPathSystem, connectionId, theme);
             }
             return await ShowTextFile(fullPath, rootPathSystem, connectionId, theme, isDetached, logicalPath);
         }
@@ -839,7 +844,10 @@ namespace MdExplorer.Controllers
             if (size > TextFileView.MaxBytes)
             {
                 body = $@"<div class=""mde-text-file-view""><p class=""mde-text-file-too-big"">{System.Web.HttpUtility.HtmlEncode(Path.GetFileName(fullPath))}: " +
-                       $@"{size / 1024:N0} KB, troppo grande per mostrarlo qui (limite {TextFileView.MaxBytes / 1024} KB). Aprilo con l'editor esterno (matita nella barra).</p></div>";
+                       MdExplorer.Features.Services.UiText.Say(
+                           $@"{size / 1024:N0} KB, troppo grande per mostrarlo qui (limite {TextFileView.MaxBytes / 1024} KB). Aprilo con l'editor esterno (matita nella barra).",
+                           $@"{size / 1024:N0} KB, too large to show here (limit {TextFileView.MaxBytes / 1024} KB). Open it with the external editor (pencil in the bar).") +
+                       "</p></div>";
             }
             else
             {

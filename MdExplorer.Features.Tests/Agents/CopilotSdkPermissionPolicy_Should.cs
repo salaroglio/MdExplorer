@@ -65,7 +65,7 @@ namespace MdExplorer.Features.Tests.Agents
             var verdict = Decide(Read("/etc/passwd"));
 
             Assert.IsFalse(verdict.Approved);
-            Assert.IsTrue(verdict.Reason.Contains("fuori dalla cartella del progetto"));
+            Assert.IsTrue(verdict.Reason.Contains("outside the project folder"));
         }
 
         [TestMethod]

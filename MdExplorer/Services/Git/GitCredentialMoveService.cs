@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -151,7 +152,7 @@ namespace MdExplorer.Services.Git
                     var url = await OriginUrlAsync(repo, ct);
                     if (url != null) targets.Add((repo, url));
                     else entries.Add(new GitCredentialMoveEntry { Source = "GitCredential", RepositoryPath = repo, Username = row.User, Moved = false,
-                        Reason = "il repository non esiste più o non ha un remote origin" });
+                        Reason = UiText.Say("il repository non esiste più o non ha un remote origin", "the repository no longer exists or has no origin remote") });
                 }
                 if (targets.Count == 0)
                 {
@@ -159,7 +160,7 @@ namespace MdExplorer.Services.Git
                     if (host == null)
                     {
                         entries.Add(new GitCredentialMoveEntry { Source = "GitCredential", Username = row.User, Moved = false,
-                            Reason = $"account di tipo {row.Type} senza repository collegati: non so per quale host valga" });
+                            Reason = UiText.Say($"account di tipo {row.Type} senza repository collegati: non so per quale host valga", $"{row.Type} account with no linked repositories: I do not know which host it is for") });
                         continue;
                     }
                     targets.Add((null, host));
@@ -203,7 +204,7 @@ namespace MdExplorer.Services.Git
                 if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
                 {
                     entries.Add(new GitCredentialMoveEntry { Source = "GitlabSetting", RepositoryPath = row.LocalPath, Username = row.User, Moved = false,
-                        Reason = "né il repository né il link dicono per quale host valga" });
+                        Reason = UiText.Say("né il repository né il link dicono per quale host valga", "neither the repository nor the link says which host it is for") });
                     continue;
                 }
                 var (ok, why) = await HandOverAsync(url, row.User, row.Password, ct);
@@ -240,7 +241,7 @@ namespace MdExplorer.Services.Git
                 // Senza utente git non saprebbe a chi appartiene il token; e con GitHub l'utente
                 // del token è opaco. Non inventiamo niente: resta lì e lo dice.
                 entries.Add(new GitCredentialMoveEntry { Source = "Setting:GitHubPersonalAccessToken", Url = url, Moved = false,
-                    Reason = "token senza nome utente: rifai il login una volta (su Windows lo fa Git Credential Manager al primo push)" });
+                    Reason = UiText.Say("token senza nome utente: rifai il login una volta (su Windows lo fa Git Credential Manager al primo push)", "token without a user name: log in again once (on Windows Git Credential Manager does it at the first push)") });
                 return;
             }
             var (ok, why) = await HandOverAsync(url, user, token, ct);
@@ -259,10 +260,10 @@ namespace MdExplorer.Services.Git
         /// <summary>approve, poi fill per verificare: senza la verifica il trasloco sarebbe un fallback silenzioso.</summary>
         private async Task<(bool Ok, string Why)> HandOverAsync(string url, string username, string secret, CancellationToken ct)
         {
-            if (string.IsNullOrEmpty(username)) return (false, "manca il nome utente");
-            if (string.IsNullOrEmpty(secret)) return (false, "manca il segreto");
+            if (string.IsNullOrEmpty(username)) return (false, UiText.Say("manca il nome utente", "the user name is missing"));
+            if (string.IsNullOrEmpty(secret)) return (false, UiText.Say("manca il segreto", "the secret is missing"));
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
-                return (false, $"url non http(s): {url} (per SSH git usa le chiavi in ~/.ssh, non serve spostare niente)");
+                return (false, UiText.Say($"url non http(s): {url} (per SSH git usa le chiavi in ~/.ssh, non serve spostare niente)", $"not an http(s) url: {url} (for SSH git uses the keys in ~/.ssh, nothing needs moving)"));
 
             var approve = await _transport.ApproveCredentialAsync(url, username, secret, ct);
             if (!approve.Ok) return (false, $"git credential approve: {approve.Error}");
@@ -271,7 +272,7 @@ namespace MdExplorer.Services.Git
                 stdin: $"url={url}\nusername={username}\n\n");
             var found = fill.Ok && (fill.Stdout ?? string.Empty).Split('\n').Any(l => l.StartsWith("password="));
             if (!found)
-                return (false, "git non la ritrova: nessun credential helper configurato (git config --global credential.helper). Su Windows installa Git for Windows con Git Credential Manager; su Linux/Mac configura un helper e rifai il login una volta dal terminale");
+                return (false, UiText.Say("git non la ritrova: nessun credential helper configurato (git config --global credential.helper). Su Windows installa Git for Windows con Git Credential Manager; su Linux/Mac configura un helper e rifai il login una volta dal terminale", "git cannot find it again: no credential helper configured (git config --global credential.helper). On Windows install Git for Windows with Git Credential Manager; on Linux/Mac configure a helper and log in once from the terminal"));
             return (true, null);
         }
 

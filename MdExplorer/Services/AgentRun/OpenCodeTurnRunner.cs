@@ -79,14 +79,16 @@ namespace MdExplorer.Services.AgentRun
             var model = string.IsNullOrWhiteSpace(request.RequestedModel) ? null : request.RequestedModel.Trim();
             if (model != null && model.IndexOf('/') <= 0)
                 return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
-                    $"Agente '{request.AgentName}': per opencode il modello va scritto 'fornitore/modello' (es. 'opencode/big-pickle'), " +
-                    $"non '{model}'. Correggi 'runtime.model:' nella scheda o la scelta nella finestra di lancio.");
+                    MdExplorer.Features.Services.UiText.Say(
+                        $"Agente '{request.AgentName}': per opencode il modello va scritto 'fornitore/modello' (es. 'opencode/big-pickle'), non '{model}'. Correggi 'runtime.model:' nella scheda o la scelta nella finestra di lancio.",
+                        $"Agent '{request.AgentName}': for opencode the model is written 'provider/model' (e.g. 'opencode/big-pickle'), not '{model}'. Fix 'runtime.model:' in the card or the choice in the launch window."));
 
             var mcpExecutable = MdExplorer.Service.ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable == null)
                 return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
-                    $"Agente '{request.AgentName}': il server MCP di MdExplorer non si trova, e senza gli strumenti della città " +
-                    "un agente non può lavorare. Controlla l'installazione di MdExplorer (cartella mcp).");
+                    MdExplorer.Features.Services.UiText.Say(
+                        $"Agente '{request.AgentName}': il server MCP di MdExplorer non si trova, e senza gli strumenti della città un agente non può lavorare. Controlla l'installazione di MdExplorer (cartella mcp).",
+                        $"Agent '{request.AgentName}': MdExplorer's MCP server cannot be found, and without the city's tools an agent cannot work. Check the MdExplorer installation (mcp folder)."));
             string groups;
             using (var scope = _scopeFactory.CreateScope())
                 groups = McpToolGroupsSettings.WithAgents(

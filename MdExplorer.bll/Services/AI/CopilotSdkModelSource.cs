@@ -86,12 +86,12 @@ namespace MdExplorer.Features.Services.AI
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 throw new InvalidOperationException(
-                    $"Copilot CLI non ha risposto entro {TimeoutMs / 1000} secondi alla richiesta dei modelli.");
+                    MdExplorer.Features.Services.UiText.Say($"Copilot CLI non ha risposto entro {TimeoutMs / 1000} secondi alla richiesta dei modelli.", $"Copilot CLI did not answer the model request within {TimeoutMs / 1000} seconds."));
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException(
-                    $"Non è stato possibile leggere i modelli da Copilot CLI: {ex.Message}", ex);
+                    MdExplorer.Features.Services.UiText.Say($"Non è stato possibile leggere i modelli da Copilot CLI: {ex.Message}", $"Could not read the models from Copilot CLI: {ex.Message}"), ex);
             }
         }
 

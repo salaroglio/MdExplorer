@@ -605,7 +605,7 @@ namespace MdExplorer.Controllers
             if (request == null || string.IsNullOrEmpty(request.FilePath) || request.MarkdownContent == null)
             {
                 _logger.LogWarning("UpdateMarkdownAsync: Richiesta non valida o campi mancanti.");
-                return BadRequest("Richiesta non valida o campi mancanti.");
+                return BadRequest(MdExplorer.Features.Services.UiText.Say("Richiesta non valida o campi mancanti.", "Request not valid or fields missing."));
             }
 
             var filePathToAccessOnServer = request.FilePath;
@@ -619,13 +619,13 @@ namespace MdExplorer.Controllers
                     if (!System.IO.File.Exists(filePathToAccessOnServer))
                     {
                         _logger.LogWarning($"UpdateMarkdownAsync: File non trovato: {request.FilePath} o {filePathToAccessOnServer}");
-                        return NotFound($"File non trovato: {request.FilePath}");
+                        return NotFound(MdExplorer.Features.Services.UiText.Say($"File non trovato: {request.FilePath}", $"File not found: {request.FilePath}"));
                     }
                 }
                 else
                 {
                     _logger.LogWarning($"UpdateMarkdownAsync: File non trovato: {filePathToAccessOnServer}");
-                    return NotFound($"File non trovato: {filePathToAccessOnServer}");
+                    return NotFound(MdExplorer.Features.Services.UiText.Say($"File non trovato: {filePathToAccessOnServer}", $"File not found: {filePathToAccessOnServer}"));
                 }
             }
 
@@ -738,7 +738,7 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"UpdateMarkdownAsync: Errore durante l'aggiornamento del file: {filePathToAccessOnServer}");
-                return StatusCode(StatusCodes.Status500InternalServerError, "Errore durante l'aggiornamento del file.");
+                return StatusCode(StatusCodes.Status500InternalServerError, MdExplorer.Features.Services.UiText.Say("Errore durante l'aggiornamento del file.", "Error while updating the file."));
             }
         }
     }

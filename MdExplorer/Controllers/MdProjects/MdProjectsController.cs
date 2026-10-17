@@ -924,8 +924,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (copilotProvider == null)
                     {
                         throw new InvalidOperationException(
-                            "Il progetto ha come motore di MarkAgent Copilot CLI ma CopilotCliProvider non è stato " +
-                            "risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.");
+                            MdExplorer.Features.Services.UiText.Say("Il progetto ha come motore di MarkAgent Copilot CLI ma CopilotCliProvider non è stato risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.", "The project's MarkAgent engine is Copilot CLI but CopilotCliProvider was not resolved by DI. Check the IAiProvider registrations in Startup.cs."));
                     }
                     copilotProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto; null = lo sceglie il CLI. Letto
@@ -948,8 +947,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (claudeProvider == null)
                     {
                         throw new InvalidOperationException(
-                            "Il progetto ha come motore di MarkAgent Claude Code ma ClaudeCodeProvider non è stato " +
-                            "risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.");
+                            MdExplorer.Features.Services.UiText.Say("Il progetto ha come motore di MarkAgent Claude Code ma ClaudeCodeProvider non è stato risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.", "The project's MarkAgent engine is Claude Code but ClaudeCodeProvider was not resolved by DI. Check the IAiProvider registrations in Startup.cs."));
                     }
                     claudeProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto. Mai scelto = `sonnet`, come prima che la scelta

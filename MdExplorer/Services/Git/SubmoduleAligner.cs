@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -232,19 +233,19 @@ namespace MdExplorer.Services.Git
                 var init = await _git.RunAsync(repoDir, new[] { "submodule", "update", "--init", "--", line.Path }, ct);
                 return init.Ok
                     ? new SubmoduleAlignStep { Path = full, Outcome = SubmoduleAlignStep.Populated, After = await HeadAsync(dir, ct) }
-                    : Fail(full, $"'{full}' non è stato scaricato: {init.Describe()}");
+                    : Fail(full, UiText.Say($"'{full}' non è stato scaricato: {init.Describe()}", $"'{full}' was not pulled: {init.Describe()}"));
             }
 
             if (line.Prefix == 'U')
-                return Fail(full, $"'{full}' ha un conflitto sulla versione registrata: va risolto prima di poterlo allineare.");
+                return Fail(full, UiText.Say($"'{full}' ha un conflitto sulla versione registrata: va risolto prima di poterlo allineare.", $"'{full}' has a conflict on the recorded version: it must be resolved before it can be aligned."));
 
             var recorded = await RecordedAsync(repoDir, line.Path, ct);
             if (recorded == null)
-                return Fail(full, $"Non si riesce a leggere quale versione di '{full}' registra il progetto.");
+                return Fail(full, UiText.Say($"Non si riesce a leggere quale versione di '{full}' registra il progetto.", $"Cannot read which version of '{full}' the project records."));
 
             var before = await HeadAsync(dir, ct);
             if (before == null)
-                return Fail(full, $"Non si riesce a leggere la versione in checkout di '{full}'.");
+                return Fail(full, UiText.Say($"Non si riesce a leggere la versione in checkout di '{full}'.", $"Cannot read the checked-out version of '{full}'."));
 
             if (string.Equals(before, recorded, StringComparison.OrdinalIgnoreCase))
                 return new SubmoduleAlignStep { Path = full, Outcome = SubmoduleAlignStep.Already, Before = before, After = before };
@@ -255,11 +256,14 @@ namespace MdExplorer.Services.Git
             {
                 var fetch = await _transport.FetchAsync(dir, "origin", ct);
                 if (!fetch.Ok)
-                    return Fail(full, $"'{full}': il remoto non ha risposto, quindi la versione registrata non è stata scaricata ({fetch.Error}).");
+                    return Fail(full, UiText.Say($"'{full}': il remoto non ha risposto, quindi la versione registrata non è stata scaricata ({fetch.Error}).", $"'{full}': the remote did not answer, so the recorded version was not pulled ({fetch.Error})."));
                 relation = await SubmoduleRelation.ReadAsync(_git, dir, recorded, before, ct);
                 if (relation == SubmoduleRelation.Unknown)
-                    return Fail(full, $"Il progetto registra per '{full}' il commit {Short(recorded)}, che sul remoto di '{full}' non esiste: " +
-                                      "chi l'ha registrato non ha ancora pubblicato quel submodule.");
+                    return Fail(full, UiText.Say(
+                        $"Il progetto registra per '{full}' il commit {Short(recorded)}, che sul remoto di '{full}' non esiste: " +
+                        "chi l'ha registrato non ha ancora pubblicato quel submodule.",
+                        $"The project records commit {Short(recorded)} for '{full}', which does not exist on the remote of '{full}': " +
+                        "whoever recorded it has not pushed that submodule yet."));
             }
 
             if (mode == SubmoduleAlignMode.Exact)
@@ -274,8 +278,11 @@ namespace MdExplorer.Services.Git
                     return new SubmoduleAlignStep
                     {
                         Path = full, Outcome = SubmoduleAlignStep.LeftDiverged, Before = before, After = before,
-                        Note = $"'{full}' diverge dalla versione che il progetto registra: non è stato spostato. " +
-                               $"Usa «Aggiorna all'ultima» dentro '{full}' per unire i due lavori.",
+                        Note = UiText.Say(
+                            $"'{full}' diverge dalla versione che il progetto registra: non è stato spostato. " +
+                            $"Usa «Aggiorna all'ultima» dentro '{full}' per unire i due lavori.",
+                            $"'{full}' diverges from the version the project records: it was not moved. " +
+                            $"Use «Update to latest» inside '{full}' to merge the two pieces of work."),
                     };
             }
 
@@ -285,7 +292,7 @@ namespace MdExplorer.Services.Git
             {
                 var ff = await _git.RunAsync(dir, new[] { "merge", "--ff-only", recorded }, ct);
                 if (!ff.Ok)
-                    return Fail(full, $"'{full}' non è stato allineato: {ff.Describe()}");
+                    return Fail(full, UiText.Say($"'{full}' non è stato allineato: {ff.Describe()}", $"'{full}' was not aligned: {ff.Describe()}"));
                 return new SubmoduleAlignStep { Path = full, Outcome = SubmoduleAlignStep.Aligned, Before = before, After = recorded };
             }
 
@@ -298,7 +305,7 @@ namespace MdExplorer.Services.Git
         {
             var update = await _git.RunAsync(repoDir, new[] { "submodule", "update", "--init", "--", relativePath }, ct);
             if (!update.Ok)
-                return Fail(full, $"'{full}' non è stato allineato: {update.Describe()}");
+                return Fail(full, UiText.Say($"'{full}' non è stato allineato: {update.Describe()}", $"'{full}' was not aligned: {update.Describe()}"));
             return new SubmoduleAlignStep { Path = full, Outcome = SubmoduleAlignStep.Aligned, Before = before, After = await HeadAsync(dir, ct) };
         }
 
@@ -338,7 +345,7 @@ namespace MdExplorer.Services.Git
 
                 if (line.Prefix != ' ')
                 {
-                    blockers.Add($"'{full}' non è alla versione che il progetto registra: prima committa il progetto o allinea '{full}'.");
+                    blockers.Add(UiText.Say($"'{full}' non è alla versione che il progetto registra: prima committa il progetto o allinea '{full}'.", $"'{full}' is not at the version the project records: first commit the project or align '{full}'."));
                     continue;
                 }
 
@@ -346,7 +353,7 @@ namespace MdExplorer.Services.Git
                     new[] { "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all" }, ct);
                 if (dirty.Ok && !string.IsNullOrWhiteSpace(dirty.Stdout))
                 {
-                    blockers.Add($"'{full}' ha modifiche non salvate: committale (o scartale) prima di cambiare ramo.");
+                    blockers.Add(UiText.Say($"'{full}' ha modifiche non salvate: committale (o scartale) prima di cambiare ramo.", $"'{full}' has unsaved changes: commit (or discard) them before switching branch."));
                     continue;
                 }
 

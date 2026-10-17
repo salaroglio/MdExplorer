@@ -102,7 +102,7 @@ namespace MdExplorer.Controllers.AI
         public IActionResult Engine([FromQuery] string projectPath, [FromQuery] string agentFilePath)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(agentFilePath) || !System.IO.File.Exists(agentFilePath))
-                return BadRequest(new { error = "projectPath e agentFilePath (esistente) sono obbligatori." });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("projectPath e agentFilePath (esistente) sono obbligatori.", "projectPath and an existing agentFilePath are required.") });
             var runtime = new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(System.IO.File.ReadAllText(agentFilePath)).Runtime;
             var (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(_session, projectPath);
             string cardEngine = null;
@@ -154,7 +154,7 @@ namespace MdExplorer.Controllers.AI
 
             if (!string.IsNullOrWhiteSpace(request.Engine)
                 && !MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Engine, out _))
-                return BadRequest(new { success = false, error = $"Motore '{request.Engine}' sconosciuto: i valori ammessi sono claude, copilot, opencode." });
+                return BadRequest(new { success = false, error = MdExplorer.Features.Services.UiText.Say($"Motore '{request.Engine}' sconosciuto: i valori ammessi sono claude, copilot, opencode.", $"Unknown engine '{request.Engine}': allowed values are claude, copilot, opencode.") });
 
             var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
             {

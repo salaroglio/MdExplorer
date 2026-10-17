@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -43,8 +44,8 @@ namespace MdExplorer.Services.Git
         public string Error => Kind switch
         {
             NativeGitFailureKind.None => string.Empty,
-            NativeGitFailureKind.GitMissing => "git non trovato nel PATH: installa Git e riavvia MdExplorer",
-            NativeGitFailureKind.Timeout => "git non ha risposto entro il tempo massimo",
+            NativeGitFailureKind.GitMissing => UiText.Say("git non trovato nel PATH: installa Git e riavvia MdExplorer", "git not found in PATH: install Git and restart MdExplorer"),
+            NativeGitFailureKind.Timeout => UiText.Say("git non ha risposto entro il tempo massimo", "git did not answer within the time limit"),
             _ => string.IsNullOrWhiteSpace(Stderr) ? $"git exit {ExitCode}" : Stderr.Trim(),
         };
     }
@@ -285,12 +286,12 @@ namespace MdExplorer.Services.Git
         public async Task<KnownAccounts> KnownAccountsAsync(string url, CancellationToken ct = default)
         {
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
-                return new KnownAccounts { Supported = false, Reason = "solo Git Credential Manager per GitHub sa elencare i suoi account" };
+                return new KnownAccounts { Supported = false, Reason = UiText.Say("solo Git Credential Manager per GitHub sa elencare i suoi account", "only Git Credential Manager for GitHub can list its accounts") };
             var r = await _git.RunAsync(System.IO.Path.GetTempPath(), new[] { "credential-manager", "github", "list" }, ct, extraEnv: NeverPrompt, timeoutMs: 30_000);
             if (!r.Ok)
                 return new KnownAccounts { Supported = true, Reason = $"git credential-manager github list: {r.Describe()}" };
             var accounts = (r.Stdout ?? string.Empty).Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).Distinct().ToList();
-            return new KnownAccounts { Supported = true, Accounts = accounts, Reason = accounts.Count == 0 ? "Git Credential Manager non ha ancora nessun account GitHub" : null };
+            return new KnownAccounts { Supported = true, Accounts = accounts, Reason = accounts.Count == 0 ? UiText.Say("Git Credential Manager non ha ancora nessun account GitHub", "Git Credential Manager has no GitHub account yet") : null };
         }
 
         private async Task<NativeGitOutcome> Run(string cwd, string[] args, CancellationToken ct, int timeoutMs = NativeGitRunner.DefaultTimeoutMs)

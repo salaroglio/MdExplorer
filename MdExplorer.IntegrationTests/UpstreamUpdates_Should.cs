@@ -139,7 +139,7 @@ namespace MdExplorer.IntegrationTests
             var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
 
             Assert.IsTrue(pulled.Success, pulled.Message ?? pulled.Refused);
-            StringAssert.Contains(pulled.Message, "1 aggiornamento");
+            StringAssert.Contains(pulled.Message, "1 update");
             StringAssert.Contains(File.ReadAllText(Path.Combine(project, "README.md")), "versione 2");
             Assert.IsTrue(File.Exists(Path.Combine(project, "mio.md")));
             CollectionAssert.Contains(new System.Collections.Generic.List<string>(pulled.ChangedFiles), "README.md");
@@ -170,7 +170,7 @@ namespace MdExplorer.IntegrationTests
 
             Assert.IsFalse(pulled.Success);
             StringAssert.Contains(pulled.Message, "responsabilita.md");
-            StringAssert.Contains(pulled.Message, "com'era");
+            StringAssert.Contains(pulled.Message, "as it was");
             Assert.AreEqual(headBefore, Git(project, "rev-parse HEAD").Out);
             Assert.AreNotEqual(0, Git(project, "rev-parse --quiet --verify MERGE_HEAD").Code, "nessuna unione lasciata a metà");
             Assert.AreEqual(string.Empty, Git(project, "status --porcelain").Out);
@@ -195,7 +195,7 @@ namespace MdExplorer.IntegrationTests
             var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
 
             Assert.IsTrue(pulled.Success, pulled.Message);
-            StringAssert.Contains(string.Join(" ", pulled.Warnings), "voce per voce");
+            StringAssert.Contains(string.Join(" ", pulled.Warnings), "entry by entry");
             var yml = File.ReadAllText(Path.Combine(project, ".development.yml"));
             StringAssert.Contains(yml, "enabled: true");
             StringAssert.Contains(yml, "roomSecret: XYZ");
@@ -238,7 +238,7 @@ namespace MdExplorer.IntegrationTests
             var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
 
             Assert.IsFalse(pulled.Success, "git rifiuta di sovrascrivere un file modificato");
-            StringAssert.Contains(pulled.Message, "com'era");
+            StringAssert.Contains(pulled.Message, "as it was");
             StringAssert.Contains(File.ReadAllText(Path.Combine(project, "README.md")), "la mia riga, non committata");
         }
     }

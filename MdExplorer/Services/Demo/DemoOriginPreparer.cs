@@ -90,13 +90,13 @@ namespace MdExplorer.Services.Demo
 
                 var branch = RequireGit(projectPath, "rev-parse", "--abbrev-ref", "HEAD").Trim();
                 if (string.IsNullOrEmpty(branch) || branch == "HEAD")
-                    throw new InvalidOperationException("il clone non è su un ramo (HEAD staccato).");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("il clone non è su un ramo (HEAD staccato).", "the clone is not on a branch (detached HEAD)."));
 
                 var full = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var bare = full + ".origin.git";
                 if (Directory.Exists(bare) || File.Exists(bare))
                     throw new InvalidOperationException(
-                        $"esiste già '{bare}': non lo sovrascrivo. Spostalo o cancellalo e riapri il demo.");
+                        MdExplorer.Features.Services.UiText.Say($"esiste già '{bare}': non lo sovrascrivo. Spostalo o cancellalo e riapri il demo.", $"'{bare}' already exists: I will not overwrite it. Move or delete it and open the demo again."));
 
                 // Tutto locale: la copia parte dal clone che c'è, senza rete.
                 RequireGit(null, "clone", "--bare", "--quiet", full, bare);
@@ -151,7 +151,7 @@ namespace MdExplorer.Services.Demo
             foreach (var a in args) psi.ArgumentList.Add(a);
             psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
 
-            using var p = Process.Start(psi) ?? throw new InvalidOperationException("git non è partito: è installato?");
+            using var p = Process.Start(psi) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("git non è partito: è installato?", "git did not start: is it installed?"));
             var stderr = p.StandardError.ReadToEndAsync();
             var stdout = p.StandardOutput.ReadToEnd();
             p.WaitForExit();

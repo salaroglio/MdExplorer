@@ -203,7 +203,7 @@ namespace MdExplorer.Features.Tests.AI
         {
             var u = OpenCodeEnvironmentCheck.Interpret(0, "opencode/big-pickle\nopencode/nemotron-3-ultra-free\n", "");
             Assert.IsTrue(u.Usable);
-            StringAssert.Contains(u.Detail, "2 modelli");
+            StringAssert.Contains(u.Detail, "2 models");
         }
 
         [TestMethod]
@@ -211,7 +211,7 @@ namespace MdExplorer.Features.Tests.AI
         {
             var u = OpenCodeEnvironmentCheck.Interpret(0, "Update available: run opencode upgrade\n\u001b[32mopencode/big-pickle\u001b[0m\n", "");
             Assert.IsTrue(u.Usable);
-            StringAssert.Contains(u.Detail, "1 modello");
+            StringAssert.Contains(u.Detail, "1 model");
         }
 
         [TestMethod]

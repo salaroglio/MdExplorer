@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Tests.AI
 
             Assert.IsFalse(CopilotProcessLauncher.IsResolvable());
             var ex = Assert.ThrowsException<InvalidOperationException>(() => CopilotProcessLauncher.BuildStartInfo("--version"));
-            StringAssert.Contains(ex.Message, "PATH del servizio");
+            StringAssert.Contains(ex.Message, "service PATH");
             Assert.ThrowsException<InvalidOperationException>(() => CopilotProcessLauncher.ResolveStdioTarget());
         }
 

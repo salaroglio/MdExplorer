@@ -179,7 +179,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             };
             process.Exited += (_, _) =>
                 listening.TrySetException(new InvalidOperationException(
-                    $"opencode serve è uscito subito (codice {SafeExitCode(process)}). Output:\n{StartupLog()}"));
+                    MdExplorer.Features.Services.UiText.Say($"opencode serve è uscito subito (codice {SafeExitCode(process)}). Output:\n{StartupLog()}", $"opencode serve exited right away (code {SafeExitCode(process)}). Output:\n{StartupLog()}")));
 
             _logger.LogInformation("[opencode] avvio {File} serve --port 0", psi.FileName);
             process.Start();
@@ -197,8 +197,8 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             {
                 Cleanup();
                 throw new TimeoutException(
-                    $"opencode serve non ha dichiarato la sua porta entro {StartTimeout.TotalSeconds:N0} s. " +
-                    $"Output letto finora:\n{StartupLog()}");
+                    MdExplorer.Features.Services.UiText.Say($"opencode serve non ha dichiarato la sua porta entro {StartTimeout.TotalSeconds:N0} s. Output letto finora:\n{StartupLog()}",
+                        $"opencode serve did not declare its port within {StartTimeout.TotalSeconds:N0} s. Output read so far:\n{StartupLog()}"));
             }
             catch
             {

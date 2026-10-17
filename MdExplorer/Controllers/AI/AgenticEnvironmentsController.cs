@@ -53,7 +53,7 @@ namespace MdExplorer.Controllers.AI
                 // che si è rotto il probe stesso, e chi chiama deve saperlo invece di credere che
                 // non ci sia nessun ambiente.
                 _logger.LogError(ex, "[AgenticEnvironments/Probe] fallito");
-                return StatusCode(500, new { error = $"Il controllo degli ambienti agentici non è riuscito: {ex.Message}" });
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say($"Il controllo degli ambienti agentici non è riuscito: {ex.Message}", $"Checking the agentic environments failed: {ex.Message}") });
             }
         }
     }

@@ -102,7 +102,7 @@ namespace MdExplorer.IntegrationTests
 
             Assert.IsTrue(child.Detached);
             Assert.IsNull(child.Branch, "senza ramo non si scrive un nome di ramo che non c'e'.");
-            StringAssert.Contains(child.CommitBlocker, "orfano");
+            StringAssert.Contains(child.CommitBlocker, "orphaned");
         }
 
         [TestMethod]
