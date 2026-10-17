@@ -305,13 +305,21 @@ namespace MdExplorer.Services.AgentRun
             var step = WorkflowFor(request.ProjectPath, link.RoundId)?.Step(link.Step);
             if (step == null) return;
 
-            Locked(request.ProjectPath, () => Write(request.ProjectPath, link.RoundId, step, new RoundEvent
+            var decision = new RoundEvent
             {
                 Type = type, At = DateTime.UtcNow, By = Me(request.ProjectPath), Round = link.Round, Attempt = link.Attempt,
                 Run = request.RunId, Note = type == RoundEventType.Rejected ? request.Note : null,
                 // La versione giudicata e, se approvata, dove è entrata: «approvato» vale per quel commit, non per il file.
                 Commit = request.HeadSha, Merge = type == RoundEventType.Approved ? mergeCommit : null,
-            }, $"giro {link.RoundId}: «{step.Label}» {Verb(type)}"));
+            };
+            var message = $"giro {link.RoundId}: «{step.Label}» {Verb(type)}";
+            Locked(request.ProjectPath, () =>
+            {
+                if (step.ApprovalBy == null) { Write(request.ProjectPath, link.RoundId, step, decision, message); return; }
+                // Approvato per ruolo (F5): la decisione va nel file di chi approva, il file del passo resta del responsabile.
+                RoundLedger.AppendDecision(_store.Root(request.ProjectPath), link.RoundId, step.Id, decision);
+                CommitAndPublish(request.ProjectPath, link.RoundId, message + $" ({step.ApprovalBy})");
+            });
             Evaluate(request.ProjectPath, link.RoundId);
         }
 
@@ -324,6 +332,11 @@ namespace MdExplorer.Services.AgentRun
             if (step == null) return false;
 
             var round = RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId);
+            var owner = OwnerOf(request.ProjectPath, wf, round, step);
+            if (step.ApprovalBy != null && !Same(owner.Email, Me(request.ProjectPath)))
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"«{step.Label}» lo fa ripartire chi risponde dell'agente ({owner.Email ?? owner.Problem}): l'agente lavora sul suo computer.",
+                    $"«{step.Label}» is restarted by the agent's owner ({owner.Email ?? owner.Problem}): the agent works on their computer."));
             var view = WorkflowScheduler.View(wf, round, step);
             if (view.Status != StepStatus.Rejected)
                 throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» non è fermo per un rifiuto ({view.Status}): non c'è niente da far ripartire.", $"«{step.Label}» is not stopped by a decline ({view.Status}): there is nothing to restart."));
@@ -637,6 +650,10 @@ namespace MdExplorer.Services.AgentRun
                             var view = views[step.Id];
                             if (view.Status == StepStatus.NotStarted) continue;
                             var owner = OwnerOf(projectPath, wf, round, step);
+                            var approver = step.IsPerson ? owner : ApproverOf(projectPath, wf, round, step);
+                            // Una consegna da approvare si decide sul computer di chi approva (il responsabile, o il ruolo di approval.by).
+                            if (view.Status == StepStatus.Delivered && Same(approver.Email, me))
+                                AdoptDelivery(projectPath, id, step, view.Last);
                             if (!Same(owner.Email, me))
                             {
                                 Withdraw(projectPath, id, step, owner.Email ?? owner.Problem);
@@ -646,8 +663,8 @@ namespace MdExplorer.Services.AgentRun
                                 Execute(projectPath, id, WorkflowScheduler.Ask(wf, round, step), startedBy: null, resumed: true);
                             else if (view.Status == StepStatus.Held && !HasPendingAssignment(projectPath, id, step.Id))
                                 Execute(projectPath, id, WorkflowScheduler.Resume(wf, round, step), startedBy: null, resumed: true);
-                            else if (view.Status == StepStatus.Delivered)
-                                AdoptDelivery(projectPath, id, step, view.Last);
+                            if (step.ApprovalBy != null && !Same(approver.Email, me))
+                                MirrorDecisions(projectPath, round, step);
                         }
                     });
                 }
@@ -727,7 +744,18 @@ namespace MdExplorer.Services.AgentRun
         public string NotYours(AgentMergeRequest request)
         {
             var link = request == null ? null : LinkOfRun(request.ProjectPath, request.RunId);
-            return link == null ? null : NotYours(request.ProjectPath, link.RoundId, link.Step);
+            if (link == null) return null;
+            // Una consegna da decidere è di chi approva (approval.by, F5); far ripartire un rifiuto è di chi risponde dell'agente.
+            if (request.Status != AgentMergeRequest.StatusEnum.Pending) return NotYours(request.ProjectPath, link.RoundId, link.Step);
+            var wf = WorkflowFor(request.ProjectPath, link.RoundId);
+            var step = wf?.Step(link.Step);
+            if (step == null) return null;
+            var approver = ApproverOf(request.ProjectPath, wf, RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId), step);
+            if (Same(approver.Email, Me(request.ProjectPath))) return null;
+            if (approver.Email == null) return approver.Problem;
+            return step.ApprovalBy != null
+                ? MdExplorer.Features.Services.UiText.Say($"«{step.Label}» lo approva {approver.Email} (ruolo {step.ApprovalBy}), dal suo computer.", $"«{step.Label}» is approved by {approver.Email} (role {step.ApprovalBy}), from their own computer.")
+                : MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è di {approver.Email}: lo decide chi ne risponde, dal suo computer.", $"«{step.Label}» belongs to {approver.Email}: the owner decides, from their own computer.");
         }
 
         private string NotYours(string projectPath, string roundId, string stepId)
@@ -829,7 +857,9 @@ namespace MdExplorer.Services.AgentRun
             return new RoundProgress
             {
                 Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
-                Agent = step.Agent, Person = step.Person, Owner = owner.Email, State = state,
+                Agent = step.Agent, Person = step.Person, State = state,
+                // In approvazione il passo aspetta chi approva (approval.by), non chi risponde dell'agente.
+                Owner = state == "approval" && step.ApprovalBy != null ? ApproverOf(projectPath, wf, round, step).Email : owner.Email,
                 CanTake = owner.CanTake.Any(e => Same(e, Me(projectPath))),
                 Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
                 Silent = state is "approval" or "approved" or "done" && Silent(round, step, wrote),
@@ -848,6 +878,43 @@ namespace MdExplorer.Services.AgentRun
         private StepOwner OwnerOf(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step)
             => StepOwners.Of(wf, round, step, agent => Team(projectPath, agent).Select(o => o.Email).ToList(),
                 role => AgentOwnerRule.Members(_ownership.GetActiveOwnership(projectPath), role).Select(o => o.Email).ToList());
+
+        /// <summary>Chi approva le consegne del passo: il responsabile, o chi ha il ruolo di <c>approval.by</c> (F5).</summary>
+        private StepOwner ApproverOf(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step)
+            => StepOwners.Approver(wf, round, step, agent => Team(projectPath, agent).Select(o => o.Email).ToList(),
+                role => AgentOwnerRule.Members(_ownership.GetActiveOwnership(projectPath), role).Select(o => o.Email).ToList());
+
+        /// <summary>
+        /// Sul computer di chi risponde dell'agente, la consegna aperta qui la decide chi approva per ruolo, altrove: quando
+        /// la sua decisione arriva nel registro, la richiesta di qui si chiude con quella (approvata: il merge l'ha fatto lui;
+        /// rifiutata: da qui si fa ripartire). Va chiamato sotto il lock.
+        /// </summary>
+        private void MirrorDecisions(string projectPath, RoundState round, WorkflowStep step)
+        {
+            var decisions = round.EventsOf(step.Id).Where(e => (e.Type == RoundEventType.Approved || e.Type == RoundEventType.Rejected) && !string.IsNullOrEmpty(e.Run)).ToList();
+            if (decisions.Count == 0) return;
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentMergeRequest>();
+            var pending = dal.GetList().ToList().Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending && r.RunId != null
+                                                          && AgentPathComparer.Equals(r.ProjectPath, projectPath)).ToList();
+            foreach (var d in decisions)
+            {
+                var request = pending.FirstOrDefault(r => string.Equals(r.RunId.Replace("-", ""), d.Run.Replace("-", ""), StringComparison.OrdinalIgnoreCase));
+                if (request == null) continue;
+                var approved = d.Type == RoundEventType.Approved;
+                request.Status = approved ? AgentMergeRequest.StatusEnum.Merged : AgentMergeRequest.StatusEnum.Rejected;
+                request.DecidedAt = d.At;
+                request.Note = approved
+                    ? MdExplorer.Features.Services.UiText.Say($"Approvato da {d.By} (ruolo {step.ApprovalBy}), che l'ha unito dal suo computer: arriva con «Scarica gli aggiornamenti».",
+                        $"Approved by {d.By} (role {step.ApprovalBy}), who merged it from their computer: it arrives with «Download updates».")
+                    : d.Note;
+                dal.Save(request);
+                _logger.LogInformation("[Workflow] «{Step}»: decisione di {By} riportata sulla richiesta di qui ({Status})", step.Label, d.By, request.Status);
+            }
+            db.Commit();
+        }
 
         /// <summary>Chi può fare un passo: chi risponde del suo agente, o chi ha il suo ruolo.</summary>
         private IReadOnlyList<AgentOwnerPerson> TeamOf(string projectPath, WorkflowStep step)

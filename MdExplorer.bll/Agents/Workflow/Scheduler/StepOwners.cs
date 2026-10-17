@@ -83,6 +83,49 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         }
 
         /// <summary>
+        /// Chi approva le consegne del passo (workflow v3, F5). Senza <c>approval.by</c>: chi risponde del passo. Con un ruolo:
+        /// chi ce l'ha; con un team, chi ha già deciso su questo passo, poi chi risponde del passo se ha il ruolo, poi il primo
+        /// del team che ha agito sui passi da cui viene. Altrimenti non si indovina: si dice.
+        /// </summary>
+        public static StepOwner Approver(WorkflowDescriptor wf, RoundState round, WorkflowStep step, Func<string, IReadOnlyList<string>> responsiblesOf,
+            Func<string, IReadOnlyList<string>> membersOf)
+        {
+            var owner = Of(wf, round, step, responsiblesOf, membersOf);
+            if (step.ApprovalBy == null) return owner;
+            var team = membersOf(step.ApprovalBy) ?? Array.Empty<string>();
+            if (team.Count == 0)
+                return new StepOwner { Problem = UiText.Say(
+                    $"«{step.Label}»: nessuno ha il ruolo «{step.ApprovalBy}» che lo approva, nel documento delle responsabilità.",
+                    $"«{step.Label}»: no one has the role «{step.ApprovalBy}» that approves it, in the responsibilities document.") };
+            if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
+
+            bool InTeam(string email) => !string.IsNullOrWhiteSpace(email) && team.Contains(email.Trim(), StringComparer.OrdinalIgnoreCase);
+            var decided = round.EventsOf(step.Id).LastOrDefault(e => (e.Type == RoundEventType.Approved || e.Type == RoundEventType.Rejected) && InTeam(e.By));
+            if (decided != null) return new StepOwner { Email = decided.By.Trim().ToLowerInvariant() };
+            if (InTeam(owner.Email)) return new StepOwner { Email = owner.Email };
+            var seen = new HashSet<string>(StringComparer.Ordinal) { step.Id };
+            var queue = new Queue<string>(Sources(wf, step));
+            while (queue.Count > 0)
+            {
+                var id = queue.Dequeue();
+                if (id == null || !seen.Add(id)) continue;
+                var actor = round.EventsOf(id).Select(e => e.By).FirstOrDefault(InTeam);
+                if (actor != null) return new StepOwner { Email = actor.Trim().ToLowerInvariant() };
+                var upstream = wf.Step(id);
+                if (upstream != null) foreach (var s in Sources(wf, upstream)) queue.Enqueue(s);
+            }
+            return new StepOwner
+            {
+                NeedsChoice = true,
+                Problem = UiText.Say(
+                    $"«{step.Label}»: il ruolo «{step.ApprovalBy}» che lo approva è di più persone ({string.Join(", ", team)}) e nessuna ha agito prima nel giro. " +
+                    "Scrivi nel documento delle responsabilità chi approva, o fai venire il passo da uno in cui una di loro ha già agito.",
+                    $"«{step.Label}»: the role «{step.ApprovalBy}» that approves it belongs to more than one person ({string.Join(", ", team)}) and none of them acted earlier in the round. " +
+                    "Write in the responsibilities document who approves, or make the step follow one where one of them has already acted."),
+            };
+        }
+
+        /// <summary>
         /// Il passo di una persona è di chi ha il suo ruolo. Con una persona sola è suo. Con un team: chi è scritto nel registro
         /// (un «passato a», la scelta di chi ha premuto il pulsante che lo fa partire, chi ha già agito), altrimenti la prima
         /// persona del team che ha agito sui passi da cui viene (chi ha fatto la sintesi la legge anche). Se nessuno, si sceglie.

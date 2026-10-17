@@ -701,12 +701,20 @@ namespace MdExplorer.Controllers.A2A
             _session.Commit();
 
             bool InProject(string path) => string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(path, projectPath);
-            var stopped = requests.Where(r => InProject(r.ProjectPath)).ToList();
+            // Una consegna che decide un altro (chi approva per ruolo, F5) non è da fare qui.
+            var stopped = requests.Where(r => InProject(r.ProjectPath) && !DecidedElsewhere(r)).ToList();
             var pendingRuns = stopped.Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending && !string.IsNullOrEmpty(r.RunId))
                 .Select(r => r.RunId).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var choices = withReplies.Where(m => InProject(m.ProjectPath) && HasReplies(m)
                                                  && !(m.RunId != null && pendingRuns.Contains(m.RunId)) && !Answered(m)).Count();
             return AwaitingOwner(projectPath).Count + stopped.Count + federation.Count(r => InProject(r.ProjectPath)) + choices;
+        }
+
+        private bool DecidedElsewhere(AgentMergeRequest r)
+        {
+            if (r.Status != AgentMergeRequest.StatusEnum.Pending) return false;
+            try { return _workflow.NotYours(r) != null; }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] chi decide la richiesta {Id} non si legge", r.Id); return false; }
         }
 
         private static bool HasReplies(AgentMessage m)
