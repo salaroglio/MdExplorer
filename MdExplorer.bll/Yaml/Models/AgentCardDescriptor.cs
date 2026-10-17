@@ -84,11 +84,66 @@ namespace MdExplorer.Features.Yaml.Models
         public string Description { get; set; }
         /// <summary>Il messaggio che l'agente riceve: lo stesso che la sua scheda sa trattare.</summary>
         public string Message { get; set; }
+        /// <summary>
+        /// I valori che il pulsante porta (<c>replies[].values</c>): i segnaposto che l'agente riempie e che diventano variabili
+        /// del giro. A chi vanno lo dice il workflow, non la scheda. null = nessuno dichiarato.
+        /// </summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<string> Values { get; set; }
     }
 
+    /// <summary>
+    /// Un lavoro dell'agente e la sua <b>interfaccia</b>: che cosa riceve, che cosa legge, che cosa produce, quali pulsanti
+    /// può proporre. Non nomina altri agenti né persone: a collegare i lavori è il workflow. Le liste stanno nel blocco
+    /// coperto dalla fiducia (dove un agente scrive è una questione di sicurezza); null = non dichiarate, e l'impronta delle
+    /// schede che non le usano non cambia.
+    /// </summary>
     public class AgentCardSkill
     {
         public string Id { get; set; }
         public string Description { get; set; }
+        /// <summary>Ciò che il lavoro riceve nell'incarico (<c>skills[].inputs</c>).</summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<AgentCardInput> Inputs { get; set; }
+        /// <summary>I documenti fissi del progetto che il lavoro legge (<c>skills[].reads</c>).</summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<AgentCardRead> Reads { get; set; }
+        /// <summary>I documenti che il lavoro consegna (<c>skills[].outputs</c>).</summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<AgentCardOutput> Outputs { get; set; }
+        /// <summary>Gli id dei pulsanti (<c>a2a.replies</c>) che questo lavoro può proporre alla persona.</summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<string> Replies { get; set; }
+    }
+
+    /// <summary>Un ingresso di un lavoro: un nome e che cosa è.</summary>
+    public class AgentCardInput
+    {
+        public string Id { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>Un documento fisso che il lavoro legge; <c>section</c> = il titolo del capitolo, se ne legge uno solo.</summary>
+    public class AgentCardRead
+    {
+        public string Path { get; set; }
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public string Section { get; set; }
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public string Note { get; set; }
+    }
+
+    /// <summary>Un documento che il lavoro consegna; <c>*</c> nel nome = una famiglia (il file vero è quello consegnato).</summary>
+    public class AgentCardOutput
+    {
+        /// <summary>Che cosa fa l'agente sul file. <c>writes</c> se non è detto.</summary>
+        public static readonly string[] Actions = { "writes", "updates", "downloads" };
+
+        public string Id { get; set; }
+        public string Path { get; set; }
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public string Note { get; set; }
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public string Action { get; set; }
     }
 }

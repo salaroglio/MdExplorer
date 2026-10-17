@@ -249,5 +249,96 @@ corpo";
             Assert.AreEqual(1, duplicates.Count);
             Assert.IsTrue(duplicates.Contains("a"));
         }
+
+        // ---- interfacce dei lavori (workflow v3, D8) ----
+
+        private const string Interfaces = @"---
+a2a:
+  name: account-manager
+  skills:
+    - id: cerca-bandi
+      description: Cerca i bandi
+      reads:
+        - { path: gara/bandi.md, note: i bandi del committente }
+        - { path: gara/profilo.md, section: Criteri di valutazione }
+      outputs:
+        - { id: ricerca, path: gara/ricerche/ricerca-*.md, note: con una domanda per ciascuno }
+        - { id: capitolato, path: gara/documenti/*-capitolato.md, action: downloads }
+      replies: [avvia-giro]
+    - id: sintesi-gara
+      inputs:
+        - { id: codice, description: il codice del bando }
+        - { id: schede, description: le schede approvate }
+      outputs:
+        - { id: registro, path: gara/registro.md, action: updates }
+  replies:
+    - id: avvia-giro
+      label: Avvia il giro su {codice}
+      values: [codice, capitolato, ricerca]
+---
+corpo";
+
+        [TestMethod]
+        public void Read_the_interface_of_each_skill()
+        {
+            var result = _parser.GetDescriptor(Interfaces);
+
+            Assert.IsTrue(result.IsValid, result.RegistrationError);
+            var search = result.Card.Skills[0];
+            Assert.AreEqual("Criteri di valutazione", search.Reads[1].Section);
+            Assert.AreEqual("downloads", search.Outputs[1].Action);
+            Assert.IsNull(search.Outputs[0].Action, "senza action vale writes");
+            CollectionAssert.AreEqual(new[] { "avvia-giro" }, search.Replies.ToArray());
+            var synthesis = result.Card.Skills[1];
+            CollectionAssert.AreEqual(new[] { "codice", "schede" }, synthesis.Inputs.Select(i => i.Id).ToArray());
+            CollectionAssert.AreEqual(new[] { "codice", "capitolato", "ricerca" }, result.Card.Replies[0].Values.ToArray());
+        }
+
+        [DataTestMethod]
+        [DataRow("    - id: cerca-bandi\n", "    - id: cerca-bandi\n      ouputs: []\n", "a2a.skills[0].ouputs")]
+        [DataRow("{ id: registro, path: gara/registro.md, action: updates }", "{ id: registro, path: gara/registro.md, verb: updates }", "a2a.skills[1].outputs[0].verb")]
+        [DataRow("  name: account-manager\n", "  name: account-manager\n  owner: anna\n", "a2a.owner")]
+        public void Refuse_an_unknown_key_in_the_a2a_block_with_its_path(string from, string to, string path)
+        {
+            var result = _parser.GetDescriptor(Interfaces.Replace("\r\n", "\n").Replace(from, to));
+
+            Assert.IsFalse(result.IsValid);
+            StringAssert.Contains(result.RegistrationError, path);
+        }
+
+        [DataTestMethod]
+        [DataRow("{ id: registro, path: gara/registro.md, action: updates }", "{ id: registro, action: updates }", "registro")]
+        [DataRow("action: downloads", "action: deletes", "deletes")]
+        [DataRow("replies: [avvia-giro]", "replies: [avvia-altro]", "avvia-altro")]
+        [DataRow("{ id: schede, description: le schede approvate }", "{ id: codice, description: di nuovo }", "codice")]
+        [DataRow("values: [codice, capitolato, ricerca]", "values: [codice, codice]", "codice")]
+        public void Refuse_an_inconsistent_interface(string from, string to, string named)
+        {
+            var result = _parser.GetDescriptor(Interfaces.Replace("\r\n", "\n").Replace(from, to));
+
+            Assert.IsFalse(result.IsValid);
+            StringAssert.Contains(result.RegistrationError, named);
+        }
+
+        [TestMethod]
+        public void Keep_the_trust_fingerprint_of_a_card_without_interfaces()
+        {
+            // Una scheda di prima non dichiara interfacce: la sua impronta non deve cambiare, o tutte le schede già fidate
+            // chiederebbero di nuovo la fiducia senza che nessuno le abbia toccate.
+            var card = _parser.GetDescriptor(@"---
+a2a:
+  name: worker
+  skills:
+    - id: lavora
+      description: Lavora
+  replies:
+    - { id: ok, label: Va bene, description: chiude, message: ok }
+---").Card;
+            var yaml = new YamlDotNet.Serialization.SerializerBuilder()
+                .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.UnderscoredNamingConvention.Instance).Build().Serialize(card);
+
+            foreach (var key in new[] { "inputs", "reads", "outputs", "values" })
+                Assert.IsFalse(yaml.Contains(key + ":"), $"'{key}' non deve comparire nell'impronta di una scheda che non lo dichiara:\n{yaml}");
+        }
     }
 }

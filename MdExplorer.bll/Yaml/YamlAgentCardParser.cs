@@ -69,6 +69,12 @@ namespace MdExplorer.Features.Yaml
                     : NotACitizen();
             }
 
+            if (declaresA2a)
+            {
+                var unknown = UnknownA2aKey(yaml);
+                if (unknown != null) return Invalid(unknown);
+            }
+
             if (wrapper.A2a == null)
             {
                 // chiave a2a: presente ma vuota/null → cittadino dichiarato senza contenuto
@@ -99,6 +105,9 @@ namespace MdExplorer.Features.Yaml
             }
             card.Skills ??= new List<AgentCardSkill>();
             card.AcceptsMessagesFrom ??= new List<string>();
+            error = ValidateInterfaces(card);
+            if (error != null)
+                return Invalid(error);
             return new AgentCardParseResult
             {
                 Card = card,
@@ -153,6 +162,118 @@ namespace MdExplorer.Features.Yaml
                     duplicates.Add(name);
             }
             return duplicates;
+        }
+
+        /// <summary>
+        /// Tolleranza zero sul blocco <c>a2a:</c>: una chiave che MDE non conosce è un errore con il suo percorso, mai un
+        /// silenzio (un refuso in <c>outputs</c> farebbe sparire dove l'agente scrive). Il blocco si rilegge come dati grezzi
+        /// e si confronta, livello per livello, con le proprietà del modello. Il resto del frontmatter (description, tools,
+        /// mde…) non è affare della scheda e resta libero.
+        /// </summary>
+        private static string UnknownA2aKey(string yaml)
+        {
+            Dictionary<object, object> root;
+            try { root = new DeserializerBuilder().Build().Deserialize<Dictionary<object, object>>(yaml); }
+            catch (Exception) { return null; }   // il frontmatter malformato lo segnala già la lettura principale
+            if (root == null || !root.TryGetValue("a2a", out var a2a) || a2a == null) return null;
+            return UnknownKey(a2a, typeof(AgentCardDescriptor), "a2a");
+        }
+
+        private static string UnknownKey(object node, Type model, string path)
+        {
+            if (node is not Dictionary<object, object> map) return null;   // i tipi li controlla la lettura principale
+            var props = model.GetProperties().ToDictionary(p => UnderscoredNamingConvention.Instance.Apply(p.Name), p => p, StringComparer.Ordinal);
+            foreach (var kv in map)
+            {
+                var key = kv.Key?.ToString();
+                if (key == null || !props.TryGetValue(key, out var prop))
+                    return MdExplorer.Features.Services.UiText.Say(
+                        $"Chiave sconosciuta '{path}.{key}': le chiavi ammesse sono {string.Join(", ", props.Keys)}.",
+                        $"Unknown key '{path}.{key}': the allowed keys are {string.Join(", ", props.Keys)}.");
+                var type = prop.PropertyType;
+                var item = type.IsGenericType && type.GetGenericArguments().Length == 1 ? type.GetGenericArguments()[0] : null;
+                if (item != null && item != typeof(string) && kv.Value is List<object> list)
+                {
+                    for (var i = 0; i < list.Count; i++)
+                    {
+                        var inner = UnknownKey(list[i], item, $"{path}.{key}[{i}]");
+                        if (inner != null) return inner;
+                    }
+                }
+                else if (type.IsClass && type != typeof(string) && item == null)
+                {
+                    var inner = UnknownKey(kv.Value, type, $"{path}.{key}");
+                    if (inner != null) return inner;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Le interfacce dei lavori: ogni nome una volta sola, i percorsi delle uscite e dei documenti letti presenti, il
+        /// verbo di un'uscita tra quelli ammessi, i pulsanti di un lavoro dichiarati nella scheda.
+        /// </summary>
+        private static string ValidateInterfaces(AgentCardDescriptor card)
+        {
+            static string Say(string it, string en) => MdExplorer.Features.Services.UiText.Say(it, en);
+            var replies = new HashSet<string>((card.Replies ?? new List<AgentCardReply>()).Select(r => r?.Id).Where(id => id != null), StringComparer.Ordinal);
+
+            var skillIds = new HashSet<string>(StringComparer.Ordinal);
+            for (var s = 0; s < card.Skills.Count; s++)
+            {
+                var skill = card.Skills[s];
+                var at = $"a2a.skills[{s}]";
+                if (string.IsNullOrWhiteSpace(skill?.Id))
+                    return Say($"'{at}' non ha 'id'.", $"'{at}' has no 'id'.");
+                if (!skillIds.Add(skill.Id))
+                    return Say($"La skill '{skill.Id}' è dichiarata due volte.", $"The skill '{skill.Id}' is declared twice.");
+
+                var inputIds = new HashSet<string>(StringComparer.Ordinal);
+                for (var i = 0; i < (skill.Inputs?.Count ?? 0); i++)
+                {
+                    var id = skill.Inputs[i]?.Id;
+                    if (string.IsNullOrWhiteSpace(id))
+                        return Say($"'{at}.inputs[{i}]' non ha 'id'.", $"'{at}.inputs[{i}]' has no 'id'.");
+                    if (!inputIds.Add(id))
+                        return Say($"L'ingresso '{id}' di '{skill.Id}' è dichiarato due volte.", $"The input '{id}' of '{skill.Id}' is declared twice.");
+                }
+
+                for (var i = 0; i < (skill.Reads?.Count ?? 0); i++)
+                    if (string.IsNullOrWhiteSpace(skill.Reads[i]?.Path))
+                        return Say($"'{at}.reads[{i}]' non ha 'path'.", $"'{at}.reads[{i}]' has no 'path'.");
+
+                var outputIds = new HashSet<string>(StringComparer.Ordinal);
+                for (var i = 0; i < (skill.Outputs?.Count ?? 0); i++)
+                {
+                    var o = skill.Outputs[i];
+                    if (string.IsNullOrWhiteSpace(o?.Id))
+                        return Say($"'{at}.outputs[{i}]' non ha 'id'.", $"'{at}.outputs[{i}]' has no 'id'.");
+                    if (!outputIds.Add(o.Id))
+                        return Say($"L'uscita '{o.Id}' di '{skill.Id}' è dichiarata due volte.", $"The output '{o.Id}' of '{skill.Id}' is declared twice.");
+                    if (string.IsNullOrWhiteSpace(o.Path))
+                        return Say($"L'uscita '{o.Id}' di '{skill.Id}' non ha 'path': dove scrive l'agente va detto.",
+                                   $"The output '{o.Id}' of '{skill.Id}' has no 'path': where the agent writes must be stated.");
+                    if (o.Action != null && !AgentCardOutput.Actions.Contains(o.Action))
+                        return Say($"L'uscita '{o.Id}' di '{skill.Id}' ha 'action: {o.Action}': i valori ammessi sono {string.Join(", ", AgentCardOutput.Actions)}.",
+                                   $"The output '{o.Id}' of '{skill.Id}' has 'action: {o.Action}': the allowed values are {string.Join(", ", AgentCardOutput.Actions)}.");
+                }
+
+                foreach (var reply in skill.Replies ?? new List<string>())
+                    if (!replies.Contains(reply))
+                        return Say($"La skill '{skill.Id}' propone il pulsante '{reply}', che non è tra le 'replies' della scheda.",
+                                   $"The skill '{skill.Id}' proposes the button '{reply}', which is not among the card's 'replies'.");
+            }
+
+            foreach (var reply in card.Replies ?? new List<AgentCardReply>())
+            {
+                var values = reply?.Values ?? new List<string>();
+                if (values.Any(string.IsNullOrWhiteSpace))
+                    return Say($"Il pulsante '{reply.Id}' ha un valore senza nome.", $"The button '{reply.Id}' has a value with no name.");
+                var twice = values.GroupBy(v => v, StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1);
+                if (twice != null)
+                    return Say($"Il pulsante '{reply.Id}' porta due volte il valore '{twice.Key}'.", $"The button '{reply.Id}' carries the value '{twice.Key}' twice.");
+            }
+            return null;
         }
 
         private static AgentCardParseResult NotACitizen(AgentRuntimeDescriptor runtime = null)
