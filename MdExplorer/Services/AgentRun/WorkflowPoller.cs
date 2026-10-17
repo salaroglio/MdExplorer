@@ -47,6 +47,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly ConcurrentDictionary<string, string> _seen = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _gates = new(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, byte> _rungAgain = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, DateTime> _nextStallCheck = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan StallCheckInterval = TimeSpan.FromMinutes(10);
 
         public WorkflowPoller(IServiceScopeFactory scopeFactory, IRoundStore store, IAgentWorkflowExecutor executor,
             IProjectMetadataService metadata, IConfiguration configuration, ILogger<WorkflowPoller> logger)
@@ -71,9 +73,23 @@ namespace MdExplorer.Services.AgentRun
                     if (stoppingToken.IsCancellationRequested) break;
                     try { await PollAsync(path); }
                     catch (Exception ex) { _logger.LogError(ex, "[Giri] il giro di controllo di {Project} è fallito", path); }
+                    try { CheckStalledIfDue(path, DateTime.UtcNow); }
+                    catch (Exception ex) { _logger.LogError(ex, "[Giri] il controllo dei passi fermi di {Project} è fallito", path); }
                 }
                 try { await Task.Delay(_interval, stoppingToken); } catch (OperationCanceledException) { return; }
             }
+        }
+
+        /// <summary>
+        /// I passi passati a un altro computer e fermi da 24 ore (avviso di lavoro non processato, 17/10/2026): il tempo
+        /// passa anche se il registro non cambia, quindi si guarda ogni 10 minuti, non solo quando arriva una novità.
+        /// </summary>
+        private void CheckStalledIfDue(string projectPath, DateTime now)
+        {
+            if (!_executor.IsActive(projectPath) || !_store.IsAvailable(projectPath)) return;
+            if (_nextStallCheck.TryGetValue(projectPath, out var next) && now < next) return;
+            _nextStallCheck[projectPath] = now + StallCheckInterval;
+            _executor.CheckStalledSteps(projectPath, now);
         }
 
         public void Ring(string projectPath)

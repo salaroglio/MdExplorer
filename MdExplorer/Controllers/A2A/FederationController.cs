@@ -5,6 +5,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
 using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Federation;
@@ -342,9 +343,12 @@ namespace MdExplorer.Controllers.A2A
             return Ok(new { approved = true, conversationId = convId.ToString(), targetAgent });
         }
 
-        /// <summary>L'umano RIFIUTA: nessun run parte, la richiesta è chiusa.</summary>
+        /// <summary>
+        /// L'umano RIFIUTA: nessun run parte, la richiesta è chiusa, e l'origine lo sa (esito <c>declined</c>, 17/10/2026):
+        /// senza, dopo 24 ore avviserebbe la sua persona che il lavoro non è stato processato.
+        /// </summary>
         [HttpPost("requests/{id}/reject")]
-        public IActionResult Reject(Guid id)
+        public async System.Threading.Tasks.Task<IActionResult> Reject(Guid id)
         {
             var dal = _session.GetDal<FederationRequest>();
             _session.BeginTransaction();
@@ -366,7 +370,23 @@ namespace MdExplorer.Controllers.A2A
             _session.Commit();
 
             _logger.LogInformation("[Federation] richiesta {Id} RIFIUTATA dall'umano", id);
-            return Ok(new { rejected = true });
+
+            var told = false;
+            if (req.RequestId.HasValue && !string.IsNullOrWhiteSpace(req.FromOwner))
+            {
+                var sent = await _federationSender.SendFederatedResultAsync(req.ProjectPath, FederationRoom.ComputeUserId(req.FromOwner),
+                    new FederatedResultPayload
+                    {
+                        Kind = FederationKind.InterventionResult,
+                        RequestId = req.RequestId.Value.ToString(),
+                        FederationId = req.FederationId.ToString(),
+                        Verdict = FederationVerdict.Declined,
+                    });
+                told = sent != RelayDelivery.NotSent;
+                if (!told)
+                    _logger.LogWarning("[Federation] rifiuto della richiesta {Id} non riportato a {Owner}: relay non raggiungibile.", id, req.FromOwner);
+            }
+            return Ok(new { rejected = true, originTold = told });
         }
     }
 

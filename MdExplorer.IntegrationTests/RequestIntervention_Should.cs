@@ -90,7 +90,7 @@ mde_type: ownership
             Assert.AreEqual(System.Net.HttpStatusCode.OK, resp.StatusCode, body);
             using var json = System.Text.Json.JsonDocument.Parse(body);
             Assert.AreEqual("queued", json.RootElement.GetProperty("delivery").GetString());
-            StringAssert.Contains(json.RootElement.GetProperty("note").GetString(), "7 days");
+            StringAssert.Contains(json.RootElement.GetProperty("note").GetString(), "does not expire");
 
             ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Delivered;
             var again = await (await PostIntervention(ctx, token, "WSAA-TOT", "E i test?")).Content.ReadAsStringAsync();

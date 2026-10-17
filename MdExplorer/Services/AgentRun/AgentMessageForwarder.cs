@@ -31,7 +31,7 @@ namespace MdExplorer.Services.AgentRun
     {
         /// <summary>
         /// What the road did with the message: delivered to the colleague's computer, queued on the relay because that
-        /// computer is off (it arrives when it starts, within 7 days), or not sent.
+        /// computer is off (it arrives when it starts; it never expires), or not sent.
         /// </summary>
         Task<MdExplorer.Services.Federation.RelayDelivery> ForwardAsync(AgentMessage message, AgentOwnerVerdict owner, CancellationToken ct = default);
     }

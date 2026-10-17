@@ -78,7 +78,7 @@ namespace MdExplorer.Services.Federation
 
     /// <summary>
     /// Che cosa ha fatto il relay di una busta (16/10/2026). Prima era un sì/no e «accodata» valeva come «consegnata»:
-    /// ma una busta accodata aspetta che l'altro computer si accenda, e dopo 7 giorni il relay la butta.
+    /// ma una busta accodata aspetta che l'altro computer si accenda (non scade: 17/10/2026).
     /// </summary>
     public enum RelayDelivery
     {
@@ -86,7 +86,7 @@ namespace MdExplorer.Services.Federation
         NotSent,
         /// <summary>Consegnata adesso alla città di destinazione, che è accesa.</summary>
         Delivered,
-        /// <summary>La città di destinazione è spenta: la busta aspetta sul relay (fino a 7 giorni) e arriva quando si accende.</summary>
+        /// <summary>La città di destinazione è spenta: la busta aspetta sul relay, senza scadenza, e arriva quando si accende.</summary>
         Queued,
     }
 
@@ -590,7 +590,7 @@ namespace MdExplorer.Services.Federation
             var envelope = FederationCrypto.Encrypt(secret, city.RoomId, payloadJson);
             try
             {
-                // Il relay dice se l'ha consegnata (città accesa) o accodata (città spenta, fino a 7 giorni).
+                // Il relay dice se l'ha consegnata (città accesa) o accodata (città spenta, senza scadenza).
                 var outcome = await conn.SendAsync(targetOwnerId, envelope);
                 if (outcome == RelayDelivery.NotSent)
                     _logger.LogWarning("[Federation] send federato per '{Project}': il relay non ha confermato (perso/ok:false/timeout).", projectPath);

@@ -645,7 +645,7 @@ namespace MdExplorer.Controllers.A2A
         /// <summary>Quello che l'agente deve sapere, e dire alla persona, quando la busta aspetta sul relay.</summary>
         private static string DeliveryNote(RelayDelivery d, string owner) => d == RelayDelivery.Queued
             ? $"The computer of {owner} is off right now: the request waits on the relay and arrives when MdExplorer starts there. " +
-              "If it does not start within 7 days the relay drops it. Tell the person; do not say it has been received."
+              "It does not expire. Tell the person; do not say it has been received."
             : null;
 
         private RunTokenClaims ResolveClaims()

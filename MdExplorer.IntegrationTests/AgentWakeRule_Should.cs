@@ -139,7 +139,7 @@ namespace MdExplorer.IntegrationTests
             var notice = ctx.Messages().Single(m => m.FromAgent == "suo" && m.ToAgent == ConversationHopGuard.UserRecipient);
             StringAssert.Contains(notice.Body, "marco@pentagroup.test");
             StringAssert.Contains(notice.Body, "spento");
-            StringAssert.Contains(notice.Body, "7 giorni");
+            StringAssert.Contains(notice.Body, "entro 24 ore");
             Assert.AreEqual(0, ctx.Runner.Calls, "nessun ripiego su questo computer");
         }
 

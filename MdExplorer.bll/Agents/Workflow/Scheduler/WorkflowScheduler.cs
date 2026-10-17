@@ -236,6 +236,9 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 switch (t?.Kind)
                 {
                     case WorkflowTriggerKind.Reply:
+                        // Il SUO pulsante è stato premuto: il passo aspetta solo il computer del responsabile, che lo
+                        // prende quando si accende (17/10/2026: prima il giro risultava fermo, e archiviabile).
+                        if (TriggerSatisfied(wf, round, views, step)) return true;
                         if (round.EventsOf(t.FromStep).Any(e => e.Type == RoundEventType.Replied)) return false;
                         var source = wf.Steps.FirstOrDefault(s => s.Id == t.FromStep);
                         return source != null && CanStillFinish(wf, round, views, source, visiting);

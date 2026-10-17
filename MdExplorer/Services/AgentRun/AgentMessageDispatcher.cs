@@ -302,7 +302,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     MarkProcessed(messageId);
                     // Accodato: il computer del collega è spento. Lo si dice alla persona, che altrimenti lo crederebbe
-                    // già arrivato; e dopo 7 giorni il relay lo butta.
+                    // già arrivato. Se l'esito non torna entro 24 ore, OverdueWorkWatcher la avvisa di nuovo.
                     if (road == MdExplorer.Services.Federation.RelayDelivery.Queued)
                         TellQueuedForOwner(snapshot, owner);
                     return;
@@ -506,7 +506,7 @@ namespace MdExplorer.Services.AgentRun
                     // auto-risolvono, un retry sarebbe inutile.
                     if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null && reason != null)
                     {
-                        await ReportNotReadyToOriginAsync(snapshot.ProjectPath, rc, reason);
+                        await ReportToOriginAsync(snapshot.ProjectPath, rc, FederationVerdict.NotReady, reason);
                         MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"preparazione worktree fallita ({reason}): esito not-ready riportato all'origine.", $"worktree preparation failed ({reason}): not-ready outcome reported to the origin."));
                     }
                     else
@@ -569,7 +569,15 @@ namespace MdExplorer.Services.AgentRun
 
                 LogLlmExecution(snapshot, entry, startedAt, outcome);
 
-                if (outcome.Success) MarkProcessed(messageId);
+                if (outcome.Success)
+                {
+                    MarkProcessed(messageId);
+                    // Lavoro federato: l'origine aspetta l'esito, e senza dopo 24 ore avviserebbe la sua persona che
+                    // il lavoro non è stato processato. Il turno è finito: lo si dice (17/10/2026).
+                    var done = ResolveRunContext(snapshot);
+                    if (!string.IsNullOrEmpty(done.RemoteOwner) && done.RequestId != null)
+                        await ReportToOriginAsync(snapshot.ProjectPath, done, FederationVerdict.Completed, null);
+                }
                 else
                 {
                     RetryOrFail(messageId, outcome.Error);
@@ -586,8 +594,8 @@ namespace MdExplorer.Services.AgentRun
                         {
                             try
                             {
-                                await ReportNotReadyToOriginAsync(
-                                    snapshot.ProjectPath, rc, FederationReason.AgentTurnIncomplete);
+                                await ReportToOriginAsync(
+                                    snapshot.ProjectPath, rc, FederationVerdict.NotReady, FederationReason.AgentTurnIncomplete);
                             }
                             catch (Exception ex)
                             {
@@ -833,11 +841,11 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>
-        /// Fase 7d.5 — riporta un esito <c>not-ready</c> all'origine quando il prepare del worktree
-        /// di un run federato fallisce (conflitto/sync): l'agente non parte, quindi lo comunica il
-        /// dispatcher al suo posto, così il cerchio (7a/7b) si chiude anche sul fallimento.
+        /// Riporta all'origine l'esito di un run federato che il dispatcher conosce da solo: <c>not-ready</c> quando il
+        /// prepare del worktree fallisce o il turno non arriva in fondo (Fase 7d.5), <c>completed</c> quando il turno
+        /// finisce (17/10/2026). Così l'origine non resta in attesa per sempre.
         /// </summary>
-        private async Task ReportNotReadyToOriginAsync(string projectPath, RunWorktreeContext rc, string reason)
+        private async Task ReportToOriginAsync(string projectPath, RunWorktreeContext rc, string verdict, string reason)
         {
             try
             {
@@ -847,18 +855,18 @@ namespace MdExplorer.Services.AgentRun
                     Kind = MdExplorer.Services.Federation.FederationKind.InterventionResult,
                     RequestId = rc.RequestId?.ToString(),
                     FederationId = rc.FederationId?.ToString(),
-                    Verdict = FederationVerdict.NotReady,
+                    Verdict = verdict,
                     Reason = reason,
                 };
                 var ok = await _federationSender.SendFederatedResultAsync(projectPath, targetOwner, payload);
                 if (ok == MdExplorer.Services.Federation.RelayDelivery.NotSent)
-                    _logger.LogWarning("[Dispatcher] esito not-ready per req {Req} non spedito (relay non raggiungibile?).", rc.RequestId);
+                    _logger.LogWarning("[Dispatcher] esito {Verdict} per req {Req} non spedito (relay non raggiungibile?).", verdict, rc.RequestId);
                 else if (ok == MdExplorer.Services.Federation.RelayDelivery.Queued)
-                    _logger.LogInformation("[Dispatcher] esito not-ready per req {Req} accodato: il computer d'origine è spento.", rc.RequestId);
+                    _logger.LogInformation("[Dispatcher] esito {Verdict} per req {Req} accodato: il computer d'origine è spento.", verdict, rc.RequestId);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Dispatcher] invio esito not-ready all'origine fallito.");
+                _logger.LogWarning(ex, "[Dispatcher] invio esito {Verdict} all'origine fallito.", verdict);
             }
         }
 
@@ -948,7 +956,7 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>
         /// Il messaggio è partito ma il computer di chi risponde dell'agente è spento: aspetta sul relay. La persona lo sa
-        /// da qui, con il limite dei 7 giorni, invece di credere che l'agente del collega ci stia già lavorando.
+        /// da qui, invece di credere che l'agente del collega ci stia già lavorando. La busta sul relay non scade.
         /// </summary>
         private void TellQueuedForOwner(AgentMessage snapshot, AgentOwnerVerdict owner)
         {
@@ -961,9 +969,9 @@ namespace MdExplorer.Services.AgentRun
                     ToAgent = ConversationHopGuard.UserRecipient,
                     Body = MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
                         $"[INFO] Il messaggio per «{snapshot.ToAgent}» è partito, ma il computer di {owner.OwnerEmail} adesso è spento: "
-                        + "aspetta sul relay e arriva quando riapre MdExplorer. Se non lo riapre entro 7 giorni il relay lo butta.",
+                        + "aspetta sul relay e arriva quando riapre MdExplorer. Se entro 24 ore il lavoro non torna, te lo dico.",
                         $"[INFO] The message for «{snapshot.ToAgent}» has left, but the computer of {owner.OwnerEmail} is off right now: "
-                        + "it waits on the relay and arrives when MdExplorer starts there again. If it does not within 7 days, the relay drops it."),
+                        + "it waits on the relay and arrives when MdExplorer starts there again. If the work does not come back within 24 hours, I will tell you."),
                 });
             }
             catch (Exception ex)

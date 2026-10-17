@@ -184,6 +184,10 @@ namespace MdExplorer
             // Il "si" del gate non fonde piu': apre una richiesta che decide l'umano.
             services.AddSingleton<Services.AgentRun.IAgentMergeRequestService, Services.AgentRun.AgentMergeRequestService>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
+            // Avviso di lavoro non processato (17/10/2026): richieste a un altro computer senza esito da 24 ore.
+            services.AddSingleton<Services.AgentRun.OverdueWorkWatcher>();
+            services.AddSingleton<Services.AgentRun.IOverdueWorkWatcher>(sp => sp.GetRequiredService<Services.AgentRun.OverdueWorkWatcher>());
+            services.AddHostedService(sp => sp.GetRequiredService<Services.AgentRun.OverdueWorkWatcher>());
 
             // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo
             // per-agente forzato server-side. Braccio verso Fuseki (il controller fa l'enforcement).

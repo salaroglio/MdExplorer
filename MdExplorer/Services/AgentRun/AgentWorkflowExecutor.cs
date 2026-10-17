@@ -30,6 +30,12 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Il progetto ha un workflow configurato (anche se con errori: allora non si fa niente, e lo si dice).</summary>
         bool IsActive(string projectPath);
 
+        /// <summary>
+        /// I passi che questo computer ha passato a un altro e che da 24 ore non danno notizie: un avviso ciascuno, una volta
+        /// (17/10/2026, avviso di lavoro non processato). Quanti ne ha avvisati.
+        /// </summary>
+        int CheckStalledSteps(string projectPath, DateTime now);
+
         /// <summary>La persona lancia un agente a mano: se il workflow ha un passo di lancio per lui, si apre un giro.</summary>
         string OnLaunched(string projectPath, string agentName, string runId);
 
@@ -184,6 +190,7 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>La lingua dell'interfaccia: incarichi e avvisi in posta la seguono (16/10/2026).</summary>
         private readonly MdExplorer.Features.Services.IUiLanguage _language;
+        private readonly IOverdueWorkWatcher _overdue;
 
         public AgentWorkflowExecutor(
             IServiceScopeFactory scopeFactory,
@@ -196,9 +203,11 @@ namespace MdExplorer.Services.AgentRun
             IWorkflowBell bell,
             Microsoft.AspNetCore.SignalR.IHubContext<MdExplorer.Hubs.MonitorMDHub> hub,
             ILogger<AgentWorkflowExecutor> logger,
-            MdExplorer.Features.Services.IUiLanguage language)
+            MdExplorer.Features.Services.IUiLanguage language,
+            IOverdueWorkWatcher overdue)
         {
             _language = language;
+            _overdue = overdue;
             _bell = bell;
             _hub = hub;
             _ownership = ownership;
@@ -986,6 +995,49 @@ namespace MdExplorer.Services.AgentRun
             }
             jsonPath = WorkflowDocument.JsonPathOf(projectPath, doc);
             return wf;
+        }
+
+        public int CheckStalledSteps(string projectPath, DateTime now)
+        {
+            var wf = Workflow(projectPath, out _);
+            if (wf == null || !_store.IsAvailable(projectPath)) return 0;
+            var me = Me(projectPath);
+            if (string.IsNullOrWhiteSpace(me)) return 0;
+            var told = 0;
+            foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
+            {
+                try
+                {
+                    var rwf = WorkflowFor(projectPath, id);
+                    if (rwf == null) continue;
+                    var round = RoundLedger.Load(_store.Root(projectPath), id);
+                    var owners = rwf.Steps.ToDictionary(s => s.Id, s => OwnerOf(projectPath, rwf, round, s).Email);
+                    foreach (var stalled in StalledSteps.Find(rwf, round, s => owners[s.Id], me, now))
+                    {
+                        var label = stalled.Step.Label;
+                        var who = stalled.OwnerEmail;
+                        var since = stalled.Since;
+                        var key = $"round:{id}:{stalled.Step.Id}:{stalled.Round}:{stalled.Attempt}";
+                        if (_overdue.NotifyOnce(projectPath, key, now, () => TellUser(projectPath, stalled.Step.Agent,
+                                MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                                    $"[ATTENZIONE] Giro {id}: «{label}» tocca a {who} e non dà notizie dal {since:dd/MM/yyyy HH:mm} (UTC), da più di 24 ore. " +
+                                    $"MdExplorer non sa perché: computer spento, incarico mai avviato o agente fermo. Verifica con {who}. " +
+                                    "Quando hai chiarito, archivia questo messaggio.",
+                                    $"[ATTENTION] Round {id}: «{label}» is up to {who} and has given no news since {since:yyyy-MM-dd HH:mm} (UTC), more than 24 hours. " +
+                                    $"MdExplorer does not know why: computer off, assignment never started or agent stuck. Check with {who}. " +
+                                    "When it is clear, archive this message."))))
+                        {
+                            told++;
+                            _logger.LogWarning("[Workflow] giro {Round}: «{Step}» di {Who} fermo dal {Since:u}: avvisata la persona.", id, label, who, since);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Workflow] giro {Round}: il controllo dei passi fermi è fallito", id);
+                }
+            }
+            return told;
         }
 
         private string Me(string projectPath)

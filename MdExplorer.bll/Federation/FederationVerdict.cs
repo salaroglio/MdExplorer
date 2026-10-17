@@ -16,6 +16,18 @@ namespace MdExplorer.Features.Federation
 
         /// <summary>Non pronto (precondizione mancante, conflitto) → 7b: erosione leggera + fatto sul COSA.</summary>
         public const string NotReady = "not-ready";
+
+        /// <summary>
+        /// Il turno dell'agente è finito (17/10/2026): lo manda il dispatcher da solo. Chiude l'attesa dell'origine ma
+        /// NON tocca la memoria: un turno finito non dice se l'agente è riuscito (quello è <see cref="Success"/>).
+        /// </summary>
+        public const string Completed = "completed";
+
+        /// <summary>
+        /// La persona ha rifiutato la richiesta sul gate (17/10/2026). Chiude l'attesa, lo dice alla persona d'origine,
+        /// NON tocca la memoria: un rifiuto della persona non dice che l'agente non è competente (<see cref="Rejected"/>).
+        /// </summary>
+        public const string Declined = "declined";
     }
 
     /// <summary>

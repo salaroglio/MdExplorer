@@ -161,6 +161,30 @@ namespace MdExplorer.Services.Federation
                 db.Commit();
             }
 
+            // Gli esiti che il computer remoto manda da solo (17/10/2026) chiudono l'attesa e basta: niente memoria (non
+            // dicono se l'agente è riuscito né se è competente) e niente risveglio dell'agente d'origine (niente ping-pong).
+            if (payload.Verdict == FederationVerdict.Completed)
+            {
+                _logger.LogInformation("[Federation] '{Agent}' ha finito il turno per RequestId {Req}: attesa chiusa.", dispatch.TargetAgent, requestId);
+                return;
+            }
+            if (payload.Verdict == FederationVerdict.Declined)
+            {
+                var who = RemoteEmail(dispatch) ?? dispatch.TargetAgent;
+                _mailbox.Enqueue(new EnqueueRequest
+                {
+                    ProjectPath = dispatch.ProjectPath,
+                    FromAgent = dispatch.OriginAgent,
+                    ToAgent = ConversationHopGuard.UserRecipient,
+                    Body = MdExplorer.Features.Services.UiText.Say(
+                        $"[INFO] {who} ha rifiutato la richiesta di «{dispatch.OriginAgent}» per «{dispatch.TargetAgent}»: quel lavoro non verrà fatto. Se serve, parlane con {who}.",
+                        $"[INFO] {who} declined the request from «{dispatch.OriginAgent}» to «{dispatch.TargetAgent}»: that work will not be done. If needed, talk to {who}."),
+                    ContextId = dispatch.ConversationId.ToString(),
+                });
+                _logger.LogInformation("[Federation] richiesta {Req} rifiutata da {Who}: avvisata la persona.", requestId, who);
+                return;
+            }
+
             var verdict = string.IsNullOrWhiteSpace(payload.Verdict) ? MdExplorer.Features.Services.UiText.Say("(nessun verdetto)", "(no verdict)") : payload.Verdict.Trim();
             var reason = string.IsNullOrWhiteSpace(payload.Reason) ? null : payload.Reason.Trim();
             var body = reason == null
@@ -202,6 +226,17 @@ namespace MdExplorer.Services.Federation
             _logger.LogInformation(
                 "[Federation] esito '{Verdict}' per RequestId {Req} → risvegliato '{Agent}' nella conversazione {Conv}.",
                 verdict, requestId, dispatch.OriginAgent, dispatch.ConversationId);
+        }
+
+        /// <summary>L'email di chi risponde dell'agente remoto: la conversazione d'origine la ricorda (il dispatch ha l'hash).</summary>
+        private string RemoteEmail(FederationDispatch dispatch)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var email = db.GetDal<AgentConversation>().GetList().FirstOrDefault(c => c.Id == dispatch.ConversationId)?.RemoteOwner;
+            db.Commit();
+            return string.IsNullOrWhiteSpace(email) ? null : email;
         }
 
         /// <summary>

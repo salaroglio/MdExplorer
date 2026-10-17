@@ -6,7 +6,7 @@ namespace MdExplorer.IntegrationTests
 {
     /// <summary>
     /// La risposta del relay a <c>send</c> (16/10/2026): consegnata, accodata o non partita. Prima ogni «ok» valeva come
-    /// consegna, anche una busta che aspettava un computer spento (e dopo 7 giorni il relay la butta).
+    /// consegna, anche una busta che aspettava un computer spento (che non scade).
     /// </summary>
     [TestClass]
     public class RelayAck_Should
