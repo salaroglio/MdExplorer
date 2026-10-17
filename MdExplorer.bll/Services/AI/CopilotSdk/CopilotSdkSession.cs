@@ -183,6 +183,12 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// listed only Copilot's built-in skills (customize-cloud-agent, github-pr-media). Named
         /// explicitly rather than turning on EnableConfigDiscovery, which would also pick up the
         /// project's MCP servers, hooks and agents.
+        /// <para>
+        /// Also <c>.claude/skills</c>: it is the one folder every engine reads (probed 17/10/2026 with the real CLIs:
+        /// Claude Code only <c>.claude/skills</c>, Copilot CLI <c>.github/skills</c> and <c>.claude/skills</c>, opencode
+        /// <c>.opencode/skills</c> and <c>.claude/skills</c>), so a project or a template writes its skills there once.
+        /// The SDK session must see them as the CLI does.
+        /// </para>
         /// </summary>
         internal static List<string> SkillDirectoriesFor(string workingDirectory)
         {
@@ -190,8 +196,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             {
                 return new List<string>();
             }
-            var skills = Path.Combine(workingDirectory, ".github", "skills");
-            return Directory.Exists(skills) ? new List<string> { skills } : new List<string>();
+            return new[] { Path.Combine(workingDirectory, ".github", "skills"), Path.Combine(workingDirectory, ".claude", "skills") }
+                .Where(Directory.Exists).ToList();
         }
 
         /// <summary>

@@ -37,6 +37,19 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Also_read_claude_skills_the_folder_every_engine_reads()
+        {
+            // .claude/skills la leggono Claude, la CLI di Copilot e opencode (prova del 17/10): la sessione SDK pure, così
+            // una skill del progetto o di un template si scrive una volta sola.
+            var github = Path.Combine(_project, ".github", "skills");
+            var claude = Path.Combine(_project, ".claude", "skills");
+            Directory.CreateDirectory(claude);
+            CollectionAssert.AreEqual(new[] { claude }, CopilotSdkSession.SkillDirectoriesFor(_project).ToArray());
+            Directory.CreateDirectory(github);
+            CollectionAssert.AreEqual(new[] { github, claude }, CopilotSdkSession.SkillDirectoriesFor(_project).ToArray());
+        }
+
+        [TestMethod]
         public void Name_no_folder_when_the_project_has_no_skills()
         {
             Assert.AreEqual(0, CopilotSdkSession.SkillDirectoriesFor(_project).Count);
