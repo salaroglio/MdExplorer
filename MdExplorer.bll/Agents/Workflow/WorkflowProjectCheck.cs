@@ -7,82 +7,77 @@ using System.Text.RegularExpressions;
 namespace MdExplorer.Features.Agents.Workflow
 {
     /// <summary>
-    /// La seconda metà della verifica: il workflow confrontato con il progetto. Ciò che il workflow nomina deve esistere
-    /// (agenti, risposte dichiarate nelle schede, cartelle degli artefatti), e i valori che un pulsante porta devono essere
-    /// variabili del giro, altrimenti non arriverebbero ai passi successivi. Le schede non instradano più (W14): chi incarica
-    /// chi lo dice il workflow, quindi non si confrontano i loro campi di instradamento.
+    /// L'ultima parte della verifica: il workflow, già unito alle schede (<see cref="WorkflowBinder"/>), confrontato con il
+    /// progetto. Le cartelle delle uscite esistono, i documenti letti esistono con il capitolo che si nomina, i ruoli delle
+    /// persone e di chi approva sono righe di <c>responsabilita.md</c>.
     /// </summary>
     public static class WorkflowProjectCheck
     {
-        private static readonly Regex Placeholder = new(@"\{([A-Za-z0-9_\-]+)\}", RegexOptions.Compiled);
+        private static readonly Regex Heading = new(@"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
 
-        /// <param name="agents">Gli agenti del progetto, dal registro.</param>
         /// <param name="folderExists">Se una cartella esiste, dato il percorso dalla radice del progetto con '/'.</param>
+        /// <param name="readFile">Il testo di un file dalla radice del progetto con '/'; null se non c'è.</param>
+        /// <param name="roles">I ruoli di <c>responsabilita.md</c>; null se il progetto non ha il documento.</param>
         public static IList<WorkflowIssue> Check(
             WorkflowDescriptor wf,
-            IEnumerable<AgentRegistryEntry> agents,
-            Func<string, bool> folderExists)
+            Func<string, bool> folderExists,
+            Func<string, string> readFile,
+            IReadOnlyCollection<string> roles)
         {
             var issues = new List<WorkflowIssue>();
             if (wf == null) return issues;
-            var byName = (agents ?? Enumerable.Empty<AgentRegistryEntry>())
-                .Where(a => !string.IsNullOrWhiteSpace(a?.Name))
-                .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             for (var i = 0; i < wf.Steps.Count; i++)
             {
                 var step = wf.Steps[i];
                 var path = $"steps[{i}]";
-                if (step.Agent != null && !byName.ContainsKey(step.Agent))
-                    issues.Add(Error($"{path}.agent", UiText.Say($"nel progetto non c'è un agente '{step.Agent}'.", $"the project has no agent '{step.Agent}'."),
-                        byName.Count == 0
-                            ? UiText.Say("il progetto non ha agenti", "the project has no agents")
-                            : UiText.Say("agenti del progetto: ", "agents of the project: ") + string.Join(", ", byName.Keys.OrderBy(k => k))));
 
-                for (var j = 0; j < step.Produces.Count; j++)
+                // Le uscite di un agente vengono dalla scheda: il percorso del problema è la scheda, non il workflow.
+                for (var j = 0; j < step.Outputs.Count; j++)
                 {
-                    var file = step.Produces[j];
-                    var slash = file.LastIndexOf('/');
+                    var file = step.Outputs[j].Path;
+                    var slash = file?.LastIndexOf('/') ?? -1;
                     var folder = slash < 0 ? "" : file.Substring(0, slash);
                     if (folder.Length > 0 && !folderExists(folder))
-                        issues.Add(Error($"{path}.produces[{j}]", UiText.Say($"la cartella '{folder}' non esiste.", $"the folder '{folder}' does not exist."),
+                        issues.Add(Error(step.IsPerson ? $"{path}.produces[{j}]" : $"{path}.skill", UiText.Say($"la cartella '{folder}' dell'uscita '{step.Outputs[j].Id}' non esiste.", $"the folder '{folder}' of output '{step.Outputs[j].Id}' does not exist."),
                             UiText.Say("creala nel progetto, con un README.md: non tutti i motori creano le cartelle da soli",
                                 "create it in the project, with a README.md: not every engine creates folders by itself")));
                 }
 
-                var t = step.Trigger;
-                if (t?.Kind != WorkflowTriggerKind.Reply) continue;
-                var source = t.FromStep == null ? null : wf.Step(t.FromStep);
-                if (source?.Agent == null) continue;
-
-                // Il pulsante sta sotto il messaggio dell'agente di quel passo: è la sua scheda a dichiararlo. Il passo che
-                // fa partire può essere di un altro agente (lo schedulatore lo avvia, W14).
-                if (!byName.TryGetValue(source.Agent, out var writer) || t.ReplyId == null) continue;
-
-                var declared = writer.Replies ?? new List<AgentRegistryReply>();
-                var reply = declared.FirstOrDefault(rp => string.Equals(rp.Id, t.ReplyId, StringComparison.OrdinalIgnoreCase));
-                if (reply == null)
+                foreach (var read in step.Reads)
                 {
-                    issues.Add(Error($"{path}.trigger.reply", UiText.Say($"la scheda di '{source.Agent}' non dichiara la risposta '{t.ReplyId}'.", $"the card of '{source.Agent}' does not declare the reply '{t.ReplyId}'."),
-                        declared.Count == 0
-                            ? UiText.Say("aggiungila in a2a.replies della scheda", "add it to a2a.replies in the card")
-                            : UiText.Say("risposte dichiarate: ", "declared replies: ") + string.Join(", ", declared.Select(d => d.Id))));
-                    continue;
+                    var text = readFile(read.Path);
+                    if (text == null)
+                    {
+                        issues.Add(Error($"{path}.skill", UiText.Say($"il lavoro '{step.Skill}' di '{step.Agent}' legge '{read.Path}', che non esiste.", $"job '{step.Skill}' of '{step.Agent}' reads '{read.Path}', which does not exist."),
+                            UiText.Say("correggi il percorso in reads della scheda, dalla radice del progetto", "fix the path in the card's reads, from the project root")));
+                        continue;
+                    }
+                    if (read.Section == null) continue;
+                    var titles = Heading.Matches(text).Select(m => m.Groups[1].Value.Trim()).ToList();
+                    if (!titles.Any(t => string.Equals(t, read.Section.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        issues.Add(Error($"{path}.skill", UiText.Say($"'{read.Path}' non ha il capitolo '{read.Section}' che il lavoro '{step.Skill}' di '{step.Agent}' legge.", $"'{read.Path}' has no chapter '{read.Section}' that job '{step.Skill}' of '{step.Agent}' reads."),
+                            titles.Count == 0
+                                ? UiText.Say("il documento non ha titoli", "the document has no headings")
+                                : UiText.Say("capitoli del documento: ", "chapters of the document: ") + string.Join(", ", titles)));
                 }
-                // I valori del pulsante diventano variabili del giro: ognuno deve essere dichiarato, o si perderebbe.
-                var carried = new[] { reply.Label, reply.Description, reply.Message }
-                    .Where(x => !string.IsNullOrEmpty(x))
-                    .SelectMany(x => Placeholder.Matches(x).Cast<Match>().Select(m => m.Groups[1].Value))
-                    .Distinct(StringComparer.Ordinal);
-                foreach (var name in carried.Where(n => !wf.Variables.ContainsKey(n)))
-                    issues.Add(Error($"{path}.trigger.reply",
-                        UiText.Say($"il pulsante '{t.ReplyId}' porta il valore '{{{name}}}', che non è una variabile del workflow: ai passi successivi non arriverebbe.",
-                            $"the button '{t.ReplyId}' carries the value '{{{name}}}', which is not a workflow variable: it would not reach the next steps."),
-                        UiText.Say($"dichiaralo in \"variables\": {{ \"{name}\": \"che cos'è\" }}",
-                            $"declare it in \"variables\": {{ \"{name}\": \"what it is\" }}")));
+
+                if (step.Person != null) CheckRole(step.Person, $"{path}.person", roles, issues);
+                if (step.ApprovalBy != null) CheckRole(step.ApprovalBy, $"{path}.approval.by", roles, issues);
             }
             return issues;
+        }
+
+        private static void CheckRole(string role, string path, IReadOnlyCollection<string> roles, List<WorkflowIssue> issues)
+        {
+            if (roles == null)
+                issues.Add(Error(path, UiText.Say($"il ruolo '{role}' dovrebbe stare in responsabilita.md, che il progetto non ha.", $"the role '{role}' should be in responsabilita.md, which the project does not have."),
+                    UiText.Say("crea il documento delle responsabilità (mde_type: ownership) con la colonna Ruolo", "create the responsibilities document (mde_type: ownership) with the Ruolo column")));
+            else if (!roles.Contains(role.Trim(), StringComparer.OrdinalIgnoreCase))
+                issues.Add(Error(path, UiText.Say($"'{role}' non è un ruolo di responsabilita.md.", $"'{role}' is not a role in responsabilita.md."),
+                    roles.Count == 0
+                        ? UiText.Say("responsabilita.md non ha ruoli", "responsabilita.md has no roles")
+                        : UiText.Say("ruoli: ", "roles: ") + string.Join(", ", roles.Distinct(StringComparer.OrdinalIgnoreCase))));
         }
 
         private static WorkflowIssue Error(string path, string message, string fix = null) =>

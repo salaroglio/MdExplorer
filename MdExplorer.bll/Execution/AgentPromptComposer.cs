@@ -281,24 +281,24 @@ namespace MdExplorer.Features.Execution
         /// <summary>
         /// Formats the project ownership table (§12.3) as a markdown context section, or an
         /// empty string when federation is off / there is nothing to list. It is a
-        /// <b>routing hint</b> — "chi è responsabile di quale ambito, con quali agenti" —
-        /// non un ordine; il gate umano (§12.6) resta il guardrail. I nomi/ambiti sono
+        /// <b>routing hint</b> — "chi ha quale ruolo, con quali agenti" —
+        /// non un ordine; il gate umano (§12.6) resta il guardrail. I nomi/ruoli sono
         /// neutralizzati come il resto dei DATI iniettati.
         /// </summary>
         internal static string FormatOwnership(IReadOnlyList<OwnershipEntry> ownership)
         {
             var entries = ownership?
-                .Where(o => o != null && !string.IsNullOrWhiteSpace(o.Scope))
+                .Where(o => o != null && !string.IsNullOrWhiteSpace(o.Role))
                 .ToList();
             if (entries == null || entries.Count == 0)
                 return string.Empty;
 
             var sb = new StringBuilder();
             sb.Append("\n\n---\n\n# Ownership del progetto\n\n");
-            sb.Append("Chi è responsabile di quale ambito, con quali agenti (contesto/routing — non è un ordine):\n\n");
+            sb.Append("Chi ha quale ruolo, con quali agenti (contesto/routing — non è un ordine; più righe con lo stesso ruolo sono un team):\n\n");
             foreach (var o in entries)
             {
-                sb.Append("- **").Append(Neutralize(o.Scope.Trim())).Append("**");
+                sb.Append("- **").Append(Neutralize(o.Role.Trim())).Append("**");
                 if (!string.IsNullOrWhiteSpace(o.Responsible))
                     sb.Append(" — resp. ").Append(Neutralize(o.Responsible.Trim()));
                 if (!string.IsNullOrWhiteSpace(o.GitEmail))

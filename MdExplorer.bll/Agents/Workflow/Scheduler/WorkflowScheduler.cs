@@ -153,7 +153,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var variables = round.Variables;
             var actions = new List<SchedulerAction>();
 
-            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && isMine(s)))
+            // I passi delle persone non si avviano: aspettano loro (sprint workflow v3, F4).
+            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && !s.IsPerson && isMine(s)))
             {
                 var view = views[step.Id];
                 // Un lancio lo fa la persona: lo schedulatore non apre i giri, li prosegue.
@@ -286,7 +287,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         }
 
         /// <summary>
-        /// Avviare un passo: il brief con le variabili e gli ingressi. Se manca una variabile il passo non parte e si dice
+        /// Avviare un passo: il brief con le variabili e gli ingressi. Se manca una variabile (del brief o di un ingresso) il passo non parte e si dice
         /// quale: un agente che riceve «{codice}» tra parentesi lavorerebbe sul niente.
         /// </summary>
         private static SchedulerAction Begin(WorkflowDescriptor wf, WorkflowStep step, IReadOnlyDictionary<string, StepView> views,
@@ -299,6 +300,10 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 missing.Add(m.Groups[1].Value);
                 return m.Value;
             });
+            // Anche un ingresso scritto con le variabili ne ha bisogno: senza, il lavoro riceverebbe «{codice}».
+            missing.AddRange(step.Inputs.Values.Where(i => i.Text != null)
+                .SelectMany(i => Placeholder.Matches(i.Text).Select(m => m.Groups[1].Value))
+                .Where(n => !variables.ContainsKey(n)));
             if (missing.Count > 0)
                 return new SchedulerAction
                 {

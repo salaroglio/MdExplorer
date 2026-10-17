@@ -8,22 +8,30 @@ using MdExplorer.Features.Services;
 namespace MdExplorer.Features.Agents.Workflow
 {
     /// <summary>
-    /// Legge un <c>*.workflow.json</c> (standard v2) e ne verifica la struttura, senza guardare il progetto. Tolleranza
+    /// Legge un <c>*.workflow.json</c> (standard v3) e ne verifica la struttura, senza guardare il progetto. Tolleranza
     /// zero: una chiave sconosciuta è un errore con il suo percorso, mai ignorata, perché un errore di battitura in una
     /// regola («strat» invece di «start») cambierebbe il comportamento in silenzio. Non si ferma al primo problema: li
     /// raccoglie tutti, così chi corregge (una persona o un LLM) lo fa in un giro solo.
     /// </summary>
     public static class WorkflowParser
     {
-        public const int SupportedVersion = 2;
+        public const int SupportedVersion = 3;
 
         private static readonly Regex KebabId = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
         private static readonly Regex VariableName = new(@"^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
+        /// <summary>Il nome di un ingresso di una skill: minuscole, cifre, '_' e '-', comincia con una lettera.</summary>
+        private static readonly Regex InputName = new(@"^[a-z][a-z0-9_-]*$", RegexOptions.Compiled);
+        /// <summary>L'uscita di un passo: <c>passo.uscita</c>.</summary>
+        private static readonly Regex OutputRef = new(@"^([a-z0-9]+(?:-[a-z0-9]+)*)\.([a-z][a-z0-9_-]*)$", RegexOptions.Compiled);
         /// <summary>Un segnaposto in un brief: <c>{codice}</c>.</summary>
         public static readonly Regex Placeholder = new(@"\{([^{}\s]+)\}", RegexOptions.Compiled);
 
         private static readonly string[] TopKeys = { "mde_workflow", "title", "description", "variables", "steps", "loops" };
-        private static readonly string[] StepKeys = { "id", "agent", "title", "trigger", "start", "brief", "produces" };
+        private static readonly string[] StepKeys = { "id", "agent", "skill", "person", "title", "trigger", "start", "brief", "task", "inputs", "outcomes", "produces", "approval" };
+        private static readonly string[] AgentOnly = { "skill", "start", "brief", "approval" };
+        private static readonly string[] PersonOnly = { "task", "outcomes", "produces" };
+        private static readonly string[] OutcomeKeys = { "id", "label", "values" };
+        private static readonly string[] PersonOutputKeys = { "id", "path", "note" };
         private static readonly string[] TriggerKeys = { "launch", "reply", "to", "after", "wait" };
         private static readonly string[] LoopKeys = { "id", "steps", "until", "max", "restart", "times" };
 
@@ -63,6 +71,14 @@ namespace MdExplorer.Features.Agents.Workflow
                     // precedenti sono finiti. La conversione è meccanica: si dice qual è, invece di indovinarla.
                     Error(result, "mde_workflow", UiText.Say("versione 1 non più supportata: con lo schedulatore i passi partono quando i precedenti sono finiti.", "version 1 is no longer supported: with the scheduler, steps start when the previous ones are finished."),
                         UiText.Say("\"mde_workflow\": 2; ogni \"assignment\": \"x\" e \"approval\": [\"x\", …] diventa \"after\": [\"x\", …]; ogni passo che non è un lancio ha un \"brief\"; i cicli: \"until\": \"approved\" con \"max\" e \"restart\", oppure \"times\"", "\"mde_workflow\": 2; every \"assignment\": \"x\" and \"approval\": [\"x\", …] becomes \"after\": [\"x\", …]; every step that is not a launch has a \"brief\"; loops: \"until\": \"approved\" with \"max\" and \"restart\", or \"times\""));
+                    return result;
+                }
+                else if (v == 2)
+                {
+                    // La v2 metteva nel workflow ciò che ora dichiara la scheda (D8): le uscite e il testo dell'incarico.
+                    Error(result, "mde_workflow", UiText.Say("versione 2 non più supportata: le uscite di un passo e ciò che riceve ora li dichiara la scheda dell'agente.", "version 2 is no longer supported: a step's outputs and what it receives are now declared by the agent's card."),
+                        UiText.Say("\"mde_workflow\": 3; ogni passo di un agente ha \"skill\" (l'id del lavoro nella scheda); \"produces\" diventa \"outputs\" della skill nella scheda; il \"brief\" diventa \"inputs\" (un valore per ogni ingresso della skill: un testo con le {variabili} o { \"from\": \"passo.uscita\" }), e resta solo per ciò che aggiunge; i passi delle persone si scrivono con \"person\", \"task\" e \"outcomes\"",
+                            "\"mde_workflow\": 3; every agent step has \"skill\" (the id of the job in the card); \"produces\" becomes the skill's \"outputs\" in the card; the \"brief\" becomes \"inputs\" (one value per skill input: a text with {variables} or { \"from\": \"step.output\" }) and stays only for what it adds; people's steps are written with \"person\", \"task\" and \"outcomes\""));
                     return result;
                 }
                 else if (v != SupportedVersion)
@@ -132,18 +148,63 @@ namespace MdExplorer.Features.Agents.Workflow
         {
             if (e.ValueKind != JsonValueKind.Object)
             {
-                Error(r, path, UiText.Say("un passo è un oggetto ({ \"id\": …, \"agent\": …, \"trigger\": …, \"start\": … }).", "a step is an object ({ \"id\": …, \"agent\": …, \"trigger\": …, \"start\": … })."));
+                Error(r, path, UiText.Say("un passo è un oggetto ({ \"id\": …, \"agent\": …, \"skill\": …, \"trigger\": …, \"start\": … }).", "a step is an object ({ \"id\": …, \"agent\": …, \"skill\": …, \"trigger\": …, \"start\": … })."));
                 return null;
             }
             UnknownKeys(r, e, path, StepKeys);
             var step = new WorkflowStep
             {
                 Id = RequiredId(r, e, "id", path + ".id"),
-                Agent = RequiredId(r, e, "agent", path + ".agent"),
                 Title = OptionalString(r, e, "title", path + ".title"),
                 Trigger = ReadTrigger(r, e, path + ".trigger"),
-                Brief = OptionalString(r, e, "brief", path + ".brief"),
             };
+
+            var hasAgent = e.TryGetProperty("agent", out _);
+            var hasPerson = e.TryGetProperty("person", out _);
+            if (hasAgent == hasPerson)
+            {
+                Error(r, path, hasAgent
+                        ? UiText.Say("un passo è di un agente (\"agent\") o di una persona (\"person\"), non di tutti e due.", "a step belongs to an agent (\"agent\") or to a person (\"person\"), not both.")
+                        : UiText.Say("il passo non dice chi lo fa.", "the step does not say who does it."),
+                    UiText.Say("\"agent\" + \"skill\" per il lavoro di un agente, \"person\" (un ruolo di responsabilita.md) + \"task\" + \"outcomes\" per il compito di una persona",
+                        "\"agent\" + \"skill\" for an agent's job, \"person\" (a role in responsabilita.md) + \"task\" + \"outcomes\" for a person's task"));
+                return step;
+            }
+
+            if (hasAgent) ReadAgentStep(r, e, path, step);
+            else ReadPersonStep(r, e, path, step);
+
+            if (e.TryGetProperty("inputs", out var inputs))
+            {
+                if (inputs.ValueKind != JsonValueKind.Object)
+                    Error(r, path + ".inputs", UiText.Say("gli ingressi sono un oggetto: nome dell'ingresso → valore.", "inputs are an object: input name → value."));
+                else
+                    foreach (var p in inputs.EnumerateObject())
+                    {
+                        var ip = $"{path}.inputs.{p.Name}";
+                        if (!InputName.IsMatch(p.Name))
+                        {
+                            Error(r, ip, UiText.Say($"'{p.Name}' non è il nome di un ingresso (minuscole, cifre, '_' e '-', comincia con una lettera).", $"'{p.Name}' is not an input name (lowercase letters, digits, '_' and '-', starting with a letter)."));
+                            continue;
+                        }
+                        var input = ReadInput(r, p.Value, ip);
+                        if (input != null) step.Inputs[p.Name] = input;
+                    }
+            }
+            return step;
+        }
+
+        private static void ReadAgentStep(WorkflowCheckResult r, JsonElement e, string path, WorkflowStep step)
+        {
+            foreach (var key in PersonOnly.Where(k => e.TryGetProperty(k, out _)))
+                Error(r, $"{path}.{key}", key == "produces"
+                        ? UiText.Say("le uscite di un agente le dichiara la sua scheda: \"outputs\" della skill.", "an agent's outputs are declared by its card: the skill's \"outputs\".")
+                        : UiText.Say($"«{key}» è del passo di una persona.", $"«{key}» belongs to a person's step."),
+                    key == "produces" ? UiText.Say("togli \"produces\" e dichiara le uscite nella scheda", "remove \"produces\" and declare the outputs in the card") : null);
+
+            step.Agent = RequiredId(r, e, "agent", path + ".agent");
+            step.Skill = RequiredId(r, e, "skill", path + ".skill");
+            step.Brief = OptionalString(r, e, "brief", path + ".brief");
 
             var start = RequiredString(r, e, "start", path + ".start");
             switch (start)
@@ -160,39 +221,164 @@ namespace MdExplorer.Features.Agents.Workflow
             if (start != null && step.Trigger != null)
                 CheckStartFitsTrigger(r, step, path);
 
-            // Il brief è ciò che l'agente riceve da MDE: senza, un passo che non lancia la persona non saprebbe che fare.
-            if (step.Trigger != null && step.Trigger.Kind != WorkflowTriggerKind.Launch && step.Brief == null && !e.TryGetProperty("brief", out _))
-                Error(r, path + ".brief", UiText.Say("manca il testo dell'incarico: è ciò che MDE manda all'agente quando il passo parte.", "the assignment text is missing: it is what MDE sends the agent when the step starts."),
-                    UiText.Say("per esempio \"brief\": \"Scrivi la scheda tecnica sul bando {codice}.\"", "for example \"brief\": \"Write the technical sheet on tender {code}.\""));
+            if (e.TryGetProperty("approval", out var approval))
+            {
+                if (approval.ValueKind != JsonValueKind.Object)
+                    Error(r, path + ".approval", UiText.Say("l'approvazione è un oggetto: { \"by\": \"<ruolo>\" }.", "the approval is an object: { \"by\": \"<role>\" }."));
+                else
+                {
+                    UnknownKeys(r, approval, path + ".approval", new[] { "by" });
+                    step.ApprovalBy = RequiredString(r, approval, "by", path + ".approval.by");
+                }
+            }
+        }
+
+        private static void ReadPersonStep(WorkflowCheckResult r, JsonElement e, string path, WorkflowStep step)
+        {
+            foreach (var key in AgentOnly.Where(k => e.TryGetProperty(k, out _)))
+                Error(r, $"{path}.{key}", UiText.Say($"«{key}» è del passo di un agente: il passo di una persona aspetta lei.", $"«{key}» belongs to an agent's step: a person's step waits for the person."));
+
+            step.Person = RequiredString(r, e, "person", path + ".person");
+            step.Task = RequiredString(r, e, "task", path + ".task");
+            if (step.Trigger?.Kind == WorkflowTriggerKind.Launch)
+                Error(r, path + ".trigger.launch", UiText.Say("il passo di una persona non si lancia: parte da un pulsante o dopo altri passi.", "a person's step is not launched: it starts from a button or after other steps."),
+                    UiText.Say("usa \"reply\" + \"to\" oppure \"after\"", "use \"reply\" + \"to\" or \"after\""));
+
+            if (!e.TryGetProperty("outcomes", out var outcomes))
+                Error(r, path + ".outcomes", UiText.Say("mancano gli esiti: i pulsanti con cui la persona chiude il passo.", "the outcomes are missing: the buttons the person closes the step with."),
+                    UiText.Say("per esempio \"outcomes\": [ { \"id\": \"fatto\", \"label\": \"Fatto\" } ]", "for example \"outcomes\": [ { \"id\": \"done\", \"label\": \"Done\" } ]"));
+            else if (outcomes.ValueKind != JsonValueKind.Array)
+                Error(r, path + ".outcomes", UiText.Say("gli esiti sono una lista ([ … ]).", "outcomes are a list ([ … ])."));
+            else
+            {
+                var i = 0;
+                foreach (var o in outcomes.EnumerateArray())
+                {
+                    var op = $"{path}.outcomes[{i++}]";
+                    if (o.ValueKind != JsonValueKind.Object)
+                    {
+                        Error(r, op, UiText.Say("un esito è un oggetto: { \"id\": …, \"label\": … }.", "an outcome is an object: { \"id\": …, \"label\": … }."));
+                        continue;
+                    }
+                    UnknownKeys(r, o, op, OutcomeKeys);
+                    var outcome = new WorkflowOutcome { Id = RequiredId(r, o, "id", op + ".id"), Label = RequiredString(r, o, "label", op + ".label") };
+                    if (outcome.Id != null && step.Outcomes.Any(x => x.Id == outcome.Id))
+                        Error(r, op + ".id", UiText.Say($"l'esito '{outcome.Id}' c'è già.", $"the outcome '{outcome.Id}' is already there."));
+                    ReadNames(r, o, "values", op + ".values", outcome.Values);
+                    step.Outcomes.Add(outcome);
+                }
+                if (i == 0) Error(r, path + ".outcomes", UiText.Say("serve almeno un esito.", "at least one outcome is needed."));
+            }
 
             if (e.TryGetProperty("produces", out var produces))
             {
                 if (produces.ValueKind != JsonValueKind.Array)
-                    Error(r, path + ".produces", UiText.Say("gli artefatti sono una lista di percorsi ([ \"cartella/file.md\" ]).", "artifacts are a list of paths ([ \"folder/file.md\" ])."));
+                    Error(r, path + ".produces", UiText.Say("i documenti della persona sono una lista: [ { \"id\": …, \"path\": … } ].", "the person's documents are a list: [ { \"id\": …, \"path\": … } ]."));
                 else
                 {
                     var i = 0;
                     foreach (var p in produces.EnumerateArray())
                     {
                         var pp = $"{path}.produces[{i++}]";
-                        if (p.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(p.GetString()))
+                        if (p.ValueKind != JsonValueKind.Object)
                         {
-                            Error(r, pp, UiText.Say("un artefatto è un percorso, una stringa non vuota.", "an artifact is a path, a non-empty string."));
+                            Error(r, pp, UiText.Say("un documento è un oggetto: { \"id\": …, \"path\": …, \"note\": … }.", "a document is an object: { \"id\": …, \"path\": …, \"note\": … }."));
                             continue;
                         }
-                        var value = p.GetString().Trim();
-                        if (value.Contains('\\'))
-                            Error(r, pp, UiText.Say($"'{value}': nei percorsi si usa la barra '/'.", $"'{value}': paths use the slash '/'."), UiText.Say("scrivi ", "write ") + value.Replace('\\', '/'));
-                        else if (value.StartsWith("/") || value.Split('/').Contains(".."))
-                            Error(r, pp, UiText.Say($"'{value}' esce dal progetto o parte dalla radice del disco.", $"'{value}' goes outside the project or starts from the root of the disk."), UiText.Say("scrivi il percorso dalla radice del progetto, senza '/' iniziale e senza '..'", "write the path from the project root, without a leading '/' and without '..'"));
-                        else if (value.Split('/').Take(value.Split('/').Length - 1).Any(seg => seg.Contains('*')))
-                            Error(r, pp, UiText.Say($"'{value}': '*' è ammesso solo nel nome del file, non nelle cartelle.", $"'{value}': '*' is allowed only in the file name, not in folders."));
-                        else
-                            step.Produces.Add(value);
+                        UnknownKeys(r, p, pp, PersonOutputKeys);
+                        var id = RequiredString(r, p, "id", pp + ".id");
+                        if (id != null && !InputName.IsMatch(id))
+                        {
+                            Error(r, pp + ".id", UiText.Say($"'{id}' non è un nome (minuscole, cifre, '_' e '-', comincia con una lettera).", $"'{id}' is not a name (lowercase letters, digits, '_' and '-', starting with a letter)."));
+                            id = null;
+                        }
+                        var output = new WorkflowOutput { Id = id, Note = OptionalString(r, p, "note", pp + ".note") };
+                        var value = RequiredString(r, p, "path", pp + ".path");
+                        if (value != null && PathProblem(r, value, pp + ".path")) value = null;
+                        output.Path = value;
+                        if (output.Id != null && step.Outputs.Any(x => x.Id == output.Id))
+                            Error(r, pp + ".id", UiText.Say($"il documento '{output.Id}' c'è già.", $"the document '{output.Id}' is already there."));
+                        step.Outputs.Add(output);
+                        if (value != null) step.Produces.Add(value);
                     }
                 }
             }
-            return step;
+        }
+
+        private static WorkflowInput ReadInput(WorkflowCheckResult r, JsonElement v, string path)
+        {
+            if (v.ValueKind == JsonValueKind.String)
+            {
+                if (string.IsNullOrWhiteSpace(v.GetString()))
+                {
+                    Error(r, path, UiText.Say("il testo dell'ingresso è vuoto.", "the input text is empty."));
+                    return null;
+                }
+                return new WorkflowInput { Text = v.GetString().Trim() };
+            }
+            if (v.ValueKind != JsonValueKind.Object)
+            {
+                Error(r, path, UiText.Say("un ingresso è un testo (con le {variabili}) oppure { \"from\": \"passo.uscita\" }.", "an input is a text (with {variables}) or { \"from\": \"step.output\" }."));
+                return null;
+            }
+            UnknownKeys(r, v, path, new[] { "from" });
+            if (!v.TryGetProperty("from", out var from))
+            {
+                Error(r, path + ".from", UiText.Say("manca \"from\": da quale uscita viene l'ingresso.", "\"from\" is missing: which output the input comes from."));
+                return null;
+            }
+            var input = new WorkflowInput();
+            var refs = from.ValueKind == JsonValueKind.Array ? from.EnumerateArray().ToList() : new List<JsonElement> { from };
+            for (var i = 0; i < refs.Count; i++)
+            {
+                var rp = from.ValueKind == JsonValueKind.Array ? $"{path}.from[{i}]" : path + ".from";
+                var text = refs[i].ValueKind == JsonValueKind.String ? refs[i].GetString()?.Trim() : null;
+                if (text == null || !OutputRef.IsMatch(text))
+                    Error(r, rp, UiText.Say("è l'uscita di un passo, scritta \"passo.uscita\" (per esempio \"tecnica.scheda\").", "it is a step's output, written \"step.output\" (for example \"technical.sheet\")."));
+                else if (input.From.Contains(text))
+                    Error(r, rp, UiText.Say($"'{text}' è già nella lista.", $"'{text}' is already in the list."));
+                else
+                    input.From.Add(text);
+            }
+            if (refs.Count == 0) Error(r, path + ".from", UiText.Say("la lista è vuota.", "the list is empty."));
+            return input;
+        }
+
+        /// <summary>Un percorso dalla radice del progetto: con '/', senza '..', '*' solo nel nome del file. True = c'è un problema (già detto).</summary>
+        private static bool PathProblem(WorkflowCheckResult r, string value, string path)
+        {
+            if (value.Contains('\\'))
+                Error(r, path, UiText.Say($"'{value}': nei percorsi si usa la barra '/'.", $"'{value}': paths use the slash '/'."), UiText.Say("scrivi ", "write ") + value.Replace('\\', '/'));
+            else if (value.StartsWith("/") || value.Split('/').Contains(".."))
+                Error(r, path, UiText.Say($"'{value}' esce dal progetto o parte dalla radice del disco.", $"'{value}' goes outside the project or starts from the root of the disk."), UiText.Say("scrivi il percorso dalla radice del progetto, senza '/' iniziale e senza '..'", "write the path from the project root, without a leading '/' and without '..'"));
+            else if (value.Split('/').Take(value.Split('/').Length - 1).Any(seg => seg.Contains('*')))
+                Error(r, path, UiText.Say($"'{value}': '*' è ammesso solo nel nome del file, non nelle cartelle.", $"'{value}': '*' is allowed only in the file name, not in folders."));
+            else
+                return false;
+            return true;
+        }
+
+        /// <summary>Una lista di nomi di variabili (facoltativa).</summary>
+        private static void ReadNames(WorkflowCheckResult r, JsonElement e, string key, string path, List<string> into)
+        {
+            if (!e.TryGetProperty(key, out var list)) return;
+            if (list.ValueKind != JsonValueKind.Array)
+            {
+                Error(r, path, UiText.Say("è una lista di nomi di variabili, per esempio [\"codice\"].", "it is a list of variable names, for example [\"code\"]."));
+                return;
+            }
+            var i = 0;
+            foreach (var n in list.EnumerateArray())
+            {
+                var np = $"{path}[{i++}]";
+                var name = n.ValueKind == JsonValueKind.String ? n.GetString() : null;
+                if (name == null || !VariableName.IsMatch(name))
+                    Error(r, np, UiText.Say("è il nome di una variabile (minuscole, cifre e '_', comincia con una lettera).", "it is a variable name (lowercase letters, digits and '_', starting with a letter)."));
+                else if (into.Contains(name))
+                    Error(r, np, UiText.Say($"'{name}' è già nella lista.", $"'{name}' is already in the list."));
+                else
+                    into.Add(name);
+            }
         }
 
         private static WorkflowTrigger ReadTrigger(WorkflowCheckResult r, JsonElement step, string path)
@@ -357,20 +543,33 @@ namespace MdExplorer.Features.Agents.Workflow
             return loop;
         }
 
-        /// <summary>Ogni {variabile} di un brief è dichiarata: altrimenti l'agente riceverebbe le parentesi così come sono.</summary>
+        /// <summary>
+        /// Ogni {variabile} usata (brief, compito, testo di un ingresso) e ogni valore portato da un esito è dichiarato:
+        /// altrimenti l'agente riceverebbe le parentesi così come sono, o il valore non arriverebbe ai passi dopo.
+        /// </summary>
         private static void CheckVariables(WorkflowCheckResult r, WorkflowDescriptor wf)
         {
             for (var i = 0; i < wf.Steps.Count; i++)
             {
-                var brief = wf.Steps[i].Brief;
-                if (brief == null) continue;
-                foreach (Match m in Placeholder.Matches(brief))
-                    if (!wf.Variables.ContainsKey(m.Groups[1].Value))
-                        Error(r, $"steps[{i}].brief", UiText.Say($"'{{{m.Groups[1].Value}}}' non è una variabile dichiarata.", $"'{{{m.Groups[1].Value}}}' is not a declared variable."),
-                            wf.Variables.Count == 0
-                                ? UiText.Say($"dichiarala in \"variables\": {{ \"{m.Groups[1].Value}\": \"che cos'è\" }}", $"declare it in \"variables\": {{ \"{m.Groups[1].Value}\": \"what it is\" }}")
-                                : UiText.Say("variabili dichiarate: ", "declared variables: ") + string.Join(", ", wf.Variables.Keys));
+                var step = wf.Steps[i];
+                var texts = new List<(string Text, string Path)> { (step.Brief, $"steps[{i}].brief"), (step.Task, $"steps[{i}].task") };
+                texts.AddRange(step.Inputs.Where(kv => kv.Value.Text != null).Select(kv => (kv.Value.Text, $"steps[{i}].inputs.{kv.Key}")));
+                foreach (var (text, path) in texts.Where(t => t.Text != null))
+                    foreach (Match m in Placeholder.Matches(text))
+                        Undeclared(r, wf, m.Groups[1].Value, path);
+                for (var o = 0; o < step.Outcomes.Count; o++)
+                    foreach (var name in step.Outcomes[o].Values)
+                        Undeclared(r, wf, name, $"steps[{i}].outcomes[{o}].values");
             }
+        }
+
+        private static void Undeclared(WorkflowCheckResult r, WorkflowDescriptor wf, string name, string path)
+        {
+            if (wf.Variables.ContainsKey(name)) return;
+            Error(r, path, UiText.Say($"'{{{name}}}' non è una variabile dichiarata.", $"'{{{name}}}' is not a declared variable."),
+                wf.Variables.Count == 0
+                    ? UiText.Say($"dichiarala in \"variables\": {{ \"{name}\": \"che cos'è\" }}", $"declare it in \"variables\": {{ \"{name}\": \"what it is\" }}")
+                    : UiText.Say("variabili dichiarate: ", "declared variables: ") + string.Join(", ", wf.Variables.Keys));
         }
 
         /// <summary>Riferimenti, unicità, raggiungibilità, assenza di cicli nascosti: ciò che si vede solo guardando tutti i passi.</summary>
@@ -423,10 +622,44 @@ namespace MdExplorer.Features.Agents.Workflow
                         Error(r, $"loops[{i}].steps[{j}]", UiText.Say($"'{stepId}' è già nel ciclo '{other}', dello stesso tipo: un passo sta al più in un ciclo «fino a che» e in un «for».", $"'{stepId}' is already in loop '{other}', of the same kind: a step is in at most one «until» loop and one «for»."));
                     else
                         looped[key] = loop.Id;
-                    if (loop.Kind == WorkflowLoopKind.UntilApproved && wf.Step(stepId).Produces.Count == 0)
-                        Warning(r, $"loops[{i}].steps[{j}]", UiText.Say($"il passo '{stepId}' non dichiara artefatti: «fino a che è approvato» ripete un artefatto rifiutato.", $"step '{stepId}' declares no artifacts: «until approved» repeats a declined artifact."),
-                            UiText.Say("aggiungi \"produces\" al passo, o toglilo dal ciclo", "add \"produces\" to the step, or remove it from the loop"));
+                    // Le uscite di un agente stanno nella scheda: «fino a che è approvato» senza uscite lo dice la verifica di
+                    // progetto, quando le schede sono unite. Una persona invece non consegna niente da approvare.
+                    if (wf.Step(stepId).IsPerson)
+                        Error(r, $"loops[{i}].steps[{j}]", UiText.Say($"'{stepId}' è il passo di una persona: i cicli ripetono il lavoro di un agente.", $"'{stepId}' is a person's step: loops repeat an agent's work."));
                 }
+            }
+
+            for (var i = 0; i < wf.Steps.Count; i++)
+            {
+                var t = wf.Steps[i].Trigger;
+                // Il pulsante di un passo di una persona è uno dei suoi esiti; quello di un agente lo dichiara la sua scheda.
+                if (t?.Kind != WorkflowTriggerKind.Reply || t.FromStep == null || t.ReplyId == null) continue;
+                var source = wf.Step(t.FromStep);
+                if (source?.IsPerson == true && !source.Outcomes.Any(o => o.Id == t.ReplyId))
+                    Error(r, $"steps[{i}].trigger.reply", UiText.Say($"'{t.ReplyId}' non è un esito del passo '{source.Id}'.", $"'{t.ReplyId}' is not an outcome of step '{source.Id}'."),
+                        UiText.Say("esiti: ", "outcomes: ") + string.Join(", ", source.Outcomes.Select(o => o.Id)));
+            }
+
+            // Un ingresso può ricevere solo l'uscita di un passo che viene prima: altrimenti al momento di partire non c'è.
+            var sources = wf.Steps.Where(s => s.Id != null && index.ContainsKey(s.Id))
+                .ToDictionary(s => s.Id, s => s.Trigger?.Sources.Where(x => x != null).ToList() ?? new List<string>());
+            for (var i = 0; i < wf.Steps.Count; i++)
+            {
+                var step = wf.Steps[i];
+                if (step.Id == null || !sources.ContainsKey(step.Id)) continue;
+                var before = Ancestors(step.Id, sources);
+                foreach (var (name, input) in step.Inputs)
+                    for (var k = 0; k < input.From.Count; k++)
+                    {
+                        var from = input.From[k];
+                        var of = from.Substring(0, from.IndexOf('.'));
+                        var where = input.From.Count == 1 ? $"steps[{i}].inputs.{name}.from" : $"steps[{i}].inputs.{name}.from[{k}]";
+                        if (!index.ContainsKey(of))
+                            Error(r, where, UiText.Say($"'{of}' non è l'id di nessun passo.", $"'{of}' is not the id of any step."), Known(index.Keys));
+                        else if (!before.Contains(of))
+                            Error(r, where, UiText.Say($"'{of}' non viene prima di '{step.Id}': quando '{step.Id}' parte, la sua uscita non c'è ancora.", $"'{of}' does not come before '{step.Id}': when '{step.Id}' starts, its output is not there yet."),
+                                UiText.Say("fai partire il passo dopo di lui (\"after\"), o prendi l'uscita di un passo che viene prima", "start the step after it (\"after\"), or take the output of a step that comes before"));
+                    }
             }
 
             if (!wf.Steps.Any(s => s.Trigger?.Kind == WorkflowTriggerKind.Launch))
@@ -465,6 +698,20 @@ namespace MdExplorer.Features.Agents.Workflow
             }
             foreach (var s in wf.Steps.Where(s => s.Id != null && index.ContainsKey(s.Id) && !reached.Contains(s.Id)))
                 Error(r, $"steps[{index[s.Id]}]", UiText.Say($"il passo '{s.Id}' non parte mai: nessuna catena lo raggiunge da un lancio.", $"step '{s.Id}' never starts: no chain reaches it from a launch."));
+        }
+
+        /// <summary>I passi da cui uno dipende, anche alla lontana: le sorgenti delle sue sorgenti.</summary>
+        private static HashSet<string> Ancestors(string id, Dictionary<string, List<string>> sources)
+        {
+            var seen = new HashSet<string>();
+            var stack = new Stack<string>(sources.TryGetValue(id, out var first) ? first : new List<string>());
+            while (stack.Count > 0)
+            {
+                var s = stack.Pop();
+                if (!seen.Add(s)) continue;
+                if (sources.TryGetValue(s, out var more)) foreach (var m in more) stack.Push(m);
+            }
+            return seen;
         }
 
         private static List<string> FindCycle(string id, Dictionary<string, List<string>> next, Dictionary<string, int> state, Stack<string> path)

@@ -16,15 +16,15 @@ namespace MdExplorer.Features.Tests.Agents
     public class StepOwners_Should
     {
         private const string Team = @"{
-  ""mde_workflow"": 2, ""title"": ""Sprint"",
+  ""mde_workflow"": 3, ""title"": ""Sprint"",
   ""variables"": { ""task"": ""il task"" },
   ""steps"": [
-    { ""id"": ""pianifica"", ""agent"": ""team-manager"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""sviluppa"", ""agent"": ""sviluppatore"", ""trigger"": { ""reply"": ""assegna"", ""to"": ""pianifica"" }, ""start"": ""ask-owner"",
+    { ""id"": ""pianifica"", ""agent"": ""team-manager"", ""skill"": ""pianifica"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""sviluppa"", ""agent"": ""sviluppatore"", ""skill"": ""sviluppa"", ""trigger"": { ""reply"": ""assegna"", ""to"": ""pianifica"" }, ""start"": ""ask-owner"",
       ""brief"": ""Sviluppa {task}."" },
-    { ""id"": ""collauda"", ""agent"": ""collaudatore"", ""trigger"": { ""after"": [""sviluppa""] }, ""start"": ""auto"", ""brief"": ""Collauda {task}."" },
-    { ""id"": ""correggi"", ""agent"": ""sviluppatore"", ""trigger"": { ""after"": [""collauda""] }, ""start"": ""auto"", ""brief"": ""Correggi {task}."" },
-    { ""id"": ""rilascia"", ""agent"": ""team-manager"", ""trigger"": { ""after"": [""correggi""] }, ""start"": ""auto"", ""brief"": ""Rilascia {task}."" }
+    { ""id"": ""collauda"", ""agent"": ""collaudatore"", ""skill"": ""collauda"", ""trigger"": { ""after"": [""sviluppa""] }, ""start"": ""auto"", ""brief"": ""Collauda {task}."" },
+    { ""id"": ""correggi"", ""agent"": ""sviluppatore"", ""skill"": ""correggi"", ""trigger"": { ""after"": [""collauda""] }, ""start"": ""auto"", ""brief"": ""Correggi {task}."" },
+    { ""id"": ""rilascia"", ""agent"": ""team-manager"", ""skill"": ""rilascia"", ""trigger"": { ""after"": [""correggi""] }, ""start"": ""auto"", ""brief"": ""Rilascia {task}."" }
   ]
 }";
 
@@ -37,9 +37,12 @@ namespace MdExplorer.Features.Tests.Agents
 
         private static WorkflowDescriptor Wf()
         {
-            var r = WorkflowParser.Parse(Team);
-            Assert.IsTrue(r.IsValid, string.Join("\n", r.Issues));
-            return r.Descriptor;
+            var cards = new WorkflowCardSet().Job("team-manager", "pianifica").Job("sviluppatore", "sviluppa").Job("collaudatore", "collauda")
+                .Job("sviluppatore", "correggi").Job("team-manager", "rilascia");
+            var pianifica = cards.Agents["team-manager"].Skill("pianifica");
+            pianifica.Replies = new List<string> { "assegna" };
+            cards.Agents["team-manager"].Replies.Add(new MdExplorer.Features.Yaml.Models.AgentCardReply { Id = "assegna", Label = "Assegna {task}", Values = new List<string> { "task" } });
+            return GaraV3.Bound(Team, cards);
         }
 
         private static RoundState Round(params (string Step, string Agent, RoundEvent Event)[] events)

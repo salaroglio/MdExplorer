@@ -14,23 +14,7 @@ namespace MdExplorer.Features.Tests.Agents
     [TestClass]
     public class StalledSteps_Should
     {
-        private const string Gara = @"{
-  ""mde_workflow"": 2, ""title"": ""Gara"",
-  ""variables"": { ""codice"": ""il bando"" },
-  ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""account-manager"", ""trigger"": { ""launch"": true }, ""start"": ""manual"",
-      ""produces"": [""gara/ricerche/ricerca-*.md""] },
-    { ""id"": ""tecnica"", ""agent"": ""responsabile-tecnico"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."", ""produces"": [""gara/schede/tecnica.md""] },
-    { ""id"": ""contratto"", ""agent"": ""responsabile-legale"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda contrattuale sul bando {codice}."", ""produces"": [""gara/schede/contrattuale.md""] },
-    { ""id"": ""delivery"", ""agent"": ""responsabile-delivery"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda di delivery sul bando {codice}."", ""produces"": [""gara/schede/delivery.md""] },
-    { ""id"": ""sintesi"", ""agent"": ""account-manager"", ""trigger"": { ""after"": [""tecnica"", ""contratto"", ""delivery""] }, ""start"": ""auto"",
-      ""brief"": ""Scrivi la sintesi sul bando {codice}."", ""produces"": [""gara/schede/sintesi.md""] }
-  ],
-  ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica"", ""contratto"", ""delivery""], ""until"": ""approved"", ""restart"": ""manual"" } ]
-}";
+        private const string Gara = GaraV3.Plain;
 
         private const string Anna = "anna@test.local";
         private const string Marco = "marco@test.local";
@@ -39,9 +23,7 @@ namespace MdExplorer.Features.Tests.Agents
 
         private static WorkflowDescriptor Wf()
         {
-            var r = WorkflowParser.Parse(Gara);
-            Assert.IsTrue(r.IsValid, string.Join("\n", r.Issues));
-            return r.Descriptor;
+            return GaraV3.Bound(GaraV3.Plain);
         }
 
         private static string OwnerOf(WorkflowStep s) => s.Agent == "responsabile-tecnico" ? Marco : Anna;

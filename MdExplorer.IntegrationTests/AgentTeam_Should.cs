@@ -26,12 +26,12 @@ namespace MdExplorer.IntegrationTests
         private const string Marco = "marco@test.local";
 
         private const string Workflow = @"{
-  ""mde_workflow"": 2, ""title"": ""Gara"",
+  ""mde_workflow"": 3, ""title"": ""Gara"",
   ""variables"": { ""codice"": ""il bando"" },
   ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
-      ""start"": ""ask-owner"", ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."" PRODUCES }
+    { ""id"": ""ricerca"", ""agent"": ""capo"", ""skill"": ""ricerca"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
+      ""start"": ""ask-owner"", ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."" }
   ]
 }";
 
@@ -52,18 +52,18 @@ namespace MdExplorer.IntegrationTests
             {
                 Enabled = true, UseAgentWorktrees = false, OwnershipDoc = "responsabilita.md", WorkflowDoc = "workflow.md",
             });
-            ctx.WriteLlmCitizen(path, "capo", "Chi cerca i bandi", new[] { "user" });
-            ctx.WriteLlmCitizen(path, "tecnico", "Chi scrive la scheda", new[] { "capo", "user" });
+            ctx.WriteLlmCitizen(path, "capo", "Chi cerca i bandi", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
+            ctx.WriteLlmCitizen(path, "tecnico", "Chi scrive la scheda", new[] { "capo", "user" }, jobs: AgentCityContext.TecnicoJobs(produces));
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "capo");
             ctx.Trust(path, "tecnico");
 
             File.WriteAllText(Path.Combine(path, "responsabilita.md"),
-                "---\nmde_type: ownership\n---\n# Chi risponde\n\n| Ambito | Responsabile | Git Email | Agenti |\n|---|---|---|---|\n" +
+                "---\nmde_type: ownership\n---\n# Chi risponde\n\n| Ruolo | Responsabile | Git Email | Agenti |\n|---|---|---|---|\n" +
                 $"| Commerciale | Io | {Me} | capo |\n| Tecnica | Io | {Me} | tecnico |\n| Tecnica (2) | Marco | {Marco} | tecnico |\n");
             File.WriteAllText(Path.Combine(path, "workflow.md"), "---\nmde_type: workflow\nworkflow: prova.workflow.json\n---\n# Prova\n");
             File.WriteAllText(Path.Combine(path, "prova.workflow.json"),
-                Workflow.Replace(" PRODUCES", produces ? @", ""produces"": [""schede/tecnica.md""]" : ""));
+                Workflow);
             Directory.CreateDirectory(Path.Combine(path, "schede"));
             File.WriteAllText(Path.Combine(path, "schede", ".gitkeep"), "");
             Git(path, "add", "-A");

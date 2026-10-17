@@ -48,7 +48,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "ownership.md"), @"---
 mde_type: ownership
 ---
-| Ambito | Git Email | Agenti |
+| Ruolo | Git Email | Agenti |
 |--------|-----------|--------|
 | WSAA-TOT | marco@acme.it | javadev |
 ");

@@ -21,11 +21,11 @@ namespace MdExplorer.IntegrationTests
     public class AgentWorkflowRules_Should
     {
         private const string WithLoop = @"{
-  ""mde_workflow"": 2, ""title"": ""Prova"",
+  ""mde_workflow"": 3, ""title"": ""Prova"",
   ""steps"": [
-    { ""id"": ""incarica"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""auto"",
-      ""brief"": ""Scrivi la scheda tecnica."", ""produces"": [""schede/tecnica.md""] }
+    { ""id"": ""incarica"", ""agent"": ""capo"", ""skill"": ""incarica"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""auto"",
+      ""brief"": ""Scrivi la scheda tecnica."" }
   ],
   ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""scheda""], ""until"": ""approved"", ""max"": 1, ""restart"": ""manual"" } ]
 }";
@@ -36,6 +36,9 @@ namespace MdExplorer.IntegrationTests
             Directory.CreateDirectory(Path.Combine(path, "schede"));
             File.WriteAllText(Path.Combine(path, "workflow.md"), "---\nmde_type: workflow\nworkflow: prova.workflow.json\n---\n# Prova\n");
             File.WriteAllText(Path.Combine(path, "prova.workflow.json"), workflow);
+            // Le schede dei passi: il workflow v3 si legge unito alle loro skill.
+            ctx.WriteLlmCitizen(path, "capo", "Chi incarica", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
+            ctx.WriteLlmCitizen(path, "tecnico", "Scheda tecnica", new[] { "capo", "user" }, jobs: AgentCityContext.TecnicoJobs(true));
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
             meta.SetAgentCity(path, new MdExplorer.Service.Models.AgentCityConfig
             {
@@ -50,8 +53,8 @@ namespace MdExplorer.IntegrationTests
             using var ctx = new AgentCityContext();
             var path = Project(ctx, "wf-non-previsto", WithLoop);
             ctx.SetGitEmail(path, "io@test.local");
-            ctx.WriteLlmCitizen(path, "capo", "Chi incarica", new[] { "user" });
-            ctx.WriteLlmCitizen(path, "tecnico", "Scheda tecnica", new[] { "capo", "user" });
+            ctx.WriteLlmCitizen(path, "capo", "Chi incarica", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
+            ctx.WriteLlmCitizen(path, "tecnico", "Scheda tecnica", new[] { "capo", "user" }, jobs: AgentCityContext.TecnicoJobs(true));
             ctx.WriteLlmCitizen(path, "legale", "Scheda contrattuale", new[] { "capo", "user" });
             ctx.IndexAgentFiles(path);
             foreach (var a in new[] { "capo", "tecnico", "legale" }) ctx.Trust(path, a);

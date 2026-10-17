@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Agents.Workflow
         /// <summary>A chi passa il lavoro un agente secondo il workflow: per dirlo all'agente quando sbaglia.</summary>
         public static IReadOnlyList<string> AssigneesOf(WorkflowDescriptor wf, string fromAgent)
             => wf == null ? Array.Empty<string>()
-               : wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.After
+               : wf.Steps.Where(s => !s.IsPerson && s.Trigger?.Kind == WorkflowTriggerKind.After
                                      && s.Trigger.After.Any(a => Same(wf.Step(a)?.Agent, fromAgent))
                                      && !Same(s.Agent, fromAgent))
                          .Select(s => s.Agent).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -109,7 +109,7 @@ namespace MdExplorer.Features.Agents.Workflow
         /// Null con problema = ce n'è uno configurato che non si legge o ha errori: senza la regola non si sa chi avvia,
         /// e chi chiama non deve fare come se non ci fosse.
         /// </summary>
-        public static WorkflowDescriptor LoadActive(string projectRoot, string documentPath, out string problem)
+        public static WorkflowDescriptor LoadActive(string projectRoot, string documentPath, string ownershipDoc, out string problem)
         {
             problem = null;
             if (string.IsNullOrWhiteSpace(documentPath)) return null;
@@ -122,7 +122,7 @@ namespace MdExplorer.Features.Agents.Workflow
                     problem = UiText.Say($"il workflow '{json}' nominato da '{documentPath}' non esiste.", $"the workflow '{json}' named by '{documentPath}' does not exist.");
                     return null;
                 }
-                var parsed = WorkflowParser.Parse(File.ReadAllText(full));
+                var parsed = WorkflowFile.Read(projectRoot, File.ReadAllText(full), ownershipDoc);
                 if (!parsed.IsValid)
                 {
                     var errors = parsed.Issues.Where(i => i.Severity == WorkflowSeverity.Error).ToList();

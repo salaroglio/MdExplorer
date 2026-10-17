@@ -737,7 +737,7 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var metadata = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.IProjectMetadataService)) as MdExplorer.Services.IProjectMetadataService;
-                var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDoc, out _);
+                var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDoc, metadata?.GetAgentCity(m.ProjectPath)?.OwnershipDoc, out _);
                 var isApproval = string.Equals(m.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
                 // Un incarico dello schedulatore sa di quale passo è; gli altri si riconoscono dalla regola.
                 step = wf == null ? null

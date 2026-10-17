@@ -30,6 +30,11 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// di MdExplorer di prima questo file lo ignora senza confonderlo con un passo.
         /// </summary>
         public const string WorkflowSnapshotFile = "workflow.snapshot";
+        /// <summary>
+        /// Le interfacce delle schede con cui il giro è nato (workflow v3, 17/10/2026): uscite, documenti letti e ingressi
+        /// dei lavori, uniti al workflow. Una scheda cambiata a giro aperto non cambia il giro.
+        /// </summary>
+        public const string CardsSnapshotFile = "schede.snapshot";
 
         private static readonly Regex RoundId = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
 
@@ -76,23 +81,37 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         }
 
         /// <summary>Salva il workflow con cui nasce il giro. Una volta sola: la versione del giro non cambia più.</summary>
-        public static void SaveWorkflowSnapshot(string projectRoot, string roundId, string workflowJson)
+        public static void SaveWorkflowSnapshot(string projectRoot, string roundId, string workflowJson) =>
+            SaveSnapshot(projectRoot, roundId, WorkflowSnapshotFile, workflowJson);
+
+        /// <summary>Il workflow con cui il giro è nato, o null per un giro aperto prima che si salvasse (vale quello attuale).</summary>
+        public static string LoadWorkflowSnapshot(string projectRoot, string roundId) =>
+            LoadSnapshot(projectRoot, roundId, WorkflowSnapshotFile);
+
+        /// <summary>Salva le schede con cui nasce il giro, accanto al workflow. Una volta sola, come il workflow.</summary>
+        public static void SaveCardsSnapshot(string projectRoot, string roundId, string cardsJson) =>
+            SaveSnapshot(projectRoot, roundId, CardsSnapshotFile, cardsJson);
+
+        /// <summary>Le schede con cui il giro è nato, o null se il giro non le ha salvate.</summary>
+        public static string LoadCardsSnapshot(string projectRoot, string roundId) =>
+            LoadSnapshot(projectRoot, roundId, CardsSnapshotFile);
+
+        private static void SaveSnapshot(string projectRoot, string roundId, string name, string text)
         {
             var folder = RoundFolder(projectRoot, roundId);
             if (!File.Exists(Path.Combine(folder, HeaderFile)))
                 throw new InvalidOperationException(UiText.Say($"Il giro '{roundId}' non esiste: va aperto prima di salvarne il workflow.", $"The round '{roundId}' does not exist: it must be opened before saving its workflow."));
-            var file = Path.Combine(folder, WorkflowSnapshotFile);
+            var file = Path.Combine(folder, name);
             if (File.Exists(file)) return;
             // Il testo esatto, senza l'a capo che gli altri file del registro aggiungono: è una copia, non un file nostro.
             var aside = file + ".scrittura";
-            File.WriteAllText(aside, workflowJson ?? throw new ArgumentNullException(nameof(workflowJson)), new UTF8Encoding(false));
+            File.WriteAllText(aside, text ?? throw new ArgumentNullException(nameof(text)), new UTF8Encoding(false));
             File.Move(aside, file, overwrite: true);
         }
 
-        /// <summary>Il workflow con cui il giro è nato, o null per un giro aperto prima che si salvasse (vale quello attuale).</summary>
-        public static string LoadWorkflowSnapshot(string projectRoot, string roundId)
+        private static string LoadSnapshot(string projectRoot, string roundId, string name)
         {
-            var file = Path.Combine(RoundFolder(projectRoot, roundId), WorkflowSnapshotFile);
+            var file = Path.Combine(RoundFolder(projectRoot, roundId), name);
             return File.Exists(file) ? File.ReadAllText(file) : null;
         }
 

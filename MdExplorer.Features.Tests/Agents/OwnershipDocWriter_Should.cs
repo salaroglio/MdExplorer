@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Tests.Agents
         public void Add_a_row_after_the_last_one_and_leave_the_rest_alone()
         {
             const string doc = "---\nmde_type: ownership\n---\n# Chi fa cosa\n\nTesto del gruppo.\n\n" +
-                               "| Agenti | Git Email | Ambito |\n|---|---|---|\n| tecnico | marco@x.it | Tecnica |\n\nNota in fondo.\n";
+                               "| Agenti | Git Email | Ruolo |\n|---|---|---|\n| tecnico | marco@x.it | Tecnica |\n\nNota in fondo.\n";
 
             var written = OwnershipDocWriter.AddRow(doc, "legale", "Anna", "anna@x.it");
 
@@ -46,14 +46,14 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        public void Keep_the_ambit_unique()
+        public void Make_a_team_of_a_second_person_on_the_same_agent()
         {
             var doc = OwnershipDocWriter.AddRow(null, "legale", "Anna", "anna@x.it");
-            doc = OwnershipDocWriter.AddRow(doc, "legale", "Anna", "anna@x.it");
+            doc = OwnershipDocWriter.AddRow(doc, "legale", "Marco", "marco@x.it");
 
             var parsed = OwnershipDocParser.Parse(doc);
             Assert.IsFalse(parsed.HasErrors, string.Join(" | ", parsed.Errors));
-            CollectionAssert.AreEqual(new[] { "legale", "legale (2)" }, parsed.Entries.Select(e => e.Scope).ToList());
+            CollectionAssert.AreEqual(new[] { "legale", "legale" }, parsed.Entries.Select(e => e.Role).ToList(), "one role, two people: its team");
         }
 
         [TestMethod]
@@ -75,8 +75,12 @@ namespace MdExplorer.Features.Tests.Agents
             StringAssert.Contains(noTable.Message, "has no table");
 
             var noAgents = Assert.ThrowsException<InvalidOperationException>(
-                () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ambito | Git Email |\n|--|--|\n", "legale", "Anna", "anna@x.it"));
+                () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ruolo | Git Email |\n|--|--|\n", "legale", "Anna", "anna@x.it"));
             StringAssert.Contains(noAgents.Message, "'Agenti'");
+
+            var oldName = Assert.ThrowsException<InvalidOperationException>(
+                () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ambito | Git Email | Agenti |\n|--|--|--|\n", "legale", "Anna", "anna@x.it"));
+            StringAssert.Contains(oldName.Message, "«Ruolo»");
         }
 
         [TestMethod]

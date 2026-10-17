@@ -12,7 +12,7 @@ mde_type: ownership
 ---
 # Ownership
 
-| Ambito | Descrizione | Responsabile | Git Email | Agenti |
+| Ruolo | Descrizione | Responsabile | Git Email | Agenti |
 |--------|-------------|--------------|-----------|--------|
 | WSAA   | Import TOT  | Carlo        | carlo@x.it | analyst, dev |
 | Batch  | Notturni    | Marco        | marco@y.it | dev |
@@ -35,7 +35,7 @@ mde_type: ownership
         }
 
         [TestMethod]
-        public void Parse_scope_responsible_email_and_agents()
+        public void Parse_role_responsible_email_and_agents()
         {
             var result = OwnershipDocParser.Parse(ValidDoc);
 
@@ -43,7 +43,7 @@ mde_type: ownership
             Assert.IsFalse(result.HasErrors, string.Join(" | ", result.Errors));
             Assert.AreEqual(2, result.Entries.Count);
 
-            var wsaa = result.Entries.First(e => e.Scope == "WSAA");
+            var wsaa = result.Entries.First(e => e.Role == "WSAA");
             Assert.AreEqual("Carlo", wsaa.Responsible);
             Assert.AreEqual("carlo@x.it", wsaa.GitEmail);
             CollectionAssert.AreEquivalent(new[] { "analyst", "dev" }, wsaa.Agents.ToArray());
@@ -55,8 +55,8 @@ mde_type: ownership
             var doc = @"---
 mde_type: ownership
 ---
-| Scope | Git Email | Agents |
-|-------|-----------|--------|
+| Role | Git Email | Agents |
+|------|-----------|--------|
 | S1 | CARLO@X.IT | a; b, c |
 ";
             var e = OwnershipDocParser.Parse(doc).Entries.Single();
@@ -65,21 +65,31 @@ mde_type: ownership
         }
 
         [TestMethod]
-        public void Reject_a_duplicate_scope()
+        public void Read_the_rows_of_one_role_as_its_team()
         {
             var doc = @"---
 mde_type: ownership
 ---
-| Ambito | Git Email |
-|--------|-----------|
+| Ruolo | Git Email |
+|-------|-----------|
 | WSAA | a@x.it |
 | WSAA | b@x.it |
 ";
             var result = OwnershipDocParser.Parse(doc);
-            Assert.IsTrue(result.IsOwnershipDoc);
+            Assert.IsFalse(result.HasErrors, string.Join(" | ", result.Errors));
+            CollectionAssert.AreEqual(new[] { "a@x.it", "b@x.it" }, result.Entries.Select(e => e.GitEmail).ToList());
+        }
+
+        [DataTestMethod]
+        [DataRow("Ambito")]
+        [DataRow("Scope")]
+        public void Ask_to_rename_the_old_column(string header)
+        {
+            var doc = $"---\nmde_type: ownership\n---\n| {header} | Git Email |\n|--|--|\n| WSAA | a@x.it |\n";
+            var result = OwnershipDocParser.Parse(doc);
             Assert.IsTrue(result.HasErrors);
-            Assert.IsTrue(result.Errors.Any(e => e.Contains("duplicated")), string.Join(" | ", result.Errors));
-            Assert.AreEqual(1, result.Entries.Count, "la seconda riga duplicata non entra");
+            Assert.AreEqual(0, result.Entries.Count, "a renamed column is never read");
+            StringAssert.Contains(result.Errors.Single(), "«Ruolo»");
         }
 
         [TestMethod]
@@ -88,8 +98,8 @@ mde_type: ownership
             var doc = @"---
 mde_type: ownership
 ---
-| Ambito | Git Email |
-|--------|-----------|
+| Ruolo | Git Email |
+|-------|-----------|
 | WSAA |  |
 ";
             var result = OwnershipDocParser.Parse(doc);

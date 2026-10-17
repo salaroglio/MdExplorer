@@ -20,7 +20,7 @@ namespace MdExplorer.Features.Agents
     {
         public string Name { get; init; }
         public string Email { get; init; }
-        public string Scope { get; init; }
+        public string Role { get; init; }
     }
 
     public sealed class AgentOwnerVerdict
@@ -32,10 +32,10 @@ namespace MdExplorer.Features.Agents
         /// of work chooses which of them takes it.
         /// </summary>
         public IReadOnlyList<AgentOwnerPerson> Owners { get; init; } = Array.Empty<AgentOwnerPerson>();
-        /// <summary>The responsible's name, git email and ambit, when there is exactly one: where a message is forwarded.</summary>
+        /// <summary>The responsible's name, git email and role, when there is exactly one: where a message is forwarded.</summary>
         public string OwnerName => Owners.Count == 1 ? Owners[0].Name : null;
         public string OwnerEmail => Owners.Count == 1 ? Owners[0].Email : null;
-        public string Scope => Owners.Count == 1 ? Owners[0].Scope : null;
+        public string Role => Owners.Count == 1 ? Owners[0].Role : null;
         /// <summary>Who this computer's person is for the project (git email); empty when it has none.</summary>
         public string LocalEmail { get; init; }
 
@@ -104,7 +104,7 @@ namespace MdExplorer.Features.Agents
                 {
                     Email = g.Key.ToLowerInvariant(),
                     Name = g.Select(e => e.Responsible).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
-                    Scope = g.First().Scope,
+                    Role = g.First().Role,
                 })
                 .ToList();
 

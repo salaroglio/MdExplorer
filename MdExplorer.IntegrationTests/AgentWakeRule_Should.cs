@@ -55,7 +55,7 @@ namespace MdExplorer.IntegrationTests
 
         private static void WriteOwnership(string path, params (string Email, string Agent)[] rows)
             => File.WriteAllText(Path.Combine(path, "responsabilita.md"),
-                "---\nmde_type: ownership\n---\n| Ambito | Git Email | Agenti |\n|--------|-----------|--------|\n" +
+                "---\nmde_type: ownership\n---\n| Ruolo | Git Email | Agenti |\n|--------|-----------|--------|\n" +
                 string.Concat(rows.Select((r, i) => $"| Ambito{i} | {r.Email} | {r.Agent} |\n")));
 
         /// <summary>Una città con tre agenti: uno mio, uno di Marco, uno di nessuno. Tutti e tre abilitati qui.</summary>

@@ -9,7 +9,7 @@ namespace MdExplorer.Features.Tests.Agents
     public class AgentOwnerRule_Should
     {
         private static OwnershipEntry Row(string scope, string responsible, string email, params string[] agents)
-            => new OwnershipEntry { Scope = scope, Responsible = responsible, GitEmail = email, Agents = agents };
+            => new OwnershipEntry { Role = scope, Responsible = responsible, GitEmail = email, Agents = agents };
 
         private static readonly List<OwnershipEntry> Table = new()
         {
@@ -35,7 +35,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreEqual(AgentOwnerKind.SomeoneElse, verdict.Kind);
             Assert.IsFalse(verdict.CanWorkHere);
             StringAssert.Contains(verdict.Explain(), "Marco (marco@pentagroup.it)");
-            Assert.AreEqual("Tecnica", verdict.Scope, "l'ambito sotto cui il messaggio viaggia verso il suo computer");
+            Assert.AreEqual("Tecnica", verdict.Role, "il ruolo sotto cui il messaggio viaggia verso il suo computer");
             StringAssert.Contains(verdict.Explain(), "sei anna@pentagroup.it");
         }
 

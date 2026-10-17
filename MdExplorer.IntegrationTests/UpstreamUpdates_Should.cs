@@ -64,7 +64,7 @@ namespace MdExplorer.IntegrationTests
             Git(root, $"clone -q \"{source}\" chi-pubblica");
             Identity(publisher);
             File.WriteAllText(Path.Combine(publisher, "README.md"), "# demo\nversione 1\n");
-            File.WriteAllText(Path.Combine(publisher, "responsabilita.md"), "| Ambito | Git Email | Agenti |\n|--|--|--|\n");
+            File.WriteAllText(Path.Combine(publisher, "responsabilita.md"), "| Ruolo | Git Email | Agenti |\n|--|--|--|\n");
             Git(publisher, "add -A"); Git(publisher, "commit -q -m v1"); Git(publisher, "push -q origin HEAD:main");
 
             var (_, project) = ctx.SeedProject(name);
@@ -159,9 +159,9 @@ namespace MdExplorer.IntegrationTests
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
             var (project, origin, publisher) = Setup(ctx, "conflitto");
-            Publish(publisher, "responsabilita.md", "| Ambito | Git Email | Agenti |\n|--|--|--|\n| Nuova | x@y.z | nuovo |\n", "tabella nuova");
+            Publish(publisher, "responsabilita.md", "| Ruolo | Git Email | Agenti |\n|--|--|--|\n| Nuova | x@y.z | nuovo |\n", "tabella nuova");
             // Come dopo «Sono tutti miei»: la mia riga, committata, sulla stessa tabella.
-            File.WriteAllText(Path.Combine(project, "responsabilita.md"), "| Ambito | Git Email | Agenti |\n|--|--|--|\n| Mia | io@test.local | mio |\n");
+            File.WriteAllText(Path.Combine(project, "responsabilita.md"), "| Ruolo | Git Email | Agenti |\n|--|--|--|\n| Mia | io@test.local | mio |\n");
             Git(project, "add -A"); Git(project, "commit -q -m \"sono miei\"");
             var headBefore = Git(project, "rev-parse HEAD").Out;
             var originBefore = Git(origin, "rev-parse main").Out;

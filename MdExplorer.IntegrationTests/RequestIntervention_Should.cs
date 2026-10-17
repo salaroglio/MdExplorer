@@ -29,7 +29,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "ownership.md"), @"---
 mde_type: ownership
 ---
-| Ambito | Git Email | Agenti |
+| Ruolo | Git Email | Agenti |
 |--------|-----------|--------|
 | WSAA-TOT | marco@acme.it | javadev |
 ");
@@ -96,6 +96,31 @@ mde_type: ownership
             var again = await (await PostIntervention(ctx, token, "WSAA-TOT", "E i test?")).Content.ReadAsStringAsync();
             using var json2 = System.Text.Json.JsonDocument.Parse(again);
             Assert.AreEqual("delivered", json2.RootElement.GetProperty("delivery").GetString());
+        }
+
+        [TestMethod]
+        public async Task Ask_who_when_the_role_has_a_team_and_send_to_the_one_chosen()
+        {
+            // Workflow v3 (17/10/2026): lo stesso ruolo su più righe è un team; chi chiede sceglie, il servizio non indovina.
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("intervention-team");
+            SetupOwnership(ctx, path);
+            File.AppendAllText(Path.Combine(path, "ownership.md"), "| WSAA-TOT | lia@acme.it | javadev |\n");
+            var token = ctx.MintRunToken("analyst", path, ctx.SeedConversation(path).ToString());
+
+            var resp = await PostIntervention(ctx, token, "WSAA-TOT", "Genera il Java dal workflow.");
+            var body = await resp.Content.ReadAsStringAsync();
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, resp.StatusCode, body);
+            StringAssert.Contains(body, "more than one person");
+            StringAssert.Contains(body, "lia@acme.it");
+            Assert.IsNull(ctx.FederationSender.LastPayload, "senza una scelta non parte niente");
+
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { scope = "WSAA-TOT", message = "Genera il Java.", owner = "lia@acme.it" });
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/A2A/messages/request-intervention") { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
+            req.Headers.Add("X-MDE-Run-Token", token);
+            var chosen = await ctx.Client.SendAsync(req);
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, chosen.StatusCode, await chosen.Content.ReadAsStringAsync());
+            Assert.AreEqual(FederationRoom.ComputeUserId("lia@acme.it"), ctx.FederationSender.LastTargetOwnerId);
         }
 
         [TestMethod]

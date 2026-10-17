@@ -102,7 +102,7 @@ namespace MdExplorer.Services.AgentRun
                 FederationId = federationId.ToString(),
                 FromOwner = _identity.ResolveEmail(message.ProjectPath),
                 FromAgent = message.FromAgent,
-                Scope = owner.Scope,
+                Scope = owner.Role,
                 TargetAgent = message.ToAgent,
                 Message = message.Body,
                 Topics = AgentTopics.Split(message.Topics)?.ToList(),
@@ -134,7 +134,7 @@ namespace MdExplorer.Services.AgentRun
             }
 
             _logger.LogInformation("[Forward] {From} → '{To}' sul computer di {Owner} (ambito '{Scope}', richiesta {Id}): {Outcome}.",
-                message.FromAgent, message.ToAgent, owner.OwnerEmail, owner.Scope, message.Id,
+                message.FromAgent, message.ToAgent, owner.OwnerEmail, owner.Role, message.Id,
                 sent == MdExplorer.Services.Federation.RelayDelivery.Queued ? "computer spento, aspetta sul relay" : "consegnato");
             return sent;
         }

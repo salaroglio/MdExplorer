@@ -1,9 +1,9 @@
 ---
 name: mde-ownership
-description: Author or reorganize the project OWNERSHIP document for the agent city (federation). Use when a project enables the agent city and needs a machine-readable map of "who is responsible for which scope, with which agents". Produces a single markdown doc with `mde_type: ownership` and a well-formed table.
+description: Author or reorganize the project OWNERSHIP document (responsabilita.md) for the agent city. Use when a project enables the agent city and needs a machine-readable map of "who has which role, with which agents" — the roles that workflow steps of people (`person`) and approvals (`approval.by`) name. Produces a single markdown doc with `mde_type: ownership` and a well-formed table.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -20,7 +20,7 @@ file alone.
 # MdExplorer ownership document convention
 
 The **ownership document** (§12.3 of the Agent-Harness-A2A design) makes machine-readable
-*who is responsible for which scope, and with which agents*. It is a **routing hint** for
+*who has which role, and with which agents*. The **role** is also the name a workflow (`mde-workflow`) uses for the step of a person (`person`) and for who approves (`approval.by`). It is a **routing hint** for
 the agent city / federation — **not a permission**: the human gate (§12.6) is always the
 guardrail. One project has **at most one** ownership doc.
 
@@ -48,11 +48,11 @@ mde_type: ownership
 
 | Column        | Aliases                          | Required | Meaning |
 |---------------|----------------------------------|----------|---------|
-| Scope         | `Ambito`, `Scope`                | yes      | The area of responsibility (unique across the table). |
-| Description   | `Descrizione`, `Description`     | no       | One-line explanation of the scope. |
+| Role          | `Ruolo`, `Role`                  | yes      | The role. The **same role on more rows is a team**: who starts a piece of work chooses which of them takes it. |
+| Description   | `Descrizione`, `Description`     | no       | One-line explanation of the role. |
 | Responsible   | `Responsabile`, `Responsible`, `Owner` | no | Display name of the person. |
 | Git Email     | `Git Email`, `GitEmail`, `Email` | yes      | Identity key — MUST match a project **participant** git email. |
-| Agents        | `Agenti`, `Agents`               | no       | Agent names (`a2a.name`) that serve this scope, comma/space separated. |
+| Agents        | `Agenti`, `Agents`               | no       | Agent names (`a2a.name`) of this person in this role, comma/space separated. A role with no agents (a person who only decides or approves) leaves it empty. |
 
 ### Example
 
@@ -62,17 +62,20 @@ mde_type: ownership
 ---
 # Ownership
 
-| Ambito     | Descrizione            | Responsabile | Git Email        | Agenti          |
+| Ruolo      | Descrizione            | Responsabile | Git Email        | Agenti          |
 |------------|------------------------|--------------|------------------|-----------------|
 | WSAA-TOT   | Import TOT movements   | Carlo        | carlo@acme.it    | analyst, dev    |
 | Batch      | Nightly jobs           | Marco        | marco@acme.it    | dev             |
+| Batch      | Nightly jobs           | Lia          | lia@acme.it      | dev             |
+| Direzione  | Decides on offers      | Anna         | anna@acme.it     |                 |
 ```
 
 ## Validation rules (fail-loud)
 
 The parser and validator reject a doc that breaks any of these — fix them, do not work around:
 
-- **Unique scopes**: the same `Scope` may not appear twice.
+- **The column is `Ruolo` / `Role`**: the old `Ambito` / `Scope` header is an error that asks to rename it.
+- **A repeated role is a team** (Batch above: Marco and Lia), not an error.
 - **Git Email required** on every row, and it **must be a project participant** (the email
   appears in the merged participants of `.development.yml`). If the responsible person is
   not yet a participant, add them first (MdE Team panel).

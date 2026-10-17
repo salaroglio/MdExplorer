@@ -16,33 +16,13 @@ namespace MdExplorer.Features.Tests.Agents
     [TestClass]
     public class WorkflowScheduler_Should
     {
-        private const string Gara = @"{
-  ""mde_workflow"": 2, ""title"": ""Gara"",
-  ""variables"": { ""codice"": ""il bando"" },
-  ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""account-manager"", ""trigger"": { ""launch"": true }, ""start"": ""manual"",
-      ""produces"": [""gara/ricerche/ricerca-*.md""] },
-    { ""id"": ""tecnica"", ""agent"": ""responsabile-tecnico"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."", ""produces"": [""gara/schede/tecnica.md""] },
-    { ""id"": ""contratto"", ""agent"": ""responsabile-legale"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda contrattuale sul bando {codice}."", ""produces"": [""gara/schede/contrattuale.md""] },
-    { ""id"": ""delivery"", ""agent"": ""responsabile-delivery"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda di delivery sul bando {codice}."", ""produces"": [""gara/schede/delivery.md""] },
-    { ""id"": ""sintesi"", ""agent"": ""account-manager"", ""trigger"": { ""after"": [""tecnica"", ""contratto"", ""delivery""] }, ""start"": ""auto"",
-      ""brief"": ""Scrivi la sintesi sul bando {codice}."", ""produces"": [""gara/schede/sintesi.md""] }
-  ],
-  ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica"", ""contratto"", ""delivery""], ""until"": ""approved"", ""restart"": ""manual"" } ]
-}";
+        private const string Gara = GaraV3.Plain;
 
         private static readonly DateTime T0 = new(2026, 10, 6, 9, 0, 0, DateTimeKind.Utc);
         private int _tick;
 
-        private static WorkflowDescriptor Parse(string json)
-        {
-            var r = WorkflowParser.Parse(json);
-            Assert.IsTrue(r.IsValid, string.Join("\n", r.Issues));
-            return r.Descriptor;
-        }
+        /// <summary>Il workflow unito alle schede della gara, più quelle che il test aggiunge.</summary>
+        private static WorkflowDescriptor Parse(string json, WorkflowCardSet cards = null) => GaraV3.Bound(json, cards);
 
         private static Func<string, bool> Pc(string agent) => a => a == agent;
         private static readonly Func<string, bool> Everyone = _ => true;
@@ -188,13 +168,14 @@ namespace MdExplorer.Features.Tests.Agents
         [TestMethod]
         public void Run_the_rounds_of_a_for_loop_and_go_on_after_the_last()
         {
-            var wf = Parse(@"{ ""mde_workflow"": 2, ""title"": ""Revisione"",
+            var wf = Parse(@"{ ""mde_workflow"": 3, ""title"": ""Revisione"",
               ""steps"": [
-                { ""id"": ""bozza"", ""agent"": ""scrittore"", ""trigger"": { ""launch"": true }, ""start"": ""manual"", ""produces"": [""doc/b.md""] },
-                { ""id"": ""revisione"", ""agent"": ""revisore"", ""trigger"": { ""after"": [""bozza""] }, ""start"": ""auto"",
-                  ""brief"": ""Rivedi la bozza."", ""produces"": [""doc/r.md""] },
-                { ""id"": ""pubblica"", ""agent"": ""scrittore"", ""trigger"": { ""after"": [""revisione""] }, ""start"": ""auto"", ""brief"": ""Pubblica."" } ],
-              ""loops"": [ { ""id"": ""giri"", ""steps"": [""revisione""], ""times"": 3 } ] }");
+                { ""id"": ""bozza"", ""agent"": ""scrittore"", ""skill"": ""bozza"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+                { ""id"": ""revisione"", ""agent"": ""revisore"", ""skill"": ""rivedi"", ""trigger"": { ""after"": [""bozza""] }, ""start"": ""auto"",
+                  ""brief"": ""Rivedi la bozza."" },
+                { ""id"": ""pubblica"", ""agent"": ""scrittore"", ""skill"": ""pubblica"", ""trigger"": { ""after"": [""revisione""] }, ""start"": ""auto"", ""brief"": ""Pubblica."" } ],
+              ""loops"": [ { ""id"": ""giri"", ""steps"": [""revisione""], ""times"": 3 } ] }",
+                new WorkflowCardSet().Job("scrittore", "bozza", "doc/b.md").Job("revisore", "rivedi", "doc/r.md").Job("scrittore", "pubblica"));
             var round = NewRound();
             Approve(round, "bozza", "scrittore", "doc/b.md");
 

@@ -89,7 +89,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             }
             var doc = Path.Combine(projectPath, city.OwnershipDoc);
             if (!File.Exists(doc))
-                File.WriteAllText(doc, "---\nmde_type: ownership\n---\n| Ambito | Responsabile | Git Email | Agenti |\n|--------|--------------|-----------|--------|\n");
+                File.WriteAllText(doc, "---\nmde_type: ownership\n---\n| Ruolo | Responsabile | Git Email | Agenti |\n|--------|--------------|-----------|--------|\n");
             File.AppendAllText(doc, string.Concat(agents.Select(a => $"| Ambito di {a} | Io | {email} | {a} |\n")));
         }
 
@@ -112,13 +112,40 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         }
 
         /// <summary>
+        /// I lavori di «capo» nei workflow di prova dei giri (incarica, ricerca con il pulsante «avvia-giro», sintesi,
+        /// revisione), senza uscite: i suoi passi si chiudono senza approvazione.
+        /// </summary>
+        public const string CapoJobs =
+            "  skills:\n" +
+            "    - id: incarica\n" +
+            "    - id: ricerca\n" +
+            "      replies: [avvia-giro]\n" +
+            "    - id: sintesi\n" +
+            "    - id: revisione\n" +
+            "  replies:\n" +
+            "    - id: avvia-giro\n" +
+            "      label: Avvia il giro su {codice}\n" +
+            "      message: avvia {codice}\n" +
+            "      values: [codice]\n";
+
+        /// <summary>Il lavoro «scheda» di «tecnico»: con l'uscita <c>schede/tecnica.md</c> si approva, senza si chiude.</summary>
+        public static string TecnicoJobs(bool produces) =>
+            "  skills:\n" +
+            "    - id: scheda\n" +
+            (produces ? "      outputs:\n        - { id: scheda, path: schede/tecnica.md }\n" : "");
+
+        /// <summary>
         /// Scrive un <c>&lt;name&gt;.agent.md</c> con blocco a2a: su disco (autorità del
         /// contenuto). Da solo NON rende l'agente un cittadino: chiama poi
         /// <see cref="IndexAgentFiles"/> per popolare l'indice Engine DB da cui il registry
         /// scopre gli agenti.
         /// </summary>
+        /// <param name="jobs">
+        /// L'interfaccia della scheda (workflow v3): righe YAML <c>skills:</c> / <c>replies:</c> dentro <c>a2a:</c>, già
+        /// indentate di due spazi. Serve quando un workflow nomina l'agente: il workflow si unisce alla sua skill.
+        /// </param>
         public void WriteLlmCitizen(string projectPath, string name, string role,
-            IEnumerable<string> acceptsMessagesFrom, int? maxHops = null)
+            IEnumerable<string> acceptsMessagesFrom, int? maxHops = null, string jobs = null)
         {
             // Ogni voce quotata: in YAML un '*' nudo è un alias e romperebbe il blocco a2a:.
             var accepts = string.Join(", ",
@@ -129,7 +156,7 @@ a2a:
   name: {name}
   role: {role}
   accepts_messages_from: [{accepts}]{hops}
----
+{jobs ?? string.Empty}---
 # {name}
 
 Sei l'agente {name}.";

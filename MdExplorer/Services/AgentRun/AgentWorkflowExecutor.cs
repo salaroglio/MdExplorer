@@ -245,7 +245,7 @@ namespace MdExplorer.Services.AgentRun
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
                 RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
-                SnapshotWorkflow(projectPath, id, jsonPath);
+                SnapshotWorkflow(projectPath, id, jsonPath, wf);
                 Write(projectPath, id, launch, new RoundEvent { Type = RoundEventType.Started, At = now, By = Me(projectPath), Run = runId },
                     $"giro {id}: «{launch.Label}» lanciato");
                 _logger.LogInformation("[Workflow] giro {Round} aperto: {Agent} lanciato a mano (passo '{Step}')", id, agentName, launch.Id);
@@ -427,7 +427,7 @@ namespace MdExplorer.Services.AgentRun
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
                 RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
-                SnapshotWorkflow(projectPath, id, jsonPath);
+                SnapshotWorkflow(projectPath, id, jsonPath, wf);
                 foreach (var e in origin.EventsOf(source.Id).Where(e => e.Type != RoundEventType.Replied))
                     RoundLedger.Append(_store.Root(projectPath), id, source.Id, source.Agent, e);
                 Write(projectPath, id, source, replied, $"giro {id}: «{chosen.Label}» (dalla ricerca del giro {origin.Header.Id})");
@@ -954,31 +954,33 @@ namespace MdExplorer.Services.AgentRun
         // ---- di contorno ----
 
         /// <summary>
-        /// Il workflow di un giro (16/10/2026): quello con cui è nato, salvato nel registro, così un workflow cambiato a giro
-        /// aperto non ferma i passi rimasti (le variabili nuove dei brief non c'erano quando il giro è partito). Un giro aperto
-        /// prima che si salvasse usa quello attuale, come prima. Con il workflow spento (nessun documento) non lavora niente.
+        /// Il workflow di un giro (16/10/2026): quello con cui è nato, salvato nel registro con le schede a cui era unito
+        /// (17/10/2026), così un workflow o una scheda cambiati a giro aperto non fermano né cambiano i passi rimasti. Un
+        /// giro aperto prima che si salvasse usa quello attuale, come prima. Con il workflow spento (nessun documento) non
+        /// lavora niente.
         /// </summary>
         private WorkflowDescriptor WorkflowFor(string projectPath, string roundId)
         {
-            var current = Workflow(projectPath, out _);
-            if (current == null || string.IsNullOrWhiteSpace(roundId) || !_store.IsAvailable(projectPath)) return current;
+            if (string.IsNullOrWhiteSpace(_metadata.GetAgentCity(projectPath)?.WorkflowDoc)) return null;
+            if (string.IsNullOrWhiteSpace(roundId) || !_store.IsAvailable(projectPath)) return Workflow(projectPath, out _);
             string json;
             try { json = RoundLedger.LoadWorkflowSnapshot(_store.Root(projectPath), roundId); }
-            catch (ArgumentException) { return current; }   // id non di un giro: chi chiama lo dirà
-            if (json == null) return current;
-            var parsed = WorkflowParser.Parse(json);
+            catch (ArgumentException) { return Workflow(projectPath, out _); }   // id non di un giro: chi chiama lo dirà
+            if (json == null) return Workflow(projectPath, out _);
+            var parsed = WorkflowFile.ReadSnapshot(json, RoundLedger.LoadCardsSnapshot(_store.Root(projectPath), roundId));
             if (parsed.IsValid) return parsed.Descriptor;
             var first = parsed.Issues.First(i => i.Severity == WorkflowSeverity.Error);
             if (_told.TryAdd($"{projectPath}|{roundId}|snapshot", 0))
-                _logger.LogError("[Workflow] giro {Round}: il workflow con cui è nato non si legge ({Problem}): il giro è fermo.", roundId, first);
+                _logger.LogError("[Workflow] giro {Round}: il workflow con cui è nato non si legge ({Problem}): il giro è fermo, va chiuso.", roundId, first);
             return null;
         }
 
-        /// <summary>Salva nel giro appena aperto il workflow com'è adesso: è quello con cui il giro andrà avanti.</summary>
-        private void SnapshotWorkflow(string projectPath, string roundId, string jsonPath)
+        /// <summary>Salva nel giro appena aperto il workflow com'è adesso e le schede a cui è unito: il giro andrà avanti con quelli.</summary>
+        private void SnapshotWorkflow(string projectPath, string roundId, string jsonPath, WorkflowDescriptor wf)
         {
             var full = Path.Combine(projectPath, jsonPath.Replace('/', Path.DirectorySeparatorChar));
             RoundLedger.SaveWorkflowSnapshot(_store.Root(projectPath), roundId, File.ReadAllText(full));
+            RoundLedger.SaveCardsSnapshot(_store.Root(projectPath), roundId, wf.Cards.ToJson());
         }
 
         private WorkflowDescriptor Workflow(string projectPath, out string jsonPath)
@@ -986,7 +988,7 @@ namespace MdExplorer.Services.AgentRun
             jsonPath = null;
             var doc = _metadata.GetAgentCity(projectPath)?.WorkflowDoc;
             if (string.IsNullOrWhiteSpace(doc)) return null;
-            var wf = WorkflowDocument.LoadActive(projectPath, doc, out var problem);
+            var wf = WorkflowDocument.LoadActive(projectPath, doc, _metadata.GetAgentCity(projectPath)?.OwnershipDoc, out var problem);
             if (problem != null)
             {
                 if (_told.TryAdd(projectPath + "|workflow|" + problem, 0))

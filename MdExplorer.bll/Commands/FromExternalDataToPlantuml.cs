@@ -192,18 +192,20 @@ namespace MdExplorer.Features.Commands
         /// </summary>
         private string BuildWorkflowBlock(Match match, string fileContent, string extraDirectives, RequestInfo requestInfo, string absolutePath)
         {
-            var parsed = WorkflowParser.Parse(fileContent);
+            var root = requestInfo?.CurrentRoot;
+            if (string.IsNullOrWhiteSpace(root))
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say("il workflow si disegna dentro un progetto: servono le schede degli agenti", "the workflow is drawn inside a project: it needs the agents' cards"));
+            var parsed = WorkflowFile.ReadBound(root, fileContent);
             if (!parsed.IsValid)
             {
                 var errors = parsed.Issues.Where(i => i.Severity == WorkflowSeverity.Error).Select(i => "• " + i).ToList();
                 return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say($"il workflow ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, non lo disegno:\n", $"the workflow has {errors.Count} {(errors.Count == 1 ? "error" : "errors")}, I am not drawing it:\n") + string.Join("\n", errors));
             }
 
-            var root = requestInfo?.CurrentRoot;
-            var diagram = WorkflowPlantuml.Render(parsed.Descriptor,
-                agent => FindAgentCard(root, agent),
-                produced => !string.IsNullOrWhiteSpace(root)
-                            && File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))));
+            var wf = parsed.Descriptor;
+            var diagram = WorkflowPlantuml.Render(wf,
+                agent => wf.Cards.Agents.TryGetValue(agent, out var card) ? card.Path : null,
+                produced => File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))));
             var trimmedDirectives = extraDirectives.Trim('\r', '\n', ' ', '\t');
             if (trimmedDirectives.Length > 0)
                 diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");
@@ -212,38 +214,6 @@ namespace MdExplorer.Features.Commands
 
             _logger.LogInformation("[FromExternalDataToPlantuml] @workflow expanded from {Path}", absolutePath);
             return "\n\n```plantuml\n" + diagram + "```\n\n";
-        }
-
-        /// <summary>
-        /// La scheda di un agente, dalla radice del progetto: <c>&lt;nome&gt;.agent.md</c>, prima nel posto solito
-        /// (<c>.github/agents</c>) poi ovunque nel progetto, mai nelle scrivanie degli agenti. Null se non c'è o se
-        /// ce n'è più d'una: il passo resta senza link, il diagramma non sceglie a caso.
-        /// </summary>
-        private static string FindAgentCard(string projectRoot, string agent)
-        {
-            if (string.IsNullOrWhiteSpace(projectRoot) || string.IsNullOrWhiteSpace(agent) || !Directory.Exists(projectRoot)) return null;
-            var fileName = agent + ".agent.md";
-            var usual = Path.Combine(projectRoot, ".github", "agents", fileName);
-            if (File.Exists(usual)) return ".github/agents/" + fileName;
-
-            var skip = new[] { ".git", ".worktrees", "node_modules", ".md" };
-            var found = new List<string>();
-            var pending = new Stack<string>();
-            pending.Push(projectRoot);
-            while (pending.Count > 0 && found.Count < 2)
-            {
-                var dir = pending.Pop();
-                try
-                {
-                    found.AddRange(Directory.EnumerateFiles(dir, fileName));
-                    foreach (var sub in Directory.EnumerateDirectories(dir))
-                        if (!skip.Contains(Path.GetFileName(sub), StringComparer.OrdinalIgnoreCase)) pending.Push(sub);
-                }
-                catch (UnauthorizedAccessException) { /* una cartella che non si legge non ha schede da trovare */ }
-            }
-            return found.Count == 1
-                ? Path.GetRelativePath(projectRoot, found[0]).Replace('\\', '/')
-                : null;
         }
 
         /// <summary>

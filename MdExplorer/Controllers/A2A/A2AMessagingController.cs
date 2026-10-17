@@ -199,7 +199,7 @@ namespace MdExplorer.Controllers.A2A
             // Il workflow del progetto, se c'è, è la regola di come si passa il lavoro: un passaggio che non descrive non
             // parte, e l'agente sa perché e cosa può fare. Si dice adesso, a chi scrive, non dopo nella coda.
             var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
-                claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, out var workflowProblem);
+                claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, _projectMetadata.GetAgentCity(claims.ProjectPath)?.OwnershipDoc, out var workflowProblem);
             if (workflowProblem != null)
                 return Conflict(new { error = UiText.Say($"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona.", $"The project workflow cannot be read ({workflowProblem}): until it is fixed I cannot tell whether this handoff is expected. Tell the person.") });
             if (workflow != null)
@@ -345,13 +345,25 @@ namespace MdExplorer.Controllers.A2A
             if (entries == null)
                 return StatusCode(409, new { error = UiText.Say("Città non attiva o senza documento di ownership valido.", "City not active or without a valid ownership document.") });
 
-            var entry = OwnershipResolver.Resolve(entries, request.Scope);
-            if (entry == null)
-                return NotFound(new { error = UiText.Say($"Ambito '{request.Scope}' non presente nell'ownership del progetto.", $"Scope '{request.Scope}' is not in the project ownership.") });
+            var rows = OwnershipResolver.Resolve(entries, request.Scope);
+            if (rows.Count == 0)
+                return NotFound(new { error = UiText.Say($"Il ruolo '{request.Scope}' non è nel documento delle responsabilità del progetto.", $"The role '{request.Scope}' is not in the project's responsibilities document.") });
+            // Un ruolo con un team: sceglie chi fa la richiesta (owner), il servizio non indovina.
+            if (!string.IsNullOrWhiteSpace(request.Owner))
+                rows = rows.Where(r => string.Equals(r.GitEmail, request.Owner.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            if (rows.Count == 0)
+                return NotFound(new { error = UiText.Say($"'{request.Owner}' non ha il ruolo '{request.Scope}'.", $"'{request.Owner}' does not have the role '{request.Scope}'.") });
+            if (rows.Count > 1)
+                return Conflict(new
+                {
+                    error = UiText.Say($"Il ruolo '{request.Scope}' ha più persone: indica chi con owner.", $"The role '{request.Scope}' has more than one person: say who with owner."),
+                    owners = rows.Select(r => new { name = r.Responsible, email = r.GitEmail, agents = r.Agents }),
+                });
+            var entry = rows[0];
 
             var targetAgent = OwnershipResolver.PickAgent(entry, request.PreferredAgent);
             if (string.IsNullOrWhiteSpace(targetAgent))
-                return UnprocessableEntity(new { error = UiText.Say($"L'ambito '{entry.Scope}' non elenca alcun agente.", $"Scope '{entry.Scope}' lists no agents.") });
+                return UnprocessableEntity(new { error = UiText.Say($"L'ambito '{entry.Role}' non elenca alcun agente.", $"Scope '{entry.Role}' lists no agents.") });
 
             var targetOwnerId = FederationRoom.ComputeUserId(entry.GitEmail);
 
@@ -414,7 +426,7 @@ namespace MdExplorer.Controllers.A2A
                 // FromOwner dal SEAM identità (impersonata in modalità test, altrimenti git email reale).
                 FromOwner = _effectiveIdentity.ResolveEmail(claims.ProjectPath),
                 FromAgent = claims.AgentName,               // R2: identità certificata dal token
-                Scope = entry.Scope,
+                Scope = entry.Role,
                 TargetAgent = targetAgent,
                 Message = request.Message,
                 Topics = request.Topics,
@@ -488,7 +500,7 @@ namespace MdExplorer.Controllers.A2A
             }
 
             _logger.LogInformation("[A2A/request-intervention] {From} → ambito '{Scope}' ({Agent}@{Owner}), fed {Fed}",
-                claims.AgentName, entry.Scope, targetAgent, entry.GitEmail, fedId);
+                claims.AgentName, entry.Role, targetAgent, entry.GitEmail, fedId);
             return Ok(new
             {
                 requested = true,
@@ -543,7 +555,7 @@ namespace MdExplorer.Controllers.A2A
                 var conv = dal.GetList().FirstOrDefault(c => c.Id == cid);
                 if (conv != null)
                 {
-                    conv.Scope = entry.Scope;
+                    conv.Scope = entry.Role;
                     conv.LastActivityAt = DateTime.UtcNow;
                     dal.Save(conv);
                 }
@@ -556,7 +568,7 @@ namespace MdExplorer.Controllers.A2A
                 await _hubContext.Clients.All.SendAsync("agentDelegationRouted", new
                 {
                     projectPath = claims.ProjectPath,
-                    scope = entry.Scope,
+                    scope = entry.Role,
                     fromAgent = claims.AgentName,
                     toAgent = targetAgent,
                     conversationId = enqueued.ConversationId.ToString(),
@@ -571,13 +583,13 @@ namespace MdExplorer.Controllers.A2A
 
             _logger.LogInformation(
                 "[A2A/request-intervention] delega INTERNA {From} → {Agent} su ambito '{Scope}' (responsabile locale, niente relay)",
-                claims.AgentName, targetAgent, entry.Scope);
+                claims.AgentName, targetAgent, entry.Role);
 
             return Ok(new
             {
                 requested = true,
                 local = true,
-                scope = entry.Scope,
+                scope = entry.Role,
                 targetAgent,
                 targetOwner = entry.GitEmail,
                 conversationId = enqueued.ConversationId.ToString(),
@@ -664,6 +676,8 @@ namespace MdExplorer.Controllers.A2A
         public string? Scope { get; set; }
         public string? Message { get; set; }
         public string? PreferredAgent { get; set; }
+        /// <summary>Con un ruolo di più persone: la git email di chi deve intervenire.</summary>
+        public string? Owner { get; set; }
         public List<string>? Topics { get; set; }
     }
 

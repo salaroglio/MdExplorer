@@ -83,7 +83,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "ownership.md"), @"---
 mde_type: ownership
 ---
-| Ambito | Responsabile | Git Email | Agenti |
+| Ruolo | Responsabile | Git Email | Agenti |
 |--------|--------------|-----------|--------|
 | WSAA-TOT | Carlo | carlo@x.it | worker |
 ");
@@ -113,7 +113,7 @@ mde_type: ownership
             var (projectKey, path) = ctx.SeedProject("ownership-off");
 
             // Doc presente ma federazione NON attivata → nessuna iniezione.
-            File.WriteAllText(Path.Combine(path, "ownership.md"), "---\nmde_type: ownership\n---\n| Ambito | Git Email |\n|--|--|\n| S | c@x.it |\n");
+            File.WriteAllText(Path.Combine(path, "ownership.md"), "---\nmde_type: ownership\n---\n| Ruolo | Git Email |\n|--|--|\n| S | c@x.it |\n");
 
             ctx.WriteLlmCitizen(path, "worker", "Lavoratore", new[] { "*" });
             ctx.IndexAgentFiles(path);

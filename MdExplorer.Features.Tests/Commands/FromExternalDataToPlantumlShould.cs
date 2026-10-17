@@ -228,30 +228,43 @@ namespace MdExplorer.Features.Tests.Commands
 
             Assert.IsTrue(classAt > fenceEnd, "the class suffix must stay right after the closing fence");
         }
-            private const string SmallWorkflow = @"{
-  ""mde_workflow"": 2, ""title"": ""Prova"",
+        private const string SmallWorkflow = @"{
+  ""mde_workflow"": 3, ""title"": ""Prova"",
   ""variables"": { ""codice"": ""il bando"" },
   ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""cercatore"", ""title"": ""Cerca i bandi"", ""trigger"": { ""launch"": true }, ""start"": ""manual"",
-      ""produces"": [""docs/ricerche/ricerca-*.md""] },
-    { ""id"": ""tecnica"", ""agent"": ""tecnico"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda tecnica su {codice}."", ""produces"": [""docs/schede/tecnica.md""] },
-    { ""id"": ""legale"", ""agent"": ""legale"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
-      ""brief"": ""Leggi le clausole di {codice}."" },
-    { ""id"": ""sintesi"", ""agent"": ""cercatore"", ""trigger"": { ""after"": [""tecnica"", ""legale""] }, ""start"": ""auto"",
+    { ""id"": ""ricerca"", ""agent"": ""cercatore"", ""skill"": ""cerca"", ""title"": ""Cerca i bandi"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""tecnica"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
+      ""inputs"": { ""codice"": ""{codice}"" } },
+    { ""id"": ""legale"", ""agent"": ""legale"", ""skill"": ""clausole"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
+      ""inputs"": { ""codice"": ""{codice}"" } },
+    { ""id"": ""sintesi"", ""agent"": ""cercatore"", ""skill"": ""sintesi"", ""trigger"": { ""after"": [""tecnica"", ""legale""] }, ""start"": ""auto"",
       ""brief"": ""Scrivi la sintesi."" }
   ],
   ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica""], ""until"": ""approved"", ""max"": 2, ""restart"": ""manual"" } ]
 }";
 
+        /// <summary>Le schede dei tre agenti del workflow piccolo: due nel posto solito, una altrove nel progetto.</summary>
+        private void WriteSmallCards()
+        {
+            void Card(string relative, string name, string skills)
+            {
+                var full = Path.Combine(_projectRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(full));
+                File.WriteAllText(full, $"---\na2a:\n  name: {name}\n  skills:\n{skills}---\n");
+            }
+            Card(".github/agents/cercatore.agent.md", "cercatore",
+                "    - id: cerca\n      outputs:\n        - { id: ricerca, path: docs/ricerche/ricerca-*.md }\n    - id: sintesi\n");
+            Card(".github/agents/tecnico.agent.md", "tecnico",
+                "    - id: scheda\n      inputs:\n        - { id: codice, description: il bando }\n      outputs:\n        - { id: scheda, path: docs/schede/tecnica.md }\n");
+            Card("altrove/legale.agent.md", "legale",
+                "    - id: clausole\n      inputs:\n        - { id: codice, description: il bando }\n");
+        }
+
         [TestMethod]
         public void DrawTheAgentsWorkflowWithLinksToCardsAndArtifacts()
         {
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
-            Directory.CreateDirectory(Path.Combine(_projectRoot, ".github", "agents"));
-            File.WriteAllText(Path.Combine(_projectRoot, ".github", "agents", "tecnico.agent.md"), "---\n---\n");
-            Directory.CreateDirectory(Path.Combine(_projectRoot, "altrove"));
-            File.WriteAllText(Path.Combine(_projectRoot, "altrove", "legale.agent.md"), "---\n---\n");
+            WriteSmallCards();
 
             var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\ntitle Il giro\n```");
 
@@ -273,7 +286,6 @@ namespace MdExplorer.Features.Tests.Commands
             AssertContains(transformed, "al massimo 2 volte");
             AssertContains(transformed, "s_legale --> j_sintesi : finito");
             AssertContains(transformed, "s_tecnica --> j_sintesi : approvato");
-            Assert.IsFalse(transformed.Contains("mde:.github/agents/cercatore"), "una scheda che non c'è non ha link");
             Assert.IsFalse(transformed.Contains("[[mde:docs/ricerche/ricerca-*.md]]"), "una famiglia di file non ha un file solo da aprire");
             Assert.IsFalse(transformed.Contains("\r"), "il diagramma è uguale su ogni sistema");
             Assert.IsFalse(transformed.Contains("plantuml(@workflow"));
@@ -282,6 +294,7 @@ namespace MdExplorer.Features.Tests.Commands
         [TestMethod]
         public void ShowTheErrorsInsteadOfDrawingABrokenWorkflow()
         {
+            WriteSmallCards();
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "rotto.workflow.json"),
                 SmallWorkflow.Replace("\"start\": \"auto\"", "\"strat\": \"auto\""));
 
@@ -295,6 +308,7 @@ namespace MdExplorer.Features.Tests.Commands
         [TestMethod]
         public void ProduceAWorkflowBlockThePlantumlCommandCanRead()
         {
+            WriteSmallCards();
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
             var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\n```");
 
@@ -313,6 +327,7 @@ namespace MdExplorer.Features.Tests.Commands
             var forLoop = SmallWorkflow.Replace("\"until\": \"approved\", \"max\": 2, \"restart\": \"manual\"", "\"times\": 3");
             Assert.AreNotEqual(SmallWorkflow, forLoop, "la sostituzione del test non trova il ciclo");
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "for.workflow.json"), forLoop);
+            WriteSmallCards();
 
             var transformed = Transform("```plantuml(@workflow, ./for.workflow.json)\n```");
 

@@ -30,7 +30,7 @@ namespace MdExplorer.IntegrationTests
         private const string OwnershipDoc = @"---
 mde_type: ownership
 ---
-| Ambito | Responsabile | Git Email | Agenti |
+| Ruolo | Responsabile | Git Email | Agenti |
 |--------|--------------|-----------|--------|
 | Wiki | Io | {EMAIL} | curator |
 | Invio | Io | {EMAIL} | mittente |

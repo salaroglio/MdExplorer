@@ -419,7 +419,7 @@ namespace MdExplorer.Services.AgentRun
             using var scope = _scopeFactory.CreateScope();
             var metadata = scope.ServiceProvider.GetService<MdExplorer.Services.IProjectMetadataService>();
             var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
-                request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDoc, out var problem);
+                request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDoc, metadata?.GetAgentCity(request.ProjectPath)?.OwnershipDoc, out var problem);
             if (problem != null)
             {
                 why = MdExplorer.Features.Services.UiText.Say($"Il workflow del progetto non si legge ({problem}): finché non è corretto non so quante volte si può rifare.", $"The project's workflow cannot be read ({problem}): until it is fixed I do not know how many times the work can be redone.");

@@ -1150,7 +1150,7 @@ namespace MdExplorer.Services.AgentRun
         private bool HoldForOwner(Guid messageId, AgentMessage snapshot)
         {
             var city = _projectMetadata?.GetAgentCity(snapshot.ProjectPath);
-            var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(snapshot.ProjectPath, city?.WorkflowDoc, out var problem);
+            var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(snapshot.ProjectPath, city?.WorkflowDoc, city?.OwnershipDoc, out var problem);
             if (problem != null)
             {
                 var alreadyTold = string.Equals(snapshot.DeferredReason, AgentMessage.DeferredReasonEnum.WorkflowInvalid, StringComparison.Ordinal);

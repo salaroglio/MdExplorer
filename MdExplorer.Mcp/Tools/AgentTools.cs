@@ -31,16 +31,17 @@ public sealed class AgentTools : McpToolsBase
 
     [McpServerTool, Description(
         "Request the intervention of an agent that belongs to ANOTHER member's city (federation). " +
-        "You give a SCOPE (an area from the project's ownership document) and a message; the harness " +
-        "deterministically resolves who owns that scope and which agent should act, then routes the " +
+        "You give a ROLE (the Ruolo column of the project's responsibilities document) and a message; the harness " +
+        "deterministically resolves who has that role and which agent should act, then routes the " +
         "request to that member's machine — where THEIR human must explicitly authorize it before any " +
         "agent runs. Only available to an agent woken by a message (identity from the run token). This " +
         "does NOT return an answer: it returns a routing receipt. Use only when the work belongs to a " +
         "different owner (see the '# Ownership del progetto' section of your prompt).")]
     public async Task<string> RequestIntervention(
-        [Description("The ownership scope the work belongs to (exact name from the ownership table).")] string scope,
+        [Description("The role the work belongs to (exact name from the Ruolo column of the responsibilities table).")] string scope,
         [Description("The request body for the remote agent. Plain text; state clearly what you need.")] string message,
-        [Description("Optional preferred agent name (must be one listed for that scope).")] string preferredAgent = null,
+        [Description("Optional preferred agent name (must be one listed for that role).")] string preferredAgent = null,
+        [Description("When the role has more than one person (a team): the git email of the one who should act. Without it, a team role is refused with the list of its people.")] string owner = null,
         [Description("Optional topics/tags, comma-separated (context only).")] string topics = null)
     {
         var token = RunToken();
@@ -57,6 +58,7 @@ public sealed class AgentTools : McpToolsBase
                 scope = scope.Trim(),
                 message,
                 preferredAgent = string.IsNullOrWhiteSpace(preferredAgent) ? null : preferredAgent.Trim(),
+                owner = string.IsNullOrWhiteSpace(owner) ? null : owner.Trim(),
                 topics = string.IsNullOrWhiteSpace(topics)
                     ? new List<string>()
                     : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
@@ -259,11 +261,14 @@ public sealed class AgentTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v2, see the mde-workflow skill) BEFORE you " +
-        "hand it over, and get back everything that is wrong in one pass. Call it every time you write or edit one. " +
+        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v3, see the mde-workflow skill) together with " +
+        "the agent cards it names, BEFORE you hand it over, and get back everything that is wrong in one pass. Call it every " +
+        "time you write or edit a workflow OR the a2a interface of one of its cards (skills[].inputs/reads/outputs/replies, " +
+        "replies[].values). It checks the structure, that every skill input receives exactly one value, that every " +
+        "'step.output' exists, that every reply is declared and proposed by the step's skill, that output folders and read " +
+        "documents (with their section) exist, and that every 'person' and 'approval.by' is a role of responsabilita.md. " +
         "'error' means MdExplorer will not apply the workflow nor draw it: fix each one and check again. " +
-        "'warning' means an agent card routes differently from the workflow (accepts_messages_from, on_approval_notify): " +
-        "tell the user, and fix the card or the workflow as they decide. Each finding has the JSON path, the reason and, " +
+        "'warning' means the workflow runs but something deserves the user's attention: tell them. Each finding has the JSON path, the reason and, " +
         "when known, the fix. If the answer is an HTTP or connection error, the file was NOT checked: do not change it " +
         "because of that, report it.")]
     public async Task<string> CheckWorkflow(

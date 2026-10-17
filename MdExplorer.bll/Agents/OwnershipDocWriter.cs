@@ -21,10 +21,10 @@ namespace MdExplorer.Features.Agents
             "## TL;DR\n\n" +
             "Ogni agente della città risponde a una persona: lavora solo sul suo computer, e quella persona valuta ciò che\n" +
             "l'agente scrive. Questa tabella dice chi. Un agente che non compare qui non parte.\n\n" +
-            "- Una riga per ambito: chi ne risponde, la sua email git e i suoi agenti.\n" +
+            "- Una riga per persona: il suo ruolo, la sua email git e i suoi agenti. Più persone con lo stesso ruolo sono un team.\n" +
             "- La persona si riconosce dall'email git con cui lavora nel progetto.\n" +
             "- MdExplorer aggiunge una riga quando qualcuno dichiara suo un agente; il resto lo scrive il gruppo.\n\n" +
-            "| Ambito | Responsabile | Git Email | Agenti |\n" +
+            "| Ruolo | Responsabile | Git Email | Agenti |\n" +
             "|--------|--------------|-----------|--------|\n";
 
         /// <summary>
@@ -52,28 +52,22 @@ namespace MdExplorer.Features.Agents
                     .ToArray();
                 if (columns.All(c => c == null)) continue;   // not the responsibilities' table
 
-                foreach (var needed in new[] { ("scope", "Ambito"), ("gitEmail", "Git Email"), ("agents", "Agenti") })
+                if (columns.Contains("retired-scope"))
+                    throw new InvalidOperationException(
+                        MdExplorer.Features.Services.UiText.Say("La colonna «Ambito» del documento delle responsabilità ora si chiama «Ruolo»: rinominala e riprova.", "The «Ambito» column of the responsibilities document is now called «Ruolo»: rename it and try again."));
+                foreach (var needed in new[] { ("role", "Ruolo"), ("gitEmail", "Git Email"), ("agents", "Agenti") })
                     if (!columns.Contains(needed.Item1))
                         throw new InvalidOperationException(
                             MdExplorer.Features.Services.UiText.Say($"La tabella del documento delle responsabilità non ha la colonna '{needed.Item2}': aggiungila e riprova.", $"The table of the responsibilities document has no column '{needed.Item2}': add it and try again."));
 
                 var last = i + 1;
-                var scopeColumn = Array.IndexOf(columns, "scope");
-                var scopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                while (last + 1 < lines.Count && OwnershipDocParser.LooksLikeTableRow(lines[last + 1]))
-                {
-                    last++;
-                    var cells = OwnershipDocParser.SplitRow(lines[last]);
-                    if (scopeColumn < cells.Length) scopes.Add(cells[scopeColumn].Trim());
-                }
+                while (last + 1 < lines.Count && OwnershipDocParser.LooksLikeTableRow(lines[last + 1])) last++;
 
-                // An ambit is unique in the table: the agent's own name, numbered if someone already used it.
-                var scope = agentName.Trim();
-                for (var n = 2; scopes.Contains(scope); n++) scope = $"{agentName.Trim()} ({n})";
-
+                // The role is the agent's own name: a second person taking the same agent gets the same role, and the
+                // rows of one role are its team. The group renames the role as it likes.
                 var row = columns.Select(c => c switch
                 {
-                    "scope" => scope,
+                    "role" => agentName.Trim(),
                     "responsible" => Clean(responsible),
                     "gitEmail" => gitEmail.Trim().ToLowerInvariant(),
                     "agents" => agentName.Trim(),
@@ -84,7 +78,7 @@ namespace MdExplorer.Features.Agents
             }
 
             throw new InvalidOperationException(
-                MdExplorer.Features.Services.UiText.Say("Il documento delle responsabilità non ha una tabella con le colonne Ambito | Responsabile | Git Email | Agenti: aggiungila e riprova.", "The responsibilities document has no table with the columns Ambito | Responsabile | Git Email | Agenti: add it and try again."));
+                MdExplorer.Features.Services.UiText.Say("Il documento delle responsabilità non ha una tabella con le colonne Ruolo | Responsabile | Git Email | Agenti: aggiungila e riprova.", "The responsibilities document has no table with the columns Ruolo | Responsabile | Git Email | Agenti: add it and try again."));
         }
 
         /// <summary>A cell is one line without the column separator.</summary>

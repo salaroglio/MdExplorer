@@ -12,7 +12,7 @@ namespace MdExplorer.Features.Tests.Agents
         private const string Task = "Produci il workflow.";
 
         private static OwnershipEntry Own(string scope, string resp, string email, params string[] agents)
-            => new OwnershipEntry { Scope = scope, Responsible = resp, GitEmail = email, Agents = agents };
+            => new OwnershipEntry { Role = scope, Responsible = resp, GitEmail = email, Agents = agents };
 
         [TestMethod]
         public void Not_inject_ownership_when_null_or_empty()

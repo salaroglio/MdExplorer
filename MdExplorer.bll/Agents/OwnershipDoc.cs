@@ -6,18 +6,19 @@ using System.Text.RegularExpressions;
 namespace MdExplorer.Features.Agents
 {
     /// <summary>
-    /// Una riga del documento di ownership (§12.3 Agent-Harness-A2A): "chi è responsabile
-    /// di quale ambito, con quali agenti". È un <b>routing hint</b>, non un permesso — il
-    /// guardrail resta il gate umano (§12.6).
+    /// Una riga del documento di ownership (§12.3 Agent-Harness-A2A): "chi ha quale ruolo,
+    /// con quali agenti". Lo stesso ruolo su più righe = il team di quel ruolo (workflow v3,
+    /// 17/10/2026). È un <b>routing hint</b>, non un permesso — il guardrail resta il gate umano (§12.6).
     /// </summary>
     public sealed class OwnershipEntry
     {
-        public string Scope { get; init; }
+        /// <summary>Il ruolo: nel workflow, chi fa i passi delle persone e chi approva lo nomina così.</summary>
+        public string Role { get; init; }
         public string Description { get; init; }
         public string Responsible { get; init; }
         /// <summary>Chiave d'identità del responsabile (email git, lowercased).</summary>
         public string GitEmail { get; init; }
-        /// <summary>Agenti citati per questo ambito (nomi <c>a2a.name</c>).</summary>
+        /// <summary>Agenti citati per questo ruolo (nomi <c>a2a.name</c>).</summary>
         public IReadOnlyList<string> Agents { get; init; } = Array.Empty<string>();
     }
 
@@ -27,7 +28,7 @@ namespace MdExplorer.Features.Agents
         /// <summary>Il doc dichiara <c>mde_type: ownership</c> nel frontmatter.</summary>
         public bool IsOwnershipDoc { get; init; }
         public IReadOnlyList<OwnershipEntry> Entries { get; init; } = Array.Empty<OwnershipEntry>();
-        /// <summary>Errori strutturali (tabella assente, ambito duplicato, cella obbligatoria mancante).</summary>
+        /// <summary>Errori strutturali (tabella assente, colonna «Ambito» da rinominare, cella obbligatoria mancante).</summary>
         public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 
         public bool HasErrors => Errors.Count > 0;
@@ -36,7 +37,7 @@ namespace MdExplorer.Features.Agents
     /// <summary>
     /// Parser PURO del documento di ownership (§12.3): riconosce il frontmatter
     /// <c>mde_type: ownership</c> e legge la tabella markdown
-    /// (Ambito | Descrizione | Responsabile | Git Email | Agenti). Nessuna dipendenza
+    /// (Ruolo | Descrizione | Responsabile | Git Email | Agenti). Nessuna dipendenza
     /// esterna: le convalide che richiedono le fonti (email nei participants, agente nel
     /// registry) stanno in <see cref="OwnershipValidator"/>. Header in IT o EN.
     /// </summary>
@@ -55,7 +56,9 @@ namespace MdExplorer.Features.Agents
         // Alias di intestazione colonna → colonna canonica.
         internal static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["ambito"] = "scope", ["scope"] = "scope",
+            ["ruolo"] = "role", ["role"] = "role",
+            // Il nome di prima: si riconosce per dire di rinominarlo, mai per leggerlo (tolleranza zero).
+            ["ambito"] = "retired-scope", ["scope"] = "retired-scope",
             ["descrizione"] = "description", ["description"] = "description",
             ["responsabile"] = "responsible", ["responsible"] = "responsible", ["owner"] = "responsible",
             ["git email"] = "gitEmail", ["gitemail"] = "gitEmail", ["email"] = "gitEmail",
@@ -77,44 +80,43 @@ namespace MdExplorer.Features.Agents
             var table = ParseFirstTable(body);
             if (table == null)
             {
-                errors.Add(MdExplorer.Features.Services.UiText.Say("Documento di ownership senza tabella: attesa una tabella markdown con colonne Ambito | Responsabile | Git Email | Agenti.", "Ownership document without a table: expected a markdown table with the columns Ambito | Responsabile | Git Email | Agenti."));
+                errors.Add(MdExplorer.Features.Services.UiText.Say("Documento di ownership senza tabella: attesa una tabella markdown con colonne Ruolo | Responsabile | Git Email | Agenti.", "Ownership document without a table: expected a markdown table with the columns Ruolo | Responsabile | Git Email | Agenti."));
                 return new OwnershipParseResult { IsOwnershipDoc = true, Errors = errors };
             }
 
-            if (!table.ColumnIndex.ContainsKey("scope") || !table.ColumnIndex.ContainsKey("gitEmail"))
+            if (table.ColumnIndex.ContainsKey("retired-scope"))
             {
-                errors.Add(MdExplorer.Features.Services.UiText.Say("La tabella di ownership deve avere almeno le colonne 'Ambito' e 'Git Email'.", "The ownership table must have at least the columns 'Ambito' and 'Git Email'."));
+                errors.Add(MdExplorer.Features.Services.UiText.Say("La colonna «Ambito» ora si chiama «Ruolo»: rinominala nell'intestazione della tabella.", "The «Ambito» column is now called «Ruolo»: rename it in the table header."));
+                return new OwnershipParseResult { IsOwnershipDoc = true, Errors = errors };
+            }
+            if (!table.ColumnIndex.ContainsKey("role") || !table.ColumnIndex.ContainsKey("gitEmail"))
+            {
+                errors.Add(MdExplorer.Features.Services.UiText.Say("La tabella di ownership deve avere almeno le colonne 'Ruolo' e 'Git Email'.", "The ownership table must have at least the columns 'Ruolo' and 'Git Email'."));
                 return new OwnershipParseResult { IsOwnershipDoc = true, Errors = errors };
             }
 
             var entries = new List<OwnershipEntry>();
-            var seenScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var rowNum = 0;
             foreach (var row in table.Rows)
             {
                 rowNum++;
-                var scope = Cell(table, row, "scope");
+                var role = Cell(table, row, "role");
                 var gitEmail = Cell(table, row, "gitEmail");
 
-                if (string.IsNullOrWhiteSpace(scope))
+                if (string.IsNullOrWhiteSpace(role))
                 {
-                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum}: ambito mancante.", $"Row {rowNum}: scope missing."));
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum}: ruolo mancante.", $"Row {rowNum}: role missing."));
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(gitEmail))
                 {
-                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum} ('{scope}'): Git Email del responsabile mancante.", $"Row {rowNum} ('{scope}'): the owner's Git Email is missing."));
-                    continue;
-                }
-                if (!seenScopes.Add(scope.Trim()))
-                {
-                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito duplicato: '{scope.Trim()}' compare più di una volta (gli ambiti devono essere univoci).", $"Scope '{scope.Trim()}' is duplicated: it appears more than once (scopes must be unique)."));
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Riga {rowNum} ('{role}'): Git Email del responsabile mancante.", $"Row {rowNum} ('{role}'): the owner's Git Email is missing."));
                     continue;
                 }
 
                 entries.Add(new OwnershipEntry
                 {
-                    Scope = scope.Trim(),
+                    Role = role.Trim(),
                     Description = Cell(table, row, "description")?.Trim(),
                     Responsible = Cell(table, row, "responsible")?.Trim(),
                     GitEmail = gitEmail.Trim().ToLowerInvariant(),
@@ -205,23 +207,24 @@ namespace MdExplorer.Features.Agents
     }
 
     /// <summary>
-    /// Risolve un <b>ambito</b> di ownership nella riga responsabile (§12.6): dato lo scope di
-    /// una richiesta di intervento, trova chi ne è responsabile e con quali agenti. Puro e
-    /// deterministico — il routing federato NON lo decide l'LLM. Match esatto case-insensitive.
+    /// Risolve un <b>ruolo</b> di ownership nelle righe responsabili (§12.6): dato il ruolo di
+    /// una richiesta di intervento, trova chi lo ha e con quali agenti. Puro e deterministico —
+    /// il routing federato NON lo decide l'LLM. Match esatto case-insensitive. Un ruolo può avere
+    /// più persone (un team): sceglie chi fa la richiesta, il resolver non indovina.
     /// </summary>
     public static class OwnershipResolver
     {
-        /// <summary>La riga di ownership per l'ambito, o <c>null</c> se nessuna combacia.</summary>
-        public static OwnershipEntry Resolve(IEnumerable<OwnershipEntry> entries, string scope)
+        /// <summary>Le righe del ruolo, una per persona del team; vuota se nessuna combacia.</summary>
+        public static IReadOnlyList<OwnershipEntry> Resolve(IEnumerable<OwnershipEntry> entries, string role)
         {
-            if (entries == null || string.IsNullOrWhiteSpace(scope)) return null;
-            var target = scope.Trim();
-            return entries.FirstOrDefault(e =>
-                e != null && string.Equals(e.Scope?.Trim(), target, StringComparison.OrdinalIgnoreCase));
+            if (entries == null || string.IsNullOrWhiteSpace(role)) return Array.Empty<OwnershipEntry>();
+            var target = role.Trim();
+            return entries.Where(e =>
+                e != null && string.Equals(e.Role?.Trim(), target, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
         /// <summary>
-        /// L'agente proposto per l'ambito: <paramref name="preferredAgent"/> se citato nella riga,
+        /// L'agente proposto per il ruolo: <paramref name="preferredAgent"/> se citato nella riga,
         /// altrimenti il primo agente della riga. <c>null</c> se la riga non ha agenti.
         /// </summary>
         public static string PickAgent(OwnershipEntry entry, string preferredAgent = null)
@@ -271,12 +274,12 @@ namespace MdExplorer.Features.Agents
             foreach (var e in parsed.Entries)
             {
                 if (!participants.Contains(e.GitEmail))
-                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito '{e.Scope}': il responsabile '{e.GitEmail}' non è tra i participants del progetto.", $"Scope '{e.Scope}': owner '{e.GitEmail}' is not among the project participants."));
+                    errors.Add(MdExplorer.Features.Services.UiText.Say($"Ruolo '{e.Role}': il responsabile '{e.GitEmail}' non è tra i participants del progetto.", $"Role '{e.Role}': owner '{e.GitEmail}' is not among the project participants."));
 
                 foreach (var agent in e.Agents)
                 {
                     if (!agents.Contains(agent))
-                        errors.Add(MdExplorer.Features.Services.UiText.Say($"Ambito '{e.Scope}': l'agente '{agent}' non esiste nel registry del progetto.", $"Scope '{e.Scope}': agent '{agent}' does not exist in the project registry."));
+                        errors.Add(MdExplorer.Features.Services.UiText.Say($"Ruolo '{e.Role}': l'agente '{agent}' non esiste nel registry del progetto.", $"Role '{e.Role}': agent '{agent}' does not exist in the project registry."));
                 }
             }
 

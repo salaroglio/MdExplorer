@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace MdExplorer.Features.Agents.Workflow
 {
     /// <summary>
-    /// Il compendio delle dinamiche tra persone e agenti (<c>*.workflow.json</c>, standard v2): il <b>vocabolario comune</b>
+    /// Il compendio delle dinamiche tra persone e agenti (<c>*.workflow.json</c>, standard v3): il <b>vocabolario comune</b>
     /// con cui un LLM, tramite la skill <c>mde-workflow</c>, pianifica il lavoro, e che MDE esegue con regole fisse. Dice
     /// quali passi ci sono, che cosa fa partire ciascuno, chi lo avvia, che cosa riceve l'agente, i cicli. La scheda di un
     /// agente dice come fa il suo passo; il workflow come il lavoro passa di mano.
@@ -18,6 +19,11 @@ namespace MdExplorer.Features.Agents.Workflow
         public Dictionary<string, string> Variables { get; } = new();
         public List<WorkflowStep> Steps { get; } = new();
         public List<WorkflowLoop> Loops { get; } = new();
+        /// <summary>
+        /// Le schede unite ai passi (<see cref="WorkflowBinder"/>): ciò che un giro salva accanto al workflow. Null finché
+        /// il workflow non è unito.
+        /// </summary>
+        public WorkflowCardSet Cards { get; set; }
 
         public WorkflowStep Step(string id) => Steps.FirstOrDefault(s => s.Id == id);
 
@@ -29,24 +35,85 @@ namespace MdExplorer.Features.Agents.Workflow
             Loops.FirstOrDefault(l => l.Kind == kind && l.Steps.Contains(stepId));
     }
 
-    /// <summary>Un turno di lavoro di un agente: cosa lo fa partire, chi lo avvia, che cosa riceve, che cosa produce.</summary>
+    /// <summary>
+    /// Un passo: il turno di lavoro di un agente (<see cref="Agent"/> + <see cref="Skill"/>) oppure il compito di una persona
+    /// (<see cref="Person"/>, un ruolo di <c>responsabilita.md</c>). Che cosa lo fa partire, che cosa riceve, che cosa produce.
+    /// </summary>
     public class WorkflowStep
     {
         public string Id { get; set; }
+        /// <summary>Passo di un agente: il suo nome. Null per il passo di una persona.</summary>
         public string Agent { get; set; }
+        /// <summary>Passo di un agente: il lavoro della scheda che fa (<c>a2a.skills[].id</c>).</summary>
+        public string Skill { get; set; }
+        /// <summary>Passo di una persona: il ruolo che lo fa. Null per il passo di un agente.</summary>
+        public string Person { get; set; }
         /// <summary>L'etichetta nel diagramma; senza, l'id.</summary>
         public string Title { get; set; }
         public WorkflowTrigger Trigger { get; set; }
+        /// <summary>Passo di un agente: chi lo avvia. Il passo di una persona aspetta lei, non si avvia.</summary>
         public WorkflowStart Start { get; set; }
         /// <summary>
-        /// Il testo dell'incarico che MDE manda all'agente, con le variabili del giro (<c>{codice}</c>). MDE ci aggiunge i
-        /// percorsi degli artefatti dei passi da cui questo dipende. Null per un passo lanciato a mano (scrive la persona).
+        /// Passo di un agente, facoltativo: ciò che l'incarico aggiunge alla descrizione del lavoro e ai suoi ingressi, con
+        /// le variabili del giro (<c>{codice}</c>).
         /// </summary>
         public string Brief { get; set; }
-        /// <summary>I percorsi degli artefatti, dalla radice del progetto. «*» nel nome del file è ammesso.</summary>
+        /// <summary>Passo di una persona: che cosa le si chiede, con le variabili del giro.</summary>
+        public string Task { get; set; }
+        /// <summary>Per ogni ingresso: un testo con le variabili, o le uscite di passi da cui questo dipende.</summary>
+        public Dictionary<string, WorkflowInput> Inputs { get; } = new(StringComparer.Ordinal);
+        /// <summary>Passo di una persona: i pulsanti con cui lo chiude. Un passo dopo può partire da un esito.</summary>
+        public List<WorkflowOutcome> Outcomes { get; } = new();
+        /// <summary>Passo di un agente: il ruolo che approva al posto del responsabile dell'agente. Null = il responsabile.</summary>
+        public string ApprovalBy { get; set; }
+        /// <summary>
+        /// Le uscite del passo. Di un agente: quelle della sua skill, unite dalla scheda. Di una persona: i documenti che
+        /// dichiara di scrivere.
+        /// </summary>
+        public List<WorkflowOutput> Outputs { get; } = new();
+        /// <summary>Passo di un agente: i documenti fissi che la sua skill legge, uniti dalla scheda.</summary>
+        public List<WorkflowRead> Reads { get; } = new();
+        /// <summary>I percorsi delle uscite, dalla radice del progetto. «*» nel nome del file è ammesso.</summary>
         public List<string> Produces { get; } = new();
 
+        public bool IsPerson => Person != null;
         public string Label => string.IsNullOrWhiteSpace(Title) ? Id : Title;
+    }
+
+    /// <summary>Il valore di un ingresso: un testo (con le variabili del giro) oppure le uscite di altri passi.</summary>
+    public class WorkflowInput
+    {
+        /// <summary>Un testo fisso, con eventuali <c>{variabili}</c>. Null se l'ingresso viene da uscite.</summary>
+        public string Text { get; set; }
+        /// <summary>Le uscite che l'ingresso riceve, come <c>passo.uscita</c>. Vuota se l'ingresso è un testo.</summary>
+        public List<string> From { get; } = new();
+    }
+
+    /// <summary>Un esito con cui una persona chiude il suo passo: un pulsante.</summary>
+    public class WorkflowOutcome
+    {
+        public string Id { get; set; }
+        public string Label { get; set; }
+        /// <summary>I valori che l'esito porta: diventano variabili del giro.</summary>
+        public List<string> Values { get; } = new();
+    }
+
+    /// <summary>Un documento che un passo consegna.</summary>
+    public class WorkflowOutput
+    {
+        public string Id { get; set; }
+        public string Path { get; set; }
+        public string Note { get; set; }
+        /// <summary><c>writes</c>, <c>updates</c> o <c>downloads</c>.</summary>
+        public string Action { get; set; } = "writes";
+    }
+
+    /// <summary>Un documento fisso che un passo legge; <see cref="Section"/> = il titolo del capitolo, se uno solo.</summary>
+    public class WorkflowRead
+    {
+        public string Path { get; set; }
+        public string Section { get; set; }
+        public string Note { get; set; }
     }
 
     public enum WorkflowStart

@@ -27,13 +27,13 @@ namespace MdExplorer.IntegrationTests
         private const string Marco = "marco@test.local";
 
         private const string Workflow = @"{
-  ""mde_workflow"": 2, ""title"": ""Gara"",
+  ""mde_workflow"": 3, ""title"": ""Gara"",
   ""variables"": { ""codice"": ""il bando"" },
   ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
+    { ""id"": ""ricerca"", ""agent"": ""capo"", ""skill"": ""ricerca"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
       ""start"": ""ask-owner"", ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."" },
-    { ""id"": ""revisione"", ""agent"": ""capo"", ""title"": ""Revisione"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"",
+    { ""id"": ""revisione"", ""agent"": ""capo"", ""skill"": ""revisione"", ""title"": ""Revisione"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"",
       ""brief"": ""Rivedi la scheda sul bando {codice}."" }
   ]
 }";
@@ -68,10 +68,10 @@ namespace MdExplorer.IntegrationTests
             Git(seed, "init", "-b", "main");
             Git(seed, "config", "user.email", Anna);
             Git(seed, "config", "user.name", "anna");
-            ctx.WriteLlmCitizen(seed, "capo", "Chi cerca i bandi", new[] { "user" });
-            ctx.WriteLlmCitizen(seed, "tecnico", "Chi scrive la scheda", new[] { "user" });
+            ctx.WriteLlmCitizen(seed, "capo", "Chi cerca i bandi", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
+            ctx.WriteLlmCitizen(seed, "tecnico", "Chi scrive la scheda", new[] { "user" }, jobs: AgentCityContext.TecnicoJobs(false));
             File.WriteAllText(Path.Combine(seed, "responsabilita.md"),
-                "---\nmde_type: ownership\n---\n# Chi risponde\n\n| Ambito | Responsabile | Git Email | Agenti |\n|---|---|---|---|\n" +
+                "---\nmde_type: ownership\n---\n# Chi risponde\n\n| Ruolo | Responsabile | Git Email | Agenti |\n|---|---|---|---|\n" +
                 $"| Commerciale | Anna | {Anna} | capo |\n| Tecnica | Anna | {Anna} | tecnico |\n| Tecnica (2) | Marco | {Marco} | tecnico |\n");
             File.WriteAllText(Path.Combine(seed, "workflow.md"), "---\nmde_type: workflow\nworkflow: gara.workflow.json\n---\n# Gara\n");
             File.WriteAllText(Path.Combine(seed, "gara.workflow.json"), Workflow);

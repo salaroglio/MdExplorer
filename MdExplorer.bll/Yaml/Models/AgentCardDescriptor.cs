@@ -70,7 +70,6 @@ namespace MdExplorer.Features.Yaml.Models
         public IList<AgentCardReply> Replies { get; set; }
     }
 
-    /// <summary>Una skill dichiarata nella Agent Card (<c>a2a.skills[]</c>).</summary>
     /// <summary>
     /// Una risposta che la persona può dare all'agente (<c>a2a.replies</c>): diventa un pulsante sotto il messaggio.
     /// I testi possono contenere segnaposto <c>{nome}</c>, che l'agente riempie quando propone la risposta.

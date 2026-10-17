@@ -21,10 +21,10 @@ namespace MdExplorer.IntegrationTests
     public class AgentOwnerStart_Should
     {
         private const string Workflow = @"{
-  ""mde_workflow"": 2, ""title"": ""Prova"",
+  ""mde_workflow"": 3, ""title"": ""Prova"",
   ""steps"": [
-    { ""id"": ""incarica"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
+    { ""id"": ""incarica"", ""agent"": ""capo"", ""skill"": ""incarica"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
       ""brief"": ""Scrivi la scheda tecnica."" }
   ]
 }";
@@ -36,8 +36,8 @@ namespace MdExplorer.IntegrationTests
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
             meta.SetAgentCity(path, new MdExplorer.Service.Models.AgentCityConfig { Enabled = true, UseAgentWorktrees = false });
 
-            ctx.WriteLlmCitizen(path, "capo", "Chi incarica", new[] { "user" });
-            ctx.WriteLlmCitizen(path, "tecnico", "Chi scrive la scheda", new[] { "capo", "user" });
+            ctx.WriteLlmCitizen(path, "capo", "Chi incarica", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
+            ctx.WriteLlmCitizen(path, "tecnico", "Chi scrive la scheda", new[] { "capo", "user" }, jobs: AgentCityContext.TecnicoJobs(false));
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "capo");
             ctx.Trust(path, "tecnico");
@@ -147,12 +147,12 @@ namespace MdExplorer.IntegrationTests
         }
 
         private const string WorkflowWithSynthesis = @"{
-  ""mde_workflow"": 2, ""title"": ""Prova"",
+  ""mde_workflow"": 3, ""title"": ""Prova"",
   ""steps"": [
-    { ""id"": ""incarica"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
+    { ""id"": ""incarica"", ""agent"": ""capo"", ""skill"": ""incarica"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
       ""brief"": ""Scrivi la scheda tecnica."" },
-    { ""id"": ""sintesi"", ""agent"": ""capo"", ""title"": ""Sintesi"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"",
+    { ""id"": ""sintesi"", ""agent"": ""capo"", ""skill"": ""sintesi"", ""title"": ""Sintesi"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"",
       ""brief"": ""Scrivi la sintesi."" }
   ]
 }";
@@ -358,11 +358,11 @@ namespace MdExplorer.IntegrationTests
         }
 
         private const string WithReply = @"{
-  ""mde_workflow"": 2, ""title"": ""Gara"",
+  ""mde_workflow"": 3, ""title"": ""Gara"",
   ""variables"": { ""codice"": ""il bando"" },
   ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
+    { ""id"": ""ricerca"", ""agent"": ""capo"", ""skill"": ""ricerca"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" },
       ""start"": ""ask-owner"", ""brief"": ""Scrivi la scheda tecnica sul bando {codice}."" }
   ]
 }";

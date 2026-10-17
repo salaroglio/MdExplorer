@@ -19,14 +19,14 @@ namespace MdExplorer.Controllers.A2A
     [Route("api/A2A/workflow")]
     public class AgentWorkflowController : ControllerBase
     {
-        private readonly IAgentRegistryService _registry;
+        private readonly MdExplorer.Services.IProjectMetadataService _metadata;
         private readonly MdExplorer.Services.AgentRun.IAgentWorkflowExecutor _executor;
         private readonly IUserSettingsDB _session;
 
-        public AgentWorkflowController(IAgentRegistryService registry, MdExplorer.Services.AgentRun.IAgentWorkflowExecutor executor, IUserSettingsDB session)
+        public AgentWorkflowController(MdExplorer.Services.IProjectMetadataService metadata, MdExplorer.Services.AgentRun.IAgentWorkflowExecutor executor, IUserSettingsDB session)
         {
             _session = session;
-            _registry = registry;
+            _metadata = metadata;
             _executor = executor;
         }
 
@@ -84,7 +84,7 @@ namespace MdExplorer.Controllers.A2A
             WorkflowCheckResult result;
             try
             {
-                result = WorkflowFile.Check(projectPath, path, _registry.RefreshCatalog(projectPath));
+                result = WorkflowFile.Check(projectPath, path, _metadata.GetAgentCity(projectPath)?.OwnershipDoc);
             }
             catch (FileNotFoundException ex) { return NotFound(new { error = ex.Message }); }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
