@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string ScopedId(string programFolder, string extractorId)
         {
             if (string.IsNullOrWhiteSpace(programFolder))
-                throw new InvalidOperationException("L'id di un simbolo richiede la cartella program: programFolder è vuoto.");
+                throw new InvalidOperationException(UiText.Say("L'id di un simbolo richiede la cartella program: programFolder è vuoto.", "A symbol id needs the program folder: programFolder is empty."));
             if (string.IsNullOrEmpty(extractorId)) return extractorId;
             using var sha = SHA256.Create();
             var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes($"program|{programFolder}|{extractorId}"));

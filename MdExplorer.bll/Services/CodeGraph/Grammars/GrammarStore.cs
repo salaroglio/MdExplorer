@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -56,7 +57,7 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
         public static GrammarInfo ForLanguage(string languageId) => All.FirstOrDefault(g => string.Equals(g.LanguageId, languageId, StringComparison.OrdinalIgnoreCase));
 
         public static GrammarInfo Require(string id)
-            => ById(id) ?? throw new InvalidOperationException($"Grammatica '{id}' sconosciuta. Ammesse: {string.Join(", ", All.Select(g => g.Id))}");
+            => ById(id) ?? throw new InvalidOperationException(UiText.Say($"Grammatica '{id}' sconosciuta. Ammesse: {string.Join(", ", All.Select(g => g.Id))}", $"Unknown grammar '{id}'. Allowed: {string.Join(", ", All.Select(g => g.Id))}"));
 
         /// <summary><c>linux-x64</c>, <c>win-x64</c>, <c>osx-arm64</c>…: la cartella e il nome dell'add-on dipendono da qui.</summary>
         public static string CurrentRid()
@@ -65,7 +66,7 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return $"win-{arch}";
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return $"linux-{arch}";
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return $"osx-{arch}";
-            throw new PlatformNotSupportedException("Piattaforma non supportata per le grammatiche tree-sitter.");
+            throw new PlatformNotSupportedException(UiText.Say("Piattaforma non supportata per le grammatiche tree-sitter.", "Platform not supported for tree-sitter grammars."));
         }
     }
 

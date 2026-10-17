@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -68,17 +69,17 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var inProject = Path.GetFullPath(Path.Combine(ProjectPath, path.Replace('/', Path.DirectorySeparatorChar)));
                 if (!PathContainment.IsInside(ProjectPath, inProject))
-                    throw new InvalidOperationException($"'{path}' esce dal progetto.");
+                    throw new InvalidOperationException(UiText.Say($"'{path}' esce dal progetto.", $"'{path}' goes outside the project."));
                 return inProject;
             }
             var (alias, rest) = CodeRootPaths.Parse(path);
             if (!_byAlias.TryGetValue(alias, out var root))
-                throw new InvalidOperationException($"La radice «@{alias}» non è dichiarata nel .development.yml di questo progetto.");
+                throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml di questo progetto.", $"The root «@{alias}» is not declared in this project's .development.yml."));
             if (root.Status != CodeRootStatus.Linked)
-                throw new InvalidOperationException($"La radice «@{alias}» non è utilizzabile su questa macchina: {root.Reason}");
+                throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è utilizzabile su questa macchina: {root.Reason}", $"The root «@{alias}» cannot be used on this machine: {root.Reason}"));
             var full = Path.GetFullPath(rest.Length == 0 ? root.RootPath : Path.Combine(root.RootPath, rest.Replace('/', Path.DirectorySeparatorChar)));
             if (!PathContainment.IsInside(root.RootPath, full))
-                throw new InvalidOperationException($"'{path}' esce dalla radice «@{alias}».");
+                throw new InvalidOperationException(UiText.Say($"'{path}' esce dalla radice «@{alias}».", $"'{path}' goes outside the root «@{alias}»."));
             return full;
         }
 

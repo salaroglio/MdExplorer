@@ -23,7 +23,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static CodeScript EditFile(CodeScript ast, CodeScript existing, string summary, string writtenBy)
         {
             if (string.IsNullOrWhiteSpace(summary))
-                throw new CodeDocEditException("summary è obbligatorio: a che cosa serve il file, in 1-2 frasi.");
+                throw new CodeDocEditException(UiText.Say("summary è obbligatorio: a che cosa serve il file, in 1-2 frasi.", "summary is required: what the file is for, in 1-2 sentences."));
             var doc = Copy(ast, existing, writtenBy);
             doc.FileDoc = new ScriptFileDoc { Summary = summary.Trim() };
             return doc;
@@ -33,20 +33,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             string remarks, IReadOnlyDictionary<string, string> parameters, string writtenBy)
         {
             var symbol = ast.Symbols.FirstOrDefault(s => s.Id == symbolId)
-                ?? throw new CodeDocEditException($"il simbolo '{symbolId}' non è nello script AST di {ast.Header.Source}: rianalizza il codice.");
+                ?? throw new CodeDocEditException(UiText.Say($"il simbolo '{symbolId}' non è nello script AST di {ast.Header.Source}: rianalizza il codice.", $"symbol '{symbolId}' is not in the AST script of {ast.Header.Source}: analyze the code again."));
             var candidate = CodeDocPlanner.Select(ast, null, force: true).FirstOrDefault(c => c.Symbol.Id == symbolId)
                 ?? throw new CodeDocEditException(symbol.Kind == "module"
-                    ? $"«{symbol.Name}» è lo script stesso e non ha parametri: per dire a che cosa serve usa la descrizione del file (file = {ast.Header.Source})."
-                    : $"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono.");
+                    ? UiText.Say($"«{symbol.Name}» è lo script stesso e non ha parametri: per dire a che cosa serve usa la descrizione del file (file = {ast.Header.Source}).",
+                        $"«{symbol.Name}» is the script itself and has no parameters: to say what it is for, use the file description (file = {ast.Header.Source}).")
+                    : UiText.Say($"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono.",
+                        $"«{symbol.Name}» is a {symbol.Kind}: fields and external nodes are not described."));
             if (summary != null && summary.Trim().Length == 0)
-                throw new CodeDocEditException("summary non può essere vuoto: ometti il campo per lasciarlo com'è.");
+                throw new CodeDocEditException(UiText.Say("summary non può essere vuoto: ometti il campo per lasciarlo com'è.", "summary cannot be empty: leave the field out to keep it as it is."));
 
             var unknown = (parameters ?? new Dictionary<string, string>()).Keys
                 .Where(n => !candidate.Parameters.Any(p => p.Name == n)).ToList();
             if (unknown.Count > 0)
             {
-                var known = candidate.Parameters.Count == 0 ? "nessuno" : string.Join(", ", candidate.Parameters.Select(p => p.Name));
-                throw new CodeDocEditException($"parametri che {symbol.QualifiedName} non ha: {string.Join(", ", unknown)}. Parametri: {known}.");
+                var known = candidate.Parameters.Count == 0 ? UiText.Say("nessuno", "none") : string.Join(", ", candidate.Parameters.Select(p => p.Name));
+                throw new CodeDocEditException(UiText.Say($"parametri che {symbol.QualifiedName} non ha: {string.Join(", ", unknown)}. Parametri: {known}.", $"parameters that {symbol.QualifiedName} does not have: {string.Join(", ", unknown)}. Parameters: {known}."));
             }
 
             if (candidate.ParametersOnly) return EditScript(ast, existing, candidate, summary, returnsDescription, remarks, parameters, writtenBy);
@@ -55,9 +57,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             var old = doc.SymbolDocs.FirstOrDefault(d => d.SymbolId == symbolId);
             // una descrizione scritta per una firma vecchia non torna «fresca» correggendo un pezzo: il summary va riscritto
             if (old != null && summary == null && !string.Equals(old.SignatureHash, candidate.SignatureHash, StringComparison.OrdinalIgnoreCase))
-                throw new CodeDocEditException($"la descrizione di {symbol.QualifiedName} è di una firma vecchia: riscrivi anche summary.");
+                throw new CodeDocEditException(UiText.Say($"la descrizione di {symbol.QualifiedName} è di una firma vecchia: riscrivi anche summary.", $"the description of {symbol.QualifiedName} is for an old signature: rewrite summary too."));
             if (old == null && summary == null)
-                throw new CodeDocEditException($"{symbol.QualifiedName} non ha ancora una descrizione: summary è obbligatorio.");
+                throw new CodeDocEditException(UiText.Say($"{symbol.QualifiedName} non ha ancora una descrizione: summary è obbligatorio.", $"{symbol.QualifiedName} has no description yet: summary is required."));
 
             var updated = new ScriptSymbolDoc
             {
@@ -79,10 +81,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             string remarks, IReadOnlyDictionary<string, string> parameters, string writtenBy)
         {
             if (returnsDescription != null || remarks != null)
-                throw new CodeDocEditException($"«{script.Symbol.Name}» è lo script stesso: non ha returnsDescription né remarks. " +
-                                               "A che cosa serve va in summary (è la descrizione del file), i parametri in parameters.");
+                throw new CodeDocEditException(UiText.Say(
+                    $"«{script.Symbol.Name}» è lo script stesso: non ha returnsDescription né remarks. " +
+                    "A che cosa serve va in summary (è la descrizione del file), i parametri in parameters.",
+                    $"«{script.Symbol.Name}» is the script itself: it has no returnsDescription or remarks. " +
+                    "What it is for goes in summary (it is the file description), the parameters in parameters."));
             if (summary == null && (parameters == null || parameters.Count == 0))
-                throw new CodeDocEditException($"niente da scrivere per «{script.Symbol.Name}»: dai summary (a che cosa serve lo script) o parameters.");
+                throw new CodeDocEditException(UiText.Say($"niente da scrivere per «{script.Symbol.Name}»: dai summary (a che cosa serve lo script) o parameters.", $"nothing to write for «{script.Symbol.Name}»: give summary (what the script is for) or parameters."));
             var doc = Copy(ast, existing, writtenBy);
             if (summary != null) doc.FileDoc = new ScriptFileDoc { Summary = summary.Trim() };
             SetParameters(doc, script.Symbol.Id, parameters);

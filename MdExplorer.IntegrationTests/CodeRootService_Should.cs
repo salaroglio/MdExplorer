@@ -140,7 +140,7 @@ namespace MdExplorer.IntegrationTests
             var missing = (await service.ListAsync(_project)).Single();
             Assert.AreEqual(CodeRootStatus.NotFound, missing.Status);
             var resolver = await service.CreateResolverAsync(_project);
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => resolver.Resolve("@backend/x.cs")).Message, "non esiste più");
+            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => resolver.Resolve("@backend/x.cs")).Message, "no longer exists");
         }
 
         [TestMethod]
@@ -148,9 +148,9 @@ namespace MdExplorer.IntegrationTests
         {
             var inside = Path.Combine(_project, "program");
             Directory.CreateDirectory(inside);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", inside))).Message, "dentro il progetto");
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", inside))).Message, "is inside the project");
             var noRemote = await CloneOf("senza-remote", null);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", noRemote))).Message, "senza remote");
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", noRemote))).Message, "without a remote");
             await Assert.ThrowsExceptionAsync<ArgumentException>(() => Service(new MemoryStore()).LinkAsync(_project, "Back End", noRemote));
         }
 

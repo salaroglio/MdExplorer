@@ -43,7 +43,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(CodeDocPlanner.NeedsFileDoc(fresh, force: true));
 
             CodeDocPlanner.ParseAnswer(answer, "src/Foo.cs", cands, "t", out var notAsked);
-            Assert.IsTrue(notAsked.Any(r => r.Contains("fileDoc non richiesto")), "non chiesto: scartato e detto");
+            Assert.IsTrue(notAsked.Any(r => r.Contains("fileDoc not requested")), "non chiesto: scartato e detto");
 
             var later = CodeDocPlanner.ParseAnswer("{\"type\":\"symbolDoc\",\"symbolId\":\"f1\",\"summary\":\"Il metodo.\"}", "src/Foo.cs", cands, "t", out _);
             Assert.AreEqual("Il punto d'ingresso del servizio.", CodeDocPlanner.Merge(fresh, later).FileDoc?.Summary, "descrivere di nuovo i simboli non toglie quella del file");
@@ -87,7 +87,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(3, rejected.Count, string.Join(" | ", rejected));
             StringAssert.Contains(rejected[0], "'nope'");
             StringAssert.Contains(rejected[1], "'zz'");
-            StringAssert.Contains(rejected[2], "non è un record JSON");
+            StringAssert.Contains(rejected[2], "not a JSON record");
 
             var existing = new CodeScript { Header = fresh.Header };
             existing.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "c1", Summary = "La classe.", SignatureHash = "k" });

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Text.RegularExpressions;
 
@@ -19,7 +20,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static string RequireAlias(string alias)
             => IsValidAlias(alias) ? alias
-             : throw new ArgumentException($"Alias '{alias}' non valido: minuscole, cifre, «.», «_» o «-», inizia con lettera o cifra, al massimo 63 caratteri (es. «backend»).");
+             : throw new ArgumentException(UiText.Say($"Alias '{alias}' non valido: minuscole, cifre, «.», «_» o «-», inizia con lettera o cifra, al massimo 63 caratteri (es. «backend»).", $"Alias '{alias}' is not valid: lowercase letters, digits, «.», «_» or «-», starting with a letter or digit, at most 63 characters (e.g. «backend»)."));
 
         /// <summary>Vero per un percorso logico di una radice esterna (<c>@backend/src/Foo.cs</c>, anche solo <c>@backend</c>).</summary>
         public static bool IsLogical(string path) => !string.IsNullOrEmpty(path) && path[0] == Marker;
@@ -27,12 +28,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary><c>@backend/src/Foo.cs</c> → (<c>backend</c>, <c>src/Foo.cs</c>); <c>@backend</c> → (<c>backend</c>, "").</summary>
         public static (string Alias, string Remainder) Parse(string logicalPath)
         {
-            if (!IsLogical(logicalPath)) throw new FormatException($"'{logicalPath}' non è un percorso di una radice esterna (deve cominciare con «@alias»).");
+            if (!IsLogical(logicalPath)) throw new FormatException(UiText.Say($"'{logicalPath}' non è un percorso di una radice esterna (deve cominciare con «@alias»).", $"'{logicalPath}' is not a path in an external root (it must start with «@alias»)."));
             var body = logicalPath.Substring(1).Replace('\\', '/');
             var slash = body.IndexOf('/');
             var alias = slash < 0 ? body : body.Substring(0, slash);
             var rest = slash < 0 ? string.Empty : body.Substring(slash + 1).Trim('/');
-            if (!IsValidAlias(alias)) throw new FormatException($"'{logicalPath}': alias «{alias}» non valido.");
+            if (!IsValidAlias(alias)) throw new FormatException(UiText.Say($"'{logicalPath}': alias «{alias}» non valido.", $"'{logicalPath}': alias «{alias}» is not valid."));
             return (alias, rest);
         }
 

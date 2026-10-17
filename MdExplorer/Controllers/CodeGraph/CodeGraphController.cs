@@ -1,4 +1,5 @@
 ﻿using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> DescribeFile([FromBody] DescribeFileRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.Path)) return BadRequest(new { error = "path è obbligatorio (il percorso del file nel grafo)" });
+            if (string.IsNullOrWhiteSpace(request.Path)) return BadRequest(new { error = UiText.Say("path è obbligatorio (il percorso del file nel grafo)", "path is required (the path of the file in the graph)") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             var outcome = await job.DescribeFileAsync(request.ProjectPath, request.Path, ct);
             return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
@@ -66,7 +67,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> DescribeSymbol([FromBody] DescribeSymbolRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.SymbolId)) return BadRequest(new { error = "symbolId è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request.SymbolId)) return BadRequest(new { error = UiText.Say("symbolId è obbligatorio", "symbolId is required") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             var outcome = await job.DescribeSymbolAsync(request.ProjectPath, request.SymbolId, ct);
             return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
@@ -98,9 +99,9 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(request?.ProjectPath);
             if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = UiText.Say("connectionId è obbligatorio", "connectionId is required") });
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
-            if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, rel, request.Force, CancellationToken.None); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
@@ -148,10 +149,10 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> ResumeDescribe([FromBody] ResumeRequest request, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = UiText.Say("connectionId è obbligatorio", "connectionId is required") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             var run = (await job.ResumableAsync(request.ProjectPath, ct)).FirstOrDefault(r => r.ProgramFolder == request.Folder);
-            if (run == null) return NotFound(new { error = $"nessuna descrizione da riprendere per '{request.Folder}'" });
+            if (run == null) return NotFound(new { error = UiText.Say($"nessuna descrizione da riprendere per '{request.Folder}'", $"no description to resume for '{request.Folder}'") });
             try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, run.ProgramFolder, run.Force, CancellationToken.None, run); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
             return Ok(new { started = true, folder = run.ProgramFolder, fromFile = run.CurrentFile, fileIndex = run.FileIndex });
@@ -162,7 +163,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> DismissDescribe([FromBody] ResumeRequest request, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = "folder è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = UiText.Say("folder è obbligatorio", "folder is required") });
             await _store.RemoveDescriptionRunAsync(request.ProjectPath, request.Folder, ct);
             return Ok(new { dismissed = request.Folder });
         });
@@ -172,16 +173,16 @@ namespace MdExplorer.Controllers.CodeGraph
         public IActionResult StopDescribe([FromBody] ResumeRequest request)
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = "folder è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = UiText.Say("folder è obbligatorio", "folder is required") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
-            return job.Stop(request.ProjectPath, request.Folder) ? Ok(new { stopping = request.Folder }) : NotFound(new { error = $"nessuna descrizione in corso per '{request.Folder}'" });
+            return job.Stop(request.ProjectPath, request.Folder) ? Ok(new { stopping = request.Folder }) : NotFound(new { error = UiText.Say($"nessuna descrizione in corso per '{request.Folder}'", $"no description in progress for '{request.Folder}'") });
         }
 
         /// <summary>POST /api/codegraph/describe/cancel {connectionId}</summary>
         [HttpPost("describe/cancel")]
         public IActionResult CancelDescribe([FromBody] CancelRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request?.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId)) return BadRequest(new { error = UiText.Say("connectionId è obbligatorio", "connectionId is required") });
             HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>().Cancel(request.ConnectionId);
             return Ok(new { cancelled = true });
         }
@@ -206,7 +207,7 @@ namespace MdExplorer.Controllers.CodeGraph
         [HttpPost("grammars/download")]
         public async Task<IActionResult> DownloadGrammar([FromBody] GrammarRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(request?.GrammarId)) return BadRequest(new { error = "grammarId è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(request?.GrammarId)) return BadRequest(new { error = UiText.Say("grammarId è obbligatorio", "grammarId is required") });
             try
             {
                 var installed = await _grammarDownloader.DownloadAsync(request.GrammarId, ct);
@@ -247,7 +248,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var bad = ValidateProject(projectPath);
             if (bad != null) return bad;
             var rel = ToRelative(projectPath, folderPath);
-            if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath è obbligatorio e deve stare dentro il progetto", "folderPath is required and must be inside the project") });
             try
             {
                 var result = await _analysis.GetLanguagesAsync(projectPath, rel, ct);
@@ -265,7 +266,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var bad = ValidateProject(request?.ProjectPath);
             if (bad != null) return bad;
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
-            if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath è obbligatorio e deve stare dentro il progetto", "folderPath is required and must be inside the project") });
             try
             {
                 _analysis.SaveLanguages(request.ProjectPath, rel, request.Languages ?? new System.Collections.Generic.List<string>(), request.Describe);
@@ -311,7 +312,7 @@ namespace MdExplorer.Controllers.CodeGraph
                 return Ok(new { folders = all, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
             }
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
-            if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
             var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, includeExtractorChanges: true, ct);
             return Ok(new { folder = outcome, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
         });
@@ -415,7 +416,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = "q è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = UiText.Say("q è obbligatorio", "q is required") });
             var at = await LocatorAsync(projectPath, ct);
             return Ok((await _store.ResolveAsync(projectPath, q.Trim(), limit, ct)).Select(x => View(x, at)));
         });
@@ -426,7 +427,7 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var s = await _store.DescribeAsync(projectPath, id, ct);
-            return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s, await LocatorAsync(projectPath, ct)));
+            return s == null ? NotFound(new { error = UiText.Say($"simbolo '{id}' non trovato", $"symbol '{id}' not found") }) : Ok(View(s, await LocatorAsync(projectPath, ct)));
         });
 
         /// <summary>
@@ -437,7 +438,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Outline([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = "path è obbligatorio (relativo al progetto, con /)" });
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = UiText.Say("path è obbligatorio (relativo al progetto, con /)", "path is required (relative to the project, with /)") });
             var logical = path.Replace('\\', '/').TrimStart('/');
             var at = await LocatorAsync(projectPath, ct);
             var symbols = await _store.OutlineAsync(projectPath, logical, ct);
@@ -450,8 +451,8 @@ namespace MdExplorer.Controllers.CodeGraph
             [FromQuery] string direction = "out", [FromQuery] int depth = 1, [FromQuery] int limit = 50, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
-            if (relation != null && !CodeScriptParser.Relations.Contains(relation)) return BadRequest(new { error = $"relation '{relation}' non ammessa: {string.Join(", ", CodeScriptParser.Relations)}" });
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = UiText.Say("id è obbligatorio", "id is required") });
+            if (relation != null && !CodeScriptParser.Relations.Contains(relation)) return BadRequest(new { error = UiText.Say($"relation '{relation}' non ammessa: {string.Join(", ", CodeScriptParser.Relations)}", $"relation '{relation}' not allowed: {string.Join(", ", CodeScriptParser.Relations)}") });
             var at = await LocatorAsync(projectPath, ct);
             return Ok((await _store.NeighborsAsync(projectPath, id, relation, direction, depth, limit, ct)).Select(x => View(x, at)));
         });
@@ -461,7 +462,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Impact([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] int depth = 3, [FromQuery] int limit = 200, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = UiText.Say("id è obbligatorio", "id is required") });
             var at = await LocatorAsync(projectPath, ct);
             return Ok((await _store.ImpactAsync(projectPath, id, depth, limit, ct)).Select(x => View(x, at)));
         });
@@ -471,7 +472,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> PathBetween([FromQuery] string projectPath, [FromQuery] string from, [FromQuery] string to, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return BadRequest(new { error = "from e to sono obbligatori (id di simbolo)" });
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return BadRequest(new { error = UiText.Say("from e to sono obbligatori (id di simbolo)", "from and to are required (symbol ids)") });
             var at = await LocatorAsync(projectPath, ct);
             return Ok((await _store.ShortestPathAsync(projectPath, from, to, ct)).Select(x => View(x, at)));
         });
@@ -652,7 +653,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var bad = ValidateProject(projectPath);
             if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
-                return BadRequest(new { error = "q deve avere almeno 2 caratteri" });
+                return BadRequest(new { error = UiText.Say("q deve avere almeno 2 caratteri", "q must have at least 2 characters") });
             var at = await LocatorAsync(projectPath, ct);
             return Ok((await _store.SearchSymbolsAsync(projectPath, q, limit, ct)).Select(h =>
             {
@@ -680,9 +681,9 @@ namespace MdExplorer.Controllers.CodeGraph
         private IActionResult ValidateProject(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio: la radice del progetto di documentazione" });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio: la radice del progetto di documentazione", "projectPath is required: the root of the documentation project") });
             if (!Directory.Exists(projectPath))
-                return BadRequest(new { error = $"projectPath non esiste: {projectPath}" });
+                return BadRequest(new { error = UiText.Say($"projectPath non esiste: {projectPath}", $"projectPath does not exist: {projectPath}") });
             return null;
         }
     }

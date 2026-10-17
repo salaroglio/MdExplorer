@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -193,7 +194,7 @@ namespace MdExplorer.Services.CodeGraph
             var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(scriptsFolder))
-                throw new InvalidOperationException($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».");
+                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».", $"No AST script in {scriptsFolder}: first «Analyse the code»."));
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
                 (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
@@ -202,7 +203,7 @@ namespace MdExplorer.Services.CodeGraph
             // anche il prompt: senza harness non è installato, e lo si dice qui invece che come traccia fallita dopo
             string skillBody;
             try { skillBody = LoadPromptBody(projectPath, "mde-code-doc"); }
-            catch (IOException ex) { throw new InvalidOperationException($"Il prompt mde-code-doc non c'è nel progetto ({ex.Message}): riapri il progetto perché MdExplorer lo reinstalli.", ex); }
+            catch (IOException ex) { throw new InvalidOperationException(UiText.Say($"Il prompt mde-code-doc non c'è nel progetto ({ex.Message}): riapri il progetto perché MdExplorer lo reinstalli.", $"The mde-code-doc prompt is not in the project ({ex.Message}): reopen the project so MdExplorer reinstalls it."), ex); }
             var promptVersion = PromptVersion(projectPath, "mde-code-doc");
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -211,12 +212,12 @@ namespace MdExplorer.Services.CodeGraph
                 if (Running(projectPath).Any(p => p.Folder == normalized))
                 {
                     cts.Dispose();
-                    throw new InvalidOperationException($"La descrizione di '{normalized}' è già in corso: aspetta che finisca o annullala.");
+                    throw new InvalidOperationException(UiText.Say($"La descrizione di '{normalized}' è già in corso: aspetta che finisca o annullala.", $"The description of '{normalized}' is already in progress: wait for it to finish or cancel it."));
                 }
                 if (!_running.TryAdd(connectionId, cts))
                 {
                     cts.Dispose();
-                    throw new InvalidOperationException("Un'analisi del codice con Mark è già in corso per questa finestra: aspetta che finisca o annullala.");
+                    throw new InvalidOperationException(UiText.Say("Un'analisi del codice con Mark è già in corso per questa finestra: aspetta che finisca o annullala.", "A code analysis with Mark is already in progress for this window: wait for it to finish or cancel it."));
                 }
                 // subito, non dopo il primo await: due richieste ravvicinate sulla stessa cartella partivano tutte e due
                 _progress[connectionId] = new CodeDocJobProgress { ProjectPath = projectPath, Folder = normalized, StartedAt = DateTime.UtcNow.ToString("o") };
@@ -402,7 +403,7 @@ namespace MdExplorer.Services.CodeGraph
             finally { db.Commit(); }
             if (value == null) return DefaultParallel;
             if (value < 1 || value > MaxParallel)
-                throw new InvalidOperationException($"«Descrizioni del codice in parallelo» vale {value}: dev'essere fra 1 e {MaxParallel}. Correggilo nelle impostazioni dell'applicazione.");
+                throw new InvalidOperationException(UiText.Say($"«Descrizioni del codice in parallelo» vale {value}: dev'essere fra 1 e {MaxParallel}. Correggilo nelle impostazioni dell'applicazione.", $"«Code descriptions in parallel» is {value}: it must be between 1 and {MaxParallel}. Fix it in the application settings."));
             return value.Value;
         }
 
@@ -458,7 +459,7 @@ namespace MdExplorer.Services.CodeGraph
             string sourceAbs;
             try { sourceAbs = resolver.Resolve(ast.Header.Source); }
             catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
-            if (!File.Exists(sourceAbs)) { result.Error = "sorgente non trovato: " + sourceAbs; return result; }
+            if (!File.Exists(sourceAbs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + sourceAbs; return result; }
             var sourceText = await File.ReadAllTextAsync(sourceAbs, token);
 
             var merged = existing;
@@ -476,7 +477,7 @@ namespace MdExplorer.Services.CodeGraph
                 try
                 {
                     answer = await _llm.AskAsync(projectPath, engine, model, prompt, "code-doc",
-                        "le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", token);
+                        UiText.Say("le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", "code descriptions are read-only: MdExplorer writes the scripts"), token);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -494,8 +495,8 @@ namespace MdExplorer.Services.CodeGraph
             }
             if (merged == null || freshCount == 0)
             {
-                result.Error = failures.Count > 0 ? "l'AI non ha risposto: " + failures[0]
-                    : "nessuna descrizione valida nella risposta" + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
+                result.Error = failures.Count > 0 ? UiText.Say("l'AI non ha risposto: ", "the AI did not answer: ") + failures[0]
+                    : UiText.Say("nessuna descrizione valida nella risposta", "no valid description in the answer") + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
                 return result;
             }
             CodeDocPlanner.DropOrphans(merged, ast);
@@ -510,11 +511,11 @@ namespace MdExplorer.Services.CodeGraph
         {
             var outcome = new CodeSymbolDescribeOutcome();
             var symbol = await _store.DescribeAsync(projectPath, symbolId, ct);
-            if (symbol == null) { outcome.Error = $"simbolo '{symbolId}' non trovato nel grafo"; return outcome; }
-            if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = $"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)"; return outcome; }
+            if (symbol == null) { outcome.Error = UiText.Say($"simbolo '{symbolId}' non trovato nel grafo", $"symbol '{symbolId}' not found in the graph"); return outcome; }
+            if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = UiText.Say($"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)", $"'{symbol.QualifiedName}' has no source file (it is outside the project)"); return outcome; }
 
             var astPath = CodeScriptWriter.ScriptPathFor(projectPath, symbol.Path, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = $"manca lo script AST di {symbol.Path}: prima «Analizza il codice»"; return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {symbol.Path}: prima «Analizza il codice»", $"the AST script of {symbol.Path} is missing: first «Analyse the code»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(projectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
             CodeScript existing = null;
@@ -525,7 +526,7 @@ namespace MdExplorer.Services.CodeGraph
             var candidates = CodeDocPlanner.Select(ast, existing, force: true).Where(c => c.Symbol.Id == symbolId).ToList();
             // lo script stesso (module) è il file: si rifà la descrizione del file, e i parametri del param() se ne ha (D36)
             var isScript = symbol.Kind == "module";
-            if (candidates.Count == 0 && !isScript) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono"; return outcome; }
+            if (candidates.Count == 0 && !isScript) { outcome.Error = UiText.Say($"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono", $"«{symbol.Name}» is a {symbol.Kind}: fields and external nodes are not described"); return outcome; }
 
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
@@ -550,10 +551,10 @@ namespace MdExplorer.Services.CodeGraph
         public async Task<CodeSymbolDescribeOutcome> DescribeFileAsync(string projectPath, string logicalPath, CancellationToken ct = default)
         {
             var outcome = new CodeSymbolDescribeOutcome();
-            if (string.IsNullOrWhiteSpace(logicalPath)) { outcome.Error = "path è obbligatorio (il percorso del file nel grafo)"; return outcome; }
+            if (string.IsNullOrWhiteSpace(logicalPath)) { outcome.Error = UiText.Say("path è obbligatorio (il percorso del file nel grafo)", "path is required (the path of the file in the graph)"); return outcome; }
             logicalPath = logicalPath.Replace('\\', '/').TrimStart('/');
             var astPath = CodeScriptWriter.ScriptPathFor(projectPath, logicalPath, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = $"manca lo script AST di {logicalPath}: prima «Analizza il codice»"; return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Analizza il codice»", $"the AST script of {logicalPath} is missing: first «Analyse the code»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(projectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
             CodeScript existing = null;
@@ -585,25 +586,25 @@ namespace MdExplorer.Services.CodeGraph
             var outcome = new CodeDescriptionEditOutcome();
             var byFile = !string.IsNullOrWhiteSpace(edit.Path);
             var bySymbol = !string.IsNullOrWhiteSpace(edit.SymbolId);
-            if (byFile == bySymbol) { outcome.Error = "indica path (la descrizione del file) oppure symbolId (un simbolo e i suoi parametri), uno solo dei due"; return outcome; }
+            if (byFile == bySymbol) { outcome.Error = UiText.Say("indica path (la descrizione del file) oppure symbolId (un simbolo e i suoi parametri), uno solo dei due", "give path (the description of the file) or symbolId (a symbol and its parameters), only one of the two"); return outcome; }
 
             var logicalPath = edit.Path?.Replace('\\', '/').TrimStart('/');
             if (bySymbol)
             {
                 var symbol = await _store.DescribeAsync(edit.ProjectPath, edit.SymbolId, ct);
-                if (symbol == null) { outcome.Error = $"simbolo '{edit.SymbolId}' non trovato nel grafo"; return outcome; }
-                if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = $"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)"; return outcome; }
+                if (symbol == null) { outcome.Error = UiText.Say($"simbolo '{edit.SymbolId}' non trovato nel grafo", $"symbol '{edit.SymbolId}' not found in the graph"); return outcome; }
+                if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = UiText.Say($"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)", $"'{symbol.QualifiedName}' has no source file (it is outside the project)"); return outcome; }
                 logicalPath = symbol.Path;
             }
             outcome.Path = logicalPath;
             var astPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, logicalPath, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = $"manca lo script AST di {logicalPath}: prima «Analizza il codice»"; return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Analizza il codice»", $"the AST script of {logicalPath} is missing: first «Analyse the code»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(edit.ProjectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, ast.Header.Source, CodeScriptKind.Doc);
             // uno script illeggibile non si riscrive alla cieca: si perderebbero le altre descrizioni
             CodeScript existing;
             try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath)); }
-            catch (CodeScriptFormatException ex) { outcome.Error = "lo script delle descrizioni non si legge, correggilo o rigeneralo con «Analizza il codice con Mark»: " + ex.Message; return outcome; }
+            catch (CodeScriptFormatException ex) { outcome.Error = UiText.Say("lo script delle descrizioni non si legge, correggilo o rigeneralo con «Analizza il codice con Mark»: ", "the descriptions script cannot be read, fix it or regenerate it with «Analyse the code with Mark»: ") + ex.Message; return outcome; }
 
             var writtenBy = string.IsNullOrWhiteSpace(edit.WrittenBy) ? "code_set_description" : edit.WrittenBy.Trim();
             CodeScript doc;
@@ -618,7 +619,7 @@ namespace MdExplorer.Services.CodeGraph
             CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(doc));
             outcome.Script = CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath);
             var load = await _store.LoadScriptAsync(edit.ProjectPath, docPath, ct);
-            if (load.Error != null) outcome.Error = "script scritto ma non caricato nel grafo: " + load.Error;
+            if (load.Error != null) outcome.Error = UiText.Say("script scritto ma non caricato nel grafo: ", "script written but not loaded into the graph: ") + load.Error;
             _logger.LogInformation("[CodeDoc] descrizione corretta ({Target}) da {Who}: {Outcome}", bySymbol ? edit.SymbolId : logicalPath, writtenBy, outcome.Error ?? "ok");
             return outcome;
         }

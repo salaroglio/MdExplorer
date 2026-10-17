@@ -94,9 +94,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var ast = Ast();
             void Refused(System.Action a, string fragment) => StringAssert.Contains(Assert.ThrowsException<CodeDocEditException>(a).Message, fragment);
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, "x", null, null, "w"), "returnsDescription");
-            Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, null, null, null, "w"), "niente da scrivere");
+            Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, null, null, null, "w"), "nothing to write");
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, null, null, new Dictionary<string, string> { ["Pat"] = "x" }, "w"), "Path, OutDir");
-            Refused(() => CodeDocEditor.EditSymbol(Ast(withParams: false), null, "m1", "x", null, null, null, "w"), "non ha parametri");
+            Refused(() => CodeDocEditor.EditSymbol(Ast(withParams: false), null, "m1", "x", null, null, null, "w"), "has no parameters");
         }
     }
 }

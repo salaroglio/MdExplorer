@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string ProjectHash(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new InvalidOperationException("Il grafo del codice richiede un progetto aperto: projectPath è vuoto.");
+                throw new InvalidOperationException(UiText.Say("Il grafo del codice richiede un progetto aperto: projectPath è vuoto.", "The code graph needs an open project: projectPath is empty."));
             return Helper.HGetHashString(Path.GetFullPath(projectPath));
         }
 

@@ -103,11 +103,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var j = GrammarCatalog.ById("java");
             Publish(j, "wrong-name.bin");
             var ex2 = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Downloader().DownloadAsync("java"));
-            StringAssert.Contains(ex2.Message, "non contiene");
+            StringAssert.Contains(ex2.Message, "does not contain");
             Assert.IsFalse(_store.IsInstalled(j));
 
             var ex3 = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Downloader().DownloadAsync("rust"));
-            StringAssert.Contains(ex3.Message, "manifest non disponibile");
+            StringAssert.Contains(ex3.Message, "manifest not available");
         }
     }
 }

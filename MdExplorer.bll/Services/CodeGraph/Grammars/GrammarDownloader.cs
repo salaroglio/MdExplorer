@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -57,7 +58,7 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
             var g = GrammarCatalog.Require(grammarId);
             var addonId = g.AddonId(_store.Rid);
             var baseUrl = (_options.GrammarApiUrl ?? string.Empty).TrimEnd('/');
-            if (baseUrl.Length == 0) throw new InvalidOperationException("MdExplorer:GrammarApiUrl non è configurato: non so da dove scaricare le grammatiche.");
+            if (baseUrl.Length == 0) throw new InvalidOperationException(UiText.Say("MdExplorer:GrammarApiUrl non è configurato: non so da dove scaricare le grammatiche.", "MdExplorer:GrammarApiUrl is not configured: I do not know where to download the grammars from."));
             var manifestUrl = $"{baseUrl}/{addonId}/manifest";
 
             var client = _http.CreateClient("MdExplorerGrammars");
@@ -67,12 +68,12 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
             using (var res = await client.GetAsync(manifestUrl, ct))
             {
                 if (!res.IsSuccessStatusCode)
-                    throw new InvalidOperationException($"Grammatica '{g.Id}' per {_store.Rid}: manifest non disponibile ({(int)res.StatusCode} {res.ReasonPhrase}) da {manifestUrl}");
+                    throw new InvalidOperationException(UiText.Say($"Grammatica '{g.Id}' per {_store.Rid}: manifest non disponibile ({(int)res.StatusCode} {res.ReasonPhrase}) da {manifestUrl}", $"Grammar '{g.Id}' for {_store.Rid}: manifest not available ({(int)res.StatusCode} {res.ReasonPhrase}) from {manifestUrl}"));
                 manifest = JsonSerializer.Deserialize<AddonManifest>(await res.Content.ReadAsStringAsync(ct), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                            ?? throw new InvalidOperationException($"Manifest vuoto da {manifestUrl}");
             }
-            if (string.IsNullOrWhiteSpace(manifest.DownloadUrl)) throw new InvalidOperationException($"Il manifest di '{addonId}' non ha downloadUrl.");
-            if (string.IsNullOrWhiteSpace(manifest.Checksum)) throw new InvalidOperationException($"Il manifest di '{addonId}' non ha checksum: senza non si installa.");
+            if (string.IsNullOrWhiteSpace(manifest.DownloadUrl)) throw new InvalidOperationException(UiText.Say($"Il manifest di '{addonId}' non ha downloadUrl.", $"The manifest of '{addonId}' has no downloadUrl."));
+            if (string.IsNullOrWhiteSpace(manifest.Checksum)) throw new InvalidOperationException(UiText.Say($"Il manifest di '{addonId}' non ha checksum: senza non si installa.", $"The manifest of '{addonId}' has no checksum: without it nothing is installed."));
             var downloadUrl = Uri.IsWellFormedUriString(manifest.DownloadUrl, UriKind.Absolute) ? manifest.DownloadUrl : $"{baseUrl}/{manifest.DownloadUrl.TrimStart('/')}";
 
             var tmp = Path.Combine(Path.GetTempPath(), "mde-grammars", Guid.NewGuid().ToString("N"));
@@ -83,14 +84,14 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
                 using (var res = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct))
                 {
                     if (!res.IsSuccessStatusCode)
-                        throw new InvalidOperationException($"Download di '{addonId}' fallito ({(int)res.StatusCode}) da {downloadUrl}");
+                        throw new InvalidOperationException(UiText.Say($"Download di '{addonId}' fallito ({(int)res.StatusCode}) da {downloadUrl}", $"Download of '{addonId}' failed ({(int)res.StatusCode}) from {downloadUrl}"));
                     await using var fs = File.Create(zipPath);
                     await res.Content.CopyToAsync(fs, ct);
                 }
 
                 var actual = Sha256File(zipPath);
                 if (!string.Equals(actual, manifest.Checksum, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException($"Checksum di '{addonId}' non corrisponde: atteso {manifest.Checksum}, trovato {actual}. Non installo.");
+                    throw new InvalidOperationException(UiText.Say($"Checksum di '{addonId}' non corrisponde: atteso {manifest.Checksum}, trovato {actual}. Non installo.", $"Checksum of '{addonId}' does not match: expected {manifest.Checksum}, found {actual}. Not installing."));
 
                 var expectedName = g.FileName(_store.Rid);
                 string extracted = null;
@@ -98,7 +99,7 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
                 {
                     var entry = zip.Entries.FirstOrDefault(e => string.Equals(Path.GetFileName(e.FullName), expectedName, StringComparison.OrdinalIgnoreCase));
                     if (entry == null)
-                        throw new InvalidOperationException($"Lo zip di '{addonId}' non contiene '{expectedName}' (contiene: {string.Join(", ", zip.Entries.Select(e => e.FullName))}).");
+                        throw new InvalidOperationException(UiText.Say($"Lo zip di '{addonId}' non contiene '{expectedName}' (contiene: {string.Join(", ", zip.Entries.Select(e => e.FullName))}).", $"The zip of '{addonId}' does not contain '{expectedName}' (it contains: {string.Join(", ", zip.Entries.Select(e => e.FullName))})."));
                     extracted = Path.Combine(tmp, expectedName);
                     entry.ExtractToFile(extracted, overwrite: true);
                 }

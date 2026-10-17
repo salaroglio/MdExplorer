@@ -131,7 +131,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 "it" => "italiano",
                 "en" => "inglese (English)",
-                _ => throw new ArgumentException($"Lingua delle descrizioni '{language}' non prevista: it oppure en.", nameof(language)),
+                _ => throw new ArgumentException(UiText.Say($"Lingua delle descrizioni '{language}' non prevista: it oppure en.", $"Description language '{language}' not supported: it or en."), nameof(language)),
             };
             if (sourceText.Length > MaxSourceChars) sourceText = sourceText.Substring(0, MaxSourceChars) + "\n/* … troncato … */";
             var sb = new StringBuilder();
@@ -173,29 +173,29 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 lineNo++;
                 var line = raw.Trim();
-                if (line.Length == 0 || !line.StartsWith('{')) { if (line.Length > 0) rejected.Add($"riga {lineNo}: non è un record JSON: {Shorten(line)}"); continue; }
+                if (line.Length == 0 || !line.StartsWith('{')) { if (line.Length > 0) rejected.Add(UiText.Say($"riga {lineNo}: non è un record JSON: {Shorten(line)}", $"line {lineNo}: not a JSON record: {Shorten(line)}")); continue; }
                 // la risposta dell'LLM è JSON Lines (formato di scambio, non degli script): si rilegge come schema 1
                 var header = JsonSerializer.Serialize(new { schema = CodeScriptParser.LegacyJsonSchema, kind = "doc", source = sourceRelativePath, writtenBy, writtenAt = result.Header.WrittenAt });
                 CodeScript one;
                 try { one = CodeScriptParser.Parse(header + "\n" + line, sourceRelativePath); }
-                catch (CodeScriptFormatException ex) { rejected.Add($"riga {lineNo}: {ex.Message}"); continue; }
+                catch (CodeScriptFormatException ex) { rejected.Add(UiText.Say($"riga {lineNo}: {ex.Message}", $"line {lineNo}: {ex.Message}")); continue; }
                 if (one.FileDoc != null)
                 {
-                    if (!askedFile) rejected.Add($"riga {lineNo}: fileDoc non richiesto");
+                    if (!askedFile) rejected.Add(UiText.Say($"riga {lineNo}: fileDoc non richiesto", $"line {lineNo}: fileDoc not requested"));
                     else result.FileDoc = one.FileDoc;
                 }
                 foreach (var d in one.SymbolDocs)
                 {
-                    if (!byId.TryGetValue(d.SymbolId, out var c)) { rejected.Add($"riga {lineNo}: symbolId '{d.SymbolId}' non richiesto"); continue; }
-                    if (c.ParametersOnly) { rejected.Add($"riga {lineNo}: symbolDoc per lo script stesso ('{d.SymbolId}'): a che cosa serve lo dice fileDoc, qui solo i parameterDoc"); continue; }
+                    if (!byId.TryGetValue(d.SymbolId, out var c)) { rejected.Add(UiText.Say($"riga {lineNo}: symbolId '{d.SymbolId}' non richiesto", $"line {lineNo}: symbolId '{d.SymbolId}' not requested")); continue; }
+                    if (c.ParametersOnly) { rejected.Add(UiText.Say($"riga {lineNo}: symbolDoc per lo script stesso ('{d.SymbolId}'): a che cosa serve lo dice fileDoc, qui solo i parameterDoc", $"line {lineNo}: symbolDoc for the script itself ('{d.SymbolId}'): fileDoc says what it is for, here only parameterDoc")); continue; }
                     d.SignatureHash = c.SignatureHash;
                     result.SymbolDocs.RemoveAll(x => x.SymbolId == d.SymbolId);
                     result.SymbolDocs.Add(d);
                 }
                 foreach (var p in one.ParameterDocs)
                 {
-                    if (!byId.TryGetValue(p.SymbolId, out var c)) { rejected.Add($"riga {lineNo}: symbolId '{p.SymbolId}' non richiesto"); continue; }
-                    if (!c.Parameters.Any(x => x.Name == p.ParameterName)) { rejected.Add($"riga {lineNo}: parametro '{p.ParameterName}' non esiste in {c.Symbol.QualifiedName}"); continue; }
+                    if (!byId.TryGetValue(p.SymbolId, out var c)) { rejected.Add(UiText.Say($"riga {lineNo}: symbolId '{p.SymbolId}' non richiesto", $"line {lineNo}: symbolId '{p.SymbolId}' not requested")); continue; }
+                    if (!c.Parameters.Any(x => x.Name == p.ParameterName)) { rejected.Add(UiText.Say($"riga {lineNo}: parametro '{p.ParameterName}' non esiste in {c.Symbol.QualifiedName}", $"line {lineNo}: parameter '{p.ParameterName}' does not exist in {c.Symbol.QualifiedName}")); continue; }
                     result.ParameterDocs.RemoveAll(x => x.SymbolId == p.SymbolId && x.ParameterName == p.ParameterName);
                     result.ParameterDocs.Add(p);
                 }

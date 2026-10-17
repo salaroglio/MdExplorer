@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,7 +60,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var result = new CodeExtractionResult();
             if (request.FilesToEmit.Count == 0) return result;
             var g = GrammarCatalog.ForLanguage(LanguageId);
-            if (!_store.IsInstalled(g)) throw new InvalidOperationException($"Grammatica '{g.Id}' non installata in {_store.Folder}: scaricala dalla finestra «Ambiente di sviluppo».");
+            if (!_store.IsInstalled(g)) throw new InvalidOperationException(UiText.Say($"Grammatica '{g.Id}' non installata in {_store.Folder}: scaricala dalla finestra «Ambiente di sviluppo».", $"Grammar '{g.Id}' is not installed in {_store.Folder}: download it from the «Development environment» window."));
 
             using var language = new Language(_store.PathOf(g), g.Symbol);
             using var parser = new Parser(language);
@@ -70,9 +71,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 ct.ThrowIfCancellationRequested();
                 string text;
                 try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
-                catch (Exception ex) { result.Warnings.Add($"{f.LogicalPath}: non leggibile ({ex.Message})"); continue; }
+                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var tree = parser.Parse(text);
-                if (tree == null) { result.Warnings.Add($"{f.LogicalPath}: tree-sitter non ha prodotto un albero"); continue; }
+                if (tree == null) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: tree-sitter non ha prodotto un albero", $"{f.LogicalPath}: tree-sitter produced no tree")); continue; }
                 parsed.Add(new ParsedFile(f, text, tree));
             }
             var index = new PerimeterIndex();

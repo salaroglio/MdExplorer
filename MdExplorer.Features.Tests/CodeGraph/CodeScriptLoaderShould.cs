@@ -134,7 +134,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var outcome = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(1, outcome.Failed);
             StringAssert.Contains(outcome.FirstError, "schema 99");
-            StringAssert.Contains(outcome.FirstError, "Aggiorna MdExplorer");
+            StringAssert.Contains(outcome.FirstError, "Update MdExplorer");
         }
 
         [TestMethod]

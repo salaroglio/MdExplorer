@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -116,21 +117,21 @@ namespace MdExplorer.Services.CodeGraph
             };
 
             if (local == null)
-                return State(CodeRootStatus.NotLinked, $"su questa macchina non è collegata: indica dove sta la cartella{(root.Repository != null ? " del repository " + root.Repository : string.Empty)}.");
+                return State(CodeRootStatus.NotLinked, UiText.Say($"su questa macchina non è collegata: indica dove sta la cartella{(root.Repository != null ? " del repository " + root.Repository : string.Empty)}.", $"it is not linked on this machine: say where the folder{(root.Repository != null ? " of repository " + root.Repository : string.Empty)} is."));
             if (!Directory.Exists(local))
-                return State(CodeRootStatus.NotFound, $"la cartella {local} non esiste più (spostata o cancellata): ricollegala.");
+                return State(CodeRootStatus.NotFound, UiText.Say($"la cartella {local} non esiste più (spostata o cancellata): ricollegala.", $"the folder {local} no longer exists (moved or deleted): link it again."));
 
             if (root.Repository != null)
             {
                 var top = await TopLevelAsync(local, ct);
                 if (top == null)
-                    return State(CodeRootStatus.Mismatch, $"{local} non è un repository git, ma la radice è il repository {root.Repository}.");
+                    return State(CodeRootStatus.Mismatch, UiText.Say($"{local} non è un repository git, ma la radice è il repository {root.Repository}.", $"{local} is not a git repository, but the root is the repository {root.Repository}."));
                 var remotes = await RemotesAsync(top, ct);
                 if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
-                    return State(CodeRootStatus.Mismatch, $"{local} è {Describe(remotes)}, non il repository dichiarato {root.Repository}.", remotes: remotes);
+                    return State(CodeRootStatus.Mismatch, UiText.Say($"{local} è {Describe(remotes)}, non il repository dichiarato {root.Repository}.", $"{local} is {Describe(remotes)}, not the declared repository {root.Repository}."), remotes: remotes);
                 var rootPath = Combine(top, root.Subpath);
                 if (!Directory.Exists(rootPath))
-                    return State(CodeRootStatus.NotFound, $"nel clone {top} manca la sottocartella «{root.Subpath}» (un altro ramo?).", remotes: remotes);
+                    return State(CodeRootStatus.NotFound, UiText.Say($"nel clone {top} manca la sottocartella «{root.Subpath}» (un altro ramo?).", $"the clone {top} is missing the subfolder «{root.Subpath}» (another branch?)."), remotes: remotes);
                 return State(CodeRootStatus.Linked, null, rootPath, remotes);
             }
             return State(CodeRootStatus.Linked, null, Combine(local, root.Subpath));
@@ -142,12 +143,12 @@ namespace MdExplorer.Services.CodeGraph
         {
             CodeRootPaths.RequireAlias(alias);
             if (string.IsNullOrWhiteSpace(localPath) || !Directory.Exists(localPath))
-                throw new InvalidOperationException($"La cartella '{localPath}' non esiste.");
+                throw new InvalidOperationException(UiText.Say($"La cartella '{localPath}' non esiste.", $"The folder '{localPath}' does not exist."));
             var chosen = Path.GetFullPath(localPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             if (PathContainment.IsInside(projectPath, chosen))
-                throw new InvalidOperationException($"{chosen} sta dentro il progetto: non serve una radice esterna, marcala come cartella «program» dall'albero.");
+                throw new InvalidOperationException(UiText.Say($"{chosen} sta dentro il progetto: non serve una radice esterna, marcala come cartella «program» dall'albero.", $"{chosen} is inside the project: no external root is needed, mark it as a «program» folder from the tree."));
             if (PathContainment.IsInside(chosen, projectPath))
-                throw new InvalidOperationException($"{chosen} contiene il progetto stesso: scegli la cartella del codice, non una che la contiene.");
+                throw new InvalidOperationException(UiText.Say($"{chosen} contiene il progetto stesso: scegli la cartella del codice, non una che la contiene.", $"{chosen} contains the project itself: choose the code folder, not one that contains it."));
 
             var top = await TopLevelAsync(chosen, ct);
             var remotes = top == null ? (IReadOnlyList<string>)Array.Empty<string>() : await RemotesAsync(top, ct);
@@ -166,15 +167,15 @@ namespace MdExplorer.Services.CodeGraph
                     if (root?.Repository != null)
                     {
                         if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
-                            throw new InvalidOperationException($"{chosen} è {Describe(remotes)}, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone giusto.");
+                            throw new InvalidOperationException(UiText.Say($"{chosen} è {Describe(remotes)}, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone giusto.", $"{chosen} is {Describe(remotes)}, but the root «@{alias}» is the repository {root.Repository}: choose the right clone."));
                         if (!Directory.Exists(Combine(top, root.Subpath)))
-                            throw new InvalidOperationException($"Nel clone {top} manca la sottocartella «{root.Subpath}» della radice «@{alias}» (un altro ramo?).");
+                            throw new InvalidOperationException(UiText.Say($"Nel clone {top} manca la sottocartella «{root.Subpath}» della radice «@{alias}» (un altro ramo?).", $"The clone {top} is missing the subfolder «{root.Subpath}» of the root «@{alias}» (another branch?)."));
                     }
                     else
                     {
                         var origin = PreferredRemote(remotes);
                         if (origin == null)
-                            throw new InvalidOperationException($"{top} è un repository git senza remote: senza un remote i colleghi non possono riconoscere la stessa cartella. Aggiungi un remote (git remote add origin …) e ricollega.");
+                            throw new InvalidOperationException(UiText.Say($"{top} è un repository git senza remote: senza un remote i colleghi non possono riconoscere la stessa cartella. Aggiungi un remote (git remote add origin …) e ricollega.", $"{top} is a git repository without a remote: without a remote colleagues cannot recognise the same folder. Add a remote (git remote add origin …) and link it again."));
                         var subpath = Relative(top, chosen);
                         if (root == null)
                         {
@@ -193,7 +194,7 @@ namespace MdExplorer.Services.CodeGraph
                 else
                 {
                     if (root?.Repository != null)
-                        throw new InvalidOperationException($"{chosen} non è un repository git, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone.");
+                        throw new InvalidOperationException(UiText.Say($"{chosen} non è un repository git, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone.", $"{chosen} is not a git repository, but the root «@{alias}» is the repository {root.Repository}: choose the clone."));
                     if (root == null)
                     {
                         root = new CodeRootConfig { Alias = alias, Subpath = string.Empty, Tags = new List<string> { "program" } };
@@ -239,7 +240,7 @@ namespace MdExplorer.Services.CodeGraph
         {
             CodeRootPaths.RequireAlias(alias);
             var root = (await ListAsync(projectPath, ct)).FirstOrDefault(r => r.Alias == alias)
-                ?? throw new InvalidOperationException($"La radice «@{alias}» non è dichiarata nel .development.yml.");
+                ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml.", $"The root «@{alias}» is not declared in .development.yml."));
             if (root.Status != CodeRootStatus.Linked) throw new InvalidOperationException($"@{alias}: {root.Reason}");
             if (root.Repository == null) return new CodeRootChanges { Alias = alias, IsGit = false };
             var status = await _git.RunAsync(root.RootPath, new[] { "status", "--porcelain=v1", "--branch", "--untracked-files=all", "--", "." }, ct);
@@ -254,7 +255,7 @@ namespace MdExplorer.Services.CodeGraph
                     branch = line.Substring(3).Split("...")[0].Trim();
                     // un repository senza commit: «## No commits yet on master» → «master (nessun commit)»
                     const string noCommits = "No commits yet on ";
-                    if (branch.StartsWith(noCommits, StringComparison.Ordinal)) branch = branch.Substring(noCommits.Length) + " (nessun commit)";
+                    if (branch.StartsWith(noCommits, StringComparison.Ordinal)) branch = branch.Substring(noCommits.Length) + UiText.Say(" (nessun commit)", " (no commits)");
                     continue;
                 }
                 if (line.Length < 4) continue;
@@ -293,7 +294,7 @@ namespace MdExplorer.Services.CodeGraph
         private static string PreferredRemote(IReadOnlyList<string> remotes) => remotes.FirstOrDefault();
 
         private static string Describe(IReadOnlyList<string> remotes)
-            => remotes.Count == 0 ? "un repository senza remote" : "il repository " + string.Join(" / ", remotes);
+            => remotes.Count == 0 ? UiText.Say("un repository senza remote", "a repository without a remote") : UiText.Say("il repository ", "the repository ") + string.Join(" / ", remotes);
 
         // ------------------------------------------------------------------ .development.yml
 

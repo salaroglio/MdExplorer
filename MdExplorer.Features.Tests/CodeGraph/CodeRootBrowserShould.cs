@@ -69,10 +69,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public void Refuse_escapes_unlinked_roots_and_project_paths_with_the_reason()
         {
             var r = Resolver();
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => CodeRootBrowser.List(r, "@backend/../..")).Message, "esce dalla radice");
+            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => CodeRootBrowser.List(r, "@backend/../..")).Message, "goes outside the root");
             StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => CodeRootBrowser.List(r, "@frontend")).Message, "non è collegata");
             Assert.ThrowsException<ArgumentException>(() => CodeRootBrowser.List(r, "program"));
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => CodeRootBrowser.List(r, "@backend/manca")).Message, "non esiste");
+            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => CodeRootBrowser.List(r, "@backend/manca")).Message, "no longer exists");
         }
     }
 }

@@ -326,7 +326,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
-                throw new ArgumentException("La ricerca richiede almeno 2 caratteri.", nameof(query));
+                throw new ArgumentException(UiText.Say("La ricerca richiede almeno 2 caratteri.", "The search needs at least 2 characters."), nameof(query));
             var g = GraphsOf(projectPath);
             limit = Math.Clamp(limit, 1, 200);
             var tokens = query.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(LuceneEscape).ToList();

@@ -236,7 +236,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var script = CodeScriptParser.Parse(content, rel);
                 var expectedKind = CodeGraphPaths.IsAstScript(rel) ? CodeScriptKind.Ast : CodeScriptKind.Doc;
                 if (script.Header.Kind != expectedKind)
-                    throw new CodeScriptFormatException(rel, 1, $"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' ma il file si chiama *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}");
+                    throw new CodeScriptFormatException(rel, 1, UiText.Say($"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' ma il file si chiama *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}", $"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' but the file is named *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}"));
 
                 // Dati e stato nella stessa richiesta: insieme, o niente.
                 var update = script.Header.Kind == CodeScriptKind.Ast
@@ -281,7 +281,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "[CodeGraph] lotto di {Count} script rifiutato da Fuseki", batch.Count);
-                foreach (var (result, _) in batch) result.Error = $"'{result.ScriptPath}': lotto rifiutato da Fuseki — {ex.Message}";
+                foreach (var (result, _) in batch) result.Error = UiText.Say($"'{result.ScriptPath}': lotto rifiutato da Fuseki — {ex.Message}", $"'{result.ScriptPath}': batch rejected by Fuseki — {ex.Message}");
             }
             finally
             {

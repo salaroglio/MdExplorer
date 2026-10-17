@@ -174,7 +174,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             File.WriteAllText(Path.Combine(_src, "broken.ps1"), "function Ok { 1 }\nfunction Broken {\n  if ($x {\n");
             var result = new PowerShellExtractor(NullLogger<PowerShellExtractor>.Instance).Extract(Request());
-            Assert.IsTrue(result.Warnings.Any(w => w.StartsWith("scripts/broken.ps1:") && w.Contains("errori di sintassi")), string.Join("; ", result.Warnings));
+            Assert.IsTrue(result.Warnings.Any(w => w.StartsWith("scripts/broken.ps1:") && w.Contains("syntax errors")), string.Join("; ", result.Warnings));
             var broken = result.Scripts.Single(s => s.File.LogicalPath == "scripts/broken.ps1").Script;
             Assert.IsTrue(broken.Symbols.Any(s => s.Name == "Ok"));
         }

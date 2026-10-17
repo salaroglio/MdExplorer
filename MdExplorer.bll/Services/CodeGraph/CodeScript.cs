@@ -10,7 +10,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class CodeScriptFormatException : Exception
     {
         public CodeScriptFormatException(string scriptPath, int line, string why)
-            : base($"'{scriptPath}', riga {line}: {why}") { ScriptPath = scriptPath; Line = line; }
+            : base(UiText.Say($"'{scriptPath}', riga {line}: {why}", $"'{scriptPath}', line {line}: {why}")) { ScriptPath = scriptPath; Line = line; }
         public string ScriptPath { get; }
         public int Line { get; }
     }
@@ -173,12 +173,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 JsonDocument doc;
                 try { doc = JsonDocument.Parse(line); }
-                catch (JsonException ex) { throw new CodeScriptFormatException(scriptPath, lineNo, $"JSON non valido: {ex.Message}"); }
+                catch (JsonException ex) { throw new CodeScriptFormatException(scriptPath, lineNo, UiText.Say($"JSON non valido: {ex.Message}", $"Invalid JSON: {ex.Message}")); }
                 using (doc)
                 {
                     var root = doc.RootElement;
                     if (root.ValueKind != JsonValueKind.Object)
-                        throw new CodeScriptFormatException(scriptPath, lineNo, "ogni riga deve essere un oggetto JSON");
+                        throw new CodeScriptFormatException(scriptPath, lineNo, UiText.Say("ogni riga deve essere un oggetto JSON", "every line must be a JSON object"));
 
                     if (script.Header == null)
                     {
@@ -189,7 +189,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
             if (script.Header == null)
-                throw new CodeScriptFormatException(scriptPath, 1, "manca l'intestazione (prima riga con schema, kind, source)");
+                throw new CodeScriptFormatException(scriptPath, 1, UiText.Say("manca l'intestazione (prima riga con schema, kind, source)", "header missing (first line with schema, kind, source)"));
             return script;
         }
 
@@ -209,7 +209,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 WrittenAt = OptString(root, "writtenAt"),
             };
             if (h.Schema != LegacyJsonSchema)
-                throw new CodeScriptFormatException(path, line, $"schema {h.Schema} in JSON Lines non supportato: il JSON Lines è solo lo schema {LegacyJsonSchema}, gli script nuovi sono Turtle.");
+                throw new CodeScriptFormatException(path, line, UiText.Say($"schema {h.Schema} in JSON Lines non supportato: il JSON Lines è solo lo schema {LegacyJsonSchema}, gli script nuovi sono Turtle.", $"schema {h.Schema} in JSON Lines not supported: JSON Lines is only schema {LegacyJsonSchema}, new scripts are Turtle."));
             var kind = RequireString(root, "kind", path, line);
             switch (kind)
             {
@@ -226,7 +226,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (h.WrittenAt == null) throw Missing(path, line, "writtenAt", "intestazione doc");
                     break;
                 default:
-                    throw new CodeScriptFormatException(path, line, $"kind '{kind}' sconosciuto: ammessi 'ast' e 'doc'");
+                    throw new CodeScriptFormatException(path, line, UiText.Say($"kind '{kind}' sconosciuto: ammessi 'ast' e 'doc'", $"unknown kind '{kind}': allowed 'ast' and 'doc'"));
             }
             return h;
         }
@@ -256,7 +256,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         ParentId = OptString(root, "parentId"),
                     };
                     if (!s.IsExternal && s.LineStart == null)
-                        throw Missing(path, line, "lineStart", $"symbol '{s.QualifiedName}' (solo 'external' può non avere righe)");
+                        throw Missing(path, line, "lineStart", UiText.Say($"symbol '{s.QualifiedName}' (solo 'external' può non avere righe)", $"symbol '{s.QualifiedName}' (only 'external' may have no lines)"));
                     script.Symbols.Add(s);
                     break;
                 case "parameter":
@@ -290,7 +290,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     RejectUnknown(root, FileDocFields, path, line, type);
                     var fd = new ScriptFileDoc { Summary = OptString(root, "summary") };
                     if (string.IsNullOrWhiteSpace(fd.Summary)) throw Missing(path, line, "summary", "fileDoc");
-                    if (script.FileDoc != null) throw new CodeScriptFormatException(path, line, "un solo fileDoc per script");
+                    if (script.FileDoc != null) throw new CodeScriptFormatException(path, line, UiText.Say("un solo fileDoc per script", "only one fileDoc per script"));
                     script.FileDoc = fd;
                     break;
                 case "symbolDoc":
@@ -319,7 +319,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     break;
                 default:
                     throw new CodeScriptFormatException(path, line,
-                        $"type '{type}' sconosciuto: ammessi symbol, parameter, edge (ast) e fileDoc, symbolDoc, parameterDoc (doc)");
+                        UiText.Say($"type '{type}' sconosciuto: ammessi symbol, parameter, edge (ast) e fileDoc, symbolDoc, parameterDoc (doc)", $"unknown type '{type}': allowed symbol, parameter, edge (ast) and fileDoc, symbolDoc, parameterDoc (doc)"));
             }
         }
 
@@ -331,22 +331,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 if (!allowed.Contains(prop.Name))
                     throw new CodeScriptFormatException(path, line,
-                        $"campo '{prop.Name}' sconosciuto in '{what}'. Ammessi: {string.Join(", ", allowed.OrderBy(a => a))}");
+                        UiText.Say($"campo '{prop.Name}' sconosciuto in '{what}'. Ammessi: {string.Join(", ", allowed.OrderBy(a => a))}", $"unknown field '{prop.Name}' in '{what}'. Allowed: {string.Join(", ", allowed.OrderBy(a => a))}"));
             }
         }
 
         private static CodeScriptFormatException Missing(string path, int line, string field, string what)
-            => new(path, line, $"manca il campo obbligatorio '{field}' in '{what}'");
+            => new(path, line, UiText.Say($"manca il campo obbligatorio '{field}' in '{what}'", $"required field '{field}' missing in '{what}'"));
 
         private static CodeScriptFormatException WrongKind(string path, int line, string type, string expectedKind)
-            => new(path, line, $"il record '{type}' sta solo in uno script '{expectedKind}'");
+            => new(path, line, UiText.Say($"il record '{type}' sta solo in uno script '{expectedKind}'", $"the record '{type}' belongs only in a '{expectedKind}' script"));
 
         private static string RequireString(JsonElement root, string name, string path, int line)
         {
             if (!root.TryGetProperty(name, out var el) || el.ValueKind == JsonValueKind.Null) throw Missing(path, line, name, "record");
-            if (el.ValueKind != JsonValueKind.String) throw new CodeScriptFormatException(path, line, $"'{name}' deve essere una stringa");
+            if (el.ValueKind != JsonValueKind.String) throw new CodeScriptFormatException(path, line, UiText.Say($"'{name}' deve essere una stringa", $"'{name}' must be a string"));
             var v = el.GetString();
-            if (string.IsNullOrWhiteSpace(v)) throw new CodeScriptFormatException(path, line, $"'{name}' è vuoto");
+            if (string.IsNullOrWhiteSpace(v)) throw new CodeScriptFormatException(path, line, UiText.Say($"'{name}' è vuoto", $"'{name}' is empty"));
             return v;
         }
 
@@ -366,7 +366,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             if (!root.TryGetProperty(name, out var el) || el.ValueKind == JsonValueKind.Null) return null;
             if (el.ValueKind != JsonValueKind.Number || !el.TryGetInt32(out var v))
-                throw new CodeScriptFormatException(path, line, $"'{name}' deve essere un numero intero");
+                throw new CodeScriptFormatException(path, line, UiText.Say($"'{name}' deve essere un numero intero", $"'{name}' must be an integer"));
             return v;
         }
 
@@ -374,7 +374,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             if (!root.TryGetProperty(name, out var el) || el.ValueKind == JsonValueKind.Null) return false;
             if (el.ValueKind != JsonValueKind.True && el.ValueKind != JsonValueKind.False)
-                throw new CodeScriptFormatException(path, line, $"'{name}' deve essere true o false");
+                throw new CodeScriptFormatException(path, line, UiText.Say($"'{name}' deve essere true o false", $"'{name}' must be true or false"));
             return el.GetBoolean();
         }
 
@@ -382,7 +382,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var v = RequireString(root, name, path, line);
             if (!allowed.Contains(v, StringComparer.Ordinal))
-                throw new CodeScriptFormatException(path, line, $"'{name}' = '{v}' non ammesso. Ammessi: {string.Join(", ", allowed)}");
+                throw new CodeScriptFormatException(path, line, UiText.Say($"'{name}' = '{v}' non ammesso. Ammessi: {string.Join(", ", allowed)}", $"'{name}' = '{v}' not allowed. Allowed: {string.Join(", ", allowed)}"));
             return v;
         }
     }

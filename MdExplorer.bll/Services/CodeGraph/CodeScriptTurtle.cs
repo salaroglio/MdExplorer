@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static string Write(CodeScript script)
         {
-            var h = script.Header ?? throw new ArgumentException("Header mancante", nameof(script));
+            var h = script.Header ?? throw new ArgumentException(UiText.Say("Header mancante", "Header missing"), nameof(script));
             var sb = new StringBuilder();
             sb.Append(HeaderMarker).Append(JsonSerializer.Serialize(HeaderOf(h), HeaderJson)).Append('\n');
             sb.Append("@prefix code: <").Append(CodeOntology.Namespace).Append("> .\n\n");
@@ -115,12 +115,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             var headerLine = ReadHeaderFromContent(content, scriptPath);
             if (headerLine.Schema != CodeScriptParser.CurrentSchema)
                 throw new CodeScriptFormatException(scriptPath, 1, headerLine.Schema > CodeScriptParser.CurrentSchema
-                    ? $"schema {headerLine.Schema} più nuovo di quello che questo MdExplorer sa leggere ({CodeScriptParser.CurrentSchema}). Aggiorna MdExplorer."
-                    : $"schema {headerLine.Schema} ritirato (atteso {CodeScriptParser.CurrentSchema}): lo script si cancella alla prossima analisi e si rifà.");
+                    ? UiText.Say($"schema {headerLine.Schema} più nuovo di quello che questo MdExplorer sa leggere ({CodeScriptParser.CurrentSchema}). Aggiorna MdExplorer.",
+                        $"schema {headerLine.Schema} is newer than this MdExplorer can read ({CodeScriptParser.CurrentSchema}). Update MdExplorer.")
+                    : UiText.Say($"schema {headerLine.Schema} ritirato (atteso {CodeScriptParser.CurrentSchema}): lo script si cancella alla prossima analisi e si rifà.",
+                        $"schema {headerLine.Schema} is retired (expected {CodeScriptParser.CurrentSchema}): the script is deleted at the next analysis and made again."));
 
             var graph = new Graph();
             try { new TurtleParser().Load(graph, new StringReader(content)); }
-            catch (RdfParseException ex) { throw new CodeScriptFormatException(scriptPath, ex.StartLine, "Turtle non valido: " + ex.Message); }
+            catch (RdfParseException ex) { throw new CodeScriptFormatException(scriptPath, ex.StartLine, UiText.Say("Turtle non valido: ", "Invalid Turtle: ") + ex.Message); }
 
             // nodo → (classe, predicato → valori); l'ordine è quello della prima comparsa nel testo (un grafo non ne ha)
             var order = SubjectOrder(content);
@@ -134,7 +136,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var cls = IriOf(t.Object, scriptPath, "classe");
                     if (!cls.StartsWith(Ns, StringComparison.Ordinal) || !Allowed.ContainsKey(cls.Substring(Ns.Length)))
-                        throw new CodeScriptFormatException(scriptPath, 0, $"<{subject}>: classe <{cls}> sconosciuta al formato");
+                        throw new CodeScriptFormatException(scriptPath, 0, UiText.Say($"<{subject}>: classe <{cls}> sconosciuta al formato", $"<{subject}>: class <{cls}> unknown to the format"));
                     node.Class = cls.Substring(Ns.Length);
                     continue;
                 }
@@ -144,10 +146,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             foreach (var n in nodes.Values)
             {
-                if (n.Class == null) throw new CodeScriptFormatException(scriptPath, 0, $"<{n.Iri}>: nodo senza classe (manca «a code:…»)");
+                if (n.Class == null) throw new CodeScriptFormatException(scriptPath, 0, UiText.Say($"<{n.Iri}>: nodo senza classe (manca «a code:…»)", $"<{n.Iri}>: node without a class («a code:…» missing)"));
                 foreach (var p in n.Values.Keys)
                     if (!Allowed[n.Class].Contains(p))
-                        throw new CodeScriptFormatException(scriptPath, 0, $"<{n.Iri}>: predicato code:{p} non ammesso su code:{n.Class}");
+                        throw new CodeScriptFormatException(scriptPath, 0, UiText.Say($"<{n.Iri}>: predicato code:{p} non ammesso su code:{n.Class}", $"<{n.Iri}>: predicate code:{p} not allowed on code:{n.Class}"));
             }
             var ordered = nodes.Values.OrderBy(n => order.TryGetValue(n.Iri, out var i) ? i : int.MaxValue).ToList();
 
@@ -209,12 +211,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ReturnsDescription = n.OptStr("returnsDescription"), Remarks = n.OptStr("remarks"), SignatureHash = n.OptStr("signatureHash"),
                 });
             var fileDocs = nodes.Where(n => n.Class == "FileDescription").ToList();
-            if (fileDocs.Count > 1) throw new CodeScriptFormatException(path, 0, "più di un code:FileDescription: uno solo per script");
+            if (fileDocs.Count > 1) throw new CodeScriptFormatException(path, 0, UiText.Say("più di un code:FileDescription: uno solo per script", "more than one code:FileDescription: only one per script"));
             if (fileDocs.Count == 1)
             {
                 var described = fileDocs[0].IriValue("describes", path);
                 if (Uri.UnescapeDataString(described) != Uri.UnescapeDataString(CodeGraphIris.File(script.Header.Source)))
-                    throw new CodeScriptFormatException(path, 0, $"code:FileDescription descrive <{described}>, non il file dello script «{script.Header.Source}»");
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"code:FileDescription descrive <{described}>, non il file dello script «{script.Header.Source}»", $"code:FileDescription describes <{described}>, not the script's file «{script.Header.Source}»"));
                 script.FileDoc = new ScriptFileDoc { Summary = fileDocs[0].Str("summary", path) };
             }
             foreach (var n in nodes.Where(n => n.Class == "ParameterDescription"))
@@ -253,12 +255,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private static string IriOf(INode node, string path, string role)
             => node is IUriNode u ? u.Uri.OriginalString
-             : throw new CodeScriptFormatException(path, 0, $"{role} non è un IRI ({node}): il formato usa solo IRI e literal");
+             : throw new CodeScriptFormatException(path, 0, UiText.Say($"{role} non è un IRI ({node}): il formato usa solo IRI e literal", $"{role} is not an IRI ({node}): the format uses only IRIs and literals"));
 
         private static Node Single(List<Node> nodes, string cls, string path)
         {
             var found = nodes.Where(n => n.Class == cls).ToList();
-            if (found.Count != 1) throw new CodeScriptFormatException(path, 0, $"atteso un solo nodo code:{cls}, trovati {found.Count}");
+            if (found.Count != 1) throw new CodeScriptFormatException(path, 0, UiText.Say($"atteso un solo nodo code:{cls}, trovati {found.Count}", $"expected a single code:{cls} node, found {found.Count}"));
             return found[0];
         }
 
@@ -278,14 +280,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             private INode One(string p, string path, bool required)
             {
                 if (!Values.TryGetValue(p, out var list) || list.Count == 0)
-                    return required ? throw new CodeScriptFormatException(path, 0, $"<{Iri}>: manca code:{p}") : null;
+                    return required ? throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: manca code:{p}", $"<{Iri}>: code:{p} missing")) : null;
                 // le proprietà dirette degli archi (code:calls…) sono molte per simbolo; tutte le altre sono uniche
                 if (list.Count > 1) throw new CodeScriptFormatException(path, 0, $"<{Iri}>: code:{p} ripetuto {list.Count} volte");
                 return list[0];
             }
 
             private static string Literal(INode n, string iri, string p, string path)
-                => n is ILiteralNode l ? l.Value : throw new CodeScriptFormatException(path, 0, $"<{iri}>: code:{p} deve essere un literal");
+                => n is ILiteralNode l ? l.Value : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{iri}>: code:{p} deve essere un literal", $"<{iri}>: code:{p} must be a literal"));
 
             public string Str(string p, string path) => Literal(One(p, path, true), Iri, p, path);
             public string OptStr(string p) => Values.TryGetValue(p, out var l) && l.Count == 1 && l[0] is ILiteralNode lit ? lit.Value : null;
@@ -296,19 +298,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var n = One(p, path, false);
                 if (n == null) return false;
                 var v = Literal(n, Iri, p, path);
-                return v == "true" ? true : v == "false" ? false : throw new CodeScriptFormatException(path, 0, $"<{Iri}>: code:{p} = «{v}» non è un booleano");
+                return v == "true" ? true : v == "false" ? false : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} = «{v}» non è un booleano", $"<{Iri}>: code:{p} = «{v}» is not a boolean"));
             }
-            public string IriValue(string p, string path) => One(p, path, true) is IUriNode u ? u.Uri.OriginalString : throw new CodeScriptFormatException(path, 0, $"<{Iri}>: code:{p} deve essere un IRI");
+            public string IriValue(string p, string path) => One(p, path, true) is IUriNode u ? u.Uri.OriginalString : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} deve essere un IRI", $"<{Iri}>: code:{p} must be an IRI"));
             public string OptIri(string p) => Values.TryGetValue(p, out var l) && l.Count == 1 && l[0] is IUriNode u ? u.Uri.OriginalString : null;
             public string Enum(string p, string[] allowed, string path)
             {
                 var v = Str(p, path);
-                return allowed.Contains(v) ? v : throw new CodeScriptFormatException(path, 0, $"<{Iri}>: code:{p} = «{v}» non ammesso (ammessi: {string.Join(", ", allowed)})");
+                return allowed.Contains(v) ? v : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} = «{v}» non ammesso (ammessi: {string.Join(", ", allowed)})", $"<{Iri}>: code:{p} = «{v}» not allowed (allowed: {string.Join(", ", allowed)})"));
             }
 
             private int ParseInt(string v, string p, string path)
                 => int.TryParse(v, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var i) ? i
-                 : throw new CodeScriptFormatException(path, 0, $"<{Iri}>: code:{p} = «{v}» non è un intero");
+                 : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} = «{v}» non è un intero", $"<{Iri}>: code:{p} = «{v}» is not an integer"));
         }
     }
 }

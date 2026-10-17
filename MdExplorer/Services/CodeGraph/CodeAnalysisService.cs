@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -210,11 +211,11 @@ namespace MdExplorer.Services.CodeGraph
                 return new Scope(key, folderAbs, entry?.CodeGraph?.Languages?.ToList() ?? new List<string>(),
                     entry?.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true,
                     abs => CodeGraphPaths.ToProjectRelative(projectPath, abs),
-                    Directory.Exists(folderAbs) ? null : $"La cartella non esiste: {folderAbs}");
+                    Directory.Exists(folderAbs) ? null : UiText.Say($"La cartella non esiste: {folderAbs}", $"The folder does not exist: {folderAbs}"));
             }
             var (alias, _) = CodeRootPaths.Parse(key);
             var root = (await _roots.ListAsync(projectPath, ct)).FirstOrDefault(r => r.Alias == alias);
-            if (root == null) return new Scope(key, null, new List<string>(), false, null, $"la radice «@{alias}» non è dichiarata nel .development.yml");
+            if (root == null) return new Scope(key, null, new List<string>(), false, null, UiText.Say($"la radice «@{alias}» non è dichiarata nel .development.yml", $"the root «@{alias}» is not declared in .development.yml"));
             var rootPath = root.RootPath;
             return new Scope(key, rootPath, root.Languages.ToList(),
                 root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)),
@@ -272,7 +273,7 @@ namespace MdExplorer.Services.CodeGraph
                 // radice esterna: i linguaggi stanno nella sua voce di codeRoots (la voce la crea il collegamento, non questa)
                 var (alias, _) = CodeRootPaths.Parse(folderRelative);
                 var root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)
-                    ?? throw new InvalidOperationException($"La radice «@{alias}» non è dichiarata: collegala prima di scegliere i linguaggi.");
+                    ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata: collegala prima di scegliere i linguaggi.", $"The root «@{alias}» is not declared: link it before choosing the languages."));
                 root.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? root.CodeGraph?.Describe };
                 File.WriteAllText(path, new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build().Serialize(config));
                 _logger.LogInformation("[CodeGraph] '@{Alias}': linguaggi = {Langs}", alias, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
@@ -342,16 +343,16 @@ namespace MdExplorer.Services.CodeGraph
                 var label = $"{bridge.To}@{bridge.Language}";
                 if (await _store.GetScanStateAsync(projectPath, bridge.To, ct) == null)
                 {
-                    outcome.Warnings.Add($"ponte verso {bridge.To} ({bridge.Evidence}) rimandato: {bridge.To} non è ancora stato analizzato; si fa alla prossima analisi");
+                    outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} ({bridge.Evidence}) rimandato: {bridge.To} non è ancora stato analizzato; si fa alla prossima analisi", $"bridge to {bridge.To} ({bridge.Evidence}) postponed: {bridge.To} has not been analysed yet; it is done at the next analysis"));
                     continue;
                 }
                 var depScope = await ScopeOfAsync(projectPath, bridge.To, ct);
-                if (depScope.Unusable != null) { outcome.Warnings.Add($"ponte verso {bridge.To} non fatto: {depScope.Unusable}"); continue; }
+                if (depScope.Unusable != null) { outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} non fatto: {depScope.Unusable}", $"bridge to {bridge.To} not made: {depScope.Unusable}")); continue; }
                 var declared = await _store.DeclaredSymbolsAsync(projectPath, bridge.To, ct);
                 var foreign = CodeProgramScope.ForeignIds(declared, bridge.To, bridge.Language, out var mismatches);
                 if (mismatches > 0)
                 {
-                    outcome.Warnings.Add($"ponte verso {bridge.To} non fatto: {mismatches} simboli {bridge.Language} con un id che non si ricava dal nome qualificato");
+                    outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} non fatto: {mismatches} simboli {bridge.Language} con un id che non si ricava dal nome qualificato", $"bridge to {bridge.To} not made: {mismatches} {bridge.Language} symbols with an id that cannot be derived from the qualified name"));
                     continue;
                 }
                 var scan = await _scanner.ScanAsync(projectPath, depScope.FolderAbs, previousCommit: null, ct, depScope.ToLogical);
@@ -390,7 +391,7 @@ namespace MdExplorer.Services.CodeGraph
             // Le radici esterne non collegate restano col loro grafo (gli script sono su Git) e l'esito dice perché, come
             // avviso — un collega senza il codice non ha un errore.
             foreach (var p in programs.Where(p => !p.Linked))
-                outcomes.Add(new CodeFolderAnalysisOutcome { Folder = p.Folder, Languages = p.Languages, Warnings = { $"{p.Folder} non analizzata su questa macchina: {p.Reason}" } });
+                outcomes.Add(new CodeFolderAnalysisOutcome { Folder = p.Folder, Languages = p.Languages, Warnings = { UiText.Say($"{p.Folder} non analizzata su questa macchina: {p.Reason}", $"{p.Folder} not analysed on this machine: {p.Reason}") } });
             // Le dipendenze prima (punto 3b): il ponte verso un programma richiede che sia già nel grafo.
             var (bridges, _) = await BridgesAsync(projectPath, ct);
             foreach (var key in DependenciesFirst(programs.Where(p => p.Linked).Select(p => p.Folder).ToList(), bridges))
@@ -447,7 +448,7 @@ namespace MdExplorer.Services.CodeGraph
                 outcome.Languages = languages.ToList();
                 if (languages.Count == 0)
                 {
-                    outcome.Error = $"'{folderRelative}': nessun linguaggio scelto in .development.yml (codeGraph.languages). Apri «Ambiente di sviluppo» e scegli il linguaggio.";
+                    outcome.Error = UiText.Say($"'{folderRelative}': nessun linguaggio scelto in .development.yml (codeGraph.languages). Apri «Ambiente di sviluppo» e scegli il linguaggio.", $"'{folderRelative}': no language chosen in .development.yml (codeGraph.languages). Open «Development environment» and choose the language.");
                     return outcome;
                 }
                 if (scope.Unusable != null) { outcome.Error = scope.Unusable; return outcome; }
@@ -467,7 +468,7 @@ namespace MdExplorer.Services.CodeGraph
                 // archi verso di loro vanno ai loro simboli. Se i ponti sono cambiati, tutto il programma si riscrive.
                 var bridgeSet = await BridgesForAsync(projectPath, folderRelative, languages, outcome, ct);
                 var bridgesChanged = !string.Equals(previous?.Bridges ?? string.Empty, bridgeSet.Signature, StringComparison.Ordinal);
-                if (bridgesChanged) outcome.Warnings.Add($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto");
+                if (bridgesChanged) outcome.Warnings.Add(UiText.Say($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto", $"bridges changed ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "none" : bridgeSet.Signature)}): the whole program is rewritten"));
 
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
                 var written = new List<string>();

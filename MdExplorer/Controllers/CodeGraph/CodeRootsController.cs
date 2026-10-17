@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -96,7 +97,7 @@ namespace MdExplorer.Controllers.CodeGraph
         private async Task<IActionResult> Guarded(Func<Task<IActionResult>> action, string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
-                return BadRequest(new { error = $"projectPath non esiste: {projectPath}" });
+                return BadRequest(new { error = UiText.Say($"projectPath non esiste: {projectPath}", $"projectPath does not exist: {projectPath}") });
             try { return await action(); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
             {

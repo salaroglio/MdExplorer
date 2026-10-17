@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,11 +32,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static IReadOnlyList<CodeRootEntry> List(CodeRootResolver resolver, string logicalPath)
         {
             if (!CodeRootPaths.IsLogical(logicalPath))
-                throw new ArgumentException($"'{logicalPath}' non è un percorso di una radice esterna (deve cominciare con «@alias»).");
+                throw new ArgumentException(UiText.Say($"'{logicalPath}' non è un percorso di una radice esterna (deve cominciare con «@alias»).", $"'{logicalPath}' is not a path in an external root (it must start with «@alias»)."));
             var (alias, rest) = CodeRootPaths.Parse(logicalPath);
             var folder = resolver.Resolve(logicalPath);
             if (!Directory.Exists(folder))
-                throw new InvalidOperationException($"La cartella '{logicalPath}' non esiste più in {folder}.");
+                throw new InvalidOperationException(UiText.Say($"La cartella '{logicalPath}' non esiste più in {folder}.", $"The folder '{logicalPath}' no longer exists in {folder}."));
 
             var folders = new DirectoryInfo(folder).EnumerateDirectories()
                 .Where(d => !IsLink(d) && !string.Equals(d.Name, ".git", StringComparison.OrdinalIgnoreCase))
