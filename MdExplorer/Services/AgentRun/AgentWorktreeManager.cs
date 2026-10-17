@@ -785,7 +785,7 @@ namespace MdExplorer.Services.AgentRun
             string projectPath, string expectedBranch, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(expectedBranch))
-                return WorktreePrepareResult.Fail("Ramo della catena mancante: non so quale scrivania continuare.");
+                return WorktreePrepareResult.Fail(MdExplorer.Features.Services.UiText.Say("Ramo della catena mancante: non so quale scrivania continuare.", "Chain branch missing: I do not know which desk to continue."));
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -831,7 +831,7 @@ namespace MdExplorer.Services.AgentRun
             string baseBranch = null, string handoffRef = null, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(activityId))
-                return WorktreePrepareResult.Fail("activityId mancante: impossibile nominare il branch d'attività.");
+                return WorktreePrepareResult.Fail(MdExplorer.Features.Services.UiText.Say("activityId mancante: impossibile nominare il branch d'attività.", "activityId missing: cannot name the activity branch."));
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -873,20 +873,20 @@ namespace MdExplorer.Services.AgentRun
 
                 // 1) fetch origin
                 var (fc, _, fe) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);
-                if (fc != 0) return WorktreePrepareResult.Fail($"git fetch origin fallito: {Describe(fc, fe)}");
+                if (fc != 0) return WorktreePrepareResult.Fail(MdExplorer.Features.Services.UiText.Say($"git fetch origin fallito: {Describe(fc, fe)}", $"git fetch origin failed: {Describe(fc, fe)}"));
 
                 // baseBranch: se non dato, risolvi il default del remote (origin/HEAD), fallback main.
                 var resolvedBase = string.IsNullOrWhiteSpace(baseBranch) ? await ResolveDefaultBranchAsync(worktreePath, ct) : baseBranch.Trim();
 
                 // 2) reset --hard + clean -fd (MAI -x: gli untracked ignorati restano)
                 var (rc, _, re) = await GitAsync(worktreePath, new[] { "reset", "--hard" }, ct);
-                if (rc != 0) return WorktreePrepareResult.Fail($"git reset --hard fallito: {Describe(rc, re)}");
+                if (rc != 0) return WorktreePrepareResult.Fail(MdExplorer.Features.Services.UiText.Say($"git reset --hard fallito: {Describe(rc, re)}", $"git reset --hard failed: {Describe(rc, re)}"));
                 await GitAsync(worktreePath, new[] { "clean", "-fd" }, ct);   // best-effort: pulizia scratch
 
                 // 3) branch fresco per-attività da origin/<base>
                 var branch = $"agent/{agentName}/{activityId}";
                 var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "-B", branch, "origin/" + resolvedBase }, ct);
-                if (cc != 0) return WorktreePrepareResult.Fail($"git checkout -B '{branch}' da 'origin/{resolvedBase}' fallito: {Describe(cc, ce)}");
+                if (cc != 0) return WorktreePrepareResult.Fail(MdExplorer.Features.Services.UiText.Say($"git checkout -B '{branch}' da 'origin/{resolvedBase}' fallito: {Describe(cc, ce)}", $"git checkout -B '{branch}' from 'origin/{resolvedBase}' failed: {Describe(cc, ce)}"));
 
                 // 4) merge dell'handoff (ref COMPLETO): sync fallita (ref assente) → git-sync-failed;
                 //    conflitto di merge → merge-conflict-with-main. NON auto-risolvere (7d.5).

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using Markdig;
 using Markdig.Syntax;
 using System;
@@ -57,9 +58,9 @@ namespace MdExplorer.Features.E2e
             foreach (var (file, example) in Files)
             {
                 if (!examples.TryGetValue(example, out var text))
-                    throw new InvalidOperationException($"La skill mde-e2e incorporata non ha l'esempio '{example}' ({file}).");
+                    throw new InvalidOperationException(UiText.Say($"La skill mde-e2e incorporata non ha l'esempio '{example}' ({file}).", $"The built-in mde-e2e skill has no example '{example}' ({file})."));
                 if (!text.Contains(Marker, StringComparison.Ordinal))
-                    throw new InvalidOperationException($"L'esempio '{example}' della skill mde-e2e non contiene il marcatore «{Marker}».");
+                    throw new InvalidOperationException(UiText.Say($"L'esempio '{example}' della skill mde-e2e non contiene il marcatore «{Marker}».", $"The example '{example}' of the mde-e2e skill does not contain the marker «{Marker}»."));
                 files[file] = text;
             }
             return files;

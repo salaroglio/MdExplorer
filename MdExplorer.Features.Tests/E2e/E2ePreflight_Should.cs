@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Tests.E2e
             var result = E2ePreflight.Check(_test);
             Assert.IsTrue(result.CanRun, "a warning, not an error");
             Assert.AreEqual(1, result.Warnings.Count, string.Join("\n", result.Warnings));
-            StringAssert.Contains(result.Warnings[0], "T2 non ha verifiche ✔");
+            StringAssert.Contains(result.Warnings[0], "T2 has no ✔ checks");
         }
 
         [TestMethod]
@@ -66,7 +66,7 @@ namespace MdExplorer.Features.Tests.E2e
             var result = E2ePreflight.Check(_test);
             Assert.IsFalse(result.CanRun);
             Assert.AreEqual(1, result.Errors.Count);
-            StringAssert.Contains(result.Errors[0], "la chiave 'x.password' non c'è in 'credenziali-x.txt'");
+            StringAssert.Contains(result.Errors[0], "the key 'x.password' is not in 'credenziali-x.txt'");
         }
 
         [TestMethod]
@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Tests.E2e
             File.Delete(Path.Combine(_root, "test-e2e", "mappa-sito-x.md"));
             var result = E2ePreflight.Check(_test);
             Assert.IsTrue(result.CanRun);
-            StringAssert.Contains(result.Warnings.Single(), "non esiste ancora");
+            StringAssert.Contains(result.Warnings.Single(), "does not exist yet");
         }
 
         [TestMethod]
@@ -94,7 +94,8 @@ namespace MdExplorer.Features.Tests.E2e
             Repository.Init(_root);
 
             var notIgnored = E2ePreflight.Check(_test);
-            StringAssert.Contains(notIgnored.Errors.Single(), "non è escluso da git");
+            StringAssert.Contains(notIgnored.Errors.Single(), "is not excluded from git");
+            Assert.IsTrue(notIgnored.CredentialsNotIgnored, "the dialog offers the .gitignore button from this flag, not from the text");
 
             File.WriteAllText(Path.Combine(_root, ".gitignore"), "credenziali-*.txt\n");
             Assert.IsTrue(E2ePreflight.Check(_test).CanRun, "ignored by .gitignore");
@@ -104,7 +105,8 @@ namespace MdExplorer.Features.Tests.E2e
                 LibGit2Sharp.Commands.Stage(repo, "test-e2e/credenziali-x.txt", new StageOptions { IncludeIgnored = true });
             }
             var tracked = E2ePreflight.Check(_test);
-            StringAssert.Contains(tracked.Errors.Single(), "è già nel repository git");
+            StringAssert.Contains(tracked.Errors.Single(), "is already in the git repository");
+            Assert.IsFalse(tracked.CredentialsNotIgnored, "already tracked: adding the .gitignore line is not enough");
         }
 
         [TestMethod]
@@ -115,7 +117,7 @@ namespace MdExplorer.Features.Tests.E2e
             var result = E2ePreflight.Check(other);
             Assert.IsFalse(result.CanRun);
             Assert.IsNull(result.Document);
-            Assert.IsTrue(result.Errors.Any(e => e.Contains("deve finire in '.e2e.md'")));
+            Assert.IsTrue(result.Errors.Any(e => e.Contains("must end in '.e2e.md'")));
         }
     }
 }

@@ -51,7 +51,7 @@ namespace MdExplorer.Features.Tests.E2e
             E2eEnvironment.VerifyIntegrity(bytes, integrity, "p", "1.0.0");
             var ex = Assert.ThrowsException<InvalidOperationException>(() =>
                 E2eEnvironment.VerifyIntegrity(Encoding.UTF8.GetBytes("manomesso"), integrity, "p", "1.0.0"));
-            StringAssert.Contains(ex.Message, "non corrisponde all'impronta");
+            StringAssert.Contains(ex.Message, "does not match the registry integrity");
             Assert.ThrowsException<InvalidOperationException>(() =>
                 E2eEnvironment.VerifyIntegrity(bytes, "sha1-abc", "p", "1.0.0"), "only sha512 is trusted");
         }
@@ -72,7 +72,7 @@ namespace MdExplorer.Features.Tests.E2e
             var target = Path.Combine(_root, "node_modules", "p");
             var ex = Assert.ThrowsException<InvalidOperationException>(() =>
                 E2eEnvironment.ExtractPackage(Tgz(("package/../../../fuori.txt", "x")), target));
-            StringAssert.Contains(ex.Message, "fuori dalla sua cartella");
+            StringAssert.Contains(ex.Message, "outside its folder");
             Assert.IsFalse(File.Exists(Path.Combine(_root, "fuori.txt")));
         }
 
@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Tests.E2e
             var environment = new E2eEnvironment(_root, name => name == E2eEnvironment.ElectronVariable ? Path.Combine(_root, "nessuno") : null);
             var report = await environment.CheckAsync();
             Assert.IsFalse(report.Electron.Ok);
-            StringAssert.Contains(report.Electron.Detail, "non esiste");
+            StringAssert.Contains(report.Electron.Detail, "does not exist");
         }
 
         [TestMethod]

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using LibGit2Sharp;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,12 @@ namespace MdExplorer.Features.E2e
 
         /// <summary>What the run survives but the user should know.</summary>
         public IReadOnlyList<string> Warnings { get; init; }
+
+        /// <summary>
+        /// The credentials file is in a git repository and not excluded by .gitignore: the dialog offers the button that
+        /// adds the line. A flag, not a search in <see cref="Errors"/>, whose text follows the interface language.
+        /// </summary>
+        public bool CredentialsNotIgnored { get; init; }
 
         public bool CanRun => Errors.Count == 0;
     }
@@ -37,7 +44,7 @@ namespace MdExplorer.Features.E2e
             var fileName = Path.GetFileName(testFilePath);
 
             if (!testFilePath.EndsWith(".e2e.md", StringComparison.OrdinalIgnoreCase))
-                errors.Add($"{fileName}: un file di test deve finire in '.e2e.md'.");
+                errors.Add(UiText.Say($"{fileName}: un file di test deve finire in '.e2e.md'.", $"{fileName}: a test file must end in '.e2e.md'."));
 
             E2eTestDocument document;
             try
@@ -55,18 +62,23 @@ namespace MdExplorer.Features.E2e
 
             // D10 of sprint 2026-09-29-Motore-LLM-Unico: the tests always run in a session of their own.
             if (document.Run?.ObsoleteDedicatedSession == true)
-                warnings.Add($"{fileName}: 'e2e.run.dedicatedSession' non si usa più: i test girano sempre in una sessione dedicata. Puoi togliere la riga (la finestra dei test la toglie quando salva).");
+                warnings.Add(UiText.Say($"{fileName}: 'e2e.run.dedicatedSession' non si usa più: i test girano sempre in una sessione dedicata. Puoi togliere la riga (la finestra dei test la toglie quando salva).",
+                    $"{fileName}: 'e2e.run.dedicatedSession' is no longer used: the tests always run in a dedicated session. You can remove the line (the tests window removes it when it saves)."));
 
             // P7: without a check the script can assert, its replay passes whatever the page does (seen on 28/09/2026).
             foreach (var test in document.Tests.Where(t => !t.Steps.Any(s => s.Check is { } kind && kind != E2eCheckKind.Judgment)))
-                warnings.Add($"{fileName}: T{test.Number} non ha verifiche ✔ che lo script possa controllare: il rigioco risulterà superato qualunque cosa faccia la pagina. Aggiungi almeno una verifica nelle forme della skill mde-e2e (es. ✔ Compare il testo \"…\").");
+                warnings.Add(UiText.Say($"{fileName}: T{test.Number} non ha verifiche ✔ che lo script possa controllare: il rigioco risulterà superato qualunque cosa faccia la pagina. Aggiungi almeno una verifica nelle forme della skill mde-e2e (es. ✔ Compare il testo \"…\").",
+                    $"{fileName}: T{test.Number} has no ✔ checks the script can verify: the replay will pass whatever the page does. Add at least one check in the forms of the mde-e2e skill (e.g. ✔ Compare il testo \"…\")."));
 
             if (document.SiteMap != null && !File.Exists(Path.Combine(folder, document.SiteMap)))
-                warnings.Add($"{fileName}: la mappa del sito '{document.SiteMap}' non esiste ancora: la creerà l'agente alla prima esecuzione.");
+                warnings.Add(UiText.Say($"{fileName}: la mappa del sito '{document.SiteMap}' non esiste ancora: la creerà l'agente alla prima esecuzione.",
+                    $"{fileName}: the site map '{document.SiteMap}' does not exist yet: the agent will create it on the first run."));
 
             var keys = document.CredentialKeys.ToList();
+            var notIgnored = false;
             if (document.Credentials == null && keys.Count > 0)
-                errors.Add($"{fileName}: il test usa delle credenziali ({string.Join(", ", keys)}) ma nel front matter manca 'e2e.credentials' (il file .txt con le righe chiave=valore).");
+                errors.Add(UiText.Say($"{fileName}: il test usa delle credenziali ({string.Join(", ", keys)}) ma nel front matter manca 'e2e.credentials' (il file .txt con le righe chiave=valore).",
+                    $"{fileName}: the test uses credentials ({string.Join(", ", keys)}) but 'e2e.credentials' is missing from the front matter (the .txt file with key=value lines)."));
             if (document.Credentials != null)
             {
                 var credentialsPath = Path.Combine(folder, document.Credentials);
@@ -76,20 +88,23 @@ namespace MdExplorer.Features.E2e
                     // The Playwright server's dotenv drops, in silence, any key outside [\w.-] (ASCII): it would
                     // then type the key's name (@playwright/mcp 0.0.82, utilsBundle.js). Checked here instead.
                     foreach (var key in keys.Concat(known).Distinct().Where(k => !ValidKey.IsMatch(k)))
-                        errors.Add($"{fileName}: la chiave '{key}' ha caratteri che il server Playwright non accetta: usa solo lettere, cifre, '_', '.' e '-' (senza accenti).");
+                        errors.Add(UiText.Say($"{fileName}: la chiave '{key}' ha caratteri che il server Playwright non accetta: usa solo lettere, cifre, '_', '.' e '-' (senza accenti).",
+                            $"{fileName}: the key '{key}' has characters the Playwright server does not accept: use only letters, digits, '_', '.' and '-' (no accents)."));
                     foreach (var key in keys.Where(k => known.Contains(k) && EmptyValue(credentialsPath, k)))
-                        errors.Add($"{fileName}: la chiave '{key}' in '{document.Credentials}' non ha un valore.");
+                        errors.Add(UiText.Say($"{fileName}: la chiave '{key}' in '{document.Credentials}' non ha un valore.", $"{fileName}: the key '{key}' in '{document.Credentials}' has no value."));
                     foreach (var key in keys.Where(k => !known.Contains(k)))
-                        errors.Add($"{fileName}: la chiave '{key}' non c'è in '{document.Credentials}'. Aggiungi la riga '{key}=<valore>' oppure correggi il nome nel test.");
-                    CheckNotInGit(credentialsPath, document.Credentials, fileName, errors);
+                        errors.Add(UiText.Say($"{fileName}: la chiave '{key}' non c'è in '{document.Credentials}'. Aggiungi la riga '{key}=<valore>' oppure correggi il nome nel test.",
+                            $"{fileName}: the key '{key}' is not in '{document.Credentials}'. Add the line '{key}=<value>' or fix the name in the test."));
+                    notIgnored = CheckNotInGit(credentialsPath, document.Credentials, fileName, errors);
                 }
                 else if (keys.Count > 0)
                 {
-                    errors.Add($"{fileName}: il file delle credenziali '{document.Credentials}' non esiste. Crealo accanto al test, con una riga chiave=valore per: {string.Join(", ", keys)}.");
+                    errors.Add(UiText.Say($"{fileName}: il file delle credenziali '{document.Credentials}' non esiste. Crealo accanto al test, con una riga chiave=valore per: {string.Join(", ", keys)}.",
+                        $"{fileName}: the credentials file '{document.Credentials}' does not exist. Create it next to the test, with a key=value line for: {string.Join(", ", keys)}."));
                 }
             }
 
-            return new E2ePreflightResult { Document = document, Errors = errors, Warnings = warnings };
+            return new E2ePreflightResult { Document = document, Errors = errors, Warnings = warnings, CredentialsNotIgnored = notIgnored };
         }
 
         /// <summary>The keys of a credentials file: lines <c>key=value</c>, <c>#</c> for comments (as E2eSupport.cs reads it).</summary>
@@ -113,18 +128,25 @@ namespace MdExplorer.Features.E2e
                 .Where(l => !l.StartsWith("#", StringComparison.Ordinal) && l.IndexOf('=') > 0)
                 .Any(l => l.Substring(0, l.IndexOf('=')).Trim() == key && l.Substring(l.IndexOf('=') + 1).Trim().Length == 0);
 
-        private static void CheckNotInGit(string credentialsPath, string credentialsName, string fileName, List<string> errors)
+        /// <returns>True when the file is not excluded by .gitignore (the dialog's button fixes it).</returns>
+        private static bool CheckNotInGit(string credentialsPath, string credentialsName, string fileName, List<string> errors)
         {
             var gitDir = Repository.Discover(Path.GetDirectoryName(credentialsPath));
-            if (gitDir == null) return; // not a git repository: nothing can be committed
+            if (gitDir == null) return false; // not a git repository: nothing can be committed
 
             using var repo = new Repository(gitDir);
             var relative = Path.GetRelativePath(repo.Info.WorkingDirectory, credentialsPath).Replace('\\', '/');
 
             if (repo.Index[relative] != null)
-                errors.Add($"{fileName}: il file delle credenziali '{credentialsName}' è già nel repository git. Toglilo dall'indice (git rm --cached \"{relative}\") e aggiungi 'credenziali-*.txt' al .gitignore.");
+                errors.Add(UiText.Say($"{fileName}: il file delle credenziali '{credentialsName}' è già nel repository git. Toglilo dall'indice (git rm --cached \"{relative}\") e aggiungi 'credenziali-*.txt' al .gitignore.",
+                    $"{fileName}: the credentials file '{credentialsName}' is already in the git repository. Remove it from the index (git rm --cached \"{relative}\") and add 'credenziali-*.txt' to .gitignore."));
             else if (!repo.Ignore.IsPathIgnored(relative))
-                errors.Add($"{fileName}: il file delle credenziali '{credentialsName}' non è escluso da git. Aggiungi la riga '{GitIgnoreLine(credentialsName)}' al .gitignore del progetto (c'è un pulsante nella finestra dei test).");
+            {
+                errors.Add(UiText.Say($"{fileName}: il file delle credenziali '{credentialsName}' non è escluso da git. Aggiungi la riga '{GitIgnoreLine(credentialsName)}' al .gitignore del progetto (c'è un pulsante nella finestra dei test).",
+                    $"{fileName}: the credentials file '{credentialsName}' is not excluded from git. Add the line '{GitIgnoreLine(credentialsName)}' to the project's .gitignore (there is a button in the tests window)."));
+                return true;
+            }
+            return false;
         }
     }
 }

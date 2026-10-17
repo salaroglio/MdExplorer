@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using LibGit2Sharp;
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,7 @@ namespace MdExplorer.Features.E2e
         {
             var gitDir = Repository.Discover(Path.GetDirectoryName(item.TestFile));
             if (gitDir == null)
-                return new E2eCommitResult(false, null, null, "il progetto non è un repository git: nessun commit.");
+                return new E2eCommitResult(false, null, null, UiText.Say("il progetto non è un repository git: nessun commit.", "the project is not a git repository: no commit."));
 
             using var repo = new Repository(gitDir);
             var workdir = repo.Info.WorkingDirectory;
@@ -37,12 +38,14 @@ namespace MdExplorer.Features.E2e
                                       .Select(e => e.FilePath).ToList();
             if (alreadyStaged.Count > 0)
                 return new E2eCommitResult(false, null, null,
-                    $"ci sono già modifiche in stage ({string.Join(", ", alreadyStaged.Take(5))}{(alreadyStaged.Count > 5 ? ", …" : "")}): commit dei test non fatto, per non mischiarle.");
+                    UiText.Say($"ci sono già modifiche in stage ({string.Join(", ", alreadyStaged.Take(5))}{(alreadyStaged.Count > 5 ? ", …" : "")}): commit dei test non fatto, per non mischiarle.",
+                        $"there are already staged changes ({string.Join(", ", alreadyStaged.Take(5))}{(alreadyStaged.Count > 5 ? ", …" : "")}): test commit not made, so as not to mix them."));
 
             var signature = repo.Config.BuildSignature(DateTimeOffset.Now);
             if (signature == null)
                 return new E2eCommitResult(false, null, null,
-                    "git non ha un autore configurato: imposta user.name e user.email (git config) e riprova.");
+                    UiText.Say("git non ha un autore configurato: imposta user.name e user.email (git config) e riprova.",
+                        "git has no author configured: set user.name and user.email (git config) and try again."));
 
             var testFolder = Path.GetDirectoryName(item.TestFile)!;
             var document = item.Preflight.Document;
@@ -60,7 +63,7 @@ namespace MdExplorer.Features.E2e
                 e.State.HasFlag(FileStatus.NewInIndex) || e.State.HasFlag(FileStatus.ModifiedInIndex)
                 || e.State.HasFlag(FileStatus.DeletedFromIndex) || e.State.HasFlag(FileStatus.RenamedInIndex)).ToList();
             if (staged.Count == 0)
-                return new E2eCommitResult(false, null, null, "nessuna modifica da registrare.");
+                return new E2eCommitResult(false, null, null, UiText.Say("nessuna modifica da registrare.", "no changes to record."));
 
             message ??= MessageFor(item);
             var commit = repo.Commit(message, signature, signature);

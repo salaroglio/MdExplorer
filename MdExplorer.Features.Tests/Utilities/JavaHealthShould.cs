@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Tests.Utilities
             var locator = new FakeLocator { Versions = { [java21] = 21 }, Best = java21 };
             var r = new JavaHealth(locator, store).Check(21);
             Assert.AreEqual(JavaHealthOutcome.Replaced, r.Outcome);
-            StringAssert.Contains(r.ConfiguredProblem, "non esiste");
+            StringAssert.Contains(r.ConfiguredProblem, "no longer exists");
             Assert.AreEqual(java21, store.Path);
         }
 
@@ -116,7 +116,7 @@ namespace MdExplorer.Features.Tests.Utilities
             var r = new JavaHealth(locator, store).Check(21);
             Assert.AreEqual(JavaHealthOutcome.Replaced, r.Outcome);
             Assert.AreEqual(java21, store.Path);
-            StringAssert.Contains(r.ConfiguredProblem, "nessun percorso");
+            StringAssert.Contains(r.ConfiguredProblem, "no path set");
         }
     }
 }

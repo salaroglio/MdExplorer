@@ -279,7 +279,7 @@ namespace MdExplorer.Services.AgentRun
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, snapshot.ToAgent, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
             {
-                MarkFailed(messageId, $"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.");
+                MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.", $"Recipient '{snapshot.ToAgent}' was no longer a citizen/trusted at delivery."));
                 return;
             }
 
@@ -313,7 +313,7 @@ namespace MdExplorer.Services.AgentRun
 
             if (!entry.Trusted)
             {
-                MarkFailed(messageId, $"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.");
+                MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.", $"Recipient '{snapshot.ToAgent}' was no longer a citizen/trusted at delivery."));
                 return;
             }
 
@@ -323,7 +323,7 @@ namespace MdExplorer.Services.AgentRun
             // accodamento e consegna.
             if (!MessageAuthorization.IsSenderAccepted(entry.AcceptsMessagesFrom, snapshot.FromAgent))
             {
-                MarkFailed(messageId, $"'{snapshot.FromAgent}' non è tra i mittenti accettati da '{snapshot.ToAgent}' (accepts_messages_from).");
+                MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"'{snapshot.FromAgent}' non è tra i mittenti accettati da '{snapshot.ToAgent}' (accepts_messages_from).", $"'{snapshot.FromAgent}' is not among the senders accepted by '{snapshot.ToAgent}' (accepts_messages_from)."));
                 return;
             }
 
@@ -343,7 +343,7 @@ namespace MdExplorer.Services.AgentRun
             var agent = _algorithmicAgents?.FirstOrDefault(a => string.Equals(SafeName(a), snapshot.ToAgent, StringComparison.OrdinalIgnoreCase));
             if (agent == null)
             {
-                MarkFailed(messageId, $"Implementazione algoritmica di '{snapshot.ToAgent}' non registrata.");
+                MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"Implementazione algoritmica di '{snapshot.ToAgent}' non registrata.", $"Algorithmic implementation of '{snapshot.ToAgent}' is not registered."));
                 return;
             }
 
@@ -361,12 +361,12 @@ namespace MdExplorer.Services.AgentRun
                     Message = snapshot.Body,
                     Topics = AgentTopics.Split(snapshot.Topics),
                 };
-                result = await agent.ExecuteAsync(context, ct) ?? AgentTaskResult.Fail("Nessun risultato prodotto.");
+                result = await agent.ExecuteAsync(context, ct) ?? AgentTaskResult.Fail(MdExplorer.Features.Services.UiText.Say("Nessun risultato prodotto.", "No result produced."));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Dispatcher] Esecuzione di '{Agent}' fallita", snapshot.ToAgent);
-                result = AgentTaskResult.Fail($"Eccezione: {ex.Message}");
+                result = AgentTaskResult.Fail(MdExplorer.Features.Services.UiText.Say($"Eccezione: {ex.Message}", $"Exception: {ex.Message}"));
             }
 
             LogExecution(snapshot, startedAt, result);
@@ -424,7 +424,7 @@ namespace MdExplorer.Services.AgentRun
 
             if (string.IsNullOrWhiteSpace(entry.AgentFilePath) || !File.Exists(entry.AgentFilePath))
             {
-                MarkFailed(messageId, $"File dell'agente LLM '{entry.Name}' non trovato: '{entry.AgentFilePath}'.");
+                MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"File dell'agente LLM '{entry.Name}' non trovato: '{entry.AgentFilePath}'.", $"File of LLM agent '{entry.Name}' not found: '{entry.AgentFilePath}'."));
                 return;
             }
 
@@ -436,7 +436,7 @@ namespace MdExplorer.Services.AgentRun
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                RetryOrFail(messageId, $"Lettura del file agente '{entry.Name}' fallita: {ex.Message}");
+                RetryOrFail(messageId, MdExplorer.Features.Services.UiText.Say($"Lettura del file agente '{entry.Name}' fallita: {ex.Message}", $"Reading the agent file '{entry.Name}' failed: {ex.Message}"));
                 return;
             }
 
@@ -478,7 +478,7 @@ namespace MdExplorer.Services.AgentRun
                     {
                         // La scrivania non c'e' piu': inventarsi un posto pulito sarebbe peggio,
                         // il destinatario lavorerebbe senza quello che gli e' stato passato.
-                        RetryOrFail(messageId, $"catena non continuabile: {prep.Error}");
+                        RetryOrFail(messageId, MdExplorer.Features.Services.UiText.Say($"catena non continuabile: {prep.Error}", $"the chain cannot continue: {prep.Error}"));
                         return;
                     }
                 }
@@ -507,13 +507,13 @@ namespace MdExplorer.Services.AgentRun
                     if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null && reason != null)
                     {
                         await ReportNotReadyToOriginAsync(snapshot.ProjectPath, rc, reason);
-                        MarkFailed(messageId, $"preparazione worktree fallita ({reason}): esito not-ready riportato all'origine.");
+                        MarkFailed(messageId, MdExplorer.Features.Services.UiText.Say($"preparazione worktree fallita ({reason}): esito not-ready riportato all'origine.", $"worktree preparation failed ({reason}): not-ready outcome reported to the origin."));
                     }
                     else
                     {
                         RetryOrFail(messageId, prep.MergeConflict
-                            ? $"worktree in conflitto di merge dell'handoff ({FederationReason.MergeConflictWithMain})"
-                            : $"preparazione worktree per '{entry.Name}' fallita: {prep.Error}");
+                            ? MdExplorer.Features.Services.UiText.Say($"worktree in conflitto di merge dell'handoff ({FederationReason.MergeConflictWithMain})", $"worktree in merge conflict from the handoff ({FederationReason.MergeConflictWithMain})")
+                            : MdExplorer.Features.Services.UiText.Say($"preparazione worktree per '{entry.Name}' fallita: {prep.Error}", $"worktree preparation for '{entry.Name}' failed: {prep.Error}"));
                     }
                     return;
                 }
@@ -1120,8 +1120,9 @@ namespace MdExplorer.Services.AgentRun
         private static string WithReworkNote(AgentMessage m)
             => string.IsNullOrWhiteSpace(m.ReworkNote)
                 ? m.Body
-                : m.Body + "\n\n---\nIl lavoro che avevi fatto su questo incarico è stato RIFIUTATO da chi ne risponde. " +
-                  "Motivo: " + m.ReworkNote.Trim() + "\nRifai il lavoro tenendone conto.";
+                : m.Body + MdExplorer.Features.Services.UiText.Say(
+                    "\n\n---\nIl lavoro che avevi fatto su questo incarico è stato RIFIUTATO da chi ne risponde. Motivo: " + m.ReworkNote.Trim() + "\nRifai il lavoro tenendone conto.",
+                    "\n\n---\nThe work you did on this assignment was REJECTED by its owner. Reason: " + m.ReworkNote.Trim() + "\nRedo the work taking it into account.");
 
         /// <summary>
         /// Un incarico avviato dal responsabile con delle indicazioni: l'agente le riceve dopo l'incarico, come
@@ -1130,7 +1131,7 @@ namespace MdExplorer.Services.AgentRun
         private static string WithOwnerNote(AgentMessage m, string body)
             => string.IsNullOrWhiteSpace(m.OwnerNote)
                 ? body
-                : body + "\n\n---\nIndicazioni del tuo responsabile, che ha avviato questo incarico: " + m.OwnerNote.Trim();
+                : body + MdExplorer.Features.Services.UiText.Say("\n\n---\nIndicazioni del tuo responsabile, che ha avviato questo incarico: ", "\n\n---\nNotes from your owner, who started this assignment: ") + m.OwnerNote.Trim();
 
         /// <summary>
         /// Il workflow dice che questo incarico lo avvia il responsabile (<c>start: ask-owner</c>)? Allora il messaggio

@@ -59,6 +59,8 @@ export interface E2ePlan {
   canRun: boolean;
   errors: string[];
   warnings: string[];
+  /** A credentials file is not excluded from git: the dialog offers to add the .gitignore line. */
+  needsGitIgnore: boolean;
   items: E2ePlanItem[];
 }
 

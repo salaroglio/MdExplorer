@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Tests.E2e
         {
             var noEngine = Assert.ThrowsException<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    model: gpt-5\n---\n", "t.e2e.md"));
-            StringAssert.Contains(noEngine.Message, "scrivi anche il motore");
+            StringAssert.Contains(noEngine.Message, "write the engine too");
             var unknown = Assert.ThrowsException<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    engine: gemini\n---\n", "t.e2e.md"));
             StringAssert.Contains(unknown.Message, "claude, copilot, opencode");
@@ -104,15 +104,15 @@ namespace MdExplorer.Features.Tests.E2e
         {
             var flow = Assert.ThrowsException<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e: { baseUrl: x }\n---\n", "t.e2e.md"));
-            StringAssert.Contains(flow.Message, "forma a blocchi");
+            StringAssert.Contains(flow.Message, "block form");
 
             var notBool = Assert.ThrowsException<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    headless: forse\n---\n", "t.e2e.md"));
-            StringAssert.Contains(notBool.Message, "'e2e.run.headless' vale 'forse'");
+            StringAssert.Contains(notBool.Message, "'e2e.run.headless' is 'forse'");
 
             var unknown = Assert.ThrowsException<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    headles: true\n---\n", "t.e2e.md"));
-            StringAssert.Contains(unknown.Message, "chiave sconosciuta 'e2e.run.headles'");
+            StringAssert.Contains(unknown.Message, "unknown key 'e2e.run.headles'");
         }
 
         [TestMethod]

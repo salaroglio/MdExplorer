@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -91,12 +92,14 @@ namespace MdExplorer.Features.E2e
         {
             if (string.IsNullOrWhiteSpace(path))
                 return new E2eRequirement("electron", false,
-                    $"MdExplorer non è stato avviato da ElectronMdExplorer: manca la variabile {ElectronVariable}.",
-                    $"Avvia MdExplorer dall'app. In sviluppo, imposta {ElectronVariable} con il percorso dell'eseguibile di Electron (ElectronMdExplorer/node_modules/electron/dist/electron).",
+                    UiText.Say($"MdExplorer non è stato avviato da ElectronMdExplorer: manca la variabile {ElectronVariable}.",
+                        $"MdExplorer was not started by ElectronMdExplorer: the variable {ElectronVariable} is missing."),
+                    UiText.Say($"Avvia MdExplorer dall'app. In sviluppo, imposta {ElectronVariable} con il percorso dell'eseguibile di Electron (ElectronMdExplorer/node_modules/electron/dist/electron).",
+                        $"Start MdExplorer from the app. In development, set {ElectronVariable} to the path of the Electron executable (ElectronMdExplorer/node_modules/electron/dist/electron)."),
                     false);
             if (!File.Exists(path))
-                return new E2eRequirement("electron", false, $"L'eseguibile di Electron '{path}' non esiste.",
-                    $"Correggi {ElectronVariable} oppure riavvia MdExplorer dall'app.", false);
+                return new E2eRequirement("electron", false, UiText.Say($"L'eseguibile di Electron '{path}' non esiste.", $"The Electron executable '{path}' does not exist."),
+                    UiText.Say($"Correggi {ElectronVariable} oppure riavvia MdExplorer dall'app.", $"Fix {ElectronVariable} or restart MdExplorer from the app."), false);
 
             // A functional probe, not a guess from the file name: the packaged app could have the
             // RunAsNode fuse turned off.
@@ -104,13 +107,14 @@ namespace MdExplorer.Features.E2e
             var match = Regex.Match(output ?? "", @"^(\d+)\.\d+\.\d+");
             if (exit != 0 || !match.Success)
                 return new E2eRequirement("electron", false,
-                    $"Electron non funziona come Node (uscita {exit}): {Tail(output)}",
-                    "L'eseguibile di MdExplorer deve permettere ELECTRON_RUN_AS_NODE (fuse RunAsNode attiva).", false);
+                    UiText.Say($"Electron non funziona come Node (uscita {exit}): {Tail(output)}", $"Electron does not work as Node (exit {exit}): {Tail(output)}"),
+                    UiText.Say("L'eseguibile di MdExplorer deve permettere ELECTRON_RUN_AS_NODE (fuse RunAsNode attiva).",
+                        "The MdExplorer executable must allow ELECTRON_RUN_AS_NODE (RunAsNode fuse on)."), false);
             if (int.Parse(match.Groups[1].Value) < 18)
-                return new E2eRequirement("electron", false, $"Il Node di Electron è {output}: Playwright MCP chiede almeno Node 18.",
-                    "Aggiorna MdExplorer.", false);
+                return new E2eRequirement("electron", false, UiText.Say($"Il Node di Electron è {output}: Playwright MCP chiede almeno Node 18.", $"Electron's Node is {output}: Playwright MCP needs at least Node 18."),
+                    UiText.Say("Aggiorna MdExplorer.", "Update MdExplorer."), false);
 
-            return new E2eRequirement("electron", true, $"Node {output} di Electron ({path})", null, false);
+            return new E2eRequirement("electron", true, UiText.Say($"Node {output} di Electron ({path})", $"Electron's Node {output} ({path})"), null, false);
         }
 
         // ---------------------------------------------------------------- Playwright MCP
@@ -118,8 +122,9 @@ namespace MdExplorer.Features.E2e
         private E2eRequirement CheckPlaywrightMcp() =>
             File.Exists(Path.Combine(PlaywrightMcpFolder, InstalledMarker)) && File.Exists(PlaywrightMcpCli)
                 ? new E2eRequirement("playwright-mcp", true, $"@playwright/mcp {PlaywrightMcpVersion} in {PlaywrightMcpFolder}", null, true)
-                : new E2eRequirement("playwright-mcp", false, $"@playwright/mcp {PlaywrightMcpVersion} non è installato.",
-                    "Installalo: MdExplorer scarica dal registro npm il server e le sue dipendenze (circa 19 MB) e ne verifica l'impronta.", true);
+                : new E2eRequirement("playwright-mcp", false, UiText.Say($"@playwright/mcp {PlaywrightMcpVersion} non è installato.", $"@playwright/mcp {PlaywrightMcpVersion} is not installed."),
+                    UiText.Say("Installalo: MdExplorer scarica dal registro npm il server e le sue dipendenze (circa 19 MB) e ne verifica l'impronta.",
+                        "Install it: MdExplorer downloads the server and its dependencies from the npm registry (about 19 MB) and checks their integrity."), true);
 
         /// <summary>
         /// Downloads <c>@playwright/mcp</c> and its dependencies into <see cref="PlaywrightMcpFolder"/>. Every
@@ -153,11 +158,11 @@ namespace MdExplorer.Features.E2e
                     if (!seen.Add(name + "@" + version)) continue;
 
                     var meta = JsonNode.Parse(await http.GetStringAsync(Registry + name + "/" + version, ct))
-                        ?? throw new InvalidOperationException($"Il registro npm non ha risposto per {name}@{version}.");
+                        ?? throw new InvalidOperationException(UiText.Say($"Il registro npm non ha risposto per {name}@{version}.", $"The npm registry did not answer for {name}@{version}."));
                     var tarball = meta["dist"]?["tarball"]?.GetValue<string>()
-                        ?? throw new InvalidOperationException($"{name}@{version}: il registro non indica l'archivio.");
+                        ?? throw new InvalidOperationException(UiText.Say($"{name}@{version}: il registro non indica l'archivio.", $"{name}@{version}: the registry does not give the archive."));
                     var integrity = meta["dist"]?["integrity"]?.GetValue<string>()
-                        ?? throw new InvalidOperationException($"{name}@{version}: il registro non indica l'impronta (integrity).");
+                        ?? throw new InvalidOperationException(UiText.Say($"{name}@{version}: il registro non indica l'impronta (integrity).", $"{name}@{version}: the registry does not give the integrity."));
 
                     var bytes = await http.GetByteArrayAsync(tarball, ct);
                     VerifyIntegrity(bytes, integrity, name, version);
@@ -171,7 +176,8 @@ namespace MdExplorer.Features.E2e
                             var v = depVersion?.GetValue<string>();
                             if (v == null || !Regex.IsMatch(v, @"^\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$"))
                                 throw new InvalidOperationException(
-                                    $"{name}@{version} chiede {depName}@{v}: non è una versione esatta, e MdExplorer installa solo versioni esatte. Aggiorna la versione fissata di @playwright/mcp.");
+                                    UiText.Say($"{name}@{version} chiede {depName}@{v}: non è una versione esatta, e MdExplorer installa solo versioni esatte. Aggiorna la versione fissata di @playwright/mcp.",
+                        $"{name}@{version} asks for {depName}@{v}: not an exact version, and MdExplorer installs only exact versions. Update the pinned version of @playwright/mcp."));
                             pending.Enqueue((depName, v));
                         }
                     }
@@ -217,10 +223,11 @@ namespace MdExplorer.Features.E2e
         public static void VerifyIntegrity(byte[] bytes, string integrity, string name, string version)
         {
             var sri = integrity.Split(' ').FirstOrDefault(s => s.StartsWith("sha512-", StringComparison.Ordinal))
-                ?? throw new InvalidOperationException($"{name}@{version}: l'impronta del registro non è sha512 ('{integrity}').");
+                ?? throw new InvalidOperationException(UiText.Say($"{name}@{version}: l'impronta del registro non è sha512 ('{integrity}').", $"{name}@{version}: the registry integrity is not sha512 ('{integrity}')."));
             var actual = "sha512-" + Convert.ToBase64String(SHA512.HashData(bytes));
             if (!string.Equals(actual, sri, StringComparison.Ordinal))
-                throw new InvalidOperationException($"{name}@{version}: l'archivio scaricato non corrisponde all'impronta del registro. Installazione interrotta.");
+                throw new InvalidOperationException(UiText.Say($"{name}@{version}: l'archivio scaricato non corrisponde all'impronta del registro. Installazione interrotta.",
+                    $"{name}@{version}: the downloaded archive does not match the registry integrity. Installation stopped."));
         }
 
         /// <summary>An npm archive: a gzipped tar whose entries start with <c>package/</c>.</summary>
@@ -236,7 +243,7 @@ namespace MdExplorer.Features.E2e
                 if (slash < 0) continue;
                 var destination = Path.GetFullPath(Path.Combine(root, entry.Name.Substring(slash + 1)));
                 if (!destination.StartsWith(root, StringComparison.Ordinal))
-                    throw new InvalidOperationException($"L'archivio contiene un percorso fuori dalla sua cartella: '{entry.Name}'.");
+                    throw new InvalidOperationException(UiText.Say($"L'archivio contiene un percorso fuori dalla sua cartella: '{entry.Name}'.", $"The archive contains a path outside its folder: '{entry.Name}'."));
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                 entry.ExtractToFile(destination, overwrite: true);
             }
@@ -275,10 +282,11 @@ namespace MdExplorer.Features.E2e
 
             var chromium = electronPath != null && mcpInstalled ? await ChromiumLocationAsync(electronPath, ct) : null;
             if (chromium != null && File.Exists(Path.Combine(chromium, "INSTALLATION_COMPLETE")))
-                return (new E2eRequirement("browser", true, $"Chromium di Playwright ({chromium})", null, false), "chromium");
+                return (new E2eRequirement("browser", true, UiText.Say($"Chromium di Playwright ({chromium})", $"Playwright's Chromium ({chromium})"), null, false), "chromium");
 
-            return (new E2eRequirement("browser", false, "Né Edge né Chrome sono installati.",
-                "Installa Edge o Chrome, oppure fai scaricare a MdExplorer il Chromium di Playwright (circa 150 MB; serve prima @playwright/mcp).",
+            return (new E2eRequirement("browser", false, UiText.Say("Né Edge né Chrome sono installati.", "Neither Edge nor Chrome is installed."),
+                UiText.Say("Installa Edge o Chrome, oppure fai scaricare a MdExplorer il Chromium di Playwright (circa 150 MB; serve prima @playwright/mcp).",
+                    "Install Edge or Chrome, or let MdExplorer download Playwright's Chromium (about 150 MB; @playwright/mcp is needed first)."),
                 electronPath != null && mcpInstalled), null);
         }
 
@@ -296,11 +304,11 @@ namespace MdExplorer.Features.E2e
         {
             var report = await CheckAsync(ct);
             if (!report.Electron.Ok) throw new InvalidOperationException(report.Electron.Detail + " " + report.Electron.Remedy);
-            if (!report.PlaywrightMcp.Ok) throw new InvalidOperationException("Installa prima @playwright/mcp: il Chromium lo scarica il suo Playwright.");
+            if (!report.PlaywrightMcp.Ok) throw new InvalidOperationException(UiText.Say("Installa prima @playwright/mcp: il Chromium lo scarica il suo Playwright.", "Install @playwright/mcp first: its Playwright downloads Chromium."));
 
             var (exit, output) = await RunAsNodeAsync(report.ElectronPath, new[] { PlaywrightCoreCli, "install", "chromium" }, TimeSpan.FromMinutes(20), ct);
             if (exit != 0)
-                throw new InvalidOperationException($"Il download di Chromium non è riuscito (uscita {exit}): {Tail(output)}");
+                throw new InvalidOperationException(UiText.Say($"Il download di Chromium non è riuscito (uscita {exit}): {Tail(output)}", $"The Chromium download failed (exit {exit}): {Tail(output)}"));
             return Tail(output);
         }
 
@@ -320,14 +328,16 @@ namespace MdExplorer.Features.E2e
                 candidates.Add(Path.Combine(dir.Trim().Trim('"'), exe));
             var dotnet = candidates.FirstOrDefault(File.Exists);
             if (dotnet == null)
-                return (new E2eRequirement("dotnet", false, ".NET SDK non trovato.",
-                    "Per rigiocare gli script serve il .NET SDK 8 o successivo (dotnet.microsoft.com). Non serve per eseguire i test con MarkAgent.", false), null);
+                return (new E2eRequirement("dotnet", false, UiText.Say(".NET SDK non trovato.", ".NET SDK not found."),
+                    UiText.Say("Per rigiocare gli script serve il .NET SDK 8 o successivo (dotnet.microsoft.com). Non serve per eseguire i test con MarkAgent.",
+                        "Replaying the scripts needs the .NET SDK 8 or later (dotnet.microsoft.com). It is not needed to run the tests with MarkAgent."), false), null);
 
             var (exit, output) = await RunAsync(dotnet, new[] { "--list-sdks" }, TimeSpan.FromSeconds(30), ct);
             var majors = Regex.Matches(output ?? "", @"^(\d+)\.", RegexOptions.Multiline).Select(m => int.Parse(m.Groups[1].Value)).ToList();
             if (exit != 0 || !majors.Any(m => m >= 8))
-                return (new E2eRequirement("dotnet", false, $".NET SDK 8 o successivo non installato (trovati: {(majors.Count == 0 ? "nessuno" : string.Join(", ", majors.Distinct()))}).",
-                    "Installa il .NET SDK 8 o successivo per rigiocare gli script.", false), null);
+                return (new E2eRequirement("dotnet", false, UiText.Say($".NET SDK 8 o successivo non installato (trovati: {(majors.Count == 0 ? "nessuno" : string.Join(", ", majors.Distinct()))}).",
+                        $".NET SDK 8 or later not installed (found: {(majors.Count == 0 ? "none" : string.Join(", ", majors.Distinct()))})."),
+                    UiText.Say("Installa il .NET SDK 8 o successivo per rigiocare gli script.", "Install the .NET SDK 8 or later to replay the scripts."), false), null);
             return (new E2eRequirement("dotnet", true, $".NET SDK {majors.Max()} ({dotnet})", null, false), dotnet);
         }
 
@@ -370,7 +380,7 @@ namespace MdExplorer.Features.E2e
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
                 if (ct.IsCancellationRequested) throw;
-                return (-1, $"nessuna risposta entro {timeout.TotalSeconds:0} secondi");
+                return (-1, UiText.Say($"nessuna risposta entro {timeout.TotalSeconds:0} secondi", $"no answer within {timeout.TotalSeconds:0} seconds"));
             }
             return (process.ExitCode, ((await stdout) + (await stderr)).Trim());
         }

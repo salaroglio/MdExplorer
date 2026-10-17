@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System.IO;
 using System.Reflection;
 
@@ -28,7 +29,7 @@ namespace MdExplorer.Features.AgentMemory
             foreach (var r in asm.GetManifestResourceNames())
                 if (r.EndsWith("mde-agent.ttl", System.StringComparison.OrdinalIgnoreCase)) { name = r; break; }
             if (name == null)
-                throw new FileNotFoundException("Risorsa embedded 'mde-agent.ttl' non trovata nell'assembly.");
+                throw new FileNotFoundException(UiText.Say("Risorsa embedded 'mde-agent.ttl' non trovata nell'assembly.", "Embedded resource 'mde-agent.ttl' not found in the assembly."));
             using var stream = asm.GetManifestResourceStream(name);
             using var reader = new StreamReader(stream);
             _cached = reader.ReadToEnd();

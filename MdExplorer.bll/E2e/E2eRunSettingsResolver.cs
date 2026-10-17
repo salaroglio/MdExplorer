@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.IO;
 
@@ -38,7 +39,7 @@ namespace MdExplorer.Features.E2e
             var isFolder = Directory.Exists(full);
 
             if (!IsInside(full, root))
-                throw new ArgumentException($"'{full}' non è dentro il progetto '{root}'.", nameof(path));
+                throw new ArgumentException(UiText.Say($"'{full}' non è dentro il progetto '{root}'.", $"'{full}' is not inside the project '{root}'."), nameof(path));
 
             E2eTextSetting engine = null, model = null;
             E2eSetting commit = null, headless = null;

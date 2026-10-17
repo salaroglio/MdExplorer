@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -89,7 +90,7 @@ namespace MdExplorer.Services.AgentMemory
 
             var created = await _fuseki.EnsureDatasetAsync(conn.BaseUri, conn.Dataset, conn.Username, conn.Password);
             if (!created)
-                throw new InvalidOperationException($"Dataset Fuseki '{conn.Dataset}' non disponibile su '{conn.BaseUri}'.");
+                throw new InvalidOperationException(UiText.Say($"Dataset Fuseki '{conn.Dataset}' non disponibile su '{conn.BaseUri}'.", $"Fuseki dataset '{conn.Dataset}' is not available at '{conn.BaseUri}'."));
 
             // Carica la TBox nel suo grafo dedicato (append idempotente via GSP).
             await _fuseki.LoadGraphAsync(conn.BaseUri, conn.Dataset, AgentMemoryOntology.OntologyGraph,
@@ -217,8 +218,8 @@ namespace MdExplorer.Services.AgentMemory
         private static void Validate(FusekiConnection conn)
         {
             if (conn == null) throw new ArgumentNullException(nameof(conn));
-            if (string.IsNullOrWhiteSpace(conn.BaseUri)) throw new ArgumentException("BaseUri Fuseki mancante.", nameof(conn));
-            if (string.IsNullOrWhiteSpace(conn.Dataset)) throw new ArgumentException("Dataset Fuseki mancante.", nameof(conn));
+            if (string.IsNullOrWhiteSpace(conn.BaseUri)) throw new ArgumentException(UiText.Say("BaseUri Fuseki mancante.", "Fuseki BaseUri missing."), nameof(conn));
+            if (string.IsNullOrWhiteSpace(conn.Dataset)) throw new ArgumentException(UiText.Say("Dataset Fuseki mancante.", "Fuseki dataset missing."), nameof(conn));
         }
     }
 }

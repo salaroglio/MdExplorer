@@ -89,7 +89,7 @@ namespace MdExplorer.Features.Tests.E2e
             Assert.IsTrue(E2eCommitter.Commit(Item()).Committed);
             var again = E2eCommitter.Commit(Item());
             Assert.IsFalse(again.Committed);
-            StringAssert.Contains(again.Reason, "nessuna modifica");
+            StringAssert.Contains(again.Reason, "no changes");
         }
 
         private static System.Collections.Generic.IEnumerable<string> Flatten(TreeEntry entry) =>

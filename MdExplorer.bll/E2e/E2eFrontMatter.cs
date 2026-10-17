@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -83,14 +84,16 @@ namespace MdExplorer.Features.E2e
             catch (YamlException ex)
             {
                 throw new E2eFormatException(
-                    $"{fileName}: il blocco 'e2e:' del front matter non è YAML valido (riga {ex.Start.Line}): {ex.InnerException?.Message ?? ex.Message}");
+                    UiText.Say($"{fileName}: il blocco 'e2e:' del front matter non è YAML valido (riga {ex.Start.Line}): {ex.InnerException?.Message ?? ex.Message}",
+                        $"{fileName}: the 'e2e:' block of the front matter is not valid YAML (line {ex.Start.Line}): {ex.InnerException?.Message ?? ex.Message}"));
             }
 
             var root = stream.Documents.FirstOrDefault()?.RootNode as YamlMappingNode;
             var e2e = root?.Children.TryGetValue(new YamlScalarNode("e2e"), out var node) == true ? node : null;
             if (e2e is YamlScalarNode scalar && string.IsNullOrEmpty(scalar.Value)) return new YamlMappingNode();
             if (e2e is not YamlMappingNode mapping)
-                throw new E2eFormatException($"{fileName}: 'e2e:' deve contenere delle chiavi (baseUrl, siteMap, credentials, artifacts, run).");
+                throw new E2eFormatException(UiText.Say($"{fileName}: 'e2e:' deve contenere delle chiavi (baseUrl, siteMap, credentials, artifacts, run).",
+                    $"{fileName}: 'e2e:' must contain keys (baseUrl, siteMap, credentials, artifacts, run)."));
             return mapping;
         }
 
@@ -103,21 +106,25 @@ namespace MdExplorer.Features.E2e
             if (runNode is YamlScalarNode empty && string.IsNullOrEmpty(empty.Value))
                 return E2eRunSettings.None;
             if (runNode is not YamlMappingNode run)
-                throw new E2eFormatException($"{fileName}: 'e2e.run' deve contenere delle chiavi ({EngineKey}, {ModelKey}, {CommitAfterRunKey}, {HeadlessKey}).");
+                throw new E2eFormatException(UiText.Say($"{fileName}: 'e2e.run' deve contenere delle chiavi ({EngineKey}, {ModelKey}, {CommitAfterRunKey}, {HeadlessKey}).",
+                    $"{fileName}: 'e2e.run' must contain keys ({EngineKey}, {ModelKey}, {CommitAfterRunKey}, {HeadlessKey})."));
 
             var known = new[] { EngineKey, ModelKey, CommitAfterRunKey, HeadlessKey };
             foreach (var key in run.Children.Keys.OfType<YamlScalarNode>().Select(k => k.Value))
             {
                 if (!known.Contains(key) && key != ObsoleteDedicatedSessionKey)
-                    throw new E2eFormatException($"{fileName}: chiave sconosciuta 'e2e.run.{key}'. Chiavi ammesse: {string.Join(", ", known)}.");
+                    throw new E2eFormatException(UiText.Say($"{fileName}: chiave sconosciuta 'e2e.run.{key}'. Chiavi ammesse: {string.Join(", ", known)}.",
+                    $"{fileName}: unknown key 'e2e.run.{key}'. Allowed keys: {string.Join(", ", known)}."));
             }
 
             var engine = Text(run, EngineKey)?.ToLowerInvariant();
             if (engine != null && !Engines.Contains(engine))
-                throw new E2eFormatException($"{fileName}: 'e2e.run.{EngineKey}' vale '{engine}': scrivi {string.Join(", ", Engines)}, o togli la riga per usare il motore del progetto.");
+                throw new E2eFormatException(UiText.Say($"{fileName}: 'e2e.run.{EngineKey}' vale '{engine}': scrivi {string.Join(", ", Engines)}, o togli la riga per usare il motore del progetto.",
+                    $"{fileName}: 'e2e.run.{EngineKey}' is '{engine}': write {string.Join(", ", Engines)}, or remove the line to use the project's engine."));
             var model = Text(run, ModelKey);
             if (model != null && engine == null)
-                throw new E2eFormatException($"{fileName}: 'e2e.run.{ModelKey}' senza '{EngineKey}': un modello vale per un motore, scrivi anche il motore (o togli il modello).");
+                throw new E2eFormatException(UiText.Say($"{fileName}: 'e2e.run.{ModelKey}' senza '{EngineKey}': un modello vale per un motore, scrivi anche il motore (o togli il modello).",
+                    $"{fileName}: 'e2e.run.{ModelKey}' without '{EngineKey}': a model belongs to an engine, write the engine too (or remove the model)."));
 
             return new E2eRunSettings(engine, model, Bool(run, CommitAfterRunKey, fileName), Bool(run, HeadlessKey, fileName))
             {
@@ -161,7 +168,8 @@ namespace MdExplorer.Features.E2e
             for (var i = start + 1; i < end; i++)
             {
                 if (Regex.IsMatch(file.Items[i], "^" + indent + @"run:\s*[^\s#]"))
-                    throw new E2eFormatException($"{fileName}: scrivi 'e2e.run' in forma a blocchi (una chiave per riga), non 'run: {{ … }}'.");
+                    throw new E2eFormatException(UiText.Say($"{fileName}: scrivi 'e2e.run' in forma a blocchi (una chiave per riga), non 'run: {{ … }}'.",
+                    $"{fileName}: write 'e2e.run' in block form (one key per line), not 'run: {{ … }}'."));
                 if (Regex.IsMatch(file.Items[i], "^" + indent + @"run:\s*(#.*)?$")) { runStart = i; break; }
             }
 
@@ -238,7 +246,8 @@ namespace MdExplorer.Features.E2e
             if (string.IsNullOrEmpty(value)) return null;
             if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)) return false;
-            throw new E2eFormatException($"{fileName}: 'e2e.run.{key}' vale '{value}': scrivi true oppure false, o togli la riga per ereditare.");
+            throw new E2eFormatException(UiText.Say($"{fileName}: 'e2e.run.{key}' vale '{value}': scrivi true oppure false, o togli la riga per ereditare.",
+                $"{fileName}: 'e2e.run.{key}' is '{value}': write true or false, or remove the line to inherit."));
         }
 
         private static List<string> RunLines(E2eRunSettings run, string indent)
@@ -261,7 +270,8 @@ namespace MdExplorer.Features.E2e
         {
             var read = ReadRunSettings(written, fileName);
             if (read != (wanted.IsEmpty ? E2eRunSettings.None : wanted))
-                throw new InvalidOperationException($"{fileName}: le impostazioni scritte ({read}) non sono quelle chieste ({wanted}).");
+                throw new InvalidOperationException(UiText.Say($"{fileName}: le impostazioni scritte ({read}) non sono quelle chieste ({wanted}).",
+                    $"{fileName}: the settings written ({read}) are not the ones asked for ({wanted})."));
             return written;
         }
 
@@ -272,7 +282,8 @@ namespace MdExplorer.Features.E2e
             {
                 var line = file.Items[i];
                 if (FlowStart.IsMatch(line))
-                    throw new E2eFormatException("Scrivi 'e2e:' in forma a blocchi (una chiave per riga, rientrate), non 'e2e: { … }'.");
+                    throw new E2eFormatException(UiText.Say("Scrivi 'e2e:' in forma a blocchi (una chiave per riga, rientrate), non 'e2e: { … }'.",
+                        "Write 'e2e:' in block form (one key per line, indented), not 'e2e: { … }'."));
                 if (!BlockStart.IsMatch(line)) continue;
 
                 // The block goes on while lines are indented. A comment at column 0 does not end it when

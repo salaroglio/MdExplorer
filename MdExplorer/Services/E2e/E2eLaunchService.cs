@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Features.E2e;
 using MdExplorer.Features.Services.AI.ClaudeCode;
@@ -85,7 +86,7 @@ namespace MdExplorer.Services.E2e
             // One launch per connection: two would restart the same tab session under each other.
             if (!_active.TryAdd(request.ConnectionId, 0))
             {
-                await sink.Event(new { type = "refused", errors = new[] { "C'è già un lancio di test in corso: aspetta che finisca o interrompilo." } });
+                await sink.Event(new { type = "refused", errors = new[] { UiText.Say("C'è già un lancio di test in corso: aspetta che finisca o interrompilo.", "A test launch is already in progress: wait until it finishes or stop it.") } });
                 return;
             }
             try
@@ -239,7 +240,8 @@ namespace MdExplorer.Services.E2e
                     {
                         // A value left in a file outside the run folder would go into git history for good.
                         await sink.Event(new { type = "commit", file = item.RelativeTestFile, committed = false, sha = (string)null, message = (string)null,
-                            reason = "un valore delle credenziali è ancora in un file del lancio (vedi sopra): toglilo e fai tu il commit." });
+                            reason = UiText.Say("un valore delle credenziali è ancora in un file del lancio (vedi sopra): toglilo e fai tu il commit.",
+                                "a credentials value is still in a file of the launch (see above): remove it and commit yourself.") });
                     }
                     else if (item.Settings.CommitAfterRun.Value)
                     {
@@ -252,7 +254,7 @@ namespace MdExplorer.Services.E2e
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "[E2e] commit dopo {File}", item.RelativeTestFile);
-                            commit = new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+                            commit = new E2eCommitResult(false, null, null, UiText.Say("il commit non è riuscito: ", "the commit failed: ") + ex.Message);
                         }
                         await sink.Event(new
                         {
@@ -288,10 +290,11 @@ namespace MdExplorer.Services.E2e
             MdExplorer.Utilities.MarkAgentEngine engine;
             if (asked == null) engine = request.ProjectEngine;
             else if (!MdExplorer.Utilities.MarkAgentEngines.TryParseId(asked, out engine))
-                return (engine, null, $"{item.RelativeTestFile}: motore '{asked}' sconosciuto.");
+                return (engine, null, UiText.Say($"{item.RelativeTestFile}: motore '{asked}' sconosciuto.", $"{item.RelativeTestFile}: unknown engine '{asked}'."));
             if (engine == MdExplorer.Utilities.MarkAgentEngine.None)
-                return (engine, null, $"{item.RelativeTestFile}: il progetto non ha un motore di MarkAgent e il test non ne indica uno: " +
-                                      "sceglilo nelle impostazioni del progetto o nella finestra dei test.");
+                return (engine, null, UiText.Say(
+                    $"{item.RelativeTestFile}: il progetto non ha un motore di MarkAgent e il test non ne indica uno: sceglilo nelle impostazioni del progetto o nella finestra dei test.",
+                    $"{item.RelativeTestFile}: the project has no MarkAgent engine and the test does not name one: choose it in the project settings or in the tests window."));
 
             var model = item.Settings.Model.Value
                 ?? (engine == request.ProjectEngine ? request.ProjectModel : MdExplorer.Utilities.MarkAgentEngines.DefaultModelOf(engine));
@@ -303,7 +306,8 @@ namespace MdExplorer.Services.E2e
                 _ => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
             };
             if (!resolvable)
-                return (engine, model, $"{item.RelativeTestFile}: il CLI di {MdExplorer.Utilities.MarkAgentEngines.CommandOf(engine)} non si trova nel PATH del servizio.");
+                return (engine, model, UiText.Say($"{item.RelativeTestFile}: il CLI di {MdExplorer.Utilities.MarkAgentEngines.CommandOf(engine)} non si trova nel PATH del servizio.",
+                    $"{item.RelativeTestFile}: the {MdExplorer.Utilities.MarkAgentEngines.CommandOf(engine)} CLI is not in the service's PATH."));
             return (engine, model, null);
         }
 
@@ -329,7 +333,7 @@ namespace MdExplorer.Services.E2e
             {
                 _logger.LogError(ex, "[E2e] controlli dopo {File}", item.RelativeTestFile);
                 await sink.Event(new { type = "post-run", file = item.RelativeTestFile, fingerprinted = 0, leaks = Array.Empty<object>(),
-                    problems = new[] { "i controlli dopo l'esecuzione non sono riusciti: " + ex.Message } });
+                    problems = new[] { UiText.Say("i controlli dopo l'esecuzione non sono riusciti: ", "the checks after the run failed: ") + ex.Message } });
                 return true; // unknown: no automatic commit
             }
         }
@@ -565,7 +569,8 @@ namespace MdExplorer.Services.E2e
             var m = System.Text.RegularExpressions.Regex.Match(skill, @"^// generatore: (.+?)\s*$",
                 System.Text.RegularExpressions.RegexOptions.Multiline);
             if (!m.Success)
-                throw new InvalidOperationException("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script.");
+                throw new InvalidOperationException(UiText.Say("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script.",
+                    "The built-in mde-e2e skill has no '// generatore:' line in the script skeleton."));
             return m.Groups[1].Value;
         }
 
@@ -586,7 +591,8 @@ namespace MdExplorer.Services.E2e
         public static E2eSupportUpdate EnsureSupportFiles(IEnumerable<string> testFiles, string projectRoot, bool create)
         {
             var skill = EmbeddedSkill()
-                ?? throw new InvalidOperationException("La skill mde-e2e incorporata non c'è: non posso scrivere i file di supporto degli script.");
+                ?? throw new InvalidOperationException(UiText.Say("La skill mde-e2e incorporata non c'è: non posso scrivere i file di supporto degli script.",
+                    "The built-in mde-e2e skill is missing: I cannot write the scripts' support files."));
             return E2eSupportFiles.Ensure(testFiles, projectRoot, E2eSupportFiles.FromSkill(skill), create);
         }
 
@@ -600,7 +606,8 @@ namespace MdExplorer.Services.E2e
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (string.IsNullOrEmpty(appData))
-                throw new InvalidOperationException("Cartella dati dell'utente non disponibile: non posso preparare segreti e diagnostica dei test e2e.");
+                throw new InvalidOperationException(UiText.Say("Cartella dati dell'utente non disponibile: non posso preparare segreti e diagnostica dei test e2e.",
+                    "User data folder not available: I cannot prepare secrets and diagnostics for the e2e tests."));
             return Path.Combine(appData, "MdExplorer", "e2e");
         }
 

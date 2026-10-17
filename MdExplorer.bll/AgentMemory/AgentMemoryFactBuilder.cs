@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,7 @@ namespace MdExplorer.Features.AgentMemory
             if (string.IsNullOrWhiteSpace(agentGraph)) throw new ArgumentException("agentGraph richiesto.", nameof(agentGraph));
             if (fact == null) throw new ArgumentNullException(nameof(fact));
             if (string.IsNullOrWhiteSpace(fact.Statement)) throw new ArgumentException("statement richiesto.", nameof(fact));
-            if (fact.RunId == Guid.Empty) throw new ArgumentException("runId richiesto per la provenance.", nameof(fact));
+            if (fact.RunId == Guid.Empty) throw new ArgumentException(UiText.Say("runId richiesto per la provenance.", "runId is required for the provenance."), nameof(fact));
 
             var factUri = $"urn:mde:mem:fact:{Guid.NewGuid():D}";
             var runUri = $"urn:mde:mem:run:{fact.RunId:D}";

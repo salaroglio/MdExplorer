@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Globalization;
 using VDS.RDF;
@@ -36,7 +37,7 @@ namespace MdExplorer.Features.AgentMemory
         public static string Iri(string uri)
         {
             if (string.IsNullOrWhiteSpace(uri) || !Uri.IsWellFormedUriString(uri, UriKind.Absolute))
-                throw new ArgumentException($"IRI non valido: '{uri}'.", nameof(uri));
+                throw new ArgumentException(UiText.Say($"IRI non valido: '{uri}'.", $"Invalid IRI: '{uri}'."), nameof(uri));
             return $"<{uri}>";
         }
     }

@@ -95,7 +95,7 @@ namespace MdExplorer.Features.Services.Fuseki
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             if (string.IsNullOrWhiteSpace(options.DataDirectory))
-                throw new ArgumentException("ManagedFusekiOptions.DataDirectory è obbligatorio (FUSEKI_BASE: dove stanno dati e configurazione).", nameof(options));
+                throw new ArgumentException(UiText.Say("ManagedFusekiOptions.DataDirectory è obbligatorio (FUSEKI_BASE: dove stanno dati e configurazione).", "ManagedFusekiOptions.DataDirectory is required (FUSEKI_BASE: where data and configuration live)."), nameof(options));
             _javaLocator = javaLocator ?? throw new ArgumentNullException(nameof(javaLocator));
             _logger = logger;
         }
@@ -169,10 +169,10 @@ namespace MdExplorer.Features.Services.Fuseki
                 }
                 catch (Exception ex)
                 {
-                    throw new FusekiUnavailableException($"Avvio di Fuseki fallito con '{java.Path}': {ex.Message}", ex);
+                    throw new FusekiUnavailableException(UiText.Say($"Avvio di Fuseki fallito con '{java.Path}': {ex.Message}", $"Starting Fuseki with '{java.Path}' failed: {ex.Message}"), ex);
                 }
                 if (proc == null)
-                    throw new FusekiUnavailableException($"Avvio di Fuseki fallito: Process.Start ha restituito null per '{java.Path}'.");
+                    throw new FusekiUnavailableException(UiText.Say($"Avvio di Fuseki fallito: Process.Start ha restituito null per '{java.Path}'.", $"Starting Fuseki failed: Process.Start returned null for '{java.Path}'."));
                 // Windows: Fuseki muore con il servizio, comunque il servizio muoia (crash, chiusura forzata, aggiornamento).
                 WindowsKillOnCloseJob.Assign(proc, _logger);
 
@@ -200,9 +200,11 @@ namespace MdExplorer.Features.Services.Fuseki
                     var locked = tail.Contains("ProcessFileLock", StringComparison.Ordinal) || tail.Contains("Failed to get a lock", StringComparison.Ordinal);
                     throw new FusekiUnavailableException(
                         (locked
-                            ? $"Il database del grafo in '{_options.DataDirectory}' è bloccato da un altro Fuseki: un java rimasto acceso da un avvio precedente di MdExplorer, o un'altra istanza di MdExplorer aperta. Chiudi le altre istanze; se non ce ne sono, termina i processi java di Fuseki (Gestione attività su Windows) e riprova. "
+                            ? UiText.Say(
+                                $"Il database del grafo in '{_options.DataDirectory}' è bloccato da un altro Fuseki: un java rimasto acceso da un avvio precedente di MdExplorer, o un'altra istanza di MdExplorer aperta. Chiudi le altre istanze; se non ce ne sono, termina i processi java di Fuseki (Gestione attività su Windows) e riprova. ",
+                                $"The graph database in '{_options.DataDirectory}' is locked by another Fuseki: a java left running by an earlier start of MdExplorer, or another MdExplorer instance that is open. Close the other instances; if there are none, end Fuseki's java processes (Task Manager on Windows) and try again. ")
                             : string.Empty) +
-                        $"{ex.Message} Ultime righe di Fuseki: {tail}", ex);
+                        UiText.Say($"{ex.Message} Ultime righe di Fuseki: {tail}", $"{ex.Message} Last lines from Fuseki: {tail}"), ex);
                 }
 
                 _process = proc;
@@ -225,7 +227,7 @@ namespace MdExplorer.Features.Services.Fuseki
             using var resp = await http.PostAsync($"{baseUri}/$/compact/{Uri.EscapeDataString(dataset)}?deleteOld=true", new StringContent(string.Empty), ct);
             var body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
-                throw new InvalidOperationException($"Fuseki ha rifiutato la compattazione di '{dataset}': HTTP {(int)resp.StatusCode} {body}");
+                throw new InvalidOperationException(UiText.Say($"Fuseki ha rifiutato la compattazione di '{dataset}': HTTP {(int)resp.StatusCode} {body}", $"Fuseki refused to compact '{dataset}': HTTP {(int)resp.StatusCode} {body}"));
             // La risposta è un task asincrono: {"taskId":"…"}; si aspetta che finisca guardando /$/tasks/{id}.
             string taskId = null;
             try { using var doc = System.Text.Json.JsonDocument.Parse(body); if (doc.RootElement.TryGetProperty("taskId", out var t)) taskId = t.GetString(); } catch (System.Text.Json.JsonException) { }
@@ -237,7 +239,7 @@ namespace MdExplorer.Features.Services.Fuseki
                     using var st = await http.GetAsync($"{baseUri}/$/tasks/{taskId}", ct);
                     var stBody = await st.Content.ReadAsStringAsync(ct);
                     if (stBody.Contains("\"finished\"", StringComparison.Ordinal) && !stBody.Contains("\"finished\":null", StringComparison.Ordinal)) break;
-                    if (DateTime.UtcNow - started > TimeSpan.FromMinutes(30)) throw new TimeoutException($"La compattazione di '{dataset}' non è finita in 30 minuti.");
+                    if (DateTime.UtcNow - started > TimeSpan.FromMinutes(30)) throw new TimeoutException(UiText.Say($"La compattazione di '{dataset}' non è finita in 30 minuti.", $"Compacting '{dataset}' did not finish within 30 minutes."));
                     await Task.Delay(500, ct);
                 }
             }
@@ -249,7 +251,8 @@ namespace MdExplorer.Features.Services.Fuseki
             var jar = _options.JarPath;
             if (string.IsNullOrWhiteSpace(jar) || !File.Exists(jar))
                 throw new FusekiUnavailableException(
-                    $"Jar di Fuseki non trovato: '{jar}'. Fa parte del pacchetto di MdExplorer (Binaries/jena-fuseki-server.jar): reinstalla MdExplorer.");
+                    UiText.Say($"Jar di Fuseki non trovato: '{jar}'. Fa parte del pacchetto di MdExplorer (Binaries/jena-fuseki-server.jar): reinstalla MdExplorer.",
+                        $"Fuseki jar not found: '{jar}'. It is part of the MdExplorer package (Binaries/jena-fuseki-server.jar): reinstall MdExplorer."));
             return jar;
         }
 
@@ -272,15 +275,22 @@ namespace MdExplorer.Features.Services.Fuseki
             }
             if (!probe.IsRunnable)
                 throw new FusekiUnavailableException(
-                    $"java non eseguibile ('{javaPath}': {probe.Error}). Fuseki (grafo del codice e memoria) richiede Java {_options.MinimumJavaMajor}: " +
-                    "installa Temurin 21 (adoptium.net) oppure imposta il percorso in 'JavaPath'.");
+                    UiText.Say(
+                        $"java non eseguibile ('{javaPath}': {probe.Error}). Fuseki (grafo del codice e memoria) richiede Java {_options.MinimumJavaMajor}: " +
+                        "installa Temurin 21 (adoptium.net) oppure imposta il percorso in 'JavaPath'.",
+                        $"java cannot be run ('{javaPath}': {probe.Error}). Fuseki (code graph and memory) needs Java {_options.MinimumJavaMajor}: " +
+                        "install Temurin 21 (adoptium.net) or set the path in 'JavaPath'."));
             if (probe.Major == null)
                 throw new FusekiUnavailableException(
-                    $"Versione di java non leggibile da '{javaPath}' («{probe.Raw}»). Fuseki richiede Java {_options.MinimumJavaMajor}.");
+                    UiText.Say($"Versione di java non leggibile da '{javaPath}' («{probe.Raw}»). Fuseki richiede Java {_options.MinimumJavaMajor}.",
+                        $"Cannot read the java version from '{javaPath}' («{probe.Raw}»). Fuseki needs Java {_options.MinimumJavaMajor}."));
             if (probe.Major < _options.MinimumJavaMajor)
                 throw new FusekiUnavailableException(
-                    $"Java {probe.Major} trovato in '{javaPath}' («{probe.Raw}»): MdExplorer richiede Java {_options.MinimumJavaMajor} per Fuseki " +
-                    "(grafo del codice e memoria degli agenti). Installa Temurin 21 (adoptium.net) oppure imposta 'JavaPath' su un Java 21.");
+                    UiText.Say(
+                        $"Java {probe.Major} trovato in '{javaPath}' («{probe.Raw}»): MdExplorer richiede Java {_options.MinimumJavaMajor} per Fuseki " +
+                        "(grafo del codice e memoria degli agenti). Installa Temurin 21 (adoptium.net) oppure imposta 'JavaPath' su un Java 21.",
+                        $"Java {probe.Major} found in '{javaPath}' («{probe.Raw}»): MdExplorer needs Java {_options.MinimumJavaMajor} for Fuseki " +
+                        "(code graph and agent memory). Install Temurin 21 (adoptium.net) or set 'JavaPath' to a Java 21."));
             return probe;
         }
 
@@ -292,7 +302,7 @@ namespace MdExplorer.Features.Services.Fuseki
             {
                 ct.ThrowIfCancellationRequested();
                 if (proc.HasExited)
-                    throw new InvalidOperationException($"Fuseki è terminato durante l'avvio (exit {proc.ExitCode}).");
+                    throw new InvalidOperationException(UiText.Say($"Fuseki è terminato durante l'avvio (exit {proc.ExitCode}).", $"Fuseki exited while starting (exit {proc.ExitCode})."));
                 try
                 {
                     var resp = await http.GetAsync(baseUri + "/$/ping", ct);
@@ -302,7 +312,7 @@ namespace MdExplorer.Features.Services.Fuseki
                 catch (TaskCanceledException) when (!ct.IsCancellationRequested) { /* timeout del singolo ping */ }
                 await Task.Delay(250, ct);
             }
-            throw new TimeoutException($"Fuseki non ha risposto su {baseUri}/$/ping entro {_options.StartupTimeout.TotalSeconds:0} secondi.");
+            throw new TimeoutException(UiText.Say($"Fuseki non ha risposto su {baseUri}/$/ping entro {_options.StartupTimeout.TotalSeconds:0} secondi.", $"Fuseki did not answer on {baseUri}/$/ping within {_options.StartupTimeout.TotalSeconds:0} seconds."));
         }
 
         // ------------------------------------------------------------------ il Fuseki rimasto
@@ -320,7 +330,7 @@ namespace MdExplorer.Features.Services.Fuseki
             try { owner = System.Text.Json.JsonSerializer.Deserialize<FusekiOwner>(File.ReadAllText(OwnerPath)); }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException)
             {
-                throw new FusekiUnavailableException($"File del proprietario di Fuseki illeggibile: '{OwnerPath}' ({ex.Message}). Chiudi MdExplorer, cancella il file e riapri.", ex);
+                throw new FusekiUnavailableException(UiText.Say($"File del proprietario di Fuseki illeggibile: '{OwnerPath}' ({ex.Message}). Chiudi MdExplorer, cancella il file e riapri.", $"Cannot read Fuseki's owner file: '{OwnerPath}' ({ex.Message}). Close MdExplorer, delete the file and open it again."), ex);
             }
             if (owner == null || !IsAlive(owner.FusekiPid, owner.FusekiStartTicks, out var fuseki))
             {
@@ -335,13 +345,14 @@ namespace MdExplorer.Features.Services.Fuseki
                 {
                     other.Dispose();
                     throw new FusekiUnavailableException(
-                        $"Il database del grafo in '{_options.DataDirectory}' è usato da un altro MdExplorer in esecuzione (processo {owner.OwnerPid}, Fuseki {owner.FusekiPid}). Chiudi quell'istanza e riprova.");
+                        UiText.Say($"Il database del grafo in '{_options.DataDirectory}' è usato da un altro MdExplorer in esecuzione (processo {owner.OwnerPid}, Fuseki {owner.FusekiPid}). Chiudi quell'istanza e riprova.",
+                            $"The graph database in '{_options.DataDirectory}' is used by another running MdExplorer (process {owner.OwnerPid}, Fuseki {owner.FusekiPid}). Close that instance and try again."));
                 }
                 _logger.LogWarning("[Fuseki] trovato il Fuseki {Pid} di un servizio terminato (processo {Owner}) che tiene il database: lo fermo",
                     owner.FusekiPid, owner.OwnerPid);
                 try { fuseki.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* è uscito da solo intanto */ }
                 if (!fuseki.WaitForExit(10_000))
-                    throw new FusekiUnavailableException($"Il Fuseki rimasto (processo {owner.FusekiPid}) non si ferma: terminalo a mano e riprova.");
+                    throw new FusekiUnavailableException(UiText.Say($"Il Fuseki rimasto (processo {owner.FusekiPid}) non si ferma: terminalo a mano e riprova.", $"The leftover Fuseki (process {owner.FusekiPid}) does not stop: end it by hand and try again."));
             }
             File.Delete(OwnerPath);
         }

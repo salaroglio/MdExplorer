@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.E2e;
 using Microsoft.AspNetCore.Mvc;
@@ -81,13 +82,14 @@ namespace MdExplorer.Controllers.E2e
 
             var settingsFile = Directory.Exists(full) ? E2eRunSettingsResolver.FolderSettingsPath(full) : full;
             if (!Directory.Exists(full) && !full.EndsWith(".e2e.md", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { error = "Le impostazioni dei test si scrivono su un file .e2e.md o su una cartella." });
+                return BadRequest(new { error = UiText.Say("Le impostazioni dei test si scrivono su un file .e2e.md o su una cartella.", "Test settings are written on a .e2e.md file or on a folder.") });
 
             if (!System.IO.File.Exists(settingsFile))
             {
                 // The folder's summary document does not exist yet: generate it with the existing function.
                 if (!await _toc.GenerateTocAsync(full, settingsFile, ct) || !System.IO.File.Exists(settingsFile))
-                    return StatusCode(500, new { error = $"Non sono riuscito a creare il documento di riassunto della cartella ({Path.GetFileName(settingsFile)}), dove vanno le impostazioni." });
+                    return StatusCode(500, new { error = UiText.Say($"Non sono riuscito a creare il documento di riassunto della cartella ({Path.GetFileName(settingsFile)}), dove vanno le impostazioni.",
+                        $"I could not create the folder's summary document ({Path.GetFileName(settingsFile)}), where the settings go.") });
             }
 
             try
@@ -122,6 +124,7 @@ namespace MdExplorer.Controllers.E2e
                 canRun = plan.CanRun,
                 errors = plan.Errors,
                 warnings = plan.Warnings,
+                needsGitIgnore = plan.NeedsGitIgnore,
                 items = plan.Items.Select(i => new
                 {
                     file = i.RelativeTestFile,
@@ -249,7 +252,7 @@ namespace MdExplorer.Controllers.E2e
         {
             if (!TryResolve(body?.Path, body?.ProjectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
             var gitDir = LibGit2Sharp.Repository.Discover(root);
-            if (gitDir == null) return UnprocessableEntity(new { error = "Il progetto non è un repository git: non serve nessun .gitignore." });
+            if (gitDir == null) return UnprocessableEntity(new { error = UiText.Say("Il progetto non è un repository git: non serve nessun .gitignore.", "The project is not a git repository: no .gitignore is needed.") });
             using var repo = new LibGit2Sharp.Repository(gitDir);
             var gitignore = Path.Combine(repo.Info.WorkingDirectory, ".gitignore");
 
@@ -277,7 +280,7 @@ namespace MdExplorer.Controllers.E2e
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[E2e] commit dopo il rigioco di {File}", item.RelativeTestFile);
-                return new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+                return new E2eCommitResult(false, null, null, UiText.Say("il commit non è riuscito: ", "the commit failed: ") + ex.Message);
             }
         }
 
@@ -328,7 +331,7 @@ namespace MdExplorer.Controllers.E2e
             full = root = problem = null;
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
             {
-                problem = "Il progetto non è indicato o non esiste.";
+                problem = UiText.Say("Il progetto non è indicato o non esiste.", "The project is not given or does not exist.");
                 return false;
             }
             // The root comes from the client: it must be a project MdExplorer knows, or these endpoints (which
@@ -351,24 +354,24 @@ namespace MdExplorer.Controllers.E2e
             var known = paths.Any(p => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)), asked, comparisonKnown));
             if (!known)
             {
-                problem = "Il percorso indicato non è un progetto di MdExplorer.";
+                problem = UiText.Say("Il percorso indicato non è un progetto di MdExplorer.", "The given path is not an MdExplorer project.");
                 return false;
             }
             root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
             if (string.IsNullOrWhiteSpace(path))
             {
-                problem = "Manca il file o la cartella.";
+                problem = UiText.Say("Manca il file o la cartella.", "The file or folder is missing.");
                 return false;
             }
             full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(root, path));
             if (!E2eRunPlanner.IsInside(full, root))
             {
-                problem = "Il percorso è fuori dal progetto.";
+                problem = UiText.Say("Il percorso è fuori dal progetto.", "The path is outside the project.");
                 return false;
             }
             if (!Directory.Exists(full) && !System.IO.File.Exists(full))
             {
-                problem = "Il file o la cartella non esiste.";
+                problem = UiText.Say("Il file o la cartella non esiste.", "The file or folder does not exist.");
                 return false;
             }
             return true;
@@ -395,7 +398,7 @@ namespace MdExplorer.Controllers.E2e
         private async Task<IActionResult> Install(string what, Func<Task<string>> install)
         {
             if (!await InstallLock.WaitAsync(0))
-                return Conflict(new { error = "C'è già un'installazione in corso: aspetta che finisca." });
+                return Conflict(new { error = UiText.Say("C'è già un'installazione in corso: aspetta che finisca.", "An installation is already in progress: wait until it finishes.") });
             try
             {
                 _logger.LogInformation("[E2e] Installing {What}", what);
@@ -412,7 +415,7 @@ namespace MdExplorer.Controllers.E2e
                 var message = ex is InvalidOperationException or HttpRequestException
                     ? ex.Message
                     : $"{ex.GetType().Name}: {ex.Message}";
-                return StatusCode(502, new { error = $"Installazione di {what} non riuscita: {message}" });
+                return StatusCode(502, new { error = UiText.Say($"Installazione di {what} non riuscita: {message}", $"Installation of {what} failed: {message}") });
             }
             finally
             {

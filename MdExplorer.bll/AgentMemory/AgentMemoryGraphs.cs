@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 
 namespace MdExplorer.Features.AgentMemory
@@ -17,7 +18,7 @@ namespace MdExplorer.Features.AgentMemory
         public static string ForAgent(Guid agentIdentityId)
         {
             if (agentIdentityId == Guid.Empty)
-                throw new ArgumentException("AgentIdentity.Id vuoto: senza identità non esiste un grafo di memoria.", nameof(agentIdentityId));
+                throw new ArgumentException(UiText.Say("AgentIdentity.Id vuoto: senza identità non esiste un grafo di memoria.", "AgentIdentity.Id is empty: without an identity there is no memory graph."), nameof(agentIdentityId));
             return $"urn:mde:mem:agent:{agentIdentityId:D}";
         }
     }

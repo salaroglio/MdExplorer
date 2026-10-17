@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.IO;
 
@@ -69,14 +70,14 @@ namespace MdExplorer.Features.Utilities
 
             string problem = null, kind = null;
             JavaProbe probe = null;
-            if (string.IsNullOrWhiteSpace(configured)) { problem = "nessun percorso impostato"; kind = "empty"; }
-            else if (!File.Exists(configured)) { problem = "il file non esiste più"; kind = "missing"; }
+            if (string.IsNullOrWhiteSpace(configured)) { problem = UiText.Say("nessun percorso impostato", "no path set"); kind = "empty"; }
+            else if (!File.Exists(configured)) { problem = UiText.Say("il file non esiste più", "the file no longer exists"); kind = "missing"; }
             else
             {
                 probe = _locator.Probe(configured);
-                if (!probe.IsRunnable) { problem = "non eseguibile: " + probe.Error; kind = "broken"; }
-                else if (probe.Major == null) { problem = "versione non leggibile"; kind = "unreadable"; }
-                else if (probe.Major < minimumMajor) { problem = $"Java {probe.Major}, serve almeno Java {minimumMajor}"; kind = "old"; }
+                if (!probe.IsRunnable) { problem = UiText.Say("non eseguibile: ", "cannot be run: ") + probe.Error; kind = "broken"; }
+                else if (probe.Major == null) { problem = UiText.Say("versione non leggibile", "version cannot be read"); kind = "unreadable"; }
+                else if (probe.Major < minimumMajor) { problem = UiText.Say($"Java {probe.Major}, serve almeno Java {minimumMajor}", $"Java {probe.Major}, at least Java {minimumMajor} is needed"); kind = "old"; }
             }
 
             if (problem == null)

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -111,14 +112,15 @@ namespace MdExplorer.Features.E2e
         public static E2eTestDocument Parse(string markdown, string fileName)
         {
             var e2e = E2eFrontMatter.ReadMapping(markdown, fileName)
-                ?? throw new E2eFormatException(
-                    $"{fileName}: manca il blocco 'e2e:' nel front matter (baseUrl, siteMap, credentials, artifacts). Vedi la skill mde-e2e.");
+                ?? throw new E2eFormatException(UiText.Say(
+                    $"{fileName}: manca il blocco 'e2e:' nel front matter (baseUrl, siteMap, credentials, artifacts). Vedi la skill mde-e2e.",
+                    $"{fileName}: the 'e2e:' block is missing from the front matter (baseUrl, siteMap, credentials, artifacts). See the mde-e2e skill."));
 
             var problems = new List<string>();
             string Key(string key)
             {
                 var value = e2e.Children.TryGetValue(new YamlScalarNode(key), out var node) ? (node as YamlScalarNode)?.Value : null;
-                if (string.IsNullOrWhiteSpace(value)) problems.Add($"{fileName}: manca 'e2e.{key}' nel front matter.");
+                if (string.IsNullOrWhiteSpace(value)) problems.Add(UiText.Say($"{fileName}: manca 'e2e.{key}' nel front matter.", $"{fileName}: 'e2e.{key}' is missing from the front matter."));
                 return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
             }
 
@@ -130,7 +132,8 @@ namespace MdExplorer.Features.E2e
 
             var baseUrl = Key("baseUrl");
             if (baseUrl != null && !(Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)))
-                problems.Add($"{fileName}: 'e2e.baseUrl' vale '{baseUrl}': serve un indirizzo completo che inizia con http:// o https://.");
+                problems.Add(UiText.Say($"{fileName}: 'e2e.baseUrl' vale '{baseUrl}': serve un indirizzo completo che inizia con http:// o https://.",
+                    $"{fileName}: 'e2e.baseUrl' is '{baseUrl}': it must be a full address starting with http:// or https://."));
 
             var document = new DocumentBuilder(fileName, problems);
             document.Read(markdown);
@@ -221,12 +224,13 @@ namespace MdExplorer.Features.E2e
                 {
                     if (number == null) return;
                     if (steps.Count == 0)
-                        _problems.Add($"{_fileName}: il test T{number} (riga {headingLine}) non ha passi numerati.");
+                        _problems.Add(UiText.Say($"{_fileName}: il test T{number} (riga {headingLine}) non ha passi numerati.", $"{_fileName}: test T{number} (line {headingLine}) has no numbered steps."));
                     for (var i = 0; i < steps.Count; i++)
                     {
                         if (steps[i].Number != i + 1)
                         {
-                            _problems.Add($"{_fileName}: nel test T{number} il passo {i + 1} è numerato {steps[i].Number}: numera i passi 1, 2, 3, … senza salti.");
+                            _problems.Add(UiText.Say($"{_fileName}: nel test T{number} il passo {i + 1} è numerato {steps[i].Number}: numera i passi 1, 2, 3, … senza salti.",
+                                $"{_fileName}: in test T{number} step {i + 1} is numbered {steps[i].Number}: number the steps 1, 2, 3, … without gaps."));
                             break;
                         }
                     }
@@ -276,13 +280,15 @@ namespace MdExplorer.Features.E2e
                 Close();
 
                 if (_tests.Count == 0)
-                    _problems.Add($"{_fileName}: nessun test. Un test comincia con una riga '## T1 — <titolo>' seguita da passi numerati.");
+                    _problems.Add(UiText.Say($"{_fileName}: nessun test. Un test comincia con una riga '## T1 — <titolo>' seguita da passi numerati.",
+                        $"{_fileName}: no tests. A test starts with a line '## T1 — <title>' followed by numbered steps."));
                 foreach (var repeated in _tests.GroupBy(t => t.Number).Where(g => g.Count() > 1))
-                    _problems.Add($"{_fileName}: il numero T{repeated.Key} è usato da più test (righe {string.Join(", ", repeated.Select(t => t.Line))}): i numeri dei test non si riusano.");
+                    _problems.Add(UiText.Say($"{_fileName}: il numero T{repeated.Key} è usato da più test (righe {string.Join(", ", repeated.Select(t => t.Line))}): i numeri dei test non si riusano.",
+                        $"{_fileName}: the number T{repeated.Key} is used by more than one test (lines {string.Join(", ", repeated.Select(t => t.Line))}): test numbers are not reused."));
                 if (!HasArtifactsSection)
-                    _problems.Add($"{_fileName}: manca la sezione '## Artefatti' (può essere vuota).");
+                    _problems.Add(UiText.Say($"{_fileName}: manca la sezione '## Artefatti' (può essere vuota).", $"{_fileName}: the section '## Artefatti' is missing (it can be empty)."));
                 if (!HasResultsSection)
-                    _problems.Add($"{_fileName}: manca la sezione '## Esiti' (può essere vuota).");
+                    _problems.Add(UiText.Say($"{_fileName}: manca la sezione '## Esiti' (può essere vuota).", $"{_fileName}: the section '## Esiti' is missing (it can be empty)."));
             }
 
             private static int BodyStart(string[] lines)

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -114,7 +115,7 @@ namespace MdExplorer.Features.Utilities
                 using var process = Process.Start(psi);
                 if (process == null)
                 {
-                    probe.Error = "Process.Start ha restituito null";
+                    probe.Error = UiText.Say("Process.Start ha restituito null", "Process.Start returned null");
                     return probe;
                 }
                 var stderr = process.StandardError.ReadToEndAsync();
@@ -122,7 +123,7 @@ namespace MdExplorer.Features.Utilities
                 if (!process.WaitForExit(10000))
                 {
                     try { process.Kill(true); } catch { }
-                    probe.Error = "java -version non ha risposto entro 10 secondi";
+                    probe.Error = UiText.Say("java -version non ha risposto entro 10 secondi", "java -version did not answer within 10 seconds");
                     return probe;
                 }
                 // java -version storicamente scrive su stderr; alcune JVM su stdout.

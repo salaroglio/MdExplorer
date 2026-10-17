@@ -161,11 +161,13 @@ namespace MdExplorer.Services.Federation
                 db.Commit();
             }
 
-            var verdict = string.IsNullOrWhiteSpace(payload.Verdict) ? "(nessun verdetto)" : payload.Verdict.Trim();
+            var verdict = string.IsNullOrWhiteSpace(payload.Verdict) ? MdExplorer.Features.Services.UiText.Say("(nessun verdetto)", "(no verdict)") : payload.Verdict.Trim();
             var reason = string.IsNullOrWhiteSpace(payload.Reason) ? null : payload.Reason.Trim();
             var body = reason == null
-                ? $"[Esito federato] L'intervento delegato a '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) si è concluso: {verdict}."
-                : $"[Esito federato] L'intervento delegato a '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) si è concluso: {verdict} — {reason}.";
+                ? MdExplorer.Features.Services.UiText.Say($"[Esito federato] L'intervento delegato a '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) si è concluso: {verdict}.",
+                    $"[Federated outcome] The work delegated to '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) has finished: {verdict}.")
+                : MdExplorer.Features.Services.UiText.Say($"[Esito federato] L'intervento delegato a '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) si è concluso: {verdict} — {reason}.",
+                    $"[Federated outcome] The work delegated to '{dispatch.TargetAgent}' ({dispatch.TargetOwner}) has finished: {verdict} — {reason}.");
 
             // Risveglio dell'agente d'origine, nella conversazione d'origine. FromAgent sentinella
             // "<federation>" (provenienza), destinatario = OriginAgent catturato al dispatch (NON

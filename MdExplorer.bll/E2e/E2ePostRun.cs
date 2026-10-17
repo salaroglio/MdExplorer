@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,7 +80,8 @@ namespace MdExplorer.Features.E2e
             // D17: a script for every test.
             var withScript = Scripts(item).Select(x => x.TestNumber).ToHashSet();
             foreach (var test in tests.Where(t => !withScript.Contains(t.Number)))
-                problems.Add($"T{test.Number}: manca lo script ({Path.GetFileNameWithoutExtension(item.TestFile)}.T{test.Number}.spec.cs).");
+                problems.Add(UiText.Say($"T{test.Number}: manca lo script ({Path.GetFileNameWithoutExtension(item.TestFile)}.T{test.Number}.spec.cs).",
+                        $"T{test.Number}: the script is missing ({Path.GetFileNameWithoutExtension(item.TestFile)}.T{test.Number}.spec.cs)."));
 
             // Only the scripts the agent has just written carry the placeholder. A script left from an older
             // version of the test keeps its old fingerprint, and so stays stale (D17): stamping every script
@@ -88,13 +90,14 @@ namespace MdExplorer.Features.E2e
             {
                 if (script.CurrentFingerprint == null)
                 {
-                    problems.Add($"{Path.GetFileName(script.Path)}: nel test non c'è un T{script.TestNumber}.");
+                    problems.Add(UiText.Say($"{Path.GetFileName(script.Path)}: nel test non c'è un T{script.TestNumber}.", $"{Path.GetFileName(script.Path)}: the test has no T{script.TestNumber}."));
                     continue;
                 }
                 var text = File.ReadAllText(script.Path);
                 if (!FingerprintLine.IsMatch(text))
                 {
-                    problems.Add($"{Path.GetFileName(script.Path)}: manca la riga '// impronta-sorgente:' nell'intestazione (vedi la skill mde-e2e).");
+                    problems.Add(UiText.Say($"{Path.GetFileName(script.Path)}: manca la riga '// impronta-sorgente:' nell'intestazione (vedi la skill mde-e2e).",
+                        $"{Path.GetFileName(script.Path)}: the line '// impronta-sorgente:' is missing from the header (see the mde-e2e skill)."));
                     continue;
                 }
                 if (!string.Equals(script.Fingerprint, PendingFingerprint, StringComparison.Ordinal)) continue;
@@ -106,11 +109,13 @@ namespace MdExplorer.Features.E2e
                 var missing = MissingExpectations(test, text).ToList();
                 if (missing.Count > 0)
                 {
-                    problems.Add($"{Path.GetFileName(script.Path)}: non verifica {string.Join(", ", missing)} come scritto nel test: resta da rigenerare.");
+                    problems.Add(UiText.Say($"{Path.GetFileName(script.Path)}: non verifica {string.Join(", ", missing)} come scritto nel test: resta da rigenerare.",
+                        $"{Path.GetFileName(script.Path)}: it does not check {string.Join(", ", missing)} as written in the test: it still needs to be regenerated."));
                     continue;
                 }
                 if (currentGenerator != null && !string.Equals(script.Generator, currentGenerator, StringComparison.Ordinal))
-                    problems.Add($"{Path.GetFileName(script.Path)}: scritto come «{script.Generator}», la skill installata è «{currentGenerator}».");
+                    problems.Add(UiText.Say($"{Path.GetFileName(script.Path)}: scritto come «{script.Generator}», la skill installata è «{currentGenerator}».",
+                        $"{Path.GetFileName(script.Path)}: written as «{script.Generator}», the installed skill is «{currentGenerator}»."));
                 File.WriteAllText(script.Path, FingerprintLine.Replace(text, "// impronta-sorgente: " + script.CurrentFingerprint, 1));
                 fingerprinted.Add(script.Path);
             }
@@ -154,7 +159,7 @@ namespace MdExplorer.Features.E2e
                 {
                     if (literal.Contains("{{", StringComparison.Ordinal)) continue;
                     var csharp = "\"" + literal.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-                    if (!script.Contains(csharp, StringComparison.Ordinal)) yield return $"«{literal}» (passo {step.Number})";
+                    if (!script.Contains(csharp, StringComparison.Ordinal)) yield return UiText.Say($"«{literal}» (passo {step.Number})", $"«{literal}» (step {step.Number})");
                 }
             }
         }

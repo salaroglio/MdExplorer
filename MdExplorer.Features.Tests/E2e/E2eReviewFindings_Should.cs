@@ -59,7 +59,7 @@ namespace MdExplorer.Features.Tests.E2e
         {
             var markdown = "---\ne2e:\n  baseUrl: https://example.org\n---\n## T99999999999 — troppo\n1. a\n\n## Artefatti\n\n## Esiti\n";
             var document = E2eTestParser.Parse(markdown, "t.e2e.md");
-            Assert.IsTrue(document.Problems.Any(p => p.Contains("nessun test")), string.Join("\n", document.Problems));
+            Assert.IsTrue(document.Problems.Any(p => p.Contains("no tests")), string.Join("\n", document.Problems));
         }
 
         [TestMethod]
@@ -68,7 +68,7 @@ namespace MdExplorer.Features.Tests.E2e
             var test = Test(key: "utente@sito");
             File.WriteAllText(Path.Combine(_root, "test-e2e", "credenziali-x.txt"), "utente@sito=u\n");
             var result = E2ePreflight.Check(test);
-            Assert.IsTrue(result.Errors.Any(e => e.Contains("'utente@sito'") && e.Contains("non accetta")), string.Join("\n", result.Errors));
+            Assert.IsTrue(result.Errors.Any(e => e.Contains("'utente@sito'") && e.Contains("does not accept")), string.Join("\n", result.Errors));
         }
 
         [TestMethod]
@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Tests.E2e
             {
                 var plan = E2eRunPlanner.Plan(Test(credentials: outside), _root, DateTime.Now);
                 Assert.IsFalse(plan.CanRun);
-                Assert.IsTrue(plan.Errors.Any(e => e.Contains("porta fuori dal progetto")), string.Join("\n", plan.Errors));
+                Assert.IsTrue(plan.Errors.Any(e => e.Contains("leads outside the project")), string.Join("\n", plan.Errors));
                 Assert.AreEqual(0, plan.Secrets.Count, "values of a file outside the project are never read");
             }
             finally

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,6 +60,9 @@ namespace MdExplorer.Features.E2e
 
         public bool CanRun => LaunchErrors.Count == 0 && Items.Any(i => i.CanRun);
 
+        /// <summary>A credentials file of the launch is not excluded from git: the dialog offers to add the .gitignore line.</summary>
+        public bool NeedsGitIgnore => Items.Any(i => i.Preflight?.CredentialsNotIgnored == true);
+
         public IEnumerable<string> DeniedPaths =>
             Items.Select(i => i.CredentialsFile).Where(f => f != null).Distinct(StringComparer.Ordinal);
     }
@@ -99,9 +103,10 @@ namespace MdExplorer.Features.E2e
         public static E2ePlaywrightServer For(E2ePrerequisitesReport prerequisites, bool headless, string secretsFile, string outputDir, string initScript = null)
         {
             if (!prerequisites.ReadyToRun)
-                throw new InvalidOperationException("Mancano dei prerequisiti per i test e2e: apri il wizard di installazione.");
+                throw new InvalidOperationException(UiText.Say("Mancano dei prerequisiti per i test e2e: apri il wizard di installazione.",
+                    "Some prerequisites for the e2e tests are missing: open the installation wizard."));
             if (string.IsNullOrWhiteSpace(outputDir))
-                throw new ArgumentException("La cartella dei file diagnostici è obbligatoria.", nameof(outputDir));
+                throw new ArgumentException(UiText.Say("La cartella dei file diagnostici è obbligatoria.", "The folder for the diagnostic files is required."), nameof(outputDir));
 
             var args = new List<string> { prerequisites.PlaywrightMcpCli, "--browser", prerequisites.BrowserArgument };
             if (headless) args.Add("--headless");
@@ -127,10 +132,10 @@ namespace MdExplorer.Features.E2e
             List<string> files;
             if (Directory.Exists(full)) files = TestFilesUnder(full).ToList();
             else if (File.Exists(full)) files = new List<string> { full };
-            else return Refused(root, $"'{target}' non esiste.");
+            else return Refused(root, UiText.Say($"'{target}' non esiste.", $"'{target}' does not exist."));
 
             if (files.Count == 0)
-                return Refused(root, $"Nella cartella '{Relative(root, full)}' non ci sono file .e2e.md.");
+                return Refused(root, UiText.Say($"Nella cartella '{Relative(root, full)}' non ci sono file .e2e.md.", $"There are no .e2e.md files in the folder '{Relative(root, full)}'."));
 
             var stamp = now.ToString("yyyy-MM-dd_HH-mm", System.Globalization.CultureInfo.InvariantCulture);
             var items = new List<E2eRunItem>();
@@ -149,7 +154,7 @@ namespace MdExplorer.Features.E2e
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or LibGit2Sharp.LibGit2SharpException)
                 {
-                    errors.Add($"{relative}: non riesco a controllarlo ({ex.Message}).");
+                    errors.Add(UiText.Say($"{relative}: non riesco a controllarlo ({ex.Message}).", $"{relative}: I cannot check it ({ex.Message})."));
                     continue;
                 }
                 itemErrors.AddRange(preflight.Errors);
@@ -173,12 +178,12 @@ namespace MdExplorer.Features.E2e
                 {
                     var artifacts = Path.GetFullPath(Path.Combine(folder, preflight.Document.Artifacts));
                     if (!IsInside(artifacts, root))
-                        itemErrors.Add($"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) porta fuori dal progetto.");
+                        itemErrors.Add(UiText.Say($"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) porta fuori dal progetto.", $"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) leads outside the project."));
                     else
                         runFolder = FreeRunFolder(Path.Combine(artifacts, "esecuzioni"), stamp);
                 }
                 if (preflight.Document.SiteMap != null && !IsInside(Path.GetFullPath(Path.Combine(folder, preflight.Document.SiteMap)), root))
-                    itemErrors.Add($"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) porta fuori dal progetto.");
+                    itemErrors.Add(UiText.Say($"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) porta fuori dal progetto.", $"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) leads outside the project."));
 
                 string credentials = null;
                 if (preflight.Document.Credentials != null)
@@ -188,7 +193,8 @@ namespace MdExplorer.Features.E2e
                     // and have its values typed into the author's site: only files of the project.
                     if (!IsInside(credentials, root))
                     {
-                        itemErrors.Add($"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) porta fuori dal progetto: il file delle credenziali deve stare nel progetto.");
+                        itemErrors.Add(UiText.Say($"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) porta fuori dal progetto: il file delle credenziali deve stare nel progetto.",
+                            $"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) leads outside the project: the credentials file must be in the project."));
                         credentials = null;
                     }
                     else if (File.Exists(credentials))
@@ -196,7 +202,8 @@ namespace MdExplorer.Features.E2e
                         foreach (var (key, value) in ReadCredentials(credentials))
                         {
                             if (secrets.TryGetValue(key, out var existing) && existing != value)
-                                launchErrors.Add($"La chiave '{key}' ha valori diversi in '{Relative(root, secretSource[key])}' e in '{Relative(root, credentials)}': in un lancio le chiavi devono essere uniche. Rinominane una.");
+                                launchErrors.Add(UiText.Say($"La chiave '{key}' ha valori diversi in '{Relative(root, secretSource[key])}' e in '{Relative(root, credentials)}': in un lancio le chiavi devono essere uniche. Rinominane una.",
+                                    $"The key '{key}' has different values in '{Relative(root, secretSource[key])}' and in '{Relative(root, credentials)}': keys must be unique in a launch. Rename one."));
                             else
                             {
                                 secrets[key] = value;
@@ -240,14 +247,15 @@ namespace MdExplorer.Features.E2e
             foreach (var (key, value) in secrets)
             {
                 if (value.IndexOfAny(new[] { '\n', '\r' }) >= 0)
-                    throw new InvalidOperationException($"La credenziale '{key}' contiene un a capo: non si può passare al server Playwright.");
+                    throw new InvalidOperationException(UiText.Say($"La credenziale '{key}' contiene un a capo: non si può passare al server Playwright.", $"The credential '{key}' contains a line break: it cannot be passed to the Playwright server."));
                 var needsQuotes = value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]))
                     || value.Contains('#') || value.StartsWith("\"", StringComparison.Ordinal) || value.StartsWith("'", StringComparison.Ordinal) || value.StartsWith("`", StringComparison.Ordinal);
                 string written;
                 if (!needsQuotes) written = value;
                 else if (!value.Contains('\'')) written = "'" + value + "'";
                 else if (!value.Contains('"')) written = "\"" + value + "\"";
-                else throw new InvalidOperationException($"La credenziale '{key}' contiene sia apici singoli che doppi insieme a spazi o '#': non si può passare al server Playwright senza cambiarla.");
+                else throw new InvalidOperationException(UiText.Say($"La credenziale '{key}' contiene sia apici singoli che doppi insieme a spazi o '#': non si può passare al server Playwright senza cambiarla.",
+                    $"The credential '{key}' contains both single and double quotes together with spaces or '#': it cannot be passed to the Playwright server without changing it."));
                 sb.Append(key).Append('=').Append(written).Append('\n');
             }
 

@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -54,6 +55,6 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         }
 
         private static string Truncate(string s)
-            => string.IsNullOrEmpty(s) ? "(nessun corpo)" : (s.Length <= 300 ? s : s.Substring(0, 300) + "…");
+            => string.IsNullOrEmpty(s) ? UiText.Say("(nessun corpo)", "(no body)") : (s.Length <= 300 ? s : s.Substring(0, 300) + "…");
     }
 }

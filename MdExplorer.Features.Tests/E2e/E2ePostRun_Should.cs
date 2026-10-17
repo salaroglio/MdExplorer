@@ -77,7 +77,7 @@ namespace MdExplorer.Features.Tests.E2e
             var result = E2ePostRun.Process(Item(), Secrets, LongAgo);
 
             Assert.AreEqual(0, result.Fingerprinted.Count);
-            Assert.IsTrue(result.Problems.Any(p => p.Contains("non verifica") && p.Contains("«ok»")), string.Join("\n", result.Problems));
+            Assert.IsTrue(result.Problems.Any(p => p.Contains("does not check") && p.Contains("«ok»")), string.Join("\n", result.Problems));
             Assert.IsTrue(E2ePostRun.Scripts(Item()).Single().Stale, "left to be regenerated, never replayed as valid");
         }
 
@@ -86,7 +86,7 @@ namespace MdExplorer.Features.Tests.E2e
         {
             File.Delete(Path.Combine(_scripts, "login.T1.spec.cs"));
             var problems = E2ePostRun.Process(Item(), Secrets, LongAgo).Problems;
-            Assert.IsTrue(problems.Any(p => p.StartsWith("T1: manca lo script", StringComparison.Ordinal)), string.Join("\n", problems));
+            Assert.IsTrue(problems.Any(p => p.StartsWith("T1: the script is missing", StringComparison.Ordinal)), string.Join("\n", problems));
         }
 
         [TestMethod]

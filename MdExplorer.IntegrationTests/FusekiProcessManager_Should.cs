@@ -119,7 +119,7 @@ namespace MdExplorer.IntegrationTests
                 PretendOwner(dataDir, alive.Id, alive.StartTime.ToUniversalTime().Ticks);
 
                 var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
-                StringAssert.Contains(ex.Message, "un altro MdExplorer");
+                StringAssert.Contains(ex.Message, "another running MdExplorer");
                 StringAssert.Contains(ex.Message, alive.Id.ToString());
                 Assert.AreEqual(otherUri, other.RunningBaseUri, "il Fuseki dell'altra istanza non si tocca");
             }
@@ -219,8 +219,8 @@ namespace MdExplorer.IntegrationTests
             options.SearchAlternativeJava = false; // qui si verifica il rifiuto: senza ricerca di un altro Java
             using var manager = new FusekiProcessManager(options, new PathJavaLocator(fakeJava), NullLogger<FusekiProcessManager>.Instance);
             var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
-            StringAssert.Contains(ex.Message, "Java 17 trovato");
-            StringAssert.Contains(ex.Message, "richiede Java 21");
+            StringAssert.Contains(ex.Message, "Java 17 found");
+            StringAssert.Contains(ex.Message, "needs Java 21");
             StringAssert.Contains(ex.Message, fakeJava);
             Assert.IsNull(manager.RunningBaseUri);
             try { Directory.Delete(dataDir, true); } catch { }
@@ -255,7 +255,7 @@ namespace MdExplorer.IntegrationTests
             using var manager = new FusekiProcessManager(options, new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
             var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
             StringAssert.Contains(ex.Message, options.JarPath);
-            StringAssert.Contains(ex.Message, "reinstalla MdExplorer");
+            StringAssert.Contains(ex.Message, "reinstall MdExplorer");
             try { Directory.Delete(dataDir, true); } catch { }
         }
     }

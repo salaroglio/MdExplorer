@@ -117,7 +117,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
 
   /** The credentials file must be excluded from git before a run (D12): MdExplorer adds the line. */
   get needsGitIgnore(): boolean {
-    return (this.plan?.errors || []).some(e => e.includes('non è escluso da git'));
+    return this.plan?.needsGitIgnore === true;
   }
 
   addToGitIgnore(): void {

@@ -81,7 +81,7 @@ namespace MdExplorer.Features.Tests.E2e
             var plan = E2eRunPlanner.Plan(Path.Combine(_root, "test-e2e"), _root, Now);
 
             Assert.IsFalse(plan.CanRun);
-            StringAssert.Contains(plan.Errors.Single(), "La chiave 'x.password' ha valori diversi");
+            StringAssert.Contains(plan.Errors.Single(), "The key 'x.password' has different values");
         }
 
         [TestMethod]
@@ -111,7 +111,7 @@ namespace MdExplorer.Features.Tests.E2e
             var plan = E2eRunPlanner.Plan(Path.Combine(_root, "test-e2e"), _root, Now);
 
             Assert.IsFalse(plan.CanRun);
-            StringAssert.Contains(plan.Errors.Single(), "la chiave 'x.password' non c'è");
+            StringAssert.Contains(plan.Errors.Single(), "the key 'x.password' is not in");
         }
 
         [TestMethod]
@@ -119,7 +119,7 @@ namespace MdExplorer.Features.Tests.E2e
         {
             Directory.CreateDirectory(Path.Combine(_root, "vuota"));
             var plan = E2eRunPlanner.Plan(Path.Combine(_root, "vuota"), _root, Now);
-            StringAssert.Contains(plan.Errors.Single(), "non ci sono file .e2e.md");
+            StringAssert.Contains(plan.Errors.Single(), "There are no .e2e.md files");
         }
 
         [TestMethod]

@@ -73,13 +73,13 @@ namespace MdExplorer.Services.AgentRun
             var target = ApprovalRoute.Candidates(catalog, producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e))
                 .FirstOrDefault(c => string.Equals(c.Name, recipient, StringComparison.OrdinalIgnoreCase));
             if (target == null)
-                return Fail(recipient, $"'{recipient}' non è tra i destinatari dichiarati da '{producerAgent}' (on_approval_notify).");
+                return Fail(recipient, MdExplorer.Features.Services.UiText.Say($"'{recipient}' non è tra i destinatari dichiarati da '{producerAgent}' (on_approval_notify).", $"'{recipient}' is not among the recipients declared by '{producerAgent}' (on_approval_notify)."));
             if (!target.Available)
                 return Fail(recipient, target.Reason);
 
             // Con un workflow l'avviso non serve: dopo l'approvazione lo schedulatore fa partire chi viene dopo (W14).
             if (WorkflowConfigured(projectPath))
-                return Fail(recipient, $"il progetto ha un workflow: dopo l'approvazione chi viene dopo lo fa partire MdExplorer, non un avviso a '{target.Name}'.");
+                return Fail(recipient, MdExplorer.Features.Services.UiText.Say($"il progetto ha un workflow: dopo l'approvazione chi viene dopo lo fa partire MdExplorer, non un avviso a '{target.Name}'.", $"the project has a workflow: after the approval MdExplorer starts whoever comes next, not a notice to '{target.Name}'."));
 
             var maxHops = catalog.FirstOrDefault(e => string.Equals(e.Name, target.Name, StringComparison.OrdinalIgnoreCase))?.MaxHops;
             var result = _mailbox.Enqueue(new EnqueueRequest

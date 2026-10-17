@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -51,7 +52,8 @@ namespace MdExplorer.Features.E2e
             var relative = item.RelativeTestFile;
             var project = FindProject(item, projectRoot);
             if (project == null)
-                return new E2eReplayFileResult { File = relative, Problem = "manca E2eTests.csproj (accanto al test o in una cartella sopra): esegui prima i test con MarkAgent, che crea i file di supporto." };
+                return new E2eReplayFileResult { File = relative, Problem = UiText.Say("manca E2eTests.csproj (accanto al test o in una cartella sopra): esegui prima i test con MarkAgent, che crea i file di supporto.",
+                    "E2eTests.csproj is missing (next to the test or in a folder above): run the tests with MarkAgent first, which creates the support files.") };
             // D3/D7: nothing is downloaded without the user's consent. `dotnet test` would restore the packages
             // (Microsoft.Playwright with its own Node: ~230 MB downloaded, ~900 MB in the NuGet cache) on its own: it runs with --no-restore, and the
             // restore is a separate step the user starts from the dialog.
@@ -59,13 +61,16 @@ namespace MdExplorer.Features.E2e
                 return new E2eReplayFileResult { File = relative, NeedsRestore = true, Problem = PackagesMissing };
             var projectFolder = Path.GetDirectoryName(project)!;
             if (browserArgument is not ("chrome" or "msedge"))
-                return new E2eReplayFileResult { File = relative, Problem = "il rigioco degli script usa Chrome o Edge installati: il Chromium di Playwright non va bene per la libreria .NET." };
+                return new E2eReplayFileResult { File = relative, Problem = UiText.Say("il rigioco degli script usa Chrome o Edge installati: il Chromium di Playwright non va bene per la libreria .NET.",
+                    "replaying the scripts uses an installed Chrome or Edge: Playwright's Chromium does not work with the .NET library.") };
 
             var scripts = E2ePostRun.Scripts(item, currentGenerator);
             var stale = scripts.Where(s => s.Stale).Select(s => Path.GetFileName(s.Path)).ToList();
             var runnable = scripts.Where(s => !s.Stale).ToList();
             if (runnable.Count == 0)
-                return new E2eReplayFileResult { File = relative, Stale = stale, Problem = scripts.Count == 0 ? "non ci sono script da rigiocare." : "tutti gli script sono scaduti: il test è cambiato, esegui di nuovo con MarkAgent." };
+                return new E2eReplayFileResult { File = relative, Stale = stale, Problem = scripts.Count == 0
+                    ? UiText.Say("non ci sono script da rigiocare.", "there are no scripts to replay.")
+                    : UiText.Say("tutti gli script sono scaduti: il test è cambiato, esegui di nuovo con MarkAgent.", "all scripts are stale: the test has changed, run it again with MarkAgent.") };
 
             var classes = new Dictionary<string, E2eScript>(StringComparer.Ordinal);
             foreach (var script in runnable)
@@ -76,7 +81,8 @@ namespace MdExplorer.Features.E2e
                 if (ns.Length > 0 && cls.Length > 0) classes[ns + "." + cls] = script;
             }
             if (classes.Count == 0)
-                return new E2eReplayFileResult { File = relative, Stale = stale, Problem = "negli script non trovo namespace e classe (vedi lo scheletro della skill mde-e2e)." };
+                return new E2eReplayFileResult { File = relative, Stale = stale, Problem = UiText.Say("negli script non trovo namespace e classe (vedi lo scheletro della skill mde-e2e).",
+                    "I cannot find namespace and class in the scripts (see the skeleton of the mde-e2e skill).") };
 
             var runFolder = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(runnable[0].Path)!)!, "esecuzioni",
                 now.ToString("yyyy-MM-dd_HH-mm", System.Globalization.CultureInfo.InvariantCulture) + "_script");
@@ -119,7 +125,7 @@ namespace MdExplorer.Features.E2e
                 E2eReplayLog.DeleteRaw(runFolder);
                 if (ct.IsCancellationRequested) throw;
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
-                    Problem = $"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto." };
+                    Problem = UiText.Say($"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto.", $"dotnet test did not finish within {Timeout.TotalMinutes:0} minutes: stopped.") };
             }
             var output = E2ePostRun.Redact((await stdout) + (await stderr), secrets);
             var outcomes = File.Exists(trx)
@@ -132,7 +138,7 @@ namespace MdExplorer.Features.E2e
 
             if (!File.Exists(trx))
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder, Logs = logs,
-                    Problem = "dotnet test non ha prodotto risultati (compilazione fallita?): " + Tail(output) };
+                    Problem = UiText.Say("dotnet test non ha prodotto risultati (compilazione fallita?): ", "dotnet test produced no results (build failed?): ") + Tail(output) };
             File.Delete(trx);
 
             var date = now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
@@ -150,8 +156,9 @@ namespace MdExplorer.Features.E2e
             return new E2eReplayFileResult { File = relative, RunFolder = runFolder, Outcomes = outcomes, Stale = stale, Logs = logs };
         }
 
-        public const string PackagesMissing =
-            "i pacchetti per rigiocare gli script (Microsoft.Playwright per .NET, circa 230 MB da scaricare la prima volta, circa 900 MB nella cache NuGet, con un suo Node) non sono scaricati o l'ultimo scaricamento è fallito: scaricali dalla finestra dei test.";
+        public static string PackagesMissing => UiText.Say(
+            "i pacchetti per rigiocare gli script (Microsoft.Playwright per .NET, circa 230 MB da scaricare la prima volta, circa 900 MB nella cache NuGet, con un suo Node) non sono scaricati o l'ultimo scaricamento è fallito: scaricali dalla finestra dei test.",
+            "the packages to replay the scripts (Microsoft.Playwright for .NET, about 230 MB to download the first time, about 900 MB in the NuGet cache, with its own Node) are not downloaded or the last download failed: download them from the tests window.");
 
         /// <summary>
         /// The tests project of <paramref name="item"/>: <c>E2eTests.csproj</c> next to the test or in a folder above
@@ -224,7 +231,7 @@ namespace MdExplorer.Features.E2e
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
                 if (ct.IsCancellationRequested) throw;
-                return $"dotnet restore non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto.";
+                return UiText.Say($"dotnet restore non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto.", $"dotnet restore did not finish within {Timeout.TotalMinutes:0} minutes: stopped.");
             }
             var output = await stdout + await stderr;
             if (process.ExitCode != 0)
@@ -232,9 +239,9 @@ namespace MdExplorer.Features.E2e
                 // The errors (NU1301 "unable to load the service index"…), not the warnings around them.
                 var errors = output.Split('\n').Select(l => l.Trim()).Where(l => l.Contains(": error ", StringComparison.Ordinal))
                     .Select(l => l.Substring(l.IndexOf(": error ", StringComparison.Ordinal) + 2)).Distinct().ToList();
-                return "dotnet restore non riuscito: " + (errors.Count > 0 ? Tail(string.Join(" ", errors)) : Tail(output));
+                return UiText.Say("dotnet restore non riuscito: ", "dotnet restore failed: ") + (errors.Count > 0 ? Tail(string.Join(" ", errors)) : Tail(output));
             }
-            return PackagesRestored(project) ? null : "dotnet restore è finito senza scrivere obj/project.assets.json: " + Tail(output);
+            return PackagesRestored(project) ? null : UiText.Say("dotnet restore è finito senza scrivere obj/project.assets.json: ", "dotnet restore finished without writing obj/project.assets.json: ") + Tail(output);
         }
 
         public static IReadOnlyList<E2eReplayOutcome> ReadTrx(string trxPath, IReadOnlyDictionary<string, E2eScript> classes)
@@ -257,7 +264,7 @@ namespace MdExplorer.Features.E2e
 
         private static string FirstLine(string text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return "errore senza messaggio";
+            if (string.IsNullOrWhiteSpace(text)) return UiText.Say("errore senza messaggio", "error without a message");
             var line = text.Trim().Split('\n')[0].Trim();
             return line.Length > 140 ? line.Substring(0, 140) + "…" : line;
         }

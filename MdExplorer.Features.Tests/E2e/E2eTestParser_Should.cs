@@ -73,19 +73,19 @@ namespace MdExplorer.Features.Tests.E2e
 
             var problems = E2eTestParser.Parse(markdown, "t.e2e.md").Problems;
 
-            Assert.IsTrue(problems.Any(p => p.Contains("'e2e.baseUrl' vale 'example.org'")), string.Join("\n", problems));
-            Assert.IsTrue(problems.Any(p => p.Contains("il passo 2 è numerato 3")));
-            Assert.IsTrue(problems.Any(p => p.Contains("il numero T1 è usato da più test")));
-            Assert.IsTrue(problems.Any(p => p.Contains("il test T2") && p.Contains("non ha passi")));
-            Assert.IsTrue(problems.Any(p => p.Contains("manca la sezione '## Artefatti'")));
-            Assert.IsTrue(problems.Any(p => p.Contains("manca la sezione '## Esiti'")));
+            Assert.IsTrue(problems.Any(p => p.Contains("'e2e.baseUrl' is 'example.org'")), string.Join("\n", problems));
+            Assert.IsTrue(problems.Any(p => p.Contains("step 2 is numbered 3")));
+            Assert.IsTrue(problems.Any(p => p.Contains("the number T1 is used by more than one test")));
+            Assert.IsTrue(problems.Any(p => p.Contains("test T2") && p.Contains("has no numbered steps")));
+            Assert.IsTrue(problems.Any(p => p.Contains("section '## Artefatti' is missing")));
+            Assert.IsTrue(problems.Any(p => p.Contains("section '## Esiti' is missing")));
         }
 
         [TestMethod]
         public void Refuse_a_file_without_e2e_block_saying_what_it_needs()
         {
             var ex = Assert.ThrowsException<E2eFormatException>(() => E2eTestParser.Parse("---\ntitle: x\n---\n## T1 — a\n1. b\n", "t.e2e.md"));
-            StringAssert.Contains(ex.Message, "manca il blocco 'e2e:'");
+            StringAssert.Contains(ex.Message, "the 'e2e:' block is missing");
         }
 
         [TestMethod]
