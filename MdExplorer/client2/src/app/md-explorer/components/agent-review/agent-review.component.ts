@@ -122,6 +122,7 @@ export class AgentReviewComponent implements OnInit, OnChanges, OnDestroy {
     this.busyId = r.id;
     const picked = this.choice[r.id];
     const choice: ApproveChoice = !picked ? {} : picked === this.NOBODY ? { nobody: true } : { notify: picked };
+    choice.commit = r.headSha;
     this.review.approve(r.id, choice).subscribe({
       next: (res) => {
         this.busyId = null;

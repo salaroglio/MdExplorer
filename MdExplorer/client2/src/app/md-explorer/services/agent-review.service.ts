@@ -55,6 +55,8 @@ export interface NotifyCandidate {
 export interface ApproveChoice {
   notify?: string;
   nobody?: boolean;
+  /** La versione mostrata (l'`headSha` della richiesta): il servizio approva quella, e rifiuta se nel frattempo è cambiata. */
+  commit?: string;
 }
 
 /** Un documento citato in un messaggio, e dove sta: in una consegna da approvare, nel progetto, da nessuna parte. */

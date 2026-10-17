@@ -73,7 +73,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNotNull(pushed);
 
             // Il merge è locale: vuole il ref locale, non il nome pubblicato su origin.
-            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "worker", pushed.LocalBranch);
+            var outcome = (await m.MergeDeliverableIntoDefaultAsync(path, "worker", pushed.LocalBranch, pushed.HeadSha)).Outcome;
             Assert.AreEqual(DeliverableMergeOutcome.Merged, outcome);
 
             // Il deliverable è ora nel default di origin.
@@ -99,7 +99,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "README.md"), "# main-side\n");
             Git(path, "add -A"); Git(path, "commit -m main-change"); Git(path, "push origin main");
 
-            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "reviewer", "agent/reviewer/actB");
+            var outcome = (await m.MergeDeliverableIntoDefaultAsync(path, "reviewer", "agent/reviewer/actB", "agent/reviewer/actB")).Outcome;
             Assert.AreEqual(DeliverableMergeOutcome.Conflict, outcome, "il merge conflittuale → not-ready, niente merge");
         }
 

@@ -45,7 +45,15 @@ namespace MdExplorer.Services.AgentRun
         Conflict,
         /// <summary>Fallito (fetch/checkout/push ko, es. non-fast-forward): ritentabile.</summary>
         Failed,
+        /// <summary>
+        /// Il ramo dell'agente non è più al commit approvato (l'agente ci ha scritto dopo): non si fonde niente, chi
+        /// approva deve riguardare la versione nuova.
+        /// </summary>
+        Moved,
     }
+
+    /// <summary>Esito del merge di un deliverable: com'è andata e, se fuso, il commit del ramo principale che lo contiene.</summary>
+    public sealed record DeliverableMerge(DeliverableMergeOutcome Outcome, string MergeCommit = null);
 
     /// <summary>Esito del commit+push del branch d'attività di un agente (Fase 7d.2/7d.5).</summary>
     public sealed class HandoffPushResult
@@ -160,8 +168,12 @@ namespace MdExplorer.Services.AgentRun
         /// la working tree dell'umano: opera nel worktree dell'agente in <b>detached HEAD</b> su
         /// <c>origin/&lt;default&gt;</c> (git vieta lo stesso branch in due worktree), poi
         /// <c>push origin HEAD:&lt;default&gt;</c>. Conflitto → <see cref="DeliverableMergeOutcome.Conflict"/>.
+        /// <para>
+        /// Fonde <b>esattamente</b> <paramref name="commit"/>, la versione che la persona ha visto e approvato: se il ramo
+        /// d'attività non è più lì → <see cref="DeliverableMergeOutcome.Moved"/>, e non si fonde niente.
+        /// </para>
         /// </summary>
-        Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default);
+        Task<DeliverableMerge> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, string commit, CancellationToken ct = default);
 
         /// <summary>Fase 7d.1 — cancella un branch (locale e, se <paramref name="remoteToo"/>, sul remote).</summary>
         Task DeleteBranchAsync(string projectPath, string branch, bool remoteToo, CancellationToken ct = default);
@@ -1138,10 +1150,12 @@ namespace MdExplorer.Services.AgentRun
             finally { gate.Release(); }
         }
 
-        public async Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default)
+        public async Task<DeliverableMerge> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, string commit, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(activityBranch))
-                return DeliverableMergeOutcome.Failed;
+                return new DeliverableMerge(DeliverableMergeOutcome.Failed);
+            if (string.IsNullOrWhiteSpace(commit))
+                throw new ArgumentException("Serve il commit approvato: si fonde la versione vista, non la testa del ramo.", nameof(commit));
 
             var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
             string temporary = null;
@@ -1152,7 +1166,7 @@ namespace MdExplorer.Services.AgentRun
                 // fonderlo basta un posto qualunque: se ne apre uno temporaneo invece di perdere l'approvazione
                 // (la richiesta risultava «fallita» e non si poteva ripetere).
                 temporary = await CreateTemporaryMergeWorktreeAsync(projectPath, ct);
-                if (temporary == null) return DeliverableMergeOutcome.Failed;
+                if (temporary == null) return new DeliverableMerge(DeliverableMergeOutcome.Failed);
                 worktreePath = temporary;
             }
 
@@ -1161,35 +1175,50 @@ namespace MdExplorer.Services.AgentRun
             try
             {
                 var (fc, _, _) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);
-                if (fc != 0) return DeliverableMergeOutcome.Failed;
+                if (fc != 0) return new DeliverableMerge(DeliverableMergeOutcome.Failed);
+
+                // Si fonde la versione approvata, non quello che c'è sul ramo adesso: se l'agente ci ha scritto dopo, chi
+                // approva non l'ha vista.
+                var (hc, head, he) = await GitAsync(worktreePath, new[] { "rev-parse", "--verify", activityBranch + "^{commit}" }, ct);
+                if (hc != 0) { _logger.LogWarning("[Worktree] auto-merge: ramo '{Branch}' non trovato: {Err}", activityBranch, he); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
+                var (vc, seenOut, ve) = await GitAsync(worktreePath, new[] { "rev-parse", "--verify", commit + "^{commit}" }, ct);
+                if (vc != 0) { _logger.LogWarning("[Worktree] auto-merge: commit approvato {Commit} non trovato: {Err}", commit, ve); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
+                var seen = seenOut.Trim();
+                if (head.Trim() != seen)
+                {
+                    _logger.LogWarning("[Worktree] auto-merge: '{Branch}' è a {Head}, non al commit approvato {Commit}: niente merge.", activityBranch, head.Trim(), seen);
+                    return new DeliverableMerge(DeliverableMergeOutcome.Moved);
+                }
 
                 var def = await ResolveDefaultBranchAsync(worktreePath, ct);
 
                 // Detached su origin/<default>: evita "branch già checked-out" (il main è nel progetto umano).
                 var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "--detach", "origin/" + def }, ct);
-                if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return DeliverableMergeOutcome.Failed; }
+                if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
 
                 // Il commit di merge, se serve, porta la firma dell'agente: lo stesso che ha scritto il lavoro.
-                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", activityBranch }, ct,
+                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", "-m", $"Merge branch '{activityBranch}' ({seen})", seen }, ct,
                     AgentGitIdentity.EnvFor(agentName));
                 if (mc != 0)
                 {
                     await GitAsync(worktreePath, new[] { "merge", "--abort" }, ct);
                     _logger.LogWarning("[Worktree] auto-merge di '{Branch}' in '{Def}' in conflitto: not-ready. {Err}", activityBranch, def, me);
-                    return DeliverableMergeOutcome.Conflict;
+                    return new DeliverableMerge(DeliverableMergeOutcome.Conflict);
                 }
+                var (rc, merged, re) = await GitAsync(worktreePath, new[] { "rev-parse", "HEAD" }, ct);
+                if (rc != 0) { _logger.LogWarning("[Worktree] auto-merge: commit di merge illeggibile: {Err}", re); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
 
                 // Push del merge sul default di origin (non-fast-forward → qualcun altro ha spinto: ritentabile).
                 var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", "HEAD:refs/heads/" + def }, ct);
-                if (pc != 0) { _logger.LogWarning("[Worktree] auto-merge: push di '{Def}' fallito (non-fast-forward?): {Err}", def, pe); return DeliverableMergeOutcome.Failed; }
+                if (pc != 0) { _logger.LogWarning("[Worktree] auto-merge: push di '{Def}' fallito (non-fast-forward?): {Err}", def, pe); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
 
                 _logger.LogInformation("[Worktree] deliverable di '{Agent}' auto-merge in '{Def}' e pushato.", agentName, def);
-                return DeliverableMergeOutcome.Merged;
+                return new DeliverableMerge(DeliverableMergeOutcome.Merged, merged.Trim());
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "[Worktree] auto-merge fallito per '{Agent}'", agentName);
-                return DeliverableMergeOutcome.Failed;
+                return new DeliverableMerge(DeliverableMergeOutcome.Failed);
             }
             finally
             {

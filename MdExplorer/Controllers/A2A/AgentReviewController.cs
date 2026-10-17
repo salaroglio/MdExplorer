@@ -179,7 +179,7 @@ namespace MdExplorer.Controllers.A2A
                     }
                 }
 
-                var r = await _requests.ApproveAsync(id, HttpContext.RequestAborted);
+                var r = await _requests.ApproveAsync(id, body?.Commit, HttpContext.RequestAborted);
                 if (r.Status != AgentMergeRequest.StatusEnum.Merged)
                 {
                     // Autorizzata ma non fusa: e' una condizione da dire, non da nascondere
@@ -331,6 +331,9 @@ namespace MdExplorer.Controllers.A2A
 
             /// <summary>Approva senza avvisare nessuno.</summary>
             public bool Nobody { get; set; }
+
+            /// <summary>La versione che la persona ha visto (l'<c>headSha</c> della richiesta mostrata): si approva quella.</summary>
+            public string? Commit { get; set; }
         }
 
         public class RejectRequest

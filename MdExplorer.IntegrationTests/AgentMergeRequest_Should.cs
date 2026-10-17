@@ -109,13 +109,60 @@ namespace MdExplorer.IntegrationTests
                 await Task.Delay(500);
             Assert.AreEqual(1, svc.Pending(path).Count);
 
-            var approved = await svc.ApproveAsync(svc.Pending(path)[0].Id);
+            var pending = svc.Pending(path)[0];
+            var approved = await svc.ApproveAsync(pending.Id, pending.HeadSha);
             Assert.AreEqual(AgentMergeRequest.StatusEnum.Merged, approved.Status, approved.Note);
 
             Git(path, "fetch origin");
             Assert.AreEqual(0, Git(path, "cat-file -e origin/main:deliverable.md").Code,
                 "autorizzata, la richiesta fonde davvero");
             Assert.AreEqual(0, svc.Pending(path).Count, "la richiesta esce dall'elenco");
+        }
+
+        [TestMethod]
+        public async Task Approve_only_the_version_the_human_saw()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (key, path) = SetupGitProject(ctx, "mr-versione");
+            ctx.WriteLlmCitizen(path, "worker", "Lavoratore", new[] { "*" });
+            ctx.IndexAgentFiles(path);
+            ctx.Trust(path, "worker");
+            ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            ctx.OwnAgents(path, "worker");
+            ctx.Factory.Services.GetRequiredService<IAgentWorktreePreference>().Set(path, true);
+
+            ctx.Runner.Behavior = (req, _) =>
+            {
+                File.WriteAllText(Path.Combine(req.WorkingDirectory, "deliverable.md"), "# vista\n");
+                return Task.FromResult("fatto");
+            };
+            var rpc = await GatewayRpc.SendMessage(ctx.Client, key, "worker", "produci");
+            Assert.IsFalse(rpc.IsError);
+            var svc = ctx.Factory.Services.GetRequiredService<IAgentMergeRequestService>();
+            var deadline = DateTime.UtcNow.AddSeconds(20);
+            while (DateTime.UtcNow < deadline && svc.Pending(path).Count == 0)
+                await Task.Delay(500);
+            var seen = svc.Pending(path).Single();
+
+            // Una pagina vecchia: la versione che mostrava non è più la consegna.
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, "0123456789abcdef"));
+            // Nessuna versione: non si approva «quello che c'è».
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, null));
+
+            // Il ramo dell'agente va oltre la consegna vista: niente merge, la richiesta resta da decidere.
+            var wt = Path.Combine(Path.GetTempPath(), "mr-versione-" + Guid.NewGuid().ToString("N"));
+            Assert.AreEqual(0, Git(path, $"worktree add --detach \"{wt}\" {seen.HeadSha}").Code);
+            File.WriteAllText(Path.Combine(wt, "deliverable.md"), "# mai vista\n");
+            Git(wt, "add -A"); Git(wt, "commit -m dopo-la-consegna");
+            Assert.AreEqual(0, Git(wt, $"update-ref refs/heads/{seen.LocalBranch} HEAD").Code);
+            Git(path, $"worktree remove --force \"{wt}\"");
+
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, seen.HeadSha));
+            Assert.AreEqual(AgentMergeRequest.StatusEnum.Pending, svc.Get(seen.Id).Status, "resta da decidere");
+            Git(path, "fetch origin");
+            Assert.AreNotEqual(0, Git(path, "cat-file -e origin/main:deliverable.md").Code, "niente è entrato in main");
         }
 
         [TestMethod]

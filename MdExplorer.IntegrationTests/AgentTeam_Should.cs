@@ -217,7 +217,9 @@ namespace MdExplorer.IntegrationTests
             var (_, list) = await ctx.GetJson("/api/AgentReview/requests?projectPath=" + Uri.EscapeDataString(path));
             var request = list.RootElement.GetProperty("requests").EnumerateArray().Single();
             Assert.AreEqual("tecnico", request.GetProperty("agentName").GetString());
-            var (status, body) = await ctx.PostJson($"/api/AgentReview/requests/{request.GetProperty("id").GetString()}/approve", "{\"nobody\":true}");
+            var headSha = request.GetProperty("headSha").GetString();
+            var (status, body) = await ctx.PostJson($"/api/AgentReview/requests/{request.GetProperty("id").GetString()}/approve",
+                "{\"nobody\":true,\"commit\":\"" + headSha + "\"}");
             Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
 
             Git(path, "fetch", "--quiet", "origin");
@@ -225,6 +227,8 @@ namespace MdExplorer.IntegrationTests
             var approved = RoundLedger.Load(ledger, id).EventsOf("scheda").Last();
             Assert.AreEqual(RoundEventType.Approved, approved.Type);
             Assert.AreEqual(Me, approved.By);
+            Assert.AreEqual(headSha, approved.Commit, "il registro dice quale versione è stata approvata");
+            Assert.AreEqual(Git(path, "rev-parse", "origin/main").Trim(), approved.Merge, "e in quale commit di main è entrata");
             StringAssert.Contains(Git(path, "log", "-1", "--format=%s", "origin/mde/giri"), "approvato",
                 "il registro si pubblica anche dopo che l'approvazione ha fatto avanzare main su origin");
         }

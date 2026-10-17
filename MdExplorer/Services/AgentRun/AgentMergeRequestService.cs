@@ -63,8 +63,11 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>File toccati di una richiesta, decodificati.</summary>
         IReadOnlyList<ChangedFile> FilesOf(AgentMergeRequest request);
 
-        /// <summary>Autorizza e fonde. L'esito del merge determina lo stato finale.</summary>
-        Task<AgentMergeRequest> ApproveAsync(Guid id, CancellationToken ct = default);
+        /// <summary>
+        /// Autorizza e fonde. L'esito del merge determina lo stato finale. <paramref name="seenCommit"/> è la versione che
+        /// la persona ha visto (l'<c>headSha</c> che la pagina ha mostrato): si fonde quella, e solo se è ancora la consegna.
+        /// </summary>
+        Task<AgentMergeRequest> ApproveAsync(Guid id, string seenCommit, CancellationToken ct = default);
 
         /// <summary>
         /// Rifiuta. <b>Non distrugge nulla</b>: il branch resta e il lavoro è ancora lì — da qui
@@ -245,7 +248,7 @@ namespace MdExplorer.Services.AgentRun
 
         public IReadOnlyList<ChangedFile> FilesOf(AgentMergeRequest request) => Decode(request?.ChangedFiles);
 
-        public async Task<AgentMergeRequest> ApproveAsync(Guid id, CancellationToken ct = default)
+        public async Task<AgentMergeRequest> ApproveAsync(Guid id, string seenCommit, CancellationToken ct = default)
         {
             var request = Get(id)
                 ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Richiesta di merge {id} inesistente.", $"Merge request {id} does not exist."));
@@ -255,18 +258,39 @@ namespace MdExplorer.Services.AgentRun
                     $"La richiesta è già stata decisa ({request.Status}): non si autorizza due volte.");
             OnlyTheCurrentOwner(request);
 
+            // Si approva una versione, non un ramo: quella che la pagina ha mostrato. Se l'agente ha ripubblicato nel
+            // frattempo, la persona non ha visto ciò che approverebbe.
+            if (string.IsNullOrWhiteSpace(request.HeadSha))
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"La consegna di '{request.AgentName}' non ha la versione registrata: falla ripubblicare prima di autorizzare.",
+                    $"'{request.AgentName}''s delivery has no recorded version: have it republished before approving."));
+            if (string.IsNullOrWhiteSpace(seenCommit))
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    "Manca la versione che hai visto: aggiorna la pagina e autorizza di nuovo.",
+                    "The version you saw is missing: reload the page and approve again."));
+            if (!string.Equals(seenCommit.Trim(), request.HeadSha, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"'{request.AgentName}' ha consegnato una versione nuova da quando hai aperto la pagina: riguardala prima di autorizzare.",
+                    $"'{request.AgentName}' delivered a new version since you opened the page: review it before approving."));
+
             // Il merge è un'operazione LOCALE e vuole il ref locale: il nome pubblicato vive su
             // origin e non ha un ref in casa.
-            var outcome = await _worktree.MergeDeliverableIntoDefaultAsync(
-                request.ProjectPath, request.AgentName, request.LocalBranch, ct);
+            var merge = await _worktree.MergeDeliverableIntoDefaultAsync(
+                request.ProjectPath, request.AgentName, request.LocalBranch, request.HeadSha, ct);
 
-            var merged = outcome == DeliverableMergeOutcome.Merged;
+            // Il ramo è andato oltre la consegna: la richiesta resta da decidere, la persona deve vedere la versione nuova.
+            if (merge.Outcome == DeliverableMergeOutcome.Moved)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"Il lavoro di '{request.AgentName}' è cambiato dopo la consegna che hai visto: non è stato fuso niente. Riguardalo prima di autorizzare.",
+                    $"'{request.AgentName}''s work changed after the delivery you saw: nothing was merged. Review it before approving."));
+
+            var merged = merge.Outcome == DeliverableMergeOutcome.Merged;
             return Recorded(Decide(id,
                 merged ? AgentMergeRequest.StatusEnum.Merged : AgentMergeRequest.StatusEnum.Failed,
                 merged ? null
-                       : outcome == DeliverableMergeOutcome.Conflict
+                       : merge.Outcome == DeliverableMergeOutcome.Conflict
                            ? "Il merge è in conflitto con il ramo principale: serve l'intervento manuale."
-                           : "Il merge non è riuscito."));
+                           : "Il merge non è riuscito."), merge.MergeCommit);
         }
 
         public AgentMergeRequest Reject(Guid id, string note)
@@ -293,9 +317,9 @@ namespace MdExplorer.Services.AgentRun
         /// Una decisione su un artefatto di un giro va nel registro del giro: è ciò che fa andare avanti lo schedulatore.
         /// Un intoppo qui non annulla la decisione (è già presa), ma si vede nel log.
         /// </summary>
-        private AgentMergeRequest Recorded(AgentMergeRequest decided)
+        private AgentMergeRequest Recorded(AgentMergeRequest decided, string mergeCommit = null)
         {
-            try { _workflow?.OnDecided(decided); }
+            try { _workflow?.OnDecided(decided, mergeCommit); }
             catch (Exception ex) { _logger.LogError(ex, "[Merge] decisione su '{Agent}' non registrata nel giro", decided?.AgentName); }
             return decided;
         }

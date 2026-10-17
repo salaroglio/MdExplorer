@@ -36,8 +36,11 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Un turno è finito: consegna, conclusione senza artefatto, o fallimento.</summary>
         void OnRunEnded(string projectPath, string agentName, string runId, Guid? triggerMessageId, AgentMergeRequest delivered, bool succeeded, string error);
 
-        /// <summary>La persona ha approvato o rifiutato un artefatto.</summary>
-        void OnDecided(AgentMergeRequest request);
+        /// <summary>
+        /// La persona ha approvato o rifiutato un artefatto. <paramref name="mergeCommit"/>: per un'approvazione, il commit
+        /// del ramo principale in cui la versione approvata è entrata.
+        /// </summary>
+        void OnDecided(AgentMergeRequest request, string mergeCommit = null);
 
         /// <summary>«Fai ripartire» un lavoro rifiutato di un giro. False = non è di un giro: si fa come sempre.</summary>
         bool TryRework(AgentMergeRequest request);
@@ -253,7 +256,7 @@ namespace MdExplorer.Services.AgentRun
             if (delivered != null)
                 evt = new RoundEvent
                 {
-                    Type = RoundEventType.Delivered, Branch = delivered.PublishedBranch, Run = runId,
+                    Type = RoundEventType.Delivered, Branch = delivered.PublishedBranch, Commit = delivered.HeadSha, Run = runId,
                     Files = DeliveredFiles(delivered),
                 };
             else if (succeeded && step.Produces.Count > 0)
@@ -269,7 +272,7 @@ namespace MdExplorer.Services.AgentRun
             Evaluate(projectPath, link.RoundId);
         }
 
-        public void OnDecided(AgentMergeRequest request)
+        public void OnDecided(AgentMergeRequest request, string mergeCommit = null)
         {
             if (request == null) return;
             var type = request.Status == AgentMergeRequest.StatusEnum.Merged ? RoundEventType.Approved
@@ -285,6 +288,8 @@ namespace MdExplorer.Services.AgentRun
             {
                 Type = type, At = DateTime.UtcNow, By = Me(request.ProjectPath), Round = link.Round, Attempt = link.Attempt,
                 Run = request.RunId, Note = type == RoundEventType.Rejected ? request.Note : null,
+                // La versione giudicata e, se approvata, dove è entrata: «approvato» vale per quel commit, non per il file.
+                Commit = request.HeadSha, Merge = type == RoundEventType.Approved ? mergeCommit : null,
             }, $"giro {link.RoundId}: «{step.Label}» {Verb(type)}"));
             Evaluate(request.ProjectPath, link.RoundId);
         }

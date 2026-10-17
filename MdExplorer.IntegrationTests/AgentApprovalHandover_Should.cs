@@ -46,7 +46,7 @@ namespace MdExplorer.IntegrationTests
             public Task<string> PublishCopyAsync(string a, string b, string c, string d, CancellationToken ct = default) => throw new NotSupportedException();
             public AgentMergeRequest Get(Guid id) => id == Request.Id ? Request : null;
             public IReadOnlyList<ChangedFile> FilesOf(AgentMergeRequest r) => new[] { new ChangedFile { Change = "added", Path = "gara/tecnico.md" } };
-            public Task<AgentMergeRequest> ApproveAsync(Guid id, CancellationToken ct = default)
+            public Task<AgentMergeRequest> ApproveAsync(Guid id, string seenCommit, CancellationToken ct = default)
             {
                 Approved++;
                 Request.Status = MergeOutcome;

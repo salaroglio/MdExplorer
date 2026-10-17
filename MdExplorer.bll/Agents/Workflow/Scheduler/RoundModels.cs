@@ -62,6 +62,13 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         [JsonPropertyName("branch")] public string Branch { get; set; }
         /// <summary><see cref="RoundEventType.Delivered"/>: i file consegnati, dalla radice del progetto.</summary>
         [JsonPropertyName("files")] public List<string> Files { get; set; }
+        /// <summary>
+        /// <see cref="RoundEventType.Delivered"/>, <see cref="RoundEventType.Approved"/>, <see cref="RoundEventType.Rejected"/>:
+        /// il commit consegnato, cioè la versione esatta che la persona ha visto e giudicato.
+        /// </summary>
+        [JsonPropertyName("commit")] public string Commit { get; set; }
+        /// <summary><see cref="RoundEventType.Approved"/>: il commit del ramo principale in cui la versione approvata è entrata.</summary>
+        [JsonPropertyName("merge")] public string Merge { get; set; }
         /// <summary>Il turno dell'agente (RunId) che ha prodotto l'evento: lega consegna e approvazione al passo.</summary>
         [JsonPropertyName("run")] public string Run { get; set; }
         [JsonPropertyName("engine")] public string Engine { get; set; }

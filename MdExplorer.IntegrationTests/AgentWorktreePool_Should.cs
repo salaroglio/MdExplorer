@@ -245,7 +245,7 @@ namespace MdExplorer.IntegrationTests
             await RecycleAllSlotsAsync(m, path, "beta", "gamma");
             Assert.IsNull(await m.FindAgentWorktreeAsync(path, "alfa"), "alfa non occupa più nessun posto");
 
-            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "alfa", push.LocalBranch);
+            var outcome = (await m.MergeDeliverableIntoDefaultAsync(path, "alfa", push.LocalBranch, push.HeadSha)).Outcome;
 
             Assert.AreEqual(DeliverableMergeOutcome.Merged, outcome);
             Git(path, "fetch origin");
@@ -278,8 +278,8 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNull(await m.FindAgentWorktreeAsync(path, "alfa"), "alfa non occupa più nessun posto");
             Assert.IsNull(await m.FindAgentWorktreeAsync(path, "beta"), "beta non occupa più nessun posto");
 
-            Assert.AreEqual(DeliverableMergeOutcome.Merged, await m.MergeDeliverableIntoDefaultAsync(path, "alfa", pushes["alfa"].LocalBranch));
-            Assert.AreEqual(DeliverableMergeOutcome.Merged, await m.MergeDeliverableIntoDefaultAsync(path, "beta", pushes["beta"].LocalBranch));
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, (await m.MergeDeliverableIntoDefaultAsync(path, "alfa", pushes["alfa"].LocalBranch, pushes["alfa"].HeadSha)).Outcome);
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, (await m.MergeDeliverableIntoDefaultAsync(path, "beta", pushes["beta"].LocalBranch, pushes["beta"].HeadSha)).Outcome);
 
             Git(path, "fetch origin");
             Assert.AreEqual("# alfa", Git(path, "show origin/main:lavoro-di-alfa.md").Out.Trim());
