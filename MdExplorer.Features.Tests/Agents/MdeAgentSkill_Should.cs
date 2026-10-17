@@ -55,7 +55,12 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreEqual("contabile", parsed.Card.Name);
             Assert.IsFalse(string.IsNullOrWhiteSpace(parsed.Card.Summary), "l'esempio deve mostrare il riassunto");
             Assert.IsTrue(parsed.Card.Summary.Length <= AgentCardDescriptor.SummaryMaxLength);
-            CollectionAssert.AreEqual(new[] { "account-manager" }, parsed.Card.OnApprovalNotify.ToList());
+            // L'interfaccia del lavoro (workflow v3): letta dal parser severo, virgolette comprese.
+            var job = parsed.Card.Skills.Single();
+            CollectionAssert.AreEqual(new[] { "code", "tender" }, job.Inputs.Select(i => i.Id).ToList());
+            Assert.AreEqual("Payments", job.Reads.Single().Section);
+            Assert.AreEqual("amounts, penalties and payments", job.Outputs.Single().Note);
+            Assert.IsNull(parsed.Card.OnApprovalNotify, "con un workflow il lavoro lo passa il workflow, non la scheda");
             Assert.AreEqual("copilot", parsed.Runtime.Provider);
         }
 

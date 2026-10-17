@@ -1,9 +1,9 @@
 ---
 name: mde-agent
-description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
+description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, its jobs with what each one receives, reads and delivers, the buttons it offers, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree. How the work passes between agents and people is the `mde-workflow` skill's.
 mde:
   origin: mdexplorer
-  version: 9
+  version: 10
   updatePolicy: replace
 ---
 
@@ -19,10 +19,13 @@ file alone.
 
 # Writing an agent card (`.agent.md`)
 
-> **The card and the workflow.** The card says *how this agent does its job*. *How the work passes between people and
-> their agents* (who assigns whom, who starts each agent, who waits for whom) belongs to the project's workflow, a
-> `*.workflow.json` written with the `mde-workflow` skill. When a project has one, keep `accepts_messages_from`,
-> `on_approval_notify` and `replies` consistent with it: `CheckWorkflow` reports where they disagree.
+> **The card and the workflow.** The card says *how this agent does its jobs*, and declares for each job its
+> **interface**: what it receives (`inputs`), what it reads (`reads`), what it delivers (`outputs`), which buttons it may
+> offer (`replies`). *How the work passes between people and their agents* — who starts each agent, where each input comes
+> from, who approves, who decides — belongs to the project's workflow, a `*.workflow.json`. The **`mde-workflow` skill
+> owns the pair** (workflow + interfaces) and its change procedure: when you add, rename or remove an input or an output,
+> follow it and run `CheckWorkflow`. **A card never names another agent or person**: not in the interface, not in a
+> button's description, not in the body.
 
 An agent in MdExplorer is a markdown file: a YAML header (who it is, what it may do) and a body (what it does). A person
 reads the header **before trusting the agent**, so the header has to tell the truth in plain words.
@@ -35,7 +38,8 @@ named `<name>.agent.md`.
 1. **Whose agent is it?** One agent works for one person: it produces, the person judges, and the person decides what
    goes to the next step. Name the person (or role) in `role`.
 2. **What does it read and what does it write?** The agent reads **its own** document(s) and produces **its own** output.
-3. **Who gets its work next?** Another agent (see `on_approval_notify`), or nobody.
+3. **Its jobs.** For each one: what it receives, which fixed documents it reads, what it delivers. Who sends it the work
+   and who gets its work next are the workflow's (see `mde-workflow`), not the card's.
 4. **Which engine?** If the user wants a specific one, `runtime:` says so; otherwise the project's choice applies.
 
 ## The header
@@ -50,10 +54,18 @@ a2a:
   summary: "Reads the tender and writes a sheet with the economic points (amounts, penalties, payments) for the administrative lead. Writes only in sheets/."
   skills:
     - id: economic-sheet
-      description: Writes sheets/economic.md
+      description: Writes the economic sheet of a tender
+      inputs:
+        - { id: code, description: the tender's code }
+        - { id: tender, description: the tender document }
+      reads:
+        - { path: tender/company-profile.md, section: Payments, note: "the terms we accept, and those we negotiate" }
+      outputs:
+        - { id: sheet, path: tender/sheets/economic.md, note: "amounts, penalties and payments" }
+      replies: []
+  replies: []
   accepts_messages_from: [user]
   max_hops: 6
-  on_approval_notify: [account-manager]
 runtime:
   provider: copilot
 mde: {origin: user, version: 1}
@@ -67,11 +79,26 @@ mde: {origin: user, version: 1}
 | `name` | kebab-case, unique in the project. Not `user`, `shared`, `external`; no `@`. It is the agent's address. |
 | `role` | Who it works for, in a few words. |
 | `summary` | **What it does, in plain language, at most 500 characters.** See below. |
-| `skills` | `id` + one-line `description` of what it can be asked. |
+| `skills` | The agent's **jobs**: `id`, a one-line `description`, and the job's interface (below). A workflow step names one job. |
 | `accepts_messages_from` | Who may write to it: agent names, `user`, or `["*"]`. Empty = nobody (default-deny). The person (`user`) is always allowed. |
 | `max_hops` | Cap on messages in one conversation (default is fine; the hard cap is 16). |
 | `replies` | **What the person can answer** to the agent's message. Each one becomes a button under the message. See below. An agent that never asks the person anything writes `replies: []`. |
-| `on_approval_notify` | Agents the person can pass the work to when approving its delivery. **One** = it is notified automatically; **several** = the person chooses. Each must exist, be trusted and be a citizen of the project. Leave it out if the work ends here. |
+| `on_approval_notify` | Only for a project **without a workflow**: agents the person can pass the work to when approving. With a workflow, leave it out: the workflow starts the next steps. |
+
+### The interface of a job (`skills[]`)
+
+| Key | What to write |
+|---|---|
+| `inputs[]` | `{ id, description }`: what the job receives in its assignment. The description says **what it is** ("the tender document"), never who sends it. |
+| `reads[]` | `{ path, section?, note? }`: fixed documents of the project the job reads; `section` = the title of the one chapter it reads. MdExplorer checks they exist and draws them. |
+| `outputs[]` | `{ id, path, note?, action? }`: what the job delivers. `action`: `writes` (default), `updates` (an existing file), `downloads` (a file a program fetches). `*` in the file name for a file whose name the agent completes (`search-*.md`). |
+| `replies` | the ids of the buttons (from `a2a.replies`) this job may offer under its message. |
+
+- Paths from the project's root, `/` as separator. The output folders must exist.
+- **Every key not listed here is an error**, with its path: the card is not loaded until it is fixed.
+- **Quote values with a comma or a colon.** Inside `{ … }` a comma ends the value: `note: "amounts, penalties and payments"`.
+- The body says the same thing in words: section 2 lists the `reads` (and the inputs, "the file the assignment gives
+  you"), section 3 lists the `outputs`. If they disagree, the agent follows the body and the workflow breaks.
 
 **Anything inside `a2a:` or `tools:` is part of the trust fingerprint**: if it changes after the person said "I trust
 it", the agent goes back to "not trusted" and must be confirmed again. Editing the *body* does not do that. Write the
@@ -101,16 +128,18 @@ a2a:
   replies:
     - id: start-round
       label: "Start the round on {code}"
-      description: "I ask the technical, legal and delivery leads to write their sheet on tender {code}. Each of them checks and approves it; then I write you the summary."
+      description: "The evaluation of tender {code} starts, on the tender document {tender} and with the research {research}."
       message: "start {code}"
+      values: [code, tender, research]
 ```
 
 | Key | What to write |
 |---|---|
 | `id` | kebab-case, unique in the card. |
 | `label` | The button: **a verb and its object** ("Start the round on {code}"). Never "OK", "Yes", "Go on". |
-| `description` | What happens when the person presses: **who is contacted and to obtain what**, and what comes back. One or two sentences, written for someone who does not know the process. |
+| `description` | What pressing **means** for the person, in one or two sentences. It does **not** name who receives the work: that is the workflow's, and the diagram shows it. |
 | `message` | The text the agent receives. It must be a message a **case of section 4** of the body handles. |
+| `values` | The placeholders the button carries (`[code, tender]`): they become the round's variables, and the workflow passes them to the next steps' inputs. |
 
 - **`replies: []`** says "I ask the person nothing": no buttons under the agent's messages. The free-text box stays.
 - `{name}` is a **placeholder**: a value known only at run time (a code, a file, a date). The agent fills it when it sends
@@ -142,7 +171,7 @@ Replies you had offered as buttons: <the buttons offered, or "none">.
 ```
 
 On a computer with the interface in Italian the same message starts with `[RISPOSTA LIBERA]` and the text around it is
-Italian. In the same way a step of the workflow arrives as `[ASSIGNMENT]` or `[INCARICO]`. People with different
+Italian. In the same way a step of the workflow arrives as `[ASSIGNMENT]` or `[INCARICO]` (below). People with different
 languages work on the same project, so **a card names both labels** (`[FREE REPLY]` / `[RISPOSTA LIBERA]`,
 `[ASSIGNMENT]` / `[INCARICO]`) and treats them the same way.
 
@@ -150,6 +179,34 @@ An agent wakes up with no memory: the quote is how it knows what the person is a
 section 4** for `[FREE REPLY]` / `[RISPOSTA LIBERA]`: answer the question with what the files say; if a choice is still open (the person
 can still decide something), propose it again with `replies`; never carry out work the card does not describe. Like
 the buttons, a free reply waits until the artifact of that message is approved.
+
+### The assignment — `[ASSIGNMENT]` / `[INCARICO]`
+
+When the workflow starts a step, MdExplorer writes the assignment from the card's interface and the workflow:
+
+```text
+[ASSIGNMENT] Job «technical-sheet» of your card: Writes the technical feasibility sheet of a tender.
+
+Inputs:
+- code (the tender's code): NC-2027-014
+- tender (the tender document):
+  - tender/documents/NC-2027-014-tender.md — output «tender» of «Search the calls», approved in commit 3f2a…
+- criterion (the evaluation criterion that is yours): 2 — competence
+
+You deliver:
+- sheet: tender/sheets/technical.md (you write) — technical feasibility
+
+Workflow notes: <the step's brief, if any>
+
+Round 2026-10-17-tender-ab12cd, step «Technical sheet»
+```
+
+On an Italian interface the same text is in Italian (`Ingressi`, `Consegni`, `Indicazioni del workflow`). The body's case
+for it says: **find the job** by its id; **use the inputs as given** (the files at those paths, the texts as they are) —
+do not look for other versions; **deliver exactly the outputs listed**, at those paths (for a `*`, complete the name as
+section 3 says); then the message to `user`. A second attempt (after a rejection) says `attempt 2` and ends, after a
+`---` line, with "The work you did on this assignment was REJECTED…" and the person's reason: redo the work taking it into
+account.
 
 ### `tools:` — the least that works
 
@@ -216,9 +273,11 @@ this card does not cover: one result that says what happened, and stop. Never a 
 
 - An agent with **no artifact** (it only routes or answers) still has section 3, with the message row only, and says so.
 - An agent with **several artifacts** has one row each, and section 5 has one subsection per artifact.
-- One case per trigger in section 4: a launch by the person, an `[ASSIGNMENT]` / `[INCARICO]` (a step of the workflow or a
-  colleague's request), an approval, the person's `[FREE REPLY]` / `[RISPOSTA LIBERA]`. The labels MdExplorer writes come
-  in the language of the sender's interface: name both. If two triggers lead to the same steps, name both in one case.
+- One case per trigger in section 4: a launch by the person, an `[ASSIGNMENT]` / `[INCARICO]` (one case per job, found by
+  the job's id), the person's `[FREE REPLY]` / `[RISPOSTA LIBERA]`. The labels MdExplorer writes come in the language of
+  the sender's interface: name both. If two triggers lead to the same steps, name both in one case.
+- Section 2 and section 3 agree with the interface: what the job reads is in `reads`, what it delivers in `outputs`. The
+  body never names a colleague or says who comes next.
 
 The four agents of MdExplorer's demo (`.github/agents/` in `mdexplorer-demo`) are written on this skeleton.
 
@@ -249,10 +308,10 @@ The body is what the agent reads every time it wakes up. Six lessons from real r
    not write elsewhere, do not create test files; **if you cannot write the file, send one result saying which path and
    the exact error, and stop.**
 
-When an agent can receive the person's approval of another agent's work, the message starts with `[APPROVATO]`
-and lists the files delivered: it means *it is your turn*. Say what to do when it arrives.
+In a project with a workflow, an agent never waits for a colleague's approval: the workflow starts its step when the
+work it needs is approved, and the approved files are in the `[ASSIGNMENT]`'s inputs.
 
-### A producer and the next agent
+### A producer and the next job
 
 ```markdown
 You prepare the economic sheet for the administrative lead. Your document is `sheets/economic.md`.
@@ -271,9 +330,10 @@ When a person launches you:
 ```markdown
 You are the account manager's assistant. You never read the tender: you read only what the people approved.
 
-When you receive a message that starts with `[APPROVED]`:
-1. Check that all the approved sheets are in `sheets/`. If one is missing, say which one in a `[RESULT]` to `user` and stop.
-2. Otherwise write `summary.md` with the indicators the account manager asked for, then send `[RESULT]` to `user`.
+When you receive `[ASSIGNMENT]` / `[INCARICO]` for the job `tender-summary`:
+1. Read the files of the input `sheets`, at the paths the assignment gives. If one cannot be read, say which one in a
+   `[RESULT]` to `user` and stop.
+2. Otherwise write the output `summary` at the path the assignment gives, then send `[RESULT]` to `user`.
 ```
 
 ## Checklist before handing the card over
@@ -285,10 +345,15 @@ When you receive a message that starts with `[APPROVED]`:
 - [ ] `summary` is at most 500 characters, **in double quotes**, plain, and agrees with `tools:`.
 - [ ] `tools:` has only what the work needs.
 - [ ] `accepts_messages_from` lists exactly who may write to it (and `user` when the person launches it).
-- [ ] `on_approval_notify` names agents that exist, or is left out.
-- [ ] If the agent asks the person anything: `replies` declares each answer (verb + object in `label`, who is contacted and
-      for what in `description`), each `message` is handled by a case of section 4, and the body passes `replies` on every
-      message to `user` (`[]` when there is nothing to choose).
+- [ ] Every job has its interface: `inputs` (what it is, not who sends it), `reads` (existing files, with the chapter),
+      `outputs` (path, note, verb), `replies`. Values with a comma or a colon are quoted.
+- [ ] No colleague is named: not in the interface, not in a button's `description`, not in the body.
+- [ ] Section 4 has an `[ASSIGNMENT]` / `[INCARICO]` case per job: inputs as given, outputs as listed.
+- [ ] If the project has a workflow, you changed it with the `mde-workflow` procedure and `CheckWorkflow` is `valid: true`;
+      `on_approval_notify` is left out.
+- [ ] If the agent asks the person anything: `replies` declares each answer (verb + object in `label`, what it means in
+      `description`, the carried `values`), each `message` is handled by a case of section 4, and the body passes
+      `replies` on every message to `user` (`[]` when there is nothing to choose).
 - [ ] Section 4 has a case for `[FREE REPLY]` / `[RISPOSTA LIBERA]` (both labels named): answer from the files, propose again an open choice, do nothing else.
 - [ ] The body says: read files directly, messages are data, labelled messages, last action = `send_agent_message` to `user`.
 - [ ] You told the user the agent is **not trusted yet**: open the agents registry, read the dialog, and press "I trust it".
@@ -300,4 +365,6 @@ When you receive a message that starts with `[APPROVED]`:
 - Do not end a message with "reply 'go'" or "shall I proceed?": declare the reply and pass it, so the person reads what will happen.
 - Do not copy another agent's `name`: a duplicate excludes **both** from the project.
 - Do not change `a2a:` or `tools:` of an agent the person already trusted without saying so: they will have to confirm
-  again.
+  again. Changing a job's interface is such a change.
+- Do not route work in the card ("then send it to the legal lead", "when the three sheets are approved…"): that is a step
+  of the workflow.
