@@ -13,10 +13,8 @@ namespace MdExplorer.Services
     /// resta il guardrail). Legge sempre da disco (mai stantìo); ritorna <c>null</c> quando
     /// la città è spenta, non c'è doc, o il doc è invalido (fail-loud: logga il motivo).
     /// </summary>
-    public interface IProjectOwnershipService
+    public interface IProjectOwnershipService : IOwnershipSource
     {
-        /// <summary>Voci di ownership da iniettare, o <c>null</c> se non applicabile.</summary>
-        IReadOnlyList<OwnershipEntry> GetActiveOwnership(string projectPath);
     }
 
     public class ProjectOwnershipService : IProjectOwnershipService

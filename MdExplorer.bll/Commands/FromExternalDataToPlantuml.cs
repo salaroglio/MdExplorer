@@ -57,9 +57,13 @@ namespace MdExplorer.Features.Commands
             CompatibilityMode.GitHub
         };
 
-        public FromExternalDataToPlantuml(ILogger<FromExternalDataToPlantuml> logger)
+        private readonly MdExplorer.Features.Agents.IOwnershipSource _ownership;
+
+        /// <param name="ownership">Il documento delle responsabilità del progetto: i ruoli degli omini nel diagramma del workflow.</param>
+        public FromExternalDataToPlantuml(ILogger<FromExternalDataToPlantuml> logger, MdExplorer.Features.Agents.IOwnershipSource ownership = null)
         {
             _logger = logger;
+            _ownership = ownership;
         }
 
         public MatchCollection GetMatches(string markdown)
@@ -203,9 +207,14 @@ namespace MdExplorer.Features.Commands
             }
 
             var wf = parsed.Descriptor;
+            // Senza documento delle responsabilità gli omini dicono «responsabile di» e l'agente: non si inventa un ruolo.
+            var ownership = _ownership?.GetActiveOwnership(root);
+            var folder = Path.GetRelativePath(root, Path.GetDirectoryName(absolutePath)).Replace('\\', '/');
             var diagram = WorkflowPlantuml.Render(wf,
                 agent => wf.Cards.Agents.TryGetValue(agent, out var card) ? card.Path : null,
-                produced => File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))));
+                produced => File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))),
+                agent => MdExplorer.Features.Agents.AgentOwnerRule.RoleOf(ownership, agent),
+                folder == "." ? "" : folder);
             var trimmedDirectives = extraDirectives.Trim('\r', '\n', ' ', '\t');
             if (trimmedDirectives.Length > 0)
                 diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");

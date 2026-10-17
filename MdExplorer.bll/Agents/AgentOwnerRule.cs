@@ -110,6 +110,22 @@ namespace MdExplorer.Features.Agents
                 .ToList();
         }
 
+        /// <summary>
+        /// Il ruolo di chi risponde di un agente, come lo disegna il diagramma del workflow: i ruoli delle righe che lo citano,
+        /// uniti con «/» se sono più d'uno. Null se nessuna riga lo cita.
+        /// </summary>
+        public static string RoleOf(IEnumerable<OwnershipEntry> ownership, string agentName)
+        {
+            var name = (agentName ?? string.Empty).Trim();
+            var roles = (ownership ?? Enumerable.Empty<OwnershipEntry>())
+                .Where(e => e?.Agents != null && !string.IsNullOrWhiteSpace(e.Role)
+                            && e.Agents.Any(a => string.Equals(a?.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                .Select(e => e.Role.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return roles.Count == 0 ? null : string.Join(" / ", roles);
+        }
+
         public static AgentOwnerVerdict Decide(IEnumerable<OwnershipEntry> ownership, string agentName, string localEmail)
         {
             var name = (agentName ?? string.Empty).Trim();
