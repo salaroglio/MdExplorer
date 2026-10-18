@@ -448,7 +448,8 @@ namespace MdExplorer.Services
         }
 
         // Room secret = 32 random bytes, base64url (URL/YAML-safe, no padding). Shared via git.
-        private static string GenerateRoomSecret()
+        /// <summary>Un segreto della stanza nuovo (anche per la creazione da template: nasce nel suo commit).</summary>
+        internal static string GenerateRoomSecret()
         {
             var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
             return Convert.ToBase64String(bytes)

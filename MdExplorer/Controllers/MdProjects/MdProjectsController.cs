@@ -770,6 +770,26 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// L'elenco dei template di «Crea nuovo progetto» (P4, TD4): il file <c>project-templates.json</c> che viaggia con
+        /// MdExplorer. Un elenco guasto è un errore detto (500 con il motivo), non un elenco vuoto.
+        /// </summary>
+        [HttpGet]
+        public IActionResult TemplateCatalog()
+        {
+            try
+            {
+                using var stream = typeof(MdProjectsController).Assembly.GetManifestResourceStream(MdExplorer.Features.Templates.TemplateCatalog.ResourceName)
+                    ?? throw new InvalidOperationException($"MdExplorer non contiene {MdExplorer.Features.Templates.TemplateCatalog.ResourceName}: la build è incompleta.");
+                using var reader = new StreamReader(stream);
+                return Ok(new { templates = MdExplorer.Features.Templates.TemplateCatalog.Read(reader.ReadToEnd()) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         /// <summary>I template da cui viene il progetto: le righe <c>templates:</c> di <c>.development.yml</c>.</summary>
         [HttpGet]
         public IActionResult Templates([FromQuery] string path)

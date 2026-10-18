@@ -139,6 +139,7 @@ namespace MdExplorer.Services.Templates
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
                 var notes = await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example), ct);
+                await AddRoomSecretAsync(path, ct);
                 await Run(path, ct, "commit", "-q", "-m",
                     UiText.Say($"Progetto creato dal template «{manifest.Title}» {manifest.Version}", $"Project created from the template «{manifest.Title}» {manifest.Version}"));
 
@@ -389,6 +390,7 @@ namespace MdExplorer.Services.Templates
 
             // I workflow del metodo nell'elenco del progetto (PW).
             var docs = manifest.Workflows ?? new List<string>();
+            var docsBefore = (config.AgentCity?.WorkflowDocs ?? new List<string>()).ToList();
             if (docs.Count > 0)
             {
                 config.AgentCity ??= new AgentCityConfig();
@@ -429,18 +431,54 @@ namespace MdExplorer.Services.Templates
                     notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
             }
 
-            // Tutti i workflow del progetto devono stare insieme (PW): un metodo che li rompe non entra.
+            // I workflow del progetto devono stare insieme (PW). Un metodo che li rompe non entra. Se erano già guasti prima di
+            // lui, si controllano i suoi da soli e lo si dice. Per la base del progetto (la demo) un workflow che non si legge
+            // non ferma la creazione: il progetto nasce, e una nota dice che i workflow sono fermi finché non si correggono.
             if (config.AgentCity?.WorkflowDocs?.Count > 0)
             {
-                MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, config.AgentCity.WorkflowDocs, config.AgentCity.OwnershipDoc, out var problem);
-                if (problem != null)
-                    throw Problem($"Con «{manifest.Title}» i workflow del progetto non si leggono: {problem}",
-                                  $"With «{manifest.Title}» the project's workflows cannot be read: {problem}");
+                var ownershipDoc = config.AgentCity.OwnershipDoc;
+                MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, config.AgentCity.WorkflowDocs, ownershipDoc, out var problem);
+                if (problem != null && !manifest.IsMethod)
+                    notes.Add(UiText.Say($"I workflow del progetto non si leggono ({problem}): finché non si correggono, gli incarichi del workflow restano fermi.",
+                                         $"The project's workflows cannot be read ({problem}): until they are fixed, the workflow's assignments stay stopped."));
+                else if (problem != null)
+                {
+                    string before = null;
+                    if (docsBefore.Count > 0) MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, docsBefore, ownershipDoc, out before);
+                    if (before == null)
+                        throw Problem($"Con «{manifest.Title}» i workflow del progetto non si leggono: {problem}",
+                                      $"With «{manifest.Title}» the project's workflows cannot be read: {problem}");
+                    var own = (manifest.Workflows ?? new List<string>()).ToList();
+                    if (own.Count > 0)
+                    {
+                        MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, own, ownershipDoc, out var mine);
+                        if (mine != null)
+                            throw Problem($"I workflow di «{manifest.Title}» non si leggono: {mine}", $"The workflows of «{manifest.Title}» cannot be read: {mine}");
+                    }
+                    notes.Add(UiText.Say($"I workflow del progetto non si leggevano già prima di «{manifest.Title}» ({before}): finché non si correggono, restano fermi tutti.",
+                                         $"The project's workflows could not be read already before «{manifest.Title}» ({before}): until they are fixed, they all stay stopped."));
+                }
             }
             if (manifest.Roles?.Any(r => r.Agents?.Count > 0) == true)
                 notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
                                      "The method's agents start once someone declares them theirs («It's mine») and trusts them."));
 
+        }
+
+        /// <summary>
+        /// Il segreto della stanza del progetto, nel commit della creazione: altrimenti MDE lo scrive alla prima apertura della
+        /// chat, e il progetto appena creato avrebbe subito una modifica da committare (che ferma aggiornamenti e metodi).
+        /// Un template non lo porta: ogni progetto ha il suo.
+        /// </summary>
+        private async Task AddRoomSecretAsync(string path, CancellationToken ct)
+        {
+            var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            var config = DevelopmentConfigCleanup.ReadStrict(file);
+            if (!string.IsNullOrWhiteSpace(config.AgentCity?.RoomSecret)) return;
+            config.AgentCity ??= new AgentCityConfig();
+            config.AgentCity.RoomSecret = MdExplorer.Services.ProjectMetadataService.GenerateRoomSecret();
+            Write(file, config);
+            await Run(path, ct, "add", "--", DevelopmentConfigCleanup.FileName);
         }
 
         /// <summary>Il documento delle responsabilità che nasce quando un metodo porta ruoli e il progetto non ne ha uno.</summary>

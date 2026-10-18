@@ -122,12 +122,46 @@ version: 1.0.0
             StringAssert.Contains(yml, "kind: project");
             StringAssert.Contains(yml, "language: en");
             StringAssert.Contains(yml, "version: 1.0.0");
+            StringAssert.Contains(yml, "roomSecret: ", "il segreto della stanza nasce nel commit della creazione, non all'apertura");
 
             Assert.AreEqual("", Git(path, "status --porcelain").Out, "tutto committato");
             Assert.AreEqual("2", Git(path, "rev-list --count HEAD").Out, "la storia del template più il commit della creazione");
             Assert.AreEqual(Git(path, "rev-parse HEAD").Out, Git(path, "rev-parse origin/main").Out, "pubblicato su origin");
             Assert.AreEqual("origin/main", Git(path, "rev-parse --abbrev-ref origin/HEAD").Out);
             Assert.AreEqual("origin/main", Git(path, "rev-parse --abbrev-ref main@{upstream}").Out);
+        }
+
+        [TestMethod]
+        public async Task Create_from_a_base_whose_workflow_is_old_and_say_it_stays_stopped()
+        {
+            // 18/10/2026: il ramo inglese della demo aveva ancora un workflow v2. La base nasce lo stesso, e lo si dice.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var branches = DemoBranches();
+            branches["en"][".development.yml"] = "harness:\n  target: copilot\nagentCity:\n  workflowDocs:\n  - wf.md\n";
+            branches["en"]["wf.md"] = "---\nmde_type: workflow\nworkflow: wf.workflow.json\n---\n# wf\n";
+            branches["en"]["wf.workflow.json"] = "{ \"mde_workflow\": 2, \"title\": \"Old\", \"steps\": [] }";
+            var url = Template(ctx, "demo", branches);
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "workflow-vecchio");
+
+            var outcome = await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "en", MdeVersion = Mde });
+
+            Assert.IsTrue(Directory.Exists(path));
+            Assert.IsTrue(System.Linq.Enumerable.Any(outcome.Notes, n => n.Contains("workflows cannot be read") && n.Contains("stay stopped")),
+                string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain").Out);
+        }
+
+        [TestMethod]
+        public async Task Give_the_list_of_templates_that_ships_with_MdExplorer()
+        {
+            using var ctx = new AgentCityContext();
+            var (status, json) = await ctx.GetJson("/api/MdProjects/TemplateCatalog");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status);
+            var demo = System.Linq.Enumerable.Single(json.RootElement.GetProperty("templates").EnumerateArray(), t => t.GetProperty("id").GetString() == "demo");
+            Assert.AreEqual("project", demo.GetProperty("kind").GetString());
+            Assert.AreEqual("https://github.com/salaroglio/mdexplorer-demo.git", demo.GetProperty("url").GetString());
         }
 
         [TestMethod]

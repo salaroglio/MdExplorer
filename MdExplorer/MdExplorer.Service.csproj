@@ -256,6 +256,8 @@
     <EmbeddedResource Include="EmojiForPandoc\two.png" />
     <EmbeddedResource Include="EmojiForPandoc\warning.png" />
     <EmbeddedResource Include="MdEngine.db" />
+    <!-- L'elenco dei template di «Crea nuovo progetto» (TD4): viaggia con MdExplorer, aggiornato a ogni rilascio. -->
+    <EmbeddedResource Include="project-templates.json" LogicalName="MdExplorer.Service.project-templates.json" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>

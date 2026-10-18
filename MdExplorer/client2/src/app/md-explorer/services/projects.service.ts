@@ -23,6 +23,8 @@ export interface TemplateCreation {
   example?: boolean;
   /** Il repository vuoto del gruppo; assente = un origin locale accanto alla cartella. */
   originUrl?: string;
+  /** I metodi da unire dopo il primo template, nell'ordine (P2). */
+  methods?: string[];
 }
 
 /** Il progetto creato da un template. */
@@ -32,6 +34,8 @@ export interface TemplateCreated {
   title: string;
   version: string;
   origin: string;
+  /** Che cosa MDE ha scritto nei file comuni, e ciò che resta da fare (per esempio workflow fermi). */
+  notes?: string[];
 }
 
 @Injectable({

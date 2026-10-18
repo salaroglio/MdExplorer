@@ -89,3 +89,49 @@ mat-dialog-actions {
     }
   }
 }
+/* Da template (P4). */
+.template-choice {
+  margin: 12px 0;
+}
+
+.template-fields {
+  margin: 8px 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.method-check {
+  display: block;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.short-field {
+  width: 200px;
+}
+
+.error-text {
+  color: var(--mde-error, #c62828);
+}
+
+/* Le descrizioni delle scelte vanno a capo: la finestra non deve scorrere di lato. */
+.template-choice ::ng-deep {
+  .mat-checkbox-layout,
+  .mat-checkbox-label,
+  .mat-radio-label,
+  .mat-radio-label-content {
+    white-space: normal;
+  }
+}
+
+/* Un pezzo invisibile dei campi Material sbordava di 40px e faceva scorrere la finestra di lato. */
+.template-choice {
+  overflow-x: hidden;
+}
+
+.template-fields .option-description {
+  overflow-wrap: anywhere;
+}
