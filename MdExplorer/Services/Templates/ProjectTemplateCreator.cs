@@ -37,6 +37,11 @@ namespace MdExplorer.Services.Templates
         /// stessa scelta dell'esempio del primo.
         /// </summary>
         public IReadOnlyList<string> Methods { get; init; }
+        /// <summary>
+        /// Il motore del progetto (<c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>none</c>) quando la base non lo dichiara:
+        /// un progetto che parte da un metodo senza base lo sceglie qui (P5). Una base che lo dichiara vince.
+        /// </summary>
+        public string Harness { get; init; }
     }
 
     public sealed class TemplateCreateOutcome
@@ -115,6 +120,15 @@ namespace MdExplorer.Services.Templates
                 throw Problem($"La versione di MdExplorer '{request.MdeVersion}' non si legge: serve per sapere se il template ci gira.",
                               $"The MdExplorer version '{request.MdeVersion}' cannot be read: it is needed to know whether the template runs here.");
 
+            HarnessTarget? requested = null;
+            if (!string.IsNullOrWhiteSpace(request.Harness))
+            {
+                if (!HarnessLayout.TryParseId(request.Harness.Trim(), out var parsed))
+                    throw Problem($"Il motore '{request.Harness}' non esiste: vale {HarnessLayout.AllowedIds}.",
+                                  $"The engine '{request.Harness}' does not exist: it is one of {HarnessLayout.AllowedIds}.");
+                requested = parsed;
+            }
+
             var path = System.IO.Path.GetFullPath(request.Path).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
             var parent = System.IO.Path.GetDirectoryName(path);
             if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
@@ -138,7 +152,15 @@ namespace MdExplorer.Services.Templates
                     new HashSet<string>(StringComparer.Ordinal), ct);
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
-                var notes = await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example), ct);
+                var (harness, chosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
+                await Run(path, ct, "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName);
+
+                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example), ct)).ToList();
+                if (harness == HarnessTarget.None)
+                    notes.Insert(0, UiText.Say("Il progetto non ha un motore: gli agenti e MarkAgent non partono finché non ne scegli uno nelle impostazioni.",
+                                               "The project has no engine: the agents and MarkAgent do not start until you choose one in the settings."));
+                else if (chosen)
+                    notes.Insert(0, UiText.Say($"Motore del progetto: {HarnessSettings.IdOf(harness)}.", $"Project engine: {HarnessSettings.IdOf(harness)}."));
                 await AddRoomSecretAsync(path, ct);
                 await Run(path, ct, "commit", "-q", "-m",
                     UiText.Say($"Progetto creato dal template «{manifest.Title}» {manifest.Version}", $"Project created from the template «{manifest.Title}» {manifest.Version}"));
@@ -399,6 +421,12 @@ namespace MdExplorer.Services.Templates
                 config.AgentCity.WorkflowDocs.AddRange(newDocs);
                 if (newDocs.Count > 0)
                     notes.Add(UiText.Say($"Workflow del progetto: {string.Join(", ", newDocs)}.", $"Project workflows: {string.Join(", ", newDocs)}."));
+                // I workflow girano nella città degli agenti: un metodo che li porta la accende (P5), e lo dice.
+                if (!config.AgentCity.Enabled)
+                {
+                    config.AgentCity.Enabled = true;
+                    notes.Add(UiText.Say("Città degli agenti accesa: i workflow del metodo girano lì.", "Agent city turned on: the method's workflows run there."));
+                }
             }
 
             var serializer = new SerializerBuilder()

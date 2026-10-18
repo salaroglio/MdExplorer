@@ -372,6 +372,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       const created = await this.projectService.createFromTemplate({
         path, templateUrl: urls[0], methods: urls.slice(1), language: t.language, example: t.example,
         originUrl: t.originUrl || undefined,
+        // Senza una base il motore lo sceglie chi crea; una base porta il suo.
+        harness: t.baseUrl ? undefined : config.harness,
       });
       waiting.dismiss();
       this.projectService.setNewFolderProject(created.path);

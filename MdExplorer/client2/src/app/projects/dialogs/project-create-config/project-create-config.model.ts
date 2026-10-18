@@ -33,6 +33,9 @@ export interface ProjectCreateConfigOptions {
     projectPath: string;
     initializeGit: boolean;
     harness: HarnessTarget;
-    /** Presente = il progetto nasce da template; harness e git li decide il template. */
+    /**
+     * Presente = il progetto nasce da template: git lo fa la creazione; il motore lo porta la base, e senza una base vale
+     * `harness` (P5).
+     */
     template?: TemplateChoice;
 }

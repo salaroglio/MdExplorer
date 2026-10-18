@@ -146,6 +146,38 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
+        public async Task Create_a_project_from_a_method_alone_with_the_engine_chosen_and_nothing_left_to_commit()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "solo-ddd");
+
+            var outcome = await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Template(ctx, "ddd", DddBranches()), Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+
+            Assert.AreEqual("ddd", outcome.Id);
+            StringAssert.Contains(Read(path, ".development.yml"), "harness:\n  target: claude");
+            StringAssert.Contains(Read(path, ".development.yml"), "agentCity:\n  enabled: true", "il metodo porta un workflow: la città si accende");
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Agent city turned on")), string.Join("\n", outcome.Notes));
+            StringAssert.Contains(Read(path, "CLAUDE.md"), "<!-- mde-template:ddd -->", "le istruzioni nel file del motore scelto");
+            var gitignore = Read(path, ".gitignore");
+            foreach (var line in new[] { ".md/", ".mdapplicationtoopen", ".mdchangeignore", ".mdFoldersIgnore" })
+                StringAssert.Contains(gitignore, line + "\n");
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".mdFoldersIgnore")), "i file di MDE ci sono, ignorati");
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out, "appena creato, niente da committare");
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Project engine: claude")), string.Join("\n", outcome.Notes));
+
+            var bad = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "motore-strano"), TemplateUrl = Template(ctx, "ddd-2", DddBranches()), Language = "it", MdeVersion = Mde, Harness = "vim",
+            }));
+            StringAssert.Contains(bad.Message, "The engine 'vim' does not exist");
+        }
+
+        [TestMethod]
         public async Task Leave_the_project_as_it_was_when_the_method_cannot_be_added()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

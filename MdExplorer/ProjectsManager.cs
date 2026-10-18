@@ -574,6 +574,29 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// The project configuration files that do not depend on the agent harness. Idempotent:
         /// every file is written only when missing, so calling this twice costs nothing.
         /// </summary>
+        /// <summary>
+        /// Un progetto creato da template (P5): ciò che la prima apertura scriverebbe nei file tracciati va nel commit della
+        /// creazione, altrimenti il progetto nasce con modifiche da committare (che fermano aggiornamenti e metodi). Una base
+        /// che porta già questi file (la demo) resta com'è: il suo motore è il predefinito del gruppo.
+        /// </summary>
+        /// <returns>Il motore del progetto, e se l'ha deciso la richiesta (false = c'era già nella base).</returns>
+        public static (HarnessTarget Harness, bool Chosen) PrepareTemplateProject(string projectPath, HarnessTarget? requested)
+        {
+            EnsureBaseConfigurationFiles(projectPath);
+            var declared = HarnessSettings.Read(projectPath);
+            var harness = declared ?? requested ?? HarnessTarget.None;
+            if (declared == null) HarnessSettings.Write(projectPath, harness);
+            EnsureGitignoreEntries(projectPath);
+
+            // I tre file di configurazione di questa installazione: git li ignora, come nella demo.
+            var gitignore = Path.Combine(projectPath, ".gitignore");
+            var lines = File.ReadAllLines(gitignore).Select(l => l.Trim()).ToHashSet(StringComparer.Ordinal);
+            var missing = new[] { ".mdapplicationtoopen", ".mdchangeignore", ".mdFoldersIgnore" }.Where(f => !lines.Contains(f)).ToList();
+            if (missing.Count > 0)
+                File.AppendAllText(gitignore, "# MDE — configurazione di questa installazione\n" + string.Join("\n", missing) + "\n");
+            return (harness, declared == null);
+        }
+
         private static void EnsureBaseConfigurationFiles(string projectPath)
         {
             // Copy .mdapplicationtoopen file

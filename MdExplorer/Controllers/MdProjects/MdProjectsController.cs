@@ -684,6 +684,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     OriginUrl = request?.OriginUrl,
                     MdeVersion = request?.MdeVersion,
                     Methods = request?.Methods,
+                    Harness = request?.Harness,
                 }, ct);
                 return Ok(outcome);
             }
@@ -1338,6 +1339,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string? MdeVersion { get; set; }
         /// <summary>I metodi da unire dopo il primo template, nell'ordine.</summary>
         public List<string>? Methods { get; set; }
+        /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
+        public string? Harness { get; set; }
     }
 
     /// <summary>La richiesta di <see cref="MdProjectsController.UpdateTemplate"/> e <see cref="MdProjectsController.DetachTemplate"/>.</summary>

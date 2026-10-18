@@ -69,7 +69,8 @@
       </div>
     </div>
 
-    <div class="config-options" *ngIf="!fromTemplate">
+    <!-- Il motore: sempre senza template; con un template solo se non c'è una base (la base porta il suo). -->
+    <div class="config-options" *ngIf="!fromTemplate || !baseUrl">
       <div class="option-item">
         <label class="group-label" id="harness-label">
           <strong>{{ 'PROJECT_CONFIG.HARNESS' | translate }}</strong>
@@ -97,7 +98,7 @@
         </mat-radio-group>
       </div>
 
-      <div class="option-item">
+      <div class="option-item" *ngIf="!fromTemplate">
         <mat-checkbox [(ngModel)]="config.initializeGit" color="primary">
           <strong>{{ 'PROJECT_CONFIG.INIT_GIT' | translate }}</strong>
           <div class="option-description">

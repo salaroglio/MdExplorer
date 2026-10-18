@@ -117,8 +117,9 @@ mat-dialog-actions {
   color: var(--mde-error, #c62828);
 }
 
-/* Le descrizioni delle scelte vanno a capo: la finestra non deve scorrere di lato. */
-.template-choice ::ng-deep {
+/* Le descrizioni delle scelte vanno a capo: la finestra non deve scorrere di lato (anche quelle dei motori). */
+.template-choice ::ng-deep,
+.config-options ::ng-deep {
   .mat-checkbox-layout,
   .mat-checkbox-label,
   .mat-radio-label,

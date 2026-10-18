@@ -25,6 +25,8 @@ export interface TemplateCreation {
   originUrl?: string;
   /** I metodi da unire dopo il primo template, nell'ordine (P2). */
   methods?: string[];
+  /** Il motore, quando non c'è una base che lo dichiara (P5: un progetto che parte da un metodo). */
+  harness?: string;
 }
 
 /** Il progetto creato da un template. */
