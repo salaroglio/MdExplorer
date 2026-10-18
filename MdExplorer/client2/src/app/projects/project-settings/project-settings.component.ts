@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
-import { HarnessTarget, MarkAgentEngineId, McpToolGroup, ProjectSettingsService } from '../services/project-settings.service';
+import { HarnessTarget, MarkAgentEngineId, McpToolGroup, ProjectSettingsService, ProjectTemplateRow } from '../services/project-settings.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../commons/components/confirm-dialog/confirm-dialog.component';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
@@ -46,6 +46,17 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityEnabled: boolean = false;
   agentCityOwnershipDoc: string = '';
   /** Il documento del workflow degli agenti (mde_type: workflow): quando c'è, MdExplorer lo applica. */
+  /** I template da cui viene il progetto (righe «templates:» di .development.yml). */
+  projectTemplates: ProjectTemplateRow[] = [];
+  newMethodUrl = '';
+  newMethodLanguage = 'it';
+  newMethodExample = false;
+  addingMethod = false;
+  /** Perché il metodo non si è aggiunto, detto dal servizio. */
+  methodError = '';
+  /** Che cosa MDE ha scritto per il metodo appena aggiunto, e cosa resta da fare. */
+  methodNotes: string[] = [];
+
   /** I documenti dei workflow (PW: un progetto ne può avere più d'uno). Una riga vuota è una riga appena aggiunta. */
   agentCityWorkflowDocs: string[] = [];
   /** Perché l'ultimo salvataggio della città non è andato, detto dal servizio (es. lo stesso workflow due volte). */
@@ -206,6 +217,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadFusekiSettings();
     this.loadAtlassianSettings();
     this.loadAgentCity();
+    this.loadTemplates();
     this.loadHarness();
     this.loadMcpToolGroups();
 
@@ -826,6 +838,47 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.relayTesting = false;
         this.relayTestSuccess = false;
         this.relayTestMessage = err?.error?.message || 'Verifica fallita.';
+      }
+    });
+  }
+
+  loadTemplates(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getTemplates(this.projectPath).subscribe({
+      next: (res) => {
+        this.projectTemplates = res?.templates || [];
+        // La lingua del metodo segue quella del progetto: la sua base, o il primo template.
+        const base = this.projectTemplates.find(t => t.kind === 'project') || this.projectTemplates[0];
+        this.newMethodLanguage = base?.language || (this.translate.currentLang === 'en' ? 'en' : 'it');
+      },
+      error: (err) => {
+        this.projectTemplates = [];
+        this.methodError = err?.error?.error || err?.message || '';
+      }
+    });
+  }
+
+  addMethod(): void {
+    const url = (this.newMethodUrl || '').trim();
+    if (!url) return;
+    this.addingMethod = true;
+    this.methodError = '';
+    this.methodNotes = [];
+    this.projectSettingsService.addTemplate(this.projectPath, url, this.newMethodLanguage, this.newMethodExample).subscribe({
+      next: (res) => {
+        this.addingMethod = false;
+        this.newMethodUrl = '';
+        this.methodNotes = [
+          this.translate.instant('PROJECT_SETTINGS.TEMPLATE_ADDED', { title: res?.title, version: res?.version }),
+          ...(res?.notes || []),
+        ];
+        this.loadTemplates();
+        // Il metodo può aver portato workflow e il documento delle responsabilità.
+        this.loadAgentCity();
+      },
+      error: (err) => {
+        this.addingMethod = false;
+        this.methodError = err?.error?.error || err?.message || '';
       }
     });
   }

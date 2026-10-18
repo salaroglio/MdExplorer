@@ -19,12 +19,12 @@ namespace MdExplorer.IntegrationTests
     [TestClass]
     public class ProjectTemplateCreator_Should
     {
-        private const string Mde = "2026.10.18";
+        internal const string Mde = "2026.10.18";
 
         [TestInitialize]
         public void ResetCwd() => Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
-        private static (int Code, string Out) Git(string cwd, string args)
+        internal static (int Code, string Out) Git(string cwd, string args)
         {
             var p = new Process
             {
@@ -43,16 +43,16 @@ namespace MdExplorer.IntegrationTests
             return (p.ExitCode, o.Trim());
         }
 
-        private static bool GitAvail() => Git(Path.GetTempPath(), "--version").Code == 0;
+        internal static bool GitAvail() => Git(Path.GetTempPath(), "--version").Code == 0;
 
-        private static async Task<TemplateCreateOutcome> Create(AgentCityContext ctx, TemplateCreateRequest request)
+        internal static async Task<TemplateCreateOutcome> Create(AgentCityContext ctx, TemplateCreateRequest request)
         {
             using var scope = ctx.Factory.Services.CreateScope();
             return await scope.ServiceProvider.GetRequiredService<IProjectTemplateCreator>().CreateAsync(request);
         }
 
         /// <summary>Un repository di template: un ramo per ogni voce di <paramref name="branches"/>, con i suoi file.</summary>
-        private static string Template(AgentCityContext ctx, string name, Dictionary<string, Dictionary<string, string>> branches)
+        internal static string Template(AgentCityContext ctx, string name, Dictionary<string, Dictionary<string, string>> branches)
         {
             var root = Path.Combine(ctx.Factory.DataDir, "template", name);
             var bare = Path.Combine(root, name + ".git");
@@ -90,13 +90,13 @@ version: 1.0.0
   en: {{ structure: en }}
 ";
 
-        private static Dictionary<string, Dictionary<string, string>> DemoBranches(string requires = null) => new()
+        internal static Dictionary<string, Dictionary<string, string>> DemoBranches(string requires = null) => new()
         {
             ["main"] = new() { [".mde-template/demo/mde-template.yml"] = Demo("it", requires), ["README.md"] = "# La demo\n", [".development.yml"] = "harness:\n  target: copilot\n" },
             ["en"] = new() { [".mde-template/demo/mde-template.yml"] = Demo("en", requires), ["README.md"] = "# The demo\n", [".development.yml"] = "harness:\n  target: copilot\n" },
         };
 
-        private static string NewFolder(AgentCityContext ctx, string name) => Path.Combine(ctx.Factory.DataDir, "progetti", name);
+        internal static string NewFolder(AgentCityContext ctx, string name) => Path.Combine(ctx.Factory.DataDir, "progetti", name);
 
         [TestMethod]
         public async Task Create_the_project_from_the_branch_of_the_language_and_remember_the_template()

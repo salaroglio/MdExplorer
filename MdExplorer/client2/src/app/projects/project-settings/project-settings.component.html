@@ -335,6 +335,54 @@
           </mat-card-content>
         </mat-card>
 
+        <!-- I metodi del progetto (P2 dei template): da quali template viene, e «Aggiungi un metodo». -->
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.TEMPLATES_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="setting-item">
+              <p class="setting-description" *ngIf="!projectTemplates.length">{{ 'PROJECT_SETTINGS.TEMPLATES_NONE' | translate }}</p>
+              <ul class="template-rows" *ngIf="projectTemplates.length">
+                <li *ngFor="let t of projectTemplates">
+                  <strong>{{ t.id }}</strong> {{ t.version }}
+                  · {{ (t.kind === 'project' ? 'PROJECT_SETTINGS.TEMPLATE_KIND_PROJECT' : 'PROJECT_SETTINGS.TEMPLATE_KIND_METHOD') | translate }}
+                  · {{ t.language }}<span *ngIf="t.example"> · {{ 'PROJECT_SETTINGS.TEMPLATE_EXAMPLE' | translate }}</span>
+                  <span class="template-url">{{ t.url }}</span>
+                </li>
+              </ul>
+
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.TEMPLATE_ADD_URL' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput [(ngModel)]="newMethodUrl" [disabled]="addingMethod"
+                       placeholder="https://github.com/…/mdexplorer-template-ddd.git">
+              </mat-form-field>
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.TEMPLATE_ADD_LANGUAGE' | translate }}</label>
+              <mat-form-field appearance="outline" class="template-language">
+                <mat-select [(ngModel)]="newMethodLanguage" [disabled]="addingMethod">
+                  <mat-option value="it">italiano</mat-option>
+                  <mat-option value="en">English</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-checkbox [(ngModel)]="newMethodExample" [disabled]="addingMethod">
+                {{ 'PROJECT_SETTINGS.TEMPLATE_ADD_EXAMPLE' | translate }}
+              </mat-checkbox>
+              <div class="template-add">
+                <button mat-stroked-button color="primary" type="button" (click)="addMethod()"
+                        [disabled]="addingMethod || !newMethodUrl?.trim()">
+                  <mat-icon>library_add</mat-icon> {{ 'PROJECT_SETTINGS.TEMPLATE_ADD' | translate }}
+                </button>
+                <mat-spinner *ngIf="addingMethod" diameter="20" class="inline-spinner"></mat-spinner>
+              </div>
+              <p class="setting-description">{{ 'PROJECT_SETTINGS.TEMPLATE_ADD_DESC' | translate }}</p>
+              <p class="setting-description setting-error" *ngIf="methodError">{{ methodError }}</p>
+              <ul class="setting-description" *ngIf="methodNotes.length">
+                <li *ngFor="let n of methodNotes">{{ n }}</li>
+              </ul>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
       </div>
     </mat-tab>
 

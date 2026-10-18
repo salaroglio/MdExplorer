@@ -108,6 +108,66 @@ namespace MdExplorer.Features.Agents
                 MdExplorer.Features.Services.UiText.Say("Il documento delle responsabilità non ha una tabella con le colonne Ruolo | Responsabile | Git Email | Agenti: aggiungila e riprova.", "The responsibilities document has no table with the columns Ruolo | Responsabile | Git Email | Agenti: add it and try again."));
         }
 
+        /// <summary>
+        /// The document with an <b>open role</b> (a row with the role and its agents, nobody yet) for each role it does not
+        /// have, by name: what a template method declares (P2 of the templates' plan). A role the document already has is
+        /// left as it is — the group may have filled it, or changed its agents. <paramref name="added"/> says which roles
+        /// were added. The description goes in the «Descrizione» column, when the table has one. Same table rules as
+        /// <see cref="AddRow"/>.
+        /// </summary>
+        public static string AddOpenRoles(string markdown, IEnumerable<(string Role, string Description, IReadOnlyList<string> Agents)> roles, out IReadOnlyList<string> added)
+        {
+            var result = new List<string>();
+            added = result;
+            var wanted = (roles ?? Enumerable.Empty<(string, string, IReadOnlyList<string>)>()).Where(r => !string.IsNullOrWhiteSpace(r.Role)).ToList();
+            if (string.IsNullOrWhiteSpace(markdown)) markdown = NewDocument;
+            if (wanted.Count == 0) return markdown;
+
+            var newline = markdown.Contains("\r\n") ? "\r\n" : "\n";
+            var lines = markdown.Replace("\r\n", "\n").Split('\n').ToList();
+            for (var i = 0; i < lines.Count - 1; i++)
+            {
+                if (!OwnershipDocParser.LooksLikeTableRow(lines[i]) || !OwnershipDocParser.IsSeparatorRow(lines[i + 1])) continue;
+                var columns = OwnershipDocParser.SplitRow(lines[i])
+                    .Select(h => OwnershipDocParser.HeaderAliases.TryGetValue(h.Trim(), out var canonical) ? canonical : null)
+                    .ToArray();
+                if (columns.All(c => c == null)) continue;
+                if (columns.Contains("retired-scope"))
+                    throw new InvalidOperationException(
+                        MdExplorer.Features.Services.UiText.Say("La colonna «Ambito» del documento delle responsabilità ora si chiama «Ruolo»: rinominala e riprova.", "The «Ambito» column of the responsibilities document is now called «Ruolo»: rename it and try again."));
+                foreach (var needed in new[] { ("role", "Ruolo"), ("agents", "Agenti") })
+                    if (!columns.Contains(needed.Item1))
+                        throw new InvalidOperationException(
+                            MdExplorer.Features.Services.UiText.Say($"La tabella del documento delle responsabilità non ha la colonna '{needed.Item2}': aggiungila e riprova.", $"The table of the responsibilities document has no column '{needed.Item2}': add it and try again."));
+
+                var last = i + 1;
+                while (last + 1 < lines.Count && OwnershipDocParser.LooksLikeTableRow(lines[last + 1])) last++;
+                var roleAt = Array.IndexOf(columns, "role");
+                var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (var r = i + 2; r <= last; r++)
+                {
+                    var cells = OwnershipDocParser.SplitRow(lines[r]);
+                    if (roleAt < cells.Length) present.Add(cells[roleAt].Trim());
+                }
+                foreach (var (role, description, agents) in wanted)
+                {
+                    if (!present.Add(Clean(role))) continue;
+                    var row = columns.Select(c => c switch
+                    {
+                        "role" => Clean(role),
+                        "description" => Clean(description),
+                        "agents" => string.Join(", ", (agents ?? Array.Empty<string>()).Select(Clean)),
+                        _ => string.Empty,
+                    });
+                    lines.Insert(++last, "| " + string.Join(" | ", row) + " |");
+                    result.Add(Clean(role));
+                }
+                return string.Join(newline, lines);
+            }
+            throw new InvalidOperationException(
+                MdExplorer.Features.Services.UiText.Say("Il documento delle responsabilità non ha una tabella con le colonne Ruolo | Responsabile | Git Email | Agenti: aggiungila e riprova.", "The responsibilities document has no table with the columns Ruolo | Responsabile | Git Email | Agenti: add it and try again."));
+        }
+
         /// <summary>A cell is one line without the column separator.</summary>
         private static string Clean(string cell)
             => (cell ?? string.Empty).Replace("|", " ").Replace("\r", " ").Replace("\n", " ").Trim();

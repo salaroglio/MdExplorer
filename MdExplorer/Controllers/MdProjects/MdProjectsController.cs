@@ -683,8 +683,53 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     Example = request?.Example == true,
                     OriginUrl = request?.OriginUrl,
                     MdeVersion = request?.MdeVersion,
+                    Methods = request?.Methods,
                 }, ct);
                 return Ok(outcome);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// «Aggiungi un metodo» (P2 del piano dei template): unisce un template <c>method</c> al progetto e applica il suo
+        /// manifesto ai file comuni, con un commit. 400 con il motivo se non si può; il progetto resta com'era.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> AddTemplate([FromBody] TemplateAdditionRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateCreator creator, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var outcome = await creator.AddMethodAsync(new MdExplorer.Services.Templates.TemplateAddRequest
+                {
+                    ProjectPath = request?.Path,
+                    TemplateUrl = request?.TemplateUrl,
+                    Language = request?.Language,
+                    Example = request?.Example == true,
+                    MdeVersion = request?.MdeVersion,
+                }, ct);
+                return Ok(outcome);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>I template da cui viene il progetto: le righe <c>templates:</c> di <c>.development.yml</c>.</summary>
+        [HttpGet]
+        public IActionResult Templates([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return BadRequest(new { error = $"Project path does not exist: {path}" });
+            var file = Path.Combine(path, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            try
+            {
+                var rows = (System.IO.File.Exists(file) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).Templates : null)
+                           ?? new List<MdExplorer.Service.Models.ProjectTemplateConfig>();
+                return Ok(new { templates = rows });
             }
             catch (InvalidOperationException ex)
             {
@@ -1219,6 +1264,18 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// <summary>Il repository vuoto del gruppo; vuoto = un origin locale accanto alla cartella.</summary>
         public string? OriginUrl { get; set; }
         /// <summary>La versione del client, cioè di questo MdExplorer: il manifesto può chiederne una minima.</summary>
+        public string? MdeVersion { get; set; }
+        /// <summary>I metodi da unire dopo il primo template, nell'ordine.</summary>
+        public List<string>? Methods { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.AddTemplate"/>.</summary>
+    public class TemplateAdditionRequest
+    {
+        public string? Path { get; set; }
+        public string? TemplateUrl { get; set; }
+        public string? Language { get; set; }
+        public bool Example { get; set; }
         public string? MdeVersion { get; set; }
     }
 }

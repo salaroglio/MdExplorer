@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { versionInfo } from '../../../environments/version';
 
 /** Da dove viene un valore risolto del relay (catena: progetto → .development.yml → globale). */
 export type RelaySettingSource = 'None' | 'Project' | 'DevelopmentYml' | 'Global';
@@ -74,6 +75,17 @@ export interface RelayTestResult {
   success: boolean;
   statusCode: number | null;
   message: string;
+}
+
+/** Un template da cui viene il progetto (riga «templates:» di .development.yml). */
+export interface ProjectTemplateRow {
+  id: string;
+  url: string;
+  kind?: string | null;
+  language: string;
+  example?: boolean | null;
+  version: string;
+  detached?: string | null;
 }
 
 @Injectable({
@@ -286,6 +298,18 @@ export class ProjectSettingsService {
   // ============================================================
   getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; workflowDocs: string[]; relayUrl: string | null; hasRoomSecret: boolean; useAgentWorktrees: boolean }> {
     return this.http.get<any>('../api/MdProjects/AgentCity', { params: { path: projectPath } });
+  }
+
+  /** I template da cui viene il progetto: le righe «templates:» di .development.yml. */
+  getTemplates(projectPath: string): Observable<{ templates: ProjectTemplateRow[] }> {
+    return this.http.get<{ templates: ProjectTemplateRow[] }>('../api/MdProjects/Templates', { params: { path: projectPath } });
+  }
+
+  /** «Aggiungi un metodo»: unisce il template al progetto con un commit; 400 { error } se non si può. */
+  addTemplate(projectPath: string, templateUrl: string, language: string, example: boolean):
+    Observable<{ id: string; title: string; version: string; notes: string[] }> {
+    return this.http.post<{ id: string; title: string; version: string; notes: string[] }>('../api/MdProjects/AddTemplate',
+      { path: projectPath, templateUrl, language, example, mdeVersion: versionInfo.version });
   }
 
   setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDocs?: string[]; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {

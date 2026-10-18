@@ -32,6 +32,29 @@
   color: var(--mde-error, #c62828);
 }
 
+/* I template da cui viene il progetto (P2). */
+.template-rows {
+  margin: 0 0 12px 32px;
+  padding: 0;
+  li { margin-bottom: 4px; }
+}
+
+.template-url {
+  display: block;
+  color: var(--mde-text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.template-language {
+  display: block;
+  width: 200px;
+}
+
+.template-add {
+  margin-top: 8px;
+}
+
 /* Un documento del workflow per riga, con il cestino accanto (PW). */
 .workflow-doc-row {
   display: flex;

@@ -32,6 +32,11 @@ namespace MdExplorer.Services.Templates
         public string OriginUrl { get; init; }
         /// <summary>La versione di questo MdExplorer, per <c>requires.mde</c> del manifesto.</summary>
         public string MdeVersion { get; init; }
+        /// <summary>
+        /// I metodi da unire dopo il primo template, nell'ordine (P2: un progetto nasce da più template). Stessa lingua e
+        /// stessa scelta dell'esempio del primo.
+        /// </summary>
+        public IReadOnlyList<string> Methods { get; init; }
     }
 
     public sealed class TemplateCreateOutcome
@@ -41,6 +46,29 @@ namespace MdExplorer.Services.Templates
         public string Title { get; init; }
         public string Version { get; init; }
         public string Origin { get; init; }
+        /// <summary>I metodi uniti dopo il primo template, nell'ordine.</summary>
+        public IReadOnlyList<TemplateAddOutcome> Methods { get; init; } = Array.Empty<TemplateAddOutcome>();
+        /// <summary>Che cosa MDE ha scritto nei file comuni (ruoli, istruzioni, workflow), e ciò che resta da fare.</summary>
+        public IReadOnlyList<string> Notes { get; init; } = Array.Empty<string>();
+    }
+
+    /// <summary>Che cosa serve per aggiungere un metodo a un progetto che c'è già.</summary>
+    public sealed class TemplateAddRequest
+    {
+        public string ProjectPath { get; init; }
+        public string TemplateUrl { get; init; }
+        public string Language { get; init; }
+        public bool Example { get; init; }
+        public string MdeVersion { get; init; }
+    }
+
+    public sealed class TemplateAddOutcome
+    {
+        public string Id { get; init; }
+        public string Title { get; init; }
+        public string Version { get; init; }
+        /// <summary>Che cosa MDE ha scritto nei file comuni, e ciò che resta da fare.</summary>
+        public IReadOnlyList<string> Notes { get; init; } = Array.Empty<string>();
     }
 
     public interface IProjectTemplateCreator
@@ -50,6 +78,13 @@ namespace MdExplorer.Services.Templates
         /// locale creati qui vengono tolti e l'eccezione dice perché, per la persona.
         /// </summary>
         Task<TemplateCreateOutcome> CreateAsync(TemplateCreateRequest request, CancellationToken ct = default);
+
+        /// <summary>
+        /// «Aggiungi un metodo» (P2): unisce un template <c>method</c> al progetto, applica il suo manifesto ai file comuni e
+        /// fa un commit. Il progetto deve essere un repository git senza modifiche non committate. Qualunque cosa vada storta,
+        /// il progetto torna com'era e l'eccezione dice perché. Non pubblica: il commit lo si manda con la barra di git.
+        /// </summary>
+        Task<TemplateAddOutcome> AddMethodAsync(TemplateAddRequest request, CancellationToken ct = default);
     }
 
     public sealed class ProjectTemplateCreator : IProjectTemplateCreator
@@ -99,41 +134,18 @@ namespace MdExplorer.Services.Templates
                 Directory.CreateDirectory(path);
                 await Run(path, ct, "init", "-q", "-b", ProjectBranch);
 
-                // Il nome vero del remoto si sa dal manifesto: si scarica con un nome provvisorio e poi si rinomina.
-                const string probe = RemotePrefix + "new";
-                await Run(path, ct, "remote", "add", probe, request.TemplateUrl.Trim());
-                var fetched = await _transport.FetchAsync(path, probe, ct);
-                if (!fetched.Ok)
-                    throw Problem($"Il template non si scarica da '{request.TemplateUrl}': {fetched.Error}", $"The template cannot be downloaded from '{request.TemplateUrl}': {fetched.Error}");
-
-                var (id, found) = await FindManifestAsync(path, probe, ct);
-                var branch = found.BranchFor(request.Language, request.Example);
-                var remote = RemotePrefix + id;
-                await Run(path, ct, "remote", "rename", probe, remote);
-
-                var tip = $"{remote}/{branch}";
-                if (!(await _git.RunAsync(path, new[] { "rev-parse", "--verify", "--quiet", tip + "^{commit}" }, ct)).Ok)
-                    throw Problem($"Il manifesto del template indica il ramo '{branch}', che nel repository non c'è.",
-                                  $"The template manifest names the branch '{branch}', which is not in the repository.");
-
-                // Fa fede il manifesto del ramo che si prende.
-                var manifest = TemplateManifestReader.ReadOrThrow(await ShowAsync(path, tip, TemplateManifest.PathOf(id), ct), id, $"{TemplateManifest.PathOf(id)} ({branch})");
-                await CheckAsync(path, tip, manifest, request.MdeVersion, ct);
-
+                var (tip, branch, manifest) = await PrepareAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion,
+                    new HashSet<string>(StringComparer.Ordinal), ct);
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
-                RecordTemplate(path, new ProjectTemplateConfig
-                {
-                    Id = manifest.Id,
-                    Url = request.TemplateUrl.Trim(),
-                    Kind = manifest.IsMethod ? null : TemplateManifest.Project,
-                    Language = request.Language,
-                    Example = request.Example,
-                    Version = manifest.Version,
-                });
-                await Run(path, ct, "add", DevelopmentConfigCleanup.FileName);
+                var notes = await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example), ct);
                 await Run(path, ct, "commit", "-q", "-m",
                     UiText.Say($"Progetto creato dal template «{manifest.Title}» {manifest.Version}", $"Project created from the template «{manifest.Title}» {manifest.Version}"));
+
+                // Gli altri metodi, nell'ordine: ognuno con la sua unione e il suo commit.
+                var methods = new List<TemplateAddOutcome>();
+                foreach (var url in request.Methods ?? Array.Empty<string>())
+                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, request.MdeVersion, ct));
 
                 string origin;
                 if (localOrigin != null)
@@ -151,8 +163,13 @@ namespace MdExplorer.Services.Templates
                 // I posti di lavoro degli agenti, la revisione e «Autorizza» partono da origin/HEAD.
                 await Run(path, ct, "remote", "set-head", "origin", ProjectBranch);
 
-                _logger.LogInformation("[Template] '{Path}' creato da '{Id}' {Version} ({Branch}); origin '{Origin}'.", path, manifest.Id, manifest.Version, branch, origin);
-                return new TemplateCreateOutcome { Path = path, Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Origin = origin };
+                _logger.LogInformation("[Template] '{Path}' creato da '{Id}' {Version} ({Branch}){Methods}; origin '{Origin}'.", path, manifest.Id, manifest.Version, branch,
+                    methods.Count == 0 ? "" : " + " + string.Join(", ", methods.Select(m => $"{m.Id} {m.Version}")), origin);
+                return new TemplateCreateOutcome
+                {
+                    Path = path, Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Origin = origin,
+                    Methods = methods, Notes = notes.Concat(methods.SelectMany(m => m.Notes)).ToList(),
+                };
             }
             catch (Exception ex)
             {
@@ -164,6 +181,265 @@ namespace MdExplorer.Services.Templates
                 throw Problem($"Il progetto non è stato creato: {ex.Message}", $"The project was not created: {ex.Message}");
             }
         }
+
+        public async Task<TemplateAddOutcome> AddMethodAsync(TemplateAddRequest request, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ProjectPath) || !Directory.Exists(request.ProjectPath))
+                throw Problem($"Il progetto '{request?.ProjectPath}' non esiste.", $"The project '{request?.ProjectPath}' does not exist.");
+            if (string.IsNullOrWhiteSpace(request.TemplateUrl)) throw Problem("Manca l'indirizzo del metodo.", "The method address is missing.");
+            if (string.IsNullOrWhiteSpace(request.Language)) throw Problem("Manca la lingua del metodo.", "The method language is missing.");
+            if (!TemplateManifestReader.IsAppVersion(request.MdeVersion))
+                throw Problem($"La versione di MdExplorer '{request.MdeVersion}' non si legge: serve per sapere se il metodo ci gira.",
+                              $"The MdExplorer version '{request.MdeVersion}' cannot be read: it is needed to know whether the method runs here.");
+            var path = System.IO.Path.GetFullPath(request.ProjectPath).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+
+            var top = await _git.RunAsync(path, new[] { "rev-parse", "--show-toplevel" }, ct);
+            if (!top.Ok || !SamePath(top.Stdout.Trim(), path))
+                throw Problem("Il progetto non è un repository git (o ne è una sottocartella): un metodo si unisce con git.",
+                              "The project is not a git repository (or is a subfolder of one): a method is merged with git.");
+            if (File.Exists(System.IO.Path.Combine(path, ".git", "MERGE_HEAD")) || (await _git.RunAsync(path, new[] { "rev-parse", "-q", "--verify", "MERGE_HEAD" }, ct)).Ok)
+                throw Problem("Nel progetto c'è un'unione rimasta a metà: chiudila o annullala prima di aggiungere un metodo.",
+                              "The project has a merge left half done: finish or abort it before adding a method.");
+            var dirty = (await Run(path, ct, "status", "--porcelain", "--untracked-files=no")).Trim();
+            if (dirty.Length > 0)
+                throw Problem($"Il progetto ha modifiche non committate ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): committale o annullale, poi aggiungi il metodo. Il metodo arriva con un commit suo, che non deve portarsi dietro il tuo lavoro.",
+                              $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them, then add the method. The method comes with its own commit, which must not carry your work.");
+
+            var head = (await Run(path, ct, "rev-parse", "HEAD")).Trim();
+            try
+            {
+                var outcome = await MergeMethodAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion, ct);
+                _logger.LogInformation("[Template] '{Path}': aggiunto il metodo '{Id}' {Version}.", path, outcome.Id, outcome.Version);
+                return outcome;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Template] '{Path}': il metodo da '{Url}' non si aggiunge; il progetto torna com'era.", path, request.TemplateUrl);
+                await UndoAsync(path, head, ct);
+                if (ex is InvalidOperationException) throw;
+                throw Problem($"Il metodo non è stato aggiunto: {ex.Message}", $"The method was not added: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Unisce un metodo al progetto (che ha già un commit): scarica, controlla, unisce le storie indipendenti senza
+        /// committare, applica il manifesto e fa un commit solo. Chi chiama rimette a posto se qualcosa va storto.
+        /// </summary>
+        private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, string mdeVersion, CancellationToken ct)
+        {
+            var present = PresentTemplates(path);
+            var (tip, _, manifest) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct);
+            if (!manifest.IsMethod)
+                throw Problem($"«{manifest.Title}» è un template di progetto (la base di un progetto intero): si sceglie solo alla creazione, non si aggiunge.",
+                              $"«{manifest.Title}» is a project template (the base of a whole project): it is chosen only at creation, it is not added.");
+
+            // La zona del metodo deve essere libera: il metodo porta solo la sua cartella e le sue skill.
+            var tracked = (await Run(path, ct, "ls-files"))
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
+            var taken = tracked.Where(f => TemplateManifestReader.OutsideZone(manifest.Id, new[] { f }).Count == 0).ToList();
+            if (taken.Count > 0)
+                throw Problem($"Il progetto ha già file nella zona del metodo '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): non li sovrascrivo.",
+                              $"The project already has files in the zone of method '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): I will not overwrite them.");
+
+            var merge = await _git.RunAsync(path, new[] { "merge", "--no-ff", "--no-commit", "--allow-unrelated-histories", tip }, ct);
+            if (!merge.Ok)
+                throw Problem($"Il metodo non si unisce al progetto: {merge.Describe()}", $"The method does not merge into the project: {merge.Describe()}");
+
+            var notes = await ApplyManifestAsync(path, manifest, Row(manifest, url, language, example), ct);
+            await Run(path, ct, "commit", "-q", "-m",
+                UiText.Say($"Metodo «{manifest.Title}» {manifest.Version} aggiunto dal template", $"Method «{manifest.Title}» {manifest.Version} added from the template"));
+            return new TemplateAddOutcome { Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Notes = notes };
+        }
+
+        /// <summary>
+        /// Scarica il template su un remoto provvisorio, ne trova il manifesto, rinomina il remoto <c>template-&lt;id&gt;</c> e
+        /// controlla il ramo scelto. Il manifesto che fa fede è quello di quel ramo.
+        /// </summary>
+        private async Task<(string Tip, string Branch, TemplateManifest Manifest)> PrepareAsync(
+            string path, string url, string language, bool example, string mdeVersion, ISet<string> presentIds, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(url)) throw Problem("Manca l'indirizzo di un template.", "A template address is missing.");
+            // Il nome vero del remoto si sa dal manifesto: si scarica con un nome provvisorio e poi si rinomina.
+            const string probe = RemotePrefix + "new";
+            await Run(path, ct, "remote", "add", probe, url.Trim());
+            var fetched = await _transport.FetchAsync(path, probe, ct);
+            if (!fetched.Ok)
+                throw Problem($"Il template non si scarica da '{url}': {fetched.Error}", $"The template cannot be downloaded from '{url}': {fetched.Error}");
+
+            var (id, found) = await FindManifestAsync(path, probe, ct);
+            if (presentIds.Contains(id))
+                throw Problem($"Il progetto ha già il template '{id}': un template si aggiunge una volta sola.",
+                              $"The project already has the template '{id}': a template is added only once.");
+            var branch = found.BranchFor(language, example);
+            var remote = RemotePrefix + id;
+            if ((await _git.RunAsync(path, new[] { "remote", "get-url", remote }, ct)).Ok)
+                throw Problem($"Il progetto ha già un remoto '{remote}' senza la sua riga in {DevelopmentConfigCleanup.FileName}: toglilo, o rimetti la riga, e riprova.",
+                              $"The project already has a remote '{remote}' without its row in {DevelopmentConfigCleanup.FileName}: remove it, or put the row back, and try again.");
+            await Run(path, ct, "remote", "rename", probe, remote);
+
+            var tip = $"{remote}/{branch}";
+            if (!(await _git.RunAsync(path, new[] { "rev-parse", "--verify", "--quiet", tip + "^{commit}" }, ct)).Ok)
+                throw Problem($"Il manifesto del template indica il ramo '{branch}', che nel repository non c'è.",
+                              $"The template manifest names the branch '{branch}', which is not in the repository.");
+
+            var manifest = TemplateManifestReader.ReadOrThrow(await ShowAsync(path, tip, TemplateManifest.PathOf(id), ct), id, $"{TemplateManifest.PathOf(id)} ({branch})");
+            await CheckAsync(path, tip, manifest, mdeVersion, presentIds, ct);
+            return (tip, branch, manifest);
+        }
+
+        private static ProjectTemplateConfig Row(TemplateManifest manifest, string url, string language, bool example) => new()
+        {
+            Id = manifest.Id,
+            Url = url.Trim(),
+            Kind = manifest.IsMethod ? null : TemplateManifest.Project,
+            Language = language,
+            Example = example,
+            Version = manifest.Version,
+        };
+
+        /// <summary>Le righe dei template del progetto, lette con tolleranza zero.</summary>
+        private static List<ProjectTemplateConfig> PresentTemplates(string path)
+        {
+            var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            return (File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file).Templates : null) ?? new List<ProjectTemplateConfig>();
+        }
+
+        /// <summary>
+        /// Il manifesto applicato ai file del progetto (P0, «Il manifesto applicato ai file del progetto»): la riga del template
+        /// e i suoi workflow in <c>.development.yml</c>, i suoi ruoli come ruoli aperti nel documento delle responsabilità, le
+        /// sue istruzioni nel blocco del metodo dei file d'istruzioni. Mette i file nell'indice; poi i workflow del progetto
+        /// devono leggersi tutti insieme, sennò non si va avanti. Le note dicono che cosa è stato scritto e cosa resta da fare.
+        /// </summary>
+        private async Task<IReadOnlyList<string>> ApplyManifestAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, CancellationToken ct)
+        {
+            var notes = new List<string>();
+            var touched = new List<string> { DevelopmentConfigCleanup.FileName };
+            try
+            {
+                await ApplyManifestCoreAsync(path, manifest, row, notes, touched, ct);
+            }
+            finally
+            {
+                // Nell'indice anche se un passo non va: chi annulla torna al commit di prima e così toglie anche i file nuovi.
+                var existing = touched.Distinct().Where(t => File.Exists(System.IO.Path.Combine(path, t.Replace('/', System.IO.Path.DirectorySeparatorChar)))).ToArray();
+                if (existing.Length > 0) await _git.RunAsync(path, new[] { "add", "--" }.Concat(existing).ToArray(), ct);
+            }
+            return notes;
+        }
+
+        private async Task ApplyManifestCoreAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, List<string> notes, List<string> touched, CancellationToken ct)
+        {
+            var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            var config = File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file) : new DevelopmentConfig();
+
+            config.Templates ??= new List<ProjectTemplateConfig>();
+            if (config.Templates.Any(t => t.Id == row.Id))
+                throw Problem($"Il template porta già una riga '{row.Id}' in {DevelopmentConfigCleanup.FileName}: un template non scrive le sue righe, le scrive MDE.",
+                              $"The template already carries a '{row.Id}' row in {DevelopmentConfigCleanup.FileName}: a template does not write its rows, MDE does.");
+            config.Templates.Add(row);
+
+            // I ruoli: righe aperte nel documento delle responsabilità; se il progetto non ne ha uno, nasce alla radice.
+            var roles = (manifest.Roles ?? new List<TemplateRole>()).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
+            if (roles.Count > 0)
+            {
+                config.AgentCity ??= new AgentCityConfig();
+                var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc) ? OwnershipFile : config.AgentCity.OwnershipDoc.Trim().Replace('\\', '/').TrimStart('/');
+                var ownershipFull = System.IO.Path.Combine(path, ownership.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                var before = File.Exists(ownershipFull) ? await File.ReadAllTextAsync(ownershipFull, ct) : null;
+                var text = MdExplorer.Features.Agents.OwnershipDocWriter.AddOpenRoles(before, roles, out var added);
+                if (before == null || added.Count > 0)
+                {
+                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ownershipFull));
+                    await File.WriteAllTextAsync(ownershipFull, text, ct);
+                    touched.Add(ownership);
+                }
+                if (string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc))
+                {
+                    config.AgentCity.OwnershipDoc = ownership;
+                    notes.Add(UiText.Say($"Creato {ownership}, il documento delle responsabilità del progetto.", $"Created {ownership}, the project's responsibilities document."));
+                }
+                if (added.Count > 0)
+                    notes.Add(UiText.Say($"Ruoli aperti aggiunti in {ownership}: {string.Join(", ", added)}. Chi ne risponde scrive lì il suo nome e la sua email.",
+                                         $"Open roles added in {ownership}: {string.Join(", ", added)}. Whoever answers for them writes their name and email there."));
+            }
+
+            // I workflow del metodo nell'elenco del progetto (PW).
+            var docs = manifest.Workflows ?? new List<string>();
+            if (docs.Count > 0)
+            {
+                config.AgentCity ??= new AgentCityConfig();
+                config.AgentCity.WorkflowDocs ??= new List<string>();
+                var newDocs = docs.Where(d => !config.AgentCity.WorkflowDocs.Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
+                config.AgentCity.WorkflowDocs.AddRange(newDocs);
+                if (newDocs.Count > 0)
+                    notes.Add(UiText.Say($"Workflow del progetto: {string.Join(", ", newDocs)}.", $"Project workflows: {string.Join(", ", newDocs)}."));
+            }
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+                .Build();
+            await File.WriteAllTextAsync(file, serializer.Serialize(config), ct);
+
+            // Le istruzioni: un blocco del metodo in ogni file d'istruzioni che il progetto ha, e in quello del suo motore.
+            if (!string.IsNullOrWhiteSpace(manifest.Instructions))
+            {
+                var instructions = await File.ReadAllTextAsync(System.IO.Path.Combine(path, manifest.Instructions.Replace('/', System.IO.Path.DirectorySeparatorChar)), ct);
+                var targets = HarnessLayout.All.Select(l => l.InstructionsFile)
+                    .Where(f => File.Exists(System.IO.Path.Combine(path, f.Replace('/', System.IO.Path.DirectorySeparatorChar)))).ToList();
+                var harness = config.Harness?.Target;
+                var own = HarnessLayout.All.FirstOrDefault(l => string.Equals(l.Id, harness, StringComparison.OrdinalIgnoreCase))?.InstructionsFile;
+                if (own != null && !targets.Contains(own)) targets.Add(own);
+                if (targets.Count == 0)
+                    notes.Add(UiText.Say($"Le istruzioni del metodo ({manifest.Instructions}) non sono in nessun file d'istruzioni: il progetto non ne ha e non ha un motore. Scegline uno nelle impostazioni e aggiungi di nuovo il blocco.",
+                                         $"The method's instructions ({manifest.Instructions}) are in no instructions file: the project has none and no engine. Choose one in the settings and add the block again."));
+                foreach (var target in targets)
+                {
+                    var full = System.IO.Path.Combine(path, target.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                    var before = File.Exists(full) ? await File.ReadAllTextAsync(full, ct) : null;
+                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full));
+                    await File.WriteAllTextAsync(full, TemplateInstructions.Apply(before, manifest.Id, instructions), ct);
+                    touched.Add(target);
+                }
+                if (targets.Count > 0)
+                    notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
+            }
+
+            // Tutti i workflow del progetto devono stare insieme (PW): un metodo che li rompe non entra.
+            if (config.AgentCity?.WorkflowDocs?.Count > 0)
+            {
+                MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, config.AgentCity.WorkflowDocs, config.AgentCity.OwnershipDoc, out var problem);
+                if (problem != null)
+                    throw Problem($"Con «{manifest.Title}» i workflow del progetto non si leggono: {problem}",
+                                  $"With «{manifest.Title}» the project's workflows cannot be read: {problem}");
+            }
+            if (manifest.Roles?.Any(r => r.Agents?.Count > 0) == true)
+                notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
+                                     "The method's agents start once someone declares them theirs («It's mine») and trusts them."));
+
+        }
+
+        /// <summary>Il documento delle responsabilità che nasce quando un metodo porta ruoli e il progetto non ne ha uno.</summary>
+        public const string OwnershipFile = "responsabilita.md";
+
+        /// <summary>Il progetto torna al commit di prima: l'unione annullata, i file nuovi tolti, il remoto del metodo tolto.</summary>
+        private async Task UndoAsync(string path, string head, CancellationToken ct)
+        {
+            var steps = new List<string[]>
+            {
+                new[] { "merge", "--abort" },
+                new[] { "reset", "-q", "--hard", head },
+            };
+            foreach (var step in steps) await _git.RunAsync(path, step, ct);
+            var remotes = (await _git.RunAsync(path, new[] { "remote" }, ct)).Stdout ?? "";
+            foreach (var r in remotes.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim()))
+                if (r.StartsWith(RemotePrefix, StringComparison.Ordinal) && !PresentTemplates(path).Any(t => RemotePrefix + t.Id == r))
+                    await _git.RunAsync(path, new[] { "remote", "remove", r }, ct);
+        }
+
+        private static bool SamePath(string a, string b)
+            => string.Equals(System.IO.Path.GetFullPath(a).TrimEnd('/', '\\'), System.IO.Path.GetFullPath(b).TrimEnd('/', '\\'),
+                             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
         /// <summary>
         /// Il manifesto dei rami scaricati: ogni ramo che ne ha uno deve averne <b>uno</b> e con lo stesso id. Da lì si sa il
@@ -199,14 +475,15 @@ namespace MdExplorer.Services.Templates
             return (id, manifest);
         }
 
-        private async Task CheckAsync(string path, string tip, TemplateManifest manifest, string mdeVersion, CancellationToken ct)
+        private async Task CheckAsync(string path, string tip, TemplateManifest manifest, string mdeVersion, ISet<string> presentIds, CancellationToken ct)
         {
             if (manifest.Requires?.Mde != null && TemplateManifestReader.CompareAppVersions(manifest.Requires.Mde, mdeVersion) > 0)
                 throw Problem($"Il template «{manifest.Title}» {manifest.Version} chiede MdExplorer {manifest.Requires.Mde} o più nuovo; questo è {mdeVersion}. Aggiorna MdExplorer.",
                               $"The template «{manifest.Title}» {manifest.Version} needs MdExplorer {manifest.Requires.Mde} or newer; this is {mdeVersion}. Update MdExplorer.");
-            if (manifest.Requires?.Templates?.Count > 0)
-                throw Problem($"Il template «{manifest.Title}» ha bisogno anche di {string.Join(", ", manifest.Requires.Templates)}: la creazione da più template insieme non c'è ancora.",
-                              $"The template «{manifest.Title}» also needs {string.Join(", ", manifest.Requires.Templates)}: creating from several templates together is not there yet.");
+            var missingTemplates = (manifest.Requires?.Templates ?? new List<string>()).Where(t => !presentIds.Contains(t)).ToList();
+            if (missingTemplates.Count > 0)
+                throw Problem($"Il template «{manifest.Title}» ha bisogno di {string.Join(", ", missingTemplates)}, che il progetto non ha: aggiungilo prima.",
+                              $"The template «{manifest.Title}» needs {string.Join(", ", missingTemplates)}, which the project does not have: add it first.");
 
             var files = (await Run(path, ct, "ls-tree", "-r", "--name-only", tip))
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToHashSet(StringComparer.Ordinal);
@@ -221,23 +498,6 @@ namespace MdExplorer.Services.Templates
             if (missing.Count > 0)
                 throw Problem($"Il manifesto del template nomina file che nel ramo non ci sono: {string.Join(", ", missing)}.",
                               $"The template manifest names files that are not in the branch: {string.Join(", ", missing)}.");
-        }
-
-        /// <summary>Aggiunge la riga del template in <c>.development.yml</c>, letto con tolleranza zero com'è arrivato dal template.</summary>
-        private static void RecordTemplate(string path, ProjectTemplateConfig row)
-        {
-            var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file) : new DevelopmentConfig();
-            config.Templates ??= new List<ProjectTemplateConfig>();
-            if (config.Templates.Any(t => t.Id == row.Id))
-                throw Problem($"Il template porta già una riga '{row.Id}' in {DevelopmentConfigCleanup.FileName}: un template non scrive le sue righe, le scrive MDE.",
-                              $"The template already carries a '{row.Id}' row in {DevelopmentConfigCleanup.FileName}: a template does not write its rows, MDE does.");
-            config.Templates.Add(row);
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(file, serializer.Serialize(config));
         }
 
         private async Task<string> ShowAsync(string path, string tip, string file, CancellationToken ct)
