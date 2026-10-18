@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { versionInfo } from '../../../environments/version';
 
 /** Come è cambiato un file rispetto al ramo di partenza. */
 export type ChangeKind = 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked';
@@ -15,6 +16,38 @@ export type SubmoduleRelation = 'same' | 'ahead' | 'behind' | 'diverged' | 'unkn
 
 /** Com'è andata un'azione su un repository (pubblica, scarica, allinea, annulla l'unione). */
 /** La «sorgente» del progetto: un remoto `upstream` da cui si prendono soltanto aggiornamenti. */
+/** Una voce del CHANGELOG di un template. */
+export interface TemplateChangelogEntry {
+  version: string;
+  date: string;
+  lines: string[];
+  /** Le righe «⚠️ incompatibile»: da leggere prima di aggiornare. */
+  incompatible: string[];
+}
+
+/** A che punto è un template del progetto rispetto al suo repository (P3). */
+export interface TemplateUpdateInfo {
+  id: string;
+  title: string;
+  kind?: string | null;
+  url: string;
+  current: string;
+  /** La versione nuova; null = niente di nuovo. */
+  available?: string | null;
+  entries: TemplateChangelogEntry[];
+  incompatible: boolean;
+  /** Una vecchia demo con «upstream»: l'aggiornamento la fa diventare un template. */
+  migration: boolean;
+  problem?: string | null;
+}
+
+export interface TemplateUpdateOutcome {
+  id: string;
+  from: string;
+  to: string;
+  notes: string[];
+}
+
 export interface UpstreamStatus {
   /** false per quasi tutti i progetti: niente da mostrare. */
   hasUpstream: boolean;
@@ -220,6 +253,23 @@ export class WorkingChangesService {
   upstreamStatus(projectPath: string, fetch: boolean): Observable<UpstreamStatus> {
     const params = new HttpParams().set('projectPath', projectPath).set('fetch', String(fetch));
     return this.http.get<UpstreamStatus>('../api/RepoSync/upstream', { params });
+  }
+
+  /** Gli aggiornamenti dei template del progetto (P3): versione unita, versione nuova, note. Con `fetch` li interroga. */
+  templateUpdates(projectPath: string, fetch: boolean): Observable<{ templates: TemplateUpdateInfo[] }> {
+    const params = new HttpParams().set('path', projectPath).set('fetch', String(fetch)).set('mdeVersion', versionInfo.version);
+    return this.http.get<{ templates: TemplateUpdateInfo[] }>('../api/MdProjects/TemplateUpdates', { params });
+  }
+
+  /** Porta un template all'ultima versione; `acceptIncompatible` = la persona ha letto che cosa rompe. 400 { error } se non si può. */
+  updateTemplate(projectPath: string, id: string, acceptIncompatible: boolean): Observable<TemplateUpdateOutcome> {
+    return this.http.post<TemplateUpdateOutcome>('../api/MdProjects/UpdateTemplate',
+      { path: projectPath, id, acceptIncompatible, mdeVersion: versionInfo.version });
+  }
+
+  /** Stacca il progetto da un template, per sempre. */
+  detachTemplate(projectPath: string, id: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>('../api/MdProjects/DetachTemplate', { path: projectPath, id });
   }
 
   /** «Scarica gli aggiornamenti» dalla sorgente, e riallinea origin. */

@@ -22,14 +22,14 @@ namespace MdExplorer.IntegrationTests
         [TestInitialize]
         public void ResetCwd() => Directory.SetCurrentDirectory(System.AppContext.BaseDirectory);
 
-        private const string Card = "---\na2a:\n  name: ddd-analista\n  role: Analista DDD\n  accepts_messages_from: [\"user\"]\n  skills:\n    - id: modella\n---\n# ddd-analista\n\nSei l'analista DDD.\n";
+        internal const string Card = "---\na2a:\n  name: ddd-analista\n  role: Analista DDD\n  accepts_messages_from: [\"user\"]\n  skills:\n    - id: modella\n---\n# ddd-analista\n\nSei l'analista DDD.\n";
 
-        private const string DddWorkflow = @"{
+        internal const string DddWorkflow = @"{
   ""mde_workflow"": 3, ""title"": ""Modello del dominio"",
   ""steps"": [ { ""id"": ""modella"", ""agent"": ""ddd-analista"", ""skill"": ""modella"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" } ]
 }";
 
-        private static string Ddd(string requires = null) => $@"mde_template: 1
+        internal static string Ddd(string requires = null) => $@"mde_template: 1
 id: ddd
 kind: method
 title: ""Sviluppo con DDD""
@@ -44,7 +44,7 @@ workflows:
 instructions: .mde-template/ddd/istruzioni.md
 ";
 
-        private static Dictionary<string, Dictionary<string, string>> DddBranches(string requires = null, string workflow = DddWorkflow, string extraFile = null) => new()
+        internal static Dictionary<string, Dictionary<string, string>> DddBranches(string requires = null, string workflow = DddWorkflow, string extraFile = null) => new()
         {
             ["main"] = new Dictionary<string, string>
             {
@@ -59,21 +59,21 @@ instructions: .mde-template/ddd/istruzioni.md
         };
 
         /// <summary>La base: la demo dei test di P1, con un CLAUDE.md del gruppo.</summary>
-        private static Dictionary<string, Dictionary<string, string>> Base()
+        internal static Dictionary<string, Dictionary<string, string>> Base()
         {
             var b = DemoBranches();
             b["main"]["CLAUDE.md"] = "# Istruzioni del gruppo\n\nRispondi in italiano.\n";
             return b;
         }
 
-        private static async Task<TemplateAddOutcome> Add(AgentCityContext ctx, string path, string url)
+        internal static async Task<TemplateAddOutcome> Add(AgentCityContext ctx, string path, string url)
         {
             using var scope = ctx.Factory.Services.CreateScope();
             return await scope.ServiceProvider.GetRequiredService<IProjectTemplateCreator>()
                 .AddMethodAsync(new TemplateAddRequest { ProjectPath = path, TemplateUrl = url, Language = "it", MdeVersion = Mde });
         }
 
-        private static async Task<string> Project(AgentCityContext ctx, string name)
+        internal static async Task<string> Project(AgentCityContext ctx, string name)
         {
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var path = NewFolder(ctx, name);
@@ -82,7 +82,7 @@ instructions: .mde-template/ddd/istruzioni.md
             return path;
         }
 
-        private static string Read(string path, string file) => File.ReadAllText(Path.Combine(path, file));
+        internal static string Read(string path, string file) => File.ReadAllText(Path.Combine(path, file));
 
         [TestMethod]
         public async Task Add_a_method_to_a_project_and_write_for_it_in_the_common_files()

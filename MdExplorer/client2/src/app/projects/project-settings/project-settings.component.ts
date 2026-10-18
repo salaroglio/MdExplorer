@@ -883,6 +883,29 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Stacca il progetto da un template, per sempre: si chiede prima, con quello che vuol dire. */
+  detachTemplate(t: ProjectTemplateRow): void {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '480px',
+      data: {
+        title: this.translate.instant('PROJECT_SETTINGS.TEMPLATE_DETACH_TITLE', { id: t.id }),
+        message: this.translate.instant('PROJECT_SETTINGS.TEMPLATE_DETACH_CONFIRM', { id: t.id }),
+        confirmText: this.translate.instant('PROJECT_SETTINGS.TEMPLATE_DETACH'),
+        cancelText: this.translate.instant('COMMON.CANCEL'),
+      },
+    });
+    ref.afterClosed().subscribe(ok => {
+      if (!ok) return;
+      this.addingMethod = true;
+      this.methodError = '';
+      this.methodNotes = [];
+      this.projectSettingsService.detachTemplate(this.projectPath, t.id).subscribe({
+        next: res => { this.addingMethod = false; this.methodNotes = [res.message]; this.loadTemplates(); },
+        error: err => { this.addingMethod = false; this.methodError = err?.error?.error || err?.message || ''; },
+      });
+    });
+  }
+
   addWorkflowDoc(): void {
     this.agentCityWorkflowDocs = [...this.agentCityWorkflowDocs, ''];
   }

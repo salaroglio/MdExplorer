@@ -719,6 +719,57 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Gli aggiornamenti dei template del progetto (P3): per ognuno la versione unita, quella nuova, le voci del CHANGELOG fra
+        /// le due e il perché, se non si può. <paramref name="fetch"/> interroga i repository dei template.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> TemplateUpdates([FromQuery] string path, [FromQuery] bool fetch, [FromQuery] string mdeVersion,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(new { templates = await updates.UpdatesAsync(path, fetch, mdeVersion, ct) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Porta un template all'ultima versione; 400 con il motivo, e il progetto com'era, se non si può.</summary>
+        [HttpPost]
+        public async Task<IActionResult> UpdateTemplate([FromBody] TemplateUpdateHttpRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(await updates.UpdateAsync(new MdExplorer.Services.Templates.TemplateUpdateRequest
+                {
+                    ProjectPath = request?.Path, Id = request?.Id, AcceptIncompatible = request?.AcceptIncompatible == true, MdeVersion = request?.MdeVersion,
+                }, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Stacca il progetto da un template, per sempre.</summary>
+        [HttpPost]
+        public async Task<IActionResult> DetachTemplate([FromBody] TemplateUpdateHttpRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(new { message = await updates.DetachAsync(request?.Path, request?.Id, ct) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         /// <summary>I template da cui viene il progetto: le righe <c>templates:</c> di <c>.development.yml</c>.</summary>
         [HttpGet]
         public IActionResult Templates([FromQuery] string path)
@@ -1267,6 +1318,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string? MdeVersion { get; set; }
         /// <summary>I metodi da unire dopo il primo template, nell'ordine.</summary>
         public List<string>? Methods { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.UpdateTemplate"/> e <see cref="MdProjectsController.DetachTemplate"/>.</summary>
+    public class TemplateUpdateHttpRequest
+    {
+        public string? Path { get; set; }
+        public string? Id { get; set; }
+        public bool AcceptIncompatible { get; set; }
+        public string? MdeVersion { get; set; }
     }
 
     /// <summary>La richiesta di <see cref="MdProjectsController.AddTemplate"/>.</summary>

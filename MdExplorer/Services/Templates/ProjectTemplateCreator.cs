@@ -87,7 +87,7 @@ namespace MdExplorer.Services.Templates
         Task<TemplateAddOutcome> AddMethodAsync(TemplateAddRequest request, CancellationToken ct = default);
     }
 
-    public sealed class ProjectTemplateCreator : IProjectTemplateCreator
+    public sealed partial class ProjectTemplateCreator : IProjectTemplateCreator
     {
         /// <summary>Il ramo del progetto creato, qualunque sia il ramo del template da cui parte.</summary>
         public const string ProjectBranch = "main";
@@ -310,13 +310,19 @@ namespace MdExplorer.Services.Templates
         /// sue istruzioni nel blocco del metodo dei file d'istruzioni. Mette i file nell'indice; poi i workflow del progetto
         /// devono leggersi tutti insieme, sennò non si va avanti. Le note dicono che cosa è stato scritto e cosa resta da fare.
         /// </summary>
-        private async Task<IReadOnlyList<string>> ApplyManifestAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, CancellationToken ct)
+        /// <param name="update">
+        /// Aggiornamento (P3): la riga c'è già (o arriva dalla migrazione di una vecchia demo) e prende la versione nuova; i ruoli
+        /// e i workflow nuovi si aggiungono, quelli che il metodo non ha più restano e lo si dice; il blocco delle istruzioni si
+        /// sostituisce.
+        /// </param>
+        private async Task<IReadOnlyList<string>> ApplyManifestAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, CancellationToken ct,
+            bool update = false, TemplateManifest previous = null)
         {
             var notes = new List<string>();
             var touched = new List<string> { DevelopmentConfigCleanup.FileName };
             try
             {
-                await ApplyManifestCoreAsync(path, manifest, row, notes, touched, ct);
+                await ApplyManifestCoreAsync(path, manifest, row, notes, touched, update, previous, ct);
             }
             finally
             {
@@ -327,16 +333,34 @@ namespace MdExplorer.Services.Templates
             return notes;
         }
 
-        private async Task ApplyManifestCoreAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, List<string> notes, List<string> touched, CancellationToken ct)
+        private async Task ApplyManifestCoreAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, List<string> notes, List<string> touched,
+            bool update, TemplateManifest previous, CancellationToken ct)
         {
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
             var config = File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file) : new DevelopmentConfig();
 
             config.Templates ??= new List<ProjectTemplateConfig>();
-            if (config.Templates.Any(t => t.Id == row.Id))
+            var existing = config.Templates.FindIndex(t => t.Id == row.Id);
+            if (existing >= 0 && !update)
                 throw Problem($"Il template porta già una riga '{row.Id}' in {DevelopmentConfigCleanup.FileName}: un template non scrive le sue righe, le scrive MDE.",
                               $"The template already carries a '{row.Id}' row in {DevelopmentConfigCleanup.FileName}: a template does not write its rows, MDE does.");
-            config.Templates.Add(row);
+            if (existing >= 0) config.Templates[existing] = row;
+            else config.Templates.Add(row);
+
+            // Ciò che la versione nuova non porta più resta nel progetto (è del gruppo, ora): lo si dice.
+            if (previous != null)
+            {
+                var goneRoles = (previous.Roles ?? new List<TemplateRole>()).Select(r => r.Role)
+                    .Where(r => !(manifest.Roles ?? new List<TemplateRole>()).Any(n => string.Equals(n.Role, r, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (goneRoles.Count > 0)
+                    notes.Add(UiText.Say($"La versione nuova non ha più i ruoli {string.Join(", ", goneRoles)}: restano nel documento delle responsabilità, toglili tu se non servono.",
+                                         $"The new version no longer has the roles {string.Join(", ", goneRoles)}: they stay in the responsibilities document, remove them yourself if not needed."));
+                var goneDocs = (previous.Workflows ?? new List<string>())
+                    .Where(d => !(manifest.Workflows ?? new List<string>()).Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (goneDocs.Count > 0)
+                    notes.Add(UiText.Say($"La versione nuova non ha più i workflow {string.Join(", ", goneDocs)}: restano nell'elenco del progetto, toglili dalle impostazioni se non servono.",
+                                         $"The new version no longer has the workflows {string.Join(", ", goneDocs)}: they stay in the project's list, remove them from the settings if not needed."));
+            }
 
             // I ruoli: righe aperte nel documento delle responsabilità; se il progetto non ne ha uno, nasce alla radice.
             var roles = (manifest.Roles ?? new List<TemplateRole>()).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();

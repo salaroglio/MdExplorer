@@ -17,7 +17,7 @@ import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView, UpstreamStatus } from '../../services/working-changes.service';
+import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, TemplateUpdateInfo, WorkingChange, WorkingChangesService, WorkingChangesView, UpstreamStatus } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -1310,6 +1310,60 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     return this.panelLabel('COMMIT', this.howManyFilesAreToCommit, this.reposToCommit.length);
   }
 
+  /** I template del progetto (P3): versione nuova, note, problemi. */
+  templateUpdates: TemplateUpdateInfo[] = [];
+  /** Per ogni template con una versione che rompe qualcosa: la persona ha letto e aggiorna lo stesso. */
+  acceptIncompatible: { [id: string]: boolean } = {};
+
+  /** I template da mostrare: con una versione nuova o con un problema. */
+  get templatesToShow(): TemplateUpdateInfo[] {
+    return this.templateUpdates.filter(t => !!t.available || !!t.problem);
+  }
+
+  get templatesWithNews(): number {
+    return this.templateUpdates.filter(t => !!t.available).length;
+  }
+
+  trackByTemplate = (_: number, t: TemplateUpdateInfo) => t.id;
+
+  private loadTemplateUpdates(fetch: boolean): void {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath || this.reviewAgent) { this.templateUpdates = []; return; }
+    this.workingChanges.templateUpdates(projectPath, fetch).subscribe({
+      next: res => this.templateUpdates = res?.templates || [],
+      // Il motivo arriva dal servizio: lo si mostra come problema del pannello, non lo si nasconde.
+      error: err => this.templateUpdates = [{
+        id: '?', title: '?', url: '', current: '', entries: [], incompatible: false, migration: false,
+        problem: err?.error?.error || err?.message || '',
+      }],
+    });
+  }
+
+  /** Porta un template all'ultima versione: unione, manifesto riapplicato, un commit, origin allineato. */
+  updateTemplate(t: TemplateUpdateInfo): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    const info = new WaitingDialogInfo();
+    info.message = this.translate.instant('GITFLOW.TEMPLATES_UPDATING', { title: t.title, version: t.available });
+    this.waitingDialogService.showMessageBox(info);
+    this.workingChanges.updateTemplate(projectPath, t.id, !!this.acceptIncompatible[t.id]).subscribe({
+      next: res => {
+        this.waitingDialogService.closeMessageBox();
+        const text = [this.translate.instant('GITFLOW.TEMPLATES_UPDATED', { title: t.title, from: res.from, to: res.to }), ...(res.notes || [])].join(' ');
+        this._snackBar.open(text, 'OK', { verticalPosition: 'top' });
+        delete this.acceptIncompatible[t.id];
+        this.refreshLocalGitCounters();
+        this.refreshRemotes(true);
+      },
+      error: err => {
+        this.waitingDialogService.closeMessageBox();
+        this._snackBar.open(this.translate.instant('GITFLOW.ACTION_FAILED', { error: err?.error?.error || err?.message || '' }), 'OK',
+          { verticalPosition: 'top', panelClass: ['error-snackbar'] });
+        this.loadTemplateUpdates(false);
+      },
+    });
+  }
+
   /** La sorgente del progetto (remoto `upstream`): il pulsante compare solo se ha aggiornamenti. */
   upstream: UpstreamStatus | null = null;
 
@@ -1317,6 +1371,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   private loadUpstream(fetch: boolean): void {
     const projectPath = this.getProjectPath(true);
     if (!projectPath || this.reviewAgent) { this.upstream = null; return; }
+    this.loadTemplateUpdates(fetch);
     this.workingChanges.upstreamStatus(projectPath, fetch).subscribe({
       next: status => this.upstream = status?.hasUpstream ? status : null,
       // Stato ignoto: il pulsante resta spento, e lo si dichiara.

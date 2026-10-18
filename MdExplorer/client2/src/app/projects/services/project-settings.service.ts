@@ -312,6 +312,11 @@ export class ProjectSettingsService {
       { path: projectPath, templateUrl, language, example, mdeVersion: versionInfo.version });
   }
 
+  /** Stacca il progetto da un template, per sempre. */
+  detachTemplate(projectPath: string, id: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>('../api/MdProjects/DetachTemplate', { path: projectPath, id });
+  }
+
   setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDocs?: string[]; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {
     return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
   }

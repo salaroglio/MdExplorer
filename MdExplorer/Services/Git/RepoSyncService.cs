@@ -360,64 +360,29 @@ namespace MdExplorer.Services.Git
             => new() { HasUpstream = true, Url = s.Url, Branch = s.Branch, Remote = s.Remote, LocalBranch = s.LocalBranch, Problem = problem };
 
         /// <summary>
-        /// Where the project's updates come from, without asking the network. The base template's row wins: its remote is
-        /// recreated from the row when missing (remotes do not travel with a clone), and its branch is the one the template's
-        /// manifest, as merged in the project, gives for the chosen language. Null = no source.
+        /// Where the project's updates come from, without asking the network: only the old <c>upstream</c> remote of a project
+        /// that does not come from a template. A project with templates (P3), or whose <c>upstream</c> branch now carries a
+        /// project template's manifest (an old demo to migrate), takes its updates from the templates' panel instead
+        /// (<see cref="MdExplorer.Services.Templates.IProjectTemplateUpdates"/>). Null = no source here.
         /// </summary>
         private async Task<UpstreamStatus> SourceAsync(string dir, string local, CancellationToken ct)
         {
-            List<ProjectTemplateConfig> bases;
             var yml = Path.Combine(dir, DevelopmentConfigCleanup.FileName);
             try
             {
-                bases = (File.Exists(yml) ? DevelopmentConfigCleanup.ReadStrict(yml).Templates : null)?
-                    .Where(t => t.Kind == TemplateManifest.Project && string.IsNullOrEmpty(t.Detached)).ToList()
-                    ?? new List<ProjectTemplateConfig>();
+                if ((File.Exists(yml) ? DevelopmentConfigCleanup.ReadStrict(yml).Templates : null)?.Count > 0) return null;
             }
             catch (InvalidOperationException ex)
             {
                 return new UpstreamStatus { HasUpstream = true, Problem = ex.Message };
             }
 
-            if (bases.Count == 0)
-            {
-                var url = await _runner.RunAsync(dir, new[] { "remote", "get-url", UpstreamRemote }, ct);
-                if (!url.Ok || string.IsNullOrWhiteSpace(url.Stdout)) return null;
-                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Remote = UpstreamRemote, Branch = local, LocalBranch = local };
-            }
-            if (bases.Count > 1)
-                return new UpstreamStatus { HasUpstream = true, Problem = UiText.Say(
-                    $"In {DevelopmentConfigCleanup.FileName} ci sono più template di base ({string.Join(", ", bases.Select(b => b.Id))}): un progetto ne ha uno solo.",
-                    $"{DevelopmentConfigCleanup.FileName} has several base templates ({string.Join(", ", bases.Select(b => b.Id))}): a project has only one.") };
-
-            var row = bases[0];
-            var remote = ProjectTemplateCreator.RemotePrefix + row.Id;
-            var found = new UpstreamStatus { HasUpstream = true, Url = row.Url, Remote = remote, LocalBranch = local };
-            var current = await _runner.RunAsync(dir, new[] { "remote", "get-url", remote }, ct);
-            if (!current.Ok)
-            {
-                var added = await _runner.RunAsync(dir, new[] { "remote", "add", remote, row.Url }, ct);
-                if (!added.Ok) return With(found, UiText.Say($"Non riesco a ricreare il remoto '{remote}' del template: {added.Describe()}", $"I cannot recreate the template remote '{remote}': {added.Describe()}"));
-                _logger.LogInformation("[Template] '{Dir}': ricreato il remoto '{Remote}' dalla riga di {File}.", dir, remote, DevelopmentConfigCleanup.FileName);
-            }
-            else if (current.Stdout.Trim() != row.Url)
-                return With(found, UiText.Say(
-                    $"Il remoto '{remote}' punta a '{current.Stdout.Trim()}', ma {DevelopmentConfigCleanup.FileName} dice '{row.Url}': correggi uno dei due.",
-                    $"The remote '{remote}' points to '{current.Stdout.Trim()}', but {DevelopmentConfigCleanup.FileName} says '{row.Url}': fix one of the two."));
-
-            var manifestPath = Path.Combine(dir, TemplateManifest.PathOf(row.Id));
-            try
-            {
-                if (!File.Exists(manifestPath))
-                    throw new InvalidOperationException(UiText.Say($"manca {TemplateManifest.PathOf(row.Id)}", $"{TemplateManifest.PathOf(row.Id)} is missing"));
-                var manifest = TemplateManifestReader.ReadOrThrow(File.ReadAllText(manifestPath), row.Id, TemplateManifest.PathOf(row.Id));
-                return new UpstreamStatus { HasUpstream = true, Url = row.Url, Remote = remote, LocalBranch = local, Branch = manifest.BranchFor(row.Language, row.Example == true) };
-            }
-            catch (InvalidOperationException ex)
-            {
-                return With(found, UiText.Say($"Non so da quale ramo del template «{row.Id}» arrivano gli aggiornamenti: {ex.Message}",
-                                              $"I do not know which branch of the template «{row.Id}» the updates come from: {ex.Message}"));
-            }
+            var url = await _runner.RunAsync(dir, new[] { "remote", "get-url", UpstreamRemote }, ct);
+            if (!url.Ok || string.IsNullOrWhiteSpace(url.Stdout)) return null;
+            var manifests = await _runner.RunAsync(dir, new[] { "ls-tree", "-r", "--name-only", $"{UpstreamRemote}/{local}", "--", TemplateManifest.Folder }, ct);
+            if (manifests.Ok && (manifests.Stdout ?? "").Split('\n').Any(f => f.Trim().EndsWith("/" + TemplateManifest.FileName, StringComparison.Ordinal)))
+                return null;
+            return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Remote = UpstreamRemote, Branch = local, LocalBranch = local };
         }
 
         public async Task<RepoActionResult> PullUpstreamAsync(string projectPath, CancellationToken ct = default)

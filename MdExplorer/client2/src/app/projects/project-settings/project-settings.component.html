@@ -348,7 +348,12 @@
                   <strong>{{ t.id }}</strong> {{ t.version }}
                   · {{ (t.kind === 'project' ? 'PROJECT_SETTINGS.TEMPLATE_KIND_PROJECT' : 'PROJECT_SETTINGS.TEMPLATE_KIND_METHOD') | translate }}
                   · {{ t.language }}<span *ngIf="t.example"> · {{ 'PROJECT_SETTINGS.TEMPLATE_EXAMPLE' | translate }}</span>
+                  <span *ngIf="t.detached"> · {{ 'PROJECT_SETTINGS.TEMPLATE_DETACHED' | translate:{ date: t.detached } }}</span>
                   <span class="template-url">{{ t.url }}</span>
+                  <button mat-button color="warn" type="button" *ngIf="!t.detached" [disabled]="addingMethod"
+                          (click)="detachTemplate(t)">
+                    <mat-icon>link_off</mat-icon> {{ 'PROJECT_SETTINGS.TEMPLATE_DETACH' | translate }}
+                  </button>
                 </li>
               </ul>
 

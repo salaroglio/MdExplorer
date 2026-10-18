@@ -143,6 +143,20 @@ mat-toolbar button.git-menu-btn {
   background-color: #cfe2ff;
   color: black;
 }
+.template-updates {
+  max-width: 460px;
+  .template-update {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-top: 1px solid var(--mde-border, rgba(0, 0, 0, 0.12));
+  }
+  .template-update-head { font-size: 13px; }
+  .upstream-url { opacity: 0.7; word-break: break-all; margin-top: 2px; }
+  .template-update-note { margin-top: 4px; font-style: italic; }
+  .template-entry { margin-top: 6px; }
+  .template-entry-title { font-weight: 500; }
+  .template-entry-warn { color: var(--mde-error, #c62828); font-weight: 500; }
+}
 .upstream-what {
   padding: 8px 12px;
   font-size: 12px;
