@@ -464,6 +464,7 @@ namespace MdExplorer.Services.Templates
             }
 
             await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
+            ApplyPrograms(path, manifest, notes);
             FeatureNotes(path, manifest, notes);
 
             // I workflow del progetto devono stare insieme (PW). Un metodo che li rompe non entra. Se erano già guasti prima di
@@ -553,6 +554,38 @@ namespace MdExplorer.Services.Templates
         }
 
         /// <summary>
+        /// Le cartelle di codice del template (<c>programs</c>, P7): segnate <c>program</c> con i loro linguaggi in
+        /// <c>.development.yml</c>, come dalla finestra «Ambiente di sviluppo». Vengono dopo i semi: la cartella deve esserci.
+        /// Una cartella già segnata dal gruppo resta com'è.
+        /// </summary>
+        private void ApplyPrograms(string path, TemplateManifest manifest, List<string> notes)
+        {
+            if (manifest.Programs == null || manifest.Programs.Count == 0) return;
+            var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            var config = DevelopmentConfigCleanup.ReadStrict(file);
+            config.Folders ??= new List<DevelopmentFolder>();
+            var marked = new List<string>();
+            foreach (var program in manifest.Programs)
+            {
+                if (!Directory.Exists(System.IO.Path.Combine(path, program.Path.Replace('/', System.IO.Path.DirectorySeparatorChar))))
+                    throw Problem($"Il template «{manifest.Title}» segna come codice la cartella '{program.Path}', che nel progetto non c'è.",
+                                  $"The template «{manifest.Title}» marks the folder '{program.Path}' as code, but it is not in the project.");
+                if (config.Folders.Any(f => string.Equals(f.Path?.Trim('/'), program.Path, StringComparison.OrdinalIgnoreCase))) continue;
+                config.Folders.Add(new DevelopmentFolder
+                {
+                    Path = program.Path,
+                    Tags = new List<string> { "program" },
+                    CodeGraph = new FolderCodeGraphConfig { Languages = program.Languages.ToList() },
+                });
+                marked.Add($"{program.Path} ({string.Join(", ", program.Languages)})");
+            }
+            if (marked.Count == 0) return;
+            Write(file, config);
+            notes.Add(UiText.Say($"Cartelle di codice segnate per il grafo del codice: {string.Join(", ", marked)}. L'analisi parte da «Ambiente di sviluppo» nel menu della cartella.",
+                                 $"Code folders marked for the code graph: {string.Join(", ", marked)}. The analysis starts from «Development environment» in the folder's menu."));
+        }
+
+        /// <summary>
         /// Le funzioni di MDE che il template chiede (<c>requires.features</c>, P6): MDE non le accende da sé — sono
         /// impostazioni di questo computer —, ma se sono spente lo dice, con dove si accendono e che cosa resta fermo.
         /// Un progetto appena creato non è ancora nell'elenco dei progetti: per lui sono spente.
@@ -561,6 +594,17 @@ namespace MdExplorer.Services.Templates
         {
             foreach (var feature in manifest.Requires?.Features ?? new List<string>())
             {
+                if (feature == TemplateRequires.Code)
+                {
+                    var config = DevelopmentConfigCleanup.ReadStrict(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName));
+                    var hasProgram = config.Folders?.Any(f => f.CodeGraph?.Languages?.Count > 0
+                        && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true) == true;
+                    if (!hasProgram)
+                        notes.Add(UiText.Say(
+                            $"«{manifest.Title}» confronta il modello con il codice, ma il progetto non ha ancora una cartella di codice: nel menu della cartella del codice scegli «Ambiente di sviluppo» e il linguaggio, e l'analisi parte. Finché non c'è, il passo sul codice si ferma.",
+                            $"«{manifest.Title}» compares the model with the code, but the project has no code folder yet: in the code folder's menu choose «Development environment» and the language, and the analysis starts. Until then, the code step stops."));
+                    continue;
+                }
                 if (feature != TemplateRequires.Fuseki)
                     throw Problem($"Il template «{manifest.Title}» chiede la funzione '{feature}', che questo MdExplorer non sa controllare.",
                                   $"The template «{manifest.Title}» needs the feature '{feature}', which this MdExplorer cannot check.");

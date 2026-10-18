@@ -194,6 +194,36 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
+        public async Task Mark_the_code_folders_of_a_template_or_say_that_there_is_none()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+
+            // Senza cartelle di codice: la nota dice come segnarne una.
+            var path = await Project(ctx, "senza-codice");
+            var plain = DddBranches();
+            plain["main"][".mde-template/ddd/mde-template.yml"] = Ddd().Replace("languages:", "requires:\n  features: [code]\nlanguages:");
+            var outcome = await Add(ctx, path, Template(ctx, "ddd", plain));
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("has no code folder yet") && n.Contains("Development environment")), string.Join("\n", outcome.Notes));
+
+            // Con l'esempio: il codice arriva come seme e la cartella si segna.
+            var other = await Project(ctx, "con-codice");
+            var example = DddBranches();
+            example["main"][".mde-template/ddd/semi/Ticket.cs"] = "namespace Alpina; public class Ticket { }\n";
+            example["main"][".mde-template/ddd/mde-template.yml"] = Ddd().Replace("languages:", "requires:\n  features: [code]\nlanguages:") +
+                "seeds:\n  - { from: .mde-template/ddd/semi/Ticket.cs, to: codice/Tickets/Ticket.cs }\n" +
+                "programs:\n  - { path: codice, languages: [csharp] }\n";
+            var marked = await Add(ctx, other, Template(ctx, "ddd-esempio", example));
+
+            var yml = Read(other, ".development.yml");
+            StringAssert.Contains(yml, "- path: codice\n  tags:\n  - program\n");
+            StringAssert.Contains(yml, "codeGraph:\n    languages:\n    - csharp");
+            Assert.IsTrue(marked.Notes.Any(n => n.Contains("Code folders marked for the code graph: codice (csharp)")), string.Join("\n", marked.Notes));
+            Assert.IsFalse(marked.Notes.Any(n => n.Contains("has no code folder yet")), "la cartella c'è: niente nota");
+            Assert.AreEqual("", Git(other, "status --porcelain").Out);
+        }
+
+        [TestMethod]
         public async Task Say_how_many_starting_files_and_where_when_they_are_many()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

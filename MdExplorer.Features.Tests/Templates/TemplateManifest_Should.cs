@@ -139,8 +139,29 @@ workflows: [citta-degli-agenti/gara/workflow.md]
 
             TemplateManifestReader.Read(GaraIso.Replace("  templates: []\n", "  templates: []\n  features: [fuseki, neo4j, fuseki]\n"), "gara-iso", out problems);
             Assert.AreEqual(2, problems.Count, string.Join("\n", problems));
-            StringAssert.Contains(problems[0], "'neo4j' is not a feature this MdExplorer knows (fuseki)");
+            StringAssert.Contains(problems[0], "'neo4j' is not a feature this MdExplorer knows (fuseki, code)");
             StringAssert.Contains(problems[1], "'fuseki' appears twice");
+        }
+
+        [TestMethod]
+        public void Read_the_code_folders_of_a_template_and_refuse_wrong_ones()
+        {
+            var m = TemplateManifestReader.Read(GaraIso.Replace("  templates: []\n", "  templates: []\n  features: [code]\n") +
+                                                "programs:\n  - { path: codice/assistente, languages: [csharp] }\n", "gara-iso", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            Assert.AreEqual("codice/assistente", m.Programs.Single().Path);
+
+            TemplateManifestReader.Read(GaraIso + "programs:\n" +
+                "  - { path: codice, languages: [cobolo] }\n" +
+                "  - { path: .mde-template/gara-iso/codice, languages: [csharp] }\n" +
+                "  - { path: altro }\n" +
+                "  - { path: Codice, languages: [csharp] }\n", "gara-iso", out problems);
+            var all = string.Join("\n", problems);
+            Assert.AreEqual(4, problems.Count, all);
+            StringAssert.Contains(all, "'cobolo' is not a language MdExplorer knows");
+            StringAssert.Contains(all, "'.mde-template/gara-iso/codice' must be a folder of the group");
+            StringAssert.Contains(all, "'altro' without languages");
+            StringAssert.Contains(all, "'Codice' appears twice");
         }
 
         [TestMethod]

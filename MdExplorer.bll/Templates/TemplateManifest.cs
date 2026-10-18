@@ -34,6 +34,11 @@ namespace MdExplorer.Features.Templates
         public string Instructions { get; set; }
         /// <summary>I file iniziali: copiati una volta nel progetto, se mancano; da lì sono del gruppo (P5).</summary>
         public List<TemplateSeed> Seeds { get; set; }
+        /// <summary>
+        /// Le cartelle di codice del template (P7, di solito quelle dell'esempio): MDE le segna come <c>program</c> con i loro
+        /// linguaggi in <c>.development.yml</c>, come farebbe la finestra «Ambiente di sviluppo», se non ci sono già.
+        /// </summary>
+        public List<TemplateProgram> Programs { get; set; }
 
         public bool IsMethod => Kind == Method;
 
@@ -72,13 +77,22 @@ namespace MdExplorer.Features.Templates
         public List<string> Features { get; set; }
 
         public const string Fuseki = "fuseki";
-        public static readonly IReadOnlyList<string> KnownFeatures = new[] { Fuseki };
+        /// <summary>Il grafo del codice: almeno una cartella <c>program</c> con i suoi linguaggi (P7).</summary>
+        public const string Code = "code";
+        public static readonly IReadOnlyList<string> KnownFeatures = new[] { Fuseki, Code };
     }
 
     public sealed class TemplateLanguage
     {
         public string Structure { get; set; }
         public string Example { get; set; }
+    }
+
+    /// <summary>Una cartella di codice: <c>path</c> dalla radice del progetto, <c>languages</c> gli id del catalogo (<c>csharp</c>…).</summary>
+    public sealed class TemplateProgram
+    {
+        public string Path { get; set; }
+        public List<string> Languages { get; set; }
     }
 
     /// <summary>Un file iniziale: <c>from</c> sta nel template, <c>to</c> è dove nasce nel progetto.</summary>
@@ -196,6 +210,23 @@ namespace MdExplorer.Features.Templates
                                             $"seeds.to: '{s.To}' is not a file of the group: a seed is not born in {TemplateManifest.Folder}/, .claude/skills/, .git/, .md/ or {DevelopmentFile}"));
                 else if (!targets.Add(s.To))
                     problems.Add(UiText.Say($"seeds.to: '{s.To}' compare due volte", $"seeds.to: '{s.To}' appears twice"));
+            }
+
+            var programs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in m.Programs ?? new List<TemplateProgram>())
+            {
+                if (p == null) { problems.Add(UiText.Say("programs: una cartella vuota", "programs: an empty folder")); continue; }
+                if (!IsProjectPath(p.Path) || !IsGroupPath(p.Path))
+                    problems.Add(UiText.Say($"programs.path: '{p.Path}' deve essere una cartella del gruppo, dalla radice del progetto, con «/»",
+                                            $"programs.path: '{p.Path}' must be a folder of the group, from the project root, with «/»"));
+                else if (!programs.Add(p.Path))
+                    problems.Add(UiText.Say($"programs.path: '{p.Path}' compare due volte", $"programs.path: '{p.Path}' appears twice"));
+                if (p.Languages == null || p.Languages.Count == 0)
+                    problems.Add(UiText.Say($"programs: '{p.Path}' senza languages", $"programs: '{p.Path}' without languages"));
+                foreach (var l in p.Languages ?? new List<string>())
+                    if (MdExplorer.Features.Services.CodeGraph.CodeLanguages.ById(l) == null)
+                        problems.Add(UiText.Say($"programs.languages: '{l}' non è un linguaggio che MdExplorer conosce ({string.Join(", ", MdExplorer.Features.Services.CodeGraph.CodeLanguages.All.Select(x => x.Id))})",
+                                                $"programs.languages: '{l}' is not a language MdExplorer knows ({string.Join(", ", MdExplorer.Features.Services.CodeGraph.CodeLanguages.All.Select(x => x.Id))})"));
             }
 
             return m;
