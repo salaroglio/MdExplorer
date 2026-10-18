@@ -3,7 +3,7 @@ name: mde-shacl
 description: Convention for generating SHACL constraint files (Shapes) inside an MDE project. Use when authoring validation rules for a TBox in `ontology/Shapes/`: produces a `.shapes.ttl` with NodeShape/PropertyShape definitions plus a `.md` companion with description + runnable PowerShell that loads the shapes into Apache Jena Fuseki and runs `shacl validate` against ABox data. Triggers on "add SHACL constraints", "validate ontology", "define cardinality rules", "enforce enum values", "model invariants", "constrain ABox", "shacl shape". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill.
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -297,6 +297,12 @@ date: DD/MM/YYYY
 Il named graph IRI è **sempre** `urn:mde:shapes:<layer-name>`. Stesso pattern di TBox/ABox.
 
 ## Validazione del file `.shapes.ttl` stesso
+
+**Con lo strumento MCP `rdf_check` di MdExplorer** (gruppo `agents`) la verifica non ha bisogno di `riot` né di Fuseki: legge
+i `.ttl` (errori con riga e colonna), valida i dati con le regole SHACL e esegue le query `.rq`, tutto in memoria. Usalo
+se c'è; `riot` resta per chi lavora senza MdExplorer.
+
+Esempio: `rdf_check(projectPath, data: ["ontology/TBox", "ontology/ABox"], shapes: ["ontology/Shapes"])` — `shacl.conforms` e le violazioni con il nodo, il percorso e il messaggio.
 
 Prima di caricarlo, validare la sintassi Turtle:
 

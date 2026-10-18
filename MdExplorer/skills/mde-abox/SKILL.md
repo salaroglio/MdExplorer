@@ -3,7 +3,7 @@ name: mde-abox
 description: Convention for generating ABox (instance data) files inside an MDE project. Use when extracting instance triples from a source document (analyses, requirements, mapping tables) into `ontology/ABox/`: produces a `.ttl` with concrete instances conforming to a referenced TBox plus a `.md` companion with description + runnable PowerShell load + sample SPARQL query. Triggers on "extract instances", "generate ABox", "create RDF data from doc", "populate ontology with examples", "instance data for ontology". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill.
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -213,6 +213,12 @@ Per dataset estratti automaticamente da un documento, è raccomandato annotare l
 Non obbligatorio nella prima iterazione; aggiungere quando si vorrà tracciare *quale* documento ha generato *quale* istanza.
 
 ## Validazione
+
+**Con lo strumento MCP `rdf_check` di MdExplorer** (gruppo `agents`) la verifica non ha bisogno di `riot` né di Fuseki: legge
+i `.ttl` (errori con riga e colonna), valida i dati con le regole SHACL e esegue le query `.rq`, tutto in memoria. Usalo
+se c'è; `riot` resta per chi lavora senza MdExplorer.
+
+Esempio: `rdf_check(projectPath, data: ["ontology/TBox", "ontology/ABox"])`.
 
 Validare il `.ttl` prima del caricamento:
 

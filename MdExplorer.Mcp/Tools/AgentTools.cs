@@ -294,4 +294,39 @@ public sealed class AgentTools : McpToolsBase
             return $"Error connecting to MdExplorer: {ex.Message}. The workflow was NOT checked.";
         }
     }
+
+    [McpServerTool, Description(
+        "Check an ontology made of files of the project, in memory (no Fuseki needed): every Turtle file is read (errors with " +
+        "line and column), the data (TBox schema + ABox instances, merged) are validated against the SHACL shapes, and every " +
+        "SPARQL query file (.rq: the competency questions) is run on the data. Each path is a file or a folder from the " +
+        "project root; a folder means every .ttl (data, shapes) or .rq (queries) inside it; shape files are not counted as " +
+        "data. Returns JSON: files[] (path, role, triples, error), shacl (conforms, violations[] with focusNode, path, value, " +
+        "message, shape), queries[] (path, kind ask/select/graph, answer for ASK, variables + rows (first 50) + rowCount for " +
+        "SELECT, error), ok. If a file cannot be read, SHACL and queries are NOT run (note). Whether an answer is the EXPECTED " +
+        "one is yours to judge against the competency question. If the answer is an HTTP or connection error, nothing was checked.")]
+    public async Task<string> RdfCheck(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("Turtle files or folders with the schema and the instances, e.g. ['ontology/TBox', 'ontology/ABox'].")] string[] data,
+        [Description("Turtle files or folders with the SHACL shapes, e.g. ['ontology/Shapes']. Empty = no validation.")] string[]? shapes = null,
+        [Description("SPARQL .rq files or folders with the competency questions. Empty = no queries.")] string[]? queries = null)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (data == null || data.Length == 0) return "Error: data is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { projectPath = projectPath.Trim(), data, shapes = shapes ?? Array.Empty<string>(), queries = queries ?? Array.Empty<string>() };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/ontology/check", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The ontology was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The ontology was NOT checked.";
+        }
+    }
 }
