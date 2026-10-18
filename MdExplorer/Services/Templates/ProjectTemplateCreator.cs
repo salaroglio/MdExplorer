@@ -581,8 +581,9 @@ namespace MdExplorer.Services.Templates
             }
             if (marked.Count == 0) return;
             Write(file, config);
-            notes.Add(UiText.Say($"Cartelle di codice segnate per il grafo del codice: {string.Join(", ", marked)}. L'analisi parte da «Ambiente di sviluppo» nel menu della cartella.",
-                                 $"Code folders marked for the code graph: {string.Join(", ", marked)}. The analysis starts from «Development environment» in the folder's menu."));
+            // Visto a vista il 18/10: segnata la cartella, l'analisi parte da sola all'apertura e scrive i suoi script.
+            notes.Add(UiText.Say($"Cartelle di codice segnate per il grafo del codice: {string.Join(", ", marked)}. L'analisi parte da sola quando il progetto si apre e scrive i suoi script in .mde-code/: committali, sono del gruppo.",
+                                 $"Code folders marked for the code graph: {string.Join(", ", marked)}. The analysis starts by itself when the project opens and writes its scripts in .mde-code/: commit them, they are the group's."));
         }
 
         /// <summary>
