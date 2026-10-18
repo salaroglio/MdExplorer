@@ -65,6 +65,14 @@ namespace MdExplorer.Features.Templates
         public string Mde { get; set; }
         /// <summary>Gli altri metodi senza cui questo non sta in piedi.</summary>
         public List<string> Templates { get; set; }
+        /// <summary>
+        /// Le funzioni di MDE da accendere per il progetto (P6), fra <see cref="KnownFeatures"/>: MDE non le accende da sé,
+        /// dice con una nota se sono spente e dove si accendono.
+        /// </summary>
+        public List<string> Features { get; set; }
+
+        public const string Fuseki = "fuseki";
+        public static readonly IReadOnlyList<string> KnownFeatures = new[] { Fuseki };
     }
 
     public sealed class TemplateLanguage
@@ -139,6 +147,15 @@ namespace MdExplorer.Features.Templates
             foreach (var other in m.Requires?.Templates ?? new List<string>())
                 if (string.IsNullOrWhiteSpace(other) || !Kebab.IsMatch(other) || other == m.Id)
                     problems.Add(UiText.Say($"requires.templates: '{other}' non è l'id di un altro template", $"requires.templates: '{other}' is not the id of another template"));
+            var features = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var feature in m.Requires?.Features ?? new List<string>())
+            {
+                if (!TemplateRequires.KnownFeatures.Contains(feature))
+                    problems.Add(UiText.Say($"requires.features: '{feature}' non è una funzione che questo MdExplorer conosce ({string.Join(", ", TemplateRequires.KnownFeatures)}): aggiorna MdExplorer o correggi il manifesto",
+                                            $"requires.features: '{feature}' is not a feature this MdExplorer knows ({string.Join(", ", TemplateRequires.KnownFeatures)}): update MdExplorer or fix the manifest"));
+                else if (!features.Add(feature))
+                    problems.Add(UiText.Say($"requires.features: '{feature}' compare due volte", $"requires.features: '{feature}' appears twice"));
+            }
 
             if (m.Languages == null || m.Languages.Count == 0)
                 problems.Add(UiText.Say("languages: serve almeno una lingua con il suo ramo", "languages: at least one language with its branch is needed"));

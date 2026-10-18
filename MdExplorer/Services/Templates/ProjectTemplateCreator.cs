@@ -103,12 +103,15 @@ namespace MdExplorer.Services.Templates
         private readonly INativeGitRunner _git;
         private readonly INativeGitTransport _transport;
         private readonly ILogger<ProjectTemplateCreator> _logger;
+        private readonly IServiceProvider _services;
 
-        public ProjectTemplateCreator(INativeGitRunner git, INativeGitTransport transport, ILogger<ProjectTemplateCreator> logger)
+        /// <param name="services">Per sapere se una funzione che il template chiede (Fuseki) è accesa per il progetto.</param>
+        public ProjectTemplateCreator(INativeGitRunner git, INativeGitTransport transport, ILogger<ProjectTemplateCreator> logger, IServiceProvider services)
         {
             _git = git;
             _transport = transport;
             _logger = logger;
+            _services = services;
         }
 
         public async Task<TemplateCreateOutcome> CreateAsync(TemplateCreateRequest request, CancellationToken ct = default)
@@ -461,6 +464,7 @@ namespace MdExplorer.Services.Templates
             }
 
             await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
+            FeatureNotes(path, manifest, notes);
 
             // I workflow del progetto devono stare insieme (PW). Un metodo che li rompe non entra. Se erano già guasti prima di
             // lui, si controllano i suoi da soli e lo si dice. Per la base del progetto (la demo) un workflow che non si legge
@@ -540,6 +544,25 @@ namespace MdExplorer.Services.Templates
             if (changed.Count > 0)
                 notes.Add(UiText.Say($"La versione nuova ha cambiato i modelli di {string.Join(", ", changed)}: i tuoi non li tocco, confrontali con quelli in {TemplateManifest.ZoneOf(manifest.Id)}.",
                                      $"The new version changed the models of {string.Join(", ", changed)}: yours are left alone, compare them with those in {TemplateManifest.ZoneOf(manifest.Id)}."));
+        }
+
+        /// <summary>
+        /// Le funzioni di MDE che il template chiede (<c>requires.features</c>, P6): MDE non le accende da sé — sono
+        /// impostazioni di questo computer —, ma se sono spente lo dice, con dove si accendono e che cosa resta fermo.
+        /// Un progetto appena creato non è ancora nell'elenco dei progetti: per lui sono spente.
+        /// </summary>
+        private void FeatureNotes(string path, TemplateManifest manifest, List<string> notes)
+        {
+            foreach (var feature in manifest.Requires?.Features ?? new List<string>())
+            {
+                if (feature != TemplateRequires.Fuseki)
+                    throw Problem($"Il template «{manifest.Title}» chiede la funzione '{feature}', che questo MdExplorer non sa controllare.",
+                                  $"The template «{manifest.Title}» needs the feature '{feature}', which this MdExplorer cannot check.");
+                if (MdExplorer.Service.ProjectsManager.IsFusekiEnabled(_services, path)) continue;
+                notes.Add(UiText.Say(
+                    $"«{manifest.Title}» usa Fuseki, che per questo progetto è spento: accendilo in Impostazioni del progetto → scheda Fuseki → «Abilita Fuseki», e riapri il progetto. Finché è spento, le skill TBox, ABox e SHACL non si installano e i passi che caricano su Fuseki si fermano.",
+                    $"«{manifest.Title}» uses Fuseki, which is off for this project: turn it on in Project settings → Fuseki tab → «Enable Fuseki», and open the project again. While it is off, the TBox, ABox and SHACL skills are not installed and the steps that load into Fuseki stop."));
+            }
         }
 
         /// <summary>

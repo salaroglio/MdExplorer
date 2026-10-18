@@ -178,6 +178,22 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
+        public async Task Say_that_fuseki_is_off_when_the_method_needs_it_and_leave_the_setting_alone()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var path = await Project(ctx, "con-fuseki");
+            var branches = DddBranches();
+            branches["main"][".mde-template/ddd/mde-template.yml"] = Ddd().Replace("languages:", "requires:\n  features: [fuseki]\nlanguages:");
+
+            var outcome = await Add(ctx, path, Template(ctx, "ddd", branches));
+
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("uses Fuseki, which is off for this project") && n.Contains("Fuseki tab")),
+                          string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain").Out, "il metodo entra lo stesso, con la nota");
+        }
+
+        [TestMethod]
         public async Task Leave_the_project_as_it_was_when_the_method_cannot_be_added()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

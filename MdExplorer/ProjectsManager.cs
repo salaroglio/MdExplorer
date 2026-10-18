@@ -156,7 +156,7 @@ namespace MdExplorer.Service
         /// of the Fuseki/Jena skills. Safe: returns false on any error or when the
         /// project / settings row does not exist yet.
         /// </summary>
-        private static bool IsFusekiEnabled(IServiceProvider serviceProvider, string projectPath)
+        internal static bool IsFusekiEnabled(IServiceProvider serviceProvider, string projectPath)
         {
             if (serviceProvider == null || string.IsNullOrWhiteSpace(projectPath))
                 return false;

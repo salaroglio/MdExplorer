@@ -130,6 +130,20 @@ workflows: [citta-degli-agenti/gara/workflow.md]
         }
 
         [TestMethod]
+        public void Know_the_features_a_template_needs_and_refuse_the_others()
+        {
+            var ontology = GaraIso.Replace("  templates: []\n", "  templates: []\n  features: [fuseki]\n");
+            var m = TemplateManifestReader.Read(ontology, "gara-iso", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            CollectionAssert.AreEqual(new[] { "fuseki" }, m.Requires.Features);
+
+            TemplateManifestReader.Read(GaraIso.Replace("  templates: []\n", "  templates: []\n  features: [fuseki, neo4j, fuseki]\n"), "gara-iso", out problems);
+            Assert.AreEqual(2, problems.Count, string.Join("\n", problems));
+            StringAssert.Contains(problems[0], "'neo4j' is not a feature this MdExplorer knows (fuseki)");
+            StringAssert.Contains(problems[1], "'fuseki' appears twice");
+        }
+
+        [TestMethod]
         public void Want_the_id_to_be_the_folder_it_lives_in()
         {
             TemplateManifestReader.Read(GaraIso, "gara", out var problems);
