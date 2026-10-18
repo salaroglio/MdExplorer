@@ -1575,12 +1575,9 @@
         "STATIC": "krsshhh..."
       },
       "DEMO_CLONE": {
-        "INTRO": "Adesso ti faccio vedere come si clona un repo pubblico — non serve un account GitHub: i repo pubblici si scaricano in anonimo.",
-        "OPEN_DIALOG": "Apro io il dialog di clone... eccolo!",
-        "FILL_URL": "Inserisco l'URL del repo demo (un piccolo progetto markdown pubblico)...",
-        "SET_BRANCH": "Il demo c'è in più lingue. Scelgo la versione in italiano: il ramo «{{branch}}».",
-        "SET_PATH": "Scelgo io una cartella locale dove salvarlo, sotto Documenti.",
-        "PRESS_CLONE": "Premo Clone... aspettiamo che il backend faccia il download.",
+        "INTRO": "Adesso creo il progetto demo dal suo template: un repository pubblico, che si scarica senza un account GitHub.",
+        "CREATE": "Creo il progetto dal template della demo, nella lingua di MdExplorer, in una cartella sotto Documenti... aspettiamo che il servizio lo scarichi.",
+        "CREATE_FAILED": "Non sono riuscito a creare il progetto demo: {{error}}",
         "PROBE": "Prima guardo quali agenti AI ci sono su questo computer: Copilot CLI, Claude Code, opencode...",
         "FOUND_ONE": "Ho trovato {{name}}, pronto all'uso. Configuro il progetto demo per lui.",
         "FOUND_MANY": "Ne ho trovati più di uno, tutti pronti. Con quale vuoi provare il demo?",
@@ -2360,9 +2357,6 @@
     "DIVERGED": "diverge dal progetto",
     "DIVERGED_TIP": "Questo submodule e la versione che il progetto registra hanno preso due strade: «Aggiorna all'ultima» qui dentro unisce i due lavori.",
     "BEHIND_PROJECT_NOTE": "Il progetto registra una versione più nuova di questo submodule. Non è lavoro da committare: va allineato dal pannello «da pullare»."
-  },
-  "DEMO_ORIGIN": {
-    "FAILED": "Il demo è aperto, ma non sono riuscito a preparare il repository locale su cui gli agenti consegnano: {{reason}}"
   },
   "BEFORE_START": {
     "TITLE": "Prima di avviare {{agent}}: c'è lavoro non salvato",

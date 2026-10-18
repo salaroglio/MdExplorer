@@ -661,6 +661,33 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Crea un progetto nuovo da un template (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1). Non lo
+        /// apre: lo apre il client con <see cref="SetFolderProject"/>, come dopo un clone. Un problema è un 400 che lo dice.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CreateFromTemplate([FromBody] TemplateCreationRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateCreator creator, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var outcome = await creator.CreateAsync(new MdExplorer.Services.Templates.TemplateCreateRequest
+                {
+                    Path = request?.Path,
+                    TemplateUrl = request?.TemplateUrl,
+                    Language = request?.Language,
+                    Example = request?.Example == true,
+                    OriginUrl = request?.OriginUrl,
+                    MdeVersion = request?.MdeVersion,
+                }, ct);
+                return Ok(outcome);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost]
         public IActionResult SetFolderProject([FromBody] ProjectCreationRequest request)
         {
@@ -729,17 +756,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
-                // SOLO per il demo: la richiesta lo porta unicamente dal tour «Crea progetto demo», legata al
-                // percorso del clone. Il servizio comunque non tocca nulla se il progetto non è il clone del
-                // repository del demo (vedi DemoOriginPreparer): un progetto normale non ne sa niente.
-                MdExplorer.Services.Demo.DemoOriginOutcome demoOrigin = null;
-                if (request.PrepareDemoOrigin == true)
-                {
-                    demoOrigin = HttpContext.RequestServices
-                        .GetService<MdExplorer.Services.Demo.IDemoOriginPreparer>()?.Prepare(request.Path);
-                    logPhase("DemoOrigin");
-                }
-
                 // Le righe che MdExplorer non ha più si cancellano dal file del progetto, per nome, prima che
                 // qualcuno lo legga: la lettura è rigida, e una riga ritirata non deve farla fallire.
                 MdExplorer.Utilities.DevelopmentConfigCleanup.CleanFile(request.Path,
@@ -1003,13 +1019,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     openCodeDefaultModel = openCodeDefaultModel,
                     markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
                     markAgentEngineLinked = markAgentEngineLinked,
-                    // Presente solo se il tour del demo l'ha chiesto; `failed` va detto alla persona.
-                    demoOrigin = demoOrigin == null ? null : new
-                    {
-                        status = demoOrigin.Status.ToString(),
-                        origin = demoOrigin.Origin,
-                        error = demoOrigin.Error,
-                    }
                 });
             }
             catch (Exception ex)
@@ -1194,13 +1203,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// Mantenuta per i client non ancora aggiornati; <see cref="Harness"/> ha la precedenza.
         /// </summary>
         public bool? AddCopilotInstructions { get; set; }
+    }
 
-        /// <summary>
-        /// Solo il tour «Crea progetto demo» la manda: chiede un <c>origin</c> locale su cui chi prova il demo può
-        /// scrivere. <b>Non è una preferenza dei progetti</b>: il servizio la onora solo se il progetto è il clone del
-        /// repository del demo. Nullable come <see cref="Harness"/>: un'apertura normale non la porta.
-        /// </summary>
-        public bool? PrepareDemoOrigin { get; set; }
+    /// <summary>La richiesta di <see cref="MdProjectsController.CreateFromTemplate"/>.</summary>
+    public class TemplateCreationRequest
+    {
+        public string? Path { get; set; }
+        public string? TemplateUrl { get; set; }
+        public string? Language { get; set; }
+        public bool Example { get; set; }
+        /// <summary>Il repository vuoto del gruppo; vuoto = un origin locale accanto alla cartella.</summary>
+        public string? OriginUrl { get; set; }
+        /// <summary>La versione del client, cioè di questo MdExplorer: il manifesto può chiederne una minima.</summary>
+        public string? MdeVersion { get; set; }
     }
 }
 

@@ -216,7 +216,10 @@ export class MarkAssistantService {
       launch: (id: string) => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
       setHarnessForPath: (path: string, harness: string) => this.projectsService.setHarnessForPath(path, harness),
-      setDemoOriginForPath: (path: string) => this.projectsService.setDemoOriginForPath(path),
+      createFromTemplateAndOpen: async (path: string, templateUrl: string, language: string) => {
+        await this.projectsService.createFromTemplate({ path, templateUrl, language });
+        this.projectsService.setNewFolderProject(path);
+      },
       currentLanguage: () => this.translate.currentLang || this.translate.defaultLang || 'en',
     });
     this.registerInputHandlers();

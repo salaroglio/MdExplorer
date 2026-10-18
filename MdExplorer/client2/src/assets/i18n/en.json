@@ -1555,12 +1555,9 @@
         "STATIC": "krsshhh..."
       },
       "DEMO_CLONE": {
-        "INTRO": "Let me show you how to clone a public repo — no GitHub account needed: public repos are anonymously downloadable.",
-        "OPEN_DIALOG": "I'll open the clone dialog for you... here it is!",
-        "FILL_URL": "Filling in the URL of a small public markdown demo repo...",
-        "SET_BRANCH": "The demo comes in several languages. I'm picking the English version: the «{{branch}}» branch.",
-        "SET_PATH": "Picking a local folder under your Documents directory.",
-        "PRESS_CLONE": "Pressing Clone... let's wait for the backend to download.",
+        "INTRO": "Now I'll create the demo project from its template: a public repository, downloaded without a GitHub account.",
+        "CREATE": "Creating the project from the demo template, in MdExplorer's language, in a folder under your Documents... let's wait for the service to download it.",
+        "CREATE_FAILED": "I could not create the demo project: {{error}}",
         "PROBE": "First I'll check which AI agents this computer has: Copilot CLI, Claude Code, opencode...",
         "FOUND_ONE": "I found {{name}}, ready to use. I'll set up the demo project for it.",
         "FOUND_MANY": "I found more than one, all ready. Which one do you want to try the demo with?",
@@ -2360,9 +2357,6 @@
     "DIVERGED": "diverges from the project",
     "DIVERGED_TIP": "This submodule and the version the project records went two ways: “Update to latest” in here merges the two.",
     "BEHIND_PROJECT_NOTE": "The project records a newer version of this submodule. It is not work to commit: align it from the “to pull” panel."
-  },
-  "DEMO_ORIGIN": {
-    "FAILED": "The demo is open, but I could not prepare the local repository the agents deliver to: {{reason}}"
   },
   "BEFORE_START": {
     "TITLE": "Before starting {{agent}}: there is unsaved work",

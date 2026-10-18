@@ -109,30 +109,19 @@ export async function waitForRoute(
 }
 
 /**
- * Build a default destination path for the demo clone. The backend resolves
+ * Build a default destination path for the demo project. The backend resolves
  * the user's Documents folder for the current OS (Windows/Linux/macOS), so
  * the path is always writable and uses the right separators. The path
  * includes a timestamp so multiple runs don't collide.
+ * No guess when the backend cannot answer: a demo created in a temporary folder would be lost without a word.
  */
 export async function buildDemoClonePath(repoName = 'mdexplorer-demo'): Promise<string> {
-  try {
-    const res = await fetch(`/api/ModernGit/default-clone-path?repoName=${encodeURIComponent(repoName)}`);
-    if (res.ok) {
-      const body = await res.json();
-      if (body?.path) {
-        return body.path;
-      }
-    }
-  } catch {
-    // backend unreachable — fall through to the client-side guess
+  const res = await fetch(`/api/ModernGit/default-clone-path?repoName=${encodeURIComponent(repoName)}`);
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.path) {
+    throw new Error(body?.error || `default-clone-path: HTTP ${res.status}`);
   }
-
-  // Fallback: best-effort guess from the browser environment
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
-  return isWindows
-    ? `C:\\Users\\Public\\Documents\\${repoName}-${stamp}`
-    : `/tmp/${repoName}-${stamp}`;
+  return body.path;
 }
 
 /** One agentic environment as the service's probe reports it (GET /api/AgenticEnvironments/Probe). */

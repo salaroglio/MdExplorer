@@ -2,35 +2,20 @@ import { MarkAction, MarkLesson } from '../mark-types';
 import {
   AgenticEnvironmentStatus,
   buildDemoClonePath,
-  clickElement,
   probeAgenticEnvironments,
-  setInputValue,
   sleep,
-  waitForElement,
-  waitForElementGone,
   waitForRoute,
 } from './auto-utils';
 
 /**
- * Demo project clone tour — Mark talks while MDE drives itself: opens
- * the clone dialog, fills the URL, sets the destination path, presses
- * Clone, and waits for the project to be loaded. The user just watches.
+ * Demo project tour — Mark talks while MDE creates the demo project from its template
+ * (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1: the demo is a template like the others) and opens it.
+ * The user just watches.
  *
  * Why this works without a GitHub account:
- *   public Git repos are clonable over HTTPS anonymously. Our default
- *   demo URL (DEMO_REPO_URL below) points to a small public repository
- *   so the demo always works on a fresh install.
- *
- * Implementation notes:
- *   - autoExecute drives the UI via direct DOM manipulation (see
- *     lessons/auto-utils.ts). For ngModel inputs we set value via the
- *     native setter and dispatch 'input'/'change' events so Angular's
- *     change detection picks up the new value.
- *   - The localPath input is `readonly` (the clone dialog normally fills
- *     it via a folder picker). We bypass readonly temporarily.
- *   - We wait for navigation to /main/* as the "clone success" signal —
- *     ModernCloneProjectComponent navigates there once the clone backend
- *     completes.
+ *   the demo template is a public repository, downloaded over HTTPS anonymously, so the demo always works on a
+ *   fresh install. The project gets a local origin next to its folder: the agents deliver there, and the template
+ *   stays the source of the updates («Scarica gli aggiornamenti»).
  *
  * The demo opens already configured for the agentic environment of THIS
  * computer (sprint 2026-10-02-Demo-Ambiente-Agentico-Rilevato):
@@ -45,36 +30,20 @@ import {
  */
 
 /**
- * Default demo repository — purpose-built for MDE onboarding (multiple
- * .md files, cross-references, plantuml, runnable code blocks, ...).
- * Owned by the MDE author so its content can evolve with the product.
- *
- * To change the demo target, edit just this constant.
+ * The demo template — purpose-built for MDE onboarding (multiple .md files, cross-references, plantuml, the agent
+ * city, ...). Owned by the MDE author so its content can evolve with the product. Until the list of templates (P4)
+ * exists, its address lives here.
  */
-const DEMO_REPO_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
+const DEMO_TEMPLATE_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
 
 /**
- * The demo exists in one version per language, each on its own branch of the same repository.
- * Mark downloads the one of the language MdExplorer is set to. To add a language: translate the
- * demo on a new branch and add a line here.
+ * The languages the demo template has; its manifest says which branch each one is. Mark takes the language
+ * MdExplorer is set to. To add a language: translate the demo on a new branch, name it in the manifest, add it here.
  */
-const DEMO_BRANCH_BY_LANGUAGE: { [language: string]: string } = {
-  it: 'main',
-  en: 'en',
-};
+const DEMO_LANGUAGES = ['it', 'en'];
 /** MdExplorer's own default language is English (LanguageService): the demo follows the same rule. */
-const DEMO_BRANCH_DEFAULT = 'en';
-const demoBranchFor = (language: string): string => DEMO_BRANCH_BY_LANGUAGE[language] || DEMO_BRANCH_DEFAULT;
-
-/**
- * Selector helpers — all relative to the open Modern Clone dialog.
- * The dialog uses .modern-clone-dialog as the root class.
- */
-const ROOT = '.modern-clone-dialog';
-const URL_INPUT = `${ROOT} mat-form-field:nth-of-type(1) input[matInput]`;     // first form field = repo URL
-const PATH_INPUT = `${ROOT} input[readonly]`;                                  // localPath is the only readonly one
-const BRANCH_INPUT = `${ROOT} input[data-test="clone-branch-input"]`;          // optional branch
-const CLONE_BTN = `${ROOT} mat-dialog-actions button[color="primary"]`;        // primary action button
+const DEMO_LANGUAGE_DEFAULT = 'en';
+const demoLanguageFor = (language: string): string => DEMO_LANGUAGES.indexOf(language) >= 0 ? language : DEMO_LANGUAGE_DEFAULT;
 
 /** Product names: the same in every language. */
 const ENVIRONMENT_NAMES: { [id: string]: string } = {
@@ -95,9 +64,11 @@ interface DemoTourState {
   probeError: string | null;
   /** Harness id the demo will be opened with. */
   chosen: string;
+  /** Why the project could not be created, for the person; null = created. */
+  createError: string | null;
 }
 
-const emptyState = (): DemoTourState => ({ environments: [], usable: [], probeError: null, chosen: NO_ENVIRONMENT });
+const emptyState = (): DemoTourState => ({ environments: [], usable: [], probeError: null, chosen: NO_ENVIRONMENT, createError: null });
 
 /**
  * Built via factory because the tour hands the chosen environment to ProjectsService, and a
@@ -105,9 +76,9 @@ const emptyState = (): DemoTourState => ({ environments: [], usable: [], probeEr
  */
 export function buildDemoCloneTour(deps: {
   setHarnessForPath: (path: string, harness: string) => void;
-  /** Solo per il demo: alla prossima apertura di questo percorso prepara un origin locale scrivibile. */
-  setDemoOriginForPath: (path: string) => void;
-  /** Language MdExplorer is set to ('it', 'en'): it decides which branch of the demo is downloaded. */
+  /** Creates the project from the template and opens it; rejects with the reason, for the person. */
+  createFromTemplateAndOpen: (path: string, templateUrl: string, language: string) => Promise<void>;
+  /** Language MdExplorer is set to ('it', 'en'): it decides which language of the demo is taken. */
   currentLanguage: () => string;
 }): MarkLesson {
   let state = emptyState();
@@ -217,94 +188,30 @@ export function buildDemoCloneTour(deps: {
         },
       },
 
-      // Step 2 — open the Clone dialog by clicking the card
+      // Create the project from the demo template, then open it
       {
-        textKey: 'MARK.TOUR.DEMO_CLONE.OPEN_DIALOG',
-        targetSelector: '[data-test="clone-button"]',
+        textKey: 'MARK.TOUR.DEMO_CLONE.CREATE',
+        targetSelector: null,
         durationMs: 0,
         autoExecute: async () => {
           await sleep(900);           // let the user read the message
-          await clickElement('[data-test="clone-button"]');
-          // wait for the dialog to render
-          await waitForElement(ROOT);
-        },
-      },
-
-      // Step 3 — fill the URL
-      {
-        textKey: 'MARK.TOUR.DEMO_CLONE.FILL_URL',
-        targetSelector: URL_INPUT,
-        durationMs: 0,
-        autoExecute: async () => {
-          await sleep(800);
-          await setInputValue(URL_INPUT, DEMO_REPO_URL);
-          // ngModelChange triggers detectProviderFromUrl → "GitHub" badge appears
-          await sleep(800);
-        },
-      },
-
-      // Step 3b — choose the branch: the demo in the language MdExplorer is set to
-      {
-        textKey: 'MARK.TOUR.DEMO_CLONE.SET_BRANCH',
-        targetSelector: BRANCH_INPUT,
-        durationMs: 0,
-        resolve: () => ({ textParams: { branch: demoBranchFor(deps.currentLanguage()) } }),
-        autoExecute: async () => {
-          await sleep(600);
-          await setInputValue(BRANCH_INPUT, demoBranchFor(deps.currentLanguage()));
-          await sleep(800);
-        },
-      },
-
-      // Step 4 — set the destination path
-      {
-        textKey: 'MARK.TOUR.DEMO_CLONE.SET_PATH',
-        targetSelector: PATH_INPUT,
-        durationMs: 0,
-        autoExecute: async () => {
-          await sleep(600);
-          const target = await buildDemoClonePath('mdexplorer-demo');
-          await setInputValue(PATH_INPUT, target, { bypassReadonly: true });
-          // The clone dialog opens the project by path and knows nothing about environments:
-          // the choice travels bound to this path, and only to it.
-          deps.setHarnessForPath(target, state.chosen);
-          // Il demo della città degli agenti scrive: serve un origin locale. Vale solo per questo clone.
-          deps.setDemoOriginForPath(target);
-          await sleep(800);
-        },
-      },
-
-      // Step 5 — press Clone
-      {
-        textKey: 'MARK.TOUR.DEMO_CLONE.PRESS_CLONE',
-        targetSelector: CLONE_BTN,
-        durationMs: 0,
-        autoExecute: async () => {
-          await sleep(800);
-          // The button might be disabled briefly while ngModel propagates —
-          // poll until it's enabled, then click. Before clicking we scroll
-          // it into view: the clone dialog can be taller than the viewport
-          // on smaller screens, leaving the primary action below the fold.
-          const start = Date.now();
-          while (Date.now() - start < 3000) {
-            const btn = document.querySelector(CLONE_BTN) as HTMLButtonElement | null;
-            if (btn && !btn.disabled) {
-              try {
-                btn.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
-                await sleep(250);
-              } catch { /* older engines: silently skip */ }
-              btn.click();
-              break;
-            }
-            await sleep(120);
+          try {
+            const target = await buildDemoClonePath('mdexplorer-demo');
+            // The project is opened by path: the chosen environment travels bound to this path, and only to it.
+            deps.setHarnessForPath(target, state.chosen);
+            await deps.createFromTemplateAndOpen(target, DEMO_TEMPLATE_URL, demoLanguageFor(deps.currentLanguage()));
+            await waitForRoute('/main', 30000).catch(() => { /* timeout — we still let the closing step run */ });
+          } catch (err) {
+            state.createError = (err as Error)?.message || String(err);
           }
-          // Wait either for the dialog to close (clone success path) or for
-          // the route to switch to /main/* (project opened).
-          await Promise.race([
-            waitForElementGone(ROOT, 30000),
-            waitForRoute('/main', 30000),
-          ]).catch(() => { /* timeout — we still let the closing step run */ });
         },
+      },
+
+      // The project was not created: said out loud, with the service's reason
+      {
+        textKey: 'MARK.TOUR.DEMO_CLONE.CREATE_FAILED',
+        targetSelector: null,
+        resolve: () => state.createError ? { textParams: { error: state.createError } } : null,
       },
 
       // Closing — says what the demo was configured for
@@ -312,7 +219,7 @@ export function buildDemoCloneTour(deps: {
         textKey: 'MARK.TOUR.DEMO_CLONE.DONE',
         targetSelector: null,
         durationMs: 2500,
-        resolve: () => state.chosen === NO_ENVIRONMENT
+        resolve: () => state.createError ? null : state.chosen === NO_ENVIRONMENT
           ? { textKey: 'MARK.TOUR.DEMO_CLONE.DONE_NO_ENVIRONMENT' }
           : { textParams: { name: nameOf(state.chosen) } },
       },
