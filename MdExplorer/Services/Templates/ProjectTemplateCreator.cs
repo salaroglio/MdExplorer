@@ -425,7 +425,8 @@ namespace MdExplorer.Services.Templates
                 if (!config.AgentCity.Enabled)
                 {
                     config.AgentCity.Enabled = true;
-                    notes.Add(UiText.Say("Città degli agenti accesa: i workflow del metodo girano lì.", "Agent city turned on: the method's workflows run there."));
+                    notes.Add(UiText.Say($"Città degli agenti accesa: i workflow di «{manifest.Title}» girano lì.",
+                                         $"Agent city turned on: the workflows of «{manifest.Title}» run there."));
                 }
             }
 

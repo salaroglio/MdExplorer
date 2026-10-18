@@ -161,7 +161,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.AreEqual("ddd", outcome.Id);
             StringAssert.Contains(Read(path, ".development.yml"), "harness:\n  target: claude");
             StringAssert.Contains(Read(path, ".development.yml"), "agentCity:\n  enabled: true", "il metodo porta un workflow: la città si accende");
-            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Agent city turned on")), string.Join("\n", outcome.Notes));
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Agent city turned on: the workflows of «Sviluppo con DDD» run there")), string.Join("\n", outcome.Notes));
             StringAssert.Contains(Read(path, "CLAUDE.md"), "<!-- mde-template:ddd -->", "le istruzioni nel file del motore scelto");
             var gitignore = Read(path, ".gitignore");
             foreach (var line in new[] { ".md/", ".mdapplicationtoopen", ".mdchangeignore", ".mdFoldersIgnore" })

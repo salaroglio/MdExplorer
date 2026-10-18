@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents.Workflow
 {
@@ -12,6 +13,7 @@ namespace MdExplorer.Features.Agents.Workflow
     /// colore dice chi lo avvia; gli omini sono i ruoli di <c>responsabilita.md</c> (chi lancia, avvia, approva); in verde i
     /// documenti che un lavoro legge, in lilla quelli che consegna; i pulsanti e gli esiti sono esagoni. Un documento che
     /// un passo riceve con <c>from</c> porta la freccia dal file, non dal passo. I link portano alla scheda e al documento.
+    /// Le parole del diagramma seguono la lingua dell'interfaccia (<see cref="UiText"/>); i nomi vengono dai file.
     /// </summary>
     public static class WorkflowPlantuml
     {
@@ -82,7 +84,7 @@ namespace MdExplorer.Features.Agents.Workflow
             sb.AppendLine();
 
             var steps = wf.Steps.Where(s => s.Id != null).ToList();
-            string Role(WorkflowStep s) => s.IsPerson ? s.Person : roleOf(s.Agent) ?? $"responsabile di {s.Agent}";
+            string Role(WorkflowStep s) => s.IsPerson ? s.Person : roleOf(s.Agent) ?? Say($"responsabile di {s.Agent}", $"owner of {s.Agent}");
 
             // Per ogni passo, nell'ordine: chi lo lancia, avvia o approva, che cosa legge, il passo, che cosa consegna. Un
             // omino per passo, come in un disegno a mano: un ruolo che lavora all'inizio e alla fine compare due volte,
@@ -100,7 +102,7 @@ namespace MdExplorer.Features.Agents.Workflow
                 }
 
                 if (s.IsPerson)
-                    sb.AppendLine($"rectangle \"**{Text(s.Label)}**\\n<size:11><&person> {Text(s.Person)}</size>\\n<size:10><i>tocca a una persona</i></size>\" <<person>> as {Node(s.Id)}");
+                    sb.AppendLine($"rectangle \"**{Text(s.Label)}**\\n<size:11><&person> {Text(s.Person)}</size>\\n<size:10><i>{Say("tocca a una persona", "a person's turn")}</i></size>\" <<person>> as {Node(s.Id)}");
                 else
                 {
                     var stereotype = s.Start switch { WorkflowStart.AskOwner => " <<askowner>>", WorkflowStart.Manual => " <<manual>>", _ => "" };
@@ -122,7 +124,7 @@ namespace MdExplorer.Features.Agents.Workflow
 
                 // Gli esiti di una persona: un esagono ciascuno, anche quelli da cui non parte niente (chiudono il giro).
                 foreach (var outcome in s.Outcomes)
-                    sb.AppendLine($"hexagon \"esito «{Text(outcome.Label ?? outcome.Id)}»\" as {Outcome(s.Id, outcome.Id)}");
+                    sb.AppendLine($"hexagon \"{Say("esito", "outcome")} «{Text(outcome.Label ?? outcome.Id)}»\" as {Outcome(s.Id, outcome.Id)}");
             }
 
             // I pulsanti sotto il messaggio di un agente: uno per pulsante, anche se fa partire più passi.
@@ -132,12 +134,12 @@ namespace MdExplorer.Features.Agents.Workflow
             {
                 var source = wf.Step(from);
                 var label = wf.Cards != null && wf.Cards.Agents.TryGetValue(source.Agent, out var card) ? card.Reply(reply)?.Label : null;
-                sb.AppendLine($"hexagon \"pulsante «{Text(label ?? reply)}»\\n<size:10>lo preme {Text(Role(source))}</size>\" as {Button(from, reply)}");
+                sb.AppendLine($"hexagon \"{Say("pulsante", "button")} «{Text(label ?? reply)}»\\n<size:10>{Say("lo preme", "pressed by")} {Text(Role(source))}</size>\" as {Button(from, reply)}");
             }
 
             // L'attesa di più passi è un punto del flusso, e si vede: un esagono prima del passo.
             foreach (var s in steps.Where(IsJoin))
-                sb.AppendLine($"hexagon \"{(s.Trigger.Wait == WorkflowWait.All ? "attende tutti" : "basta il primo")}\" as {Join(s.Id)}");
+                sb.AppendLine($"hexagon \"{(s.Trigger.Wait == WorkflowWait.All ? Say("attende tutti", "waits for all") : Say("basta il primo", "the first is enough"))}\" as {Join(s.Id)}");
             sb.AppendLine();
 
             // Le persone e i documenti di ogni passo.
@@ -145,9 +147,9 @@ namespace MdExplorer.Features.Agents.Workflow
             {
                 var verbs = PersonVerbs(s);
                 if (verbs != null) sb.AppendLine($"{Actor(s.Id)} --> {Node(s.Id)} : {verbs}");
-                if (s.ApprovalBy != null) sb.AppendLine($"{Approver(s.Id)} --> {Node(s.Id)} : approva");
+                if (s.ApprovalBy != null) sb.AppendLine($"{Approver(s.Id)} --> {Node(s.Id)} : {Say("approva", "approves")}");
                 for (var i = 0; i < s.Reads.Count; i++)
-                    sb.AppendLine($"{ReadNode(s.Id, i)} ..> {Node(s.Id)} : legge");
+                    sb.AppendLine($"{ReadNode(s.Id, i)} ..> {Node(s.Id)} : {Say("legge", "reads")}");
                 // Le uscite stanno sotto il passo, come in un disegno a mano: da lì vanno ai passi che le ricevono. A destra
                 // ci sono i cicli (PlantUML li mette sempre lì), e un'uscita di lato tirerebbe le frecce attraverso il diagramma.
                 for (var i = 0; i < s.Outputs.Count; i++)
@@ -184,7 +186,7 @@ namespace MdExplorer.Features.Agents.Workflow
 
                 // Un documento che arriva da un passo che non lo fa partire: la freccia dal file, tratteggiata.
                 foreach (var (source, index) in Received(wf, s).Where(r => !t.Sources.Contains(r.Source.Id)))
-                    sb.AppendLine($"{OutputNode(source.Id, index)} ..> {Node(s.Id)} : riceve");
+                    sb.AppendLine($"{OutputNode(source.Id, index)} ..> {Node(s.Id)} : {Say("riceve", "receives")}");
             }
 
             // I cicli: una freccia che torna sul passo. Rossa tratteggiata = si rifà dopo un rifiuto («fino a che»);
@@ -199,22 +201,23 @@ namespace MdExplorer.Features.Agents.Workflow
             sb.AppendLine("legend right");
             var agents = steps.Where(s => !s.IsPerson).ToList();
             var starts = agents.Select(s => s.Start).Distinct().ToList();
-            if (starts.Contains(WorkflowStart.Manual)) sb.AppendLine($"  <back:{Focus}>   </back> la persona lo lancia a mano");
-            if (starts.Contains(WorkflowStart.AskOwner)) sb.AppendLine($"  <back:{Attention}>   </back> lo avvia il responsabile dell'agente");
-            if (starts.Contains(WorkflowStart.Auto)) sb.AppendLine($"  <back:{Neutral}>   </back> parte da solo");
-            if (steps.Any(s => s.IsPerson)) sb.AppendLine("  <&person> tocca a una persona: lo chiude con un esito");
-            if (steps.Any(s => s.Reads.Count > 0)) sb.AppendLine($"  <back:{Read}>   </back> documento che il lavoro legge");
-            if (steps.Any(s => s.Outputs.Count > 0)) sb.AppendLine($"  <back:{Written}>   </back> documento che il passo consegna (l'agente lo fa approvare)");
-            if (anyMissing) sb.AppendLine("  <color:#9AA0A6>- - -</color> documento non ancora scritto");
+            if (starts.Contains(WorkflowStart.Manual)) sb.AppendLine($"  <back:{Focus}>   </back> {Say("la persona lo lancia a mano", "the person launches it by hand")}");
+            if (starts.Contains(WorkflowStart.AskOwner)) sb.AppendLine($"  <back:{Attention}>   </back> {Say("lo avvia il responsabile dell'agente", "the agent's owner starts it")}");
+            if (starts.Contains(WorkflowStart.Auto)) sb.AppendLine($"  <back:{Neutral}>   </back> {Say("parte da solo", "starts on its own")}");
+            if (steps.Any(s => s.IsPerson)) sb.AppendLine("  <&person> " + Say("tocca a una persona: lo chiude con un esito", "a person's turn: they close it with an outcome"));
+            if (steps.Any(s => s.Reads.Count > 0)) sb.AppendLine($"  <back:{Read}>   </back> {Say("documento che il lavoro legge", "document the work reads")}");
+            if (steps.Any(s => s.Outputs.Count > 0)) sb.AppendLine($"  <back:{Written}>   </back> {Say("documento che il passo consegna (l'agente lo fa approvare)", "document the step delivers (the agent has it approved)")}");
+            if (anyMissing) sb.AppendLine("  <color:#9AA0A6>- - -</color> " + Say("documento non ancora scritto", "document not written yet"));
             foreach (var loop in wf.Loops.Where(l => l.Id != null))
             {
                 var which = Text(string.Join(", ", loop.Steps));
                 if (loop.Kind == WorkflowLoopKind.Times)
-                    sb.AppendLine($"  <color:{FocusLine}>⟳</color> {Text(loop.Id)} ({which}): {loop.Times} giri, ciascuno approvato; poi si va avanti");
+                    sb.AppendLine($"  <color:{FocusLine}>⟳</color> {Text(loop.Id)} ({which}): {Say($"{loop.Times} giri, ciascuno approvato; poi si va avanti", $"{loop.Times} rounds, each approved; then it goes on")}");
                 else
-                    sb.AppendLine($"  <color:{ErrorLine}>- - ></color> {Text(loop.Id)} ({which}): dopo un rifiuto si rifà " +
-                                  (loop.Restart == WorkflowStart.Auto ? "da solo" : "quando la persona preme «Fai ripartire»") +
-                                  (loop.Max == null ? ", finché non è approvato" : $", al massimo {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}"));
+                    sb.AppendLine($"  <color:{ErrorLine}>- - ></color> {Text(loop.Id)} ({which}): " + Say("dopo un rifiuto si rifà ", "after a rejection it is redone ") +
+                                  (loop.Restart == WorkflowStart.Auto ? Say("da solo", "on its own") : Say("quando la persona preme «Fai ripartire»", "when the person presses «Restart»")) +
+                                  (loop.Max == null ? Say(", finché non è approvato", ", until it is approved")
+                                                    : Say($", al massimo {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}", $", at most {loop.Max} {(loop.Max == 1 ? "time" : "times")}")));
             }
             sb.AppendLine("endlegend");
             sb.AppendLine("@enduml");
@@ -232,10 +235,10 @@ namespace MdExplorer.Features.Agents.Workflow
         {
             if (s.IsPerson) return null;
             var verbs = new List<string>();
-            if (s.Start == WorkflowStart.Manual) verbs.Add("lancia");
-            if (s.Start == WorkflowStart.AskOwner) verbs.Add("avvia");
-            if (s.Outputs.Count > 0 && s.ApprovalBy == null) verbs.Add("approva");
-            return verbs.Count == 0 ? null : string.Join("\\ne ", verbs);
+            if (s.Start == WorkflowStart.Manual) verbs.Add(Say("lancia", "launches"));
+            if (s.Start == WorkflowStart.AskOwner) verbs.Add(Say("avvia", "starts"));
+            if (s.Outputs.Count > 0 && s.ApprovalBy == null) verbs.Add(Say("approva", "approves"));
+            return verbs.Count == 0 ? null : string.Join(Say("\\ne ", "\\nand "), verbs);
         }
 
         /// <summary>
@@ -251,7 +254,7 @@ namespace MdExplorer.Features.Agents.Workflow
                 return;
             }
             foreach (var (source, index) in files)
-                sb.AppendLine($"{OutputNode(source.Id, index)} --> {target} : approvato{(brief == null ? "" : "\\n" + brief)}");
+                sb.AppendLine($"{OutputNode(source.Id, index)} --> {target} : {Say("approvato", "approved")}{(brief == null ? "" : "\\n" + brief)}");
         }
 
         /// <summary>Le uscite di altri passi che il passo riceve con <c>from</c>, senza ripetizioni.</summary>
@@ -280,8 +283,10 @@ namespace MdExplorer.Features.Agents.Workflow
             var parts = texts.Select(i => WorkflowParser.Placeholder.Match(i.Value.Text) is { Success: true } m && m.Value == i.Value.Text.Trim()
                 ? (m.Groups[1].Value == i.Key ? i.Key : $"{i.Key} = {m.Groups[1].Value}")
                 : $"{i.Key} «{Short(i.Value.Text)}»");
-            return (s.IsPerson ? "riceve " : "incarico: ") + string.Join(", ", parts);
+            return (s.IsPerson ? Say("riceve ", "receives ") : Say("incarico: ", "assignment: ")) + string.Join(", ", parts);
         }
+
+        private static string Say(string it, string en) => UiText.Say(it, en);
 
         private static string Label(string text) => text == null ? "" : " : " + text;
 
@@ -291,23 +296,23 @@ namespace MdExplorer.Features.Agents.Workflow
         private static string Done(WorkflowDescriptor wf, string stepId)
         {
             var step = wf.Step(stepId);
-            if (step == null) return "finito";
-            if (step.IsPerson) return "fatto";
-            return step.Outputs.Count > 0 ? "approvato" : "finito";
+            if (step == null) return Say("finito", "finished");
+            if (step.IsPerson) return Say("fatto", "done");
+            return step.Outputs.Count > 0 ? Say("approvato", "approved") : Say("finito", "finished");
         }
 
         private static string StartText(WorkflowStart start) => start switch
         {
-            WorkflowStart.Manual => "a mano",
-            WorkflowStart.AskOwner => "lo avvia il responsabile",
-            _ => "da solo",
+            WorkflowStart.Manual => Say("a mano", "by hand"),
+            WorkflowStart.AskOwner => Say("lo avvia il responsabile", "started by its owner"),
+            _ => Say("da solo", "on its own"),
         };
 
         private static string ActionText(string action) => action switch
         {
-            "updates" => "aggiorna",
-            "downloads" => "scarica",
-            _ => "scrive",
+            "updates" => Say("aggiorna", "updates"),
+            "downloads" => Say("scarica", "downloads"),
+            _ => Say("scrive", "writes"),
         };
 
         /// <summary>Il nome di un documento: dalla cartella del workflow se ci sta dentro, altrimenti dalla radice.</summary>

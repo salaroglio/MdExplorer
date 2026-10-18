@@ -32,9 +32,13 @@ namespace MdExplorer.Features.Tests.Commands
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "values.yaml"), "app: MdExplorer\nservizi:\n  db: localhost");
         }
 
+        /// <summary>Le parole del diagramma di un workflow seguono la lingua dell'interfaccia: questi test le controllano in italiano.</summary>
+        private static void Italian() => MdExplorer.Features.Services.UiText.Use(new MdExplorer.Features.Services.FixedUiLanguage("it"));
+
         [TestCleanup]
         public void RemoveProjectFromDisk()
         {
+            MdExplorer.Features.Services.UiText.Use(null);
             try { Directory.Delete(_projectRoot, recursive: true); } catch { /* best effort */ }
         }
 
@@ -264,6 +268,7 @@ namespace MdExplorer.Features.Tests.Commands
         [TestMethod]
         public void DrawTheAgentsWorkflowWithLinksToCardsAndArtifacts()
         {
+            Italian();
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
             WriteSmallCards();
 
@@ -428,6 +433,7 @@ a2a:
         [TestMethod]
         public void DrawTheRolesTheDocumentsTheButtonsAndThePersonStepsOfTheGara()
         {
+            Italian();
             WriteGara();
             var command = new FromExternalDataToPlantuml(NullLogger<FromExternalDataToPlantuml>.Instance, new GaraOwnership());
             var transformed = command.TransformInNewMDFromMD("```plantuml(@workflow, ./gara.workflow.json)\n```", RequestForDocsFolder());
@@ -470,6 +476,28 @@ a2a:
         }
 
         [TestMethod]
+        public void DrawTheWordsOfTheDiagramInTheLanguageOfTheInterface()
+        {
+            MdExplorer.Features.Services.UiText.Use(new MdExplorer.Features.Services.FixedUiLanguage("en"));
+            WriteGara();
+            var command = new FromExternalDataToPlantuml(NullLogger<FromExternalDataToPlantuml>.Instance, new GaraOwnership());
+            var transformed = command.TransformInNewMDFromMD("```plantuml(@workflow, ./gara.workflow.json)\n```", RequestForDocsFolder());
+            Assert.IsFalse(transformed.Contains("mde-plantuml-include-error"), transformed);
+
+            // Le parole di MDE in inglese; i nomi (passi, pulsanti, esiti, note) restano quelli dei file.
+            AssertContains(transformed, "p_ricerca --> s_ricerca : launches\\nand approves");
+            AssertContains(transformed, "r_ricerca_2 ..> s_ricerca : reads");
+            AssertContains(transformed, "s_ricerca ..> f_ricerca_1 : downloads");
+            AssertContains(transformed, "hexagon \"button «Avvia il giro su {codice}»\\n<size:10>pressed by Account manager</size>\"");
+            AssertContains(transformed, "b_ricerca_avvia_giro --> s_tecnica : assignment: codice, capitolato, criterio «2 — competenza»");
+            AssertContains(transformed, "f_tecnica_0 --> j_sintesi : approved");
+            AssertContains(transformed, "hexagon \"outcome «Non partecipiamo»\"");
+            AssertContains(transformed, "a person's turn: they close it with an outcome");
+            foreach (var italian in new[] { " : legge", "tocca a una persona", "incarico:", "lo preme", "attende tutti", "a mano" })
+                Assert.IsFalse(transformed.Contains(italian), $"'{italian}' è rimasto in italiano:\n{transformed}");
+        }
+
+        [TestMethod]
         public void TakeTheRolesInEveryVariantTheFactoryBuilds()
         {
             // La fabbrica dei comandi passa i servizi per NOME di parametro del primo costruttore: una variante (pagina, PDF,
@@ -484,6 +512,7 @@ a2a:
         [TestMethod]
         public void DrawAForLoopAsAThickBlueArrowWithItsRounds()
         {
+            Italian();
             var forLoop = SmallWorkflow.Replace("\"until\": \"approved\", \"max\": 2, \"restart\": \"manual\"", "\"times\": 3");
             Assert.AreNotEqual(SmallWorkflow, forLoop, "la sostituzione del test non trova il ciclo");
             File.WriteAllText(Path.Combine(_projectRoot, "docs", "for.workflow.json"), forLoop);
