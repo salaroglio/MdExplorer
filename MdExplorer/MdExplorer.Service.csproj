@@ -287,6 +287,7 @@
     <EmbeddedResource Include="skills\mde-prompt-for-agents\SKILL.md" />
     <EmbeddedResource Include="skills\mde-agent\SKILL.md" />
     <EmbeddedResource Include="skills\mde-workflow\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-template\SKILL.md" />
     <EmbeddedResource Include="skills\mde-plantuml\SKILL.md" />
     <EmbeddedResource Include="skills\mde-slide\SKILL.md" />
     <EmbeddedResource Include="skills\mde-e2e\SKILL.md" />

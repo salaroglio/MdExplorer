@@ -695,6 +695,32 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         /// <summary>
+        /// La verifica di un template (<c>CheckTemplate</c>, strumento MCP <c>check_template</c>), sul suo repository: tutti i
+        /// problemi in un giro, ramo per ramo. 400 solo se la cartella non è un repository git.
+        /// </summary>
+        /// <param name="path">La cartella del repository del template.</param>
+        [HttpGet]
+        public async Task<IActionResult> CheckTemplate([FromQuery] string? path,
+            [FromServices] MdExplorer.Services.Templates.ITemplateChecker checker, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var report = await checker.CheckAsync(path, ct);
+                return Ok(new
+                {
+                    ok = report.Ok, id = report.Id, kind = report.Kind, version = report.Version,
+                    errors = report.Errors, warnings = report.Warnings,
+                    branches = report.Branches.Select(b => new { branch = b.Branch, from = b.From, files = b.Files }),
+                    issues = report.Issues.Select(i => new { severity = i.Severity, branch = i.Branch, file = i.File, message = i.Message, fix = i.Fix }),
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// «Aggiungi un metodo» (P2 del piano dei template): unisce un template <c>method</c> al progetto e applica il suo
         /// manifesto ai file comuni, con un commit. 400 con il motivo se non si può; il progetto resta com'era.
         /// </summary>

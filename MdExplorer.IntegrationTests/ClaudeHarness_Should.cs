@@ -92,6 +92,7 @@ namespace MdExplorer.IntegrationTests
                     ".claude/skills/mde-prompt-for-agents/SKILL.md",
                     ".claude/skills/mde-readme/SKILL.md",
                     ".claude/skills/mde-slide/SKILL.md",
+                    ".claude/skills/mde-template/SKILL.md",
                     ".claude/skills/mde-workflow/SKILL.md",
                 },
                 ProducedFiles(_root),

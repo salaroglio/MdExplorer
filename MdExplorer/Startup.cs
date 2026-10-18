@@ -131,6 +131,7 @@ namespace MdExplorer
             services.AddHostedService(sp => sp.GetRequiredService<Services.AgentRun.WorkflowPoller>());
             services.AddSingleton<Services.AgentRun.IAgentWorkflowExecutor, Services.AgentRun.AgentWorkflowExecutor>();
             services.AddScoped<Services.Templates.IProjectTemplateCreator, Services.Templates.ProjectTemplateCreator>();
+            services.AddScoped<Services.Templates.ITemplateChecker, Services.Templates.TemplateChecker>();
             services.AddScoped<Services.Templates.IProjectTemplateUpdates, Services.Templates.ProjectTemplateCreator>();
             // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita
             // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.

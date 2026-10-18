@@ -296,6 +296,38 @@ public sealed class AgentTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "Check an MdExplorer project template (a git repository with .mde-template/<id>/mde-template.yml, see the mde-template " +
+        "skill) BEFORE you publish it, and get back everything that is wrong in one pass. The branch you are on is checked " +
+        "from its files as they are now (uncommitted too); every other branch the manifest declares (languages: structure and " +
+        "example) from its last commit. It checks the manifest, the zone rule of a method (only .mde-template/<id>/ and " +
+        ".claude/skills/<id>-*/), the CHANGELOG against the version, the files the manifest names, the agent cards (readable, " +
+        "file name = a2a.name, method agents prefixed with the id), the skills (SKILL.md with name = folder), and the " +
+        "workflows read in a project made of the template alone (seeds in place, the manifest's roles as open roles). Also: " +
+        "same id and version on every declared branch, the example containing the structure, the tag v<version>. Returns JSON: " +
+        "ok, id, kind, version, branches[] (branch, from working-tree/commit, files), issues[] (severity error/warning, branch, " +
+        "file, message, fix). 'error' means MdExplorer will not merge the template or merges it broken: fix each one and check " +
+        "again. If the answer is an HTTP or connection error, the template was NOT checked.")]
+    public async Task<string> CheckTemplate(
+        [Description("The template repository's folder (absolute path).")] string templatePath)
+    {
+        if (string.IsNullOrWhiteSpace(templatePath)) return "Error: templatePath is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var resp = await client.GetAsync("/api/MdProjects/CheckTemplate?path=" + Uri.EscapeDataString(templatePath.Trim()));
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The template was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The template was NOT checked.";
+        }
+    }
+
+    [McpServerTool, Description(
         "Check an ontology made of files of the project, in memory (no Fuseki needed): every Turtle file is read (errors with " +
         "line and column), the data (TBox schema + ABox instances, merged) are validated against the SHACL shapes, and every " +
         "SPARQL query file (.rq: the competency questions) is run on the data. Each path is a file or a folder from the " +
