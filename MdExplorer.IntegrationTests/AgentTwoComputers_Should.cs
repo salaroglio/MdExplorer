@@ -49,7 +49,7 @@ namespace MdExplorer.IntegrationTests
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
             meta.SetAgentCity(path, new MdExplorer.Service.Models.AgentCityConfig
             {
-                Enabled = true, UseAgentWorktrees = false, OwnershipDoc = "responsabilita.md", WorkflowDoc = "workflow.md",
+                Enabled = true, UseAgentWorktrees = false, OwnershipDoc = "responsabilita.md", WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" },
             });
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "capo");

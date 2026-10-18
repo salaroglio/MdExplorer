@@ -40,6 +40,42 @@ namespace MdExplorer.Features.Agents.Workflow
         }
 
         /// <summary>
+        /// Come sopra, su tutti i workflow del progetto (PW): il passo e il workflow in cui sta. Con passi possibili in più
+        /// workflow vince ancora il più prudente.
+        /// </summary>
+        public static (ProjectWorkflow Workflow, WorkflowStep Step) StepFor(IReadOnlyList<ProjectWorkflow> workflows, string fromAgent, string toAgent, bool isApproval)
+        {
+            var found = (workflows ?? Array.Empty<ProjectWorkflow>())
+                .Select(w => (Workflow: w, Step: StepFor(w.Descriptor, fromAgent, toAgent, isApproval)))
+                .Where(x => x.Step != null)
+                .ToList();
+            return found.FirstOrDefault(x => x.Step.Start == WorkflowStart.AskOwner) is { Step: not null } prudent ? prudent : found.FirstOrDefault();
+        }
+
+        /// <summary>I titoli dei workflow, per dirli in un messaggio: «Gara», «DDD».</summary>
+        public static string Titles(IReadOnlyList<ProjectWorkflow> workflows)
+            => string.Join(", ", (workflows ?? Array.Empty<ProjectWorkflow>()).Select(w => $"«{w.Descriptor.Title}»"));
+
+        /// <summary>Il motivo per cui un messaggio tra agenti non è previsto da nessuno dei workflow del progetto.</summary>
+        public static string NotForeseen(IReadOnlyList<ProjectWorkflow> workflows, string fromAgent, string toAgent)
+        {
+            if (workflows != null && workflows.Count == 1) return NotForeseen(workflows[0].Descriptor, fromAgent, toAgent);
+            var allowed = (workflows ?? Array.Empty<ProjectWorkflow>()).SelectMany(w => AssigneesOf(w.Descriptor, fromAgent))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return UiText.Say(
+                $"Nessuno dei workflow del progetto ({Titles(workflows)}) prevede che '{fromAgent}' scriva a '{toAgent}'. " +
+                (allowed.Count == 0
+                    ? $"Dopo '{fromAgent}' non viene nessun altro agente: scrive solo alla persona."
+                    : $"Dopo '{fromAgent}' vengono: {string.Join(", ", allowed)}.") +
+                " Se il passaggio serve, va aggiunto a un workflow.",
+                $"None of the project's workflows ({Titles(workflows)}) provides for '{fromAgent}' writing to '{toAgent}'. " +
+                (allowed.Count == 0
+                    ? $"No other agent comes after '{fromAgent}': it writes only to the person."
+                    : $"After '{fromAgent}' come: {string.Join(", ", allowed)}.") +
+                " If this handoff is needed, it must be added to a workflow.");
+        }
+
+        /// <summary>
         /// Il passo che parte quando la persona approva il lavoro di <paramref name="producer"/> e avvisa
         /// <paramref name="recipient"/>: un passo di <paramref name="recipient"/> che parte dopo un passo di
         /// <paramref name="producer"/>. Null = il workflow non prevede questo avviso.
@@ -96,6 +132,14 @@ namespace MdExplorer.Features.Agents.Workflow
         private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Un workflow del progetto: il documento nell'elenco, il JSON che nomina, la regola letta.</summary>
+    public sealed class ProjectWorkflow
+    {
+        public string Document { get; init; }
+        public string JsonPath { get; init; }
+        public WorkflowDescriptor Descriptor { get; init; }
+    }
+
     /// <summary>
     /// Il documento del workflow (<c>mde_type: workflow</c>) e il JSON che nomina nel front matter (<c>workflow:</c>, relativo
     /// al documento). La configurazione punta al documento perché è ciò che le persone leggono; la regola sta nel JSON.
@@ -140,15 +184,67 @@ namespace MdExplorer.Features.Agents.Workflow
             }
         }
 
+        /// <summary>
+        /// I workflow del progetto (PW, 18/10/2026: <c>agentCity.workflowDocs</c> è un elenco). Vuoto senza problema = il
+        /// progetto non ne ha. Null con problema = uno non si legge, o due non stanno insieme: lo stesso documento due volte,
+        /// due documenti con lo stesso JSON, o lo stesso agente che apre un giro in due workflow (al lancio non si saprebbe
+        /// quale giro aprire). Senza tutte le regole non si sa chi avvia: chi chiama si ferma, come con un workflow solo.
+        /// </summary>
+        public static IReadOnlyList<ProjectWorkflow> LoadAll(string projectRoot, IReadOnlyList<string> documents, string ownershipDoc, out string problem)
+        {
+            problem = null;
+            var result = new List<ProjectWorkflow>();
+            if (documents == null || documents.Count == 0) return result;
+            foreach (var document in documents)
+            {
+                var relative = (document ?? "").Trim().Replace('\\', '/').TrimStart('/');
+                var twin = result.FirstOrDefault(w => string.Equals(w.Document, relative, StringComparison.OrdinalIgnoreCase));
+                if (twin != null)
+                {
+                    problem = UiText.Say($"il documento del workflow '{relative}' è nell'elenco due volte (agentCity.workflowDocs).", $"the workflow document '{relative}' is listed twice (agentCity.workflowDocs).");
+                    return null;
+                }
+                var wf = LoadActive(projectRoot, relative, ownershipDoc, out problem);
+                if (problem != null) return null;
+                if (wf == null)
+                {
+                    problem = UiText.Say("una riga vuota nell'elenco dei workflow (agentCity.workflowDocs).", "an empty row in the list of workflows (agentCity.workflowDocs).");
+                    return null;
+                }
+                var json = JsonPathOf(projectRoot, relative);
+                var same = result.FirstOrDefault(w => string.Equals(w.JsonPath, json, StringComparison.OrdinalIgnoreCase));
+                if (same != null)
+                {
+                    problem = UiText.Say($"'{same.Document}' e '{relative}' nominano lo stesso workflow '{json}': ne basta uno.", $"'{same.Document}' and '{relative}' name the same workflow '{json}': one is enough.");
+                    return null;
+                }
+                foreach (var launch in wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.Launch))
+                {
+                    var other = result.FirstOrDefault(w => w.Descriptor.Steps.Any(s => s.Trigger?.Kind == WorkflowTriggerKind.Launch && Same(s.Agent, launch.Agent)));
+                    if (other != null)
+                    {
+                        problem = UiText.Say(
+                            $"'{launch.Agent}' apre un giro sia in «{other.Descriptor.Title}» sia in «{wf.Title}»: lanciandolo non si saprebbe quale. Un agente apre i giri di un workflow solo.",
+                            $"'{launch.Agent}' opens a round both in «{other.Descriptor.Title}» and in «{wf.Title}»: launching it, nobody would know which. An agent opens the rounds of one workflow only.");
+                        return null;
+                    }
+                }
+                result.Add(new ProjectWorkflow { Document = relative, JsonPath = json, Descriptor = wf });
+            }
+            return result;
+        }
+
+        private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Il JSON del workflow, dalla radice del progetto con '/'. Solleva con il motivo se qualcosa non torna.</summary>
         public static string JsonPathOf(string projectRoot, string documentPath)
         {
             if (string.IsNullOrWhiteSpace(documentPath))
-                throw new InvalidOperationException(UiText.Say("Nessun documento del workflow configurato (agentCity.workflowDoc).", "No workflow document configured (agentCity.workflowDoc)."));
+                throw new InvalidOperationException(UiText.Say("Nessun documento del workflow configurato (agentCity.workflowDocs).", "No workflow document configured (agentCity.workflowDocs)."));
             var relative = documentPath.Trim().Replace('\\', '/').TrimStart('/');
             var full = Path.Combine(projectRoot, relative.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(full))
-                throw new InvalidOperationException(UiText.Say($"Il documento del workflow '{relative}' non esiste (agentCity.workflowDoc).", $"The workflow document '{relative}' does not exist (agentCity.workflowDoc)."));
+                throw new InvalidOperationException(UiText.Say($"Il documento del workflow '{relative}' non esiste (agentCity.workflowDocs).", $"The workflow document '{relative}' does not exist (agentCity.workflowDocs)."));
 
             var m = FrontMatter.Match(File.ReadAllText(full));
             if (!m.Success)

@@ -39,6 +39,14 @@ namespace MdExplorer.Services
     public class ProjectMetadataService : IProjectMetadataService
     {
         private const string FileName = ".development.yml";
+
+        /// <summary>
+        /// Il testo del file con le righe ritirate già tolte e quelle diventate un elenco già convertite
+        /// (<see cref="MdExplorer.Features.Configuration.RetiredConfigKeys"/>): chi legge e poi riscrive il file non
+        /// perde un valore solo perché il progetto non è stato ancora riaperto.
+        /// </summary>
+        private static string ReadConfigText(string filePath)
+            => MdExplorer.Features.Configuration.RetiredConfigKeys.Remove(File.ReadAllText(filePath), out _);
         // Icon lives in .mdMetadata/ (NOT .md/) because .md/ is the working
         // folder ignored by .gitignore — committable artifacts must live in a
         // folder that follows the project on clone/share.
@@ -69,7 +77,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return null;
@@ -110,7 +118,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -148,7 +156,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return new List<ProjectParticipant>();
@@ -189,7 +197,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -238,7 +246,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                     return null;
 
@@ -323,7 +331,7 @@ namespace MdExplorer.Services
             DevelopmentConfig root;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 root = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -358,7 +366,7 @@ namespace MdExplorer.Services
             {
                 Enabled = config.Enabled,
                 OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
-                WorkflowDoc = string.IsNullOrWhiteSpace(config.WorkflowDoc) ? null : config.WorkflowDoc.Trim(),
+                WorkflowDocs = NormalizeWorkflowDocs(config.WorkflowDocs),
                 RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
                 RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,
@@ -373,6 +381,23 @@ namespace MdExplorer.Services
             File.WriteAllText(filePath, serializer.Serialize(root));
             _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
             return root.AgentCity;
+        }
+
+        /// <summary>
+        /// L'elenco dei workflow com'è scritto: percorsi con '/', senza righe vuote; vuoto = nessuno (null, la riga sparisce).
+        /// Lo stesso documento due volte è un errore detto, non un doppione tolto in silenzio.
+        /// </summary>
+        private static List<string> NormalizeWorkflowDocs(IEnumerable<string> docs)
+        {
+            var list = (docs ?? Enumerable.Empty<string>())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim().Replace('\\', '/').TrimStart('/'))
+                .ToList();
+            var twin = list.GroupBy(d => d, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (twin != null)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"Il documento del workflow '{twin.Key}' è nell'elenco due volte.", $"The workflow document '{twin.Key}' is listed twice."));
+            return list.Count == 0 ? null : list;
         }
 
         public (string Secret, bool Created) EnsureRoomSecret(string projectPath)
@@ -391,7 +416,7 @@ namespace MdExplorer.Services
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .IgnoreUnmatchedProperties()
                 .Build();
-            var yaml = File.Exists(filePath) ? File.ReadAllText(filePath) : null;
+            var yaml = File.Exists(filePath) ? ReadConfigText(filePath) : null;
             var root = string.IsNullOrWhiteSpace(yaml)
                 ? new DevelopmentConfig()
                 : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -445,7 +470,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return null;
@@ -534,7 +559,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -610,7 +635,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml)) return;
 
                 var deserializer = new DeserializerBuilder()

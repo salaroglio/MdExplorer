@@ -3,7 +3,7 @@ name: mde-workflow
 description: Plan and change an agents' workflow for MdExplorer's agent city - the `*.workflow.json` that MdExplorer executes as a scheduler (which steps there are, which agent job or which person does each one, what starts it, what it receives, who approves it, which steps repeat), together with the interfaces of the agent cards it connects (inputs, reads, outputs, buttons) and the markdown document that draws it. Use when the user asks to design, describe, review, change or fix how the people and the agents of a project work together, or to add, remove or rewire an input or an output of an agent.
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -44,8 +44,15 @@ The rule of the split:
 
 ## What MdExplorer does with it
 
-When the project points at the workflow's document (`agentCity.workflowDoc` in `.development.yml`, the "Workflow
-document" field of the project settings):
+When the project lists the workflow's document (`agentCity.workflowDocs` in `.development.yml`, the "Workflow
+documents" of the project settings):
+
+```yaml
+agentCity:
+  workflowDocs:
+    - gara/workflow.md
+    - ddd/workflow.md
+```
 
 - **An agent's step** starts when its trigger happens. MdExplorer sends the agent the assignment: `[ASSIGNMENT] Job «x» of
   your card: <description>.`, then **Inputs** (each one with its text, or the files with «output X of «step», approved in
@@ -72,6 +79,11 @@ document" field of the project settings):
 - **A round keeps what it was born with**: it saves the workflow and the cards' interfaces when it starts. A change made
   now applies to the **next** round.
 - A workflow with errors stops the hand-overs and says so.
+- **Several workflows** in one project (the tender and another process) work side by side: each round knows its
+  workflow and goes on with it. They must go together: the same document or the same `*.workflow.json` listed twice is an
+  error, and **an agent opens the rounds of one workflow only** — two workflows with a `launch` for the same agent are
+  refused, because launching it would not say which round to open. Hand-overs between agents follow all the listed
+  workflows: a message is allowed if one of them describes it.
 
 ## Ask first (if the user has not said)
 

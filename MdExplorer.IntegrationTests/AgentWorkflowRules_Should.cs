@@ -42,7 +42,7 @@ namespace MdExplorer.IntegrationTests
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
             meta.SetAgentCity(path, new MdExplorer.Service.Models.AgentCityConfig
             {
-                Enabled = true, UseAgentWorktrees = false, WorkflowDoc = "workflow.md",
+                Enabled = true, UseAgentWorktrees = false, WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" },
             });
             return path;
         }
@@ -109,6 +109,31 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNull(svc.ReworksLeft(svc.Get(request.Id), out _), "nessun ciclo: nessun limite");
             svc.Rework(request.Id);
             Assert.AreEqual(AgentMessage.StateEnum.Pending, ReadMessage(ctx, assignment).State);
+        }
+
+        [TestMethod]
+        public void Read_the_old_single_workflow_as_a_list_and_keep_it_on_save()
+        {
+            // PW (18/10/2026): un progetto di prima ha «workflowDoc: …». Si legge come l'elenco, e un salvataggio dalle
+            // impostazioni (che riscrive il file) non lo perde.
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("wf-riga-vecchia");
+            File.WriteAllText(Path.Combine(path, ".development.yml"), "agentCity:\n  enabled: true\n  workflowDoc: gara/workflow.md\n");
+            var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
+
+            CollectionAssert.AreEqual(new[] { "gara/workflow.md" }, meta.GetAgentCity(path).WorkflowDocs);
+
+            var city = meta.GetAgentCity(path);
+            city.Enabled = false;
+            meta.SetAgentCity(path, city);
+            var yml = File.ReadAllText(Path.Combine(path, ".development.yml"));
+            StringAssert.Contains(yml, "workflowDocs:\n  - gara/workflow.md");
+            Assert.IsFalse(yml.Contains("workflowDoc:"), yml);
+
+            var twice = meta.GetAgentCity(path);
+            twice.WorkflowDocs = new System.Collections.Generic.List<string> { "a.md", "/a.md" };
+            var ex = Assert.ThrowsException<InvalidOperationException>(() => meta.SetAgentCity(path, twice));
+            StringAssert.Contains(ex.Message, "is listed twice");
         }
 
         [TestMethod]

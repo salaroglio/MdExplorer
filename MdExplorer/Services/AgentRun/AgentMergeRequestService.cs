@@ -420,14 +420,14 @@ namespace MdExplorer.Services.AgentRun
 
             using var scope = _scopeFactory.CreateScope();
             var metadata = scope.ServiceProvider.GetService<MdExplorer.Services.IProjectMetadataService>();
-            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
-                request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDoc, metadata?.GetAgentCity(request.ProjectPath)?.OwnershipDoc, out var problem);
+            var workflows = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(
+                request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDocs, metadata?.GetAgentCity(request.ProjectPath)?.OwnershipDoc, out var problem);
             if (problem != null)
             {
                 why = MdExplorer.Features.Services.UiText.Say($"Il workflow del progetto non si legge ({problem}): finché non è corretto non so quante volte si può rifare.", $"The project's workflow cannot be read ({problem}): until it is fixed I do not know how many times the work can be redone.");
                 return 0;
             }
-            if (workflow == null) return null;
+            if (workflows.Count == 0) return null;
 
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
             db.Clear();
@@ -439,8 +439,8 @@ namespace MdExplorer.Services.AgentRun
             db.Commit();
 
             var isApproval = string.Equals(trigger.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
-            var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflow, trigger.FromAgent, trigger.ToAgent, isApproval);
-            return MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ReworksLeft(workflow, step, Math.Max(1, rejections), out why);
+            var found = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflows, trigger.FromAgent, trigger.ToAgent, isApproval);
+            return MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ReworksLeft(found.Workflow?.Descriptor, found.Step, Math.Max(1, rejections), out why);
         }
 
         /// <summary>

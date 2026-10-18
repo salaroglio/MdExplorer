@@ -198,20 +198,21 @@ namespace MdExplorer.Controllers.A2A
 
             // Il workflow del progetto, se c'è, è la regola di come si passa il lavoro: un passaggio che non descrive non
             // parte, e l'agente sa perché e cosa può fare. Si dice adesso, a chi scrive, non dopo nella coda.
-            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
-                claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, _projectMetadata.GetAgentCity(claims.ProjectPath)?.OwnershipDoc, out var workflowProblem);
+            var workflows = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(
+                claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDocs, _projectMetadata.GetAgentCity(claims.ProjectPath)?.OwnershipDoc, out var workflowProblem);
             if (workflowProblem != null)
                 return Conflict(new { error = UiText.Say($"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona.", $"The project workflow cannot be read ({workflowProblem}): until it is fixed I cannot tell whether this handoff is expected. Tell the person.") });
-            if (workflow != null)
+            if (workflows.Count > 0)
             {
+                var titles = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.Titles(workflows);
                 // Con un workflow i passaggi li fa lo schedulatore (W14): l'agente fa il suo passo e scrive alla persona.
                 _logger.LogWarning("[A2A/send] {From} -> {To} rifiutato: con il workflow gli agenti non instradano", claims.AgentName, to);
                 return StatusCode(403, new
                 {
                     error = UiText.Say(
-                        $"Il progetto ha un workflow («{workflow.Title}»): i passaggi tra agenti li fa MdExplorer, non gli agenti. " +
+                        $"Il progetto ha dei workflow ({titles}): i passaggi tra agenti li fa MdExplorer, non gli agenti. " +
                         "Non scrivere a un collega: fai il tuo passo e scrivi alla persona (toAgent = user). Chi viene dopo lo fa partire lo schedulatore.",
-                        $"The project has a workflow («{workflow.Title}»): MdExplorer hands work between agents, not the agents. " +
+                        $"The project has workflows ({titles}): MdExplorer hands work between agents, not the agents. " +
                         "Do not write to a colleague: do your step and write to the person (toAgent = user). The scheduler starts whoever comes next."),
                 });
             }

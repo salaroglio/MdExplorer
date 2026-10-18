@@ -390,6 +390,71 @@ namespace MdExplorer.Features.Tests.Agents
             finally { Directory.Delete(root, true); }
         }
 
+        // ---- più workflow per progetto (PW) ----
+
+        private const string Review = @"{
+  ""mde_workflow"": 3, ""title"": ""Revisione"",
+  ""steps"": [ { ""id"": ""rivedi"", ""agent"": ""responsabile-tecnico"", ""skill"": ""scheda-tecnica"", ""title"": ""Rivedi la scheda"",
+                 ""trigger"": { ""launch"": true }, ""start"": ""manual"",
+                 ""inputs"": { ""codice"": ""il bando"", ""capitolato"": ""il capitolato"", ""ricerca"": ""la ricerca"", ""criterio"": ""2"" } } ]
+}";
+
+        private static void WorkflowDoc(string root, string relative, string json)
+        {
+            var full = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(full));
+            File.WriteAllText(full, $"---\nmde_type: workflow\ntitle: x\nworkflow: {json}\n---\n# x\n");
+        }
+
+        [TestMethod]
+        public void Read_several_workflows_of_a_project()
+        {
+            using var project = GaraV3.Project(root =>
+            {
+                WorkflowDoc(root, "gara/workflow.md", "gara.workflow.json");
+                WorkflowDoc(root, "revisione/workflow.md", "revisione.workflow.json");
+                File.WriteAllText(Path.Combine(root, "revisione", "revisione.workflow.json"), Review);
+            });
+
+            var set = WorkflowDocument.LoadAll(project.Root, new[] { "gara/workflow.md", "/revisione/workflow.md" }, "responsabilita.md", out var problem);
+
+            Assert.IsNull(problem, problem);
+            CollectionAssert.AreEqual(new[] { "gara/gara.workflow.json", "revisione/revisione.workflow.json" }, set.Select(w => w.JsonPath).ToList());
+            CollectionAssert.AreEqual(new[] { "gara/workflow.md", "revisione/workflow.md" }, set.Select(w => w.Document).ToList());
+            Assert.AreEqual("Revisione", set[1].Descriptor.Title);
+            Assert.AreEqual(0, WorkflowDocument.LoadAll(project.Root, null, "responsabilita.md", out problem).Count, "nessun workflow: elenco vuoto");
+            Assert.IsNull(problem);
+
+            // La regola di chi avvia vale su tutti: l'approvazione che sveglia l'account manager è nella gara.
+            var found = WorkflowStartPolicy.StepFor(set, "user", "account-manager", isApproval: true);
+            Assert.AreEqual("sintesi", found.Step?.Id);
+            Assert.AreEqual("gara/gara.workflow.json", found.Workflow.JsonPath);
+            StringAssert.Contains(WorkflowStartPolicy.NotForeseen(set, "responsabile-legale", "responsabile-tecnico"),
+                "None of the project's workflows («Gara: dal bando alla decisione», «Revisione»)");
+        }
+
+        [TestMethod]
+        public void Refuse_workflows_that_do_not_go_together()
+        {
+            using var project = GaraV3.Project(root =>
+            {
+                WorkflowDoc(root, "gara/workflow.md", "gara.workflow.json");
+                WorkflowDoc(root, "gara/copia.md", "gara.workflow.json");
+                WorkflowDoc(root, "bis/workflow.md", "bis.workflow.json");
+                File.WriteAllText(Path.Combine(root, "bis", "bis.workflow.json"), GaraV3.Workflow.Replace("Gara: dal bando alla decisione", "Gara bis"));
+            });
+            string Problem(params string[] docs)
+            {
+                Assert.IsNull(WorkflowDocument.LoadAll(project.Root, docs, "responsabilita.md", out var problem));
+                return problem;
+            }
+
+            StringAssert.Contains(Problem("gara/workflow.md", "gara/workflow.md"), "is listed twice");
+            StringAssert.Contains(Problem("gara/workflow.md", "gara/copia.md"), "name the same workflow 'gara/gara.workflow.json'");
+            StringAssert.Contains(Problem("gara/workflow.md", "bis/workflow.md"), "'account-manager' opens a round both in «Gara: dal bando alla decisione» and in «Gara bis»");
+            StringAssert.Contains(Problem("gara/workflow.md", "manca/workflow.md"), "does not exist");
+        }
+
         [TestMethod]
         public void Allow_a_for_loop_and_an_until_loop_on_the_same_step_but_not_two_of_a_kind()
         {

@@ -46,7 +46,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityEnabled: boolean = false;
   agentCityOwnershipDoc: string = '';
   /** Il documento del workflow degli agenti (mde_type: workflow): quando c'è, MdExplorer lo applica. */
-  agentCityWorkflowDoc: string = '';
+  /** I documenti dei workflow (PW: un progetto ne può avere più d'uno). Una riga vuota è una riga appena aggiunta. */
+  agentCityWorkflowDocs: string[] = [];
+  /** Perché l'ultimo salvataggio della città non è andato, detto dal servizio (es. lo stesso workflow due volte). */
+  agentCityError = '';
   agentCityHasRoomSecret: boolean = false;
   agentUseWorktrees: boolean = false;
   /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
@@ -602,7 +605,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentCityWorkflowDoc = res?.workflowDoc || '';
+        this.agentCityWorkflowDocs = [...(res?.workflowDocs || [])];
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.projectIsGit = !!(res as any)?.isGitRepository;
       },
@@ -827,13 +830,28 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  addWorkflowDoc(): void {
+    this.agentCityWorkflowDocs = [...this.agentCityWorkflowDocs, ''];
+  }
+
+  removeWorkflowDoc(index: number): void {
+    const wasWritten = !!(this.agentCityWorkflowDocs[index] || '').trim();
+    this.agentCityWorkflowDocs = this.agentCityWorkflowDocs.filter((_, i) => i !== index);
+    if (wasWritten) this.onAgentCityChange();
+  }
+
+  trackByIndex(index: number): number {
+    return index;
+  }
+
   onAgentCityChange(): void {
     this.saving = true;
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
-      // Vuoto vuol dire «nessun workflow»: si manda così, perché il servizio distingue «non toccare» (assente) da «togli».
-      workflowDoc: this.agentCityWorkflowDoc?.trim() ?? '',
+      // Elenco vuoto vuol dire «nessun workflow»: si manda sempre, perché il servizio distingue «non toccare» (assente)
+      // da «nessuno». Le righe vuote (appena aggiunte, non ancora scritte) non sono workflow.
+      workflowDocs: this.agentCityWorkflowDocs.map(d => (d || '').trim()).filter(d => d.length > 0),
       // Solo ciò che questa schermata decide. Il worktree è una preferenza di macchina con un endpoint suo:
       // mandarlo, anche a `false`, scriveva nel `.development.yml` una scelta che nessuno aveva fatto.
     }).subscribe({
@@ -841,7 +859,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentCityWorkflowDoc = res?.workflowDoc || '';
+        this.agentCityError = '';
+        // Una riga appena aggiunta e ancora vuota resta lì da scrivere: il salvataggio parte anche dal blur di un'altra.
+        const pending = this.agentCityWorkflowDocs.filter(d => !(d || '').trim()).length;
+        this.agentCityWorkflowDocs = [...(res?.workflowDocs || []), ...Array(pending).fill('')];
         // La toolbar mostra i comandi della città in base a questo flag: allineala
         // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
         // Il service ignora il salvataggio se riguarda un progetto non aperto.
@@ -850,6 +871,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error saving Agent City settings:', err);
         this.saving = false;
+        this.agentCityError = err?.error?.message || err?.message || '';
+        // Un rifiuto del servizio (400: per esempio lo stesso workflow due volte): le righe restano come le ha scritte la
+        // persona, da correggere; il file non è cambiato.
+        if (err?.status === 400) return;
         // Il salvataggio è fallito: riallinea la UI allo stato PERSISTITO rileggendolo
         // dal server. Niente inversione cieca del checkbox: questo handler è agganciato
         // anche al blur del campo ownership-doc, e lì il toggle non è stato toccato.

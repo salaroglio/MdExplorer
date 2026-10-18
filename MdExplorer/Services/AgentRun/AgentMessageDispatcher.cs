@@ -1150,7 +1150,7 @@ namespace MdExplorer.Services.AgentRun
         private bool HoldForOwner(Guid messageId, AgentMessage snapshot)
         {
             var city = _projectMetadata?.GetAgentCity(snapshot.ProjectPath);
-            var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(snapshot.ProjectPath, city?.WorkflowDoc, city?.OwnershipDoc, out var problem);
+            var workflows = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(snapshot.ProjectPath, city?.WorkflowDocs, city?.OwnershipDoc, out var problem);
             if (problem != null)
             {
                 var alreadyTold = string.Equals(snapshot.DeferredReason, AgentMessage.DeferredReasonEnum.WorkflowInvalid, StringComparison.Ordinal);
@@ -1166,7 +1166,7 @@ namespace MdExplorer.Services.AgentRun
                 }
                 return true;
             }
-            if (wf == null)
+            if (workflows.Count == 0)
             {
                 // Senza workflow (P6, «La posta in ordine»): un agente che scrive a un altro non lo sveglia da solo. Il
                 // messaggio aspetta il responsabile del destinatario, come un passo di un giro: ogni risveglio passa da una
@@ -1181,15 +1181,15 @@ namespace MdExplorer.Services.AgentRun
             }
 
             var isApproval = string.Equals(snapshot.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
-            var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, snapshot.FromAgent, snapshot.ToAgent, isApproval);
+            var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflows, snapshot.FromAgent, snapshot.ToAgent, isApproval).Step;
             var fromAgent = !string.Equals(snapshot.FromAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase);
             if (step == null && (isApproval || fromAgent))
             {
                 // L'ultima barriera: l'invio e l'avviso di approvazione già controllano, ma un messaggio può arrivare da
                 // altre strade (o essere in coda da prima che il workflow ci fosse). Un passaggio non previsto non parte.
                 var why = isApproval
-                    ? MdExplorer.Features.Services.UiText.Say($"Il workflow «{wf.Title}» non prevede che un'approvazione svegli '{snapshot.ToAgent}'.", $"Workflow «{wf.Title}» does not expect an approval to wake '{snapshot.ToAgent}'.")
-                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.NotForeseen(wf, snapshot.FromAgent, snapshot.ToAgent);
+                    ? MdExplorer.Features.Services.UiText.Say($"Nessun workflow del progetto ({MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.Titles(workflows)}) prevede che un'approvazione svegli '{snapshot.ToAgent}'.", $"No workflow of the project ({MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.Titles(workflows)}) expects an approval to wake '{snapshot.ToAgent}'.")
+                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.NotForeseen(workflows, snapshot.FromAgent, snapshot.ToAgent);
                 _logger.LogWarning("[Dispatcher] messaggio {Id} per '{Agent}' non previsto dal workflow: {Why}", messageId, snapshot.ToAgent, why);
                 MarkFailed(messageId, why);
                 return true;

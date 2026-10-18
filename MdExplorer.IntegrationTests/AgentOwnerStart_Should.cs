@@ -46,7 +46,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "workflow.md"), "---\nmde_type: workflow\nworkflow: prova.workflow.json\n---\n# Prova\n");
             File.WriteAllText(Path.Combine(path, "prova.workflow.json"), workflowJson);
             var city = meta.GetAgentCity(path);
-            city.WorkflowDoc = "workflow.md";
+            city.WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" };
             meta.SetAgentCity(path, city);
 
             ctx.Runner.Behavior = (_, __) => Task.FromResult("ok");
@@ -297,6 +297,59 @@ namespace MdExplorer.IntegrationTests
                 .Single(x => x.ToAgent == "tecnico" && x.Id != held.Id && x.State == AgentMessage.StateEnum.Pending);
             var (started, startedBody) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{mine.Id}/start", "{}");
             Assert.AreEqual(System.Net.HttpStatusCode.OK, started, startedBody);
+        }
+
+        [TestMethod]
+        public async Task Run_two_workflows_side_by_side_each_round_with_its_own()
+        {
+            // PW (18/10/2026): un progetto con due workflow. Ogni lancio apre il giro del workflow che ha quel lancio, e ogni
+            // giro va avanti con il suo; la posta e l'elenco dei giri dicono di quale workflow sono.
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-due-workflow");
+            Directory.CreateDirectory(Path.Combine(path, "revisione"));
+            File.WriteAllText(Path.Combine(path, "revisione", "workflow.md"), "---\nmde_type: workflow\nworkflow: revisione.workflow.json\n---\n# Revisione\n");
+            File.WriteAllText(Path.Combine(path, "revisione", "revisione.workflow.json"), @"{
+  ""mde_workflow"": 3, ""title"": ""Revisione"",
+  ""steps"": [
+    { ""id"": ""rivedi"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""nota"", ""agent"": ""capo"", ""skill"": ""revisione"", ""title"": ""Nota di revisione"", ""trigger"": { ""after"": [""rivedi""] }, ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la nota di revisione."" }
+  ]
+}");
+            var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
+            var city = meta.GetAgentCity(path);
+            city.WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md", "revisione/workflow.md" };
+            meta.SetAgentCity(path, city);
+
+            var gara = await LaunchAndWaitForHold(ctx, path);
+            await ctx.Factory.Services.GetRequiredService<IAgentRunJobService>().RunAsync(new AgentRunRequestModel
+            {
+                ProjectPath = path, AgentFilePath = Path.Combine(path, "tecnico.agent.md"), PreparedPrompt = "rivedi",
+                TriggerSource = "manual", UseWorktree = false,
+            });
+            var messages = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "capo" && x.WorkflowRound != null));
+            var nota = messages.Single(x => x.ToAgent == "capo" && x.WorkflowRound != null);
+
+            Assert.AreEqual("nota", nota.WorkflowStep);
+            Assert.AreNotEqual(gara.WorkflowRound, nota.WorkflowRound, "due giri, uno per workflow");
+            Assert.AreEqual("revisione/revisione.workflow.json", Round(path, nota).Header.Workflow);
+            Assert.AreEqual("prova.workflow.json", Round(path, gara).Header.Workflow);
+            StringAssert.Contains(nota.Body, "Scrivi la nota di revisione.", "il brief del suo workflow");
+
+            var q = "?projectPath=" + System.Uri.EscapeDataString(path);
+            var (_, inbox) = await ctx.GetJson("/api/A2A/mailbox/inbox" + q);
+            CollectionAssert.AreEquivalent(new[] { "Scheda tecnica", "Nota di revisione" },
+                inbox.RootElement.GetProperty("toStart").EnumerateArray().Select(x => x.GetProperty("step").GetString()).ToList());
+            var (_, rounds) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            CollectionAssert.AreEquivalent(new[] { "Prova", "Revisione" },
+                rounds.RootElement.GetProperty("rounds").EnumerateArray().Select(x => x.GetProperty("title").GetString()).ToList());
+
+            // Il giro della revisione va avanti con il suo workflow.
+            var (status, body) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{nota.Id}/start", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            await WaitFor(() => Events(Round(path, nota), "nota").LastOrDefault() == RoundEventType.Done);
+            CollectionAssert.AreEqual(new[] { RoundEventType.Held }, Events(Round(path, gara), "scheda"), "l'altro giro non si è mosso");
         }
 
         [TestMethod]

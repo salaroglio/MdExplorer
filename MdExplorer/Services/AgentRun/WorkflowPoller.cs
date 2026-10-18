@@ -140,7 +140,13 @@ namespace MdExplorer.Services.AgentRun
             var head = GitCli.Run(_store.Root(projectPath), "rev-parse", "HEAD").Out.Trim();
             var city = _metadata.GetAgentCity(projectPath);
             var sb = new StringBuilder(head);
-            foreach (var relative in new[] { city?.OwnershipDoc, city?.WorkflowDoc, WorkflowDocument.JsonPathOf(projectPath, city?.WorkflowDoc) })
+            var files = new List<string> { city?.OwnershipDoc };
+            foreach (var doc in city?.WorkflowDocs ?? new List<string>())
+            {
+                files.Add(doc);
+                files.Add(WorkflowDocument.JsonPathOf(projectPath, doc));
+            }
+            foreach (var relative in files)
             {
                 if (string.IsNullOrWhiteSpace(relative)) continue;
                 var path = Path.Combine(projectPath, relative.Replace('/', Path.DirectorySeparatorChar));
@@ -161,7 +167,7 @@ namespace MdExplorer.Services.AgentRun
                 db.Commit();
             }
             return paths.Where(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p))
-                        .Where(p => _metadata.GetAgentCity(p) is { Enabled: true } c && !string.IsNullOrWhiteSpace(c.WorkflowDoc));
+                        .Where(p => _metadata.GetAgentCity(p) is { Enabled: true } c && c.WorkflowDocs is { Count: > 0 });
         }
     }
 

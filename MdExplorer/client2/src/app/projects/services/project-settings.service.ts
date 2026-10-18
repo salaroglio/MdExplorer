@@ -284,11 +284,11 @@ export class ProjectSettingsService {
   // ============================================================
   //   Agent City / Federation activation (.development.yml, §12.4)
   // ============================================================
-  getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; workflowDoc?: string | null; relayUrl: string | null; hasRoomSecret: boolean; useAgentWorktrees: boolean }> {
+  getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; workflowDocs: string[]; relayUrl: string | null; hasRoomSecret: boolean; useAgentWorktrees: boolean }> {
     return this.http.get<any>('../api/MdProjects/AgentCity', { params: { path: projectPath } });
   }
 
-  setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDoc?: string; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {
+  setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDocs?: string[]; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {
     return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
   }
 

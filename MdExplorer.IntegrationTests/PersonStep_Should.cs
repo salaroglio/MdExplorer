@@ -55,7 +55,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(path, "prova.workflow.json"), Workflow.Replace("PRODUCES",
                 produces ? @"""produces"": [ { ""id"": ""verbale"", ""path"": ""verbali/verbale-*.md"" } ]," : ""));
             var city = meta.GetAgentCity(path);
-            city.WorkflowDoc = "workflow.md";
+            city.WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" };
             meta.SetAgentCity(path, city);
 
             // Il progetto ha un commit e un remoto: da lì si contano e si pubblicano i documenti della persona.

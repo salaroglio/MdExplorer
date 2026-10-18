@@ -24,6 +24,17 @@ namespace MdExplorer.Features.Configuration
             ("agentCity", "autoMergeAgentDeliverables"),
         };
 
+        /// <summary>
+        /// The keys that became a list: the value is <b>kept</b>, moved to the new key as its only item. Same rules as
+        /// a retired key (a scalar on one line, directly under its section); the file is rewritten once, when the
+        /// project is opened, and the change is a commit like any cleanup.
+        /// </summary>
+        public static readonly IReadOnlyList<(string Section, string Key, string ListKey)> BecameList = new[]
+        {
+            // 2026-10-18 (PW): a project has several workflows; agentCity.workflowDoc → agentCity.workflowDocs.
+            ("agentCity", "workflowDoc", "workflowDocs"),
+        };
+
         private static readonly Regex TopLevel = new(@"^(?<key>[A-Za-z_][\w-]*)\s*:", RegexOptions.Compiled);
         private static readonly Regex Child = new(@"^(?<indent>[ \t]+)(?<key>[A-Za-z_][\w-]*)\s*:(?<value>.*)$", RegexOptions.Compiled);
 
@@ -54,6 +65,29 @@ namespace MdExplorer.Features.Configuration
                 if (child.Groups["indent"].Value != sectionIndent) continue;   // deeper: not a direct child
 
                 var key = child.Groups["key"].Value;
+                var listed = BecameList.FirstOrDefault(r => r.Section == section && r.Key == key);
+                if (listed.ListKey != null)
+                {
+                    var indent = child.Groups["indent"].Value;
+                    if (SectionHas(lines, i, indent, listed.ListKey))
+                        throw new InvalidOperationException(
+                            $"'{section}' ha sia '{key}' sia '{listed.ListKey}': '{key}' è diventato l'elenco '{listed.ListKey}'. Sposta il valore nell'elenco e togli la riga '{key}'. " +
+                            $"/ '{section}' has both '{key}' and '{listed.ListKey}': '{key}' became the list '{listed.ListKey}'. Move the value into the list and remove the '{key}' line.");
+                    var value = child.Groups["value"].Value.Trim();
+                    found.Add(section + "." + key + " → " + listed.ListKey);
+                    if (value.Length == 0 || value == "null" || value == "~" || value == "''" || value == "\"\"")
+                    {
+                        lines.RemoveAt(i);
+                        i--;
+                    }
+                    else
+                    {
+                        lines[i] = indent + listed.ListKey + ":";
+                        lines.Insert(i + 1, indent + "  - " + value);
+                        i++;
+                    }
+                    continue;
+                }
                 if (!All.Any(r => r.Section == section && r.Key == key)) continue;
 
                 found.Add(section + "." + key);
@@ -63,7 +97,7 @@ namespace MdExplorer.Features.Configuration
             if (found.Count == 0) return yaml;
 
             // A section that only held retired keys is an empty heading: it goes too.
-            foreach (var name in found.Select(f => f.Split('.')[0]).Distinct().ToList())
+            foreach (var name in found.Where(f => !f.Contains(" → ")).Select(f => f.Split('.')[0]).Distinct().ToList())
             {
                 var at = lines.FindIndex(l => { var m = TopLevel.Match(l); return m.Success && m.Groups["key"].Value == name && l.Substring(m.Length).Trim().Length == 0; });
                 if (at < 0) continue;
@@ -74,6 +108,15 @@ namespace MdExplorer.Features.Configuration
             }
 
             return string.Join(newline, lines);
+        }
+
+        /// <summary>The section that holds line <paramref name="at"/> already has <paramref name="key"/> at the same indentation.</summary>
+        private static bool SectionHas(List<string> lines, int at, string indent, string key)
+        {
+            bool Is(int i) { var m = Child.Match(lines[i]); return m.Success && m.Groups["indent"].Value == indent && m.Groups["key"].Value == key; }
+            for (var i = at - 1; i >= 0 && !TopLevel.IsMatch(lines[i]); i--) if (Is(i)) return true;
+            for (var i = at + 1; i < lines.Count && !TopLevel.IsMatch(lines[i]); i++) if (Is(i)) return true;
+            return false;
         }
     }
 }

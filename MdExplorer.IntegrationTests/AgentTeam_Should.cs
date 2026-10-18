@@ -50,7 +50,7 @@ namespace MdExplorer.IntegrationTests
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
             meta.SetAgentCity(path, new MdExplorer.Service.Models.AgentCityConfig
             {
-                Enabled = true, UseAgentWorktrees = false, OwnershipDoc = "responsabilita.md", WorkflowDoc = "workflow.md",
+                Enabled = true, UseAgentWorktrees = false, OwnershipDoc = "responsabilita.md", WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" },
             });
             ctx.WriteLlmCitizen(path, "capo", "Chi cerca i bandi", new[] { "user" }, jobs: AgentCityContext.CapoJobs);
             ctx.WriteLlmCitizen(path, "tecnico", "Chi scrive la scheda", new[] { "capo", "user" }, jobs: AgentCityContext.TecnicoJobs(produces));

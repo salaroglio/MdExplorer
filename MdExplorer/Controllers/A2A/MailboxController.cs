@@ -774,12 +774,13 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var metadata = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.IProjectMetadataService)) as MdExplorer.Services.IProjectMetadataService;
-                var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDoc, metadata?.GetAgentCity(m.ProjectPath)?.OwnershipDoc, out _);
+                var workflows = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDocs, metadata?.GetAgentCity(m.ProjectPath)?.OwnershipDoc, out _);
                 var isApproval = string.Equals(m.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
-                // Un incarico dello schedulatore sa di quale passo è; gli altri si riconoscono dalla regola.
-                step = wf == null ? null
-                    : m.WorkflowStep != null ? wf.Step(m.WorkflowStep)?.Label
-                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, m.FromAgent, m.ToAgent, isApproval)?.Label;
+                // Un incarico dello schedulatore sa di quale passo è (lo dice il registro del suo giro); gli altri si
+                // riconoscono dalla regola, su tutti i workflow.
+                step = workflows == null || workflows.Count == 0 ? null
+                    : m.WorkflowStep != null ? _workflow?.StepLabel(m.ProjectPath, m.WorkflowRound, m.WorkflowStep)
+                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflows, m.FromAgent, m.ToAgent, isApproval).Step?.Label;
             }
             catch (Exception ex)
             {

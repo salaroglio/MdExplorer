@@ -28,6 +28,22 @@
   font-size: 14px;
 }
 
+.setting-error {
+  color: var(--mde-error, #c62828);
+}
+
+/* Un documento del workflow per riga, con il cestino accanto (PW). */
+.workflow-doc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.workflow-doc-field {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Icona a filo di testo dentro una .setting-description (nota informativa). */
 .inline-warn-icon {
   font-size: 16px;

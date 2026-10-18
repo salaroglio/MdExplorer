@@ -62,6 +62,29 @@ namespace MdExplorer.Features.Tests.Configuration
         }
 
         [TestMethod]
+        public void Turn_the_single_workflow_into_a_list_keeping_its_value()
+        {
+            // PW (18/10/2026): workflowDoc è diventato l'elenco workflowDocs; il valore resta, primo e unico dell'elenco.
+            const string yaml = "agentCity:\r\n  enabled: true\r\n  workflowDoc: citta-degli-agenti/gara/workflow.md\r\n  ownershipDoc: doc.md\r\n";
+
+            var cleaned = RetiredConfigKeys.Remove(yaml, out var changed);
+
+            Assert.AreEqual("agentCity:\r\n  enabled: true\r\n  workflowDocs:\r\n    - citta-degli-agenti/gara/workflow.md\r\n  ownershipDoc: doc.md\r\n", cleaned);
+            CollectionAssert.AreEqual(new[] { "agentCity.workflowDoc → workflowDocs" }, changed.ToList());
+            Assert.AreSame(cleaned, RetiredConfigKeys.Remove(cleaned, out _), "convertito una volta, poi niente");
+        }
+
+        [TestMethod]
+        public void Drop_an_empty_single_workflow_and_refuse_both_keys()
+        {
+            Assert.AreEqual("agentCity:\n  enabled: true\n", RetiredConfigKeys.Remove("agentCity:\n  enabled: true\n  workflowDoc:\n", out _));
+
+            var ex = Assert.ThrowsException<System.InvalidOperationException>(() =>
+                RetiredConfigKeys.Remove("agentCity:\n  workflowDocs:\n    - a.md\n  workflowDoc: b.md\n", out _));
+            StringAssert.Contains(ex.Message, "has both 'workflowDoc' and 'workflowDocs'");
+        }
+
+        [TestMethod]
         public void Leave_a_misspelled_key_where_it_is()
         {
             // Un errore di battitura NON è una riga ritirata: resta nel file, e la lettura rigida lo dirà.

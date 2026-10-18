@@ -60,7 +60,7 @@ namespace MdExplorer.Services.AgentRun
                 : ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e));
 
         private bool WorkflowConfigured(string projectPath)
-            => !string.IsNullOrWhiteSpace(_projectMetadata?.GetAgentCity(projectPath)?.WorkflowDoc);
+            => _projectMetadata?.GetAgentCity(projectPath)?.WorkflowDocs is { Count: > 0 };
 
         public string SummaryOf(string projectPath, string agentName)
             => _registry.RefreshCatalog(projectPath)
