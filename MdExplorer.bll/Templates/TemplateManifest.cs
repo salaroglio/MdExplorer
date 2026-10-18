@@ -32,6 +32,8 @@ namespace MdExplorer.Features.Templates
         public List<TemplateRole> Roles { get; set; }
         public List<string> Workflows { get; set; }
         public string Instructions { get; set; }
+        /// <summary>I file iniziali: copiati una volta nel progetto, se mancano; da lì sono del gruppo (P5).</summary>
+        public List<TemplateSeed> Seeds { get; set; }
 
         public bool IsMethod => Kind == Method;
 
@@ -69,6 +71,13 @@ namespace MdExplorer.Features.Templates
     {
         public string Structure { get; set; }
         public string Example { get; set; }
+    }
+
+    /// <summary>Un file iniziale: <c>from</c> sta nel template, <c>to</c> è dove nasce nel progetto.</summary>
+    public sealed class TemplateSeed
+    {
+        public string From { get; set; }
+        public string To { get; set; }
     }
 
     public sealed class TemplateRole
@@ -157,6 +166,21 @@ namespace MdExplorer.Features.Templates
             foreach (var w in m.Workflows ?? new List<string>()) CheckPath(m, "workflows", w, problems);
             if (m.Instructions != null) CheckPath(m, "instructions", m.Instructions, problems);
 
+            var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in m.Seeds ?? new List<TemplateSeed>())
+            {
+                if (s == null) { problems.Add(UiText.Say("seeds: un seme vuoto", "seeds: an empty seed")); continue; }
+                CheckPath(m, "seeds.from", s.From, problems);
+                if (!IsProjectPath(s.To))
+                    problems.Add(UiText.Say($"seeds.to: '{s.To}' deve essere un percorso dalla radice del progetto, con «/»",
+                                            $"seeds.to: '{s.To}' must be a path from the project root, with «/»"));
+                else if (!IsGroupPath(s.To))
+                    problems.Add(UiText.Say($"seeds.to: '{s.To}' non è un file del gruppo: un seme non nasce in {TemplateManifest.Folder}/, .claude/skills/, .git/, .md/ né in {DevelopmentFile}",
+                                            $"seeds.to: '{s.To}' is not a file of the group: a seed is not born in {TemplateManifest.Folder}/, .claude/skills/, .git/, .md/ or {DevelopmentFile}"));
+                else if (!targets.Add(s.To))
+                    problems.Add(UiText.Say($"seeds.to: '{s.To}' compare due volte", $"seeds.to: '{s.To}' appears twice"));
+            }
+
             return m;
         }
 
@@ -170,9 +194,20 @@ namespace MdExplorer.Features.Templates
             return m;
         }
 
+        private const string DevelopmentFile = ".development.yml";
+
+        private static bool IsProjectPath(string path)
+            => !string.IsNullOrWhiteSpace(path) && !path.Contains('\\') && !path.StartsWith("/") && !path.EndsWith("/")
+               && !path.Split('/').Any(p => p.Length == 0 || p == "." || p == "..");
+
+        /// <summary>Un seme nasce fra i file del gruppo: mai nella cartella di un template, fra le skill, in git o nei file di MDE.</summary>
+        private static bool IsGroupPath(string path)
+            => !new[] { TemplateManifest.Folder + "/", ".claude/skills/", ".git/", ".md/" }.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+               && !string.Equals(path, DevelopmentFile, StringComparison.OrdinalIgnoreCase);
+
         private static void CheckPath(TemplateManifest m, string key, string path, List<string> problems)
         {
-            if (string.IsNullOrWhiteSpace(path) || path.Contains('\\') || path.StartsWith("/") || path.Split('/').Contains(".."))
+            if (!IsProjectPath(path))
             {
                 problems.Add(UiText.Say($"{key}: '{path}' deve essere un percorso dalla radice del progetto, con «/»",
                                         $"{key}: '{path}' must be a path from the project root, with «/»"));

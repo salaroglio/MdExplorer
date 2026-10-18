@@ -107,6 +107,29 @@ workflows: [citta-degli-agenti/gara/workflow.md]
         }
 
         [TestMethod]
+        public void Read_seeds_that_go_from_the_zone_to_the_groups_files()
+        {
+            var good = TemplateManifestReader.Read(GaraIso + "seeds:\n  - { from: .mde-template/gara-iso/semi/profilo.md, to: gare/profilo-azienda.md }\n",
+                                                   "gara-iso", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            Assert.AreEqual("gare/profilo-azienda.md", good.Seeds.Single().To);
+
+            TemplateManifestReader.Read(GaraIso + "seeds:\n" +
+                "  - { from: semi/profilo.md, to: gare/a.md }\n" +
+                "  - { from: .mde-template/gara-iso/semi/b.md, to: .mde-template/gara-iso/b.md }\n" +
+                "  - { from: .mde-template/gara-iso/semi/c.md, to: .development.yml }\n" +
+                "  - { from: .mde-template/gara-iso/semi/d.md, to: ../fuori.md }\n" +
+                "  - { from: .mde-template/gara-iso/semi/e.md, to: gare/A.md }\n", "gara-iso", out problems);
+            var all = string.Join("\n", problems);
+            Assert.AreEqual(5, problems.Count, all);
+            StringAssert.Contains(problems[0], "'semi/profilo.md' is outside the method's folder");
+            StringAssert.Contains(problems[1], "'.mde-template/gara-iso/b.md' is not a file of the group");
+            StringAssert.Contains(problems[2], "'.development.yml' is not a file of the group");
+            StringAssert.Contains(problems[3], "'../fuori.md' must be a path from the project root");
+            StringAssert.Contains(problems[4], "'gare/A.md' appears twice");
+        }
+
+        [TestMethod]
         public void Want_the_id_to_be_the_folder_it_lives_in()
         {
             TemplateManifestReader.Read(GaraIso, "gara", out var problems);

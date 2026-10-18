@@ -144,6 +144,55 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Plant_the_seeds_once_and_leave_them_to_the_group_on_update()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var path = await ProjectTemplateMethods_Should.Project(ctx, "semi");
+            File.WriteAllText(Path.Combine(path, "gare-registro.md"), "# Il registro del gruppo\n");
+            Git(path, "add -A"); Git(path, "commit -q -m registro");
+
+            const string seeds = "seeds:\n" +
+                "  - { from: .mde-template/ddd/semi/profilo.md, to: gare/profilo.md }\n" +
+                "  - { from: .mde-template/ddd/semi/registro.md, to: gare-registro.md }\n" +
+                "  - { from: .mde-template/ddd/semi/note.md, to: gare/note.md }\n";
+            var branches = DddBranches();
+            branches["main"][".mde-template/ddd/mde-template.yml"] = Ddd() + seeds;
+            branches["main"][".mde-template/ddd/semi/profilo.md"] = "# Profilo da compilare\n";
+            branches["main"][".mde-template/ddd/semi/registro.md"] = "# Registro vuoto\n";
+            branches["main"][".mde-template/ddd/semi/note.md"] = "# Note\n";
+            var url = Template(ctx, "ddd", branches);
+
+            var added = await Add(ctx, path, url);
+
+            Assert.AreEqual("# Profilo da compilare\n", Read(path, "gare/profilo.md"), "il seme nasce dove manca");
+            Assert.AreEqual("# Il registro del gruppo\n", Read(path, "gare-registro.md"), "un file che c'è già non si tocca");
+            Assert.IsTrue(added.Notes.Any(n => n.Contains("starting files, now the group's: gare/profilo.md, gare/note.md")), string.Join("\n", added.Notes));
+            Assert.IsTrue(added.Notes.Any(n => n.Contains("already there and stay as they are: gare-registro.md")), string.Join("\n", added.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain").Out, "i semi nel commit del metodo");
+
+            // Il gruppo compila il profilo e toglie le note.
+            File.WriteAllText(Path.Combine(path, "gare", "profilo.md"), "# Il nostro profilo\n");
+            File.Delete(Path.Combine(path, "gare", "note.md"));
+            Git(path, "add -A"); Git(path, "commit -q -m nostro");
+
+            Publish(ctx, url, "main", new()
+            {
+                [".mde-template/ddd/mde-template.yml"] = (Ddd() + seeds + "  - { from: .mde-template/ddd/semi/bandi.md, to: gare/bandi.md }\n").Replace("version: 1.0.0", "version: 1.1.0"),
+                [".mde-template/ddd/semi/profilo.md"] = "# Profilo da compilare, con i criteri\n",
+                [".mde-template/ddd/semi/bandi.md"] = "# Incolla qui i bandi\n",
+                [".mde-template/ddd/CHANGELOG.md"] = "# CHANGELOG\n\n## 1.1.0 — 2026-11-01\n- Il profilo ha i criteri; nuovo seme dei bandi.\n\n## 1.0.0 — 2026-10-18\n- Prima.\n",
+            });
+            var outcome = await Update(ctx, path, "ddd");
+
+            Assert.AreEqual("# Il nostro profilo\n", Read(path, "gare/profilo.md"), "il profilo è del gruppo");
+            Assert.IsFalse(File.Exists(Path.Combine(path, "gare", "note.md")), "un seme che il gruppo ha tolto non rinasce");
+            Assert.AreEqual("# Incolla qui i bandi\n", Read(path, "gare/bandi.md"), "un seme nuovo della versione nuova nasce");
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("changed the models of gare/profilo.md")), string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain").Out);
+        }
+
+        [TestMethod]
         public async Task Refuse_an_update_whose_changelog_is_not_right()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

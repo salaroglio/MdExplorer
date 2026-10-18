@@ -431,6 +431,8 @@ namespace MdExplorer.Services.Templates
                     notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
             }
 
+            await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
+
             // I workflow del progetto devono stare insieme (PW). Un metodo che li rompe non entra. Se erano già guasti prima di
             // lui, si controllano i suoi da soli e lo si dice. Per la base del progetto (la demo) un workflow che non si legge
             // non ferma la creazione: il progetto nasce, e una nota dice che i workflow sono fermi finché non si correggono.
@@ -463,6 +465,52 @@ namespace MdExplorer.Services.Templates
                 notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
                                      "The method's agents start once someone declares them theirs («It's mine») and trusts them."));
 
+        }
+
+        /// <summary>
+        /// I file iniziali (P5, <c>seeds</c>): ognuno si copia dalla cartella del template al suo posto nel progetto se lì non
+        /// c'è niente; da quel momento è del gruppo. Un file che c'è già non si tocca mai. Aggiornando, un seme che la versione
+        /// nuova ha cambiato è solo una nota (il confronto è con il commit di prima dell'unione, che è ancora HEAD), e un seme
+        /// che c'era già nella versione di prima non rinasce: se manca, il gruppo l'ha tolto.
+        /// </summary>
+        private async Task ApplySeedsAsync(string path, TemplateManifest manifest, List<string> notes, List<string> touched, bool update,
+            TemplateManifest previous, CancellationToken ct)
+        {
+            var created = new List<string>();
+            var kept = new List<string>();
+            var changed = new List<string>();
+            var before = (previous?.Seeds ?? new List<TemplateSeed>()).Select(s => s.To).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var seed in manifest.Seeds ?? new List<TemplateSeed>())
+            {
+                var source = System.IO.Path.Combine(path, seed.From.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                var target = System.IO.Path.Combine(path, seed.To.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (!File.Exists(source))
+                    throw Problem($"Il seme {seed.From} del template «{manifest.Title}» non c'è.", $"The seed {seed.From} of the template «{manifest.Title}» is missing.");
+                if (File.Exists(target) || Directory.Exists(target))
+                {
+                    if (!update) { kept.Add(seed.To); continue; }
+                    // L'unione è nell'indice: diff fra HEAD e indice sul modello. Uscita 1 = cambiato.
+                    var diff = await _git.RunAsync(path, new[] { "diff", "--cached", "--quiet", "HEAD", "--", seed.From }, ct);
+                    if (diff.ExitCode > 1)
+                        throw Problem($"Non riesco a confrontare il seme {seed.From}: {diff.Describe()}", $"I cannot compare the seed {seed.From}: {diff.Describe()}");
+                    if (diff.ExitCode == 1 && before.Contains(seed.To)) changed.Add(seed.To);
+                    continue;
+                }
+                if (update && before.Contains(seed.To)) continue;
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
+                File.Copy(source, target);
+                touched.Add(seed.To);
+                created.Add(seed.To);
+            }
+            if (created.Count > 0)
+                notes.Add(UiText.Say($"File iniziali del metodo, ora del gruppo: {string.Join(", ", created)}.",
+                                     $"The method's starting files, now the group's: {string.Join(", ", created)}."));
+            if (kept.Count > 0)
+                notes.Add(UiText.Say($"Questi file c'erano già e restano come sono: {string.Join(", ", kept)}.",
+                                     $"These files were already there and stay as they are: {string.Join(", ", kept)}."));
+            if (changed.Count > 0)
+                notes.Add(UiText.Say($"La versione nuova ha cambiato i modelli di {string.Join(", ", changed)}: i tuoi non li tocco, confrontali con quelli in {TemplateManifest.ZoneOf(manifest.Id)}.",
+                                     $"The new version changed the models of {string.Join(", ", changed)}: yours are left alone, compare them with those in {TemplateManifest.ZoneOf(manifest.Id)}."));
         }
 
         /// <summary>
@@ -556,7 +604,8 @@ namespace MdExplorer.Services.Templates
                     throw Problem($"Il metodo «{manifest.Title}» ha file fuori dalla sua cartella ({string.Join(", ", outside.Take(5))}): non lo unisco.",
                                   $"The method «{manifest.Title}» has files outside its folder ({string.Join(", ", outside.Take(5))}): I will not merge it.");
             }
-            var missing = (manifest.Workflows ?? new List<string>()).Append(manifest.Instructions).Where(f => f != null && !files.Contains(f)).ToList();
+            var missing = (manifest.Workflows ?? new List<string>()).Append(manifest.Instructions)
+                .Concat((manifest.Seeds ?? new List<TemplateSeed>()).Select(s => s.From)).Where(f => f != null && !files.Contains(f)).ToList();
             if (missing.Count > 0)
                 throw Problem($"Il manifesto del template nomina file che nel ramo non ci sono: {string.Join(", ", missing)}.",
                               $"The template manifest names files that are not in the branch: {string.Join(", ", missing)}.");
