@@ -249,5 +249,45 @@ version: 1.0.0
             StringAssert.Contains(ex.Message, path);
             Assert.AreEqual("# mio\n", File.ReadAllText(Path.Combine(path, "mio.md")), "non si tocca niente");
         }
+
+        [TestMethod]
+        public async Task Take_the_updates_from_the_branch_of_its_language_even_on_a_colleagues_clone()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var url = Template(ctx, "demo", DemoBranches());
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "aggiornata");
+            await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "en", MdeVersion = Mde });
+
+            // Chi cura il template pubblica una versione nuova, nel ramo inglese.
+            var publisher = Path.Combine(ctx.Factory.DataDir, "chi-pubblica");
+            Git(ctx.Factory.DataDir, $"clone -q -b en \"{url}\" chi-pubblica");
+            Git(publisher, "config user.email autore@test.local"); Git(publisher, "config user.name Autore"); Git(publisher, "config commit.gpgsign false");
+            File.WriteAllText(Path.Combine(publisher, "README.md"), "# The demo\nversion 2\n");
+            Git(publisher, "commit -qam v2"); Git(publisher, "push -q origin en");
+
+            // Un collega clona il progetto da origin: il remoto del template non viaggia col clone.
+            var colleague = Path.Combine(ctx.Factory.DataDir, "progetti", "collega");
+            Git(Path.Combine(ctx.Factory.DataDir, "progetti"), $"clone -q \"{path}.origin.git\" collega");
+            Assert.AreNotEqual(0, Git(colleague, "remote get-url template-demo").Code);
+
+            using (var scope = ctx.Factory.Services.CreateScope())
+            {
+                var sync = scope.ServiceProvider.GetRequiredService<MdExplorer.Services.Git.IRepoSyncService>();
+                var status = await sync.UpstreamStatusAsync(colleague, fetch: true);
+                Assert.IsNull(status.Problem, status.Problem);
+                Assert.AreEqual("template-demo", status.Remote);
+                Assert.AreEqual("en", status.Branch, "il ramo della lingua scelta, non quello del progetto");
+                Assert.AreEqual("main", status.LocalBranch);
+                Assert.AreEqual(1, status.Behind);
+                Assert.AreEqual(url, Git(colleague, "remote get-url template-demo").Out, "ricreato dalla riga di .development.yml");
+
+                var pulled = await sync.PullUpstreamAsync(colleague);
+                Assert.IsTrue(pulled.Success, pulled.Message ?? pulled.Refused);
+            }
+            Assert.AreEqual("# The demo\nversion 2\n", File.ReadAllText(Path.Combine(colleague, "README.md")));
+            Assert.AreEqual(Git(colleague, "rev-parse HEAD").Out, Git(colleague, "rev-parse origin/main").Out, "origin allineato");
+        }
     }
 }

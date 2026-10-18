@@ -7,6 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Git.Interfaces;
+using MdExplorer.Features.Templates;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.Templates;
+using MdExplorer.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services.Git
@@ -47,16 +51,23 @@ namespace MdExplorer.Services.Git
     }
 
     /// <summary>
-    /// The «source» of a project: a second remote called <c>upstream</c>, the repository the project was
-    /// taken from (a fork's original, the public demo behind a demo project's local origin). Updates are
-    /// only ever taken from it; nothing is published to it.
+    /// The «source» of a project: the repository the project was taken from. Updates are only ever taken from it;
+    /// nothing is published to it. It is the remote <c>template-&lt;id&gt;</c> of the project's base template (the row
+    /// <c>kind: project</c> of <c>templates:</c> in <c>.development.yml</c>, docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md),
+    /// or, for a project that does not come from a template, a remote called <c>upstream</c> (a fork's original, a demo
+    /// cloned before the templates).
     /// </summary>
     public sealed class UpstreamStatus
     {
-        /// <summary>False for almost every project: no remote called <c>upstream</c>, nothing to show.</summary>
+        /// <summary>False for almost every project: no source, nothing to show.</summary>
         public bool HasUpstream { get; init; }
         public string Url { get; init; }
+        /// <summary>The source's branch the updates come from (for a template: the branch of the chosen language).</summary>
         public string Branch { get; init; }
+        /// <summary>The git remote of the source: <c>template-&lt;id&gt;</c> or <c>upstream</c>.</summary>
+        public string Remote { get; init; }
+        /// <summary>The project's branch the updates go into.</summary>
+        public string LocalBranch { get; init; }
         /// <summary>Commits the source has and this project does not.</summary>
         public int Behind { get; init; }
         /// <summary>Why the source could not be asked or compared, for the person.</summary>
@@ -323,26 +334,90 @@ namespace MdExplorer.Services.Git
             if (refused != null) return new UpstreamStatus();
             var dir = view.RootPath;
 
-            var url = await _runner.RunAsync(dir, new[] { "remote", "get-url", UpstreamRemote }, ct);
-            if (!url.Ok || string.IsNullOrWhiteSpace(url.Stdout)) return new UpstreamStatus();
-
-            var branch = await CurrentBranchAsync(dir, ct);
-            if (branch == null)
-                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Problem = UiText.Say("Il progetto non è su un ramo: gli aggiornamenti della sorgente si scaricano stando su un ramo.", "The project is not on a branch: updates from the source are pulled while on a branch.") };
+            var local = await CurrentBranchAsync(dir, ct);
+            var source = await SourceAsync(dir, local, ct);
+            if (source == null) return new UpstreamStatus();
+            if (source.Problem != null) return source;
+            if (local == null)
+                return With(source, UiText.Say("Il progetto non è su un ramo: gli aggiornamenti della sorgente si scaricano stando su un ramo.", "The project is not on a branch: updates from the source are pulled while on a branch."));
 
             if (fetch)
             {
-                var fetched = await _transport.FetchAsync(dir, UpstreamRemote, ct);
+                var fetched = await _transport.FetchAsync(dir, source.Remote, ct);
                 if (!fetched.Ok)
-                    return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Problem = UiText.Say($"La sorgente non risponde: {fetched.Error}", $"The source does not answer: {fetched.Error}") };
+                    return With(source, UiText.Say($"La sorgente non risponde: {fetched.Error}", $"The source does not answer: {fetched.Error}"));
             }
 
-            var count = await _runner.RunAsync(dir, new[] { "rev-list", "--count", $"HEAD..{UpstreamRemote}/{branch}" }, ct);
+            var count = await _runner.RunAsync(dir, new[] { "rev-list", "--count", $"HEAD..{source.Remote}/{source.Branch}" }, ct);
             if (!count.Ok || !int.TryParse(count.Stdout.Trim(), out var behind))
                 // Never asked yet, or the source has no branch with this name: nothing to offer, and no alarm.
-                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch };
+                return source;
 
-            return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Behind = behind };
+            return new UpstreamStatus { HasUpstream = true, Url = source.Url, Branch = source.Branch, Remote = source.Remote, LocalBranch = local, Behind = behind };
+        }
+
+        private static UpstreamStatus With(UpstreamStatus s, string problem)
+            => new() { HasUpstream = true, Url = s.Url, Branch = s.Branch, Remote = s.Remote, LocalBranch = s.LocalBranch, Problem = problem };
+
+        /// <summary>
+        /// Where the project's updates come from, without asking the network. The base template's row wins: its remote is
+        /// recreated from the row when missing (remotes do not travel with a clone), and its branch is the one the template's
+        /// manifest, as merged in the project, gives for the chosen language. Null = no source.
+        /// </summary>
+        private async Task<UpstreamStatus> SourceAsync(string dir, string local, CancellationToken ct)
+        {
+            List<ProjectTemplateConfig> bases;
+            var yml = Path.Combine(dir, DevelopmentConfigCleanup.FileName);
+            try
+            {
+                bases = (File.Exists(yml) ? DevelopmentConfigCleanup.ReadStrict(yml).Templates : null)?
+                    .Where(t => t.Kind == TemplateManifest.Project && string.IsNullOrEmpty(t.Detached)).ToList()
+                    ?? new List<ProjectTemplateConfig>();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return new UpstreamStatus { HasUpstream = true, Problem = ex.Message };
+            }
+
+            if (bases.Count == 0)
+            {
+                var url = await _runner.RunAsync(dir, new[] { "remote", "get-url", UpstreamRemote }, ct);
+                if (!url.Ok || string.IsNullOrWhiteSpace(url.Stdout)) return null;
+                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Remote = UpstreamRemote, Branch = local, LocalBranch = local };
+            }
+            if (bases.Count > 1)
+                return new UpstreamStatus { HasUpstream = true, Problem = UiText.Say(
+                    $"In {DevelopmentConfigCleanup.FileName} ci sono più template di base ({string.Join(", ", bases.Select(b => b.Id))}): un progetto ne ha uno solo.",
+                    $"{DevelopmentConfigCleanup.FileName} has several base templates ({string.Join(", ", bases.Select(b => b.Id))}): a project has only one.") };
+
+            var row = bases[0];
+            var remote = ProjectTemplateCreator.RemotePrefix + row.Id;
+            var found = new UpstreamStatus { HasUpstream = true, Url = row.Url, Remote = remote, LocalBranch = local };
+            var current = await _runner.RunAsync(dir, new[] { "remote", "get-url", remote }, ct);
+            if (!current.Ok)
+            {
+                var added = await _runner.RunAsync(dir, new[] { "remote", "add", remote, row.Url }, ct);
+                if (!added.Ok) return With(found, UiText.Say($"Non riesco a ricreare il remoto '{remote}' del template: {added.Describe()}", $"I cannot recreate the template remote '{remote}': {added.Describe()}"));
+                _logger.LogInformation("[Template] '{Dir}': ricreato il remoto '{Remote}' dalla riga di {File}.", dir, remote, DevelopmentConfigCleanup.FileName);
+            }
+            else if (current.Stdout.Trim() != row.Url)
+                return With(found, UiText.Say(
+                    $"Il remoto '{remote}' punta a '{current.Stdout.Trim()}', ma {DevelopmentConfigCleanup.FileName} dice '{row.Url}': correggi uno dei due.",
+                    $"The remote '{remote}' points to '{current.Stdout.Trim()}', but {DevelopmentConfigCleanup.FileName} says '{row.Url}': fix one of the two."));
+
+            var manifestPath = Path.Combine(dir, TemplateManifest.PathOf(row.Id));
+            try
+            {
+                if (!File.Exists(manifestPath))
+                    throw new InvalidOperationException(UiText.Say($"manca {TemplateManifest.PathOf(row.Id)}", $"{TemplateManifest.PathOf(row.Id)} is missing"));
+                var manifest = TemplateManifestReader.ReadOrThrow(File.ReadAllText(manifestPath), row.Id, TemplateManifest.PathOf(row.Id));
+                return new UpstreamStatus { HasUpstream = true, Url = row.Url, Remote = remote, LocalBranch = local, Branch = manifest.BranchFor(row.Language, row.Example == true) };
+            }
+            catch (InvalidOperationException ex)
+            {
+                return With(found, UiText.Say($"Non so da quale ramo del template «{row.Id}» arrivano gli aggiornamenti: {ex.Message}",
+                                              $"I do not know which branch of the template «{row.Id}» the updates come from: {ex.Message}"));
+            }
         }
 
         public async Task<RepoActionResult> PullUpstreamAsync(string projectPath, CancellationToken ct = default)
@@ -353,13 +428,13 @@ namespace MdExplorer.Services.Git
             var dir = view.RootPath;
 
             var status = await UpstreamStatusAsync(projectPath, fetch: true, ct);
-            if (!status.HasUpstream) return Refuse(UiText.Say("Questo progetto non ha una sorgente da cui scaricare aggiornamenti (un remoto chiamato 'upstream').", "This project has no source to download updates from (a remote called 'upstream')."));
+            if (!status.HasUpstream) return Refuse(UiText.Say("Questo progetto non ha una sorgente da cui scaricare aggiornamenti: non viene da un template e non ha un remoto chiamato 'upstream'.", "This project has no source to download updates from: it does not come from a template and has no remote called 'upstream'."));
             if (status.Problem != null) return Fail(status.Problem);
             if (status.Behind == 0)
                 return new RepoActionResult { Success = true, Message = UiText.Say("Il progetto ha già l'ultima versione della sorgente.", "The project already has the latest version of the source.") };
 
             var before = await HeadsAsync(view, ct);
-            var merge = await _runner.RunAsync(dir, new[] { "merge", "--no-edit", $"{UpstreamRemote}/{status.Branch}" }, ct);
+            var merge = await _runner.RunAsync(dir, new[] { "merge", "--no-edit", $"{status.Remote}/{status.Branch}" }, ct);
             var notes = new List<string>();
             if (!merge.Ok)
             {
@@ -406,7 +481,7 @@ namespace MdExplorer.Services.Git
             var hasOrigin = await _runner.RunAsync(dir, new[] { "remote", "get-url", "origin" }, ct);
             if (hasOrigin.Ok)
             {
-                var push = await _transport.PushAsync(dir, "origin", status.Branch, ct);
+                var push = await _transport.PushAsync(dir, "origin", status.LocalBranch, ct);
                 if (!push.Ok)
                     warnings.Add(UiText.Say($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «da pushare».", $"The updates are in your folder, but I could not push them to 'origin': {push.Error}. Push them from the «To push» panel."));
             }
