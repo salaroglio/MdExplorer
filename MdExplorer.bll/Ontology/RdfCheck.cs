@@ -165,7 +165,8 @@ namespace MdExplorer.Features.Ontology
         private static string Short(INode node, TurtleFormatter formatter)
         {
             if (node == null) return null;
-            try { return formatter.Format(node); }
+            // Il formattatore Turtle scrive i numeri con uno spazio in coda («1 »), per non confonderli con il punto finale.
+            try { return formatter.Format(node).Trim(); }
             catch (RdfOutputException) { return node.ToString(); }
         }
     }

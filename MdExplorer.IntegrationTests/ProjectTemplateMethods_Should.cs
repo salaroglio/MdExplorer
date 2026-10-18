@@ -194,6 +194,29 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
+        public async Task Say_how_many_starting_files_and_where_when_they_are_many()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var path = await Project(ctx, "tanti-semi");
+            var branches = DddBranches();
+            var seeds = "seeds:\n";
+            foreach (var to in new[] { "modello/a.md", "modello/b.md", "modello/c/d.md", "dati/e.md", "LEGGIMI-DDD.md" })
+            {
+                var from = ".mde-template/ddd/semi/" + to.Replace('/', '-');
+                branches["main"][from] = "# " + to + "\n";
+                seeds += $"  - {{ from: {from}, to: {to} }}\n";
+            }
+            branches["main"][".mde-template/ddd/mde-template.yml"] = Ddd() + seeds;
+
+            var outcome = await Add(ctx, path, Template(ctx, "ddd", branches));
+
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("starting files, now the group's: 5 files in modello/, dati/, LEGGIMI-DDD.md.")),
+                          string.Join("\n", outcome.Notes));
+            Assert.IsTrue(File.Exists(Path.Combine(path, "modello", "c", "d.md")));
+        }
+
+        [TestMethod]
         public async Task Leave_the_project_as_it_was_when_the_method_cannot_be_added()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

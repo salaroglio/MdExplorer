@@ -536,8 +536,14 @@ namespace MdExplorer.Services.Templates
                 created.Add(seed.To);
             }
             if (created.Count > 0)
-                notes.Add(UiText.Say($"File iniziali del metodo, ora del gruppo: {string.Join(", ", created)}.",
-                                     $"The method's starting files, now the group's: {string.Join(", ", created)}."));
+            {
+                // Con l'esempio i file sono decine: la nota dice quanti e dove, l'elenco sta nel commit.
+                var list = created.Count <= 4
+                    ? string.Join(", ", created)
+                    : UiText.Say($"{created.Count} file in ", $"{created.Count} files in ") +
+                      string.Join(", ", created.Select(c => c.Split('/')[0] + (c.Contains('/') ? "/" : "")).Distinct());
+                notes.Add(UiText.Say($"File iniziali del metodo, ora del gruppo: {list}.", $"The method's starting files, now the group's: {list}."));
+            }
             if (kept.Count > 0)
                 notes.Add(UiText.Say($"Questi file c'erano già e restano come sono: {string.Join(", ", kept)}.",
                                      $"These files were already there and stay as they are: {string.Join(", ", kept)}."));

@@ -25,6 +25,7 @@ namespace MdExplorer.Features.Tests.Ontology
                   "ex:BandoShape a sh:NodeShape ; sh:targetClass ex:Bando ;\n  sh:property [ sh:path ex:codice ; sh:minCount 1 ; sh:message \"un bando ha il suo codice\" ] .\n");
             Write("ontology/domande/c1-ci-sono-bandi.rq", "PREFIX ex: <https://example.org/gara#>\nASK { ?b a ex:Bando }\n");
             Write("ontology/domande/c2-codici.rq", "PREFIX ex: <https://example.org/gara#>\nSELECT ?b ?codice WHERE { ?b ex:codice ?codice }\n");
+            Write("ontology/domande/c3-quanti.rq", "PREFIX ex: <https://example.org/gara#>\nSELECT (COUNT(?b) AS ?n) WHERE { ?b a ex:Bando }\n");
         }
 
         [TestCleanup]
@@ -59,6 +60,7 @@ namespace MdExplorer.Features.Tests.Ontology
             Assert.AreEqual("select", select.Kind);
             Assert.AreEqual(1, select.RowCount);
             Assert.AreEqual("\"NC-2027-014\"", select.Rows.Single()["codice"]);
+            Assert.AreEqual("2", report.Queries.Single(q => q.Path.EndsWith("c3-quanti.rq")).Rows.Single()["n"], "un numero senza lo spazio del formattatore");
             Assert.IsFalse(report.Ok, "le regole non sono rispettate");
         }
 
