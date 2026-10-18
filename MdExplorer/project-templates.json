@@ -1,0 +1,16 @@
+{
+  "mde_templates": 1,
+  "templates": [
+    {
+      "id": "demo",
+      "kind": "project",
+      "url": "https://github.com/salaroglio/mdexplorer-demo.git",
+      "languages": ["it", "en"],
+      "title": { "it": "La demo di MdExplorer", "en": "The MdExplorer demo" },
+      "description": {
+        "it": "Un progetto da esplorare: caso studio, grafo del codice, wiki e la città degli agenti che prepara una gara.",
+        "en": "A project to explore: case study, code graph, wiki and the agent city preparing a tender."
+      }
+    }
+  ]
+}

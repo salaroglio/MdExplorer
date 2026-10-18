@@ -8,7 +8,9 @@
  * - Auto-save on scroll stop (500ms debounce)
  * - Backup save on page unload
  * - URL-based key using hash function
- * - Prevents saving Y=0 (page load/reset)
+ * - Saves Y=0 only when the user really scrolled to the top:
+ *   an automatic reset to 0 (reflow after late images/diagrams) must not
+ *   overwrite the stored position, a deliberate scroll to the top must.
  *
  * Dependencies:
  * - cyrb53() hash function (from utilities.js)
@@ -92,10 +94,30 @@ $(function () {
     // Salva posizione automaticamente quando lo scroll si ferma
     var scrollTimeout;
 
+    // Quanto può passare fra il gesto dell'utente e lo scroll che ne deriva
+    var USER_INTENT_WINDOW_MS = 1500;
+    var lastInteractionTime = 0;
+
+    // Un gesto di scroll dell'utente: rotella, tastiera, trascinamento della
+    // barra, dito. Serve a distinguere "sono andato in testata" da "la pagina
+    // si è riassestata da sola a Y=0 dopo aver caricato immagini/diagrammi".
+    ['wheel', 'keydown', 'mousedown', 'touchstart'].forEach(function (eventName) {
+        window.addEventListener(eventName, function () {
+            lastInteractionTime = Date.now();
+        }, {passive: true, capture: true});
+    });
+
     console.log('[Scroll Save] 🎯 Attivazione listener scroll su window');
 
     window.addEventListener('scroll', function() {
         console.log('[Scroll Save] 📜 Evento scroll rilevato! Posizione Y:', window.scrollY);
+
+        // Lo scroll segue un gesto dell'utente? Se sì tengo viva la marcatura,
+        // così anche uno scroll morbido e lungo resta "voluto" fino alla fine.
+        var userDriven = (Date.now() - lastInteractionTime) < USER_INTENT_WINDOW_MS;
+        if (userDriven) {
+            lastInteractionTime = Date.now();
+        }
 
         // Cancella il timeout precedente
         clearTimeout(scrollTimeout);
@@ -125,14 +147,16 @@ $(function () {
                 var scrollY = window.scrollY || window.pageYOffset || 0;
                 console.log('[Scroll Save] 💾 Posizione rilevata - ScrollY:', scrollY);
 
-                // NON salvare se siamo a Y=0 (pagina appena caricata o reset automatico)
-                if (scrollY > 0) {
+                // Y=0 si salva solo se ci ha portato un gesto dell'utente:
+                // un reset automatico della pagina non deve cancellare la
+                // posizione memorizzata.
+                if (scrollY > 0 || userDriven) {
                     console.log('[Scroll Save] 💾 Salvataggio - URL:', baseUrl);
                     console.log('[Scroll Save] 💾 Hash:', urlHash);
                     localStorage.setItem(urlHash, scrollY);
                     console.log('[Scroll Save] ✅ Posizione salvata!');
                 } else {
-                    console.log('[Scroll Save] ⚠️ Posizione Y=0, skip salvataggio (pagina appena caricata)');
+                    console.log('[Scroll Save] ⚠️ Posizione Y=0 senza gesto dell\'utente, skip salvataggio (reset automatico)');
                 }
             } catch (e) {
                 console.error('[Scroll Save] ❌ Errore durante salvataggio:', e);

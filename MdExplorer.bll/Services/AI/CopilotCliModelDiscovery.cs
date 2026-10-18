@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,116 +15,41 @@ namespace MdExplorer.Features.Services.AI
 {
     /// <summary>
     /// Model discovery for GitHub Copilot CLI.
-    /// Reads cached models from UserDB Setting table; falls back to hardcoded list.
-    /// Supports dynamic refresh via CLI invocation.
+    ///
+    /// <para>
+    /// I modelli si chiedono al CLI con l'SDK ufficiale (<see cref="CopilotSdkModelSource"/>,
+    /// RPC <c>models.list</c>): domanda tipizzata, nessuna inferenza, nessun credito.
+    /// La lista viene messa in cache in UserDB perché la schermata dei modelli non paghi
+    /// un giro al CLI ogni volta che si apre.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Non esiste più una lista di ripiego cablata.</b> Se il CLI non risponde, questa
+    /// classe restituisce una lista vuota e scrive il motivo nel log. Mostrare modelli
+    /// inventati era peggio che non mostrarne: l'utente ne selezionava uno, la preferenza
+    /// veniva salvata, e il guasto si manifestava molto più tardi — alla prima domanda —
+    /// dove nessuno lo collegava più alla schermata di scelta.
+    /// </para>
     /// </summary>
     public class CopilotCliModelDiscovery : IModelDiscoveryProvider
     {
         private readonly ILogger<CopilotCliModelDiscovery> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly CopilotSdkModelSource _sdkModelSource;
 
         public ProviderType ProviderType => ProviderType.CopilotCli;
 
         private const string DISCOVERED_MODELS_SETTING = "CopilotCli_DiscoveredModels";
-        private const string COPILOT_EXECUTABLE = "copilot";
-        private const int REFRESH_TIMEOUT_MS = 30000;
 
-        private static readonly List<AiProviderModel> _fallbackModels = new List<AiProviderModel>
-        {
-            new AiProviderModel
-            {
-                Id = "claude-sonnet-4",
-                Name = "Claude Sonnet 4",
-                Description = "Anthropic Claude Sonnet 4 via GitHub Copilot",
-                Provider = ProviderType.CopilotCli,
-                InputTokenLimit = 128000,
-                OutputTokenLimit = 16000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2025, 5, 1),
-                Capabilities = new ProviderCapabilities
-                {
-                    SupportsStreaming = true,
-                    SupportsFunctionCalling = false,
-                    SupportsEmbeddings = false,
-                    SupportsVision = false,
-                    MaxInputTokens = 128000,
-                    MaxOutputTokens = 16000
-                }
-            },
-            new AiProviderModel
-            {
-                Id = "claude-sonnet-4.5",
-                Name = "Claude Sonnet 4.5",
-                Description = "Anthropic Claude Sonnet 4.5 via GitHub Copilot",
-                Provider = ProviderType.CopilotCli,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 16000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2025, 10, 1),
-                Capabilities = new ProviderCapabilities
-                {
-                    SupportsStreaming = true,
-                    SupportsFunctionCalling = false,
-                    SupportsEmbeddings = false,
-                    SupportsVision = false,
-                    MaxInputTokens = 200000,
-                    MaxOutputTokens = 16000
-                }
-            },
-            new AiProviderModel
-            {
-                Id = "claude-haiku-4.5",
-                Name = "Claude Haiku 4.5",
-                Description = "Anthropic Claude Haiku 4.5 (fast) via GitHub Copilot",
-                Provider = ProviderType.CopilotCli,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 8192,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2025, 10, 1),
-                Capabilities = new ProviderCapabilities
-                {
-                    SupportsStreaming = true,
-                    SupportsFunctionCalling = false,
-                    SupportsEmbeddings = false,
-                    SupportsVision = false,
-                    MaxInputTokens = 200000,
-                    MaxOutputTokens = 8192
-                }
-            },
-            new AiProviderModel
-            {
-                Id = "gpt-5",
-                Name = "GPT-5",
-                Description = "OpenAI GPT-5 via GitHub Copilot",
-                Provider = ProviderType.CopilotCli,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 16000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2025, 6, 1),
-                Capabilities = new ProviderCapabilities
-                {
-                    SupportsStreaming = true,
-                    SupportsFunctionCalling = false,
-                    SupportsEmbeddings = false,
-                    SupportsVision = false,
-                    MaxInputTokens = 200000,
-                    MaxOutputTokens = 16000
-                }
-            }
-        };
-
-        // Known uppercase prefixes for readable name generation
-        private static readonly HashSet<string> _uppercasePrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "gpt", "o"
-        };
 
         public CopilotCliModelDiscovery(
             ILogger<CopilotCliModelDiscovery> logger,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            CopilotSdkModelSource sdkModelSource)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _sdkModelSource = sdkModelSource;
         }
 
         public bool SupportsDiscovery() => true;
@@ -145,11 +67,13 @@ namespace MdExplorer.Features.Services.AI
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[CopilotCliModelDiscovery] Error reading cached models from DB, using fallback");
+                _logger.LogWarning(ex, "[CopilotCliModelDiscovery] Error reading cached models from DB");
             }
 
-            _logger.LogInformation("[CopilotCliModelDiscovery] No cached models found, returning fallback list");
-            return _fallbackModels.OrderBy(m => m.Name).ToList();
+            // Cache vuota: si chiede al CLI invece di inventare. Costa ~2 secondi e
+            // succede una volta sola, perché subito dopo la risposta viene messa in cache.
+            _logger.LogInformation("[CopilotCliModelDiscovery] No cached models, asking the CLI");
+            return await RefreshModelsAsync();
         }
 
         /// <summary>
@@ -159,45 +83,25 @@ namespace MdExplorer.Features.Services.AI
         {
             _logger.LogInformation("[CopilotCliModelDiscovery] Refreshing models from Copilot CLI...");
 
-            var output = await RunCopilotDiscoveryAsync();
-            if (string.IsNullOrWhiteSpace(output))
+            List<AiProviderModel> models;
+            try
             {
-                _logger.LogWarning("[CopilotCliModelDiscovery] Empty output from CLI, returning fallback");
-                return _fallbackModels.OrderBy(m => m.Name).ToList();
+                models = await _sdkModelSource.ListModelsAsync();
+            }
+            catch (Exception ex)
+            {
+                // Lista vuota, non di ripiego: la schermata mostrerà che non ci sono modelli,
+                // e il log dice perché. È l'informazione utile; un elenco inventato non lo è.
+                _logger.LogError(ex, "[CopilotCliModelDiscovery] Impossibile leggere i modelli dal CLI");
+                return new List<AiProviderModel>();
             }
 
-            var modelIds = ParseModelIds(output);
-            if (modelIds.Count == 0)
+            if (models.Count == 0)
             {
-                _logger.LogWarning("[CopilotCliModelDiscovery] No model IDs parsed from CLI output, returning fallback");
-                return _fallbackModels.OrderBy(m => m.Name).ToList();
+                _logger.LogWarning("[CopilotCliModelDiscovery] Il CLI non ha dichiarato alcun modello");
+                return models;
             }
 
-            _logger.LogInformation("[CopilotCliModelDiscovery] Discovered {Count} models: {Models}",
-                modelIds.Count, string.Join(", ", modelIds));
-
-            var models = modelIds.Select(id => new AiProviderModel
-            {
-                Id = id,
-                Name = ModelIdToReadableName(id),
-                Description = $"{ModelIdToReadableName(id)} via GitHub Copilot",
-                Provider = ProviderType.CopilotCli,
-                InputTokenLimit = 128000,
-                OutputTokenLimit = 16000,
-                IsDeprecated = false,
-                CreatedAt = DateTime.UtcNow,
-                Capabilities = new ProviderCapabilities
-                {
-                    SupportsStreaming = true,
-                    SupportsFunctionCalling = false,
-                    SupportsEmbeddings = false,
-                    SupportsVision = false,
-                    MaxInputTokens = 128000,
-                    MaxOutputTokens = 16000
-                }
-            }).ToList();
-
-            // Save to DB
             try
             {
                 await SaveModelsToDbAsync(models);
@@ -211,216 +115,12 @@ namespace MdExplorer.Features.Services.AI
             return models.OrderBy(m => m.Name).ToList();
         }
 
-        #region CLI execution
+        // NOTA: qui vivevano ~210 righe che scoprivano i modelli chiedendoli all'LLM
+        // a parole e facendone il parsing con tre regex (RunCopilotDiscoveryAsync,
+        // RunFastModelDiscoveryAsync, ParseModelIds, IsValidModelId,
+        // ModelIdToReadableName). Sostituite da CopilotSdkModelSource, che chiede la
+        // stessa cosa al CLI con una RPC tipizzata. Rimosse il 04/09/2026.
 
-        private async Task<string> RunCopilotDiscoveryAsync()
-        {
-            // Fast path: trigger an intentional error with an invalid model name.
-            // The CLI responds instantly with the list of valid models in stderr.
-            try
-            {
-                var fastResult = await RunFastModelDiscoveryAsync();
-                if (!string.IsNullOrWhiteSpace(fastResult))
-                    return fastResult;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "[CopilotCliModelDiscovery] Fast discovery failed, falling back to LLM-based discovery");
-            }
-
-            // Slow fallback: ask the LLM to list models
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = COPILOT_EXECUTABLE,
-                    Arguments = "-p \"list all available model IDs, one per line, no descriptions, no headers\" --model claude-haiku-4.5 --no-color --stream off",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                };
-
-                using var process = new Process { StartInfo = psi };
-                process.Start();
-
-                var outputTask = process.StandardOutput.ReadToEndAsync();
-                var errorTask = process.StandardError.ReadToEndAsync();
-
-                var completed = process.WaitForExit(REFRESH_TIMEOUT_MS);
-                if (!completed)
-                {
-                    try { process.Kill(); } catch { }
-                    throw new TimeoutException($"Copilot CLI model discovery timed out after {REFRESH_TIMEOUT_MS / 1000}s");
-                }
-
-                var output = await outputTask;
-                var error = await errorTask;
-
-                _logger.LogDebug("[CopilotCliModelDiscovery] CLI output: {Output}", output);
-
-                if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(error))
-                {
-                    _logger.LogError("[CopilotCliModelDiscovery] CLI error (exit {Code}): {Error}", process.ExitCode, error);
-                    throw new Exception($"Copilot CLI error (exit code {process.ExitCode}): {error}");
-                }
-
-                return output;
-            }
-            catch (TimeoutException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[CopilotCliModelDiscovery] Error running Copilot CLI for model discovery");
-                throw;
-            }
-        }
-
-        #endregion
-
-        /// <summary>
-        /// Fast model discovery: asks haiku (cheapest/fastest model) to list model IDs.
-        /// Uses -s (silent) and --allow-all-tools for non-interactive mode.
-        /// Returns the list in ~5 seconds.
-        /// </summary>
-        private async Task<string> RunFastModelDiscoveryAsync()
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = COPILOT_EXECUTABLE,
-                Arguments = "-p \"list only the model IDs available for --model flag, one per line, nothing else\" --model claude-haiku-4.5 --no-color --stream off -s --allow-all-tools",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
-
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var completed = process.WaitForExit(15000);
-            if (!completed)
-            {
-                try { process.Kill(); } catch { }
-                return null;
-            }
-
-            var output = await outputTask;
-            _logger.LogDebug("[CopilotCliModelDiscovery] Fast discovery output: {Output}", output);
-
-            if (string.IsNullOrWhiteSpace(output))
-                return null;
-
-            _logger.LogInformation("[CopilotCliModelDiscovery] Fast discovery returned output, parsing...");
-            return output;
-        }
-
-        #region Parsing
-
-        /// <summary>
-        /// Parses model IDs from CLI output. Handles backtick-delimited IDs and plain text lines.
-        /// Filters out usage metrics lines.
-        /// </summary>
-        internal static List<string> ParseModelIds(string output)
-        {
-            if (string.IsNullOrWhiteSpace(output))
-                return new List<string>();
-
-            // Strip everything after "Total usage est:" (usage metrics)
-            var usageIdx = output.IndexOf("Total usage est:", StringComparison.OrdinalIgnoreCase);
-            if (usageIdx >= 0)
-                output = output.Substring(0, usageIdx);
-
-            var modelIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // Strategy 1: Extract backtick-delimited model IDs (e.g. `claude-sonnet-4`)
-            var backtickRegex = new Regex(@"`([a-zA-Z0-9][a-zA-Z0-9.\-]+)`");
-            var matches = backtickRegex.Matches(output);
-            foreach (Match match in matches)
-            {
-                var id = match.Groups[1].Value.Trim();
-                if (IsValidModelId(id))
-                    modelIds.Add(id);
-            }
-
-            // Strategy 2: If no backtick matches, try plain text lines
-            if (modelIds.Count == 0)
-            {
-                var plainRegex = new Regex(@"^[a-z][a-z0-9.\-]+$");
-                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
-                {
-                    var trimmed = line.Trim().TrimStart('-', '*', ' ');
-                    if (plainRegex.IsMatch(trimmed) && IsValidModelId(trimmed))
-                        modelIds.Add(trimmed);
-                }
-            }
-
-            // Strategy 3: Space-separated model IDs (e.g. "● model1 model2 model3")
-            if (modelIds.Count == 0)
-            {
-                var modelIdPattern = new Regex(@"[a-z][a-z0-9.\-]+");
-                var allMatches = modelIdPattern.Matches(output);
-                foreach (Match match in allMatches)
-                {
-                    var id = match.Value;
-                    if (IsValidModelId(id) && id.Contains("-"))
-                        modelIds.Add(id);
-                }
-            }
-
-            return modelIds.OrderBy(x => x).ToList();
-        }
-
-        private static bool IsValidModelId(string id)
-        {
-            // Filter out common non-model strings
-            if (string.IsNullOrWhiteSpace(id) || id.Length < 2 || id.Length > 60)
-                return false;
-
-            // Must contain at least one letter
-            return id.Any(char.IsLetter);
-        }
-
-        /// <summary>
-        /// Converts a model ID to a human-readable name.
-        /// E.g. "claude-sonnet-4.5" -> "Claude Sonnet 4.5", "gpt-5.2-codex" -> "GPT-5.2 Codex"
-        /// </summary>
-        internal static string ModelIdToReadableName(string modelId)
-        {
-            if (string.IsNullOrWhiteSpace(modelId))
-                return modelId;
-
-            var segments = modelId.Split('-');
-            var result = new List<string>();
-
-            foreach (var segment in segments)
-            {
-                if (string.IsNullOrEmpty(segment))
-                    continue;
-
-                if (_uppercasePrefixes.Contains(segment))
-                {
-                    result.Add(segment.ToUpperInvariant());
-                }
-                else
-                {
-                    // Capitalize first letter, keep rest (preserves version numbers like "4.5")
-                    result.Add(char.ToUpperInvariant(segment[0]) + segment.Substring(1));
-                }
-            }
-
-            return string.Join(" ", result);
-        }
-
-        #endregion
 
         #region DB persistence
 

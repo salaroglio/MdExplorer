@@ -18,3 +18,12 @@
   background-color: purple;
   color: white;
 }
+
+// Parole evidenziate nel menu contestuale (ex stili inline violet/blue)
+.menu-verb-accent {
+  color: var(--mde-accent-secondary);
+}
+
+.menu-target-accent {
+  color: var(--mde-accent-primary);
+}

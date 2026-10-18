@@ -154,57 +154,5 @@ namespace MdExplorer.Controllers.AI
                 return StatusCode(500, $"Error getting models: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// POST api/aiproviders/test-chat
-        /// Testa una chiamata chat con un provider specifico
-        /// </summary>
-        [HttpPost("test-chat")]
-        public async Task<IActionResult> TestChat([FromBody] TestChatRequest request)
-        {
-            _logger.LogInformation($"[AiProvidersController] Testing chat with provider: {request.ProviderType}");
-
-            if (!Enum.TryParse<ProviderType>(request.ProviderType, true, out var type))
-            {
-                return BadRequest($"Invalid provider type: {request.ProviderType}");
-            }
-
-            var provider = _providers.FirstOrDefault(p => p.GetProviderType() == type);
-            if (provider == null)
-            {
-                return NotFound($"Provider {request.ProviderType} not found");
-            }
-
-            if (!provider.IsAvailable())
-            {
-                return BadRequest($"Provider {request.ProviderType} is not available (API key not configured)");
-            }
-
-            try
-            {
-                var response = await provider.ChatAsync(request.Message, request.ModelId);
-
-                return Ok(new
-                {
-                    provider = request.ProviderType,
-                    model = request.ModelId ?? "default",
-                    message = request.Message,
-                    response = response,
-                    timestamp = DateTime.UtcNow
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"[AiProvidersController] Error testing chat with {request.ProviderType}");
-                return StatusCode(500, $"Error: {ex.Message}");
-            }
-        }
-
-        public class TestChatRequest
-        {
-            public string ProviderType { get; set; }
-            public string Message { get; set; }
-            public string ModelId { get; set; }
-        }
     }
 }

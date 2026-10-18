@@ -118,3 +118,23 @@ mat-dialog-content {
 mat-dialog-actions {
   padding: 16px 24px;
 }
+// Il commit che il progetto registra per il submodule: nella sua cronologia si vede dove sta.
+.commit-table .recorded-here {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 1px 7px 1px 4px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 10.5px;
+  white-space: nowrap;
+  background: var(--mde-bg-tertiary);
+  color: var(--mde-accent-secondary);
+
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
+}
+
+.commit-table tr.recorded-row {
+  background: var(--mde-bg-hover);
+}

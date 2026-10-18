@@ -1,0 +1,59 @@
+<ng-container *ngIf="rows$ | async as rows">
+  <ng-container *ngIf="rows.length">
+
+    <button *ngIf="collapsed" type="button" class="bg-work__pill" [class.is-alert]="lead(rows).state === 'interrupted' || lead(rows).state === 'failed'"
+            (click)="collapsed = false" [attr.aria-label]="'BACKGROUND_WORK.EXPAND' | translate" [title]="'BACKGROUND_WORK.EXPAND' | translate">
+      <mat-icon>{{ lead(rows).state === 'interrupted' || lead(rows).state === 'failed' ? 'warning' : 'auto_awesome' }}</mat-icon>
+      <span>{{ ('BACKGROUND_WORK.KIND.' + lead(rows).kind) | translate }}</span>
+      <span class="bg-work__num" *ngIf="lead(rows).percent != null">{{ lead(rows).percent }}%</span>
+      <span class="bg-work__num" *ngIf="rows.length > 1">+{{ rows.length - 1 }}</span>
+    </button>
+
+    <section *ngIf="!collapsed" class="bg-work" role="status" aria-live="polite">
+      <header class="bg-work__header">
+        <mat-icon class="bg-work__title-icon">auto_awesome</mat-icon>
+        <span class="bg-work__title">{{ 'BACKGROUND_WORK.TITLE' | translate }}</span>
+        <button mat-icon-button type="button" (click)="collapsed = true" [attr.aria-label]="'BACKGROUND_WORK.COLLAPSE' | translate" [title]="'BACKGROUND_WORK.COLLAPSE' | translate">
+          <mat-icon>expand_more</mat-icon>
+        </button>
+      </header>
+
+      <div class="bg-work__row" *ngFor="let r of rows; trackBy: trackRow" [attr.data-state]="r.state">
+        <div class="bg-work__row-head">
+          <span class="bg-work__label">{{ ('BACKGROUND_WORK.KIND.' + r.kind) | translate }}<span *ngIf="r.folder" class="bg-work__folder"> · {{ r.folder }}</span></span>
+          <span class="bg-work__num" *ngIf="r.percent != null && r.state === 'running'">{{ r.percent }}%</span>
+          <mat-icon *ngIf="r.state === 'done'" class="bg-work__done">check_circle</mat-icon>
+        </div>
+
+        <mat-progress-bar *ngIf="r.state === 'running'" class="bg-work__bar"
+                          [mode]="r.percent == null ? 'indeterminate' : 'determinate'" [value]="r.percent ?? 0"></mat-progress-bar>
+
+        <!-- in corso -->
+        <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind !== 'scan' && r.total">
+          {{ r.index }} / {{ r.total }}<ng-container *ngIf="r.kind === 'description'"> {{ 'BACKGROUND_WORK.FILES' | translate }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container><ng-container *ngIf="r.engine"> · {{ r.engine }}</ng-container></ng-container>
+        </div>
+        <div class="bg-work__file" *ngIf="r.state === 'running' && r.currentFile" [title]="r.currentFile">{{ r.currentFile }}</div>
+        <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind === 'scan'">{{ 'BACKGROUND_WORK.SCANNING' | translate }}</div>
+
+        <!-- finita -->
+        <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'description'">{{ 'BACKGROUND_WORK.DESCRIPTION_DONE' | translate: { described: r.filesDescribed, total: r.total } }}</div>
+        <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'scan'">{{ 'BACKGROUND_WORK.SCAN_DONE' | translate: { files: r.total ?? 0, reparsed: r.index ?? 0 } }}</div>
+
+        <!-- da decidere -->
+        <div class="bg-work__note" *ngIf="r.state === 'interrupted'">{{ 'BACKGROUND_WORK.INTERRUPTED' | translate: { index: r.index, total: r.total, when: when(r.updatedAt), described: r.filesDescribed } }}</div>
+        <div class="bg-work__note" *ngIf="r.state === 'stopped'">{{ 'BACKGROUND_WORK.STOPPED' | translate: { index: r.index, total: r.total, when: when(r.updatedAt) } }}</div>
+        <div class="bg-work__note bg-work__note--error" *ngIf="r.state === 'failed'">{{ 'BACKGROUND_WORK.FAILED' | translate: { index: r.index ?? 0, total: r.total ?? 0, error: r.error } }}</div>
+
+        <div class="bg-work__actions">
+          <button mat-button type="button" *ngIf="r.kind === 'description' && r.state === 'running'" [disabled]="busy.has(r.id)" (click)="stop(r)">{{ 'BACKGROUND_WORK.STOP' | translate }}</button>
+          <ng-container *ngIf="needsDecision(r)">
+            <button mat-button type="button" [disabled]="busy.has(r.id)" (click)="dismiss(r)">{{ 'BACKGROUND_WORK.DISMISS' | translate }}</button>
+            <button mat-flat-button color="primary" type="button" [disabled]="busy.has(r.id)" (click)="resume(r)">{{ 'BACKGROUND_WORK.RESUME' | translate }}</button>
+          </ng-container>
+          <button mat-button type="button" *ngIf="r.state === 'failed' && !needsDecision(r)" (click)="close(r)">{{ 'BACKGROUND_WORK.CLOSE' | translate }}</button>
+        </div>
+      </div>
+    </section>
+
+  </ng-container>
+</ng-container>

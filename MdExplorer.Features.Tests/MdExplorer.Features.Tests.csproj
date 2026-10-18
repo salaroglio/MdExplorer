@@ -13,13 +13,22 @@
     <PackageReference Include="MSTest.TestAdapter" Version="2.2.3" />
     <PackageReference Include="MSTest.TestFramework" Version="2.2.3" />
     <PackageReference Include="coverlet.collector" Version="3.0.2" />
+    <!-- Guardia anti-regressione della catena di migrazioni: stesso driver pinnato
+         dal Service (1.0.113.1). 1.0.114.4 regredisce PRAGMA table_info. -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.113.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
+    <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Il Fuseki del pacchetto (D19): i test del grafo del codice lo avviano dal jar vero. -->
+    <None Include="..\MdExplorer\Binaries\jena-fuseki-server.jar" Link="Binaries\jena-fuseki-server.jar">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

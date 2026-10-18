@@ -21,6 +21,40 @@ namespace MdExplorer.Service
             services.AddSingleton<IMarkdownFtsService>(sp => new MarkdownFtsService(
                 MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MarkdownFtsService>>()));
+            services.AddSingleton<ITextFtsService>(sp => new TextFtsService(
+                MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TextFtsService>>()));
+            // Grafo del codice (sprint 2026-10-09, D19): vive nel Fuseki del pacchetto, un dataset `code` e un grafo
+            // nominato per progetto; lo store carica gli script di .mde-code/ ed è il modello di lettura per API e tool.
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore, MdExplorer.Features.Services.CodeGraph.CodeGraphStore>();
+            services.AddSingleton<MdExplorer.Services.UserSettingsUiLanguage>();
+            services.AddSingleton<MdExplorer.Features.Services.IUiLanguage>(sp => sp.GetRequiredService<MdExplorer.Services.UserSettingsUiLanguage>());
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphReportWriter>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore>(sp =>
+                new MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore(MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath()));
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.CodeGraphOptions>(sp =>
+            {
+                var cfg = sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+                var o = new MdExplorer.Features.Services.CodeGraph.Grammars.CodeGraphOptions();
+                var url = cfg["MdExplorer:GrammarApiUrl"];
+                if (!string.IsNullOrWhiteSpace(url)) o.GrammarApiUrl = url;
+                return o;
+            });
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader, MdExplorer.Features.Services.CodeGraph.Grammars.GrammarDownloader>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.RoslynCSharpExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterTypeScriptExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterPythonExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaScriptExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.PowerShellExtractor>();
+            // Radici di codice esterne (sprint 2026-10-12): identità nel .development.yml, posizione nello UserDB
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootBindingStore, MdExplorer.Services.CodeGraph.UserDbCodeRootBindingStore>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootService, MdExplorer.Services.CodeGraph.CodeRootService>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeGraphTurnRefresher, MdExplorer.Services.CodeGraph.CodeGraphTurnRefresher>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeDocJobService, MdExplorer.Services.CodeGraph.CodeDocJobService>();
             return services;
         }
     }

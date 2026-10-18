@@ -71,6 +71,123 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
+        /// <summary>
+        /// La lingua dell'interfaccia sta nel DB utente del backend, non nel localStorage: il localStorage vale per una
+        /// sola origine, e l'app desktop cambia porta a ogni avvio (lingua persa a ogni riavvio, 12/10/2026). Così vale
+        /// anche per l'edizione web; Electron è un guscio e la riceve soltanto (menu della tray).
+        /// </summary>
+        private const string LanguageSettingName = "Language";
+        private static readonly string[] SupportedLanguages = { "en", "it" };
+
+        public class LanguageRequest { public string Language { get; set; } }
+
+        private const string CodeGraphIntroSettingName = "MarkCodeGraphIntroShown";
+
+        /// <summary>
+        /// GET /api/AppSettings/GetMarkCodeGraphIntro — {shown}: se il pop-up di MarkAgent si è già aperto da solo sulla
+        /// pagina del grafo del codice (vista guidata, 14/10/2026). Solo la prima volta: dopo lo si apre col pulsante.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetMarkCodeGraphIntro()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var shown = _session.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == CodeGraphIntroSettingName)?.ValueInt == 1;
+                _session.Commit();
+                return Ok(new { shown });
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>POST /api/AppSettings/SetMarkCodeGraphIntroShown — il pop-up si è aperto da solo: non succede più.</summary>
+        [HttpPost]
+        public IActionResult SetMarkCodeGraphIntroShown()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var dal = _session.GetDal<Setting>();
+                var existing = dal.GetList().FirstOrDefault(x => x.Name == CodeGraphIntroSettingName);
+                if (existing != null)
+                {
+                    _session.Evict(existing);
+                    _session.CreateSQLQuery("UPDATE Setting SET ValueInt = 1 WHERE Name = :name").SetParameter("name", CodeGraphIntroSettingName).ExecuteUpdate();
+                }
+                else
+                {
+                    dal.Save(new Setting { Name = CodeGraphIntroSettingName, Description = "Il pop-up di MarkAgent si è già aperto da solo sul grafo del codice", ValueInt = 1 });
+                }
+                _session.Commit();
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+            return Ok(new { shown = true });
+        }
+
+        /// <summary>GET /api/AppSettings/GetLanguage — {language}: null se l'utente non ha mai scelto (primo avvio).</summary>
+        [HttpGet]
+        public IActionResult GetLanguage()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var value = _session.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == LanguageSettingName)?.ValueString;
+                _session.Commit();
+                return Ok(new { language = SupportedLanguages.Contains(value) ? value : null });
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>POST /api/AppSettings/SetLanguage {language} — salva la lingua scelta (en, it).</summary>
+        [HttpPost]
+        public IActionResult SetLanguage([FromBody] LanguageRequest request)
+        {
+            var lang = request?.Language?.Trim().ToLowerInvariant();
+            if (!SupportedLanguages.Contains(lang))
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"Lingua '{request?.Language}' non supportata. Ammesse: {string.Join(", ", SupportedLanguages)}", $"Language '{request?.Language}' not supported. Allowed: {string.Join(", ", SupportedLanguages)}") });
+
+            _session.BeginTransaction();
+            try
+            {
+                var dal = _session.GetDal<Setting>();
+                var existing = dal.GetList().FirstOrDefault(x => x.Name == LanguageSettingName);
+                if (existing != null)
+                {
+                    _session.Evict(existing);
+                    // SQL diretto per nome, come SetSettings: un Id scritto da una migrazione ha un formato di GUID diverso
+                    _session.CreateSQLQuery("UPDATE Setting SET ValueString = :val WHERE Name = :name")
+                        .SetParameter("val", lang).SetParameter("name", LanguageSettingName).ExecuteUpdate();
+                }
+                else
+                {
+                    dal.Save(new Setting { Name = LanguageSettingName, Description = "Lingua dell'interfaccia (en, it)", ValueString = lang });
+                }
+                _session.Commit();
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+            // Il servizio la tiene in memoria (UserSettingsUiLanguage): da qui i suoi testi cambiano lingua.
+            Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                .GetRequiredService<MdExplorer.Services.UserSettingsUiLanguage>(HttpContext.RequestServices).Remember(lang);
+            _logger.LogInformation("[SetLanguage] lingua = {Lang}", lang);
+            return Ok(new { language = lang });
+        }
+
         [HttpGet]
         public IActionResult GetSettings()
         {
@@ -91,6 +208,12 @@ namespace MdExplorer.Service.Controllers
             // (migration-seeded GUIDs use text format which conflicts with NHibernate's binary GUID parameters)
             foreach (var s in allDbSettings)
                 _session.Evict(s);
+
+            // JavaPath scritto dall'utente: lo si segna (JavaPathSource = user), così il controllo di salute non lo sostituisce
+            // da solo ma avvisa se non va bene (12/10/2026).
+            var javaBefore = allDbSettings.FirstOrDefault(_ => _.Name == MdExplorer.Services.Java.SessionJavaSettingsStore.PathName)?.ValueString;
+            var javaAfter = settings.settings.FirstOrDefault(_ => _.name == MdExplorer.Services.Java.SessionJavaSettingsStore.PathName)?.valueString;
+            var javaChangedByUser = javaAfter != null && !string.Equals((javaBefore ?? string.Empty).Trim(), javaAfter.Trim(), StringComparison.Ordinal);
 
             _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
             foreach (var item in settings.settings)
@@ -138,8 +261,19 @@ namespace MdExplorer.Service.Controllers
                     continue;
                 }
             }
+            if (javaChangedByUser)
+            {
+                new MdExplorer.Services.Java.SessionJavaSettingsStore(_session).MarkSource(MdExplorer.Features.Utilities.JavaPathSources.User);
+                _logger.LogInformation("[SetSettings] JavaPath cambiato dall'utente: JavaPathSource = user");
+            }
             _session.Commit();
             _logger.LogInformation("[SetSettings] Transaction committed");
+            if (javaChangedByUser)
+            {
+                // Il controllo rilegge il valore nuovo e aggiorna gli avvisi: con JavaPathSource = user non sostituisce niente.
+                try { (HttpContext.RequestServices.GetService(typeof(MdExplorer.Services.Java.JavaHealthService)) as MdExplorer.Services.Java.JavaHealthService)?.Run(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[SetSettings] controllo di Java dopo il salvataggio fallito"); }
+            }
             return Ok(new { response = "settings saved" });
         }
 
@@ -171,11 +305,11 @@ namespace MdExplorer.Service.Controllers
             // Gated by MDE_DOCKER=1 so non-container deployments are unaffected.
             if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
             {
-                if (selectedIde?.ToLowerInvariant() == "copilot")
+                if (IsAgentCli(selectedIde))
                 {
-                    // Copilot CLI needs a host-side terminal; there is no URL scheme to
-                    // hand off to the browser the way vscode:// / jetbrains:// allow.
-                    return BadRequest(new { error = "Copilot CLI cannot be launched in Docker mode: it requires a host terminal session." });
+                    // Un CLI agentico ha bisogno di un terminale sulla macchina dell'utente, e non
+                    // esiste uno schema di URL da passare al browser come per vscode:// e jetbrains://.
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Il CLI dell'ambiente agentico non si può aprire in modalità Docker: serve un terminale sulla macchina.", "The agentic environment CLI cannot be opened in Docker mode: it needs a terminal on the machine.") });
                 }
 
                 var hostUrl = TryBuildHostEditorUrl(path, selectedIde);
@@ -190,17 +324,38 @@ namespace MdExplorer.Service.Controllers
             }
 
             // Open with selected IDE
-            if (selectedIde?.ToLowerInvariant() == "copilot")
+            if (IsAgentCli(selectedIde))
             {
-                if (!CopilotProcessLauncher.IsResolvable())
+                // Quale CLI aprire NON è una scelta a sé: è l'ambiente agentico del progetto, lo
+                // stesso che decide dove stanno skill e prompt e con chi parla MarkAgent. Prima
+                // questa voce era "GitHub Copilot" fissa, e su un progetto Claude o opencode
+                // apriva il CLI sbagliato.
+                MarkAgentEngine engine;
+                try
                 {
-                    return BadRequest(new { error = "Copilot CLI not found in PATH. Install it via 'winget install GitHub.Copilot' or 'npm install -g @github/copilot'." });
+                    engine = MarkAgentEngines.Resolve(project?.MarkAgentEngine, projectPath, out _);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return BadRequest(new { error = ex.Message });
                 }
 
-                // Copilot CLI is interactive: open a terminal on the project root,
-                // ignoring the specific file path (the folder is what matters here).
-                _processUtil.OpenFolderWithCopilotCli(projectPath);
-                return Ok(new { message = "opened Copilot CLI on project root" });
+                if (engine == MarkAgentEngine.None)
+                {
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Questo progetto non ha un ambiente agentico: scegline uno in Impostazioni → AI & RAG, oppure seleziona un altro editor.", "This project has no agentic environment: choose one in Settings → AI & RAG, or select another editor.") });
+                }
+
+                var command = MarkAgentEngines.CommandOf(engine);
+                if (!IsAgentCliInstalled(engine))
+                {
+                    return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"'{command}' non è installato su questa macchina, o non è nel PATH del servizio: è il CLI dell'ambiente agentico di questo progetto.", $"'{command}' is not installed on this machine, or is not in the service PATH: it is the CLI of this project's agentic environment.") });
+                }
+
+                // È un programma interattivo: si apre un terminale sulla RADICE del progetto, e il
+                // file specifico non c'entra — quello che conta qui è la cartella.
+                _processUtil.OpenFolderWithAgentCli(projectPath, command);
+                _logger.LogInformation("[OpenFile] aperto {Command} sulla radice di {ProjectPath}", command, projectPath);
+                return Ok(new { message = $"opened {command} on project root" });
             }
             else if (selectedIde?.ToLowerInvariant() == "intellij")
             {
@@ -227,6 +382,39 @@ namespace MdExplorer.Service.Controllers
                 return Ok(new { message = "opened with VS Code" });
             }
         }
+
+        /// <summary>
+        /// Valore di <c>Project.SelectedIde</c> che vuol dire «il CLI dell'ambiente agentico».
+        /// </summary>
+        public const string AgentCliIde = "agent-cli";
+
+        /// <summary>
+        /// ⚠️ Valore storico: fino al 21/09/2026 questa voce era «GitHub Copilot», fissa. La
+        /// migrazione M2026_09_21_003 lo converte, ma un client vecchio potrebbe ancora mandarlo:
+        /// lo si accetta come sinonimo, invece di far finta di non capirlo.
+        /// </summary>
+        private const string LegacyCopilotIde = "copilot";
+
+        private static bool IsAgentCli(string selectedIde)
+        {
+            var value = selectedIde?.Trim().ToLowerInvariant();
+            return value == AgentCliIde || value == LegacyCopilotIde;
+        }
+
+        /// <summary>
+        /// Il CLI di questo motore è raggiungibile dal PATH del servizio?
+        /// <para>
+        /// ⚠️ Una scansione sola per tutti e tre, e <b>non</b>
+        /// <see cref="CopilotProcessLauncher.IsResolvable"/>: quello, fuori da Windows, risponde
+        /// <c>true</c> per scelta, lasciando fallire il lancio più avanti. Va bene dove il
+        /// fallimento si legge; qui no — misurato il 21/09/2026 su Linux con un PATH senza
+        /// <c>copilot</c>: invece del messaggio «non è installato» si apriva una finestra di
+        /// terminale che diceva «command not found» e restava lì.
+        /// </para>
+        /// </summary>
+        private static bool IsAgentCliInstalled(MarkAgentEngine engine)
+            => engine != MarkAgentEngine.None
+               && ProcessUtil.IsCommandInPath(MarkAgentEngines.CommandOf(engine));
 
         /// <summary>
         /// Docker-only: translate a container-side file path (e.g. "/workspace/test/foo.md")

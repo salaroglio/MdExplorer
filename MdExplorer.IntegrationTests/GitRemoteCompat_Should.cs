@@ -1,0 +1,516 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using Ad.Tools.Dal.Extensions;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Threading.Tasks;
+using MdExplorer.IntegrationTests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace MdExplorer.IntegrationTests
+{
+    /// <summary>
+    /// La rete di sicurezza dello sprint «un solo meccanismo di autenticazione git»
+    /// (docs-internal/Sprints/2026-09-22-Git-Un-Solo-Meccanismo-Di-Autenticazione.md).
+    /// <para>
+    /// Fotografa ciò che i <b>progetti già collegati</b> e il <b>primo clone</b> fanno oggi,
+    /// esercitando gli stessi endpoint che usa l'app Angular contro un server git HTTP vero
+    /// con autenticazione Basic (<see cref="GitBasicAuthServer"/>). Deve restare verde prima,
+    /// durante e dopo ogni fase: se un test qui cambia esito, è cambiato qualcosa per l'utente.
+    /// </para>
+    /// </summary>
+    [TestClass]
+    public class GitRemoteCompat_Should
+    {
+        private const string User = "carlo";
+        private const string Password = "segreto-di-prova";
+        private static readonly TimeSpan FailFast = TimeSpan.FromSeconds(30);
+
+        // ---------------------------------------------------------------- progetti già collegati
+
+        [TestMethod]
+        public async Task ProgettoCollegato_CredenzialeNelHelper_PushRemoteStatusPullFetch()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("collegato");
+            StoreCredential(ctx, server);
+            var path = SeedLinkedProject(ctx, url, "collegato");
+
+            // push
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push: " + push.Error);
+            Assert.IsTrue(server.Unauthorized > 0, "il server deve aver chiesto le credenziali almeno una volta (401)");
+
+            // remote-status
+            var status = await GetJson(ctx, "/api/ModernGit/remote-status?repositoryPath=" + Uri.EscapeDataString(path));
+            Assert.IsTrue(status.GetProperty("hasRemote").GetBoolean());
+            Assert.IsTrue(status.GetProperty("canAuthenticate").GetBoolean(), "remote-status: " + status);
+
+            // un collega pubblica un commit
+            var collega = Path.Combine(ctx.Factory.DataDir, "work", "collega");
+            Git(ctx.Factory.DataDir, "clone", "-q", server.UrlWithUser(url), collega);
+            File.WriteAllText(Path.Combine(collega, "dal-collega.md"), "# ciao\n");
+            Git(collega, "add", "-A"); Git(collega, "commit", "-qm", "dal collega"); Git(collega, "push", "-q");
+
+            // get-data-to-pull (toolbar)
+            var data = await GetJson(ctx, "/api/ModernGitToolbar/get-data-to-pull?projectPath=" + Uri.EscapeDataString(path));
+            Assert.IsTrue(data.GetProperty("connectionIsActive").GetBoolean(), "get-data-to-pull: " + data);
+            Assert.IsTrue(data.GetProperty("somethingIsToPull").GetBoolean(), "get-data-to-pull: " + data);
+
+            // fetch, poi pull
+            var fetch = await PostJson(ctx, "/api/ModernGit/fetch", new { repositoryPath = path, remoteName = "origin" });
+            Assert.IsTrue(fetch.Success, "fetch: " + fetch.Error);
+            var pull = await PostJson(ctx, "/api/ModernGit/pull", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(pull.Success, "pull: " + pull.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(path, "dal-collega.md")), "il file del collega deve arrivare col pull");
+        }
+
+        [TestMethod]
+        public async Task ProgettoCollegato_DueAccountSulloStessoHost_UsaQuelloConfiguratoNelRepo()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("due-account");
+            // L'account sbagliato sta PRIMA nello store: senza sapere l'utente, git prenderebbe lui.
+            File.WriteAllText(ctx.Factory.GitCredentialsFile,
+                $"http://aziendale:password-aziendale@127.0.0.1:{server.Port}\n" +
+                $"http://{User}:{Password}@127.0.0.1:{server.Port}\n");
+            var path = SeedLinkedProject(ctx, url, "due-account");
+            // Il modo nativo di dire a git quale account usare per questo host.
+            Git(path, "config", $"credential.{server.BaseUrl}.username", User);
+
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push con due account: " + push.Error);
+        }
+
+        [TestMethod]
+        public async Task ProgettoCollegato_SenzaCredenziale_FallisceSubitoEDiceQualeHost()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("senza-credenziale");
+            var path = SeedLinkedProject(ctx, url, "senza-credenziale");
+
+            var sw = Stopwatch.StartNew();
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            sw.Stop();
+            Assert.IsFalse(push.Success, "senza credenziale il push NON deve riuscire");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(push.Error), "l'errore deve dire qualcosa");
+            Assert.IsTrue(sw.Elapsed < FailFast, $"deve fallire subito, non dopo {sw.Elapsed}");
+            var status = await GetJson(ctx, "/api/ModernGit/remote-status?repositoryPath=" + Uri.EscapeDataString(path));
+            Assert.IsFalse(status.GetProperty("canAuthenticate").GetBoolean(), "remote-status deve dire che non si autentica: " + status);
+        }
+
+        [TestMethod]
+        public async Task ProgettoCollegato_CredenzialeSoloNelDbDiMde_PushFunziona()
+        {
+            // Chi ha salvato utente e password dentro MdExplorer (dialogo account) e mai nel
+            // credential helper di git: prima dello sprint ci pensa un resolver, dopo il trasloco.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("solo-db");
+            var path = SeedLinkedProject(ctx, url, "solo-db");
+
+            // Le righe come le lasciava la versione precedente (entità non più mappate: SQL diretto,
+            // Guid come BLOB di 16 byte, che è come le scriveva NHibernate).
+            SeedLegacyDbCredential(ctx, path, User, Password);
+
+            // Il trasloco: all'avvio della versione nuova (qui a chiamata, perché il test spegne
+            // l'hosted service) MdExplorer consegna il segreto a git e verifica che git lo ritrovi.
+            var move = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(move.Raw))
+            {
+                Assert.AreEqual(1, doc.RootElement.GetProperty("moved").GetInt32(), "trasloco: " + move.Raw);
+                Assert.AreEqual(0, doc.RootElement.GetProperty("failed").GetInt32(), "trasloco: " + move.Raw);
+            }
+            var store = File.ReadAllText(ctx.Factory.GitCredentialsFile);
+            // lo store scrive la porta come %3a: basta utente, password e host
+            Assert.IsTrue(store.Contains($"{User}:{Password}@127.0.0.1"), "la credenziale deve essere nel helper di git: " + store);
+            var (_, cfg) = Git(path, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, cfg.Trim(), "il repo deve sapere quale utente usare per questo host");
+
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push con credenziale solo nel DB: " + push.Error);
+
+            // E il segreto in chiaro non è più nel DB di MdExplorer: rifare il trasloco non trova niente.
+            var again = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(again.Raw))
+                Assert.IsTrue(doc.RootElement.GetProperty("nothingLeft").GetBoolean(), "secondo trasloco: " + again.Raw);
+        }
+
+        [TestMethod]
+        public async Task ApertureProgetto_ChiamateDiReteInParallelo_UnSoloTentativoDiLogin()
+        {
+            // All'apertura del progetto toolbar e polling chiedono insieme remote-status e
+            // get-data-to-pull. Su Windows ogni processo git senza credenziale apre il SUO login
+            // di Git Credential Manager nel browser: visto dall'utente il 23/09, tante finestre
+            // tutte insieme. Il Service deve farne partire UNO per host; chi arriva mentre è in
+            // corso aspetta e ne riceve l'esito.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("apertura");
+            var path = SeedLinkedProject(ctx, url, "apertura");
+            // Il credential helper che «chiede il login» e lo conta: ogni invocazione = una finestra.
+            var counter = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper, $"#!/bin/sh\n[ \"$1\" = get ] && {{ echo x >> '{counter}'; sleep 1; }}\nexit 0\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(path, "config", "credential.helper", "");
+            Git(path, "config", "--add", "credential.helper", helper);
+
+            var q = Uri.EscapeDataString(path);
+            var calls = new[]
+            {
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGitToolbar/get-data-to-pull?projectPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGitToolbar/get-data-to-pull?projectPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+            };
+            await Task.WhenAll(calls);
+
+            var windows = File.Exists(counter) ? File.ReadAllLines(counter).Length : 0;
+            Assert.AreEqual(1, windows, $"cinque chiamate in parallelo hanno aperto {windows} login");
+        }
+
+        // ---------------------------------------------------------------- primo collegamento
+
+        [TestMethod]
+        public async Task PrimoCollegamento_RepoVuotoSulServer_SetupRemoteGenericCollegaEPubblica()
+        {
+            // Il caso d'uso dello sprint: progetto locale mai collegato, repository vuoto appena
+            // creato sul server, credenziale nel credential helper. Dalla maschera «Setup Remote».
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("carlo/appena-creato");
+            StoreCredential(ctx, server);
+            var (_, path) = ctx.SeedProject("mai-collegato");
+            Git(path, "init", "-q", "-b", "main");
+            File.WriteAllText(Path.Combine(path, "README.md"), "# mai collegato\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "primo");
+
+            var setup = await PostJson(ctx, "/api/ModernGit/setup-remote-generic",
+                new { repositoryPath = path, remoteUrl = url, remoteName = "origin", pushAfterAdd = true, saveCredentials = false });
+            Assert.IsTrue(setup.Success, "setup-remote-generic: " + setup.Error + " | " + setup.Raw);
+            Assert.IsTrue(setup.Raw.Contains("\"pushSucceeded\":true") || !setup.Raw.Contains("pushSucceeded"),
+                "il primo push deve riuscire: " + setup.Raw);
+
+            // Il server ha davvero ricevuto il commit, e da qui in poi il progetto è «collegato».
+            var (_, refs) = Git(path, "ls-remote", "--heads", url);
+            Assert.IsTrue(refs.Contains("refs/heads/main"), "sul server deve esserci main: " + refs + " | risposta del setup: " + setup.Raw);
+            File.WriteAllText(Path.Combine(path, "secondo.md"), "# secondo\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "secondo");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "il push successivo dalla toolbar: " + push.Error);
+        }
+
+        [TestMethod]
+        public async Task PrimoCollegamento_AccountDiversoDaQuelloDelLogin_MdeLoAllineaEGitNonRichiedeIlLogin()
+        {
+            // Windows, 08/10/2026: repository sotto l'organizzazione «dedabit», la maschera scrive
+            // `credential.<host>.username = dedabit`. Git Credential Manager fa il login nel browser,
+            // il push passa, ma salva la credenziale sotto il login REALE e, quando git gli richiede
+            // «dedabit», non la trova: login a ogni operazione, per sempre. Dopo il primo push
+            // MdExplorer deve accorgersene e scrivere l'account vero.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("dedabit/techdocs");
+            var (_, path) = ctx.SeedProject("sotto-organizzazione");
+            Git(path, "init", "-q", "-b", "main");
+            File.WriteAllText(Path.Combine(path, "README.md"), "# techdocs\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "primo");
+
+            // Un Git Credential Manager finto, fedele a quello vero: conosce un solo account (carlo);
+            // se gli si chiede un altro utente «apre il login» (lo conta) e risponde comunque col login
+            // reale; con GCM_INTERACTIVE=never, invece di aprire il login, rifiuta.
+            var logins = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper,
+                "#!/bin/sh\n" +
+                "u=\n" +
+                "while IFS= read -r line; do case \"$line\" in username=*) u=${line#username=};; esac; [ -z \"$line\" ] && break; done\n" +
+                "[ \"$1\" = get ] || exit 0\n" +
+                $"if [ -n \"$u\" ] && [ \"$u\" != {User} ]; then\n" +
+                "  if [ \"$GCM_INTERACTIVE\" = never ]; then echo 'fatal: Cannot prompt because user interactivity has been disabled.' >&2; exit 1; fi\n" +
+                $"  echo x >> '{logins}'\n" +
+                "fi\n" +
+                $"echo username={User}; echo password={Password}\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(path, "config", "credential.helper", "");
+            Git(path, "config", "--add", "credential.helper", helper);
+
+            var setup = await PostJson(ctx, "/api/ModernGit/setup-remote-generic",
+                new { repositoryPath = path, remoteUrl = url, remoteName = "origin", accountUsername = "dedabit", pushAfterAdd = true });
+            Assert.IsTrue(setup.Success, "setup-remote-generic: " + setup.Error + " | " + setup.Raw);
+            Assert.AreEqual(1, LoginCount(logins), "il primo push fa UN login: " + setup.Raw);
+
+            // L'account scritto nel repository è quello del login, e la risposta lo dice.
+            var (_, written) = Git(path, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account nel repository deve essere quello sotto cui il helper ha salvato");
+            Assert.IsTrue(setup.Raw.Contains($"\"accountUsername\":\"{User}\""), "la risposta deve dire l'account corretto: " + setup.Raw);
+            Assert.IsTrue(setup.Raw.Contains("not 'dedabit'"), "la risposta deve dire che l'account è stato corretto: " + setup.Raw);
+
+            // Da qui in poi nessun login: il push dalla toolbar trova la credenziale.
+            File.WriteAllText(Path.Combine(path, "secondo.md"), "# secondo\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "secondo");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "il push successivo dalla toolbar: " + push.Error);
+            Assert.AreEqual(1, LoginCount(logins), "il push dopo NON deve riaprire il login");
+        }
+
+        private static int LoginCount(string file) => File.Exists(file) ? File.ReadAllLines(file).Length : 0;
+
+        // ---------------------------------------------------------------- primo clone
+
+        [TestMethod]
+        public async Task PrimoClone_ConUtenteEPassword_ClonaESalvaLaCredenzialePerIlPushDopo()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("da-clonare");
+            SeedRemoteContent(ctx, server, url, "da-clonare");
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato");
+
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = false, username = User, password = Password });
+            Assert.IsTrue(clone.Success, "clone: " + clone.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")), "il contenuto del remoto deve esserci");
+            // L'account digitato è scritto nel repository: con più account sullo stesso host git deve saperlo.
+            var (_, written) = Git(localPath, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account per l'host deve essere scritto nel repository clonato");
+
+            // Il progetto appena clonato è un progetto «collegato»: si lavora e si pubblica
+            // senza ridigitare niente.
+            File.WriteAllText(Path.Combine(localPath, "nuovo.md"), "# nuovo\n");
+            Git(localPath, "add", "-A"); Git(localPath, "commit", "-qm", "dal clone");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = localPath, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push dopo il clone: " + push.Error);
+        }
+
+        [TestMethod]
+        public async Task PrimoClone_CredenzialeGiaNelHelper_ClonaSenzaChiederla()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("gia-noto");
+            SeedRemoteContent(ctx, server, url, "gia-noto");
+            StoreCredential(ctx, server);
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato-noto");
+
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = true });
+            Assert.IsTrue(clone.Success, "clone con credenziale nel helper: " + clone.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")));
+        }
+
+        [TestMethod]
+        public async Task PrimoClone_LoginDelCredentialManager_ScriveLAccountDelLoginNelRepository()
+        {
+            // Su Windows il clone senza credenziali digitate fa il login nel browser con Git Credential
+            // Manager, che salva sotto il login reale. Il repository clonato non ha nessun account per
+            // l'host: con due account GCM chiederebbe di scegliere a ogni operazione. Dopo il clone
+            // MdExplorer scrive l'account del login, e il push dopo non chiede niente.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("dedabit/da-clonare-con-login");
+            SeedRemoteContent(ctx, server, url, "da-clonare-con-login");
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato-con-login");
+
+            // Il GCM finto (vedi PrimoCollegamento_AccountDiversoDaQuelloDelLogin) deve essere GLOBALE:
+            // il repository non esiste ancora. La config globale è quella ermetica della factory.
+            var logins = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper,
+                "#!/bin/sh\n" +
+                "u=\n" +
+                "while IFS= read -r line; do case \"$line\" in username=*) u=${line#username=};; esac; [ -z \"$line\" ] && break; done\n" +
+                "[ \"$1\" = get ] || exit 0\n" +
+                $"if [ -n \"$u\" ] && [ \"$u\" != {User} ]; then\n" +
+                "  if [ \"$GCM_INTERACTIVE\" = never ]; then echo 'fatal: Cannot prompt because user interactivity has been disabled.' >&2; exit 1; fi\n" +
+                "fi\n" +
+                $"[ -z \"$u\" ] && echo x >> '{logins}'\n" +
+                $"echo username={User}; echo password={Password}\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(ctx.Factory.DataDir, "config", "--global", "credential.helper", "");
+            Git(ctx.Factory.DataDir, "config", "--global", "--add", "credential.helper", helper);
+
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = true });
+            Assert.IsTrue(clone.Success, "clone con login del credential manager: " + clone.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")));
+            Assert.IsTrue(clone.Raw.Contains($"Git account for 127.0.0.1: {User}"), "la risposta deve dire l'account scritto: " + clone.Raw);
+
+            var (_, written) = Git(localPath, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account del login deve essere scritto nel repository clonato");
+
+            // Da qui in poi git chiede la credenziale CON l'account: il helper non deve più «scegliere».
+            var loginsAfterClone = LoginCount(logins);
+            File.WriteAllText(Path.Combine(localPath, "nuovo.md"), "# nuovo\n");
+            Git(localPath, "add", "-A"); Git(localPath, "commit", "-qm", "dal clone");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = localPath, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push dopo il clone: " + push.Error);
+            Assert.AreEqual(loginsAfterClone, LoginCount(logins), "il push dopo il clone non deve far scegliere l'account al helper");
+        }
+
+        [TestMethod]
+        public async Task PrimoClone_PasswordSbagliata_FallisceSubitoEInChiaro()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("password-sbagliata");
+            SeedRemoteContent(ctx, server, url, "password-sbagliata");
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato-male");
+
+            var sw = Stopwatch.StartNew();
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = false, username = User, password = "sbagliata" });
+            sw.Stop();
+            Assert.IsFalse(clone.Success, "con la password sbagliata il clone NON deve riuscire");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(clone.Error));
+            Assert.IsTrue(sw.Elapsed < FailFast, $"deve fallire subito, non dopo {sw.Elapsed}");
+            // E la password sbagliata NON deve restare nello store: al prossimo tentativo git la riuserebbe.
+            var store = File.Exists(ctx.Factory.GitCredentialsFile) ? File.ReadAllText(ctx.Factory.GitCredentialsFile) : string.Empty;
+            Assert.IsFalse(store.Contains("sbagliata"), "la password sbagliata è rimasta nel credential store: " + store);
+        }
+
+        [TestMethod]
+        public async Task PrimoClone_ConSubmodule_PopolaAncheIlFiglio()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var childUrl = server.CreateBareRepository("figlio");
+            SeedRemoteContent(ctx, server, childUrl, "figlio", "prodotto.md");
+            var parentUrl = server.CreateBareRepository("padre");
+            StoreCredential(ctx, server);
+
+            // Il padre con dentro il figlio come submodule, pubblicato.
+            var work = Path.Combine(ctx.Factory.DataDir, "work", "padre");
+            Git(ctx.Factory.DataDir, "clone", "-q", parentUrl, work);
+            File.WriteAllText(Path.Combine(work, "README.md"), "# padre\n");
+            Git(work, "submodule", "add", childUrl, "figlio");
+            Git(work, "add", "-A"); Git(work, "commit", "-qm", "padre con figlio"); Git(work, "push", "-q", "-u", "origin", "main");
+
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "padre-clonato");
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url = parentUrl, localPath, useSavedToken = true });
+            Assert.IsTrue(clone.Success, "clone con submodule: " + clone.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(localPath, "figlio", "prodotto.md")), "il submodule deve essere popolato");
+        }
+
+        // ---------------------------------------------------------------- infrastruttura
+
+        private static GitBasicAuthServer NewServer(AgentCityContext ctx)
+            => new GitBasicAuthServer(Path.Combine(ctx.Factory.DataDir, "origins"), User, Password);
+
+        private static void StoreCredential(AgentCityContext ctx, GitBasicAuthServer server)
+            => File.AppendAllText(ctx.Factory.GitCredentialsFile, $"http://{User}:{Password}@127.0.0.1:{server.Port}\n");
+
+        /// <summary>Un progetto locale con un commit e l'origin già impostato, come uno «staffato» tempo fa.</summary>
+        private static string SeedLinkedProject(AgentCityContext ctx, string remoteUrl, string name)
+        {
+            var (_, path) = ctx.SeedProject(name);
+            Git(path, "init", "-q", "-b", "main");
+            File.WriteAllText(Path.Combine(path, "README.md"), $"# {name}\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "primo");
+            Git(path, "remote", "add", "origin", remoteUrl);
+            // Un progetto pubblicato tempo fa ha il branch che traccia origin/main (push -u).
+            Git(path, "config", "branch.main.remote", "origin");
+            Git(path, "config", "branch.main.merge", "refs/heads/main");
+            return path;
+        }
+
+        /// <summary>Mette un commit nel remoto, così un clone ha qualcosa da portare a casa.</summary>
+        private static void SeedRemoteContent(AgentCityContext ctx, GitBasicAuthServer server, string remoteUrl, string name, string file = "README.md")
+        {
+            var work = Path.Combine(ctx.Factory.DataDir, "work", name + "-seed");
+            // Password nell'URL e credential helper SPENTO: git altrimenti la salverebbe nello store
+            // al primo successo, e i test del clone passerebbero per merito del seed, non di MdExplorer.
+            Git(ctx.Factory.DataDir, "-c", "credential.helper=", "clone", "-q", server.UrlWithCredentials(remoteUrl), work);
+            File.WriteAllText(Path.Combine(work, file), $"# {name}\n");
+            Git(work, "add", "-A"); Git(work, "commit", "-qm", "contenuto");
+            Git(work, "-c", "credential.helper=", "push", "-q", "-u", "origin", "main");
+        }
+
+        /// <summary>
+        /// Un account con password salvata SOLO nel DB di MdExplorer, come faceva il dialogo account
+        /// fino allo sprint. Dalla sessione NHibernate del Service (mai un'altra libreria SQLite sul
+        /// DB in WAL), Guid come BLOB di 16 byte, che è come li scriveva NHibernate.
+        /// </summary>
+        private static void SeedLegacyDbCredential(AgentCityContext ctx, string repositoryPath, string user, string password)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+            var credId = Guid.NewGuid().ToByteArray();
+            var now = DateTime.UtcNow;
+            db.BeginTransaction();
+            db.CreateSQLQuery(@"INSERT INTO GitCredential (Id, AccountName, AccountType, AuthUsername, HttpsPassword, IsActive, CreatedAt, UpdatedAt)
+                                VALUES (:id, 'Server di prova', 'Generic', :user, :pwd, 1, :now, :now)")
+                .SetParameter("id", credId).SetParameter("user", user).SetParameter("pwd", password).SetParameter("now", now)
+                .ExecuteUpdate();
+            db.CreateSQLQuery(@"INSERT INTO GitRepositoryAccount (Id, RepositoryPath, CredentialId, PreferredAuthMethod, IsActive, CreatedAt, UpdatedAt)
+                                VALUES (:id, :path, :cred, 'username_password', 1, :now, :now)")
+                .SetParameter("id", Guid.NewGuid().ToByteArray()).SetParameter("path", repositoryPath).SetParameter("cred", credId).SetParameter("now", now)
+                .ExecuteUpdate();
+            db.Commit();
+        }
+
+        private sealed record Outcome(bool Success, string Error, string Raw);
+
+        private static async Task<Outcome> PostJson(AgentCityContext ctx, string route, object body)
+        {
+            var resp = await ctx.Client.PostAsJsonAsync(route, body);
+            var raw = await resp.Content.ReadAsStringAsync();
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                var ok = doc.RootElement.TryGetProperty("success", out var s) && s.GetBoolean();
+                var err = doc.RootElement.TryGetProperty("error", out var e) ? e.ToString() : (ok ? null : raw);
+                return new Outcome(ok, err, raw);
+            }
+            catch (JsonException)
+            {
+                return new Outcome(false, raw, raw);
+            }
+        }
+
+        private static async Task<JsonElement> GetJson(AgentCityContext ctx, string route)
+        {
+            var raw = await ctx.Client.GetStringAsync(route);
+            return JsonDocument.Parse(raw).RootElement.Clone();
+        }
+
+        private static (int Code, string Out) Git(string cwd, params string[] args)
+        {
+            var psi = new ProcessStartInfo("git")
+            {
+                WorkingDirectory = cwd, UseShellExecute = false,
+                RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
+            };
+            foreach (var a in args) psi.ArgumentList.Add(a);
+            using var p = Process.Start(psi)!;
+            var stdout = p.StandardOutput.ReadToEnd();
+            var stderr = p.StandardError.ReadToEnd();
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+                throw new InvalidOperationException($"git {string.Join(' ', args)} in {cwd} → exit {p.ExitCode}: {stderr}");
+            return (p.ExitCode, stdout);
+        }
+
+        private static bool GitAvail()
+        {
+            try { return Git(Path.GetTempPath(), "--version").Code == 0; } catch { return false; }
+        }
+    }
+}

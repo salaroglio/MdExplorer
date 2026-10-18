@@ -1,11 +1,12 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
+import { E2eDialogComponent, E2eDialogData } from '../e2e-dialog/e2e-dialog.component';
 import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { Observable, BehaviorSubject, Subject, Subscription, fromEvent } from 'rxjs';
-import { auditTime, takeUntil } from 'rxjs/operators';
+import { auditTime, distinctUntilChanged, filter, map, takeUntil } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
@@ -13,6 +14,10 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
+import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
+import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
+import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
+import { CodeRoot, CodeRootsService } from '../../services/code-roots.service';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -30,14 +35,14 @@ import { ProjectSettingsService } from '../../../projects/services/project-setti
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
+import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
-import { IndexingProgressService } from '../../services/indexing-progress.service';
-import { IndexingProgressSnackComponent } from '../indexing-progress-snack/indexing-progress-snack.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -73,7 +78,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   
   // Contatore delle directory indicizzate
   private indexedFoldersCount = 0;
-  private currentSnackbarRef: any = null;
 
   // State preservation for tree expansion during branch switch
   private expansionStateBeforeRefresh: Set<string> | null = null;
@@ -108,7 +112,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
-      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder" || node.type == "externalAppRoot" || node.type == "externalAppCategory",
+      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder" || node.type == "externalAppRoot" || node.type == "externalAppCategory"
+        || node.type == "codeRootFolder" || (node.type == "codeRoot" && node.codeRootStatus === 'Linked'),
       name: node.name,
       level: level,
       path: node.path,
@@ -124,10 +129,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       developmentTags: node.developmentTags,
       // True when the folder owns a generated TOC file (drives the TOC icon)
       hasToc: node.hasToc,
+      // *.agent.md detection is purely name-based: no backend round-trip needed
+      isAgentFile: (node.type === 'mdFile' || node.type === 'mdFileTimer')
+        && !!node.name && node.name.toLowerCase().endsWith('.agent.md'),
       // Folder "reveal extra content" (eye) state
       hasExtraContent: node.hasExtraContent,
       extraLoaded: node.extraLoaded,
       isExtra: node.isExtra,
+      isTextFile: node.isTextFile,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
@@ -137,7 +146,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       appExecutable: node.appExecutable,
       appArgs: node.appArgs,
       appIcon: node.appIcon,
-      appDescription: node.appDescription
+      appDescription: node.appDescription,
+      // Radice di codice esterna
+      codeRootStatus: node.codeRootStatus,
+      codeRootReason: node.codeRootReason
     };
   }
   // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
@@ -170,6 +182,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isExternalAppCategory = (_: number, node: IFileInfoNode) => node.type == "externalAppCategory";
   isExternalApp = (_: number, node: IFileInfoNode) => node.type == "externalApp";
   isExternalAppNotInstalled = (_: number, node: IFileInfoNode) => node.type == "externalAppNotInstalled";
+  // Radici di codice esterne (R9): la radice @alias, le sue cartelle e i suoi file, in sola lettura
+  isCodeRoot = (_: number, node: IFileInfoNode) => node.type == "codeRoot";
+  isCodeRootFolder = (_: number, node: IFileInfoNode) => node.type == "codeRootFolder";
+  isCodeRootFile = (_: number, node: IFileInfoNode) => node.type == "codeRootFile";
 
   isImageIcon(icon: string | undefined): boolean {
     if (!icon) return false;
@@ -205,7 +221,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
-    private indexingProgressService: IndexingProgressService
+    private codeRootsService: CodeRootsService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -244,16 +260,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.markForCheck();
     });
 
-    // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
-    // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
-    // IndexingProgressService e popolato dall'evento SignalR knowledgeProgress.
-    // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
-    // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
-    // a parsingProjectStop + 1.5s.
-    this.mdServerMessages.parsingProjectStart$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.indexingProgressService.reset();
-      this.openIndexingSnackbar();
-    });
+    // L'avanzamento «Costruzione della conoscenza» non sta più qui: è una riga del pannello dei lavori in sfondo
+    // (BackgroundWorkService + BackgroundWorkPanelComponent, punto 2d del 14/10/2026), che ascolta parsingProjectStart,
+    // knowledgeProgress e parsingProjectStop. La MatSnackBar di prima la chiudeva qualunque altro avviso.
 
     // Folder spinner sulla tree (independent dal progresso globale)
     this.mdServerMessages.folderIndexingStart$.pipe(takeUntil(this.destroy$)).subscribe(data => {
@@ -270,27 +279,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         node.indexingStatus = 'completed';
         this.changeDetectorRef.markForCheck();
       }
-      // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
-      // sul componente IndexingProgressSnackComponent.
-    });
-
-    // Avanzamento globale "Building knowledge" alimentato dal backend dopo
-    // ogni cartella nella fase ParseLinks.
-    this.mdServerMessages.knowledgeProgress$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      const processed = data?.processed ?? 0;
-      const total = data?.total ?? 0;
-      const percent = data?.percent ?? 0;
-      this.indexingProgressService.setProgress(processed, total, percent);
-    });
-
-    // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
-    this.mdServerMessages.parsingProjectStop$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.indexingProgressService.setComplete();
-      setTimeout(() => {
-        if (this.currentSnackbarRef) {
-          this.currentSnackbarRef.dismiss();
-        }
-      }, 1500);
+      // Il progresso globale è una riga del pannello dei lavori in sfondo (BackgroundWorkService).
     });
 
     // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
@@ -320,6 +309,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Creazione cartella (queued + debounced)
     this.mdServerMessages.folderCreated$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
+    });
+
+    // Contenuto non-.md di una cartella cambiato sul disco (queued + debounced): occhio e file rivelati.
+    this.mdServerMessages.folderContentChanged$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+      this.enqueueEvent(() => this.handleFolderContentChanged(data), 'folderContentChanged');
+    });
+
+    // Riga compattata spezzata: se era aperta, restano aperte testa e coda (le chiavi cambiano).
+    this.mdFileService.compactChainBroken$.pipe(takeUntil(this.destroy$)).subscribe(({ rowKey, headKey, tailKey }) => {
+      // trackBy del treeControl = fullPath: a runtime l'expansionModel contiene stringhe.
+      const model = this.treeControl.expansionModel as unknown as { isSelected(k: string): boolean; select(...k: string[]): void };
+      if (model.isSelected(rowKey)) model.select(headKey, tailKey);
     });
 
     // Cancellazione cartella (queued + debounced)
@@ -392,6 +393,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
  
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
+    // Radici di codice esterne (sprint 2026-10-12, F5): all'apertura del progetto, se qualcuna qui non si può usare,
+    // un avviso — una volta per sessione, con «non ricordarmelo più» salvato nel database dell'utente.
+    this.projectsService.currentProjects$.pipe(
+      map(p => p?.path),
+      filter((path): path is string => !!path),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$),
+    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); });
+
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
       this.isP2PAvailable = available;
@@ -447,6 +457,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // stack sincrono (raffica) collassano in un solo render nel microtask successivo,
   // evitando il rendering rientrante che corrompe il differ del MatTree.
   private _pendingTreeData: any[] | null = null;
+  // L'ultimo albero del progetto: le radici esterne si ridisegnano senza aspettare un'emissione del dataStore
+  private lastProjectTreeData: any[] = [];
   private _treeRenderScheduled = false;
 
   private scheduleTreeRender(): void {
@@ -456,12 +468,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this._treeRenderScheduled = false;
       const data = this._pendingTreeData;
       this._pendingTreeData = null;
-      if (!data || data.length === 0) { return; }
+      if (!data || (data.length === 0 && this.codeRootNodes.length === 0)) { return; }
 
       // Inizializza ricorsivamente tutte le proprietà
       this.initializeNodeProperties(data);
-      // Una NUOVA array per il change detection con OnPush
-      this.dataSource.data = [...data];
+      this.lastProjectTreeData = data;
+      // Una NUOVA array per il change detection con OnPush; le radici esterne in fondo, dopo il progetto
+      this.dataSource.data = [...data, ...this.codeRootNodes];
 
       // Restore expansion state if we have saved state (from branch switch)
       if (this.expansionStateBeforeRefresh !== null) {
@@ -524,6 +537,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
     // the folder currently shows revealed isExtra children.
     if (item && item.type === 'folder') {
+      // Il flag dell'occhio dal dataStore, non dalla riga: il CDK tree riusa la riga con i dati
+      // vecchi, e un flag cambiato sul disco (folderContentChanged) non ci arriverebbe.
+      const known = this.mdFileService.getFolderExtraContent(this.getFolderRevealPath(item));
+      if (known !== undefined) item.hasExtraContent = known;
       item.extraLoaded = this.folderHasRevealedExtras(item);
     }
 
@@ -572,6 +589,23 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       } else if (idx > 0) {
         const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
         segmentItem.relativePath = `${baseRel}/${extra}`;
+      }
+
+      // Occhio "reveal contenuto extra" su OGNI segmento che ha contenuto nascosto: l'ultimo
+      // prende il flag della riga (compactSingleNode ci copia quello del segmento profondo), gli
+      // intermedi il proprio da compactedSegments. Il reveal di un intermedio spezza la catena
+      // in quel punto (addFileToParent → breakCompactFolderAt): prima del 28/09/2026 l'occhio
+      // c'era solo sull'ultimo, e `scripts/` sotto `login.e2e` restava irraggiungibile.
+      // I tag del segmento: senza, il menu non sapeva che la cartella è già program (e «togli» la rimarcava)
+      if (idx >= 0) {
+        segmentItem.developmentTags = node.compactedSegments[idx].developmentTags ?? (idx === 0 ? node.developmentTags : undefined);
+      }
+      if (idx >= 0) {
+        segmentItem.hasExtraContent = this.mdFileService.getFolderExtraContent(segment.fullPath)
+          ?? (idx === node.compactedSegments.length - 1
+            ? node.hasExtraContent
+            : !!node.compactedSegments[idx].hasExtraContent);
+        segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
       }
     }
 
@@ -952,6 +986,41 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.markAssistant.launchFolderActions({ folderFullPath, folderName });
   }
 
+  /** A test written in markdown (sprint 2026-09-26-Test-E2E-Da-Markdown): recognised by its name. */
+  isE2eFile(node: MdFile): boolean {
+    return !!node && (node.type === 'mdFile' || node.type === 'mdFileTimer') && /\.e2e\.md$/i.test(node.name || '');
+  }
+
+  /** The fact_check icon next to a .e2e.md: opens its tests window, not the document. */
+  openE2eFromIcon(node: MdFile, event: MouseEvent) {
+    event.stopPropagation();
+    this.openE2eTests(node);
+  }
+
+  /**
+   * The e2e tests window of a .e2e.md or of a folder (all the tests below it): settings (the particular
+   * wins over the general), checks, prerequisites, launch.
+   */
+  openE2eTests(node: MdFile) {
+    if (node == null) return;
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const project = this.projectsService.currentProjects$.value;
+    const projectPath = project?.path || '';
+    // The project root (onRightClick builds the "root" item with fullPath "root", not a real path):
+    // settings for every test of the project.
+    const isRoot = node.name === 'root' && (!node.fullPath || node.fullPath === 'root');
+    const path = isRoot ? projectPath : (lastSeg ? lastSeg.fullPath : node.fullPath);
+    const name = isRoot ? (project?.name || projectPath) : (lastSeg ? lastSeg.name : node.name);
+    this.dialog.open(E2eDialogComponent, {
+      data: { path, name, projectPath } as E2eDialogData,
+      width: '860px',
+      maxWidth: '95vw',
+      disableClose: true,
+    });
+  }
+
   /**
    * Opens the folder's existing TOC file (<dirname>.md.directory) directly,
    * without regenerating it. Wired to the document icon shown on folder nodes
@@ -961,6 +1030,37 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Stop the click from bubbling to the folder row (which would toggle it).
     event.stopPropagation();
     this.navigateToTocFile(node);
+  }
+
+  /**
+   * Opens the Agent Launch dialog for a *.agent.md file. Wired to the robot icon
+   * shown on nodes whose node.isAgentFile === true.
+   */
+  openAgentLaunchDialog(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the row (which would open the document).
+    event.stopPropagation();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentLaunchDialogComponent, {
+      width: '700px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
+  }
+
+  /** Per-user scheduling of a *.agent.md agent (context-menu entry). */
+  openAgentScheduling(node: MdFile) {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentScheduleDialogComponent, {
+      width: '760px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
   }
 
   /**
@@ -990,7 +1090,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   revealFolderExtras(node: MdFile) {
     const parentFullPath = this.getFolderRevealPath(node);
     this.mdFileService.revealFolderExtras(parentFullPath).subscribe({
-      next: () => { this.treeControl.expand(node); },
+      // Espande il flat node REALE del tree, non `node` com'era prima: quando il reveal parte
+      // dal menù di un segmento compattato, `node` è un MdFile sintetico il cui fullPath è
+      // quello del segmento foglia, mentre l'expansionModel (trackBy fullPath) conosce la riga
+      // compatta con il fullPath del PRIMO segmento → expand(node) non apriva la riga.
+      next: () => { this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node); },
       error: (err) => {
         console.error('[MdTreeComponent] revealFolderExtras failed:', err);
         this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
@@ -1016,6 +1120,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** True when the folder currently shows revealed extra content (isExtra children). */
   private folderHasRevealedExtras(node: MdFile): boolean {
     return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
+  }
+
+  /**
+   * Flat node of the rendered tree representing the folder at `path` — direct fullPath match
+   * or, for compact rows, a match on any compacted segment. Needed because the expansion
+   * model is keyed by the row's own fullPath (first segment for compact rows).
+   */
+  private findFlatFolder(path: string): IFileInfoNode | null {
+    const target = path.toLowerCase();
+    return this.treeControl.dataNodes?.find(n => n.type === 'folder' && (
+      n.fullPath?.toLowerCase() === target ||
+      (n.isCompacted && n.compactedSegments?.some(s => s.fullPath.toLowerCase() === target))
+    )) ?? null;
   }
   
   exportFolderToWord(node: MdFile) {
@@ -1532,7 +1649,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
   // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index: number, node: MdFile): string {
-    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    // La forma della compattazione fa parte dell'identità della riga: il CDK tree (v15) riusa
+    // la riga con lo stesso trackBy SENZA aggiornarne i dati, e una catena spezzata al primo
+    // segmento tiene lo stesso fullPath → restava disegnata come `a / b / c` (28/09/2026).
+    // L'espansione resta chiavata sul solo fullPath (treeControl), quindi non si perde.
+    const key = node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    return node.isCompacted ? `${key}|${node.compactedPath}` : key;
   }
   
   // Helper per verificare se un nodo è selezionato
@@ -1579,40 +1701,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   
-  // Gestione intelligente delle notifiche di indicizzazione
-  /**
-   * Apre la snackbar custom "Building knowledge" in basso a destra.
-   * No-op se ne esiste già una. Il contenuto (IndexingProgressSnackComponent)
-   * si abbevera da IndexingProgressService — non vanno chiamati update qui:
-   * la progress avanza via setProgress() / setComplete() del service.
-   *
-   * Stile: la classe `.indexing-progress-snackbar` in styles.scss controlla
-   * margine, width e padding del contenitore Material.
-   */
-  private openIndexingSnackbar(): void {
-    if (this.currentSnackbarRef) return;
-
-    this.currentSnackbarRef = this.snackBar.openFromComponent(
-      IndexingProgressSnackComponent,
-      {
-        duration: 0, // Vive finché parsingProjectStop non innesca dismiss
-        horizontalPosition: 'right',
-        verticalPosition: 'bottom',
-        panelClass: ['indexing-progress-snackbar']
-      }
-    );
-
-    this.currentSnackbarRef.afterDismissed().subscribe(() => {
-      this.currentSnackbarRef = null;
-    });
-  }
-
-  // RIMOSSI: showIndexingSnackbar e updateSnackbarContent.
-  // Prima venivano chiamati per ogni folderIndexingComplete (1 snackbar nuova
-  // o un update con dismiss+riapri di fallback) → flicker visivo.
-  // Adesso la snackbar è UNA sola, aperta a parsingProjectStart, aggiornata
-  // tramite IndexingProgressService dal knowledgeProgress event.
-
   // ── Event Queue with debounce + batching ──
 
   private enqueueEvent(handler: () => void, label: string = ''): void {
@@ -1678,6 +1766,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Storm batch processing ──
 
   private processStormChanges(changes: any[]): void {
+    let createdFilesCount = 0;
+    let lastCreatedFile: any = null;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -1688,7 +1778,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             if (isDir) {
               this.handleFolderCreated(change);
             } else {
-              this.handleNewMarkdownFileCreated(change);
+              // suppressNavigation: durante una raffica non si naviga a ogni
+              // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
+              this.handleNewMarkdownFileCreated(change, true);
+              createdFilesCount++;
+              lastCreatedFile = change;
             }
             break;
 
@@ -1717,7 +1811,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
               if (change.oldFullPath) {
                 this.handleMarkdownFileDeleted({ fullPath: change.oldFullPath, name: '' });
               }
-              this.handleNewMarkdownFileCreated(change);
+              this.handleNewMarkdownFileCreated(change, true);
             }
             break;
         }
@@ -1726,12 +1820,63 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.changeDetectorRef.markForCheck();
+
+    if (createdFilesCount > 0) {
+      // Il pulsante d'azione apre l'ultimo file inserito dalla raffica
+      // (i change sono ordinati per timestamp dal backend).
+      const snackRef = this.snackBar.open(
+        this.translate.instant('MD_TREE.STORM_FILES_CREATED', { count: createdFilesCount }),
+        this.translate.instant('MD_TREE.OPEN_LAST_CREATED', { name: lastCreatedFile.name }),
+        {
+          duration: 8000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom',
+          panelClass: ['success-snackbar']
+        }
+      );
+      snackRef.onAction().pipe(takeUntil(this.destroy$)).subscribe(() => {
+        this.openStormCreatedFile(lastCreatedFile);
+      });
+    }
+  }
+
+  /**
+   * Apre un file creato durante una raffica (azione della snackbar riassuntiva):
+   * espande il tree fino al file, lo seleziona e naviga al documento —
+   * gli stessi STEP 7-10 di handleNewMarkdownFileCreated nel caso singolo.
+   */
+  private openStormCreatedFile(change: any): void {
+    const mdFileForNavigation: MdFile = {
+      name: change.name,
+      path: change.path,
+      relativePath: change.relativePath,
+      fullPath: change.fullPath,
+      fullDirectoryPath: this.getParentDirPath(change.fullPath),
+      type: 'mdFile',
+      level: change.level ?? 0,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
+
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
+    this.changeDetectorRef.markForCheck();
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.router.navigate(['/main/navigation/document']);
   }
 
   // ── SignalR event handlers ──
 
-  // Gestisce la creazione di un nuovo file markdown
-  private handleNewMarkdownFileCreated(fileData: any): void {
+  // Gestisce la creazione di un nuovo file markdown.
+  // suppressNavigation=true (batch storm): il file viene solo aggiunto al tree,
+  // senza navigare al documento né mostrare la snackbar per-file.
+  private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
     if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
@@ -1798,6 +1943,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // STEP 6: Forza change detection per aggiornare il tree
     this.changeDetectorRef.detectChanges();
+
+    if (suppressNavigation) {
+      return;
+    }
 
     // STEP 7: Crea un MdFile valido per la navigazione
     const mdFileForNavigation: MdFile = {
@@ -1962,6 +2111,25 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     console.log('✅ [handleFolderCreated] Cartella aggiunta al tree:', name);
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Il contenuto non-.md di una cartella è cambiato sul disco (file creati, cancellati, rinominati;
+   * cartelle senza markdown). Il flag dell'occhio arriva già ricalcolato dal server; se l'occhio
+   * è aperto, i file rivelati si aggiornano. Cartella non nel tree (mai espansa): niente da fare,
+   * il flag arriverà giusto al caricamento.
+   */
+  private handleFolderContentChanged(data: any): void {
+    const folder = data?.folderFullPath || data?.FolderFullPath;
+    const hasExtra = !!(data?.hasExtraContent ?? data?.HasExtraContent);
+    const hasRevealable = !!(data?.hasRevealableContent ?? data?.HasRevealableContent);
+    if (!folder || !this.mdFileService.setFolderExtraContent(folder, hasExtra, hasRevealable)) return;
+    if (this.mdFileService.hasRevealedExtras(folder)) {
+      this.mdFileService.refreshFolderExtras(folder).subscribe({
+        error: err => console.error('[MdTreeComponent] refreshFolderExtras failed:', err),
+      });
+    }
     this.changeDetectorRef.markForCheck();
   }
 
@@ -2221,11 +2389,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Pulisci event queue e batch timer
     this.clearEventQueue();
 
-    // Chiudi snackbar attiva
-    if (this.currentSnackbarRef) {
-      this.currentSnackbarRef.dismiss();
-    }
-
     // Unsubscribe scroll listener
     this.scrollSub?.unsubscribe();
   }
@@ -2269,9 +2432,17 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (response) => {
         console.log('setDevelopmentTags success', response);
         node.developmentTags = newTags;
+        // il nodo può essere quello sintetico di un segmento: i tag vanno sull'albero vero, e una cartella appena
+        // marcata program esce dalla riga compattata
+        this.mdFileService.applyDevelopmentTags(node.fullPath, newTags);
         const action = newTags.includes(tag) ? 'added' : 'removed';
         this.snackBar.open(this.translate.instant('MD_TREE.TAG_TOGGLED', { tag, action }), 'OK', { duration: 2000 });
         this.changeDetectorRef.markForCheck();
+        // Grafo del codice (D16): marcare una cartella come ambiente di sviluppo apre la finestra che chiede il
+        // linguaggio e, confermando, avvia l'analisi. Togliere il segno non apre niente.
+        if (tag === 'program' && action === 'added') {
+          this.openDevEnvironmentDialog(node, projectRoot, true);
+        }
       },
       error: (error) => {
         console.error('setDevelopmentTags error', error);
@@ -2281,25 +2452,192 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * La finestra «Ambiente di sviluppo» (grafo del codice, D16): scelta del linguaggio e avvio dell'analisi.
+   * Si apre marcando la cartella e, dal menu, su una cartella già marcata.
+   */
+  openDevEnvironmentDialog(node: MdFile, projectRoot?: string | null, justMarked = false): void {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) {
+      this.snackBar.open(this.translate.instant('MD_TREE.CANNOT_DETERMINE_ROOT'), 'OK', { duration: 3000 });
+      return;
+    }
+    const data: DevEnvironmentDialogData = { folderPath: node.fullPath, folderName: node.name, projectRoot: root, justMarked };
+    this.dialog.open(DevEnvironmentDialogComponent, { width: '560px', data, disableClose: false })
+      .afterClosed().subscribe((result?: DevEnvironmentDialogResult) => {
+        if (result?.open === 'graph') { this.openCodeGraph(node, root); }
+        if (result?.open === 'report') { this.openCodeGraphReport(node, root); }
+      });
+  }
+
+  /** La pagina «Grafo del codice» di una cartella program (D17): una voce di navigazione di tipo codegraph. */
+  async openCodeGraph(node: MdFile, projectRoot?: string | null): Promise<void> {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) { return; }
+    // La cartella relativa alla radice del progetto si ricava da fullPath: per una sottocartella caricata dopo
+    // (grafo-del-codice/esempio) relativePath è il percorso ASSOLUTO, e la pagina chiedeva un grafo che non esiste
+    // (misurato l'11/10/2026 sul demo). Per una cartella compatta vale l'ultimo segmento, come altrove nell'albero.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const full = ((lastSeg ? lastSeg.fullPath : node.fullPath) || '').replace(/\\/g, '/');
+    const rootNorm = root.replace(/\\/g, '/').replace(/\/+$/, '');
+    const folder = full.startsWith(rootNorm + '/')
+      ? full.substring(rootNorm.length + 1).replace(/\/+$/, '')
+      : (node.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    await this.openCodeGraphFolder(root, folder, node.name, node.path, node.level, node.fullPath || root);
+  }
+
+  /**
+   * La pagina del grafo per una cartella del progetto o per una radice di codice esterna («@alias», F5): non serve un
+   * nodo dell'albero, una radice esterna non ne ha.
+   */
+  async openCodeGraphFolder(root: string, folder: string, title: string, path?: string, level = 0, anchorFullPath?: string): Promise<void> {
+    const page = new MdFile(this.translate.instant('MD_TREE.CODE_GRAPH') + ' · ' + title, path ?? root, level, false);
+    page.type = 'codegraph';
+    page.relativePath = folder;
+    page.fullPath = (anchorFullPath || root) + '/.codegraph' + (folder.startsWith('@') ? '-' + folder.substring(1) : '');
+    page.codeGraphProjectPath = root;
+    page.codeGraphFolder = folder;
+    await this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(page);
+    this.navService.setNewNavigation(page);
+  }
+
+  private remindUnlinkedCodeRoots(projectRoot: string): void {
+    if (!this.codeRootsService.shouldRemind(projectRoot)) { return; }
+    this.codeRootsService.reminder(projectRoot).subscribe({
+      next: roots => {
+        // il progetto è cambiato nel frattempo: l'avviso riguarderebbe quello vecchio
+        if (!roots.length || this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+        const data: CodeRootsReminderData = { projectRoot, roots };
+        this.dialog.open(CodeRootsReminderDialogComponent, { width: '560px', data })
+          .afterClosed().subscribe(result => { if (result === 'open') { this.openCodeRootsDialog(); } });
+      },
+      // un .development.yml che non si legge non deve bloccare l'apertura: lo si dice
+      error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  /** «Radici di codice esterne…» dal menu della radice del progetto (sprint 2026-10-12, F5). */
+  openCodeRootsDialog(): void {
+    const root = this.getProjectRoot();
+    if (!root) {
+      this.snackBar.open(this.translate.instant('MD_TREE.CANNOT_DETERMINE_ROOT'), 'OK', { duration: 3000 });
+      return;
+    }
+    const data: CodeRootsDialogData = { projectRoot: root };
+    this.dialog.open(CodeRootsDialogComponent, { width: '720px', data })
+      .afterClosed().subscribe((result?: CodeRootsDialogResult) => {
+        // collegata, scollegata, aggiunta: l'albero lo deve dire subito
+        this.loadCodeRootNodes(root);
+        if (result?.open === 'graph') { this.openCodeGraphFolder(root, result.folder, result.folder); }
+        if (result?.open === 'report') { this.openCodeGraphReportAt(root); }
+      });
+  }
+
+  /** Il report del grafo del codice: .md/codegraph/report.md, un documento markdown come gli altri. */
+  async openCodeGraphReport(node: MdFile, projectRoot?: string | null): Promise<void> {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) { return; }
+    await this.openCodeGraphReportAt(root, node.path, node.level);
+  }
+
+  private async openCodeGraphReportAt(root: string, path?: string, level = 0): Promise<void> {
+    const rel = '.md/codegraph/report.md';
+    const report = new MdFile('report.md', path ?? root, level, false);
+    report.type = 'mdFile';
+    report.relativePath = rel;
+    report.fullPath = root + '/' + rel;
+    await this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(report);
+    this.navService.setNewNavigation(report);
+  }
+
+  // ── Radici di codice esterne nell'albero (sprint 2026-10-12, R9) ──
+  // Nodi annidati tenuti QUI, fuori dal dataStore dei documenti: niente indicizzazione, niente FileSystemWatcher,
+  // niente crea/rinomina/sposta. I figli si chiedono al backend a ogni apertura (non c'è un osservatore che li tenga
+  // aggiornati); fullPath = percorso assoluto, unico e stabile per l'espansione, path = percorso logico @alias/….
+  private codeRootNodes: MdFile[] = [];
+  private codeRootNodesByFullPath = new Map<string, MdFile>();
+
+  private loadCodeRootNodes(projectRoot: string): void {
+    this.codeRootsService.list(projectRoot).subscribe({
+      next: roots => {
+        if (this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+        this.codeRootNodesByFullPath.clear();
+        this.codeRootNodes = roots.map(r => this.codeRootNode(r));
+        this.renderCodeRootNodes();
+      },
+      error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  private codeRootNode(r: CodeRoot): MdFile {
+    const linked = r.status === 'Linked';
+    const node = new MdFile('@' + r.alias, '@' + r.alias, 0, linked);
+    node.type = 'codeRoot';
+    node.relativePath = '@' + r.alias;
+    // collegata: la cartella vera (chiave dell'espansione); non collegata: l'alias, che non è un percorso
+    node.fullPath = linked && r.rootPath ? r.rootPath : '@' + r.alias;
+    node.codeRootStatus = r.status;
+    node.codeRootReason = r.reason;
+    node.childrens = [];
+    this.codeRootNodesByFullPath.set(node.fullPath, node);
+    return node;
+  }
+
+  private renderCodeRootNodes(): void {
+    this._pendingTreeData = this.lastProjectTreeData;
+    this.scheduleTreeRender();
+  }
+
+  /** Clic su @alias o su una sua cartella: apre (chiedendo i figli al backend) o chiude. Non collegata → la finestra. */
+  onCodeRootFolderClick(flat: MdFile): void {
+    if (flat.type === 'codeRoot' && flat.codeRootStatus !== 'Linked') { this.openCodeRootsDialog(); return; }
+    if (this.treeControl.isExpanded(flat)) { this.treeControl.collapse(flat); return; }
+    const nested = this.codeRootNodesByFullPath.get(flat.fullPath);
+    const root = this.getProjectRoot();
+    if (!nested || !root) { return; }
+    this.codeRootsService.browse(root, flat.path).subscribe({
+      next: entries => {
+        nested.childrens = entries.map(e => {
+          const child = new MdFile(e.name, e.path, flat.level + 1, e.isFolder);
+          child.type = e.isFolder ? 'codeRootFolder' : 'codeRootFile';
+          child.relativePath = e.path;
+          child.fullPath = e.fullPath;
+          child.isTextFile = e.isText;
+          child.childrens = [];
+          if (e.isFolder) { this.codeRootNodesByFullPath.set(e.fullPath, child); }
+          // un file che non si è potuto leggere lo dice (tooltip sulla riga), non sparisce
+          if (e.unreadable) { child.codeRootReason = e.unreadable; }
+          return child;
+        });
+        this.treeControl.expand(flat);
+        this.renderCodeRootNodes();
+      },
+      error: err => this.snackBar.open(this.translate.instant('MD_TREE.CODE_ROOT_BROWSE_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  codeRootStatusLabel(node: MdFile): string {
+    return this.translate.instant('CODE_ROOTS.STATUS_' + (node.codeRootStatus || '').toUpperCase());
+  }
+
+  isCodeRootItem(item: MdFile): boolean {
+    return item?.type === 'codeRoot' || item?.type === 'codeRootFolder' || item?.type === 'codeRootFile';
+  }
+
+  /**
    * Get the project root from the tree data source
    */
   private getProjectRoot(): string | null {
-    const data = this.dataSource.data;
-    if (data && data.length > 0) {
-      // Look for the node with name 'root'
-      const rootNode = data.find(node => node.name === 'root');
-      if (rootNode && rootNode.fullPath) {
-        console.log('Found root node:', rootNode.fullPath);
-        return rootNode.fullPath;
-      }
-      // Fallback to first node if 'root' not found
-      const firstNode = data[0];
-      if (firstNode && firstNode.fullPath) {
-        console.log('Using first node as root:', firstNode.fullPath);
-        return firstNode.fullPath;
-      }
-    }
-    return null;
+    // Il progetto aperto, come lo sa la toolbar. Fino al 12/10/2026 si cercava un nodo «root» nell'albero e, se non
+    // c'era, si prendeva il PRIMO nodo: il percorso di una cartella qualsiasi (es. .claude/commands) diventava la
+    // radice del progetto per «Ambiente di sviluppo» e per il grafo. Meglio nessuna radice (i chiamanti lo dicono).
+    const current = this.projectsService.currentProjects$.value?.path;
+    if (current) { return current; }
+    const rootNode = this.dataSource.data?.find(node => node.name === 'root');
+    return rootNode?.fullPath && rootNode.fullPath !== 'root' ? rootNode.fullPath : null;
   }
 
 }

@@ -1,0 +1,11 @@
+h2 { display: flex; align-items: center; gap: 8px; }
+.leave-copy {
+  min-width: 460px; max-width: 640px;
+  h3 { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
+  ul { margin: 2px 0 8px; padding-left: 20px; max-height: 160px; overflow: auto; }
+  li { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; }
+  .leave-copy-repo-name { font-size: 12px; opacity: 0.75; }
+  .leave-copy-label { display: block; font-size: 12px; font-weight: 600; margin: 8px 0 2px; }
+  .leave-copy-message { width: 100%; }
+  .leave-copy-intro, .leave-copy-note { font-size: 13px; opacity: 0.85; }
+}

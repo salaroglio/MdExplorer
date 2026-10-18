@@ -85,8 +85,14 @@
     <div *ngIf="connectionState === 'error'" class="status-error">
       <mat-icon>error</mat-icon>
       <span>{{ 'GIT_CHAT.CONNECTION_ERROR' | translate }}</span>
-      <p class="status-hint">{{ 'GIT_CHAT.CONNECTION_ERROR_HINT' | translate }}</p>
+      <p class="status-hint">{{ (relayErrorKey || 'GIT_CHAT.CONNECTION_ERROR_HINT') | translate:{ code: roomInfo?.relayCode } }}</p>
     </div>
+  </div>
+
+  <!-- Il segreto del progetto non è ancora dei colleghi: finché non lo hanno, non entrano nella stanza -->
+  <div class="key-notice" *ngIf="connectionState === 'connected' && roomInfo?.keyState && roomInfo?.keyState !== 'shared'">
+    <mat-icon>key</mat-icon>
+    <span>{{ (roomInfo?.keyState === 'notPushed' ? 'GIT_CHAT.KEY_NOT_PUSHED' : 'GIT_CHAT.KEY_NOT_COMMITTED') | translate }}</span>
   </div>
 
   <!-- Messages container -->

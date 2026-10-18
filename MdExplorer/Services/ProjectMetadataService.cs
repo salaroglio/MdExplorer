@@ -21,6 +21,15 @@ namespace MdExplorer.Services
         void SetDescription(string projectPath, string description);
         IList<ProjectParticipant> GetParticipants(string projectPath);
         void SetParticipants(string projectPath, IList<ProjectParticipant> participants);
+        AgentCityConfig GetAgentCity(string projectPath);
+        AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config);
+
+        /// <summary>
+        /// Il segreto del PROGETTO (<c>agentCity.roomSecret</c>), che apre la sua stanza sul relay per la
+        /// città e per la chat. Se manca lo genera e lo scrive in <c>.development.yml</c> senza accendere la
+        /// città: <c>Created</c> = true vuol dire che va committato e pushato perché i colleghi lo abbiano.
+        /// </summary>
+        (string Secret, bool Created) EnsureRoomSecret(string projectPath);
         ProjectIconConfig GetIcon(string projectPath);
         string GetIconAbsolutePath(string projectPath);
         void SetIcon(string projectPath, byte[] pngBytes);
@@ -30,6 +39,14 @@ namespace MdExplorer.Services
     public class ProjectMetadataService : IProjectMetadataService
     {
         private const string FileName = ".development.yml";
+
+        /// <summary>
+        /// Il testo del file con le righe ritirate già tolte e quelle diventate un elenco già convertite
+        /// (<see cref="MdExplorer.Features.Configuration.RetiredConfigKeys"/>): chi legge e poi riscrive il file non
+        /// perde un valore solo perché il progetto non è stato ancora riaperto.
+        /// </summary>
+        private static string ReadConfigText(string filePath)
+            => MdExplorer.Features.Configuration.RetiredConfigKeys.Remove(File.ReadAllText(filePath), out _);
         // Icon lives in .mdMetadata/ (NOT .md/) because .md/ is the working
         // folder ignored by .gitignore — committable artifacts must live in a
         // folder that follows the project on clone/share.
@@ -60,7 +77,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return null;
@@ -101,7 +118,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -139,7 +156,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return new List<ProjectParticipant>();
@@ -180,7 +197,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -218,6 +235,227 @@ namespace MdExplorer.Services
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
         }
 
+        public AgentCityConfig GetAgentCity(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath))
+                return null;
+
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath))
+                return null;
+
+            try
+            {
+                var yaml = ReadConfigText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml))
+                    return null;
+
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build();
+
+                var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
+                return config?.AgentCity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read agentCity config from {FilePath}", filePath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Git <b>con un remoto <c>origin</c></b>. Non basta la presenza di <c>.git</c>: il
+        /// worktree di un agente si prepara con un <c>fetch</c> e prende il branch base da
+        /// <c>origin/HEAD</c>, e la consegna <b>pusha</b>. Su un repo solo locale il default
+        /// acceso farebbe fallire ogni run al prepare — un default che rompe non è un default.
+        /// <para>Lettura testuale di <c>.git/config</c>: questo metodo sta su un percorso caldo
+        /// (il dispatcher lo interroga per ogni messaggio), aprire il repo sarebbe sproporzionato.</para>
+        /// </summary>
+        private static bool IsGitWithOrigin(string projectPath)
+        {
+            try
+            {
+                var gitPath = Path.Combine(projectPath, ".git");
+                string configPath;
+
+                if (Directory.Exists(gitPath))
+                {
+                    configPath = Path.Combine(gitPath, "config");
+                }
+                else if (File.Exists(gitPath))
+                {
+                    // worktree/submodule: '.git' è un file con "gitdir: <percorso>"
+                    var line = File.ReadAllText(gitPath).Trim();
+                    const string prefix = "gitdir:";
+                    if (!line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+                    var dir = line.Substring(prefix.Length).Trim();
+                    if (!Path.IsPathRooted(dir)) dir = Path.GetFullPath(Path.Combine(projectPath, dir));
+                    configPath = Path.Combine(dir, "config");
+                }
+                else return false;
+
+                return File.Exists(configPath)
+                       && File.ReadAllText(configPath).Contains("[remote \"origin\"]", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                // In dubbio, spento: un default che accende cose senza esserne certo è peggio
+                // di un default che chiede all'utente di spuntare una casella.
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Persist the federation activation (§12.4). When enabling for the first time and
+        /// no room secret exists yet, one is generated (shared via git). Returns the config
+        /// as persisted (with the generated secret, if any). Disabling keeps the secret so
+        /// re-enabling reuses the same room key.
+        /// </summary>
+        public AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            if (!Directory.Exists(projectPath))
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+
+            DevelopmentConfig root;
+            if (File.Exists(filePath))
+            {
+                var yaml = ReadConfigText(filePath);
+                root = string.IsNullOrWhiteSpace(yaml)
+                    ? new DevelopmentConfig()
+                    : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+            }
+            else
+            {
+                root = new DevelopmentConfig();
+            }
+
+            // Preserve an existing room secret (it is a shared credential): a caller that
+            // did not carry it forward must not silently rotate the key for the whole team.
+            var existingSecret = root.AgentCity?.RoomSecret;
+            var secret = string.IsNullOrWhiteSpace(config.RoomSecret) ? existingSecret : config.RoomSecret.Trim();
+
+            // First activation with no secret anywhere → generate one (fail-loud principle:
+            // an enabled city without a room key is a broken precondition, so we fix it here).
+            if (config.Enabled && string.IsNullOrWhiteSpace(secret))
+                secret = GenerateRoomSecret();
+
+            // La lista di manutenzione è preservata se il chiamante non la porta (una save di
+            // enabled/ownership dalla UI non deve azzerare i WIP segnalati dal team).
+            var maintenance = NormalizeMaintenance(config.Maintenance ?? root.AgentCity?.Maintenance);
+
+            // Come il room secret: il relay URL è una scelta di squadra committata nel yml
+            // (relay self-hosted); un caller che non lo porta non deve riportare la città
+            // sul relay di default.
+            var relayUrl = string.IsNullOrWhiteSpace(config.RelayUrl)
+                ? root.AgentCity?.RelayUrl
+                : config.RelayUrl.Trim();
+
+            root.AgentCity = new AgentCityConfig
+            {
+                Enabled = config.Enabled,
+                OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
+                WorkflowDocs = NormalizeWorkflowDocs(config.WorkflowDocs),
+                RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
+                RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
+                Maintenance = maintenance,
+                UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
+            };
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
+                .Build();
+
+            File.WriteAllText(filePath, serializer.Serialize(root));
+            _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
+            return root.AgentCity;
+        }
+
+        /// <summary>
+        /// L'elenco dei workflow com'è scritto: percorsi con '/', senza righe vuote; vuoto = nessuno (null, la riga sparisce).
+        /// Lo stesso documento due volte è un errore detto, non un doppione tolto in silenzio.
+        /// </summary>
+        private static List<string> NormalizeWorkflowDocs(IEnumerable<string> docs)
+        {
+            var list = (docs ?? Enumerable.Empty<string>())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim().Replace('\\', '/').TrimStart('/'))
+                .ToList();
+            var twin = list.GroupBy(d => d, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (twin != null)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"Il documento del workflow '{twin.Key}' è nell'elenco due volte.", $"The workflow document '{twin.Key}' is listed twice."));
+            return list.Count == 0 ? null : list;
+        }
+
+        public (string Secret, bool Created) EnsureRoomSecret(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            if (!Directory.Exists(projectPath))
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+
+            var existing = GetAgentCity(projectPath)?.RoomSecret;
+            if (!string.IsNullOrWhiteSpace(existing))
+                return (existing, false);
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+            var yaml = File.Exists(filePath) ? ReadConfigText(filePath) : null;
+            var root = string.IsNullOrWhiteSpace(yaml)
+                ? new DevelopmentConfig()
+                : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+
+            // Solo il segreto: la città resta com'è (spenta se non c'era).
+            root.AgentCity ??= new AgentCityConfig { Enabled = false };
+            root.AgentCity.RoomSecret = GenerateRoomSecret();
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
+                .Build();
+            File.WriteAllText(filePath, serializer.Serialize(root));
+            _logger.LogInformation("Room secret del progetto creato in {FilePath}: va committato e pushato", filePath);
+            return (root.AgentCity.RoomSecret, true);
+        }
+
+        // Lista manutenzione normalizzata: trim, niente vuoti/duplicati (case-insensitive),
+        // null se non resta nulla (così la sezione resta pulita nel YAML).
+        private static List<string> NormalizeMaintenance(IEnumerable<string> names)
+        {
+            if (names == null) return null;
+            var list = names
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        // Room secret = 32 random bytes, base64url (URL/YAML-safe, no padding). Shared via git.
+        /// <summary>Un segreto della stanza nuovo (anche per la creazione da template: nasce nel suo commit).</summary>
+        internal static string GenerateRoomSecret()
+        {
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+            return Convert.ToBase64String(bytes)
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        }
+
         public ProjectIconConfig GetIcon(string projectPath)
         {
             if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath))
@@ -233,7 +471,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml))
                 {
                     return null;
@@ -322,7 +560,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -398,7 +636,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = ReadConfigText(filePath);
                 if (string.IsNullOrWhiteSpace(yaml)) return;
 
                 var deserializer = new DeserializerBuilder()

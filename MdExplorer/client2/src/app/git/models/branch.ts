@@ -24,4 +24,6 @@ export interface CheckoutResult {
   hasUncommittedChanges?: boolean;
   durationMs?: number;
   branchName?: string;  // Current branch name after checkout
+  /** Cose da dire a cambio riuscito: un submodule non portato alla versione del ramo nuovo, e perché. */
+  warnings?: string[];
 }

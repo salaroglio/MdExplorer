@@ -1,0 +1,44 @@
+<h2 mat-dialog-title>{{ 'AGENT_MEMORY.TITLE' | translate }}</h2>
+
+<mat-dialog-content class="mem-content">
+  <div class="mem-toolbar">
+    <button mat-stroked-button (click)="reload()" [disabled]="loading">
+      {{ 'AGENT_MEMORY.RELOAD' | translate }}
+    </button>
+    <button mat-stroked-button (click)="toggleDiary()">
+      {{ (diary !== null ? 'AGENT_MEMORY.HIDE_DIARY' : 'AGENT_MEMORY.SHOW_DIARY') | translate }}
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="mem-loading">{{ 'AGENT_MEMORY.LOADING' | translate }}</div>
+  <div *ngIf="error" class="mem-error">{{ error }}</div>
+
+  <pre *ngIf="diary !== null" class="mem-diary">{{ diary }}</pre>
+
+  <div *ngIf="!loading && !error && diary === null">
+    <p *ngIf="facts.length === 0" class="mem-empty">{{ 'AGENT_MEMORY.EMPTY' | translate }}</p>
+
+    <div *ngFor="let f of facts" class="mem-fact">
+      <div class="mem-fact-head">
+        <span class="mem-agent" [class.shared]="f.shared">{{ f.agent }}</span>
+        <span class="mem-tags" *ngIf="f.tags?.length">{{ f.tags.join(', ') }}</span>
+      </div>
+      <div class="mem-statement">{{ f.statement }}</div>
+      <div class="mem-fact-actions">
+        <label class="mem-conf">
+          {{ 'AGENT_MEMORY.CONFIDENCE' | translate }}
+          <input type="number" min="0" max="1" step="0.05"
+                 [(ngModel)]="f.confidence" (change)="saveConfidence(f)" />
+        </label>
+        <button mat-icon-button color="warn" [matTooltip]="'AGENT_MEMORY.DELETE' | translate"
+                (click)="deleteFact(f)">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{ 'AGENT_MEMORY.CLOSE' | translate }}</button>
+</mat-dialog-actions>

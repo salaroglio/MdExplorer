@@ -43,6 +43,36 @@
   }
 }
 
+.group-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.group-description {
+  margin-left: 0;
+  margin-bottom: 12px;
+}
+
+.harness-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.harness-radio {
+  .harness-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .harness-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+}
+
 mat-divider {
   margin: 20px 0;
 }
@@ -58,4 +88,51 @@ mat-dialog-actions {
       width: 20px;
     }
   }
+}
+/* Da template (P4). */
+.template-choice {
+  margin: 12px 0;
+}
+
+.template-fields {
+  margin: 8px 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.method-check {
+  display: block;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.short-field {
+  width: 200px;
+}
+
+.error-text {
+  color: var(--mde-error, #c62828);
+}
+
+/* Le descrizioni delle scelte vanno a capo: la finestra non deve scorrere di lato (anche quelle dei motori). */
+.template-choice ::ng-deep,
+.config-options ::ng-deep {
+  .mat-checkbox-layout,
+  .mat-checkbox-label,
+  .mat-radio-label,
+  .mat-radio-label-content {
+    white-space: normal;
+  }
+}
+
+/* Un pezzo invisibile dei campi Material sbordava di 40px e faceva scorrere la finestra di lato. */
+.template-choice {
+  overflow-x: hidden;
+}
+
+.template-fields .option-description {
+  overflow-wrap: anywhere;
 }

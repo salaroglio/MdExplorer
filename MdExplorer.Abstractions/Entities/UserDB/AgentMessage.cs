@@ -1,0 +1,195 @@
+using System;
+
+namespace MdExplorer.Abstractions.Entities.UserDB
+{
+    /// <summary>
+    /// Un singolo messaggio nella mailbox (§8 Agent-Harness-A2A). Lo <b>stato autoritativo</b>
+    /// del task A2A vive qui, nel DB: i task in-memory dell'SDK si ricostruiscono da queste
+    /// righe. Il dispatcher garantisce la consegna at-least-once.
+    /// </summary>
+    public class AgentMessage
+    {
+        public virtual Guid Id { get; set; }
+
+        /// <summary>FK logica verso <see cref="AgentConversation.Id"/> (il thread).</summary>
+        public virtual Guid ConversationId { get; set; }
+
+        /// <summary>Correlazione col task A2A.</summary>
+        public virtual string A2ATaskId { get; set; }
+
+        /// <summary>Mittente: <c>a2a.name</c> di un agente oppure <c>user</c>.</summary>
+        public virtual string FromAgent { get; set; }
+
+        /// <summary>Destinatario: <c>a2a.name</c> di un agente oppure <c>user</c>.</summary>
+        public virtual string ToAgent { get; set; }
+
+        public virtual string ProjectPath { get; set; }
+
+        /// <summary>Testo del messaggio (Parts A2A serializzate).</summary>
+        public virtual string Body { get; set; }
+
+        /// <summary>
+        /// Argomenti dichiarati dal mittente (§8): metadata di contesto, uno per riga.
+        /// Nessun entity-linking — è solo contesto passato all'agente destinatario. Null/vuoto
+        /// = nessun argomento.
+        /// </summary>
+        public virtual string Topics { get; set; }
+
+        /// <summary>"pending" | "delivered" | "processed" | "failed".</summary>
+        public virtual string State { get; set; }
+
+        /// <summary>Tentativi di consegna (per il backoff del dispatcher).</summary>
+        public virtual int Attempts { get; set; }
+
+        public virtual DateTime CreatedAt { get; set; }
+        public virtual DateTime? ProcessedAt { get; set; }
+
+        /// <summary>
+        /// Primo istante in cui il messaggio può essere riprovato dopo un fallimento (backoff
+        /// temporizzato). Null = subito idoneo. Il dispatcher salta i pending con
+        /// <c>NextAttemptAt</c> ancora nel futuro, così i tentativi si distanziano nel tempo
+        /// invece di bruciarsi tutti in pochi secondi.
+        /// </summary>
+        public virtual DateTime? NextAttemptAt { get; set; }
+
+        public virtual string Error { get; set; }
+
+        /// <summary>
+        /// Istante in cui l'<b>umano</b> ha visto/gestito questo messaggio dalla UI (§13 Fase 4).
+        /// Rilevante solo per i messaggi <c>ToAgent == user</c>: <c>null</c> = non letto (entra
+        /// nel badge non-letti della inbox); valorizzato quando l'utente lo apre o risponde.
+        /// Ortogonale a <see cref="State"/> (che è il ciclo di consegna del dispatcher).
+        /// </summary>
+        public virtual DateTime? ReadAt { get; set; }
+
+        /// <summary>
+        /// Quando la persona ha <b>archiviato</b> un messaggio a lei indirizzato: esce dall'elenco della posta,
+        /// ma resta nel database e si rivede chiedendo gli archiviati. <c>null</c> = è in posta. Diverso da
+        /// <see cref="ReadAt"/>: un messaggio letto resta in elenco.
+        /// </summary>
+        public virtual DateTime? ArchivedAt { get; set; }
+
+        /// <summary>
+        /// Il turno di lavoro dell'agente che ha scritto questo messaggio (null = non scritto da un turno: una persona,
+        /// un altro computer, o un messaggio di prima che l'identificativo esistesse). Lega il messaggio alla
+        /// richiesta di approvazione dello stesso turno.
+        /// </summary>
+        public virtual string RunId { get; set; }
+
+        /// <summary>
+        /// Le risposte che l'agente propone alla persona con questo messaggio (JSON), già risolte dalla sua scheda:
+        /// testo del pulsante, descrizione, messaggio che il pulsante invia. null = nessuna risposta proposta.
+        /// </summary>
+        public virtual string Replies { get; set; }
+
+        /// <summary>
+        /// Perché il lavoro fatto su questo incarico è stato rifiutato da chi ne risponde. Presente quando
+        /// l'incarico è tornato in coda dopo un rifiuto: l'agente lo riceve insieme al messaggio e ne tiene conto.
+        /// </summary>
+        public virtual string ReworkNote { get; set; }
+
+        /// <summary>
+        /// Motivo per cui la consegna è <b>parcheggiata</b> (§12.5 coda differita, Fase 6c):
+        /// l'agente non è eseguibile adesso ma la richiesta NON fallisce. Valori
+        /// <see cref="DeferredReasonEnum"/> (<c>resources</c>/<c>maintenance</c>/<c>user</c>).
+        /// <c>null</c> = non differito. Il messaggio resta <c>pending</c> e viene ripreso via
+        /// <see cref="NextAttemptAt"/> quando la condizione si libera; il parcheggio
+        /// <b>non consuma <see cref="Attempts"/></b> (come lo shutdown, §7) — diverso da "fallito".
+        /// </summary>
+        public virtual string DeferredReason { get; set; }
+
+        /// <summary>
+        /// L'umano ha chiesto il "forza-ora" dalla coda (§12.5 Fase 6d): finché il messaggio
+        /// non si conclude, il dispatcher <b>salta i differimenti di politica</b>
+        /// (maintenance/user) — altrimenti la leva sarebbe un no-op silenzioso, perché la
+        /// policy rileggerebbe la stessa condizione e riparcheggerebbe subito. Il tetto
+        /// risorse (Copilot) resta: uno slot non si può forzare. <c>null</c> = non forzato.
+        /// </summary>
+        public virtual DateTime? ForcedAt { get; set; }
+
+        /// <summary>
+        /// Etichetta d'audit della causa del risveglio (Fase 7a): valorizzata per i wake speciali
+        /// (es. <c>federated-result</c> = ritorno di un intervento federato); <c>null</c> per un
+        /// messaggio ordinario. Il dispatcher la propaga nell'<see cref="AgentExecutionLog"/>
+        /// (fallback <c>message</c> quando null), così l'audit distingue questi risvegli.
+        /// </summary>
+        public virtual string TriggerSource { get; set; }
+
+        /// <summary>
+        /// Fase 7e.4 — sha del submodule (codice) catturato al push umano che ha rilasciato la
+        /// deferral <c>awaiting-push</c> di questo messaggio. Distinto dal <c>BaseCommit</c> di
+        /// 7d.5 (quello = sync del superprogetto-doc; questo = sha del submodule-codice). Null =
+        /// nessun gate del codice ha toccato questo messaggio.
+        /// </summary>
+        public virtual string SubmoduleBaseCommit { get; set; }
+
+        /// <summary>
+        /// Quando il responsabile dell'agente ha avviato questo incarico dalla schermata di lancio. Il workflow lo chiede
+        /// (<c>start: ask-owner</c>): finché è null il messaggio resta parcheggiato <c>awaiting-owner</c>.
+        /// </summary>
+        public virtual DateTime? OwnerStartedAt { get; set; }
+
+        /// <summary>Le indicazioni che il responsabile aggiunge avviando: l'agente le riceve insieme all'incarico.</summary>
+        public virtual string OwnerNote { get; set; }
+
+        /// <summary>Il motore scelto avviando (<c>claude</c>, <c>copilot</c>, <c>opencode</c>); null = quello della scheda o del progetto.</summary>
+        public virtual string StartProvider { get; set; }
+
+        /// <summary>Il modello scelto avviando; null = quello della scheda, del progetto o del motore.</summary>
+        public virtual string StartModel { get; set; }
+
+        /// <summary>Quando il responsabile ha rifiutato l'incarico (il motivo sta in <see cref="Error"/>). Il messaggio è <c>failed</c>.</summary>
+        public virtual DateTime? OwnerDeclinedAt { get; set; }
+
+        /// <summary>
+        /// Il giro del workflow (id della cartella in <c>.mde/giri</c>) di cui questo messaggio è un passo: lo ha creato lo
+        /// schedulatore. Null = un messaggio qualunque.
+        /// </summary>
+        public virtual string WorkflowRound { get; set; }
+        /// <summary>Il passo del workflow che questo messaggio fa partire.</summary>
+        public virtual string WorkflowStep { get; set; }
+        /// <summary>Il giro del passo (ciclo «for»), da 1.</summary>
+        public virtual int? WorkflowRoundNo { get; set; }
+        /// <summary>Il tentativo dentro il giro (rifacimenti), da 1.</summary>
+        public virtual int? WorkflowAttempt { get; set; }
+
+        /// <summary>Valori ammessi per <see cref="State"/>.</summary>
+        public static class StateEnum
+        {
+            public const string Pending = "pending";
+            public const string Delivered = "delivered";
+            public const string Processed = "processed";
+            public const string Failed = "failed";
+        }
+
+        /// <summary>Cause del parcheggio (§12.5). Prefisso <c>deferred:</c> nella UI.</summary>
+        public static class DeferredReasonEnum
+        {
+            /// <summary>The recipient answers to another person: it works on that person's computer, not here.</summary>
+            public const string OwnerElsewhere = "owner-elsewhere";
+            /// <summary>The recipient answers to nobody (or to more than one person): it does not work until it is assigned.</summary>
+            public const string Unassigned = "unassigned";
+            /// <summary>Tetto istanze Copilot raggiunto: nessuno slot libero adesso.</summary>
+            public const string Resources = "resources";
+            /// <summary>Agente in manutenzione (WIP), segnalato al team via <c>.development.yml</c>.</summary>
+            public const string Maintenance = "maintenance";
+            /// <summary>Condizione temporanea dell'utente su questa macchina (UserDB).</summary>
+            public const string User = "user";
+            /// <summary>Fase 7e — gate del codice: un agente ha toccato un submodule non ancora pushato dall'umano.</summary>
+            public const string AwaitingPush = "awaiting-push";
+            /// <summary>
+            /// Catena locale: il mittente sta ancora lavorando nella scrivania che il destinatario
+            /// deve ereditare. Non è un errore — «lo stato in cui il mittente si trova» esiste solo
+            /// quando il mittente si è fermato — quindi si aspetta senza consumare tentativi.
+            /// </summary>
+            public const string ChainBusy = "chain-busy";
+            /// <summary>
+            /// Il workflow dice che questo incarico lo avvia il responsabile dell'agente (<c>start: ask-owner</c>): aspetta
+            /// la schermata di lancio. Non si riprende da solo, lo rimette in coda «Avvia».
+            /// </summary>
+            public const string AwaitingOwner = "awaiting-owner";
+            /// <summary>Il workflow configurato non si legge o ha errori: senza la regola non si sa chi avvia.</summary>
+            public const string WorkflowInvalid = "workflow-invalid";
+        }
+    }
+}

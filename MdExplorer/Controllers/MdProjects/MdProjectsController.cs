@@ -44,11 +44,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IMapper _mapper;
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
-        private readonly IGitAccountService _gitAccountService;
-        private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
         private readonly IGitAuthorsService _gitAuthorsService;
+        private readonly MdExplorer.Services.Federation.IProjectRelaySettingsService _relaySettings;
         private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
@@ -57,21 +56,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IMapper mapper,
                 IDatabaseManager databaseManager,
                 IFileSystemWatcherManager fileSystemWatcherManager,
-                IGitAccountService gitAccountService,
-                GitCredentialHelperResolver gitCredentialHelper,
                 FoldersIgnoreService foldersIgnoreService,
                 IProjectMetadataService projectMetadataService,
                 IGitAuthorsService gitAuthorsService,
+                MdExplorer.Services.Federation.IProjectRelaySettingsService relaySettings,
                 IEnumerable<IAiProvider> aiProviders)
         {
+            _relaySettings = relaySettings;
             _userSettingsDB = userSettingsDB;
             _services = services;
             _processUtil = processUtil;
             _mapper = mapper;
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
-            _gitAccountService = gitAccountService;
-            _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
             _projectMetadataService = projectMetadataService;
             _gitAuthorsService = gitAuthorsService;
@@ -198,6 +195,189 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 logger?.LogError(ex, "Failed to save participants for {Path}", path);
                 return StatusCode(500, new { message = "Failed to save participants", error = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Stato di attivazione della città degli agenti (§12.4). Il room secret NON è
+        /// esposto (credenziale, vive nel .development.yml condiviso via git): il client
+        /// sa solo se esiste.
+        /// </summary>
+        [HttpGet]
+        public IActionResult AgentCity([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            return Ok(ToAgentCityDto(cfg, path));
+        }
+
+        /// <summary>Attiva/disattiva la città e imposta il doc di ownership (§12.4).</summary>
+        [HttpPost]
+        public IActionResult SetAgentCity([FromQuery] string path, [FromBody] AgentCityRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                // Il flag opt-in dei worktree è booleano: non può distinguere
+                // "non inviato" da "false". La UI oggi manda solo enabled+ownershipDoc, quindi
+                // senza questa preservazione il primo salvataggio dalle impostazioni lo
+                // SPEGNEREBBE in silenzio — stessa forma del difetto gia' chiuso su RelayUrl e
+                // RoomSecret. Nullable nel DTO: null = lascia com'e'.
+                var current = _projectMetadataService.GetAgentCity(path);
+
+                var saved = _projectMetadataService.SetAgentCity(path, new AgentCityConfig
+                {
+                    Enabled = request.Enabled,
+                    OwnershipDoc = request.OwnershipDoc,
+                    // null = non toccare (chi salva solo l'interruttore non li cancella); elenco vuoto = nessun workflow.
+                    WorkflowDocs = request.WorkflowDocs ?? current?.WorkflowDocs,
+                    RelayUrl = request.RelayUrl,
+                    // Assente resta assente (null): per i worktree vuol dire «decide l'app» (attivi se c'è git),
+                    // e scrivere `false` al primo salvataggio li spegneva in modo esplicito senza che
+                    // nessuno l'avesse chiesto. Così un progetto appena aperto resta a zero «da committare»
+                    // per questo campo.
+                    UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees,
+                });
+                return Ok(ToAgentCityDto(saved, path));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save agentCity for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save agent city activation", error = ex.Message });
+            }
+        }
+
+        private static object ToAgentCityDto(AgentCityConfig cfg, string projectPath) => new
+        {
+            enabled = cfg?.Enabled ?? false,
+            ownershipDoc = cfg?.OwnershipDoc,
+            workflowDocs = cfg?.WorkflowDocs ?? new List<string>(),
+            relayUrl = cfg?.RelayUrl,
+            hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
+            useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
+            // Senza git non esistono né worktree né merge: la UI disabilita le due opzioni
+            // invece di lasciarle spuntabili e poi inerti.
+            isGitRepository = !string.IsNullOrWhiteSpace(projectPath)
+                              && (Directory.Exists(Path.Combine(projectPath, ".git"))
+                                  || System.IO.File.Exists(Path.Combine(projectPath, ".git"))),
+        };
+
+        /// <summary>
+        /// Campi nullable di proposito (memoria <c>dto_nullable_implicit_required</c>): la UI
+        /// invia solo enabled+ownershipDoc — con reference type non-nullable la validazione
+        /// automatica di <c>[ApiController]</c> risponderebbe 400 "RelayUrl is required" prima
+        /// di entrare nell'action, rendendo l'attivazione città impossibile dalla UI.
+        /// </summary>
+        public class AgentCityRequest
+        {
+            public bool Enabled { get; set; }
+            public string? OwnershipDoc { get; set; }
+            /// <summary>I documenti dei workflow. <c>null</c> = non toccare, elenco vuoto = nessun workflow.</summary>
+            public List<string>? WorkflowDocs { get; set; }
+            public string? RelayUrl { get; set; }
+
+            /// <summary>Opt-in isolamento worktree (Fase 7c). <c>null</c> = non toccare.</summary>
+            public bool? UseAgentWorktrees { get; set; }
+        }
+
+        /// <summary>
+        /// Impostazioni del relay per QUESTO progetto: indirizzo e presenza della chiave. La
+        /// chiave non esce mai dal server — il client sa solo se c'è e da dove arriva.
+        /// </summary>
+        [HttpGet]
+        public IActionResult RelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            var view = _relaySettings.Get(path, cfg?.RelayUrl);
+            return Ok(ToRelayDto(view));
+        }
+
+        /// <summary>Salva indirizzo e/o chiave del relay per questo progetto.</summary>
+        [HttpPost]
+        public IActionResult SetRelaySettings([FromQuery] string path, [FromBody] RelaySettingsRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                _relaySettings.Save(path, request.RelayUrl, request.ApiKey, request.ClearApiKey);
+
+                var cfg = _projectMetadataService.GetAgentCity(path);
+                return Ok(ToRelayDto(_relaySettings.Get(path, cfg?.RelayUrl)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Precondizione non soddisfatta (progetto non registrato): messaggio azionabile,
+                // non un 500 generico.
+                return UnprocessableEntity(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save relay settings for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save relay settings", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Riapre la stanza del progetto sul relay e riporta cosa ha risposto: ammessa, rifiutata
+        /// (stanza non registrata, token o chiave master sbagliati) o irraggiungibile.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> TestRelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var federation = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.Federation.IFederationState>();
+            var status = await federation.CheckRoomAsync(path, TimeSpan.FromSeconds(20), HttpContext.RequestAborted);
+            var success = status.State == MdExplorer.Services.Federation.RoomJoinState.Joined;
+            if (status.State != MdExplorer.Services.Federation.RoomJoinState.NoRoom)
+                _relaySettings.RecordTest(path, success);
+            return Ok(new { success, state = status.State.ToString(), code = status.Code, message = Capitalize(status.Message) });
+        }
+
+        private static string Capitalize(string s)
+            => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
+        private static object ToRelayDto(MdExplorer.Services.Federation.RelaySettingsView view) => new
+        {
+            relayUrl = view.RelayUrl,
+            relayUrlSource = view.RelayUrlSource.ToString(),
+            hasApiKey = view.HasApiKey,
+            apiKeySource = view.ApiKeySource.ToString(),
+            lastTestedAt = view.LastTestedAt,
+            lastTestSuccess = view.LastTestSuccess,
+        };
+
+        /// <summary>
+        /// Nullable di proposito, come <see cref="AgentCityRequest"/>: la UI manda solo i campi
+        /// che cambia, e un reference type non-nullable farebbe scattare il 400 automatico di
+        /// <c>[ApiController]</c> prima di entrare nell'action (memoria dto_nullable_implicit_required).
+        /// </summary>
+        public class RelaySettingsRequest
+        {
+            public string? RelayUrl { get; set; }
+            /// <summary>Vuoto/assente ⇒ chiave invariata (la UI non rimanda mai quella salvata).</summary>
+            public string? ApiKey { get; set; }
+            /// <summary>Richiesta esplicita di rimuovere la chiave salvata.</summary>
+            public bool ClearApiKey { get; set; }
         }
 
         [HttpGet]
@@ -485,6 +665,150 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Crea un progetto nuovo da un template (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1). Non lo
+        /// apre: lo apre il client con <see cref="SetFolderProject"/>, come dopo un clone. Un problema è un 400 che lo dice.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CreateFromTemplate([FromBody] TemplateCreationRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateCreator creator, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var outcome = await creator.CreateAsync(new MdExplorer.Services.Templates.TemplateCreateRequest
+                {
+                    Path = request?.Path,
+                    TemplateUrl = request?.TemplateUrl,
+                    Language = request?.Language,
+                    Example = request?.Example == true,
+                    OriginUrl = request?.OriginUrl,
+                    MdeVersion = request?.MdeVersion,
+                    Methods = request?.Methods,
+                    Harness = request?.Harness,
+                }, ct);
+                return Ok(outcome);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// «Aggiungi un metodo» (P2 del piano dei template): unisce un template <c>method</c> al progetto e applica il suo
+        /// manifesto ai file comuni, con un commit. 400 con il motivo se non si può; il progetto resta com'era.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> AddTemplate([FromBody] TemplateAdditionRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateCreator creator, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var outcome = await creator.AddMethodAsync(new MdExplorer.Services.Templates.TemplateAddRequest
+                {
+                    ProjectPath = request?.Path,
+                    TemplateUrl = request?.TemplateUrl,
+                    Language = request?.Language,
+                    Example = request?.Example == true,
+                    MdeVersion = request?.MdeVersion,
+                }, ct);
+                return Ok(outcome);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Gli aggiornamenti dei template del progetto (P3): per ognuno la versione unita, quella nuova, le voci del CHANGELOG fra
+        /// le due e il perché, se non si può. <paramref name="fetch"/> interroga i repository dei template.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> TemplateUpdates([FromQuery] string path, [FromQuery] bool fetch, [FromQuery] string mdeVersion,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(new { templates = await updates.UpdatesAsync(path, fetch, mdeVersion, ct) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Porta un template all'ultima versione; 400 con il motivo, e il progetto com'era, se non si può.</summary>
+        [HttpPost]
+        public async Task<IActionResult> UpdateTemplate([FromBody] TemplateUpdateHttpRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(await updates.UpdateAsync(new MdExplorer.Services.Templates.TemplateUpdateRequest
+                {
+                    ProjectPath = request?.Path, Id = request?.Id, AcceptIncompatible = request?.AcceptIncompatible == true, MdeVersion = request?.MdeVersion,
+                }, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Stacca il progetto da un template, per sempre.</summary>
+        [HttpPost]
+        public async Task<IActionResult> DetachTemplate([FromBody] TemplateUpdateHttpRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateUpdates updates, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(new { message = await updates.DetachAsync(request?.Path, request?.Id, ct) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// L'elenco dei template di «Crea nuovo progetto» (P4, TD4): il file <c>project-templates.json</c> che viaggia con
+        /// MdExplorer. Un elenco guasto è un errore detto (500 con il motivo), non un elenco vuoto.
+        /// </summary>
+        [HttpGet]
+        public IActionResult TemplateCatalog()
+        {
+            try
+            {
+                using var stream = typeof(MdProjectsController).Assembly.GetManifestResourceStream(MdExplorer.Features.Templates.TemplateCatalog.ResourceName)
+                    ?? throw new InvalidOperationException($"MdExplorer non contiene {MdExplorer.Features.Templates.TemplateCatalog.ResourceName}: la build è incompleta.");
+                using var reader = new StreamReader(stream);
+                return Ok(new { templates = MdExplorer.Features.Templates.TemplateCatalog.Read(reader.ReadToEnd()) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>I template da cui viene il progetto: le righe <c>templates:</c> di <c>.development.yml</c>.</summary>
+        [HttpGet]
+        public IActionResult Templates([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return BadRequest(new { error = $"Project path does not exist: {path}" });
+            var file = Path.Combine(path, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            try
+            {
+                var rows = (System.IO.File.Exists(file) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).Templates : null)
+                           ?? new List<MdExplorer.Service.Models.ProjectTemplateConfig>();
+                return Ok(new { templates = rows });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost]
         public IActionResult SetFolderProject([FromBody] ProjectCreationRequest request)
         {
@@ -510,15 +834,62 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 __perfPhase.Restart();
             };
 
+            // La scelta dell'harness arriva SOLO dalla finestra di creazione. Su una riapertura
+            // la richiesta non la porta, e allora comanda il progetto: e' cosi' che una scelta
+            // "nessun harness" smette di essere riscritta a Copilot a ogni apertura.
+            HarnessTarget? requestedHarness;
+            if (!string.IsNullOrWhiteSpace(request.Harness))
+            {
+                if (!HarnessLayout.TryParseId(request.Harness, out var parsed))
+                {
+                    return BadRequest(new { error = $"Unknown harness '{request.Harness}'. Allowed values: {HarnessLayout.AllowedIds}." });
+                }
+                requestedHarness = parsed;
+            }
+            else if (request.AddCopilotInstructions.HasValue)
+            {
+                requestedHarness = request.AddCopilotInstructions.Value ? HarnessTarget.Copilot : HarnessTarget.None;
+            }
+            else
+            {
+                requestedHarness = null;
+            }
+
+            // Un progetto che dichiara già il suo harness: è il predefinito del TEAM, in git, e aprire il
+            // progetto non lo riscrive (16/10/2026, P4). Una scelta diversa nella finestra diventa la scelta
+            // personale di questa macchina, salvata più sotto nel Project dello UserDB.
+            MdExplorer.Utilities.MarkAgentEngine? personalEngine = null;
+            HarnessTarget? declaredHarness = null;
+            try { declaredHarness = HarnessSettings.Read(request.Path); }
+            catch (InvalidOperationException ex)
+            {
+                // Valore illeggibile in harness.target: lo dice l'apertura stessa più avanti (Resolve);
+                // qui vuol dire solo che non c'è un predefinito valido da proteggere.
+                logger?.LogWarning("🤖 {Error}", ex.Message);
+            }
+            if (declaredHarness.HasValue && requestedHarness.HasValue && requestedHarness.Value != declaredHarness.Value)
+            {
+                personalEngine = MdExplorer.Utilities.MarkAgentEngines.FromHarness(requestedHarness.Value);
+                logger?.LogInformation("🤖 Harness scelto all'apertura ({Requested}) diverso da quello del progetto ({Declared}): diventa la scelta personale, .development.yml non cambia",
+                    HarnessSettings.IdOf(requestedHarness.Value), HarnessSettings.IdOf(declaredHarness.Value));
+                requestedHarness = null;
+            }
+
             try
             {
+                // Le righe che MdExplorer non ha più si cancellano dal file del progetto, per nome, prima che
+                // qualcuno lo legga: la lettura è rigida, e una riga ritirata non deve farla fallire.
+                MdExplorer.Utilities.DevelopmentConfigCleanup.CleanFile(request.Path,
+                    HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>());
+                logPhase("ConfigCleanup");
+
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
                 _foldersIgnoreService.InvalidateCache(request.Path);
                 logPhase("InvalidateCache");
 
                 // IMPORTANT: Run migrations FIRST, before opening database sessions
                 // This prevents "database is locked" errors because NHibernate holds the file open
-                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, requestedHarness);
                 logger?.LogInformation($"✅ Database migrations completed for project: {request.Path}");
                 logPhase("ProjectsManager.SetNewProject (migrations+init)");
 
@@ -558,6 +929,23 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 _userSettingsDB.Commit();
                 logger?.LogInformation($"📝 Project saved. LinkIndexingEnabled={project.LinkIndexingEnabled}");
                 logPhase("UserSettingsDB Project upsert");
+
+                // Hook "project opened" (es. schedule di agenti .agent.md con trigger
+                // projectOpen). Ogni handler è isolato: un hook rotto non deve mai
+                // impedire l'apertura del progetto.
+                foreach (var projectOpenedHandler in HttpContext.RequestServices
+                             .GetServices<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>())
+                {
+                    try
+                    {
+                        projectOpenedHandler.OnProjectOpened(request.Path);
+                    }
+                    catch (Exception hookEx)
+                    {
+                        logger?.LogError(hookEx, "Project-opened hook {Handler} failed",
+                            projectOpenedHandler.GetType().Name);
+                    }
+                }
 
                 // Log Git initialization status
                 if (gitInitialized)
@@ -604,70 +992,66 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
                 logPhase("CompatibilityMode YAML parse");
 
-                // Check if it's a Git repository and if it has an account configured
+                // Repository git? Il remote e il provider servono alla UI; le credenziali no: le ha git.
                 var isGitRepository = Directory.Exists(Path.Combine(request.Path, ".git"));
-                var hasGitAccount = false;
                 string detectedRemoteUrl = null;
                 string detectedProvider = null;
-                bool needsManualCredentials = false;
-
                 if (isGitRepository)
                 {
                     try
                     {
-                        hasGitAccount = _gitAccountService.HasAccountForRepositoryAsync(request.Path).GetAwaiter().GetResult();
-                        logger?.LogInformation($"🔐 Git account check for {request.Path}: hasAccount={hasGitAccount}");
+                        detectedRemoteUrl = GetRemoteUrlFromRepository(request.Path);
+                        if (!string.IsNullOrEmpty(detectedRemoteUrl))
+                        {
+                            detectedProvider = DetectProviderFromUrl(detectedRemoteUrl);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        logger?.LogWarning(ex, "Could not check Git account status");
+                        logger?.LogWarning(ex, "Lettura del remote origin fallita (non fatale)");
                     }
-                    logPhase("HasAccountForRepositoryAsync");
+                    logPhase("GetRemoteUrlFromRepository");
+                }
 
-                    // Auto-detect credentials from Git Credential Manager if no account configured
-                    if (!hasGitAccount)
+                // Il motore di MarkAgent: UNA scelta, risolta in un posto solo. NULL in
+                // Project.MarkAgentEngine vuol dire "segue l'ambiente agentico del repository"
+                // (.development.yml), un valore vuol dire che questa macchina ha scelto altro.
+                // Prima erano due booleani indipendenti con la regola "se sono accesi entrambi
+                // vince Claude", ripetuta qui e in MarkDiagramExplainService: due posti che
+                // potevano rispondere diversamente alla stessa domanda.
+                if (personalEngine.HasValue)
+                {
+                    var personalId = MdExplorer.Utilities.MarkAgentEngines.IdOf(personalEngine.Value);
+                    if (project.MarkAgentEngine != personalId)
                     {
-                        try
-                        {
-                            detectedRemoteUrl = GetRemoteUrlFromRepository(request.Path);
-                            if (!string.IsNullOrEmpty(detectedRemoteUrl))
-                            {
-                                // Detect provider type
-                                detectedProvider = DetectProviderFromUrl(detectedRemoteUrl);
-                                logger?.LogInformation($"🔍 [CredentialAutoDetect] Attempting auto-detection for {request.Path}, remote: {detectedRemoteUrl}, provider: {detectedProvider}");
-
-                                hasGitAccount = _gitCredentialHelper.DetectAndSaveCredentialsForRepository(request.Path, detectedRemoteUrl).GetAwaiter().GetResult();
-                                if (hasGitAccount)
-                                {
-                                    logger?.LogInformation($"✅ [CredentialAutoDetect] Credentials auto-detected and saved for {request.Path}");
-                                }
-                                else
-                                {
-                                    logger?.LogInformation($"⚠️ [CredentialAutoDetect] No credentials found in Git Credential Manager for {detectedRemoteUrl}");
-                                    // Signal frontend that manual credentials are needed
-                                    needsManualCredentials = true;
-                                }
-                            }
-                            else
-                            {
-                                logger?.LogInformation($"ℹ️ [CredentialAutoDetect] No remote URL configured for {request.Path}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger?.LogWarning(ex, "[CredentialAutoDetect] Auto-credential detection failed (non-fatal)");
-                            needsManualCredentials = !string.IsNullOrEmpty(detectedRemoteUrl);
-                        }
-                        logPhase("DetectAndSaveCredentialsForRepository (GCM subprocess)");
+                        // Transazione propria: quella dell'inizio di SetFolderProject e' gia' chiusa.
+                        _userSettingsDB.BeginTransaction();
+                        project.MarkAgentEngine = personalId;
+                        projectDal.Save(project);
+                        _userSettingsDB.Commit();
                     }
                 }
 
-                // Copilot CLI auto-select probe: synchronous, deterministic. If the project prefers
-                // Copilot CLI as default AI, we MUST return a real availability — no provisional
-                // values, no fire-and-forget warm-up. Worst case is one `copilot --version` spawn
-                // (~1-2s on Windows) at the first open after a restart; subsequent opens hit the
-                // 5-minute availability cache inside the provider.
-                bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
+                var markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.Resolve(
+                    project.MarkAgentEngine, request.Path, out var markAgentEngineLinked);
+                logger?.LogInformation("🤖 Motore di MarkAgent: {Engine} (collegato all'harness={Linked})",
+                    MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine), markAgentEngineLinked);
+
+                // Una scelta personale che coincide col predefinito del progetto RESTA: e' una scelta, e
+                // se domani il team cambia predefinito questa macchina resta dov'era finche' non preme
+                // «usa il predefinito» (16/10/2026, P5). Prima qui la si cancellava.
+
+                // Un motore personale diverso dal predefinito riceve le sue skill mde-* e la sua
+                // registrazione MCP, fuori da git (P7).
+                if (!markAgentEngineLinked)
+                    ProjectsManager.ApplyPersonalEngine(_services, request.Path, markAgentEngine);
+
+                // Sonda di disponibilita': sincrona e deterministica. Se il progetto ha un motore,
+                // il client deve ricevere una disponibilita' VERA — niente valori provvisori, niente
+                // riscaldamento fire-and-forget. Nel caso peggiore un `copilot --version` (~1-2 s su
+                // Windows) alla prima apertura dopo un riavvio; poi vale la cache di 5 minuti dentro
+                // il provider. Per Claude Code e' una scansione del PATH, quindi millisecondi.
+                bool copilotCliAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.Copilot;
                 bool copilotCliAvailable = false;
                 string copilotCliDefaultModel = null;
                 if (copilotCliAutoSelect)
@@ -677,17 +1061,60 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (copilotProvider == null)
                     {
                         throw new InvalidOperationException(
-                            "Project has UseCopilotCliAsDefault=true but CopilotCliProvider was not resolved from DI. " +
-                            "Check Startup.cs IAiProvider registrations.");
+                            MdExplorer.Features.Services.UiText.Say("Il progetto ha come motore di MarkAgent Copilot CLI ma CopilotCliProvider non è stato risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.", "The project's MarkAgent engine is Copilot CLI but CopilotCliProvider was not resolved by DI. Check the IAiProvider registrations in Startup.cs."));
                     }
                     copilotProvider.WorkingDirectory = request.Path;
-                    copilotCliDefaultModel = "claude-sonnet-4.6";
+                    // Il modello scelto per questo progetto; null = lo sceglie il CLI. Letto
+                    // dall'entita' gia' in memoria: nessuna query in piu' sulla sessione condivisa.
+                    copilotCliDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.Copilot);
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
-                        "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        "🤖 CopilotCli: available={Available}, model={Model}, cwd={Cwd}",
                         copilotCliAvailable, copilotCliDefaultModel, request.Path);
                 }
                 logPhase("CopilotCli availability (sync probe)");
+
+                bool claudeCodeAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.Claude;
+                bool claudeCodeAvailable = false;
+                string claudeCodeDefaultModel = null;
+                if (claudeCodeAutoSelect)
+                {
+                    var claudeProvider = _aiProviders?
+                        .FirstOrDefault(p => p.GetProviderType() == ProviderType.ClaudeCode) as ClaudeCodeProvider;
+                    if (claudeProvider == null)
+                    {
+                        throw new InvalidOperationException(
+                            MdExplorer.Features.Services.UiText.Say("Il progetto ha come motore di MarkAgent Claude Code ma ClaudeCodeProvider non è stato risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.", "The project's MarkAgent engine is Claude Code but ClaudeCodeProvider was not resolved by DI. Check the IAiProvider registrations in Startup.cs."));
+                    }
+                    claudeProvider.WorkingDirectory = request.Path;
+                    // Il modello scelto per questo progetto. Mai scelto = `sonnet`, come prima che la scelta
+                    // esistesse: un progetto che c'è già non deve passare in silenzio a un modello più caro.
+                    claudeCodeDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.Claude);
+                    claudeCodeAvailable = claudeProvider.IsAvailable();
+                    logger?.LogInformation(
+                        "🤖 ClaudeCode: available={Available}, model={Model}, cwd={Cwd}",
+                        claudeCodeAvailable, claudeCodeDefaultModel, request.Path);
+                }
+                logPhase("ClaudeCode availability (sync probe)");
+
+                // opencode: la disponibilita' e' una scansione del PATH, come per Claude Code.
+                // Il server vero (`opencode serve`) non si accende qui: nasce al primo messaggio
+                // della chat, e accenderlo solo per dire "c'e'" sarebbe un processo a vuoto.
+                bool openCodeAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.OpenCode;
+                bool openCodeAvailable = false;
+                string openCodeDefaultModel = null;
+                if (openCodeAutoSelect)
+                {
+                    openCodeAvailable = MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable();
+                    // Mai scelto = null: lo decide il server, che dichiara il proprio default in
+                    // /config/providers. Un nome scritto qui sarebbe sbagliato su meta' delle
+                    // installazioni, perche' i modelli dipendono dai provider collegati.
+                    openCodeDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.OpenCode);
+                    logger?.LogInformation(
+                        "🤖 opencode: available={Available}, model={Model}, cwd={Cwd}",
+                        openCodeAvailable, openCodeDefaultModel ?? "(default del server)", request.Path);
+                }
+                logPhase("opencode availability (PATH scan)");
 
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
@@ -700,13 +1127,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     gitInitialized = gitInitialized,
                     compatibilityMode = compatibilityMode,
                     isGitRepository = isGitRepository,
-                    hasGitAccount = hasGitAccount,
-                    needsManualCredentials = needsManualCredentials,
                     remoteUrl = detectedRemoteUrl,
                     detectedProvider = detectedProvider,
                     copilotCliAutoSelect = copilotCliAutoSelect,
                     copilotCliAvailable = copilotCliAvailable,
-                    copilotCliDefaultModel = copilotCliDefaultModel
+                    copilotCliDefaultModel = copilotCliDefaultModel,
+                    claudeCodeAutoSelect = claudeCodeAutoSelect,
+                    claudeCodeAvailable = claudeCodeAvailable,
+                    claudeCodeDefaultModel = claudeCodeDefaultModel,
+                    openCodeAutoSelect = openCodeAutoSelect,
+                    openCodeAvailable = openCodeAvailable,
+                    openCodeDefaultModel = openCodeDefaultModel,
+                    markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
+                    markAgentEngineLinked = markAgentEngineLinked,
                 });
             }
             catch (Exception ex)
@@ -871,7 +1304,62 @@ namespace MdExplorer.Service.Controllers.MdProjects
     {
         public string Path { get; set; }
         public bool? InitializeGit { get; set; }
+
+        /// <summary>
+        /// Harness scelto dalla finestra di creazione: <c>copilot</c>, <c>opencode</c> o
+        /// <c>none</c>. Assente alla RIAPERTURA di un progetto: in quel caso decide il
+        /// progetto stesso, che se lo porta scritto in .development.yml.
+        /// <para>
+        /// ⚠️ DEVE restare <c>string?</c>. Il progetto compila con
+        /// <c>&lt;Nullable&gt;annotations&lt;/Nullable&gt;</c>, e una <c>string</c> non nullable in
+        /// un DTO diventa un <c>[Required]</c> implicito: l'apertura di un progetto manda solo
+        /// <c>path</c>, quindi il binding fallirebbe e <c>[ApiController]</c> risponderebbe 400
+        /// PRIMA di entrare nel metodo — senza che nessuno possa intercettarlo.
+        /// </para>
+        /// </summary>
+        public string? Harness { get; set; }
+
+        /// <summary>
+        /// Forma precedente della stessa scelta, quando l'unico harness era Copilot.
+        /// Mantenuta per i client non ancora aggiornati; <see cref="Harness"/> ha la precedenza.
+        /// </summary>
         public bool? AddCopilotInstructions { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.CreateFromTemplate"/>.</summary>
+    public class TemplateCreationRequest
+    {
+        public string? Path { get; set; }
+        public string? TemplateUrl { get; set; }
+        public string? Language { get; set; }
+        public bool Example { get; set; }
+        /// <summary>Il repository vuoto del gruppo; vuoto = un origin locale accanto alla cartella.</summary>
+        public string? OriginUrl { get; set; }
+        /// <summary>La versione del client, cioè di questo MdExplorer: il manifesto può chiederne una minima.</summary>
+        public string? MdeVersion { get; set; }
+        /// <summary>I metodi da unire dopo il primo template, nell'ordine.</summary>
+        public List<string>? Methods { get; set; }
+        /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
+        public string? Harness { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.UpdateTemplate"/> e <see cref="MdProjectsController.DetachTemplate"/>.</summary>
+    public class TemplateUpdateHttpRequest
+    {
+        public string? Path { get; set; }
+        public string? Id { get; set; }
+        public bool AcceptIncompatible { get; set; }
+        public string? MdeVersion { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.AddTemplate"/>.</summary>
+    public class TemplateAdditionRequest
+    {
+        public string? Path { get; set; }
+        public string? TemplateUrl { get; set; }
+        public string? Language { get; set; }
+        public bool Example { get; set; }
+        public string? MdeVersion { get; set; }
     }
 }
 

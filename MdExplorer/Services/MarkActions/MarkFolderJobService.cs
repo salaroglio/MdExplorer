@@ -1,3 +1,4 @@
+using MdExplorer.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -31,7 +32,6 @@ namespace MdExplorer.Services.MarkActions
     public class MarkFolderJobService : IMarkFolderJobService
     {
         private const string ProgressEvent = "markFolderProgress";
-        private const string DefaultProviderKey = "AI_DefaultProvider";
 
         // Soft cap on the document text sent to the LLM. Larger documents are truncated
         // (the TL;DR only needs the gist); a note event is emitted when this happens.
@@ -39,8 +39,7 @@ namespace MdExplorer.Services.MarkActions
 
         private readonly ILogger<MarkFolderJobService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly IEnumerable<IAiProvider> _aiProviders;
-        private readonly LocalLlamaProvider _localProvider;
+        private readonly MdExplorer.Services.LlmSessions.OneShotReadOnlySession _llm;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly FoldersIgnoreService _foldersIgnoreService;
 
@@ -49,15 +48,13 @@ namespace MdExplorer.Services.MarkActions
         public MarkFolderJobService(
             ILogger<MarkFolderJobService> logger,
             IHubContext<MonitorMDHub> hubContext,
-            IEnumerable<IAiProvider> aiProviders,
-            LocalLlamaProvider localProvider,
+            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm,
             IServiceScopeFactory scopeFactory,
             FoldersIgnoreService foldersIgnoreService)
         {
             _logger = logger;
             _hubContext = hubContext;
-            _aiProviders = aiProviders;
-            _localProvider = localProvider;
+            _llm = llm;
             _scopeFactory = scopeFactory;
             _foldersIgnoreService = foldersIgnoreService;
         }
@@ -105,27 +102,27 @@ namespace MdExplorer.Services.MarkActions
                 if (!Directory.Exists(folderFullPath))
                     throw new DirectoryNotFoundException($"Folder not found: {folderFullPath}");
 
-                // ---- Resolve the active AI provider (fixed for the whole job) ----
-                var provider = ResolveProvider();
-                if (provider == null)
+                // ---- The project's engine and model, the MarkAgent tab's (sprint 2026-09-29-Motore-LLM-Unico, D1, D6):
+                //      one read-only session of its own per call, so the job neither takes nor fills the tab. ----
+                MarkAgentEngine engine;
+                string model;
+                using (var scope = _scopeFactory.CreateScope())
+                    (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+                var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
+                if (whyNot != null)
                 {
-                    await SendAsync(connectionId, new
-                    {
-                        phase = "error",
-                        message = "no-provider"
-                    });
-                    _logger.LogWarning("[MarkFolderJob] No AI provider available — aborting");
+                    await SendAsync(connectionId, new { phase = "error", message = "no-engine", detail = whyNot });
+                    _logger.LogWarning("[MarkFolderJob] {Why} — aborting", whyNot);
                     return;
                 }
-                _logger.LogInformation("[MarkFolderJob] Using AI provider '{Provider}'", provider.GetName());
-                if (provider is CopilotCliProvider copilot && Directory.Exists(projectPath))
-                {
-                    copilot.WorkingDirectory = projectPath;
-                }
+                var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);
+                _logger.LogInformation("[MarkFolderJob] Using {Engine}", engineLabel);
+                Task<string> Ask(string prompt) => _llm.AskAsync(projectPath, engine, model, prompt, "mark-folder",
+                    "i riassunti delle cartelle sono in sola lettura: il testo lo scrive MdExplorer", ct);
 
                 // ---- Load the precooked prompts (deployed by MdeSkillUpdater) ----
-                var summarizePrompt = LoadPromptBody(projectPath, "mde-mark-summarize.prompt.md");
-                var synthesisPrompt = LoadPromptBody(projectPath, "mde-mark-folder-synthesis.prompt.md");
+                var summarizePrompt = LoadPromptBody(projectPath, "mde-mark-summarize");
+                var synthesisPrompt = LoadPromptBody(projectPath, "mde-mark-folder-synthesis");
 
                 // ---- Enumerate the subtree bottom-up (leaf folders first) ----
                 var folders = EnumerateFoldersBottomUp(folderFullPath, projectPath);
@@ -134,7 +131,7 @@ namespace MdExplorer.Services.MarkActions
                 await SendAsync(connectionId, new
                 {
                     phase = "started",
-                    provider = provider.GetName(),
+                    provider = engineLabel,
                     folderTotal = folders.Count
                 });
 
@@ -205,7 +202,7 @@ namespace MdExplorer.Services.MarkActions
                                          + "---- DOCUMENTO ----" + Environment.NewLine
                                          + docText;
 
-                            var answer = await provider.ChatAsync(prompt, null, ct);
+                            var answer = await Ask(prompt);
                             var tldrBlock = TldrDocumentWriter.NormalizeTldrBlock(answer);
                             if (tldrBlock == null)
                             {
@@ -282,7 +279,7 @@ namespace MdExplorer.Services.MarkActions
                                              + "---- TL;DR DEI DOCUMENTI ----" + Environment.NewLine
                                              + digest;
 
-                                var answer = await provider.ChatAsync(prompt, null, ct);
+                                var answer = await Ask(prompt);
                                 var synthesis = SanitizeSynthesis(answer);
                                 if (synthesis != null)
                                 {
@@ -333,73 +330,6 @@ namespace MdExplorer.Services.MarkActions
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // AI provider resolution — mirrors GitCommitAiService: AI_DefaultProvider
-        // setting → copilotcli → gemini → openai → local, first one IsAvailable().
-        // ─────────────────────────────────────────────────────────────────────
-        private IAiProvider ResolveProvider()
-        {
-            var byKey = (_aiProviders ?? Enumerable.Empty<IAiProvider>())
-                .Concat(new IAiProvider[] { _localProvider })
-                .Where(p => p != null)
-                .GroupBy(p => ProviderKey(p.GetProviderType()))
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            foreach (var key in BuildProviderOrder(ReadDefaultProviderSetting()))
-            {
-                if (!byKey.TryGetValue(key, out var provider)) continue;
-                try
-                {
-                    if (provider.IsAvailable()) return provider;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[MarkFolderJob] Provider '{Key}' availability check failed", key);
-                }
-            }
-            return null;
-        }
-
-        private static string ProviderKey(ProviderType type) => type switch
-        {
-            ProviderType.CopilotCli => "copilotcli",
-            ProviderType.Gemini => "gemini",
-            ProviderType.OpenAI => "openai",
-            ProviderType.Local => "local",
-            _ => type.ToString().ToLowerInvariant()
-        };
-
-        private static IEnumerable<string> BuildProviderOrder(string preferred)
-        {
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(preferred) && seen.Add(preferred.ToLowerInvariant()))
-                yield return preferred.ToLowerInvariant();
-            foreach (var fallback in new[] { "copilotcli", "gemini", "openai", "local" })
-                if (seen.Add(fallback)) yield return fallback;
-        }
-
-        private string ReadDefaultProviderSetting()
-        {
-            // IUserSettingsDB is a shared NHibernate session — even reads must sit inside
-            // an explicit transaction or other controllers' Commit() breaks. Resolve it
-            // from a short-lived scope.
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
-                if (db == null) return null;
-                db.BeginTransaction();
-                var settings = db.GetDal<Setting>().GetList().ToList();
-                db.Commit();
-                return settings.FirstOrDefault(s => s.Name == DefaultProviderKey)?.ValueString;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[MarkFolderJob] Could not read {Key} setting (non-fatal)", DefaultProviderKey);
-                return null;
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
         // Folder enumeration — post-order DFS (children before parent).
         // ─────────────────────────────────────────────────────────────────────
         private List<string> EnumerateFoldersBottomUp(string root, string projectPath)
@@ -431,14 +361,14 @@ namespace MdExplorer.Services.MarkActions
         // ─────────────────────────────────────────────────────────────────────
         // Precooked prompt loading.
         // ─────────────────────────────────────────────────────────────────────
-        private static string LoadPromptBody(string projectPath, string fileName)
+        /// <param name="name">
+        /// Nome LOGICO del prompt (senza estensione): il percorso e l'estensione dipendono
+        /// dall'harness del progetto — <c>.github/prompts/&lt;n&gt;.prompt.md</c> per Copilot,
+        /// <c>.opencode/commands/&lt;n&gt;.md</c> per opencode — e li risolve MdeAssetResolver.
+        /// </param>
+        private static string LoadPromptBody(string projectPath, string name)
         {
-            var path = Path.Combine(projectPath, ".github", "prompts", fileName);
-            if (!File.Exists(path))
-                throw new FileNotFoundException(
-                    $"Prompt precotto mancante: '{path}'. Riapri il progetto per rigenerare i file in .github/prompts/.");
-
-            var text = File.ReadAllText(path);
+            var text = File.ReadAllText(MdeAssetResolver.PromptFullPath(projectPath, name));
 
             // Strip leading YAML frontmatter.
             var fm = Regex.Match(text, @"^---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n", RegexOptions.Singleline);

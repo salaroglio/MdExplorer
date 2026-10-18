@@ -3,6 +3,9 @@ export interface CompactSegment {
   name: string;       // Single folder name: "src", "main", "java"
   fullPath: string;   // Full path: "C:\project\src\main\java"
   level: number;      // Level in original tree
+  hasExtraContent?: boolean; // This folder holds non-.md files or markdown-empty subfolders (the eye reveals them)
+  hasToc?: boolean;          // This folder has its <name>.md.directory
+  developmentTags?: string[]; // This folder's own tags (program…): a program folder is never inside a chain
 }
 
 // implementation of this interface is MDFile
@@ -25,9 +28,15 @@ export interface IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // True for *.agent.md files (agentic markdown: launchable/schedulable agents)
+  isAgentFile?: boolean;
+
   // True when the folder contains content the md-tree does not show (non-.md files or
   // markdown-empty subfolders). Drives the "reveal content" (eye) entry in the context menu.
   hasExtraContent?: boolean;
+  // A revealed non-markdown file (type "genericFile") whose content is text: a click shows it,
+  // colored, in the document panel. Binary files stay not clickable.
+  isTextFile?: boolean;
   // True once the extra content of this folder has been pulled into the tree (eye toggled on).
   extraLoaded?: boolean;
   // True on nodes that were injected by a folder "reveal" call (so a "hide" can remove them
@@ -45,5 +54,9 @@ export interface IFileInfoNode {
   appArgs?: string[];
   appIcon?: string;
   appDescription?: string;
+
+  // Radice di codice esterna (type 'codeRoot'): stato su questa macchina e motivo se non è collegata
+  codeRootStatus?: string;
+  codeRootReason?: string;
 }
 

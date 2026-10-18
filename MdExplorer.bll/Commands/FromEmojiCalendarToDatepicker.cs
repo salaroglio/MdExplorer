@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -70,10 +71,17 @@ namespace MdExplorer.Features.Commands
         {
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             for (int i = 0; i < matches.Count; i++)
             {
                 var item = matches[i];
+                // A :calendar: in code stays text. It keeps its number i all the same: the click on
+                // a calendar outside code names the i-th one of the file, code included.
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
                 var text = item.Groups[1].Value;                                
                 // gestione :calendar:
                 if (text == ":calendar:")

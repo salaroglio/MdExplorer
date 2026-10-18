@@ -5,10 +5,16 @@ import { GITService } from '../../services/gitservice.service';
 import { IBranch, BranchInfo, CheckoutResult } from '../../models/branch';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
+import { GitDialogRepo } from '../../components/git-repo-picker/git-repo-picker.component';
 
 export interface GitBranchDialogData {
   projectPath: string;
   projectName?: string;
+  /** Il progetto e i suoi submodule: ognuno ha i suoi rami. Assente = solo il progetto. */
+  repos?: GitDialogRepo[];
+  /** Rilegge i repository: dopo un cambio di ramo del progetto anche i submodule si sono spostati. */
+  reloadRepos?: () => Observable<GitDialogRepo[]>;
 }
 
 export interface BranchGroup {
@@ -33,6 +39,14 @@ export class GitBranchDialogComponent implements OnInit {
   isSwitching = false;
   error: string | null = null;
 
+  /** I repository fra cui scegliere, e quello di cui si stanno guardando i rami. */
+  repos: GitDialogRepo[] = [];
+  activeRepo: GitDialogRepo | null = null;
+  /** Vero se un ramo è stato cambiato: chi ha aperto il dialogo deve rileggere lo stato. */
+  private switched = false;
+  /** Perché l'ultimo cambio di ramo è stato rifiutato: dice cosa fare prima. */
+  switchRefusal: string | null = null;
+
   constructor(
     public dialogRef: MatDialogRef<GitBranchDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: GitBranchDialogData,
@@ -44,24 +58,39 @@ export class GitBranchDialogComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.repos = this.data.repos || [];
+    this.activeRepo = this.repos.find(r => r.isRoot) || this.repos[0] || null;
+    this.loadBranchInfo();
+    this.loadBranches();
+  }
+
+  /** Il percorso su cui si agisce: il repository scelto, o il progetto se non c'è scelta. */
+  get activePath(): string {
+    return this.activeRepo?.path || this.data.projectPath;
+  }
+
+  /** Si stanno guardando i rami del progetto, non di un submodule. */
+  get onRoot(): boolean {
+    return !this.activeRepo || this.activeRepo.isRoot;
+  }
+
+  selectRepo(repo: GitDialogRepo): void {
+    this.activeRepo = repo;
+    this.searchTerm = '';
+    this.currentBranch = null;
     this.loadBranchInfo();
     this.loadBranches();
   }
 
   loadBranchInfo(): void {
-    // Subscribe to current branch data
-    this.gitService.currentBranch$.subscribe(branch => {
-      if (branch && branch.name) {
-        this.currentBranch = branch;
-      }
-    });
-
-    // Trigger branch status update
-    this.gitService.modernGetBranchStatus(this.data.projectPath).subscribe({
+    const path = this.activePath;
+    this.gitService.modernGetBranchStatus(path).subscribe({
       next: (branch) => {
+        if (path !== this.activePath) return;   // nel frattempo si è scelto un altro repository
         this.currentBranch = branch;
-        // Update the BehaviorSubject
-        this.gitService.currentBranch$.next(branch);
+        // Il ramo mostrato nella toolbar è quello del PROGETTO: lo stato di un submodule non
+        // deve finirci dentro, altrimenti la toolbar mostrerebbe il ramo del submodule.
+        if (this.onRoot) this.gitService.currentBranch$.next(branch);
       },
       error: (err) => {
         this.error = this.translate.instant('GIT_BRANCH.LOAD_INFO_ERROR');
@@ -74,7 +103,7 @@ export class GitBranchDialogComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
 
-    this.gitService.getBranches(this.data.projectPath, true).subscribe({
+    this.gitService.getBranches(this.activePath, true).subscribe({
       next: (branches) => {
         this.branches = branches;
         this.filteredBranches = this.sortBranches(branches);
@@ -180,7 +209,7 @@ export class GitBranchDialogComponent implements OnInit {
     }
 
     // Check for uncommitted changes
-    this.gitService.getRepositoryStatus(this.data.projectPath).subscribe({
+    this.gitService.getRepositoryStatus(this.activePath).subscribe({
       next: (status) => {
         const hasChanges = status.hasChanges ||
                           (this.currentBranch?.somethingIsChangedInTheBranch);
@@ -212,6 +241,7 @@ export class GitBranchDialogComponent implements OnInit {
   private performCheckout(branch: BranchInfo, force: boolean = false): void {
     this.isSwitching = true;
     this.error = null;
+    this.switchRefusal = null;
 
     // Extract branch name (remove remote prefix if present)
     let branchName = branch.name;
@@ -229,21 +259,28 @@ export class GitBranchDialogComponent implements OnInit {
       }
     }
 
-    this.gitService.checkoutBranch(this.data.projectPath, branchName, this.serverMessages.connectionId).subscribe({
+    const path = this.activePath;
+    const onRoot = this.onRoot;
+    this.gitService.checkoutBranch(path, branchName, this.serverMessages.connectionId).subscribe({
       next: (result: CheckoutResult) => {
         this.isSwitching = false;
 
         if (result.success) {
           const actualBranchName = result.branchName || branchName;
+          this.switched = true;
+          if (this.activeRepo) { this.activeRepo.branch = actualBranchName; this.activeRepo.detached = false; }
 
+          // Con un avviso da leggere il messaggio resta finché non lo si chiude: dice quale
+          // submodule NON è stato portato alla versione del ramo nuovo, e perché.
+          const warnings = result.warnings || [];
           this.snackBar.open(
-            this.translate.instant('GIT_BRANCH.SWITCHED_TO', { branch: actualBranchName }),
+            [this.translate.instant('GIT_BRANCH.SWITCHED_TO', { branch: actualBranchName }), ...warnings].join(' '),
             'OK',
-            { duration: 3000, panelClass: ['success-snackbar'] }
+            { duration: warnings.length ? undefined : 3000, panelClass: ['success-snackbar'] }
           );
 
-          // If backend returned branch name, use it directly to update current branch
-          if (result.branchName) {
+          // Il ramo della toolbar è quello del progetto: si aggiorna solo se è lui ad aver cambiato ramo.
+          if (result.branchName && onRoot) {
             this.gitService.currentBranch$.next({
               id: '',
               name: result.branchName,
@@ -255,14 +292,14 @@ export class GitBranchDialogComponent implements OnInit {
           }
 
           // Refresh branch list
+          this.loadBranchInfo();
           this.loadBranches();
+          this.reloadRepos();
         } else {
-          this.error = result.error || this.translate.instant('GIT_BRANCH.SWITCH_ERROR');
-          this.snackBar.open(
-            this.error,
-            'OK',
-            { duration: 5000, panelClass: ['error-snackbar'] }
-          );
+          // Un rifiuto dice cosa fare prima (per esempio: un submodule ha lavoro non salvato):
+          // resta scritto nel dialogo, senza sparire dopo qualche secondo. Non è un errore di
+          // caricamento, quindi l'elenco dei rami resta dov'è.
+          this.switchRefusal = result.error || this.translate.instant('GIT_BRANCH.SWITCH_ERROR');
         }
       },
       error: (err) => {
@@ -278,7 +315,24 @@ export class GitBranchDialogComponent implements OnInit {
     });
   }
 
+  /**
+   * Dopo un cambio di ramo il selettore diceva ancora il ramo di prima — e, cambiando ramo al
+   * progetto, anche quello dei submodule, che nel frattempo si erano spostati.
+   */
+  private reloadRepos(): void {
+    if (!this.data.reloadRepos) return;
+    const activePath = this.activePath;
+    this.data.reloadRepos().subscribe({
+      next: repos => {
+        if (!repos.length) return;
+        this.repos = repos;
+        this.activeRepo = repos.find(r => r.path === activePath) || repos.find(r => r.isRoot) || repos[0];
+      },
+      error: err => console.error('Error reloading repositories:', err),
+    });
+  }
+
   onClose(): void {
-    this.dialogRef.close();
+    this.dialogRef.close(this.switched);
   }
 }
