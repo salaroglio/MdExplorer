@@ -73,6 +73,32 @@ namespace MdExplorer.Service.Models
         /// <para>DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al primo salvataggio.</para>
         /// </summary>
         public List<CodeRootConfig> CodeRoots { get; set; }
+
+        /// <summary>
+        /// I template da cui viene il progetto (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md): in git, così tutto il
+        /// gruppo sa da dove arriva il metodo di lavoro; i remoti <c>template-&lt;id&gt;</c> invece MDE li ricrea su ogni computer
+        /// da qui. Null/assente = un progetto che non viene da un template.
+        /// <para>DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al primo salvataggio.</para>
+        /// </summary>
+        public List<ProjectTemplateConfig> Templates { get; set; }
+    }
+
+    /// <summary>Una riga di <c>templates:</c> in <c>.development.yml</c>.</summary>
+    public class ProjectTemplateConfig
+    {
+        /// <summary>L'id del manifesto: nome della zona e del remoto <c>template-&lt;id&gt;</c>.</summary>
+        public string Id { get; set; }
+        public string Url { get; set; }
+        /// <summary><c>project</c> per il template di base; assente per un metodo.</summary>
+        public string Kind { get; set; }
+        /// <summary>La lingua scelta: col manifesto dice da quale ramo arrivano gli aggiornamenti.</summary>
+        public string Language { get; set; }
+        /// <summary>Vero se si è preso l'esempio compilato invece della sola struttura.</summary>
+        public bool? Example { get; set; }
+        /// <summary>L'ultima versione del template unita nel progetto.</summary>
+        public string Version { get; set; }
+        /// <summary>La data (aaaa-mm-gg) in cui il gruppo si è staccato: niente più aggiornamenti, la riga resta come storia.</summary>
+        public string Detached { get; set; }
     }
 
     /// <summary>
