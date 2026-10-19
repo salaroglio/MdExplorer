@@ -289,6 +289,12 @@ app-promptlab {
   }
 }
 
+// Snackbar con più righe (avvisi dell'albero, una riga per avviso): gli a capo del testo restano.
+.mat-snack-bar-container.snackbar-multiline,
+.mat-mdc-snack-bar-container.snackbar-multiline {
+  white-space: pre-line;
+}
+
 // Minimal snackbar styles - base.
 // NB: panelClass viene applicata ALL'ELEMENTO CONTAINER stesso (verificato in
 // snack-bar-container.mjs), quindi i selettori devono essere COMPOUND

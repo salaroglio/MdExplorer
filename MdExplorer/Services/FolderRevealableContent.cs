@@ -19,8 +19,11 @@ namespace MdExplorer.Service.Services
         /// holds a file that is not markdown (the TOC sidecar excepted), or a non-ignored subfolder with no
         /// markdown anywhere below it — both are left out of the tree. Markdown files are shown, so they do not
         /// count. For a folder that is itself revealed (green) the rule is <see cref="Has"/>.
+        /// <para>A program folder with files shows even without markdown (<see cref="ProgramFolders"/>): it is not
+        /// hidden, so it does not light the eye of the folder above it.</para>
         /// </summary>
-        public static bool HasHidden(string folder, string projectPath, IMdIgnoreService mdIgnore, FoldersIgnoreService foldersIgnore)
+        public static bool HasHidden(string folder, string projectPath, IMdIgnoreService mdIgnore, FoldersIgnoreService foldersIgnore,
+            ProgramFolders programs = null)
         {
             try
             {
@@ -30,7 +33,8 @@ namespace MdExplorer.Service.Services
                 {
                     if (foldersIgnore.ShouldIgnoreFolderForProject(d, projectPath))
                         continue;
-                    if (!HasVisibleMarkdown(d, projectPath, mdIgnore, foldersIgnore))
+                    if (!HasVisibleMarkdown(d, projectPath, mdIgnore, foldersIgnore)
+                        && programs?.ShowsWithoutMarkdown(d, projectPath, foldersIgnore) != true)
                         return true;
                 }
             }
@@ -45,6 +49,26 @@ namespace MdExplorer.Service.Services
         public static bool IsExtraFile(string filePath) =>
             Path.GetExtension(filePath) != ".md"
             && !filePath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Any file in <paramref name="folder"/> or below, through non-ignored folders: a program folder made only of
+        /// empty folders has nothing to show. Stops at the first file. An unreadable folder counts as empty.
+        /// </summary>
+        public static bool HasAnyFile(string folder, string projectPath, FoldersIgnoreService foldersIgnore)
+        {
+            try
+            {
+                if (Directory.EnumerateFiles(folder).Any())
+                    return true;
+                return Directory.GetDirectories(folder).Where(_ => !_.Contains(".md"))
+                    .Where(d => !foldersIgnore.ShouldIgnoreFolderForProject(d, projectPath))
+                    .Any(d => HasAnyFile(d, projectPath, foldersIgnore));
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
 
         /// <summary>A non-ignored markdown file in <paramref name="folder"/> or below, through non-ignored folders.</summary>
         private static bool HasVisibleMarkdown(string folder, string projectPath, IMdIgnoreService mdIgnore, FoldersIgnoreService foldersIgnore)

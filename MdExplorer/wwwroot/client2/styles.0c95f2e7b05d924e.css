@@ -14265,6 +14265,11 @@ app-promptlab {
   background-color: var(--mde-accent-secondary-hover) !important;
 }
 
+.mat-snack-bar-container.snackbar-multiline,
+.mat-mdc-snack-bar-container.snackbar-multiline {
+  white-space: pre-line;
+}
+
 .mat-snack-bar-container.subtle-snackbar,
 .mat-snack-bar-container.success-snackbar,
 .mat-mdc-snack-bar-container.subtle-snackbar,
@@ -14374,4 +14379,4 @@ app-promptlab {
   -webkit-app-region: no-drag;
 }
 
-/*# sourceMappingURL=styles.2e23d6a59a835114.css.map*/
+/*# sourceMappingURL=styles.0c95f2e7b05d924e.css.map*/

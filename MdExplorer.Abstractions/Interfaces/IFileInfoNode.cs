@@ -37,6 +37,10 @@ namespace MdExplorer.Abstractions.Interfaces
         // shows it colored in the document panel. Binary files stay not clickable.
         bool IsTextFile { get; set; }
 
+        // Only on the "emptyroot" node: what the tree could not show and the user must know
+        // (a program folder that is ignored or missing on disk), in the language of the interface.
+        List<string> TreeNotices { get; set; }
+
         // External app embedding
         string AppId { get; set; }
         string AppExecutable { get; set; }

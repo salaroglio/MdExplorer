@@ -1897,6 +1897,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var perRootStats = new List<(string Name, ScanStats Stats, long ElapsedMs)>();
             var ignoredRootFolders = new List<string>();
             var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
+            // L'occhio della radice: qualcosa che l'albero non mostra al primo livello.
+            var rootHasHidden = false;
 
             // Carica solo primo livello di cartelle che contengono file markdown
             // Ordina: cartella harness (.github/.opencode/.claude) prima, poi folder "program", poi alfabetico
@@ -1923,7 +1925,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 var node = result.Item1;
                 var isEmpty = result.Item2;
-                if (!isEmpty)
+                // Una cartella program con dei file si vede anche senza markdown (ProgramFolders);
+                // le altre senza markdown restano fuori e accendono l'occhio della radice.
+                var shownProgram = isEmpty && ProgramFoldersOf(currentPath).ShowsWithoutMarkdown(itemFolder, currentPath, _foldersIgnoreService);
+                if (isEmpty && !shownProgram)
+                    rootHasHidden = true;
+                if (!isEmpty || shownProgram)
                 {
                     // Imposta le proprietà per il caricamento incrementale
                     node.Level = 0;
@@ -1947,7 +1954,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             
             // File nella root
-            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            var rootFiles = Directory.GetFiles(currentPath);
+            if (rootFiles.Any(IsRevealableExtraFile))
+                rootHasHidden = true;
+            foreach (var itemFile in rootFiles.Where(_ => Path.GetExtension(_) == ".md"))
             {
                 if (_mdIgnoreService.ShouldIgnorePath(itemFile, GetProjectPath()))
                 {
@@ -1981,7 +1991,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Path = currentPath,
                 Type = "emptyroot",
                 Expandable = false,
-                IsIndexed = true
+                IsIndexed = true,
+                HasExtraContent = rootHasHidden,
+                TreeNotices = ProgramFolderNotices(currentPath)
             };
             list.Add(nodeempty);
             
@@ -3123,6 +3135,44 @@ namespace MdExplorer.Service.Controllers.MdFiles
         // The controller is registered scoped → this dictionary lives only for one HTTP request,
         // so there is no stale-cache risk across edits to .development.yml.
         private Dictionary<string, List<DevelopmentFolder>> _devTagsByProjectRoot;
+        private ProgramFolders _programFolders;
+
+        /// <summary>The program folders of <c>.development.yml</c>, read once per request (one project).</summary>
+        private ProgramFolders ProgramFoldersOf(string projectRoot) =>
+            _programFolders ??= ProgramFolders.From(projectRoot, GetOrLoadDevelopmentFolders(projectRoot));
+
+        /// <summary>
+        /// The program folders the tree cannot show, said instead of left out in silence: the folder is gone
+        /// from the disk (the row in <c>.development.yml</c> stays, the user decides), or it is ignored by
+        /// <c>.mdFoldersIgnore</c> (the ignore wins).
+        /// </summary>
+        private List<string> ProgramFolderNotices(string projectRoot)
+        {
+            var notices = new List<string>();
+            foreach (var folder in ProgramFoldersOf(projectRoot).Paths.OrderBy(_ => _, StringComparer.OrdinalIgnoreCase))
+            {
+                var relative = Path.GetRelativePath(projectRoot, folder);
+                if (!Directory.Exists(folder))
+                    notices.Add(MdExplorer.Features.Services.UiText.Say(
+                        $"La cartella program «{relative}» del .development.yml non esiste sul disco.",
+                        $"The program folder «{relative}» in .development.yml does not exist on disk."));
+                else if (IsFolderOrAncestorIgnored(folder, projectRoot))
+                    notices.Add(MdExplorer.Features.Services.UiText.Say(
+                        $"La cartella program «{relative}» non si vede: è esclusa da .mdFoldersIgnore.",
+                        $"The program folder «{relative}» is not shown: .mdFoldersIgnore excludes it."));
+            }
+            return notices.Count > 0 ? notices : null;
+        }
+
+        /// <summary>The folder or one of the folders above it, up to the project root, is ignored.</summary>
+        private bool IsFolderOrAncestorIgnored(string folder, string projectRoot)
+        {
+            var root = Path.GetFullPath(projectRoot).TrimEnd(Path.DirectorySeparatorChar);
+            for (var d = new DirectoryInfo(folder); d != null && !d.FullName.TrimEnd(Path.DirectorySeparatorChar).Equals(root, StringComparison.OrdinalIgnoreCase); d = d.Parent)
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(d.FullName, projectRoot))
+                    return true;
+            return false;
+        }
 
         /// <summary>
         /// Loads development tags from .development.yml file in the specified folder.
@@ -3384,6 +3434,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     fileInfoNode.Childrens.Add(node);
                 }
+                else if (ProgramFoldersOf(projectPath).ShowsWithoutMarkdown(itemFolder, projectPath, _foldersIgnoreService))
+                {
+                    // A program folder with files shows even without markdown, but only itself:
+                    // the parent stays "empty" and follows the markdown rule (ProgramFolders).
+                    fileInfoNode.Childrens.Add(node);
+                }
                 else
                 {
                     // A non-ignored subfolder with no .md descendant is dropped from the tree,
@@ -3454,6 +3510,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     // Small delay to make progress visible
                     await Task.Delay(50);
+                }
+                else if (ProgramFoldersOf(projectPath).ShowsWithoutMarkdown(itemFolder, projectPath, _foldersIgnoreService))
+                {
+                    // A program folder with files shows even without markdown, only itself (ProgramFolders).
+                    fileInfoNode.Childrens.Add(node);
                 }
                 else
                 {

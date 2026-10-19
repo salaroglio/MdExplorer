@@ -948,10 +948,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // knows which kind the folder is, the server does not.
                 var exists = Directory.Exists(folder);
                 var foldersIgnore = GetFoldersIgnoreService();
+                // Una cartella program con dei file si vede anche senza markdown: non è nascosta (ProgramFolders).
+                var programs = exists ? ProgramFolders.Load(projectPath) : null;
                 await _hubContext.Clients.Client(connectionId).SendAsync("folderContentChanged", new
                 {
                     FolderFullPath = folder,
-                    HasExtraContent = exists && FolderRevealableContent.HasHidden(folder, projectPath, _mdIgnoreService, foldersIgnore),
+                    HasExtraContent = exists && FolderRevealableContent.HasHidden(folder, projectPath, _mdIgnoreService, foldersIgnore, programs),
                     HasRevealableContent = exists && FolderRevealableContent.Has(folder, projectPath, _mdIgnoreService, foldersIgnore),
                 });
             }

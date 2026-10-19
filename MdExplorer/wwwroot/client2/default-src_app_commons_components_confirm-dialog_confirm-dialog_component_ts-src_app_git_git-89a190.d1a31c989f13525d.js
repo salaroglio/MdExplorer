@@ -3956,8 +3956,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "ProjectSettingsService": () => (/* binding */ ProjectSettingsService)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _environments_version__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../environments/version */ 9279);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
 
 
 class ProjectSettingsService {
@@ -4212,6 +4214,31 @@ class ProjectSettingsService {
       }
     });
   }
+  /** I template da cui viene il progetto: le righe «templates:» di .development.yml. */
+  getTemplates(projectPath) {
+    return this.http.get('../api/MdProjects/Templates', {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  /** «Aggiungi un metodo»: unisce il template al progetto con un commit; 400 { error } se non si può. */
+  addTemplate(projectPath, templateUrl, language, example) {
+    return this.http.post('../api/MdProjects/AddTemplate', {
+      path: projectPath,
+      templateUrl,
+      language,
+      example,
+      mdeVersion: _environments_version__WEBPACK_IMPORTED_MODULE_0__.versionInfo.version
+    });
+  }
+  /** Stacca il progetto da un template, per sempre. */
+  detachTemplate(projectPath, id) {
+    return this.http.post('../api/MdProjects/DetachTemplate', {
+      path: projectPath,
+      id
+    });
+  }
   setAgentCity(projectPath, body) {
     return this.http.post('../api/MdProjects/SetAgentCity', body, {
       params: {
@@ -4316,11 +4343,11 @@ class ProjectSettingsService {
   }
   static {
     this.ɵfac = function ProjectSettingsService_Factory(t) {
-      return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));
+      return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({
       token: ProjectSettingsService,
       factory: ProjectSettingsService.ɵfac,
       providedIn: 'root'
@@ -8728,4 +8755,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.401d60741e77fef5.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.d1a31c989f13525d.js.map

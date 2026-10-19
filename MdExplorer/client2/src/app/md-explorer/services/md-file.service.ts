@@ -395,6 +395,9 @@ export class MdFileService {
   // the older one, leaving a stale tree. The last REQUEST must win.
   private _loadAllEpoch = 0;
 
+  /** Quello che l'albero non ha potuto mostrare (cartelle program ignorate o assenti), detto dal server al caricamento. */
+  public readonly treeNotices$ = new Subject<string[]>();
+
   /** Una riga compattata è stata spezzata: le chiavi di espansione (fullPath) prima e dopo. */
   public readonly compactChainBroken$ = new Subject<{ rowKey: string; headKey: string; tailKey: string }>();
 
@@ -417,6 +420,8 @@ export class MdFileService {
         this.compactFolders(data);
         this.dataStore.mdFiles = data;
         this._mdFiles.next([...this.dataStore.mdFiles]);
+        const notices = this.getRootNode()?.treeNotices;
+        if (notices?.length) this.treeNotices$.next(notices);
         if (callback != null) {
           callback(data, objectThis);
         }
@@ -609,11 +614,32 @@ export class MdFileService {
         const kids = children || [];
         kids.forEach(child => {
           child.isExtra = true;
-          this.addFileToParent(child, parentFullPath);
+          if (this.isRootPath(parentFullPath)) this.addRootExtra(child);
+          else this.addFileToParent(child, parentFullPath);
         });
         this._mdFiles.next([...this.dataStore.mdFiles]);
       })
     );
+  }
+
+  /**
+   * Il nodo «emptyroot»: la radice del progetto. Porta il flag dell'occhio del primo livello e gli avvisi
+   * dell'albero (treeNotices). La radice non è una cartella del dataStore: i suoi figli sono la lista stessa.
+   */
+  getRootNode(): MdFile | undefined {
+    return this.dataStore.mdFiles?.find(n => n.type === 'emptyroot');
+  }
+
+  private isRootPath(folderFullPath: string): boolean {
+    const root = this.getRootNode();
+    return !!root?.fullPath && !!folderFullPath && root.fullPath.toLowerCase() === folderFullPath.toLowerCase();
+  }
+
+  /** Un nodo rivelato della radice: al primo livello, prima di «emptyroot»; se c'è già, resta quello. */
+  private addRootExtra(child: MdFile): void {
+    if (this.findNodeInDataStore(this.dataStore.mdFiles, child.fullPath)) return;
+    const at = this.dataStore.mdFiles.findIndex(n => n.type === 'emptyroot');
+    this.dataStore.mdFiles.splice(at < 0 ? this.dataStore.mdFiles.length : at, 0, child);
   }
 
   /**
@@ -632,14 +658,19 @@ export class MdFileService {
       tap(children => {
         const kids = children || [];
         const present = new Set(kids.map(c => (c.fullPath || '').toLowerCase()));
-        const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
-        if (parent?.childrens) {
-          parent.childrens = parent.childrens.filter(c =>
-            !(c as MdFile).isExtra || present.has(((c as MdFile).fullPath || '').toLowerCase())) as MdFile[];
+        const keep = (c: MdFile) => !c.isExtra || present.has((c.fullPath || '').toLowerCase());
+        if (this.isRootPath(parentFullPath)) {
+          this.dataStore.mdFiles = this.dataStore.mdFiles.filter(keep);
+        } else {
+          const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+          if (parent?.childrens) {
+            parent.childrens = parent.childrens.filter(c => keep(c as MdFile)) as MdFile[];
+          }
         }
         kids.forEach(child => {
           child.isExtra = true;
-          this.addFileToParent(child, parentFullPath);
+          if (this.isRootPath(parentFullPath)) this.addRootExtra(child);
+          else this.addFileToParent(child, parentFullPath);
         });
         this._mdFiles.next([...this.dataStore.mdFiles]);
       })
@@ -652,6 +683,10 @@ export class MdFileService {
    * Restituisce false se la cartella non è nel tree (mai caricata): nulla da aggiornare.
    */
   setFolderExtraContent(folderFullPath: string, hasExtraContent: boolean, hasRevealableContent: boolean): boolean {
+    if (this.isRootPath(folderFullPath)) {
+      this.getRootNode()!.hasExtraContent = hasExtraContent;
+      return true;
+    }
     const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
     if (!holder) return false;
     // Una cartella rivelata (verde) non mostra niente di suo: per lei conta tutto, markdown compresi
@@ -664,6 +699,7 @@ export class MdFileService {
 
   /** Il flag "ha contenuto per l'occhio" della cartella come lo conosce il tree ORA; undefined se non c'è. */
   getFolderExtraContent(folderFullPath: string): boolean | undefined {
+    if (this.isRootPath(folderFullPath)) return !!this.getRootNode()!.hasExtraContent;
     const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
     if (!holder) return undefined;
     return holder.segment ? !!holder.segment.hasExtraContent : !!holder.node.hasExtraContent;
@@ -690,6 +726,11 @@ export class MdFileService {
   }
 
   hideFolderExtras(parentFullPath: string): void {
+    if (this.isRootPath(parentFullPath)) {
+      this.dataStore.mdFiles = this.dataStore.mdFiles.filter(c => !c.isExtra);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return;
+    }
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
     if (!parent || !parent.childrens) {
       return;
@@ -704,6 +745,7 @@ export class MdFileService {
    * fra "mostra" e "nascondi" senza dipendere da un flag mutato/propagato (che si disallineava).
    */
   hasRevealedExtras(folderFullPath: string): boolean {
+    if (this.isRootPath(folderFullPath)) return this.dataStore.mdFiles.some(c => c.isExtra);
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, folderFullPath);
     return !!parent?.childrens?.some(c => (c as MdFile).isExtra);
   }
@@ -1173,7 +1215,12 @@ export class MdFileService {
       }
     }
     const node = this.findFolderByFullPath(this.dataStore.mdFiles, target);
-    if (node) { node.developmentTags = tags; }
+    if (node) {
+      node.developmentTags = tags;
+      // Una cartella rivelata (verde) marcata program diventa dell'albero: chiudere l'occhio di sopra non la toglie
+      // più, come al prossimo caricamento (ProgramFolders del server).
+      if (tags.includes('program')) node.isExtra = false;
+    }
     this._mdFiles.next([...this.dataStore.mdFiles]);
   }
 

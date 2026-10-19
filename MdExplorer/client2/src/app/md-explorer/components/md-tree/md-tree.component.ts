@@ -379,6 +379,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.markForCheck();
     });
 
+    // Quello che l'albero non ha potuto mostrare (cartelle program ignorate o assenti): detto, non taciuto.
+    this.mdFileService.treeNotices$.pipe(takeUntil(this.destroy$)).subscribe(notices => {
+      this.snackBar.open(notices.join('\n'), 'OK', { duration: 15000, panelClass: 'snackbar-multiline' });
+    });
+
     // Listener per "Reveal in Tree" dal pulsante mirino nel sidenav
     this.mdFileService.revealInTree$.pipe(takeUntil(this.destroy$)).subscribe(file => {
       this.revealAndScrollToNode(file);
@@ -536,7 +541,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // The reveal/hide menu entries key off item.extraLoaded; deriving it here (instead of relying
     // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
     // the folder currently shows revealed isExtra children.
-    if (item && item.type === 'folder') {
+    if (item?.name === 'root' && item.type !== 'folder') {
+      // La radice: il suo occhio vive sul nodo «emptyroot» (il primo livello che l'albero non mostra).
+      item.hasExtraContent = !!this.mdFileService.getRootNode()?.hasExtraContent;
+      item.extraLoaded = this.folderHasRevealedExtras(item);
+    } else if (item && item.type === 'folder') {
       // Il flag dell'occhio dal dataStore, non dalla riga: il CDK tree riusa la riga con i dati
       // vecchi, e un flag cambiato sul disco (folderContentChanged) non ci arriverebbe.
       const known = this.mdFileService.getFolderExtraContent(this.getFolderRevealPath(item));
@@ -1094,7 +1103,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       // dal menù di un segmento compattato, `node` è un MdFile sintetico il cui fullPath è
       // quello del segmento foglia, mentre l'expansionModel (trackBy fullPath) conosce la riga
       // compatta con il fullPath del PRIMO segmento → expand(node) non apriva la riga.
-      next: () => { this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node); },
+      next: () => {
+        // La radice non si espande: i nodi rivelati sono già al primo livello.
+        if (node.name === 'root' && node.type !== 'folder') return;
+        this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node);
+      },
       error: (err) => {
         console.error('[MdTreeComponent] revealFolderExtras failed:', err);
         this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
@@ -1112,6 +1125,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    * LAST segment (the one whose children the row displays), matching findFolderInDataStore.
    */
   private getFolderRevealPath(node: MdFile): string {
+    // La radice: il menu ha un nodo con fullPath «root», l'occhio vuole il percorso vero del progetto.
+    if (node.name === 'root' && node.type !== 'folder') return this.mdFileService.getRootNode()?.fullPath ?? node.fullPath;
     return node.isCompacted && node.compactedSegments?.length
       ? node.compactedSegments[node.compactedSegments.length - 1].fullPath
       : node.fullPath;

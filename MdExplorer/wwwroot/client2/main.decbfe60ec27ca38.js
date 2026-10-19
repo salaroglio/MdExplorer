@@ -8447,10 +8447,11 @@ function waitForRoute(_x6) {
   return _waitForRoute.apply(this, arguments);
 }
 /**
- * Build a default destination path for the demo clone. The backend resolves
+ * Build a default destination path for the demo project. The backend resolves
  * the user's Documents folder for the current OS (Windows/Linux/macOS), so
  * the path is always writable and uses the right separators. The path
  * includes a timestamp so multiple runs don't collide.
+ * No guess when the backend cannot answer: a demo created in a temporary folder would be lost without a word.
  */
 function _waitForRoute() {
   _waitForRoute = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (prefix, timeoutMs = DEFAULT_WAIT_TIMEOUT_MS) {
@@ -8477,21 +8478,12 @@ function buildDemoClonePath() {
  */
 function _buildDemoClonePath() {
   _buildDemoClonePath = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (repoName = 'mdexplorer-demo') {
-    try {
-      const res = yield fetch(`/api/ModernGit/default-clone-path?repoName=${encodeURIComponent(repoName)}`);
-      if (res.ok) {
-        const body = yield res.json();
-        if (body?.path) {
-          return body.path;
-        }
-      }
-    } catch {
-      // backend unreachable — fall through to the client-side guess
+    const res = yield fetch(`/api/ModernGit/default-clone-path?repoName=${encodeURIComponent(repoName)}`);
+    const body = yield res.json().catch(() => null);
+    if (!res.ok || !body?.path) {
+      throw new Error(body?.error || `default-clone-path: HTTP ${res.status}`);
     }
-    // Fallback: best-effort guess from the browser environment
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
-    return isWindows ? `C:\\Users\\Public\\Documents\\${repoName}-${stamp}` : `/tmp/${repoName}-${stamp}`;
+    return body.path;
   });
   return _buildDemoClonePath.apply(this, arguments);
 }
@@ -8535,25 +8527,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /**
- * Demo project clone tour — Mark talks while MDE drives itself: opens
- * the clone dialog, fills the URL, sets the destination path, presses
- * Clone, and waits for the project to be loaded. The user just watches.
+ * Demo project tour — Mark talks while MDE creates the demo project from its template
+ * (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1: the demo is a template like the others) and opens it.
+ * The user just watches.
  *
  * Why this works without a GitHub account:
- *   public Git repos are clonable over HTTPS anonymously. Our default
- *   demo URL (DEMO_REPO_URL below) points to a small public repository
- *   so the demo always works on a fresh install.
- *
- * Implementation notes:
- *   - autoExecute drives the UI via direct DOM manipulation (see
- *     lessons/auto-utils.ts). For ngModel inputs we set value via the
- *     native setter and dispatch 'input'/'change' events so Angular's
- *     change detection picks up the new value.
- *   - The localPath input is `readonly` (the clone dialog normally fills
- *     it via a folder picker). We bypass readonly temporarily.
- *   - We wait for navigation to /main/* as the "clone success" signal —
- *     ModernCloneProjectComponent navigates there once the clone backend
- *     completes.
+ *   the demo template is a public repository, downloaded over HTTPS anonymously, so the demo always works on a
+ *   fresh install. The project gets a local origin next to its folder: the agents deliver there, and the template
+ *   stays the source of the updates («Scarica gli aggiornamenti»).
  *
  * The demo opens already configured for the agentic environment of THIS
  * computer (sprint 2026-10-02-Demo-Ambiente-Agentico-Rilevato):
@@ -8567,34 +8548,19 @@ __webpack_require__.r(__webpack_exports__);
  *     in the project's .development.yml, as it does when a project is created.
  */
 /**
- * Default demo repository — purpose-built for MDE onboarding (multiple
- * .md files, cross-references, plantuml, runnable code blocks, ...).
- * Owned by the MDE author so its content can evolve with the product.
- *
- * To change the demo target, edit just this constant.
+ * The demo template — purpose-built for MDE onboarding (multiple .md files, cross-references, plantuml, the agent
+ * city, ...). Owned by the MDE author so its content can evolve with the product. Until the list of templates (P4)
+ * exists, its address lives here.
  */
-const DEMO_REPO_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
+const DEMO_TEMPLATE_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
 /**
- * The demo exists in one version per language, each on its own branch of the same repository.
- * Mark downloads the one of the language MdExplorer is set to. To add a language: translate the
- * demo on a new branch and add a line here.
+ * The languages the demo template has; its manifest says which branch each one is. Mark takes the language
+ * MdExplorer is set to. To add a language: translate the demo on a new branch, name it in the manifest, add it here.
  */
-const DEMO_BRANCH_BY_LANGUAGE = {
-  it: 'main',
-  en: 'en'
-};
+const DEMO_LANGUAGES = ['it', 'en'];
 /** MdExplorer's own default language is English (LanguageService): the demo follows the same rule. */
-const DEMO_BRANCH_DEFAULT = 'en';
-const demoBranchFor = language => DEMO_BRANCH_BY_LANGUAGE[language] || DEMO_BRANCH_DEFAULT;
-/**
- * Selector helpers — all relative to the open Modern Clone dialog.
- * The dialog uses .modern-clone-dialog as the root class.
- */
-const ROOT = '.modern-clone-dialog';
-const URL_INPUT = `${ROOT} mat-form-field:nth-of-type(1) input[matInput]`; // first form field = repo URL
-const PATH_INPUT = `${ROOT} input[readonly]`; // localPath is the only readonly one
-const BRANCH_INPUT = `${ROOT} input[data-test="clone-branch-input"]`; // optional branch
-const CLONE_BTN = `${ROOT} mat-dialog-actions button[color="primary"]`; // primary action button
+const DEMO_LANGUAGE_DEFAULT = 'en';
+const demoLanguageFor = language => DEMO_LANGUAGES.indexOf(language) >= 0 ? language : DEMO_LANGUAGE_DEFAULT;
 /** Product names: the same in every language. */
 const ENVIRONMENT_NAMES = {
   copilot: 'GitHub Copilot',
@@ -8608,7 +8574,8 @@ const emptyState = () => ({
   environments: [],
   usable: [],
   probeError: null,
-  chosen: NO_ENVIRONMENT
+  chosen: NO_ENVIRONMENT,
+  createError: null
 });
 /**
  * Built via factory because the tour hands the chosen environment to ProjectsService, and a
@@ -8744,129 +8711,45 @@ function buildDemoCloneTour(deps) {
         };
       }
     },
-    // Step 2 — open the Clone dialog by clicking the card
+    // Create the project from the demo template, then open it
     {
-      textKey: 'MARK.TOUR.DEMO_CLONE.OPEN_DIALOG',
-      targetSelector: '[data-test="clone-button"]',
+      textKey: 'MARK.TOUR.DEMO_CLONE.CREATE',
+      targetSelector: null,
       durationMs: 0,
       autoExecute: function () {
         var _ref3 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
           yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(900); // let the user read the message
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.clickElement)('[data-test="clone-button"]');
-          // wait for the dialog to render
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForElement)(ROOT);
+          try {
+            const target = yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.buildDemoClonePath)('mdexplorer-demo');
+            // The project is opened by path: the chosen environment travels bound to this path, and only to it.
+            deps.setHarnessForPath(target, state.chosen);
+            yield deps.createFromTemplateAndOpen(target, DEMO_TEMPLATE_URL, demoLanguageFor(deps.currentLanguage()));
+            yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForRoute)('/main', 30000).catch(() => {});
+          } catch (err) {
+            state.createError = err?.message || String(err);
+          }
         });
         return function autoExecute() {
           return _ref3.apply(this, arguments);
         };
       }()
     },
-    // Step 3 — fill the URL
+    // The project was not created: said out loud, with the service's reason
     {
-      textKey: 'MARK.TOUR.DEMO_CLONE.FILL_URL',
-      targetSelector: URL_INPUT,
-      durationMs: 0,
-      autoExecute: function () {
-        var _ref4 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.setInputValue)(URL_INPUT, DEMO_REPO_URL);
-          // ngModelChange triggers detectProviderFromUrl → "GitHub" badge appears
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
-        });
-        return function autoExecute() {
-          return _ref4.apply(this, arguments);
-        };
-      }()
-    },
-    // Step 3b — choose the branch: the demo in the language MdExplorer is set to
-    {
-      textKey: 'MARK.TOUR.DEMO_CLONE.SET_BRANCH',
-      targetSelector: BRANCH_INPUT,
-      durationMs: 0,
-      resolve: () => ({
+      textKey: 'MARK.TOUR.DEMO_CLONE.CREATE_FAILED',
+      targetSelector: null,
+      resolve: () => state.createError ? {
         textParams: {
-          branch: demoBranchFor(deps.currentLanguage())
+          error: state.createError
         }
-      }),
-      autoExecute: function () {
-        var _ref5 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(600);
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.setInputValue)(BRANCH_INPUT, demoBranchFor(deps.currentLanguage()));
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
-        });
-        return function autoExecute() {
-          return _ref5.apply(this, arguments);
-        };
-      }()
-    },
-    // Step 4 — set the destination path
-    {
-      textKey: 'MARK.TOUR.DEMO_CLONE.SET_PATH',
-      targetSelector: PATH_INPUT,
-      durationMs: 0,
-      autoExecute: function () {
-        var _ref6 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(600);
-          const target = yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.buildDemoClonePath)('mdexplorer-demo');
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.setInputValue)(PATH_INPUT, target, {
-            bypassReadonly: true
-          });
-          // The clone dialog opens the project by path and knows nothing about environments:
-          // the choice travels bound to this path, and only to it.
-          deps.setHarnessForPath(target, state.chosen);
-          // Il demo della città degli agenti scrive: serve un origin locale. Vale solo per questo clone.
-          deps.setDemoOriginForPath(target);
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
-        });
-        return function autoExecute() {
-          return _ref6.apply(this, arguments);
-        };
-      }()
-    },
-    // Step 5 — press Clone
-    {
-      textKey: 'MARK.TOUR.DEMO_CLONE.PRESS_CLONE',
-      targetSelector: CLONE_BTN,
-      durationMs: 0,
-      autoExecute: function () {
-        var _ref7 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-          yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
-          // The button might be disabled briefly while ngModel propagates —
-          // poll until it's enabled, then click. Before clicking we scroll
-          // it into view: the clone dialog can be taller than the viewport
-          // on smaller screens, leaving the primary action below the fold.
-          const start = Date.now();
-          while (Date.now() - start < 3000) {
-            const btn = document.querySelector(CLONE_BTN);
-            if (btn && !btn.disabled) {
-              try {
-                btn.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'end',
-                  inline: 'nearest'
-                });
-                yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(250);
-              } catch {/* older engines: silently skip */}
-              btn.click();
-              break;
-            }
-            yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(120);
-          }
-          // Wait either for the dialog to close (clone success path) or for
-          // the route to switch to /main/* (project opened).
-          yield Promise.race([(0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForElementGone)(ROOT, 30000), (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.waitForRoute)('/main', 30000)]).catch(() => {});
-        });
-        return function autoExecute() {
-          return _ref7.apply(this, arguments);
-        };
-      }()
+      } : null
     },
     // Closing — says what the demo was configured for
     {
       textKey: 'MARK.TOUR.DEMO_CLONE.DONE',
       targetSelector: null,
       durationMs: 2500,
-      resolve: () => state.chosen === NO_ENVIRONMENT ? {
+      resolve: () => state.createError ? null : state.chosen === NO_ENVIRONMENT ? {
         textKey: 'MARK.TOUR.DEMO_CLONE.DONE_NO_ENVIRONMENT'
       } : {
         textParams: {
@@ -10118,6 +10001,7 @@ class MarkAssistantService {
     this.diagramNewConversation = reset;
   }
   constructor(translate, projectsService, router, injector, serverMessages, markActions, sanitizer) {
+    var _this = this;
     this.translate = translate;
     this.projectsService = projectsService;
     this.router = router;
@@ -10252,7 +10136,19 @@ class MarkAssistantService {
       launch: id => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
       setHarnessForPath: (path, harness) => this.projectsService.setHarnessForPath(path, harness),
-      setDemoOriginForPath: path => this.projectsService.setDemoOriginForPath(path),
+      createFromTemplateAndOpen: function () {
+        var _ref = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (path, templateUrl, language) {
+          yield _this.projectsService.createFromTemplate({
+            path,
+            templateUrl,
+            language
+          });
+          _this.projectsService.setNewFolderProject(path);
+        });
+        return function createFromTemplateAndOpen(_x, _x2, _x3) {
+          return _ref.apply(this, arguments);
+        };
+      }(),
       currentLanguage: () => this.translate.currentLang || this.translate.defaultLang || 'en'
     });
     this.registerInputHandlers();
@@ -10272,14 +10168,14 @@ class MarkAssistantService {
    * input back through submitUserInput().
    */
   undock() {
-    var _this = this;
+    var _this2 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      if (!_this.canUndock) return;
-      if (_this.isUndocked) return;
+      if (!_this2.canUndock) return;
+      if (_this2.isUndocked) return;
       const api = window.electronAPI.mark;
       // Open the floating window with an initial state snapshot
-      yield api.undock(_this.snapshotState());
-      _this._isUndocked.next(true);
+      yield api.undock(_this2.snapshotState());
+      _this2._isUndocked.next(true);
       // Forward every subsequent state change to the mark-window. We watch all
       // observables that drive a visible piece of the dialog UI (text, static
       // mode, responding flag, action buttons, continue arrow, state) so the
@@ -10287,30 +10183,30 @@ class MarkAssistantService {
       // were still docked. Without actions$/continueArrow$/state$ in this list
       // an undock during an active "Prosegui" step would strand the user — the
       // dialog text would be there but the button to advance wouldn't.
-      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_11__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$,
+      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_11__.combineLatest)([_this2.text$, _this2.staticMode$, _this2.isResponding$, _this2.actions$, _this2.continueArrow$, _this2.state$,
       // Senza questo, la cronaca del pensiero resterebbe ferma alla prima riga
       // nella finestra staccata: e' li' che l'attesa sembra un guasto.
-      _this.thinking$]).subscribe(() => {
-        api.pushState(_this.snapshotState());
+      _this2.thinking$]).subscribe(() => {
+        api.pushState(_this2.snapshotState());
       });
-      _this.undockSubs.push(sub);
+      _this2.undockSubs.push(sub);
       // Route user input typed in the mark-window back into the dispatch chain
-      _this.undockCleanups.push(api.onUserInput(text => {
-        _this.submitUserInput(text);
+      _this2.undockCleanups.push(api.onUserInput(text => {
+        _this2.submitUserInput(text);
       }));
       // Action button clicks in the mark-window come back here so the lesson
       // loop's waitForAction() resolves and the handler runs.
       if (typeof api.onActionSubmit === 'function') {
-        _this.undockCleanups.push(api.onActionSubmit(index => {
-          _this.submitAction(index);
+        _this2.undockCleanups.push(api.onActionSubmit(index => {
+          _this2.submitAction(index);
         }));
       }
       // If the mark-window is closed externally (Alt+F4, OS gesture, redock btn).
       // Idempotent — multiple firings are silently ignored.
-      _this.undockCleanups.push(api.onClose(() => {
-        if (!_this._isUndocked.getValue()) return;
-        _this.cleanupUndockSubs();
-        _this._isUndocked.next(false);
+      _this2.undockCleanups.push(api.onClose(() => {
+        if (!_this2._isUndocked.getValue()) return;
+        _this2.cleanupUndockSubs();
+        _this2._isUndocked.next(false);
       }));
     })();
   }
@@ -10472,9 +10368,9 @@ class MarkAssistantService {
    * Safe to call from anywhere (title-bar button, internal auto-trigger, etc.).
    */
   launch(lessonId) {
-    var _this2 = this;
+    var _this3 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const lesson = _this2.lessonRegistry[lessonId];
+      const lesson = _this3.lessonRegistry[lessonId];
       if (!lesson) {
         console.warn('[Mark] Unknown lesson id:', lessonId);
         return;
@@ -10482,47 +10378,47 @@ class MarkAssistantService {
       // Mark passa a un altro compito: la conversazione sul box e' chiusa. Senza
       // questo, cio' che l'utente scrive durante una lezione verrebbe inoltrato
       // come domanda su un diagramma che non sta piu' guardando.
-      _this2.diagramConversation = null;
-      _this2.diagramSub?.unsubscribe();
-      _this2.diagramSub = null;
-      _this2.clearThinkingTimer();
-      _this2._thinking.next([]);
+      _this3.diagramConversation = null;
+      _this3.diagramSub?.unsubscribe();
+      _this3.diagramSub = null;
+      _this3.clearThinkingTimer();
+      _this3._thinking.next([]);
       // Abort any in-flight run
-      _this2.abortFlag = true;
-      yield _this2.sleep(80);
-      _this2.abortFlag = false;
-      _this2.currentLesson = lesson;
+      _this3.abortFlag = true;
+      yield _this3.sleep(80);
+      _this3.abortFlag = false;
+      _this3.currentLesson = lesson;
       // Reset visual state
-      _this2.currentSpotlightSelector = null;
-      _this2._spotlight.next(null);
-      _this2._text.next('');
-      _this2._staticMode.next(false);
-      _this2._continueArrow.next(false);
-      _this2._isResponding.next(false);
-      _this2._actions.next(null);
-      _this2.actionResolve = null;
+      _this3.currentSpotlightSelector = null;
+      _this3._spotlight.next(null);
+      _this3._text.next('');
+      _this3._staticMode.next(false);
+      _this3._continueArrow.next(false);
+      _this3._isResponding.next(false);
+      _this3._actions.next(null);
+      _this3.actionResolve = null;
       // 1. Dim — opt-out for "watch-along" lessons (e.g. demo-clone-tour) so
       // the spotlight cutout doesn't obscure the dialog Mark is auto-filling.
       const useDim = lesson.dim !== false;
-      _this2._state.next('playing');
-      _this2._dim.next(useDim);
-      yield _this2.sleep(500);
-      if (_this2.abortFlag) return;
+      _this3._state.next('playing');
+      _this3._dim.next(useDim);
+      yield _this3.sleep(500);
+      if (_this3.abortFlag) return;
       // 2. Slide-in (CSS transition is triggered by state change)
-      yield _this2.sleep(700);
-      if (_this2.abortFlag) return;
+      yield _this3.sleep(700);
+      if (_this3.abortFlag) return;
       // 3. Static prefix
       if (lesson.withStatic !== false) {
-        const staticTxt = yield _this2.translateKey('MARK.TOUR.WELCOME.STATIC');
-        _this2._staticMode.next(true);
-        _this2._text.next(staticTxt);
-        yield _this2.sleep(500);
-        if (_this2.abortFlag) return;
-        _this2._staticMode.next(false);
+        const staticTxt = yield _this3.translateKey('MARK.TOUR.WELCOME.STATIC');
+        _this3._staticMode.next(true);
+        _this3._text.next(staticTxt);
+        yield _this3.sleep(500);
+        if (_this3.abortFlag) return;
+        _this3._staticMode.next(false);
       }
       // 4. Iterate steps
       for (const declared of lesson.steps) {
-        if (_this2.abortFlag) return;
+        if (_this3.abortFlag) return;
         // A step may be decided only now (see MarkStep.resolve): it overrides its own text and
         // buttons, or drops out of this run.
         let step = declared;
@@ -10540,29 +10436,29 @@ class MarkAssistantService {
         // spotlight entirely — its huge box-shadow IS the darkening, and on
         // a Material dialog with single-input targets it would also produce
         // tiny off-centre highlights.
-        _this2.currentSpotlightSelector = useDim ? step.targetSelector ?? null : null;
+        _this3.currentSpotlightSelector = useDim ? step.targetSelector ?? null : null;
         if (useDim && step.targetSelector) {
           if (!document.querySelector(step.targetSelector)) {
             console.warn('[Mark] Spotlight target not found:', step.targetSelector);
           }
-          _this2.recomputeSpotlight();
+          _this3.recomputeSpotlight();
         } else {
-          _this2._spotlight.next(null);
+          _this3._spotlight.next(null);
         }
         // Typewriter the step text
-        const text = yield _this2.translateKey(step.textKey, step.textParams);
-        yield _this2.typewriter(text);
-        if (_this2.abortFlag) return;
+        const text = yield _this3.translateKey(step.textKey, step.textParams);
+        yield _this3.typewriter(text);
+        if (_this3.abortFlag) return;
         // 3 cases for advancing past a step:
         //   (a) step.actions defined  → pause, render the buttons, wait for click
         //   (b) step.autoExecute      → run side-effect, then time-based advance
         //   (c) plain narrative step  → synthesize a "Continue" button
         //                                so the user paces the reading himself
         if (step.actions && step.actions.length > 0) {
-          _this2._actions.next(step.actions);
-          yield _this2.waitForAction();
-          _this2._actions.next(null);
-          if (_this2.abortFlag) return;
+          _this3._actions.next(step.actions);
+          yield _this3.waitForAction();
+          _this3._actions.next(null);
+          if (_this3.abortFlag) return;
           // Note: action handlers often call launch(otherLessonId) which sets
           // abortFlag → next iteration's check exits the loop. Skip trailing sleep.
           continue;
@@ -10573,33 +10469,33 @@ class MarkAssistantService {
           } catch (err) {
             console.warn('[Mark] autoExecute failed for step', step.textKey, err);
           }
-          if (_this2.abortFlag) return;
-          yield _this2.sleep(step.durationMs ?? DEFAULT_STEP_DURATION_MS);
+          if (_this3.abortFlag) return;
+          yield _this3.sleep(step.durationMs ?? DEFAULT_STEP_DURATION_MS);
           continue;
         }
         // Narrative step (no actions, no autoExecute) — wait for user click on
         // a synthesized "Prosegui" button. No time-based advance: the user
         // reads at his own pace.
-        _this2._actions.next([{
+        _this3._actions.next([{
           labelKey: 'MARK.PROSEGUI',
           icon: '▶',
           handler: () => {}
         }]);
-        yield _this2.waitForAction();
-        _this2._actions.next(null);
-        if (_this2.abortFlag) return;
+        yield _this3.waitForAction();
+        _this3._actions.next(null);
+        if (_this3.abortFlag) return;
       }
       // 5. Done — apply onCompleteNext transition.
       // Welcome and micro-tips chain into 'next-tip' (so Prosegui keeps
       // surfacing new pills); demo / done / menu fall back to 'minimize'.
-      _this2.currentSpotlightSelector = null;
-      _this2._spotlight.next(null);
-      _this2._dim.next(false);
-      _this2._text.next('');
-      _this2._continueArrow.next(false);
-      _this2._actions.next(null);
+      _this3.currentSpotlightSelector = null;
+      _this3._spotlight.next(null);
+      _this3._dim.next(false);
+      _this3._text.next('');
+      _this3._continueArrow.next(false);
+      _this3._actions.next(null);
       if (lesson.markAsCompleted !== false) {
-        _this2.markLessonCompleted(lesson.id);
+        _this3.markLessonCompleted(lesson.id);
       }
       if (lesson.onComplete) lesson.onComplete();
       const next = lesson.onCompleteNext ?? 'minimize';
@@ -10607,14 +10503,14 @@ class MarkAssistantService {
         case 'next-tip':
           // Fire-and-forget — launchNextMicroTip() will pick the right tip
           // (or the "all done" closing lesson) and run it.
-          _this2.launchNextMicroTip();
+          _this3.launchNextMicroTip();
           break;
         case 'hide':
-          _this2._state.next('hidden');
+          _this3._state.next('hidden');
           break;
         case 'minimize':
         default:
-          _this2._state.next('minimized');
+          _this3._state.next('minimized');
           break;
       }
     })();
@@ -10625,9 +10521,9 @@ class MarkAssistantService {
    * Wired to the `?` button in the title-bar.
    */
   openMenu() {
-    var _this3 = this;
+    var _this4 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      return _this3.launch('idle-menu');
+      return _this4.launch('idle-menu');
     })();
   }
   // ── Folder context actions ───────────────────────────────────────────────
@@ -10637,13 +10533,13 @@ class MarkAssistantService {
    * registry entry because it carries the per-invocation folder context.
    */
   launchFolderActions(ctx) {
-    var _this4 = this;
+    var _this5 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       const lesson = (0,_lessons_folder_actions__WEBPACK_IMPORTED_MODULE_3__.buildFolderActions)(ctx, {
-        runSummarize: () => _this4.startFolderSummarize(ctx)
+        runSummarize: () => _this5.startFolderSummarize(ctx)
       });
-      _this4.lessonRegistry[lesson.id] = lesson;
-      yield _this4.launch(lesson.id);
+      _this5.lessonRegistry[lesson.id] = lesson;
+      yield _this5.launch(lesson.id);
     })();
   }
   /**
@@ -10653,39 +10549,39 @@ class MarkAssistantService {
    * lesson's natural completion can't minimize Mark mid-job.
    */
   startFolderSummarize(ctx) {
-    var _this5 = this;
+    var _this6 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       // Abort the folder-actions lesson loop BEFORE its first await so it bails
       // out at its abortFlag check instead of running to completion + minimize.
-      _this5.abortFlag = true;
-      yield _this5.sleep(60);
-      _this5.abortFlag = false;
-      _this5.currentLesson = null;
-      _this5.currentSpotlightSelector = null;
-      _this5._spotlight.next(null);
-      _this5._dim.next(false);
-      _this5._staticMode.next(false);
-      _this5._actions.next(null);
-      _this5._continueArrow.next(false);
-      _this5._isResponding.next(false);
-      _this5.resolveAction(null);
-      _this5._state.next('playing');
-      const connectionId = _this5.serverMessages.connectionId;
+      _this6.abortFlag = true;
+      yield _this6.sleep(60);
+      _this6.abortFlag = false;
+      _this6.currentLesson = null;
+      _this6.currentSpotlightSelector = null;
+      _this6._spotlight.next(null);
+      _this6._dim.next(false);
+      _this6._staticMode.next(false);
+      _this6._actions.next(null);
+      _this6._continueArrow.next(false);
+      _this6._isResponding.next(false);
+      _this6.resolveAction(null);
+      _this6._state.next('playing');
+      const connectionId = _this6.serverMessages.connectionId;
       if (!connectionId) {
-        yield _this5.endFolderSummarize(_this5.translate.instant('MARK.FOLDER.PROGRESS.ERROR'));
+        yield _this6.endFolderSummarize(_this6.translate.instant('MARK.FOLDER.PROGRESS.ERROR'));
         return;
       }
       // Subscribe to the progress stream BEFORE firing the POST so no event is missed.
-      _this5.folderProgressSub?.unsubscribe();
-      _this5.folderProgressSub = _this5.serverMessages.markFolderProgress$.subscribe(p => {
-        _this5.onFolderProgress(p);
+      _this6.folderProgressSub?.unsubscribe();
+      _this6.folderProgressSub = _this6.serverMessages.markFolderProgress$.subscribe(p => {
+        _this6.onFolderProgress(p);
       });
-      _this5._text.next(_this5.translate.instant('MARK.FOLDER.PROGRESS.STARTING'));
-      _this5.markActions.summarizeFolder(ctx.folderFullPath, connectionId).subscribe({
+      _this6._text.next(_this6.translate.instant('MARK.FOLDER.PROGRESS.STARTING'));
+      _this6.markActions.summarizeFolder(ctx.folderFullPath, connectionId).subscribe({
         error: err => {
           console.warn('[Mark] summarize-folder request failed', err);
           const key = err?.status === 409 ? 'MARK.FOLDER.PROGRESS.ALREADY_RUNNING' : 'MARK.FOLDER.PROGRESS.ERROR';
-          _this5.endFolderSummarize(_this5.translate.instant(key));
+          _this6.endFolderSummarize(_this6.translate.instant(key));
         }
       });
     })();
@@ -10706,11 +10602,11 @@ class MarkAssistantService {
   }
   /** Tears down the progress subscription and typewriters the closing message. */
   endFolderSummarize(finalMessage) {
-    var _this6 = this;
+    var _this7 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      _this6.folderProgressSub?.unsubscribe();
-      _this6.folderProgressSub = null;
-      yield _this6.typewriter(finalMessage);
+      _this7.folderProgressSub?.unsubscribe();
+      _this7.folderProgressSub = null;
+      yield _this7.typewriter(finalMessage);
     })();
   }
   /** Builds the user-facing progress string for a structured progress event. */
@@ -11094,25 +10990,25 @@ class MarkAssistantService {
    * on screen.
    */
   launchNextMicroTip() {
-    var _this7 = this;
+    var _this8 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      let idx = _this7.readNextTipIndex();
-      const url = _this7.router.url;
+      let idx = _this8.readNextTipIndex();
+      const url = _this8.router.url;
       // Skip tips whose context doesn't match the current route
       while (idx < _lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS.length) {
         const tip = _lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS[idx];
         const ctx = tip.context ?? 'always';
-        if (_this7.isContextActive(ctx, url)) break;
+        if (_this8.isContextActive(ctx, url)) break;
         idx++;
       }
       if (idx >= _lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS.length) {
         // No more applicable tips → "all done" message + reset cursor
-        _this7.writeNextTipIndex(0);
-        return _this7.launch(_lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS_DONE.id);
+        _this8.writeNextTipIndex(0);
+        return _this8.launch(_lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS_DONE.id);
       }
       const tip = _lessons__WEBPACK_IMPORTED_MODULE_2__.MICRO_TIPS[idx];
-      _this7.writeNextTipIndex(idx + 1);
-      return _this7.launch(tip.id);
+      _this8.writeNextTipIndex(idx + 1);
+      return _this8.launch(tip.id);
     })();
   }
   readNextTipIndex() {
@@ -11150,13 +11046,13 @@ class MarkAssistantService {
    * proceed (or the action handler can transition to a different lesson).
    */
   submitAction(index) {
-    var _this8 = this;
+    var _this9 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const actions = _this8._actions.getValue();
+      const actions = _this9._actions.getValue();
       if (!actions || index < 0 || index >= actions.length) return;
       const picked = actions[index];
-      _this8._actions.next(null);
-      _this8.resolveAction(picked);
+      _this9._actions.next(null);
+      _this9.resolveAction(picked);
       try {
         yield picked.handler();
       } catch (err) {
@@ -11197,67 +11093,67 @@ class MarkAssistantService {
    * back as Mark's reply.
    */
   submitUserInput(text) {
-    var _this9 = this;
+    var _this0 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       const trimmed = (text ?? '').trim();
       if (!trimmed) return;
-      if (_this9._isResponding.getValue()) return; // ignore re-entry while responding
+      if (_this0._isResponding.getValue()) return; // ignore re-entry while responding
       // Se c'è una conversazione aperta su un box, quello che l'utente scrive è una
       // domanda di seguito su QUEL box. Non passa dalla catena degli handler: quel
       // contratto restituisce UNA risposta completa (`firstValueFrom`), mentre qui
       // la risposta arriva in streaming da SignalR — infilarcela dentro vorrebbe
       // dire aspettare il primo pezzo e buttare via il resto.
-      if (_this9.hasDiagramConversation && _this9.diagramFollowUpSender) {
-        _this9.diagramFollowUpSender(trimmed);
+      if (_this0.hasDiagramConversation && _this0.diagramFollowUpSender) {
+        _this0.diagramFollowUpSender(trimmed);
         return;
       }
       const ctx = {
-        routeUrl: _this9.router.url,
-        activeLessonId: _this9.currentLesson?.id ?? null
+        routeUrl: _this0.router.url,
+        activeLessonId: _this0.currentLesson?.id ?? null
       };
-      const handler = _this9.inputHandlers.find(h => h.canHandle(trimmed, ctx));
+      const handler = _this0.inputHandlers.find(h => h.canHandle(trimmed, ctx));
       if (!handler) return;
       // Abort any running lesson playback so the answer takes the stage
-      _this9.abortFlag = true;
-      yield _this9.sleep(60);
-      _this9.abortFlag = false;
-      _this9._isResponding.next(true);
-      _this9.currentSpotlightSelector = null;
-      _this9._spotlight.next(null);
-      _this9._continueArrow.next(false);
-      _this9._staticMode.next(false);
-      _this9._actions.next(null);
-      _this9.resolveAction(null);
+      _this0.abortFlag = true;
+      yield _this0.sleep(60);
+      _this0.abortFlag = false;
+      _this0._isResponding.next(true);
+      _this0.currentSpotlightSelector = null;
+      _this0._spotlight.next(null);
+      _this0._continueArrow.next(false);
+      _this0._staticMode.next(false);
+      _this0._actions.next(null);
+      _this0.resolveAction(null);
       // Make sure Mark is visible (if minimized → expand; if hidden → playing)
-      if (_this9.currentState !== 'playing') {
-        _this9._state.next('playing');
-        _this9._dim.next(false);
-        yield _this9.sleep(300);
+      if (_this0.currentState !== 'playing') {
+        _this0._state.next('playing');
+        _this0._dim.next(false);
+        yield _this0.sleep(300);
       }
       try {
         const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_17__.firstValueFrom)(handler.handle(trimmed, ctx));
-        yield _this9.typewriter(reply);
+        yield _this0.typewriter(reply);
       } catch (err) {
         console.warn('[Mark] Input handler error:', err);
       } finally {
-        _this9._isResponding.next(false);
+        _this0._isResponding.next(false);
       }
     })();
   }
   // ── helpers ──────────────────────────────────────────────────────────────
-  typewriter(_x) {
-    var _this0 = this;
+  typewriter(_x4) {
+    var _this1 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (text, charDelay = 32) {
-      _this0._text.next('');
-      _this0._continueArrow.next(false);
+      _this1._text.next('');
+      _this1._continueArrow.next(false);
       let buf = '';
       for (const ch of text) {
-        if (_this0.abortFlag) return;
+        if (_this1.abortFlag) return;
         buf += ch;
-        _this0._text.next(buf);
-        yield _this0.sleep(ch === ' ' ? charDelay / 2 : charDelay);
+        _this1._text.next(buf);
+        yield _this1.sleep(ch === ' ' ? charDelay / 2 : charDelay);
       }
-      _this0._continueArrow.next(true);
+      _this1._continueArrow.next(true);
     }).apply(this, arguments);
   }
   translateKey(key, params) {
@@ -12127,6 +12023,8 @@ class MdFileService {
     // succession) raced and whichever HTTP response landed LAST won — possibly
     // the older one, leaving a stale tree. The last REQUEST must win.
     this._loadAllEpoch = 0;
+    /** Quello che l'albero non ha potuto mostrare (cartelle program ignorate o assenti), detto dal server al caricamento. */
+    this.treeNotices$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     /** Una riga compattata è stata spezzata: le chiavi di espansione (fullPath) prima e dopo. */
     this.compactChainBroken$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     // Termine da cercare dentro il documento appena l'iframe lo carica.
@@ -12446,6 +12344,8 @@ class MdFileService {
       this.compactFolders(data);
       this.dataStore.mdFiles = data;
       this._mdFiles.next([...this.dataStore.mdFiles]);
+      const notices = this.getRootNode()?.treeNotices;
+      if (notices?.length) this.treeNotices$.next(notices);
       if (callback != null) {
         callback(data, objectThis);
       }
@@ -12629,10 +12529,27 @@ class MdFileService {
       const kids = children || [];
       kids.forEach(child => {
         child.isExtra = true;
-        this.addFileToParent(child, parentFullPath);
+        if (this.isRootPath(parentFullPath)) this.addRootExtra(child);else this.addFileToParent(child, parentFullPath);
       });
       this._mdFiles.next([...this.dataStore.mdFiles]);
     }));
+  }
+  /**
+   * Il nodo «emptyroot»: la radice del progetto. Porta il flag dell'occhio del primo livello e gli avvisi
+   * dell'albero (treeNotices). La radice non è una cartella del dataStore: i suoi figli sono la lista stessa.
+   */
+  getRootNode() {
+    return this.dataStore.mdFiles?.find(n => n.type === 'emptyroot');
+  }
+  isRootPath(folderFullPath) {
+    const root = this.getRootNode();
+    return !!root?.fullPath && !!folderFullPath && root.fullPath.toLowerCase() === folderFullPath.toLowerCase();
+  }
+  /** Un nodo rivelato della radice: al primo livello, prima di «emptyroot»; se c'è già, resta quello. */
+  addRootExtra(child) {
+    if (this.findNodeInDataStore(this.dataStore.mdFiles, child.fullPath)) return;
+    const at = this.dataStore.mdFiles.findIndex(n => n.type === 'emptyroot');
+    this.dataStore.mdFiles.splice(at < 0 ? this.dataStore.mdFiles.length : at, 0, child);
   }
   /**
    * Nasconde di nuovo il contenuto extra rivelato: rimuove i soli figli diretti marcati isExtra
@@ -12649,13 +12566,18 @@ class MdFileService {
     return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(children => {
       const kids = children || [];
       const present = new Set(kids.map(c => (c.fullPath || '').toLowerCase()));
-      const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
-      if (parent?.childrens) {
-        parent.childrens = parent.childrens.filter(c => !c.isExtra || present.has((c.fullPath || '').toLowerCase()));
+      const keep = c => !c.isExtra || present.has((c.fullPath || '').toLowerCase());
+      if (this.isRootPath(parentFullPath)) {
+        this.dataStore.mdFiles = this.dataStore.mdFiles.filter(keep);
+      } else {
+        const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+        if (parent?.childrens) {
+          parent.childrens = parent.childrens.filter(c => keep(c));
+        }
       }
       kids.forEach(child => {
         child.isExtra = true;
-        this.addFileToParent(child, parentFullPath);
+        if (this.isRootPath(parentFullPath)) this.addRootExtra(child);else this.addFileToParent(child, parentFullPath);
       });
       this._mdFiles.next([...this.dataStore.mdFiles]);
     }));
@@ -12666,6 +12588,10 @@ class MdFileService {
    * Restituisce false se la cartella non è nel tree (mai caricata): nulla da aggiornare.
    */
   setFolderExtraContent(folderFullPath, hasExtraContent, hasRevealableContent) {
+    if (this.isRootPath(folderFullPath)) {
+      this.getRootNode().hasExtraContent = hasExtraContent;
+      return true;
+    }
     const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
     if (!holder) return false;
     // Una cartella rivelata (verde) non mostra niente di suo: per lei conta tutto, markdown compresi
@@ -12677,6 +12603,7 @@ class MdFileService {
   }
   /** Il flag "ha contenuto per l'occhio" della cartella come lo conosce il tree ORA; undefined se non c'è. */
   getFolderExtraContent(folderFullPath) {
+    if (this.isRootPath(folderFullPath)) return !!this.getRootNode().hasExtraContent;
     const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
     if (!holder) return undefined;
     return holder.segment ? !!holder.segment.hasExtraContent : !!holder.node.hasExtraContent;
@@ -12707,6 +12634,11 @@ class MdFileService {
     return null;
   }
   hideFolderExtras(parentFullPath) {
+    if (this.isRootPath(parentFullPath)) {
+      this.dataStore.mdFiles = this.dataStore.mdFiles.filter(c => !c.isExtra);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return;
+    }
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
     if (!parent || !parent.childrens) {
       return;
@@ -12720,6 +12652,7 @@ class MdFileService {
    * fra "mostra" e "nascondi" senza dipendere da un flag mutato/propagato (che si disallineava).
    */
   hasRevealedExtras(folderFullPath) {
+    if (this.isRootPath(folderFullPath)) return this.dataStore.mdFiles.some(c => c.isExtra);
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, folderFullPath);
     return !!parent?.childrens?.some(c => c.isExtra);
   }
@@ -13138,6 +13071,9 @@ class MdFileService {
     const node = this.findFolderByFullPath(this.dataStore.mdFiles, target);
     if (node) {
       node.developmentTags = tags;
+      // Una cartella rivelata (verde) marcata program diventa dell'albero: chiudere l'occhio di sopra non la toglie
+      // più, come al prossimo caricamento (ProgramFolders del server).
+      if (tags.includes('program')) node.isExtra = false;
     }
     this._mdFiles.next([...this.dataStore.mdFiles]);
   }
@@ -13515,14 +13451,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "ProjectsService": () => (/* binding */ ProjectsService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ 8316);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
-
+/* harmony import */ var _environments_version__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../environments/version */ 9279);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ 2560);
 
 
 
@@ -13537,27 +13471,27 @@ class ProjectsService {
   constructor(http, injector) {
     this.http = http;
     this.injector = injector;
-    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     // RAG enabled status for current project
-    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
+    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     // Copilot CLI auto-select state for the freshly opened project.
     // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
     // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
     // or to disable the chat with a "not installed" banner.
-    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
     // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
     // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
     // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
-    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     /**
      * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
      * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
      * «c'è» sarebbe un processo a vuoto.
      */
-    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
-    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
     // Track current project's chat room info for cleanup
     this.currentRoomId = null;
@@ -13576,17 +13510,10 @@ class ProjectsService {
      * Sprint: docs-internal/Sprints/2026-10-02-Demo-Ambiente-Agentico-Rilevato.md.
      */
     this.pendingHarness = null;
-    /**
-     * Solo per il progetto demo: chiede alla prossima apertura di QUESTO percorso di preparare un `origin` locale su
-     * cui chi lo prova può scrivere (senza, «Autorizza» non ha dove pubblicare). Stesso schema dell'ambiente
-     * agentico: legato al percorso e consumato una volta sola, quindi non finisce sul prossimo progetto aperto.
-     * Il servizio lo onora solo se il progetto è davvero il clone del demo.
-     */
-    this.pendingDemoOriginPath = null;
     this.dataStore = {
       mdProjects: []
     };
-    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject([]);
+    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
   }
   fetchProjects() {
     const url = '../api/MdProjects/GetProjects';
@@ -13610,13 +13537,23 @@ class ProjectsService {
       harness: harness
     };
   }
-  setDemoOriginForPath(path) {
-    this.pendingDemoOriginPath = ProjectsService.comparablePath(path);
-  }
-  takeDemoOriginFor(path) {
-    const pending = this.pendingDemoOriginPath;
-    this.pendingDemoOriginPath = null;
-    return pending !== null && pending === ProjectsService.comparablePath(path);
+  /**
+   * Crea un progetto nuovo da un template (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1) e non lo apre:
+   * lo apre chi chiama, con setNewFolderProject. `originUrl` vuoto = un origin locale accanto alla cartella.
+   * Un problema arriva come errore con il messaggio del servizio.
+   */
+  createFromTemplate(request) {
+    var _this2 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      try {
+        return yield _this2.http.post('../api/MdProjects/CreateFromTemplate', {
+          ...request,
+          mdeVersion: _environments_version__WEBPACK_IMPORTED_MODULE_2__.versionInfo.version
+        }).toPromise();
+      } catch (err) {
+        throw new Error(err?.error?.error || err?.message || String(err));
+      }
+    })();
   }
   static comparablePath(path) {
     return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
@@ -13628,7 +13565,7 @@ class ProjectsService {
     return pending && pending.path === ProjectsService.comparablePath(path) ? pending.harness : null;
   }
   setNewFolderProject(path) {
-    var _this2 = this;
+    var _this3 = this;
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
     // Close previous project if any
     this.notifyProjectClosed();
@@ -13641,33 +13578,21 @@ class ProjectsService {
     if (harness) {
       request.harness = harness;
     }
-    if (this.takeDemoOriginFor(path)) {
-      request.prepareDemoOrigin = true;
-    }
     this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
       var _ref = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
-        _this2.currentProjects$.next(response);
+        _this3.currentProjects$.next(response);
         // Update window title for Electron taskbar preview
-        _this2.updateWindowTitle(response.name);
+        _this3.updateWindowTitle(response.name);
         // Register project open for chat presence tracking
-        _this2.notifyProjectOpened(path);
+        _this3.notifyProjectOpened(path);
         // Refresh RAG enabled status
-        _this2.refreshRagStatus();
+        _this3.refreshRagStatus();
         // Apply PlantUML dark-mode preference for this project
-        _this2.applyPlantUmlKeepOriginalClass(path);
+        _this3.applyPlantUmlKeepOriginalClass(path);
         // Emit Copilot CLI auto-select hint for ai-chat to consume
-        _this2.emitCopilotCliAutoConfig(response);
-        _this2.emitClaudeCodeAutoConfig(response);
-        _this2.emitOpenCodeAutoConfig(response);
-        // Solo il demo: se l'origin locale non si è potuto preparare gli agenti non potranno consegnare, e la persona
-        // deve saperlo subito (non solo nel log del servizio).
-        if (response.demoOrigin?.status === 'Failed') {
-          _this2.injector.get(_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatLegacySnackBar).open(_this2.injector.get(_ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslateService).instant('DEMO_ORIGIN.FAILED', {
-            reason: response.demoOrigin.error
-          }), 'OK', {
-            duration: 30000
-          });
-        }
+        _this3.emitCopilotCliAutoConfig(response);
+        _this3.emitClaudeCodeAutoConfig(response);
+        _this3.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -13676,7 +13601,7 @@ class ProjectsService {
           const {
             CompatibilityModeService
           } = yield Promise.resolve(/*! import() */).then(__webpack_require__.bind(__webpack_require__, /*! ../../services/compatibility-mode.service */ 7929));
-          const compatibilityService = _this2.injector.get(CompatibilityModeService);
+          const compatibilityService = _this3.injector.get(CompatibilityModeService);
           compatibilityService.updateMode(mode);
         }
       });
@@ -13686,7 +13611,7 @@ class ProjectsService {
     }());
   }
   createProjectWithConfig(config) {
-    var _this3 = this;
+    var _this4 = this;
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
     // Close previous project if any
     this.notifyProjectClosed();
@@ -13699,19 +13624,19 @@ class ProjectsService {
     };
     this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
       var _ref2 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
-        _this3.currentProjects$.next(response);
+        _this4.currentProjects$.next(response);
         // Update window title for Electron taskbar preview
-        _this3.updateWindowTitle(response.name);
+        _this4.updateWindowTitle(response.name);
         // Register project open for chat presence tracking
-        _this3.notifyProjectOpened(config.projectPath);
+        _this4.notifyProjectOpened(config.projectPath);
         // Refresh RAG enabled status
-        _this3.refreshRagStatus();
+        _this4.refreshRagStatus();
         // Apply PlantUML dark-mode preference for this project
-        _this3.applyPlantUmlKeepOriginalClass(config.projectPath);
+        _this4.applyPlantUmlKeepOriginalClass(config.projectPath);
         // Emit Copilot CLI auto-select hint for ai-chat to consume
-        _this3.emitCopilotCliAutoConfig(response);
-        _this3.emitClaudeCodeAutoConfig(response);
-        _this3.emitOpenCodeAutoConfig(response);
+        _this4.emitCopilotCliAutoConfig(response);
+        _this4.emitClaudeCodeAutoConfig(response);
+        _this4.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -13720,7 +13645,7 @@ class ProjectsService {
           const {
             CompatibilityModeService
           } = yield Promise.resolve(/*! import() */).then(__webpack_require__.bind(__webpack_require__, /*! ../../services/compatibility-mode.service */ 7929));
-          const compatibilityService = _this3.injector.get(CompatibilityModeService);
+          const compatibilityService = _this4.injector.get(CompatibilityModeService);
           compatibilityService.updateMode(mode);
         }
       });
@@ -13769,25 +13694,25 @@ class ProjectsService {
     return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
   }
   getParticipants(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GetParticipants', {
       params
     });
   }
   saveParticipants(projectPath, participants) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
     return this.http.put('../api/MdProjects/Participants', participants, {
       params
     });
   }
   getGitAuthors(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GitAuthors', {
       params
     });
   }
   getCurrentGitUser(projectPath) {
-    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams();
+    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams();
     if (projectPath) {
       params = params.set('path', projectPath);
     }
@@ -14027,11 +13952,11 @@ class ProjectsService {
   }
   static {
     this.ɵfac = function ProjectsService_Factory(t) {
-      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
+      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_6__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineInjectable"]({
       token: ProjectsService,
       factory: ProjectsService.ɵfac,
       providedIn: 'root'
@@ -18936,8 +18861,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.16.8',
-  buildTime: '2026.10.16 12:30:54'
+  version: '2026.10.19.2',
+  buildTime: '2026.10.19 10:28:10'
 };
 
 /***/ }),
@@ -18971,4 +18896,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.9796dfa5bc041e16.js.map
+//# sourceMappingURL=main.decbfe60ec27ca38.js.map

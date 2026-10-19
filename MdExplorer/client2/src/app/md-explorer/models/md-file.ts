@@ -35,6 +35,8 @@ export class MdFile implements IFileInfoNode {
   hasExtraContent?: boolean;
   extraLoaded?: boolean;
   isExtra?: boolean;
+  // Only on the "emptyroot" node: what the tree could not show (a program folder ignored or missing on disk).
+  treeNotices?: string[];
   // A revealed non-markdown file whose content is text: clickable, shown colored in the panel.
   isTextFile?: boolean;
 

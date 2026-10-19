@@ -42,6 +42,8 @@ export interface IFileInfoNode {
   // True on nodes that were injected by a folder "reveal" call (so a "hide" can remove them
   // again without touching the folder's real .md children).
   isExtra?: boolean;
+  // Only on the "emptyroot" node: what the tree could not show (a program folder ignored or missing on disk).
+  treeNotices?: string[];
 
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;                // True if this node is the result of compacting multiple folders
