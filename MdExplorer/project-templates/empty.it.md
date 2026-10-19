@@ -13,7 +13,7 @@ La cartella che scegli diventa un progetto di MdExplorer **così com'è**: i tuo
 - la cartella `.md/` con i modelli per Word e PDF
 - `.development.yml`, la configurazione condivisa del gruppo
 - le skill e gli agenti per il motore che scegli (Claude, Copilot, opencode)
-- git, se la cartella non è ancora un repository
+- git, se lo chiedi
 
 ---
 

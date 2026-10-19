@@ -13,7 +13,7 @@ The folder you choose becomes an MdExplorer project **as it is**: your files sta
 - the `.md/` folder with the Word and PDF templates
 - `.development.yml`, the group's shared configuration
 - the skills and agents for the engine you choose (Claude, Copilot, opencode)
-- git, if the folder is not a repository yet
+- git, if you ask for it
 
 ---
 
