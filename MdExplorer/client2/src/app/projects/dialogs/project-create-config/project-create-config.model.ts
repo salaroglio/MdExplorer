@@ -39,3 +39,32 @@ export interface ProjectCreateConfigOptions {
      */
     template?: TemplateChoice;
 }
+
+/** Che cosa la vetrina dice di un template (api/templateshowcase/describe, sprint 2026-10-19-Vetrina-Dei-Template.md). */
+export interface TemplateShowcaseEntry {
+    url: string;
+    id: string;
+    kind: 'project' | 'method';
+    title: string;
+    description: string;
+    version: string;
+    languages: string[];
+    /** Il template c'è nella lingua scelta: si può spuntare. */
+    speaks: boolean;
+    /** La lingua delle slide mostrate; null = slide di circostanza. */
+    slidesLanguage: string | null;
+    /** La pagina per l'iframe. */
+    page: string;
+}
+
+/**
+ * La scelta fatta nella vetrina (VD1): una base (null = progetto vuoto, o «senza base» se ci sono metodi), i metodi, la
+ * lingua. Nessuna base e nessun metodo = il progetto di sempre, la cartella aperta così com'è.
+ */
+export interface TemplateShowcaseChoice {
+    baseUrl: string | null;
+    methodUrls: string[];
+    language: string;
+    /** I titoli di ciò che si è scelto, per ricordarlo nella configurazione. */
+    titles: string[];
+}

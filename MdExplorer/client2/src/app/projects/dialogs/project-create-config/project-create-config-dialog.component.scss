@@ -89,28 +89,28 @@ mat-dialog-actions {
     }
   }
 }
-/* Da template (P4). */
+/* Da template: la scelta fatta nella vetrina, poi i campi della creazione. */
 .template-choice {
   margin: 12px 0;
 }
 
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+
 .template-fields {
-  margin: 8px 0 0 32px;
+  margin: 8px 0 0 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.method-check {
-  display: block;
-}
-
 .full-width {
   width: 100%;
-}
-
-.short-field {
-  width: 200px;
 }
 
 .error-text {
@@ -135,4 +135,5 @@ mat-dialog-actions {
 
 .template-fields .option-description {
   overflow-wrap: anywhere;
+  margin-left: 0;
 }

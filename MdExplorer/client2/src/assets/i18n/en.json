@@ -190,6 +190,20 @@
     "CLONE_FAILED": "Clone failed",
     "UNEXPECTED_ERROR": "Unexpected error: {{error}}"
   },
+  "TEMPLATE_SHOWCASE": {
+    "TITLE": "Create new project",
+    "BASE": "Base",
+    "METHODS": "Methods",
+    "OTHER": "Other, by address",
+    "OTHER_ADD": "Add the template",
+    "ALREADY_LISTED": "This template is already in the column.",
+    "LANGUAGE": "Language",
+    "NEXT": "Next: the folder",
+    "EMPTY": "Empty project",
+    "EMPTY_DESC": "The chosen folder, as it is: MDE adds only its own files.",
+    "UNREACHABLE": "The slides of this template cannot be reached.",
+    "CHOSEN": "From: {{titles}}"
+  },
   "PROJECT_CONFIG": {
     "FROM_TEMPLATE": "Start from a template",
     "FROM_TEMPLATE_DESC": "The project starts from a base (for example the demo) and one or more methods, in a new folder inside the chosen one. It stays connected to the templates: it receives their updates.",
@@ -1584,7 +1598,7 @@
     "TOUR": {
       "WELCOME": {
         "INTRO": "Hi! I'm Mark. Three buttons to know right away...",
-        "CREATE": "THIS one creates a project from scratch — an empty folder ready for your markdown.",
+        "CREATE": "THIS one creates a project: empty, or from a template — on the right you see what each one is for.",
         "CLONE": "THIS one downloads an existing project from a remote Git repo.",
         "SETTINGS": "And HERE you customize everything: theme, AI, shortcuts. Change it whenever.",
         "CLOSING": "Ready? I'm here whenever you need me. Have fun!",

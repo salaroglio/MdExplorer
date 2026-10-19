@@ -10,60 +10,24 @@
 
     <mat-divider></mat-divider>
 
-    <!-- Da template (P4): la base e i metodi dall'elenco che viaggia con MdExplorer. -->
-    <div class="option-item template-choice">
-      <mat-checkbox [(ngModel)]="fromTemplate" color="primary">
-        <strong>{{ 'PROJECT_CONFIG.FROM_TEMPLATE' | translate }}</strong>
-        <div class="option-description">{{ 'PROJECT_CONFIG.FROM_TEMPLATE_DESC' | translate }}</div>
-      </mat-checkbox>
+    <!-- Da template: base e metodi li ha scelti la vetrina; qui la cartella nuova, il repository del gruppo, l'esempio. -->
+    <div class="option-item template-choice" *ngIf="fromTemplate">
+      <div class="template-fields">
+        <p class="chosen"><mat-icon>dashboard_customize</mat-icon> {{ 'TEMPLATE_SHOWCASE.CHOSEN' | translate:{ titles: chosenTitles } }}</p>
 
-      <div *ngIf="fromTemplate" class="template-fields">
-        <p class="option-description error-text" *ngIf="catalogError">{{ catalogError }}</p>
-
-        <label class="group-label" id="base-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_BASE' | translate }}</strong></label>
-        <mat-radio-group class="harness-group" aria-labelledby="base-label" [(ngModel)]="baseUrl">
-          <mat-radio-button value="" class="harness-radio">
-            <strong>{{ 'PROJECT_CONFIG.TEMPLATE_NO_BASE' | translate }}</strong>
-          </mat-radio-button>
-          <mat-radio-button *ngFor="let t of bases" [value]="t.url" class="harness-radio">
-            <strong>{{ text(t.title) }}</strong>
-            <div class="option-description">{{ text(t.description) }}</div>
-          </mat-radio-button>
-        </mat-radio-group>
-
-        <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_METHODS' | translate }}</strong></label>
-        <p class="option-description" *ngIf="catalog && !methods.length">{{ 'PROJECT_CONFIG.TEMPLATE_NO_METHODS' | translate }}</p>
-        <mat-checkbox *ngFor="let t of methods" [(ngModel)]="chosenMethods[t.url]" color="primary" class="method-check"
-                      [disabled]="!speaks(t)">
-          <strong>{{ text(t.title) }}</strong>
-          <div class="option-description">{{ text(t.description) }}</div>
-          <div class="option-description" *ngIf="!speaks(t)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(t) } }}</div>
-        </mat-checkbox>
-        <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_OTHER_METHODS' | translate }}</strong></label>
-        <mat-form-field appearance="outline" class="full-width">
-          <textarea matInput rows="2" [(ngModel)]="otherMethods" placeholder="https://github.com/…/mdexplorer-template-ddd.git"></textarea>
-        </mat-form-field>
-
-        <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_LANGUAGE' | translate }}</strong></label>
-        <mat-form-field appearance="outline" class="short-field">
-          <mat-select [(ngModel)]="templateLanguage">
-            <mat-option value="it">italiano</mat-option>
-            <mat-option value="en">English</mat-option>
-          </mat-select>
-        </mat-form-field>
         <mat-checkbox [(ngModel)]="templateExample" color="primary">
           {{ 'PROJECT_CONFIG.TEMPLATE_EXAMPLE' | translate }}
         </mat-checkbox>
 
-        <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_FOLDER' | translate }}</strong></label>
+        <label class="group-label" for="template-folder"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_FOLDER' | translate }}</strong></label>
         <mat-form-field appearance="outline" class="full-width">
-          <input matInput [(ngModel)]="folderName" placeholder="gara-2027">
+          <input matInput id="template-folder" [(ngModel)]="folderName" placeholder="gara-2027">
         </mat-form-field>
         <div class="option-description">{{ 'PROJECT_CONFIG.TEMPLATE_FOLDER_DESC' | translate:{ path: config.projectPath } }}</div>
 
-        <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_ORIGIN' | translate }}</strong></label>
+        <label class="group-label" for="template-origin"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_ORIGIN' | translate }}</strong></label>
         <mat-form-field appearance="outline" class="full-width">
-          <input matInput [(ngModel)]="originUrl" placeholder="https://github.com/…/gara-2027.git">
+          <input matInput id="template-origin" [(ngModel)]="originUrl" placeholder="https://github.com/…/gara-2027.git">
         </mat-form-field>
         <div class="option-description">{{ 'PROJECT_CONFIG.TEMPLATE_ORIGIN_DESC' | translate }}</div>
 
@@ -72,7 +36,7 @@
     </div>
 
     <!-- Il motore: sempre senza template; con un template solo se non c'è una base (la base porta il suo). -->
-    <div class="config-options" *ngIf="!fromTemplate || !baseUrl">
+    <div class="config-options" *ngIf="!fromTemplate || !data.choice.baseUrl">
       <div class="option-item">
         <label class="group-label" id="harness-label">
           <strong>{{ 'PROJECT_CONFIG.HARNESS' | translate }}</strong>

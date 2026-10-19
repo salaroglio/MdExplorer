@@ -190,6 +190,20 @@
     "CLONE_FAILED": "Clonazione fallita",
     "UNEXPECTED_ERROR": "Errore inaspettato: {{error}}"
   },
+  "TEMPLATE_SHOWCASE": {
+    "TITLE": "Crea nuovo progetto",
+    "BASE": "Base",
+    "METHODS": "Metodi",
+    "OTHER": "Altro per indirizzo",
+    "OTHER_ADD": "Aggiungi il template",
+    "ALREADY_LISTED": "Questo template è già nella colonna.",
+    "LANGUAGE": "Lingua",
+    "NEXT": "Avanti: la cartella",
+    "EMPTY": "Progetto vuoto",
+    "EMPTY_DESC": "La cartella scelta, così com'è: MDE aggiunge solo i suoi file.",
+    "UNREACHABLE": "Le slide di questo template non si raggiungono.",
+    "CHOSEN": "Da: {{titles}}"
+  },
   "PROJECT_CONFIG": {
     "FROM_TEMPLATE": "Parti da un template",
     "FROM_TEMPLATE_DESC": "Il progetto nasce da una base (per esempio la demo) e da uno o più metodi, in una cartella nuova dentro quella scelta. Resta collegato ai template: ne riceve gli aggiornamenti.",
@@ -1604,7 +1618,7 @@
     "TOUR": {
       "WELCOME": {
         "INTRO": "Ciao! Sono Mark. Tre tasti da sapere subito...",
-        "CREATE": "Da QUESTO crei un progetto da zero — una cartella vuota pronta per i tuoi markdown.",
+        "CREATE": "Da QUESTO crei un progetto: vuoto, oppure da un template — a destra vedi a che cosa serve ognuno.",
         "CLONE": "Con QUESTO scarichi un progetto esistente da un repo Git remoto.",
         "SETTINGS": "E QUI personalizzi tutto: tema, AI, scorciatoie. Cambialo quando vuoi.",
         "CLOSING": "Pronto? Ci sono io quando ti serve. Buon lavoro!",

@@ -25,7 +25,8 @@ import { UnifiedSettingsDialogComponent } from '../components/unified-settings-d
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
 import { versionInfo } from '../../environments/version'; // Importa la versione
 import { TranslateService } from '@ngx-translate/core';
-import { ProjectCreateConfigOptions } from './dialogs/project-create-config/project-create-config.model';
+import { ProjectCreateConfigOptions, TemplateShowcaseChoice } from './dialogs/project-create-config/project-create-config.model';
+import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
 
 @Component({
   selector: 'app-projects',
@@ -324,7 +325,19 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * «Crea nuovo progetto»: prima la vetrina dei template (sprint 2026-10-19-Vetrina-Dei-Template.md, VD1), poi la
+   * cartella, poi la configurazione di ciò che resta.
+   */
   openNewFolder(): void {
+    this.dialog.open(TemplateShowcaseDialogComponent, {
+      width: '90vw', height: '90vh', maxWidth: '90vw', disableClose: true,
+    }).afterClosed().subscribe((choice: TemplateShowcaseChoice | null) => {
+      if (choice) this.chooseFolder(choice);
+    });
+  }
+
+  private chooseFolder(choice: TemplateShowcaseChoice): void {
     let data = new ShowFileMetadata();
     data.start = null;
     data.title = this.translate.instant('PROJECTS.SELECT_FOLDER');
@@ -344,7 +357,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         const configDialogRef = this.dialog.open(ProjectCreateConfigDialogComponent, {
           width: '500px',
           disableClose: true,
-          data: { projectPath: result.data }
+          data: { projectPath: result.data, choice }
         });
 
         configDialogRef.afterClosed().subscribe(config => {
