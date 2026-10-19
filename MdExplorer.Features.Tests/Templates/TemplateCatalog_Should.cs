@@ -22,6 +22,14 @@ namespace MdExplorer.Features.Tests.Templates
             Assert.IsNotNull(dir, "project-templates.json non trovato risalendo dalla cartella dei test");
             var entries = TemplateCatalog.Read(File.ReadAllText(Path.Combine(dir.FullName, "MdExplorer", "project-templates.json")));
             Assert.IsTrue(entries.Any(e => e.Id == "demo" && e.Kind == "project"), "la demo è un template dell'elenco (TD1)");
+            // I tre metodi pubblicati il 19/10 (P5d, P6d, P7d): solo italiano per ora.
+            foreach (var id in new[] { "gara-iso", "ontologie", "ddd" })
+            {
+                var m = entries.Single(e => e.Id == id);
+                Assert.AreEqual("method", m.Kind, id);
+                Assert.AreEqual($"https://github.com/salaroglio/mdexplorer-template-{id}.git", m.Url);
+                CollectionAssert.AreEqual(new[] { "it" }, m.Languages, id);
+            }
         }
 
         [TestMethod]

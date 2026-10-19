@@ -67,6 +67,14 @@ export class ProjectCreateConfigDialogComponent implements OnInit {
     });
   }
 
+  /** La voce ha la lingua scelta per il progetto: un metodo solo italiano non si unisce a un progetto inglese. */
+  speaks(t: TemplateCatalogEntry): boolean { return (t.languages || []).includes(this.templateLanguage); }
+
+  languageNames(t: TemplateCatalogEntry): string {
+    const names: { [code: string]: string } = { it: 'italiano', en: 'English' };
+    return (t.languages || []).map(l => names[l] || l).join(', ');
+  }
+
   /** Il testo di una voce nella lingua dell'interfaccia, o nella prima che ha. */
   text(texts: { [language: string]: string }): string {
     return texts?.[this.translate.currentLang] || texts?.[Object.keys(texts || {})[0]] || '';
@@ -76,7 +84,13 @@ export class ProjectCreateConfigDialogComponent implements OnInit {
     this.templateError = '';
     if (!this.fromTemplate) { this.dialogRef.close(this.config); return; }
 
-    const listed = (this.catalog || []).filter(t => t.kind === 'method' && this.chosenMethods[t.url]).map(t => t.url);
+    const chosen = (this.catalog || []).filter(t => t.kind === 'method' && this.chosenMethods[t.url]);
+    const mute = chosen.filter(t => !this.speaks(t));
+    if (mute.length) {
+      this.templateError = this.translate.instant('PROJECT_CONFIG.TEMPLATE_LANGUAGE_MISSING', { methods: mute.map(t => this.text(t.title)).join(', ') });
+      return;
+    }
+    const listed = chosen.map(t => t.url);
     const typed = this.otherMethods.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const methodUrls = [...listed, ...typed];
     const folderName = this.folderName.trim();

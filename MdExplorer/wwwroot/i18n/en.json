@@ -196,6 +196,8 @@
     "TEMPLATE_BASE": "Project base",
     "TEMPLATE_NO_BASE": "No base: methods only",
     "TEMPLATE_METHODS": "Methods",
+    "TEMPLATE_ONLY_IN": "Only in: {{languages}}",
+    "TEMPLATE_LANGUAGE_MISSING": "Not available in the chosen language: {{methods}}. Untick them or change the language.",
     "TEMPLATE_NO_METHODS": "No methods in the list of this MdExplorer version.",
     "TEMPLATE_OTHER_METHODS": "Other methods, by address (one per line)",
     "TEMPLATE_LANGUAGE": "Language",

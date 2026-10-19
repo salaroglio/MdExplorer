@@ -11,6 +11,39 @@
         "it": "Un progetto da esplorare: caso studio, grafo del codice, wiki e la città degli agenti che prepara una gara.",
         "en": "A project to explore: case study, code graph, wiki and the agent city preparing a tender."
       }
+    },
+    {
+      "id": "gara-iso",
+      "kind": "method",
+      "url": "https://github.com/salaroglio/mdexplorer-template-gara-iso.git",
+      "languages": ["it"],
+      "title": { "it": "Gara con ISO 9001", "en": "Tender with ISO 9001" },
+      "description": {
+        "it": "Dal bando alla decisione se partecipare, con il riesame dei requisiti prima di impegnarsi (ISO 9001, 8.2.3) registrato.",
+        "en": "From the call for tenders to the decision to bid, with the review of the requirements before committing (ISO 9001, 8.2.3) on record."
+      }
+    },
+    {
+      "id": "ontologie",
+      "kind": "method",
+      "url": "https://github.com/salaroglio/mdexplorer-template-ontologie.git",
+      "languages": ["it"],
+      "title": { "it": "Ontologie", "en": "Ontologies" },
+      "description": {
+        "it": "Disegnare un'ontologia partendo dalle domande a cui deve rispondere: schema, regole ed esempi, verificati prima di accettarla.",
+        "en": "Design an ontology starting from the questions it must answer: schema, rules and examples, checked before accepting it."
+      }
+    },
+    {
+      "id": "ddd",
+      "kind": "method",
+      "url": "https://github.com/salaroglio/mdexplorer-template-ddd.git",
+      "languages": ["it"],
+      "title": { "it": "Sviluppo con DDD", "en": "Development with DDD" },
+      "description": {
+        "it": "Il DDD strategico: il linguaggio del dominio, i contesti e la loro mappa, confrontati con il codice vero attraverso il grafo del codice.",
+        "en": "Strategic DDD: the domain language, the contexts and their map, compared with the real code through the code graph."
+      }
     }
   ]
 }

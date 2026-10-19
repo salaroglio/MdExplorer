@@ -33,9 +33,11 @@
 
         <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_METHODS' | translate }}</strong></label>
         <p class="option-description" *ngIf="catalog && !methods.length">{{ 'PROJECT_CONFIG.TEMPLATE_NO_METHODS' | translate }}</p>
-        <mat-checkbox *ngFor="let t of methods" [(ngModel)]="chosenMethods[t.url]" color="primary" class="method-check">
+        <mat-checkbox *ngFor="let t of methods" [(ngModel)]="chosenMethods[t.url]" color="primary" class="method-check"
+                      [disabled]="!speaks(t)">
           <strong>{{ text(t.title) }}</strong>
           <div class="option-description">{{ text(t.description) }}</div>
+          <div class="option-description" *ngIf="!speaks(t)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(t) } }}</div>
         </mat-checkbox>
         <label class="group-label"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_OTHER_METHODS' | translate }}</strong></label>
         <mat-form-field appearance="outline" class="full-width">
