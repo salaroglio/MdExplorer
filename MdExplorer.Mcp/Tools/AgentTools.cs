@@ -328,6 +328,40 @@ public sealed class AgentTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "Bring into the project the THEORY of one of its methods: the documents that teach the method (how and why, with " +
+        "examples), for the person to read or for you to learn from before guiding them. A project made of methods may have " +
+        "been created without it; the theory travels anyway in .mde-template/<id>/ and this tool copies it, at the version " +
+        "the project uses (no network), into the folder its manifest names (theory.<language>.to, e.g. teoria/<id>/), records " +
+        "it in .development.yml and makes one commit (not pushed). The project's templates and whether their theory is in are " +
+        "the rows of 'templates:' in .development.yml (theory: true). PROPOSE it to the person and call it only after they " +
+        "agree: it changes their project. It refuses, saying why, if the project has uncommitted changes, if the template has " +
+        "no theory in the project's language, or if the theory is already there. Returns JSON: id, title, version, notes " +
+        "(where the theory landed). If the answer is an HTTP or connection error, nothing was added.")]
+    public async Task<string> AddTheory(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("The template's id, as in its row of 'templates:' in .development.yml (e.g. ontologie).")] string id)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (string.IsNullOrWhiteSpace(id)) return "Error: id is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { path = projectPath.Trim(), id = id.Trim() };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/MdProjects/AddTheory", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The theory was NOT added.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The theory was NOT added.";
+        }
+    }
+
+    [McpServerTool, Description(
         "Check an ontology made of files of the project, in memory (no Fuseki needed): every Turtle file is read (errors with " +
         "line and column), the data (TBox schema + ABox instances, merged) are validated against the SHACL shapes, and every " +
         "SPARQL query file (.rq: the competency questions) is run on the data. Each path is a file or a folder from the " +

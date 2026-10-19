@@ -346,10 +346,15 @@
               <ul class="template-rows" *ngIf="projectTemplates.length">
                 <li *ngFor="let t of projectTemplates">
                   <strong>{{ t.id }}</strong> {{ t.version }}
-                  · {{ (t.kind === 'project' ? 'PROJECT_SETTINGS.TEMPLATE_KIND_PROJECT' : 'PROJECT_SETTINGS.TEMPLATE_KIND_METHOD') | translate }}
+                  · {{ templateKindKey(t) | translate }}
                   · {{ t.language }}<span *ngIf="t.example"> · {{ 'PROJECT_SETTINGS.TEMPLATE_EXAMPLE' | translate }}</span>
+                  <span *ngIf="t.theory"> · {{ 'PROJECT_SETTINGS.TEMPLATE_THEORY' | translate }}</span>
                   <span *ngIf="t.detached"> · {{ 'PROJECT_SETTINGS.TEMPLATE_DETACHED' | translate:{ date: t.detached } }}</span>
                   <span class="template-url">{{ t.url }}</span>
+                  <button mat-button color="primary" type="button" *ngIf="t.theoryAvailable && !t.theory && !t.detached" [disabled]="addingMethod"
+                          [matTooltip]="'PROJECT_SETTINGS.TEMPLATE_THEORY_ADD_TIP' | translate" (click)="addTheory(t)">
+                    <mat-icon>school</mat-icon> {{ 'PROJECT_SETTINGS.TEMPLATE_THEORY_ADD' | translate }}
+                  </button>
                   <button mat-button color="warn" type="button" *ngIf="!t.detached" [disabled]="addingMethod"
                           (click)="detachTemplate(t)">
                     <mat-icon>link_off</mat-icon> {{ 'PROJECT_SETTINGS.TEMPLATE_DETACH' | translate }}

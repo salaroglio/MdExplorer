@@ -176,5 +176,76 @@ theory:
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("changed the models of teoria/ddd/perché.md")), string.Join("\n", outcome.Notes));
             StringAssert.Contains(Read(path, ".development.yml"), "  theory: true\n", "la riga ricorda ancora la teoria");
         }
+
+        private static async Task<TemplateAddOutcome> AddTheory(AgentCityContext ctx, string path, string id)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<IProjectTemplateTheory>().AddTheoryAsync(new TemplateTheoryRequest { ProjectPath = path, Id = id });
+        }
+
+        [TestMethod]
+        public async Task Download_the_theory_later_from_the_zone_with_a_commit()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "teoria-dopo");
+            await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Template(ctx, "documenti", Foundation()), Methods = new[] { Template(ctx, "ddd", WithTheory()) },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+            Git(path, "config user.email io@test.local"); Git(path, "config user.name Io"); Git(path, "config commit.gpgsign false");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, "teoria")), "alla creazione non era stata chiesta");
+
+            var listed = await ctx.Client.GetStringAsync("/api/MdProjects/Templates?path=" + Uri.EscapeDataString(path));
+            StringAssert.Contains(listed, "\"id\":\"ddd\"");
+            StringAssert.Contains(listed, "\"theory\":null,\"version\":\"1.0.0\",\"detached\":null,\"theoryAvailable\":true", "si può scaricare");
+
+            var head = Git(path, "rev-parse HEAD").Out;
+            var outcome = await AddTheory(ctx, path, "ddd");
+
+            Assert.AreEqual("# Perché\n", Read(path, "teoria/ddd/perché.md"));
+            Assert.AreEqual("# Uno\n", Read(path, "teoria/ddd/capitoli/uno.md"));
+            StringAssert.Contains(Read(path, ".development.yml"), "- id: ddd\n  url: ");
+            StringAssert.Contains(Read(path, ".development.yml"), "  theory: true\n");
+            Assert.AreEqual(head, Git(path, "rev-parse HEAD~1").Out, "un commit solo");
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("The theory of «Sviluppo con DDD» in teoria/ddd/: 2 documents")), string.Join("\n", outcome.Notes));
+
+            // Lo strato comune, con le modifiche del gruppo non committate: prima si committano.
+            File.AppendAllText(Path.Combine(path, ".development.yml"), "\n");
+            var dirty = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "documenti"));
+            StringAssert.Contains(dirty.Message, "The project has uncommitted changes");
+            Git(path, "checkout -q -- .development.yml");
+            await AddTheory(ctx, path, "documenti");
+            Assert.AreEqual("# Gli LLM wiki\n", Read(path, "teoria/documenti/llm-wiki.md"));
+
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"))).Message,
+                "The theory of «Sviluppo con DDD» is already in the project, in teoria/ddd/");
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "gara"))).Message,
+                "The project has no template 'gara': it has documenti, ddd");
+        }
+
+        [TestMethod]
+        public async Task Refuse_the_theory_of_a_method_that_has_none_and_leave_the_project_as_it_was()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "senza-teoria-dopo");
+            await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Template(ctx, "documenti", Foundation()), Methods = new[] { Template(ctx, "ddd", DddBranches()) },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+            var head = Git(path, "rev-parse HEAD").Out;
+
+            var none = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"));
+
+            StringAssert.Contains(none.Message, "The template «Sviluppo con DDD» has no theory in 'it'");
+            Assert.AreEqual(head, Git(path, "rev-parse HEAD").Out);
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+        }
     }
 }

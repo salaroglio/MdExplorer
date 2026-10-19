@@ -123,7 +123,8 @@ theory:                           # the method's theory, one folder per language
   MdExplorer»); it needs `requires.mde` of an MdExplorer that has the theme.
 - `theory`: the documents that teach the method, for the person to read alone or to learn with the MarkAgent (how to
   model, why, with examples). It always travels in the zone, and is **copied** from `from` to `to` (a group folder,
-  like a seed's `to`) only when whoever creates the project ticks «theory», or asks for it later. Copied files belong to
+  like a seed's `to`) only when whoever creates the project ticks «theory», or asks for it later (Project settings →
+  «Download the theory», or the MCP tool `add_theory`, which the MarkAgent proposes). Copied files belong to
   the group, like seeds: never overwritten, and on update a new document arrives while a removed one does not come
   back. One folder per language the method speaks; a `project` template has none (the demo has everything included).
   Say in `instructions` where the theory is, and that the MarkAgent can propose it when it is missing.

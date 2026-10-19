@@ -134,6 +134,7 @@ namespace MdExplorer
             services.AddScoped<Services.Templates.ITemplateChecker, Services.Templates.TemplateChecker>();
             services.AddScoped<Services.Templates.ITemplateShowcase, Services.Templates.TemplateShowcase>();
             services.AddScoped<Services.Templates.IProjectTemplateUpdates, Services.Templates.ProjectTemplateCreator>();
+            services.AddScoped<Services.Templates.IProjectTemplateTheory, Services.Templates.ProjectTemplateCreator>();
             // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita
             // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.
             // Il tetto dei run insieme non e' piu' un numero suo: sono i posti di lavoro del

@@ -68,7 +68,7 @@ public static class ToolGroups
             "Interrogare il knowledge graph del progetto su Neo4j (concetti, relazioni, Cypher).",
             b => b.WithTools<KnowledgeGraphTools>()),
         new Group(Agents, typeof(AgentTools), false,
-            "La città degli agenti: messaggi fra agenti, richieste di intervento, memoria dei fatti appresi, verifica del workflow, delle ontologie (rdf_check) e dei template di progetto (check_template).",
+            "La città degli agenti: messaggi fra agenti, richieste di intervento, memoria dei fatti appresi, verifica del workflow, delle ontologie (rdf_check) e dei template di progetto (check_template), la teoria di un metodo nel progetto (add_theory).",
             b => b.WithTools<AgentTools>()),
         new Group(Code, typeof(CodeTools), false,
             "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica, e dove sta il codice su questa macchina (radici).",

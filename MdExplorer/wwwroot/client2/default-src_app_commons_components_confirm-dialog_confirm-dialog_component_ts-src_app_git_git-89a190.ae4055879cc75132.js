@@ -4232,6 +4232,13 @@ class ProjectSettingsService {
       mdeVersion: _environments_version__WEBPACK_IMPORTED_MODULE_0__.versionInfo.version
     });
   }
+  /** «Scarica la teoria» di un template del progetto, con un commit; 400 { error } se non si può. */
+  addTheory(projectPath, id) {
+    return this.http.post('../api/MdProjects/AddTheory', {
+      path: projectPath,
+      id
+    });
+  }
   /** Stacca il progetto da un template, per sempre. */
   detachTemplate(projectPath, id) {
     return this.http.post('../api/MdProjects/DetachTemplate', {
@@ -8755,4 +8762,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.d27110751f88c1c1.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.ae4055879cc75132.js.map

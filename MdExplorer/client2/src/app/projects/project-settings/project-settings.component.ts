@@ -883,6 +883,28 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Il nome del tipo di una riga: strato comune, metodo o progetto completo (la demo). */
+  templateKindKey(t: ProjectTemplateRow): string {
+    if (t.kind === 'project') return 'PROJECT_SETTINGS.TEMPLATE_KIND_PROJECT';
+    if (t.kind === 'foundation') return 'PROJECT_SETTINGS.TEMPLATE_KIND_FOUNDATION';
+    return 'PROJECT_SETTINGS.TEMPLATE_KIND_METHOD';
+  }
+
+  /** «Scarica la teoria»: la copia dalla zona del template, con un commit (M3 dei metodi componibili). */
+  addTheory(t: ProjectTemplateRow): void {
+    this.addingMethod = true;
+    this.methodError = '';
+    this.methodNotes = [];
+    this.projectSettingsService.addTheory(this.projectPath, t.id).subscribe({
+      next: res => {
+        this.addingMethod = false;
+        this.methodNotes = [this.translate.instant('PROJECT_SETTINGS.TEMPLATE_THEORY_ADDED', { title: res?.title, version: res?.version }), ...(res?.notes || [])];
+        this.loadTemplates();
+      },
+      error: err => { this.addingMethod = false; this.methodError = err?.error?.error || err?.message || ''; },
+    });
+  }
+
   /** Stacca il progetto da un template, per sempre: si chiede prima, con quello che vuol dire. */
   detachTemplate(t: ProjectTemplateRow): void {
     const ref = this.dialog.open(ConfirmDialogComponent, {

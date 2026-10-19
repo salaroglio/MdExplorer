@@ -578,8 +578,8 @@ namespace MdExplorer.Services.Templates
             var (created, kept, changed) = await CopyIntoGroupAsync(path, manifest, copies, before, touched, update, ct,
                 file => Problem($"Il file {file.From} della teoria di «{manifest.Title}» non c'è.", $"The file {file.From} of the theory of «{manifest.Title}» is missing."));
             if (created.Count > 0)
-                notes.Add(UiText.Say($"La teoria di «{manifest.Title}» in {theory.To}/: {created.Count} documenti, da leggere da soli o con il MarkAgent.",
-                                     $"The theory of «{manifest.Title}» in {theory.To}/: {created.Count} documents, to read alone or with the MarkAgent."));
+                notes.Add(UiText.Say($"La teoria di «{manifest.Title}» in {theory.To}/: {created.Count} {(created.Count == 1 ? "documento" : "documenti")}, da leggere da soli o con il MarkAgent.",
+                                     $"The theory of «{manifest.Title}» in {theory.To}/: {created.Count} {(created.Count == 1 ? "document" : "documents")}, to read alone or with the MarkAgent."));
             KeptAndChangedNotes(manifest, kept, changed, notes);
         }
 

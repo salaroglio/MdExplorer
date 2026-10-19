@@ -84,6 +84,10 @@ export interface ProjectTemplateRow {
   kind?: string | null;
   language: string;
   example?: boolean | null;
+  /** La teoria del template è nel progetto. */
+  theory?: boolean | null;
+  /** Il manifesto nel progetto ha la teoria nella lingua della riga: «Scarica la teoria» si può. */
+  theoryAvailable?: boolean;
   version: string;
   detached?: string | null;
 }
@@ -310,6 +314,11 @@ export class ProjectSettingsService {
     Observable<{ id: string; title: string; version: string; notes: string[] }> {
     return this.http.post<{ id: string; title: string; version: string; notes: string[] }>('../api/MdProjects/AddTemplate',
       { path: projectPath, templateUrl, language, example, mdeVersion: versionInfo.version });
+  }
+
+  /** «Scarica la teoria» di un template del progetto, con un commit; 400 { error } se non si può. */
+  addTheory(projectPath: string, id: string): Observable<{ id: string; title: string; version: string; notes: string[] }> {
+    return this.http.post<{ id: string; title: string; version: string; notes: string[] }>('../api/MdProjects/AddTheory', { path: projectPath, id });
   }
 
   /** Stacca il progetto da un template, per sempre. */

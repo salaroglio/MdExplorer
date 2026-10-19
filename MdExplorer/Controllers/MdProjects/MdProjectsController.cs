@@ -749,6 +749,24 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         /// <summary>
+        /// «Scarica la teoria» (M3 dei metodi componibili; strumento MCP <c>add_theory</c>): la teoria di un template che il
+        /// progetto ha già, copiata dalla sua zona con un commit. 400 con il motivo se non si può; il progetto resta com'era.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> AddTheory([FromBody] TemplateTheoryHttpRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectTemplateTheory theory, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                return Ok(await theory.AddTheoryAsync(new MdExplorer.Services.Templates.TemplateTheoryRequest { ProjectPath = request?.Path, Id = request?.Id }, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Gli aggiornamenti dei template del progetto (P3): per ognuno la versione unita, quella nuova, le voci del CHANGELOG fra
         /// le due e il perché, se non si può. <paramref name="fetch"/> interroga i repository dei template.
         /// </summary>
@@ -826,7 +844,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
             {
                 var rows = (System.IO.File.Exists(file) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).Templates : null)
                            ?? new List<MdExplorer.Service.Models.ProjectTemplateConfig>();
-                return Ok(new { templates = rows });
+                // theoryAvailable: il manifesto nella zona ha la teoria nella lingua della riga, quindi «Scarica la teoria» si può (M3).
+                return Ok(new
+                {
+                    templates = rows.Select(r =>
+                    {
+                        var manifest = Path.Combine(path, MdExplorer.Features.Templates.TemplateManifest.PathOf(r.Id ?? "").Replace('/', Path.DirectorySeparatorChar));
+                        var theoryAvailable = System.IO.File.Exists(manifest)
+                            && MdExplorer.Features.Templates.TemplateManifestReader.Read(System.IO.File.ReadAllText(manifest), r.Id, out _)?.Theory?.ContainsKey(r.Language ?? "") == true;
+                        return new { r.Id, r.Url, r.Kind, r.Language, r.Example, r.Theory, r.Version, r.Detached, theoryAvailable };
+                    }),
+                });
             }
             catch (InvalidOperationException ex)
             {
@@ -1368,6 +1396,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public List<string>? Theory { get; set; }
         /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
         public string? Harness { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.AddTheory"/>.</summary>
+    public class TemplateTheoryHttpRequest
+    {
+        public string? Path { get; set; }
+        public string? Id { get; set; }
     }
 
     /// <summary>La richiesta di <see cref="MdProjectsController.UpdateTemplate"/> e <see cref="MdProjectsController.DetachTemplate"/>.</summary>
