@@ -1,3 +1,11 @@
+// L'elemento ospite prende l'altezza del dialogo: senza, l'height: 100% del contenitore non valeva niente, l'elenco
+// cresceva con il contenuto e a scorrere era l'intero dialogo, con il pulsante di selezione in fondo (visto 19/10/2026
+// su /usr/bin: contenuto di 2458px in un dialogo di 600px). Così scorre solo l'elenco e il pulsante resta in vista.
+:host {
+  display: block;
+  height: 100%;
+}
+
 // Main container
 .file-explorer-container {
   display: flex;
