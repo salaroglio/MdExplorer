@@ -197,6 +197,7 @@
     "OTHER": "Altro per indirizzo",
     "OTHER_ADD": "Aggiungi il template",
     "ALREADY_LISTED": "Questo template è già nella colonna.",
+    "SAME_TEMPLATE": "È lo stesso template di «{{title}}», già nella colonna da {{url}}.",
     "LANGUAGE": "Lingua",
     "NEXT": "Avanti: la cartella",
     "EMPTY": "Progetto vuoto",

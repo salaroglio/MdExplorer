@@ -19,6 +19,7 @@
             <div class="row-text">
               <div class="row-title">{{ b.title }}</div>
               <div class="row-desc" *ngIf="!speaks(b)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(b) } }}</div>
+              <div class="row-desc row-url" *ngIf="b.byAddress">{{ b.url }}</div>
             </div>
           </div>
         </mat-radio-group>
@@ -32,6 +33,7 @@
             <div class="row-text">
               <div class="row-title">{{ m.title }}</div>
               <div class="row-desc" *ngIf="!speaks(m)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(m) } }}</div>
+              <div class="row-desc row-url" *ngIf="m.byAddress">{{ m.url }}</div>
             </div>
           </div>
         </div>

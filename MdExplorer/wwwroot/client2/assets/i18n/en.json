@@ -197,6 +197,7 @@
     "OTHER": "Other, by address",
     "OTHER_ADD": "Add the template",
     "ALREADY_LISTED": "This template is already in the column.",
+    "SAME_TEMPLATE": "It is the same template as «{{title}}», already in the column from {{url}}.",
     "LANGUAGE": "Language",
     "NEXT": "Next: the folder",
     "EMPTY": "Empty project",

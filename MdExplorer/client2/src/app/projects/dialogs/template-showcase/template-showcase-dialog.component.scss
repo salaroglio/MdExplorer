@@ -83,6 +83,11 @@
   margin: 2px 0 0;
 }
 
+.row-url {
+  overflow-wrap: anywhere;
+  font-family: monospace;
+}
+
 .error-text {
   color: var(--mde-error-fg);
 }

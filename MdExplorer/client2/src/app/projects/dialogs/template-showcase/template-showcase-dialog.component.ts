@@ -11,6 +11,10 @@ import { TemplateCatalogEntry, TemplateShowcaseChoice, TemplateShowcaseEntry } f
 interface ShowcaseItem {
   /** null = il progetto vuoto. */
   url: string | null;
+  /** L'id del template (null per il progetto vuoto): due righe con lo stesso id sono lo stesso template. */
+  id: string | null;
+  /** Aggiunto per indirizzo: la riga mostra l'indirizzo, che è ciò che lo distingue. */
+  byAddress?: boolean;
   kind: 'empty' | 'project' | 'method';
   title: string;
   description: string;
@@ -70,7 +74,7 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
   ) {
     this.subscriptions.add(themeService.currentTheme$.subscribe(t => this.theme = t));
     this.empty = {
-      url: null, kind: 'empty', languages: ['it', 'en'],
+      url: null, id: null, kind: 'empty', languages: ['it', 'en'],
       title: this.translate.instant('TEMPLATE_SHOWCASE.EMPTY'),
       description: this.translate.instant('TEMPLATE_SHOWCASE.EMPTY_DESC'),
     };
@@ -82,7 +86,7 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
     this.http.get<{ templates: TemplateCatalogEntry[] }>('../api/MdProjects/TemplateCatalog').subscribe({
       next: res => {
         const items = (res?.templates || []).map(t => ({
-          url: t.url, kind: t.kind, languages: t.languages || [], title: this.text(t.title), description: this.text(t.description),
+          url: t.url, id: t.id, kind: t.kind, languages: t.languages || [], title: this.text(t.title), description: this.text(t.description),
         } as ShowcaseItem));
         this.bases = items.filter(i => i.kind === 'project');
         this.methods = items.filter(i => i.kind === 'method');
@@ -146,7 +150,14 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
     this.otherLoading = true;
     try {
       const entry = await this.describe(url);
-      const item: ShowcaseItem = { url, kind: entry.kind, title: entry.title, description: entry.description, languages: entry.languages };
+      // Lo stesso template da un altro indirizzo: due righe uguali, e la creazione lo riceverebbe due volte.
+      const twin = [...this.bases, ...this.methods].find(i => i.id === entry.id);
+      if (twin) {
+        this.otherError = this.translate.instant('TEMPLATE_SHOWCASE.SAME_TEMPLATE', { title: twin.title, url: twin.url });
+        setTimeout(() => this.otherErrorText?.nativeElement.scrollIntoView({ block: 'nearest' }));
+        return;
+      }
+      const item: ShowcaseItem = { url, id: entry.id, kind: entry.kind, title: entry.title, description: entry.description, languages: entry.languages, byAddress: true };
       if (item.kind === 'project') {
         this.bases = [...this.bases, item];
         if (this.speaks(item)) this.baseUrl = url;
