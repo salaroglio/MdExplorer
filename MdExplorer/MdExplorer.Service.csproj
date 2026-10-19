@@ -258,6 +258,10 @@
     <EmbeddedResource Include="MdEngine.db" />
     <!-- L'elenco dei template di «Crea nuovo progetto» (TD4): viaggia con MdExplorer, aggiornato a ogni rilascio. -->
     <EmbeddedResource Include="project-templates.json" LogicalName="MdExplorer.Service.project-templates.json" />
+    <!-- La presentazione del progetto vuoto nella vetrina di «Crea nuovo progetto» (VD4): una per lingua, l'inglese di riserva.
+         WithCulture=false: senza, MSBuild legge «.it»/«.en» come una cultura e la manda in una dll satellite. -->
+    <EmbeddedResource Include="project-templates\empty.it.md" LogicalName="MdExplorer.Service.project-templates.empty.it.md" WithCulture="false" />
+    <EmbeddedResource Include="project-templates\empty.en.md" LogicalName="MdExplorer.Service.project-templates.empty.en.md" WithCulture="false" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>

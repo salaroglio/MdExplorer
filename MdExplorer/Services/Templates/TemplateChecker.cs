@@ -262,10 +262,20 @@ namespace MdExplorer.Services.Templates
                 issues.Add(Warn(branch, zone + "README.md",
                     UiText.Say("Manca il README del template: è ciò che legge chi lo sceglie.", "The template's README is missing: it is what whoever picks it reads."), null));
 
+            // Le slide della vetrina (VD8): facoltative, ma senza quelle inglesi chi sceglie un'altra lingua vede la slide di circostanza.
+            if (manifest.Slides?.ContainsKey(TemplateManifest.SlidesFallbackLanguage) != true)
+                issues.Add(Warn(branch, TemplateManifest.PathOf(manifest.Id),
+                    UiText.Say("Il template non ha le slide inglesi: nella vetrina di «Crea nuovo progetto» chi sceglie una lingua senza slide vede solo una slide di circostanza.",
+                               "The template has no English slides: in the «Create new project» showcase whoever picks a language without slides sees only a stand-in slide."),
+                    UiText.Say($"Aggiungi in slides la riga en con una presentazione markdown in {zone} (vedi la skill mde-slide).",
+                               $"Add the en line to slides with a markdown presentation in {zone} (see the mde-slide skill).")));
+
             var named = (manifest.Workflows ?? new List<string>()).Append(manifest.Instructions)
                 .Concat((manifest.Seeds ?? new List<TemplateSeed>()).Select(s => s.From)).Where(f => f != null);
             var missing = named.Where(f => !files.Contains(f)).Distinct().ToList();
-            foreach (var f in missing)
+            // Le slide non entrano nel progetto come il resto: un file che manca non ferma la prova dei workflow.
+            var slides = (manifest.Slides ?? new Dictionary<string, string>()).Values.Where(f => f != null && !files.Contains(f));
+            foreach (var f in missing.Concat(slides).Distinct())
                 issues.Add(Err(branch, f, UiText.Say($"Il manifesto nomina questo file, che nel ramo non c'è.", $"The manifest names this file, which is not in the branch."), null));
 
             CheckCards(root, files, branch, manifest, issues);

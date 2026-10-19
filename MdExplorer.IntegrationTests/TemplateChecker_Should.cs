@@ -34,6 +34,9 @@ roles:
 workflows:
   - .mde-template/ddd/workflows/ddd.md
 instructions: .mde-template/ddd/istruzioni.md
+slides:
+  it: .mde-template/ddd/presentazione.md
+  en: .mde-template/ddd/presentation.md
 seeds:
   - { from: .mde-template/ddd/semi/glossario.md, to: ddd/glossario.md }
 ";
@@ -48,6 +51,8 @@ seeds:
             [".mde-template/ddd/workflows/ddd.workflow.json"] = DddWorkflow,
             [".mde-template/ddd/istruzioni.md"] = "Il glossario sta in ddd/glossario.md.\n",
             [".mde-template/ddd/semi/glossario.md"] = "# Glossario\n",
+            [".mde-template/ddd/presentazione.md"] = "---\ndocument_type: slides\n---\n# Sviluppo con DDD\n",
+            [".mde-template/ddd/presentation.md"] = "---\ndocument_type: slides\n---\n# Development with DDD\n",
             [".claude/skills/ddd-modella/SKILL.md"] = "---\nname: ddd-modella\ndescription: modella il dominio\n---\n# Modella\n",
         };
 
@@ -117,6 +122,7 @@ seeds:
             main[".mde-template/ddd/agents/analista.agent.md"] = Card.Replace("ddd-analista", "analista");
             main[".claude/skills/ddd-contesti/SKILL.md"] = "---\nname: contesti\n---\n";
             main["gare/fuori.md"] = "fuori\n";
+            main.Remove(".mde-template/ddd/presentazione.md");
             main[".mde-template/ddd/workflows/ddd.workflow.json"] = DddWorkflow.Replace("\"skill\": \"modella\"", "\"skill\": \"inesistente\"");
             var work = Repository(ctx, "guasto", main, example: false, tag: false);
             File.WriteAllText(Path.Combine(work, ".mde-template", "ddd", "manifesto-bis.md"), "non committato\n");
@@ -137,6 +143,7 @@ seeds:
             StringAssert.Contains(all, "error [] .mde-template/ddd/mde-template.yml: The manifest declares the branch 'esempio', which is not in the repository.");
             StringAssert.Contains(all, "warning [] : The tag v1.0.0 of the version 1.0.0 is missing.");
             StringAssert.Contains(all, "warning [main] : The branch 'main' has uncommitted changes");
+            StringAssert.Contains(all, "error [main] .mde-template/ddd/presentazione.md: The manifest names this file, which is not in the branch.");
             Assert.AreEqual(1, report.Branches.Count, "l'esempio dichiarato non c'è: si controlla solo main");
         }
 
@@ -172,6 +179,22 @@ seeds:
             Directory.CreateDirectory(folder);
             var ex = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Check(ctx, folder));
             StringAssert.Contains(ex.Message, "is not a git repository");
+        }
+
+        [TestMethod]
+        public async Task Warn_when_the_english_slides_are_missing()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var main = Structure();
+            main[".mde-template/ddd/mde-template.yml"] = Manifest.Replace("  en: .mde-template/ddd/presentation.md\n", "");
+            main.Remove(".mde-template/ddd/presentation.md");
+            var work = Repository(ctx, "senza-inglese", main);
+
+            var report = await Check(ctx, work);
+
+            Assert.IsTrue(report.Ok, Describe(report));
+            StringAssert.Contains(Describe(report), "warning [main] .mde-template/ddd/mde-template.yml: The template has no English slides");
         }
     }
 }

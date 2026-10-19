@@ -806,10 +806,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         {
             try
             {
-                using var stream = typeof(MdProjectsController).Assembly.GetManifestResourceStream(MdExplorer.Features.Templates.TemplateCatalog.ResourceName)
-                    ?? throw new InvalidOperationException($"MdExplorer non contiene {MdExplorer.Features.Templates.TemplateCatalog.ResourceName}: la build è incompleta.");
-                using var reader = new StreamReader(stream);
-                return Ok(new { templates = MdExplorer.Features.Templates.TemplateCatalog.Read(reader.ReadToEnd()) });
+                return Ok(new { templates = MdExplorer.Services.Templates.TemplateCatalogResource.Entries() });
             }
             catch (InvalidOperationException ex)
             {

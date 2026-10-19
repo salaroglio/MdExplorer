@@ -193,5 +193,32 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             Assert.IsTrue(TemplateManifestReader.CompareAppVersions("2026.10.17", "2026.10.17.0") == 0);
             Assert.IsTrue(TemplateManifestReader.CompareAppVersions("2026.11.1", "2026.10.30") > 0);
         }
+
+        /// <summary>La vetrina (sprint 2026-10-19-Vetrina-Dei-Template.md): una presentazione per lingua, l'inglese di riserva.</summary>
+        [TestMethod]
+        public void Pick_the_slides_of_the_language_then_the_english_ones_then_none()
+        {
+            var m = TemplateManifestReader.Read(GaraIso + "slides:\n  it: .mde-template/gara-iso/presentazione.md\n  en: .mde-template/gara-iso/presentation.md\n",
+                "gara-iso", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            Assert.AreEqual(("it", ".mde-template/gara-iso/presentazione.md"), m.SlidesFor("it"));
+            Assert.AreEqual(("en", ".mde-template/gara-iso/presentation.md"), m.SlidesFor("de"), "una lingua che non ha: le inglesi");
+
+            var italianOnly = TemplateManifestReader.Read(GaraIso + "slides:\n  it: .mde-template/gara-iso/presentazione.md\n", "gara-iso", out _);
+            Assert.IsNull(italianOnly.SlidesFor("en"), "né la lingua né l'inglese: slide di circostanza");
+            Assert.IsNull(TemplateManifestReader.Read(GaraIso, "gara-iso", out _).SlidesFor("it"), "senza slides: slide di circostanza");
+        }
+
+        [TestMethod]
+        public void Refuse_slides_with_a_bad_language_outside_the_zone_or_not_markdown()
+        {
+            TemplateManifestReader.Read(GaraIso + "slides:\n  ita: .mde-template/gara-iso/p.md\n  en: docs/p.md\n  it: .mde-template/gara-iso/p.pdf\n",
+                "gara-iso", out var problems);
+            var all = string.Join("\n", problems);
+            Assert.AreEqual(3, problems.Count, all);
+            StringAssert.Contains(all, "slides: 'ita' is not a language code");
+            StringAssert.Contains(all, "slides.en: 'docs/p.md' is outside the method's folder");
+            StringAssert.Contains(all, "slides.it: '.mde-template/gara-iso/p.pdf' must be a markdown presentation");
+        }
     }
 }

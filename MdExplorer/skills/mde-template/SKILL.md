@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -44,6 +44,7 @@ the zone rule does not apply.
 ├── mde-template.yml        the manifest
 ├── CHANGELOG.md            the versions, with the incompatibilities
 ├── README.md               what the method is, for whoever picks it
+├── presentazione.md        the slides of the «Create new project» showcase, one file per language (mde-slide skill)
 ├── istruzioni.md           instructions for the project's agents (MDE puts them in CLAUDE.md / AGENTS.md / copilot-instructions.md)
 ├── agents/                 the agent cards  <id>-<name>.agent.md   (mde-agent skill)
 ├── workflows/              the workflow document + *.workflow.json  (mde-workflow skill)
@@ -87,6 +88,9 @@ seeds:                            # starting files: copied once if missing, then
   - { from: .mde-template/ddd/semi/dominio.md, to: ddd/dominio.md }
 programs:                         # code folders to mark for the code graph (after the seeds: the folder must exist)
   - { path: codice/helpdesk, languages: [csharp] }
+slides:                           # the showcase presentation, one per language of the SLIDES (optional)
+  it: .mde-template/ddd/presentazione.md
+  en: .mde-template/ddd/presentation.md
 ```
 
 - **Unknown keys are errors.** So is a typo: the reader is strict, like MDE's config reader.
@@ -101,6 +105,13 @@ programs:                         # code folders to mark for the code graph (aft
   profiles and folders the method's agents write in, and for the example's documents.
 - `requires.features`: MDE never turns a feature on by itself. With `fuseki` off, or with `code` and no code folder,
   the person gets a note saying where to turn it on and what stays stopped.
+- `slides`: what «Create new project» shows on the right while the person looks at the template, before choosing it.
+  One markdown presentation per language (mde-slide skill), in the zone, with its images next to it. The language of
+  the slides is not the method's working language: an Italian-only method brings the **English slides too**, on its
+  `main` branch, because whoever picks another language sees the English ones. Without slides in the chosen language
+  nor in English the showcase shows a stand-in slide made from title and description: not an error, but
+  `check_template` warns. Say what the method is for, who does what, and what the project has once created; MDE's
+  commands (PlantUML, `text()`…) do not run in the showcase, images do.
 - `instructions`: a short text for every agent of the project (where the method's documents are, which skill to use).
   MDE writes it between `<!-- mde-template:<id> -->` and `<!-- /mde-template:<id> -->` and replaces only that block.
 
@@ -156,6 +167,7 @@ the English branches). Structure and example of the same language should be at t
 
 - [ ] Every file is in the zone; agents and skills start with `<id>-`.
 - [ ] Values with `:` or `,` are quoted in the manifest.
+- [ ] `slides` has an English presentation (and one in each language the method speaks), and you looked at it.
 - [ ] The CHANGELOG's first entry is the manifest's `version`; a major has its `⚠️ incompatibile: … Cosa fare: …` line.
 - [ ] `check_template` has no errors, and you told the user its warnings.
 - [ ] You created a project from it and looked at it.

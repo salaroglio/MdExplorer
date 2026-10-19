@@ -39,6 +39,24 @@ namespace MdExplorer.Features.Templates
         /// linguaggi in <c>.development.yml</c>, come farebbe la finestra «Ambiente di sviluppo», se non ci sono già.
         /// </summary>
         public List<TemplateProgram> Programs { get; set; }
+        /// <summary>
+        /// La presentazione della vetrina di «Crea nuovo progetto» (sprint 2026-10-19-Vetrina-Dei-Template.md), una per lingua
+        /// delle slide: lingua → file nel ramo. Facoltativa: senza, MDE mostra una slide di circostanza. Le slide inglesi sono
+        /// quelle di riserva per chi sceglie una lingua che il template non parla (VD7).
+        /// </summary>
+        public Dictionary<string, string> Slides { get; set; }
+
+        /// <summary>La lingua delle slide di riserva (VD7).</summary>
+        public const string SlidesFallbackLanguage = "en";
+
+        /// <summary>Il file delle slide da mostrare in <paramref name="language"/>: le sue, o le inglesi; null = slide di circostanza.</summary>
+        public (string Language, string File)? SlidesFor(string language)
+        {
+            if (Slides == null) return null;
+            if (Slides.TryGetValue(language ?? string.Empty, out var own)) return (language, own);
+            if (Slides.TryGetValue(SlidesFallbackLanguage, out var english)) return (SlidesFallbackLanguage, english);
+            return null;
+        }
 
         public bool IsMethod => Kind == Method;
 
@@ -195,6 +213,14 @@ namespace MdExplorer.Features.Templates
             }
 
             foreach (var w in m.Workflows ?? new List<string>()) CheckPath(m, "workflows", w, problems);
+            foreach (var (code, file) in m.Slides ?? new Dictionary<string, string>())
+            {
+                if (!LanguageCode.IsMatch(code ?? string.Empty))
+                    problems.Add(UiText.Say($"slides: '{code}' non è un codice di lingua (it, en…)", $"slides: '{code}' is not a language code (it, en…)"));
+                CheckPath(m, $"slides.{code}", file, problems);
+                if (file != null && !file.EndsWith(".md", StringComparison.Ordinal))
+                    problems.Add(UiText.Say($"slides.{code}: '{file}' deve essere una presentazione markdown (.md)", $"slides.{code}: '{file}' must be a markdown presentation (.md)"));
+            }
             if (m.Instructions != null) CheckPath(m, "instructions", m.Instructions, problems);
 
             var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
