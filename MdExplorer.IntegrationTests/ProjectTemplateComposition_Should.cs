@@ -1,0 +1,180 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using MdExplorer.IntegrationTests.Infrastructure;
+using MdExplorer.Services.Templates;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static MdExplorer.IntegrationTests.ProjectTemplateCreator_Should;
+using static MdExplorer.IntegrationTests.ProjectTemplateMethods_Should;
+
+namespace MdExplorer.IntegrationTests
+{
+    /// <summary>
+    /// I metodi componibili (docs-internal/Sprints/2026-10-19-Metodi-Componibili.md, M2): un progetto nasce dallo strato
+    /// comune più i metodi scelti, ognuno con la sua teoria se la si chiede; la demo sta da sola.
+    /// <para>Richiede <c>git</c> nel PATH.</para>
+    /// </summary>
+    [TestClass]
+    public class ProjectTemplateComposition_Should
+    {
+        [TestInitialize]
+        public void ResetCwd() => Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+
+        private const string Changelog = "# Changelog\n\n## {0} — 2026-10-19\n\n- Versione {0}.\n";
+
+        /// <summary>Lo strato comune: una skill, un agente, e la teoria degli LLM wiki in italiano.</summary>
+        internal static Dictionary<string, Dictionary<string, string>> Foundation() => new()
+        {
+            ["main"] = new Dictionary<string, string>
+            {
+                [".mde-template/documenti/mde-template.yml"] = @"mde_template: 1
+id: documenti
+kind: foundation
+title: Scrittura sistematica dei documenti
+version: 1.0.0
+languages:
+  it: { structure: main }
+roles:
+  - { role: Redattore, agents: [documenti-redattore] }
+theory:
+  it: { from: .mde-template/documenti/teoria, to: teoria/documenti }
+",
+                [".mde-template/documenti/agents/documenti-redattore.agent.md"] = Card.Replace("ddd-analista", "documenti-redattore"),
+                [".mde-template/documenti/teoria/llm-wiki.md"] = "# Gli LLM wiki\n",
+                [".claude/skills/documenti-scrivi/SKILL.md"] = "---\nname: documenti-scrivi\ndescription: scrive\n---\n# Scrivi\n",
+            },
+        };
+
+        /// <summary>Il metodo DDD dei test di P2, con la sua teoria (due documenti, uno con un nome accentato).</summary>
+        private static Dictionary<string, Dictionary<string, string>> WithTheory(string version = "1.0.0", Dictionary<string, string> theory = null)
+        {
+            var b = DddBranches();
+            b["main"][".mde-template/ddd/mde-template.yml"] = Ddd().Replace("version: 1.0.0", $"version: {version}")
+                + "theory:\n  it: { from: .mde-template/ddd/teoria, to: teoria/ddd }\n";
+            b["main"][".mde-template/ddd/CHANGELOG.md"] = string.Format(Changelog, version);
+            foreach (var (file, text) in theory ?? new() { ["perché.md"] = "# Perché\n", ["capitoli/uno.md"] = "# Uno\n" })
+                b["main"][".mde-template/ddd/teoria/" + file] = text;
+            return b;
+        }
+
+        [TestMethod]
+        public async Task Create_from_the_common_layer_and_a_method_with_the_theory_only_where_asked()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "composto");
+            var foundation = Template(ctx, "documenti", Foundation());
+            var ddd = Template(ctx, "ddd", WithTheory());
+
+            var outcome = await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = foundation, Methods = new[] { ddd }, Theory = new[] { ddd },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+
+            Assert.AreEqual("documenti", outcome.Id);
+            Assert.AreEqual("ddd", outcome.Methods.Single().Id);
+            Assert.AreEqual("# Perché\n", Read(path, "teoria/ddd/perché.md"), "la teoria chiesta, dalla zona del metodo");
+            Assert.AreEqual("# Uno\n", Read(path, "teoria/ddd/capitoli/uno.md"));
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, "teoria", "documenti")), "la teoria dello strato comune non è stata chiesta");
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".mde-template", "documenti", "teoria", "llm-wiki.md")), "resta nella zona: si potrà chiedere dopo");
+
+            var yml = Read(path, ".development.yml");
+            StringAssert.Contains(yml, "- id: documenti\n  url: " + foundation + "\n  kind: foundation\n");
+            StringAssert.Contains(yml, "- id: ddd\n  url: " + ddd + "\n  language: it\n  example: false\n  theory: true\n");
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("The theory of «Sviluppo con DDD» in teoria/ddd/: 2 documents")), string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out, "la teoria è nel commit del metodo");
+        }
+
+        [TestMethod]
+        public async Task Keep_the_demo_alone_and_the_common_layer_first()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var ddd = Template(ctx, "ddd", DddBranches());
+
+            var demo = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "demo-e-ddd"), TemplateUrl = Template(ctx, "demo", Base()), Methods = new[] { ddd }, Language = "it", MdeVersion = Mde,
+            }));
+            StringAssert.Contains(demo.Message, "already has everything included: methods are not added to it");
+            Assert.IsFalse(Directory.Exists(NewFolder(ctx, "demo-e-ddd")), "niente lasciato indietro");
+
+            var second = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "strato-dopo"), TemplateUrl = ddd, Methods = new[] { Template(ctx, "documenti", Foundation()) },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            }));
+            StringAssert.Contains(second.Message, "is the common layer: a project takes it at creation, as the first template");
+        }
+
+        [TestMethod]
+        public async Task Refuse_a_theory_that_is_not_there_or_not_chosen()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var foundation = Template(ctx, "documenti", Foundation());
+            var bare = Template(ctx, "ddd", DddBranches());
+
+            var none = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "senza-teoria"), TemplateUrl = foundation, Methods = new[] { bare }, Theory = new[] { bare },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            }));
+            StringAssert.Contains(none.Message, "The template «Sviluppo con DDD» has no theory in 'it'");
+            Assert.IsFalse(Directory.Exists(NewFolder(ctx, "senza-teoria")));
+
+            var stray = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "teoria-estranea"), TemplateUrl = foundation, Theory = new[] { bare },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            }));
+            StringAssert.Contains(stray.Message, "Theory can be asked only for the chosen templates");
+        }
+
+        [TestMethod]
+        public async Task Bring_the_new_theory_with_an_update_without_bringing_back_what_the_group_removed()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "teoria-aggiornata");
+            var ddd = Template(ctx, "ddd", WithTheory());
+            await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Template(ctx, "documenti", Foundation()), Methods = new[] { ddd }, Theory = new[] { ddd },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+            Git(path, "config user.email io@test.local"); Git(path, "config user.name Io"); Git(path, "config commit.gpgsign false");
+            Git(path, "rm -q teoria/ddd/capitoli/uno.md"); Git(path, "commit -q -m via-uno");
+
+            // La versione 1.1.0: cambia «perché», cambia «uno» (che il gruppo ha tolto), aggiunge «due».
+            var work = Path.Combine(ctx.Factory.DataDir, "autore");
+            Git(ctx.Factory.DataDir, $"clone -q \"{ddd}\" \"{work}\"");
+            Git(work, "config user.email autore@test.local"); Git(work, "config user.name Autore"); Git(work, "config commit.gpgsign false");
+            foreach (var (file, text) in WithTheory("1.1.0", new() { ["perché.md"] = "# Perché, meglio\n", ["capitoli/uno.md"] = "# Uno, meglio\n", ["capitoli/due.md"] = "# Due\n" })["main"])
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(work, file)));
+                File.WriteAllText(Path.Combine(work, file), text);
+            }
+            File.WriteAllText(Path.Combine(work, ".mde-template", "ddd", "CHANGELOG.md"), "# Changelog\n\n## 1.1.0 — 2026-10-20\n\n- La teoria cresce.\n\n## 1.0.0 — 2026-10-19\n\n- Versione 1.0.0.\n");
+            Git(work, "add -A"); Git(work, "commit -q -m nuova"); Git(work, "push -q origin main");
+
+            using var scope = ctx.Factory.Services.CreateScope();
+            var outcome = await scope.ServiceProvider.GetRequiredService<IProjectTemplateUpdates>()
+                .UpdateAsync(new TemplateUpdateRequest { ProjectPath = path, Id = "ddd", MdeVersion = Mde });
+
+            Assert.AreEqual("# Due\n", Read(path, "teoria/ddd/capitoli/due.md"), "il documento nuovo arriva");
+            Assert.IsFalse(File.Exists(Path.Combine(path, "teoria", "ddd", "capitoli", "uno.md")), "il gruppo l'aveva tolto: non rinasce");
+            Assert.AreEqual("# Perché\n", Read(path, "teoria/ddd/perché.md"), "il file del gruppo non si tocca");
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("changed the models of teoria/ddd/perché.md")), string.Join("\n", outcome.Notes));
+            StringAssert.Contains(Read(path, ".development.yml"), "  theory: true\n", "la riga ricorda ancora la teoria");
+        }
+    }
+}

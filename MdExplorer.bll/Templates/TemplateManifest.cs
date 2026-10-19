@@ -20,6 +20,11 @@ namespace MdExplorer.Features.Templates
         public const string FileName = "mde-template.yml";
         public const string Method = "method";
         public const string Project = "project";
+        /// <summary>
+        /// Lo strato comune (sprint 2026-10-19-Metodi-Componibili.md, MC2): la scrittura sistematica dei documenti, che c'è in
+        /// ogni progetto fatto di metodi. Ha le regole di un metodo (la zona, gli agenti con l'id), ma è sempre il primo.
+        /// </summary>
+        public const string Foundation = "foundation";
 
         public int MdeTemplate { get; set; }
         public string Id { get; set; }
@@ -45,6 +50,11 @@ namespace MdExplorer.Features.Templates
         /// quelle di riserva per chi sceglie una lingua che il template non parla (VD7).
         /// </summary>
         public Dictionary<string, string> Slides { get; set; }
+        /// <summary>
+        /// La teoria del metodo (MC1, MC5), una per lingua: la cartella nella zona e quella del progetto in cui si copia, se chi
+        /// crea il progetto la chiede, o dopo. Facoltativa; un template di progetto non ne ha (la demo ha tutto incluso, MC6).
+        /// </summary>
+        public Dictionary<string, TemplateTheory> Theory { get; set; }
 
         /// <summary>La lingua delle slide di riserva (VD7).</summary>
         public const string SlidesFallbackLanguage = "en";
@@ -59,6 +69,20 @@ namespace MdExplorer.Features.Templates
         }
 
         public bool IsMethod => Kind == Method;
+        public bool IsFoundation => Kind == Foundation;
+        /// <summary>Un metodo o lo strato comune: porta solo la sua zona e le sue skill, e gli agenti con il suo id.</summary>
+        public bool IsZoned => Kind == Method || Kind == Foundation;
+
+        /// <summary>Il <c>kind</c> della riga in <c>.development.yml</c>: assente per un metodo.</summary>
+        public string RowKind => IsMethod ? null : Kind;
+
+        /// <summary>La teoria in <paramref name="language"/>; un problema detto se il template non ne ha in quella lingua.</summary>
+        public TemplateTheory TheoryFor(string language)
+            => Theory != null && Theory.TryGetValue(language ?? string.Empty, out var theory)
+                ? theory
+                : throw new InvalidOperationException(UiText.Say(
+                    $"Il template «{Title}» non ha la teoria in '{language}'" + (Theory?.Count > 0 ? $": c'è in {string.Join(", ", Theory.Keys)}." : "."),
+                    $"The template «{Title}» has no theory in '{language}'" + (Theory?.Count > 0 ? $": there is in {string.Join(", ", Theory.Keys)}." : ".")));
 
         /// <summary>La cartella del template nel progetto: <c>.mde-template/&lt;id&gt;/</c>.</summary>
         public static string ZoneOf(string id) => $"{Folder}/{id}/";
@@ -111,6 +135,13 @@ namespace MdExplorer.Features.Templates
     {
         public string Path { get; set; }
         public List<string> Languages { get; set; }
+    }
+
+    /// <summary>La teoria in una lingua: <c>from</c> è la cartella nella zona, <c>to</c> quella del progetto in cui si copia.</summary>
+    public sealed class TemplateTheory
+    {
+        public string From { get; set; }
+        public string To { get; set; }
     }
 
     /// <summary>Un file iniziale: <c>from</c> sta nel template, <c>to</c> è dove nasce nel progetto.</summary>
@@ -166,8 +197,8 @@ namespace MdExplorer.Features.Templates
             else if (m.Id != folderId)
                 problems.Add(UiText.Say($"id '{m.Id}' ma il manifesto sta in {TemplateManifest.Folder}/{folderId}/: devono essere uguali",
                                         $"id '{m.Id}' but the manifest is in {TemplateManifest.Folder}/{folderId}/: they must be the same"));
-            if (m.Kind != TemplateManifest.Method && m.Kind != TemplateManifest.Project)
-                problems.Add(UiText.Say($"kind '{m.Kind}': vale method o project", $"kind '{m.Kind}': it is method or project"));
+            if (m.Kind != TemplateManifest.Method && m.Kind != TemplateManifest.Project && m.Kind != TemplateManifest.Foundation)
+                problems.Add(UiText.Say($"kind '{m.Kind}': vale method, foundation o project", $"kind '{m.Kind}': it is method, foundation or project"));
             if (string.IsNullOrWhiteSpace(m.Title))
                 problems.Add(UiText.Say("manca title", "title is missing"));
             if (string.IsNullOrWhiteSpace(m.Version) || !SemVer.IsMatch(m.Version))
@@ -207,7 +238,7 @@ namespace MdExplorer.Features.Templates
                 if (!seen.Add(r.Role.Trim()))
                     problems.Add(UiText.Say($"roles: '{r.Role}' compare due volte", $"roles: '{r.Role}' appears twice"));
                 foreach (var a in r.Agents ?? new List<string>())
-                    if (m.Kind == TemplateManifest.Method && m.Id != null && !(a ?? string.Empty).StartsWith(m.Id + "-", StringComparison.Ordinal))
+                    if (m.IsZoned && m.Id != null && !(a ?? string.Empty).StartsWith(m.Id + "-", StringComparison.Ordinal))
                         problems.Add(UiText.Say($"roles: l'agente '{a}' non comincia con '{m.Id}-': gli agenti di un metodo portano il suo id",
                                                 $"roles: the agent '{a}' does not start with '{m.Id}-': a method's agents carry its id"));
             }
@@ -222,6 +253,22 @@ namespace MdExplorer.Features.Templates
                     problems.Add(UiText.Say($"slides.{code}: '{file}' deve essere una presentazione markdown (.md)", $"slides.{code}: '{file}' must be a markdown presentation (.md)"));
             }
             if (m.Instructions != null) CheckPath(m, "instructions", m.Instructions, problems);
+
+            if (m.Theory?.Count > 0 && m.Kind == TemplateManifest.Project)
+                problems.Add(UiText.Say("theory: un template di progetto ha già tutto incluso; la teoria è di un metodo o dello strato comune",
+                                        "theory: a project template already has everything included; theory belongs to a method or the common layer"));
+            foreach (var (code, theory) in m.Theory ?? new Dictionary<string, TemplateTheory>())
+            {
+                if (!LanguageCode.IsMatch(code ?? string.Empty))
+                    problems.Add(UiText.Say($"theory: '{code}' non è un codice di lingua (it, en…)", $"theory: '{code}' is not a language code (it, en…)"));
+                else if (m.Languages?.ContainsKey(code) != true)
+                    problems.Add(UiText.Say($"theory.{code}: il template non è in '{code}' (languages)", $"theory.{code}: the template is not in '{code}' (languages)"));
+                if (theory == null) { problems.Add(UiText.Say($"theory.{code}: servono from e to", $"theory.{code}: from and to are needed")); continue; }
+                CheckPath(m, $"theory.{code}.from", theory.From, problems);
+                if (!IsProjectPath(theory.To) || !IsGroupPath(theory.To))
+                    problems.Add(UiText.Say($"theory.{code}.to: '{theory.To}' deve essere una cartella del gruppo, dalla radice del progetto, con «/»",
+                                            $"theory.{code}.to: '{theory.To}' must be a folder of the group, from the project root, with «/»"));
+            }
 
             var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in m.Seeds ?? new List<TemplateSeed>())
@@ -287,7 +334,7 @@ namespace MdExplorer.Features.Templates
                                         $"{key}: '{path}' must be a path from the project root, with «/»"));
                 return;
             }
-            if (m.Kind == TemplateManifest.Method && m.Id != null && !path.StartsWith(TemplateManifest.ZoneOf(m.Id), StringComparison.Ordinal))
+            if (m.IsZoned && m.Id != null && !path.StartsWith(TemplateManifest.ZoneOf(m.Id), StringComparison.Ordinal))
                 problems.Add(UiText.Say($"{key}: '{path}' è fuori dalla cartella del metodo {TemplateManifest.ZoneOf(m.Id)}",
                                         $"{key}: '{path}' is outside the method's folder {TemplateManifest.ZoneOf(m.Id)}"));
         }

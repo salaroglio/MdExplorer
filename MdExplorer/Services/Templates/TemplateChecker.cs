@@ -245,7 +245,7 @@ namespace MdExplorer.Services.Templates
             if (problems.Count > 0 || manifest == null) return null;
 
             var zone = TemplateManifest.ZoneOf(manifest.Id);
-            if (manifest.IsMethod)
+            if (manifest.IsZoned)
             {
                 var outside = TemplateManifestReader.OutsideZone(manifest.Id, files);
                 foreach (var f in outside.Take(MaxListed))
@@ -277,6 +277,12 @@ namespace MdExplorer.Services.Templates
             var slides = (manifest.Slides ?? new Dictionary<string, string>()).Values.Where(f => f != null && !files.Contains(f));
             foreach (var f in missing.Concat(slides).Distinct())
                 issues.Add(Err(branch, f, UiText.Say($"Il manifesto nomina questo file, che nel ramo non c'è.", $"The manifest names this file, which is not in the branch."), null));
+            // La teoria si copia solo su richiesta (MC5): come le slide, una cartella vuota non ferma la prova dei workflow.
+            foreach (var (code, theory) in manifest.Theory ?? new Dictionary<string, TemplateTheory>())
+                if (!files.Any(f => f.StartsWith(theory.From + "/", StringComparison.Ordinal)))
+                    issues.Add(Err(branch, theory.From,
+                        UiText.Say($"La teoria in '{code}' sta in questa cartella, che nel ramo non c'è o è vuota.", $"The theory in '{code}' is in this folder, which is not in the branch or is empty."),
+                        UiText.Say("Mettici i documenti della teoria, o togli la riga da theory.", "Put the theory documents there, or remove the line from theory.")));
 
             CheckCards(root, files, branch, manifest, issues);
             CheckSkills(root, files, branch, issues);
@@ -319,7 +325,7 @@ namespace MdExplorer.Services.Templates
                 if (!string.Equals(parsed.Card.Name, name, StringComparison.OrdinalIgnoreCase))
                     issues.Add(Err(branch, card, UiText.Say($"La scheda si chiama '{parsed.Card.Name}', il file '{name}': MDE la cerca per nome del file.",
                                                             $"The card is named '{parsed.Card.Name}', the file '{name}': MDE looks it up by file name."), null));
-                if (manifest.IsMethod && !name.StartsWith(manifest.Id + "-", StringComparison.Ordinal))
+                if (manifest.IsZoned && !name.StartsWith(manifest.Id + "-", StringComparison.Ordinal))
                     issues.Add(Err(branch, card,
                         UiText.Say($"L'agente '{name}' non comincia con l'id del metodo: un altro metodo potrebbe portarne uno con lo stesso nome.",
                                    $"The agent '{name}' does not start with the method's id: another method could carry one with the same name."),
@@ -427,7 +433,7 @@ namespace MdExplorer.Services.Templates
         private static string OwnershipDocOf(string project, string branch, TemplateManifest manifest, List<TemplateCheckIssue> issues)
         {
             var file = Path.Combine(project, DevelopmentConfigCleanup.FileName);
-            if (manifest.IsMethod || !File.Exists(file)) return ProjectTemplateCreator.OwnershipFile;
+            if (manifest.IsZoned || !File.Exists(file)) return ProjectTemplateCreator.OwnershipFile;
             try
             {
                 var configured = DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.OwnershipDoc;

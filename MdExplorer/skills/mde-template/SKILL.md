@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -27,15 +27,19 @@ NuGet package for a way of working: a manifest, a version, release notes, and fi
 MdExplorer provides the mechanisms; **the process lives in the template**. A template never needs a change to MdExplorer
 to say what it brings: the manifest says it, and MdExplorer writes the project's common files for it.
 
-## Two kinds
+## Three kinds
+
+A project is the **common layer** plus the **methods** the person ticks, each with its **theory** if asked; or the
+**demo**, alone.
 
 | `kind` | What it brings | Combines |
 |---|---|---|
-| `method` (a way of working: a tender with ISO 9001, ontologies, DDD) | only **its zone**: `.mde-template/<id>/**` and `.claude/skills/<id>-*/**` | yes, with other methods and with a base |
-| `project` (a whole starting project, like the demo) | files anywhere | it is the **base**: at most one, and only when the project is created |
+| `method` (a way of working: ISO 9001, ontologies) | only **its zone**: `.mde-template/<id>/**` and `.claude/skills/<id>-*/**` | yes, with the common layer and other methods |
+| `foundation` (the common layer: the systematic writing of documents) | only its zone, like a method | it is always the **first** template of a project made of methods; MdExplorer has one |
+| `project` (a whole starting project with everything included, like the demo) | files anywhere | **alone**: no methods are added to it, and it has no theory |
 
-Write a `method` unless the user wants a complete starting project. Everything below is for methods; for a `project`
-the zone rule does not apply.
+Write a `method` unless the user wants a complete starting project. Everything below is for methods and the common
+layer; for a `project` the zone rule does not apply.
 
 ## The repository
 
@@ -45,6 +49,7 @@ the zone rule does not apply.
 ├── CHANGELOG.md            the versions, with the incompatibilities
 ├── README.md               what the method is, for whoever picks it
 ├── presentazione.md        the slides of the «Create new project» showcase, one file per language (mde-slide skill)
+├── teoria/                 the theory, one folder per language: documents to learn the method, copied on request
 ├── istruzioni.md           instructions for the project's agents (MDE puts them in CLAUDE.md / AGENTS.md / copilot-instructions.md)
 ├── agents/                 the agent cards  <id>-<name>.agent.md   (mde-agent skill)
 ├── workflows/              the workflow document + *.workflow.json  (mde-workflow skill)
@@ -69,7 +74,7 @@ the zone rule does not apply.
 ```yaml
 mde_template: 1                   # format version
 id: ddd                           # kebab-case = zone folder name = prefix of agents and skills
-kind: method                      # method | project
+kind: method                      # method | foundation | project
 title: Sviluppo con DDD
 description: "Il DDD strategico: linguaggio, contesti e mappa, confrontati con il codice."
 version: 1.0.0                    # x.y.z = first CHANGELOG entry = git tag v1.0.0
@@ -91,6 +96,8 @@ programs:                         # code folders to mark for the code graph (aft
 slides:                           # the showcase presentation, one per language of the SLIDES (optional)
   it: .mde-template/ddd/presentazione.md
   en: .mde-template/ddd/presentation.md
+theory:                           # the method's theory, one folder per language it speaks (optional)
+  it: { from: .mde-template/ddd/teoria, to: teoria/ddd }
 ```
 
 - **Unknown keys are errors.** So is a typo: the reader is strict, like MDE's config reader.
@@ -114,6 +121,12 @@ slides:                           # the showcase presentation, one per language 
   commands (PlantUML, `text()`…) do not run in the showcase, images do. Use MdExplorer's look: `reveal.theme: mde-space`,
   a landscape on the first and last slide, an icon of the set in each title (mde-slide skill, «Nello stile di
   MdExplorer»); it needs `requires.mde` of an MdExplorer that has the theme.
+- `theory`: the documents that teach the method, for the person to read alone or to learn with the MarkAgent (how to
+  model, why, with examples). It always travels in the zone, and is **copied** from `from` to `to` (a group folder,
+  like a seed's `to`) only when whoever creates the project ticks «theory», or asks for it later. Copied files belong to
+  the group, like seeds: never overwritten, and on update a new document arrives while a removed one does not come
+  back. One folder per language the method speaks; a `project` template has none (the demo has everything included).
+  Say in `instructions` where the theory is, and that the MarkAgent can propose it when it is missing.
 - `instructions`: a short text for every agent of the project (where the method's documents are, which skill to use).
   MDE writes it between `<!-- mde-template:<id> -->` and `<!-- /mde-template:<id> -->` and replaces only that block.
 
@@ -169,6 +182,7 @@ the English branches). Structure and example of the same language should be at t
 
 - [ ] Every file is in the zone; agents and skills start with `<id>-`.
 - [ ] Values with `:` or `,` are quoted in the manifest.
+- [ ] `theory` (if any) has a folder for each language the method speaks, and `instructions` say where it lands.
 - [ ] `slides` has an English presentation (and one in each language the method speaks), and you looked at it.
 - [ ] The CHANGELOG's first entry is the manifest's `version`; a major has its `⚠️ incompatibile: … Cosa fare: …` line.
 - [ ] `check_template` has no errors, and you told the user its warnings.

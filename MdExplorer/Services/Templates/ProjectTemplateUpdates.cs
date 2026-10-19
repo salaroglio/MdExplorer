@@ -156,8 +156,8 @@ namespace MdExplorer.Services.Templates
 
                 var row = new ProjectTemplateConfig
                 {
-                    Id = source.Row.Id, Url = source.Row.Url, Kind = manifest.IsMethod ? null : TemplateManifest.Project,
-                    Language = source.Row.Language, Example = source.Row.Example, Version = manifest.Version,
+                    Id = source.Row.Id, Url = source.Row.Url, Kind = manifest.RowKind,
+                    Language = source.Row.Language, Example = source.Row.Example, Theory = source.Row.Theory, Version = manifest.Version,
                 };
                 var notes = (await ApplyManifestAsync(path, manifest, row, ct, update: true, previous: previous)).ToList();
                 await Run(path, ct, "commit", "-q", "-m",
@@ -278,7 +278,7 @@ namespace MdExplorer.Services.Templates
                 .Select(m => m.Groups[1].Value).Distinct().ToList();
             if (files.Count != 1) return null;
             var manifest = TemplateManifestReader.ReadOrThrow(await ShowAsync(path, tip, TemplateManifest.PathOf(files[0]), ct), files[0], $"{TemplateManifest.PathOf(files[0])} ({tip})");
-            return manifest.IsMethod ? null : files[0];
+            return manifest.Kind == TemplateManifest.Project ? files[0] : null;
         }
 
         /// <summary>

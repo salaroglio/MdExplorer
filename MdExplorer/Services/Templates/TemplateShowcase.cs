@@ -152,7 +152,12 @@ namespace MdExplorer.Services.Templates
             var only = manifest.Languages.ContainsKey(language)
                 ? (it ? $"Lingue: {languages}" : $"Languages: {languages}")
                 : (it ? $"Solo in: {languages}" : $"Only in: {languages}");
-            var kind = manifest.IsMethod ? (it ? "Metodo" : "Method") : (it ? "Base di progetto" : "Project base");
+            var kind = manifest.Kind switch
+            {
+                TemplateManifest.Method => it ? "Metodo" : "Method",
+                TemplateManifest.Foundation => it ? "Strato comune" : "Common layer",
+                _ => it ? "Progetto completo" : "Complete project",
+            };
             var missing = it ? "Questo template non ha ancora una presentazione." : "This template has no presentation yet.";
             return $"---\ndocument_type: slides\n---\n\n# {title}\n\n{description}\n\n{kind} · {manifest.Version} · {only}\n\n*{missing}*\n";
         }

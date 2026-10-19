@@ -44,5 +44,17 @@ namespace MdExplorer.Features.Tests.Templates
             StringAssert.Contains(Problem(One.Replace("\"en\": \"The demo\"", "\"en\": \"\"")), "templates[0].title: one text per language");
             StringAssert.Contains(Problem(One.Replace("]}", "").Replace("} ] }", "}, " + One.Substring(One.IndexOf("{ \"id\"")).Replace(" ] }", " ] }"))), "appears more than once");
         }
+
+        [TestMethod]
+        public void Accept_one_common_layer_only()
+        {
+            var entry = One.Substring(One.IndexOf("{ \"id\""), One.LastIndexOf(" ] }") - One.IndexOf("{ \"id\""));
+            string Foundation(string id) => entry.Replace("\"id\": \"demo\"", $"\"id\": \"{id}\"").Replace("\"kind\": \"project\"", "\"kind\": \"foundation\"");
+            string List(params string[] items) => "{ \"mde_templates\": 1, \"templates\": [ " + string.Join(", ", items) + " ] }";
+
+            Assert.AreEqual("foundation", TemplateCatalog.Read(List(Foundation("documenti"), entry)).First().Kind);
+            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => TemplateCatalog.Read(List(Foundation("a"), Foundation("b")))).Message,
+                "more than one foundation template");
+        }
     }
 }

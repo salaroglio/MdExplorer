@@ -196,5 +196,23 @@ seeds:
             Assert.IsTrue(report.Ok, Describe(report));
             StringAssert.Contains(Describe(report), "warning [main] .mde-template/ddd/mde-template.yml: The template has no English slides");
         }
+
+        [TestMethod]
+        public async Task Want_the_theory_folder_in_the_branch()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var main = Structure();
+            main[".mde-template/ddd/mde-template.yml"] = Manifest + "theory:\n  it: { from: .mde-template/ddd/teoria, to: teoria/ddd }\n";
+            main[".mde-template/ddd/teoria/perché.md"] = "# Perché\n";
+            var work = Repository(ctx, "con-teoria", main);
+
+            var report = await Check(ctx, work);
+            Assert.IsTrue(report.Ok, Describe(report));
+
+            File.Delete(Path.Combine(work, ".mde-template", "ddd", "teoria", "perché.md"));
+            var all = Describe(await Check(ctx, work));
+            StringAssert.Contains(all, "error [main] .mde-template/ddd/teoria: The theory in 'it' is in this folder, which is not in the branch or is empty");
+        }
     }
 }

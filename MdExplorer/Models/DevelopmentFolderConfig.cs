@@ -89,12 +89,14 @@ namespace MdExplorer.Service.Models
         /// <summary>L'id del manifesto: nome della zona e del remoto <c>template-&lt;id&gt;</c>.</summary>
         public string Id { get; set; }
         public string Url { get; set; }
-        /// <summary><c>project</c> per il template di base; assente per un metodo.</summary>
+        /// <summary><c>project</c> per la demo, <c>foundation</c> per lo strato comune; assente per un metodo.</summary>
         public string Kind { get; set; }
         /// <summary>La lingua scelta: col manifesto dice da quale ramo arrivano gli aggiornamenti.</summary>
         public string Language { get; set; }
         /// <summary>Vero se si è preso l'esempio compilato invece della sola struttura.</summary>
         public bool? Example { get; set; }
+        /// <summary>Vero se la teoria del template è nel progetto (MC5): gli aggiornamenti portano anche la sua.</summary>
+        public bool? Theory { get; set; }
         /// <summary>L'ultima versione del template unita nel progetto.</summary>
         public string Version { get; set; }
         /// <summary>La data (aaaa-mm-gg) in cui il gruppo si è staccato: niente più aggiornamenti, la riga resta come storia.</summary>

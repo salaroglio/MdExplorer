@@ -124,21 +124,21 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
-        public async Task Create_a_project_from_a_base_and_a_method()
+        public async Task Create_a_project_from_the_common_layer_and_a_method()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
-            var path = NewFolder(ctx, "base-e-ddd");
+            var path = NewFolder(ctx, "strato-e-ddd");
 
             var outcome = await Create(ctx, new TemplateCreateRequest
             {
-                Path = path, TemplateUrl = Template(ctx, "demo", Base()), Language = "it", MdeVersion = Mde,
-                Methods = new[] { Template(ctx, "ddd", DddBranches(requires: "demo")) },
+                Path = path, TemplateUrl = Template(ctx, "documenti", ProjectTemplateComposition_Should.Foundation()), Language = "it", MdeVersion = Mde,
+                Harness = "claude", Methods = new[] { Template(ctx, "ddd", DddBranches(requires: "documenti")) },
             });
 
-            Assert.AreEqual("demo", outcome.Id);
-            Assert.AreEqual("ddd", outcome.Methods.Single().Id, "requires.templates soddisfatto dalla base");
+            Assert.AreEqual("documenti", outcome.Id);
+            Assert.AreEqual("ddd", outcome.Methods.Single().Id, "requires.templates soddisfatto dallo strato comune");
             StringAssert.Contains(Read(path, ".development.yml"), "- id: ddd\n");
             Assert.AreEqual(Git(path, "rev-parse HEAD").Out, Git(path, "rev-parse origin/main").Out, "pubblicato con il metodo");
             StringAssert.Contains(Read(path, "CLAUDE.md"), "<!-- mde-template:ddd -->");

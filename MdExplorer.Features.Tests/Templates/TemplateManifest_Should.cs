@@ -220,5 +220,44 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             StringAssert.Contains(all, "slides.en: 'docs/p.md' is outside the method's folder");
             StringAssert.Contains(all, "slides.it: '.mde-template/gara-iso/p.pdf' must be a markdown presentation");
         }
+
+        [TestMethod]
+        public void Read_the_common_layer_with_the_rules_of_a_method()
+        {
+            var yaml = GaraIso.Replace("id: gara-iso", "id: documenti").Replace("kind: method", "kind: foundation").Replace("gara-iso", "documenti")
+                .Replace("agents: [documenti-account-manager]", "agents: [redattore]");
+            var m = TemplateManifestReader.Read(yaml, "documenti", out var problems);
+            Assert.IsTrue(m.IsFoundation && m.IsZoned && !m.IsMethod);
+            Assert.AreEqual("foundation", m.RowKind, "la riga del progetto lo ricorda");
+            Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
+            StringAssert.Contains(problems[0], "the agent 'redattore' does not start with 'documenti-'");
+        }
+
+        [TestMethod]
+        public void Read_the_theory_of_each_language_and_refuse_a_wrong_one()
+        {
+            var m = TemplateManifestReader.Read(GaraIso + "theory:\n  it: { from: .mde-template/gara-iso/teoria, to: teoria/iso }\n", "gara-iso", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            Assert.AreEqual("teoria/iso", m.TheoryFor("it").To);
+            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => m.TheoryFor("en")).Message, "has no theory in 'en': there is in it");
+
+            TemplateManifestReader.Read(GaraIso + "theory:\n  de: { from: .mde-template/gara-iso/t, to: t }\n  en: { from: docs/t, to: .claude/skills/t }\n",
+                "gara-iso", out problems);
+            var all = string.Join("\n", problems);
+            Assert.AreEqual(3, problems.Count, all);
+            StringAssert.Contains(all, "theory.de: the template is not in 'de'");
+            StringAssert.Contains(all, "theory.en.from: 'docs/t' is outside the method's folder");
+            StringAssert.Contains(all, "theory.en.to: '.claude/skills/t' must be a folder of the group");
+        }
+
+        [TestMethod]
+        public void Refuse_a_theory_in_the_demo_that_has_everything_included()
+        {
+            var yaml = "mde_template: 1\nid: demo\nkind: project\ntitle: La demo\nversion: 1.0.0\nlanguages:\n  it: { structure: main }\n" +
+                       "theory:\n  it: { from: teoria, to: teoria }\n";
+            TemplateManifestReader.Read(yaml, "demo", out var problems);
+            Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
+            StringAssert.Contains(problems[0], "a project template already has everything included");
+        }
     }
 }

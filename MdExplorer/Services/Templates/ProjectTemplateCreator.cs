@@ -38,6 +38,10 @@ namespace MdExplorer.Services.Templates
         /// </summary>
         public IReadOnlyList<string> Methods { get; init; }
         /// <summary>
+        /// Gli indirizzi (fra il primo template e i metodi) di cui si vuole anche la teoria nel progetto (MC5). Vuoto = nessuna.
+        /// </summary>
+        public IReadOnlyList<string> Theory { get; init; }
+        /// <summary>
         /// Il motore del progetto (<c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>none</c>) quando la base non lo dichiara:
         /// un progetto che parte da un metodo senza base lo sceglie qui (P5). Una base che lo dichiara vince.
         /// </summary>
@@ -64,6 +68,8 @@ namespace MdExplorer.Services.Templates
         public string TemplateUrl { get; init; }
         public string Language { get; init; }
         public bool Example { get; init; }
+        /// <summary>Anche la teoria del metodo nel progetto (MC5).</summary>
+        public bool Theory { get; init; }
         public string MdeVersion { get; init; }
     }
 
@@ -132,6 +138,13 @@ namespace MdExplorer.Services.Templates
                 requested = parsed;
             }
 
+            var chosen = new[] { request.TemplateUrl }.Concat(request.Methods ?? Array.Empty<string>()).Select(u => u?.Trim()).ToList();
+            var stray = (request.Theory ?? Array.Empty<string>()).Where(u => !chosen.Contains(u?.Trim())).ToList();
+            if (stray.Count > 0)
+                throw Problem($"La teoria si chiede solo per i template scelti: {string.Join(", ", stray)} non è fra questi.",
+                              $"Theory can be asked only for the chosen templates: {string.Join(", ", stray)} is not one of them.");
+            bool WantsTheory(string url) => (request.Theory ?? Array.Empty<string>()).Any(t => t?.Trim() == url?.Trim());
+
             var path = System.IO.Path.GetFullPath(request.Path).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
             var parent = System.IO.Path.GetDirectoryName(path);
             if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
@@ -153,16 +166,20 @@ namespace MdExplorer.Services.Templates
 
                 var (tip, branch, manifest) = await PrepareAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion,
                     new HashSet<string>(StringComparer.Ordinal), ct);
+                // La demo ha tutto incluso e sta per conto suo (MC6).
+                if (manifest.Kind == TemplateManifest.Project && request.Methods?.Count > 0)
+                    throw Problem($"«{manifest.Title}» ha già tutto incluso: non gli si aggiungono metodi. Scegli lei da sola, o lo strato comune con i metodi.",
+                                  $"«{manifest.Title}» already has everything included: methods are not added to it. Choose it alone, or the common layer with the methods.");
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
-                var (harness, chosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
+                var (harness, engineChosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
                 await Run(path, ct, "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName);
 
-                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example), ct)).ToList();
+                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example, WantsTheory(request.TemplateUrl)), ct)).ToList();
                 if (harness == HarnessTarget.None)
                     notes.Insert(0, UiText.Say("Il progetto non ha un motore: gli agenti e MarkAgent non partono finché non ne scegli uno nelle impostazioni.",
                                                "The project has no engine: the agents and MarkAgent do not start until you choose one in the settings."));
-                else if (chosen)
+                else if (engineChosen)
                     notes.Insert(0, UiText.Say($"Motore del progetto: {HarnessSettings.IdOf(harness)}.", $"Project engine: {HarnessSettings.IdOf(harness)}."));
                 await AddRoomSecretAsync(path, ct);
                 await Run(path, ct, "commit", "-q", "-m",
@@ -171,7 +188,7 @@ namespace MdExplorer.Services.Templates
                 // Gli altri metodi, nell'ordine: ognuno con la sua unione e il suo commit.
                 var methods = new List<TemplateAddOutcome>();
                 foreach (var url in request.Methods ?? Array.Empty<string>())
-                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, request.MdeVersion, ct));
+                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct));
 
                 string origin;
                 if (localOrigin != null)
@@ -234,7 +251,7 @@ namespace MdExplorer.Services.Templates
             var head = (await Run(path, ct, "rev-parse", "HEAD")).Trim();
             try
             {
-                var outcome = await MergeMethodAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion, ct);
+                var outcome = await MergeMethodAsync(path, request.TemplateUrl, request.Language, request.Example, request.Theory, request.MdeVersion, ct);
                 _logger.LogInformation("[Template] '{Path}': aggiunto il metodo '{Id}' {Version}.", path, outcome.Id, outcome.Version);
                 return outcome;
             }
@@ -251,10 +268,13 @@ namespace MdExplorer.Services.Templates
         /// Unisce un metodo al progetto (che ha già un commit): scarica, controlla, unisce le storie indipendenti senza
         /// committare, applica il manifesto e fa un commit solo. Chi chiama rimette a posto se qualcosa va storto.
         /// </summary>
-        private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, string mdeVersion, CancellationToken ct)
+        private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, bool theory, string mdeVersion, CancellationToken ct)
         {
             var present = PresentTemplates(path);
             var (tip, _, manifest) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct);
+            if (manifest.IsFoundation)
+                throw Problem($"«{manifest.Title}» è lo strato comune: un progetto lo prende alla creazione, come primo template, non lo aggiunge dopo.",
+                              $"«{manifest.Title}» is the common layer: a project takes it at creation, as the first template, it does not add it later.");
             if (!manifest.IsMethod)
                 throw Problem($"«{manifest.Title}» è un template di progetto (la base di un progetto intero): si sceglie solo alla creazione, non si aggiunge.",
                               $"«{manifest.Title}» is a project template (the base of a whole project): it is chosen only at creation, it is not added.");
@@ -271,7 +291,7 @@ namespace MdExplorer.Services.Templates
             if (!merge.Ok)
                 throw Problem($"Il metodo non si unisce al progetto: {merge.Describe()}", $"The method does not merge into the project: {merge.Describe()}");
 
-            var notes = await ApplyManifestAsync(path, manifest, Row(manifest, url, language, example), ct);
+            var notes = await ApplyManifestAsync(path, manifest, Row(manifest, url, language, example, theory), ct);
             await Run(path, ct, "commit", "-q", "-m",
                 UiText.Say($"Metodo «{manifest.Title}» {manifest.Version} aggiunto dal template", $"Method «{manifest.Title}» {manifest.Version} added from the template"));
             return new TemplateAddOutcome { Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Notes = notes };
@@ -313,13 +333,14 @@ namespace MdExplorer.Services.Templates
             return (tip, branch, manifest);
         }
 
-        private static ProjectTemplateConfig Row(TemplateManifest manifest, string url, string language, bool example) => new()
+        private static ProjectTemplateConfig Row(TemplateManifest manifest, string url, string language, bool example, bool theory) => new()
         {
             Id = manifest.Id,
             Url = url.Trim(),
-            Kind = manifest.IsMethod ? null : TemplateManifest.Project,
+            Kind = manifest.RowKind,
             Language = language,
             Example = example,
+            Theory = theory ? true : null,
             Version = manifest.Version,
         };
 
@@ -464,6 +485,7 @@ namespace MdExplorer.Services.Templates
             }
 
             await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
+            await ApplyTheoryAsync(path, manifest, row, notes, touched, update, previous, ct);
             ApplyPrograms(path, manifest, notes);
             FeatureNotes(path, manifest, notes);
 
@@ -474,7 +496,7 @@ namespace MdExplorer.Services.Templates
             {
                 var ownershipDoc = config.AgentCity.OwnershipDoc;
                 MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, config.AgentCity.WorkflowDocs, ownershipDoc, out var problem);
-                if (problem != null && !manifest.IsMethod)
+                if (problem != null && manifest.Kind == TemplateManifest.Project)
                     notes.Add(UiText.Say($"I workflow del progetto non si leggono ({problem}): finché non si correggono, gli incarichi del workflow restano fermi.",
                                          $"The project's workflows cannot be read ({problem}): until they are fixed, the workflow's assignments stay stopped."));
                 else if (problem != null)
@@ -510,32 +532,9 @@ namespace MdExplorer.Services.Templates
         private async Task ApplySeedsAsync(string path, TemplateManifest manifest, List<string> notes, List<string> touched, bool update,
             TemplateManifest previous, CancellationToken ct)
         {
-            var created = new List<string>();
-            var kept = new List<string>();
-            var changed = new List<string>();
             var before = (previous?.Seeds ?? new List<TemplateSeed>()).Select(s => s.To).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var seed in manifest.Seeds ?? new List<TemplateSeed>())
-            {
-                var source = System.IO.Path.Combine(path, seed.From.Replace('/', System.IO.Path.DirectorySeparatorChar));
-                var target = System.IO.Path.Combine(path, seed.To.Replace('/', System.IO.Path.DirectorySeparatorChar));
-                if (!File.Exists(source))
-                    throw Problem($"Il seme {seed.From} del template «{manifest.Title}» non c'è.", $"The seed {seed.From} of the template «{manifest.Title}» is missing.");
-                if (File.Exists(target) || Directory.Exists(target))
-                {
-                    if (!update) { kept.Add(seed.To); continue; }
-                    // L'unione è nell'indice: diff fra HEAD e indice sul modello. Uscita 1 = cambiato.
-                    var diff = await _git.RunAsync(path, new[] { "diff", "--cached", "--quiet", "HEAD", "--", seed.From }, ct);
-                    if (diff.ExitCode > 1)
-                        throw Problem($"Non riesco a confrontare il seme {seed.From}: {diff.Describe()}", $"I cannot compare the seed {seed.From}: {diff.Describe()}");
-                    if (diff.ExitCode == 1 && before.Contains(seed.To)) changed.Add(seed.To);
-                    continue;
-                }
-                if (update && before.Contains(seed.To)) continue;
-                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
-                File.Copy(source, target);
-                touched.Add(seed.To);
-                created.Add(seed.To);
-            }
+            var (created, kept, changed) = await CopyIntoGroupAsync(path, manifest, manifest.Seeds ?? new List<TemplateSeed>(), before, touched, update, ct,
+                seed => Problem($"Il seme {seed.From} del template «{manifest.Title}» non c'è.", $"The seed {seed.From} of the template «{manifest.Title}» is missing."));
             if (created.Count > 0)
             {
                 // Con l'esempio i file sono decine: la nota dice quanti e dove, l'elenco sta nel commit.
@@ -545,6 +544,88 @@ namespace MdExplorer.Services.Templates
                       string.Join(", ", created.Select(c => c.Split('/')[0] + (c.Contains('/') ? "/" : "")).Distinct());
                 notes.Add(UiText.Say($"File iniziali del metodo, ora del gruppo: {list}.", $"The method's starting files, now the group's: {list}."));
             }
+            KeptAndChangedNotes(manifest, kept, changed, notes);
+        }
+
+        /// <summary>
+        /// La teoria del template (MC5), se la riga la chiede: i file della cartella <c>theory.from</c> della lingua, così come
+        /// sono nella zona (cioè nella versione unita), copiati sotto <c>theory.to</c> con le regole dei semi: un file che c'è
+        /// già non si tocca, e aggiornando un file che il gruppo ha tolto non rinasce.
+        /// </summary>
+        private async Task ApplyTheoryAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, List<string> notes, List<string> touched, bool update,
+            TemplateManifest previous, CancellationToken ct)
+        {
+            if (row.Theory != true) return;
+            if (update && manifest.Theory?.ContainsKey(row.Language) != true)
+            {
+                notes.Add(UiText.Say($"La versione nuova di «{manifest.Title}» non ha più la teoria in '{row.Language}': quella nel progetto resta com'è.",
+                                     $"The new version of «{manifest.Title}» no longer has the theory in '{row.Language}': the one in the project stays as it is."));
+                return;
+            }
+            var theory = manifest.TheoryFor(row.Language);
+            var files = await TheoryFilesAsync(path, theory, ct, "ls-files", "--");
+            if (files.Count == 0)
+                throw Problem($"La teoria di «{manifest.Title}» in '{row.Language}' dovrebbe stare in {theory.From}/, che è vuota.",
+                              $"The theory of «{manifest.Title}» in '{row.Language}' should be in {theory.From}/, which is empty.");
+
+            // Aggiornando, HEAD è ancora la versione di prima: lì si vede che cosa il progetto aveva già ricevuto.
+            var before = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (update && previous?.Theory?.TryGetValue(row.Language, out var old) == true)
+                foreach (var f in await TheoryFilesAsync(path, old, ct, "ls-tree", "-r", "--name-only", "HEAD", "--"))
+                    before.Add(old.To + f[old.From.Length..]);
+
+            var copies = files.Select(f => new TemplateSeed { From = f, To = theory.To + f[theory.From.Length..] }).ToList();
+            var (created, kept, changed) = await CopyIntoGroupAsync(path, manifest, copies, before, touched, update, ct,
+                file => Problem($"Il file {file.From} della teoria di «{manifest.Title}» non c'è.", $"The file {file.From} of the theory of «{manifest.Title}» is missing."));
+            if (created.Count > 0)
+                notes.Add(UiText.Say($"La teoria di «{manifest.Title}» in {theory.To}/: {created.Count} documenti, da leggere da soli o con il MarkAgent.",
+                                     $"The theory of «{manifest.Title}» in {theory.To}/: {created.Count} documents, to read alone or with the MarkAgent."));
+            KeptAndChangedNotes(manifest, kept, changed, notes);
+        }
+
+        /// <summary>I file del template sotto la cartella della teoria, con i percorsi dalla radice del progetto.</summary>
+        private async Task<List<string>> TheoryFilesAsync(string path, TemplateTheory theory, CancellationToken ct, params string[] list)
+            => (await Run(path, ct, list.Append(theory.From + "/").ToArray()))
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).Where(f => f.StartsWith(theory.From + "/", StringComparison.Ordinal)).ToList();
+
+        /// <summary>
+        /// Copia i file del template nel progetto, dove non c'è niente; da quel momento sono del gruppo. Un file che c'è già non
+        /// si tocca mai. Aggiornando, un file che la versione nuova ha cambiato è solo da dire (il confronto è con il commit di
+        /// prima dell'unione, che è ancora HEAD), e uno che il progetto aveva già ricevuto (<paramref name="before"/>) non
+        /// rinasce: se manca, il gruppo l'ha tolto.
+        /// </summary>
+        private async Task<(List<string> Created, List<string> Kept, List<string> Changed)> CopyIntoGroupAsync(string path, TemplateManifest manifest,
+            IEnumerable<TemplateSeed> files, ISet<string> before, List<string> touched, bool update, CancellationToken ct, Func<TemplateSeed, Exception> missing)
+        {
+            var created = new List<string>();
+            var kept = new List<string>();
+            var changed = new List<string>();
+            foreach (var seed in files)
+            {
+                var source = System.IO.Path.Combine(path, seed.From.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                var target = System.IO.Path.Combine(path, seed.To.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (!File.Exists(source)) throw missing(seed);
+                if (File.Exists(target) || Directory.Exists(target))
+                {
+                    if (!update) { kept.Add(seed.To); continue; }
+                    // L'unione è nell'indice: diff fra HEAD e indice sul modello. Uscita 1 = cambiato.
+                    var diff = await _git.RunAsync(path, new[] { "diff", "--cached", "--quiet", "HEAD", "--", seed.From }, ct);
+                    if (diff.ExitCode > 1)
+                        throw Problem($"Non riesco a confrontare {seed.From}: {diff.Describe()}", $"I cannot compare {seed.From}: {diff.Describe()}");
+                    if (diff.ExitCode == 1 && before.Contains(seed.To)) changed.Add(seed.To);
+                    continue;
+                }
+                if (update && before.Contains(seed.To)) continue;
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
+                File.Copy(source, target);
+                touched.Add(seed.To);
+                created.Add(seed.To);
+            }
+            return (created, kept, changed);
+        }
+
+        private static void KeptAndChangedNotes(TemplateManifest manifest, List<string> kept, List<string> changed, List<string> notes)
+        {
             if (kept.Count > 0)
                 notes.Add(UiText.Say($"Questi file c'erano già e restano come sono: {string.Join(", ", kept)}.",
                                      $"These files were already there and stay as they are: {string.Join(", ", kept)}."));
@@ -700,7 +781,7 @@ namespace MdExplorer.Services.Templates
 
             var files = (await Run(path, ct, "ls-tree", "-r", "--name-only", tip))
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToHashSet(StringComparer.Ordinal);
-            if (manifest.IsMethod)
+            if (manifest.IsZoned)
             {
                 var outside = TemplateManifestReader.OutsideZone(manifest.Id, files);
                 if (outside.Count > 0)
@@ -717,9 +798,13 @@ namespace MdExplorer.Services.Templates
         private async Task<string> ShowAsync(string path, string tip, string file, CancellationToken ct)
             => await Run(path, ct, "show", $"{tip}:{file}");
 
+        /// <remarks>
+        /// Con <c>core.quotepath</c> spento: altrimenti git scrive fra virgolette e in ottale i nomi con le lettere accentate
+        /// (<c>"teoria/perch\303\251.md"</c>), e un file così sembrava fuori dalla zona del metodo.
+        /// </remarks>
         private async Task<string> Run(string dir, CancellationToken ct, params string[] args)
         {
-            var r = await _git.RunAsync(dir, args, ct);
+            var r = await _git.RunAsync(dir, new[] { "-c", "core.quotepath=false" }.Concat(args).ToArray(), ct);
             if (!r.Ok) throw Problem($"git {string.Join(' ', args)}: {r.Describe()}", $"git {string.Join(' ', args)}: {r.Describe()}");
             return r.Stdout ?? string.Empty;
         }

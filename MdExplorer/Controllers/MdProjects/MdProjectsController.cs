@@ -684,6 +684,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     OriginUrl = request?.OriginUrl,
                     MdeVersion = request?.MdeVersion,
                     Methods = request?.Methods,
+                    Theory = request?.Theory,
                     Harness = request?.Harness,
                 }, ct);
                 return Ok(outcome);
@@ -736,6 +737,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     TemplateUrl = request?.TemplateUrl,
                     Language = request?.Language,
                     Example = request?.Example == true,
+                    Theory = request?.Theory == true,
                     MdeVersion = request?.MdeVersion,
                 }, ct);
                 return Ok(outcome);
@@ -1362,6 +1364,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string? MdeVersion { get; set; }
         /// <summary>I metodi da unire dopo il primo template, nell'ordine.</summary>
         public List<string>? Methods { get; set; }
+        /// <summary>Gli indirizzi, fra il primo template e i metodi, di cui si vuole anche la teoria (MC5).</summary>
+        public List<string>? Theory { get; set; }
         /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
         public string? Harness { get; set; }
     }
@@ -1382,6 +1386,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string? TemplateUrl { get; set; }
         public string? Language { get; set; }
         public bool Example { get; set; }
+        /// <summary>Anche la teoria del metodo nel progetto (MC5).</summary>
+        public bool Theory { get; set; }
         public string? MdeVersion { get; set; }
     }
 }

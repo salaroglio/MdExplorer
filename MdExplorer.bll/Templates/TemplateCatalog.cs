@@ -16,7 +16,7 @@ namespace MdExplorer.Features.Templates
     public sealed class TemplateCatalogEntry
     {
         [JsonPropertyName("id")] public string Id { get; set; }
-        /// <summary><c>project</c> (una base) o <c>method</c> (un metodo).</summary>
+        /// <summary><c>foundation</c> (lo strato comune), <c>method</c> (un metodo) o <c>project</c> (la demo, che sta da sola).</summary>
         [JsonPropertyName("kind")] public string Kind { get; set; }
         [JsonPropertyName("url")] public string Url { get; set; }
         [JsonPropertyName("languages")] public List<string> Languages { get; set; }
@@ -65,7 +65,8 @@ namespace MdExplorer.Features.Templates
                 var e = entries[i];
                 var at = $"templates[{i}]";
                 if (e.Id == null || !Kebab.IsMatch(e.Id)) problems.Add($"{at}.id '{e.Id}': kebab-case");
-                if (e.Kind != TemplateManifest.Method && e.Kind != TemplateManifest.Project) problems.Add($"{at}.kind '{e.Kind}': method | project");
+                if (e.Kind != TemplateManifest.Method && e.Kind != TemplateManifest.Project && e.Kind != TemplateManifest.Foundation)
+                    problems.Add($"{at}.kind '{e.Kind}': method | foundation | project");
                 if (string.IsNullOrWhiteSpace(e.Url)) problems.Add($"{at}.url");
                 if (e.Languages == null || e.Languages.Count == 0 || e.Languages.Any(l => l == null || !LanguageCode.IsMatch(l)))
                     problems.Add($"{at}.languages");
@@ -75,6 +76,9 @@ namespace MdExplorer.Features.Templates
             }
             foreach (var twin in entries.GroupBy(e => e.Id).Where(g => g.Key != null && g.Count() > 1))
                 problems.Add(UiText.Say($"l'id '{twin.Key}' compare più volte", $"the id '{twin.Key}' appears more than once"));
+            // Lo strato comune è uno: c'è in ogni progetto fatto di metodi (MC2).
+            if (entries.Count(e => e.Kind == TemplateManifest.Foundation) > 1)
+                problems.Add(UiText.Say("c'è più di un template foundation: lo strato comune è uno solo", "there is more than one foundation template: the common layer is one only"));
             if (problems.Count > 0)
                 throw Problem($"l'elenco dei template non è in regola: {string.Join("; ", problems)}.", $"the template list is not right: {string.Join("; ", problems)}.");
             return entries;
