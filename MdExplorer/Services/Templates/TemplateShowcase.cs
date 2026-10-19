@@ -30,6 +30,8 @@ namespace MdExplorer.Services.Templates
         public bool Speaks { get; init; }
         /// <summary>La lingua delle slide mostrate: la scelta, o l'inglese (VD7); null = slide di circostanza (VD8).</summary>
         public string SlidesLanguage { get; init; }
+        /// <summary>Il template ha la teoria nella lingua scelta: la vetrina la offre con una casella (MC5).</summary>
+        public bool Theory { get; init; }
         /// <summary>La pagina da mettere nell'iframe della vetrina.</summary>
         public string Page { get; init; }
     }
@@ -122,6 +124,7 @@ namespace MdExplorer.Services.Templates
                 Languages = manifest.Languages.Keys.ToList(),
                 Speaks = speaks,
                 SlidesLanguage = slides?.Language,
+                Theory = speaks && manifest.Theory?.ContainsKey(language) == true,
                 Page = slides != null
                     ? $"{Route}/deck/{key}/{slides.Value.File}"
                     : $"{Route}/standin/{key}?language={language}",

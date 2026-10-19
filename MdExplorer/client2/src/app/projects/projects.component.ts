@@ -400,10 +400,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     const waiting = this.snackBar.open(this.translate.instant('PROJECT_CONFIG.TEMPLATE_CREATING', { path }), undefined, { verticalPosition: 'top' });
     try {
       const created = await this.projectService.createFromTemplate({
-        path, templateUrl: urls[0], methods: urls.slice(1), language: t.language, example: t.example,
+        path, templateUrl: urls[0], methods: urls.slice(1), theory: t.theoryUrls, language: t.language, example: t.example,
         originUrl: t.originUrl || undefined,
-        // Senza una base il motore lo sceglie chi crea; una base porta il suo.
-        harness: t.baseUrl ? undefined : config.harness,
+        // Il motore lo sceglie chi crea; la demo porta il suo.
+        harness: t.asksEngine ? config.harness : undefined,
       });
       waiting.dismiss();
       this.projectService.setNewFolderProject(created.path);

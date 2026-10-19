@@ -58,7 +58,8 @@ export class ProjectCreateConfigDialogComponent {
     this.dialogRef.close({
       ...this.config,
       template: {
-        baseUrl: choice.baseUrl, methodUrls: choice.methodUrls, language: choice.language, example: this.templateExample,
+        baseUrl: choice.baseUrl, methodUrls: choice.methodUrls, theoryUrls: choice.theoryUrls, asksEngine: choice.asksEngine,
+        language: choice.language, example: this.templateExample,
         folderName, originUrl: this.originUrl.trim(),
       },
     });

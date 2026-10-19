@@ -60,6 +60,7 @@ languages:
             Assert.AreEqual("ddd", entry.GetProperty("id").GetString());
             Assert.IsTrue(entry.GetProperty("speaks").GetBoolean());
             Assert.AreEqual("it", entry.GetProperty("slidesLanguage").GetString());
+            Assert.IsFalse(entry.GetProperty("theory").GetBoolean(), "il manifesto non ha theory");
             var page = entry.GetProperty("page").GetString();
             StringAssert.EndsWith(page, "/.mde-template/ddd/presentazione.md");
 
@@ -174,6 +175,20 @@ languages:
             using var ctx = new AgentCityContext();
             StringAssert.Contains(await ctx.Client.GetStringAsync("/api/templateshowcase/empty?language=it"), "Progetto vuoto");
             StringAssert.Contains(await ctx.Client.GetStringAsync("/api/templateshowcase/empty?language=de"), "Empty project");
+        }
+
+        [TestMethod]
+        public async Task Say_whether_the_template_has_its_theory_in_the_chosen_language()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var files = Method();
+            files[".mde-template/ddd/mde-template.yml"] = Manifest(BothSlides) + "theory:\n  it: { from: .mde-template/ddd/teoria, to: teoria/ddd }\n";
+            files[".mde-template/ddd/teoria/perché.md"] = "# Perché\n";
+            var url = Template(ctx, "ddd", new() { ["main"] = files });
+
+            Assert.IsTrue((await Describe(ctx, url, "it")).Body.GetProperty("theory").GetBoolean());
+            Assert.IsFalse((await Describe(ctx, url, "en")).Body.GetProperty("theory").GetBoolean(), "in inglese il metodo non c'è: niente da offrire");
         }
     }
 }

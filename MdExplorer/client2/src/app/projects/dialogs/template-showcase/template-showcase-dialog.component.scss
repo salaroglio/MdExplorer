@@ -72,6 +72,26 @@
   min-width: 0;
 }
 
+.mode {
+  padding: 8px 8px 0;
+  font-weight: 600;
+}
+
+// Le righe da comporre, rientrate sotto il loro pallino; spente quando si sceglie la demo o la cartella così com'è.
+.compose {
+  padding-left: 16px;
+
+  &.off {
+    opacity: 0.55;
+  }
+}
+
+.theory {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
 .row-title {
   font-weight: 500;
   color: var(--mde-text-primary);

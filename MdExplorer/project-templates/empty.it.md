@@ -25,5 +25,5 @@ La cartella che scegli diventa un progetto di MdExplorer **così com'è**: i tuo
 ## <img class="mde-icona" src="/mde-space/icone/stella.svg" alt=""> Quando sceglierlo
 
 - hai già della documentazione e vuoi lavorarci con MDE
-- vuoi partire da zero, senza un metodo
-- un metodo si aggiunge anche dopo, dalle impostazioni del progetto
+- vuoi partire da zero, senza strato comune né metodi
+- per la scrittura sistematica dei documenti, con le sue skill e i suoi agenti, scegli invece **Componi il progetto**

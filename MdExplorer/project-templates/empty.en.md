@@ -25,5 +25,5 @@ The folder you choose becomes an MdExplorer project **as it is**: your files sta
 ## <img class="mde-icona" src="/mde-space/icone/stella.svg" alt=""> When to choose it
 
 - you already have documentation and want to work on it with MDE
-- you want to start from scratch, without a method
-- a method can be added later, from the project settings
+- you want to start from scratch, without common layer or methods
+- for the systematic writing of documents, with its skills and agents, choose **Compose the project** instead

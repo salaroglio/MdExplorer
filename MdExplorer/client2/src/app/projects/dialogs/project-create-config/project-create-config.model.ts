@@ -9,7 +9,7 @@ export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
 /** Una voce dell'elenco dei template che viaggia con MdExplorer (project-templates.json, P4). */
 export interface TemplateCatalogEntry {
     id: string;
-    kind: 'project' | 'method';
+    kind: 'foundation' | 'project' | 'method';
     url: string;
     languages: string[];
     title: { [language: string]: string };
@@ -17,12 +17,16 @@ export interface TemplateCatalogEntry {
 }
 
 /**
- * Il progetto nasce da template (P4): una base facoltativa e dei metodi, nella cartella nuova `folderName` dentro quella
- * scelta. `originUrl` vuoto = un origin locale accanto alla cartella.
+ * Il progetto nasce da template (P4): il primo template (lo strato comune o la demo) e i metodi, nella cartella nuova
+ * `folderName` dentro quella scelta. `originUrl` vuoto = un origin locale accanto alla cartella.
  */
 export interface TemplateChoice {
     baseUrl: string | null;
     methodUrls: string[];
+    /** Gli indirizzi di cui si vuole anche la teoria (MC5). */
+    theoryUrls: string[];
+    /** Il motore lo sceglie chi crea: solo la demo porta il suo. */
+    asksEngine: boolean;
     language: string;
     example: boolean;
     folderName: string;
@@ -44,7 +48,7 @@ export interface ProjectCreateConfigOptions {
 export interface TemplateShowcaseEntry {
     url: string;
     id: string;
-    kind: 'project' | 'method';
+    kind: 'foundation' | 'project' | 'method';
     title: string;
     description: string;
     version: string;
@@ -53,17 +57,23 @@ export interface TemplateShowcaseEntry {
     speaks: boolean;
     /** La lingua delle slide mostrate; null = slide di circostanza. */
     slidesLanguage: string | null;
+    /** Il template ha la teoria nella lingua scelta (MC5). */
+    theory: boolean;
     /** La pagina per l'iframe. */
     page: string;
 }
 
 /**
- * La scelta fatta nella vetrina (VD1): una base (null = progetto vuoto, o «senza base» se ci sono metodi), i metodi, la
- * lingua. Nessuna base e nessun metodo = il progetto di sempre, la cartella aperta così com'è.
+ * La scelta fatta nella vetrina (VD1, M4): il primo template (lo strato comune, la demo, o il primo metodo se l'elenco non
+ * ha lo strato comune), gli altri metodi, la teoria chiesta, la lingua. Nessun template = il progetto di sempre, la
+ * cartella aperta così com'è.
  */
 export interface TemplateShowcaseChoice {
     baseUrl: string | null;
     methodUrls: string[];
+    theoryUrls: string[];
+    /** Il motore lo sceglie chi crea: falso solo per la demo, che porta il suo. */
+    asksEngine: boolean;
     language: string;
     /** I titoli di ciò che si è scelto, per ricordarlo nella configurazione. */
     titles: string[];

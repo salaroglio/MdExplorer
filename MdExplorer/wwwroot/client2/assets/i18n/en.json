@@ -192,7 +192,6 @@
   },
   "TEMPLATE_SHOWCASE": {
     "TITLE": "Create new project",
-    "BASE": "Base",
     "METHODS": "Methods",
     "OTHER": "Other, by address",
     "OTHER_ADD": "Add the template",
@@ -201,8 +200,17 @@
     "LANGUAGE": "Language",
     "NEXT": "Next: the folder",
     "EMPTY": "Empty project",
-    "EMPTY_DESC": "The chosen folder, as it is: MDE adds only its own files.",
+    "EMPTY_DESC": "The chosen folder as it is, without common layer or methods: MDE adds only its own files.",
     "UNREACHABLE": "The slides of this template cannot be reached.",
+    "COMPOSE": "Compose the project",
+    "COMMON_LAYER": "Common layer",
+    "COMMON_LAYER_ALWAYS": "It is in every composed project: the systematic writing of documents.",
+    "THEORY": "with the theory",
+    "THEORY_TIP": "The documents that teach the method, copied into the project: to read alone or with the MarkAgent. They can also be downloaded later, from the project settings.",
+    "OR": "Or",
+    "DEMO_ALONE": "It already has everything included: it stands alone, without methods.",
+    "ONE_COMMON_LAYER": "The common layer is already there: «{{title}}». A project has one only.",
+    "CHOOSE_A_METHOD": "Choose at least one method.",
     "CHOSEN": "From: {{titles}}"
   },
   "PROJECT_CONFIG": {

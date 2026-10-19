@@ -192,7 +192,6 @@
   },
   "TEMPLATE_SHOWCASE": {
     "TITLE": "Crea nuovo progetto",
-    "BASE": "Base",
     "METHODS": "Metodi",
     "OTHER": "Altro per indirizzo",
     "OTHER_ADD": "Aggiungi il template",
@@ -201,8 +200,17 @@
     "LANGUAGE": "Lingua",
     "NEXT": "Avanti: la cartella",
     "EMPTY": "Progetto vuoto",
-    "EMPTY_DESC": "La cartella scelta, così com'è: MDE aggiunge solo i suoi file.",
+    "EMPTY_DESC": "La cartella scelta così com'è, senza strato comune né metodi: MDE aggiunge solo i suoi file.",
     "UNREACHABLE": "Le slide di questo template non si raggiungono.",
+    "COMPOSE": "Componi il progetto",
+    "COMMON_LAYER": "Strato comune",
+    "COMMON_LAYER_ALWAYS": "C'è in ogni progetto composto: la scrittura sistematica dei documenti.",
+    "THEORY": "anche la teoria",
+    "THEORY_TIP": "I documenti che insegnano il metodo, copiati nel progetto: da leggere da soli o con il MarkAgent. Si possono scaricare anche dopo, dalle impostazioni del progetto.",
+    "OR": "Oppure",
+    "DEMO_ALONE": "Ha già tutto incluso: sta da sola, senza metodi.",
+    "ONE_COMMON_LAYER": "Lo strato comune c'è già: «{{title}}». Un progetto ne ha uno solo.",
+    "CHOOSE_A_METHOD": "Scegli almeno un metodo.",
     "CHOSEN": "Da: {{titles}}"
   },
   "PROJECT_CONFIG": {
