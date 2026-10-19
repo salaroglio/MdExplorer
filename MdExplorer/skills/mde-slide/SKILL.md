@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, esportare in HTML, mandare la presentazione a chi non ha MdExplorer, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 15
+  version: 16
   updatePolicy: replace
 ---
 
@@ -485,12 +485,52 @@ reveal:
 # Kick-off
 ````
 
-- `theme`: `black`, `white`, `black-contrast`, `white-contrast`, `dracula`, `serif`, `beige`, `blood`,
-  `league`, `moon`, `night`, `simple`, `sky`, `solarized`. **Senza rete** funzionano del tutto solo i primi
+- `theme`: `mde-space` (lo stile di MdExplorer, vedi sotto), `black`, `white`, `black-contrast`, `white-contrast`,
+  `dracula`, `serif`, `beige`, `blood`, `league`, `moon`, `night`, `simple`, `sky`, `solarized`. **Senza rete** funzionano del tutto solo i primi
   sei; gli altri scaricano i caratteri da Google Fonts e altrimenti usano quelli di sistema.
 - Senza `theme` la presentazione segue il tema di MdExplorer: `white` se è chiaro, `black` se è scuro.
 - `highlight_theme` (colori del codice): `monokai` o `zenburn`.
 - `theme` e `highlight_theme` stanno sotto `reveal:`, **non** sotto `config`.
+
+### «Nello stile di MdExplorer»: lo spazio, i razzi, gli alieni
+
+Il tema `mde-space` è quello di MdExplorer: cielo stellato, titoli con il gradiente delle card di MDE, grassetti
+dorati, testo chiaro. Viene con un set di sfondi e icone a fumetto che il servizio serve sempre, in ogni progetto:
+
+- **sfondi** (1920×1080, alcuni animati): `/mde-space/sfondi/stelle.svg` (quello del tema), `luna.svg`, `marte.svg`,
+  `alieni.svg` (il paesaggio in basso), `orbite.svg`, `razzo.svg` (il disegno a destra);
+- **icone** (`/mde-space/icone/<nome>.svg`): `razzo`, `ufo`, `alieno`, `astronauta`, `pianeta`, `luna`, `marte`,
+  `terra`, `stella`, `cometa`, `satellite`, `telescopio`, `bandiera`, `base`.
+
+````markdown esempio=mde-space
+---
+document_type: slides
+reveal:
+  theme: mde-space
+---
+
+<!-- .slide: data-background-image="/mde-space/sfondi/luna.svg" class="mde-cielo" -->
+<img class="mde-icona-grande" src="/mde-space/icone/razzo.svg" alt="">
+
+# Il lancio
+
+---
+
+## <img class="mde-icona" src="/mde-space/icone/telescopio.svg" alt=""> A che cosa serve
+
+- un punto
+- un altro punto
+````
+
+- Le icone del set **sempre in HTML** (`<img class="mde-icona" src="/mde-space/…">`), mai `![…](/mde-space/…)`: in
+  markdown un percorso con `/` è un file del progetto, e MdExplorer lo riscrive (l'icona sparisce nel visualizzatore).
+- **Mai `{.classe}` di Markdig in un titolo**: va sul titolo intero e il testo dopo le graffe si perde.
+- `mde-icona` sta nel testo (nel titolo di una slide); `mde-icona-grande` sta da sola, sopra il titolo della prima slide.
+- Con un paesaggio in basso (`luna`, `marte`, `alieni`) scrivi `class="mde-cielo"`: il testo sale e resta sopra
+  l'orizzonte. `marte` ha l'orizzonte alto: va bene per un titolo, non per un elenco. Con `orbite` o `razzo` scrivi
+  `class="mde-sinistra"`: il testo sta nella metà sinistra, il disegno a destra.
+- Un paesaggio su una slide piena di testo si copre: mettilo sulla prima e sull'ultima slide, corte; le altre restano
+  sul cielo del tema, con un'icona nel titolo.
 
 ### «Un'immagine o una GIF trovata in rete»
 

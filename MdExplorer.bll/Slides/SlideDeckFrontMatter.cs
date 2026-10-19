@@ -41,10 +41,13 @@ namespace MdExplorer.Features.Slides
     /// </summary>
     public static class SlideDeckFrontMatter
     {
-        /// <summary>The themes in <c>wwwroot/reveal/dist/theme</c> (reveal.js 6.0.2).</summary>
+        /// <summary>
+        /// The themes in <c>wwwroot/reveal/dist/theme</c>: reveal.js 6.0.2's, plus <c>mde-space</c>, MdExplorer's own
+        /// (the starry sky of the <c>wwwroot/mde-space</c> set and the colours of MDE's cards, on top of <c>black</c>).
+        /// </summary>
         public static readonly IReadOnlyList<string> Themes = new[]
         {
-            "beige", "black", "black-contrast", "blood", "dracula", "league", "moon", "night",
+            "beige", "black", "black-contrast", "blood", "dracula", "league", "mde-space", "moon", "night",
             "serif", "simple", "sky", "solarized", "white", "white-contrast",
         };
 

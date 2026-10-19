@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -111,7 +111,9 @@ slides:                           # the showcase presentation, one per language 
   `main` branch, because whoever picks another language sees the English ones. Without slides in the chosen language
   nor in English the showcase shows a stand-in slide made from title and description: not an error, but
   `check_template` warns. Say what the method is for, who does what, and what the project has once created; MDE's
-  commands (PlantUML, `text()`…) do not run in the showcase, images do.
+  commands (PlantUML, `text()`…) do not run in the showcase, images do. Use MdExplorer's look: `reveal.theme: mde-space`,
+  a landscape on the first and last slide, an icon of the set in each title (mde-slide skill, «Nello stile di
+  MdExplorer»); it needs `requires.mde` of an MdExplorer that has the theme.
 - `instructions`: a short text for every agent of the project (where the method's documents are, which skill to use).
   MDE writes it between `<!-- mde-template:<id> -->` and `<!-- /mde-template:<id> -->` and replaces only that block.
 

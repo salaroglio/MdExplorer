@@ -624,5 +624,29 @@ reveal:
             CollectionAssert.AreEqual(themes, SlideDeckFrontMatter.Themes.OrderBy(t => t).ToArray());
             CollectionAssert.AreEqual(highlight, SlideDeckFrontMatter.HighlightThemes.OrderBy(t => t).ToArray());
         }
+
+        /// <summary>
+        /// The mde-space theme leans on files of wwwroot (black.css, the set's sky): a name written wrong would leave a deck
+        /// without its sky, silently. Every address it uses exists, and so does every icon and background of the set.
+        /// </summary>
+        [TestMethod]
+        public void Find_every_file_the_mde_space_theme_uses()
+        {
+            var wwwroot = Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "wwwroot");
+            var theme = Path.Combine(wwwroot, "reveal", "dist", "theme");
+            var css = File.ReadAllText(Path.Combine(theme, "mde-space.css"));
+
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(css, @"@import\s+""([^""]+)"""))
+                Assert.IsTrue(File.Exists(Path.Combine(theme, m.Groups[1].Value)), m.Value);
+            var urls = System.Text.RegularExpressions.Regex.Matches(css, @"url\((/[^)]+)\)");
+            Assert.IsTrue(urls.Count > 0, "the theme has its sky");
+            foreach (System.Text.RegularExpressions.Match m in urls)
+                Assert.IsTrue(File.Exists(Path.Combine(wwwroot, m.Groups[1].Value.TrimStart('/'))), m.Value);
+
+            var set = Path.Combine(wwwroot, "mde-space");
+            CollectionAssert.IsSubsetOf(new[] { "alieni", "luna", "marte", "orbite", "razzo", "stelle" },
+                Directory.GetFiles(Path.Combine(set, "sfondi"), "*.svg").Select(Path.GetFileNameWithoutExtension).ToArray());
+            Assert.IsTrue(Directory.GetFiles(Path.Combine(set, "icone"), "*.svg").Length >= 14, "the 14 icons of the set");
+        }
     }
 }

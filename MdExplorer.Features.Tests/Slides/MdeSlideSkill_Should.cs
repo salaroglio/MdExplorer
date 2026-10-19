@@ -140,6 +140,16 @@ namespace MdExplorer.Features.Tests.Slides
                 StringAssert.Contains(page, "/reveal/dist/theme/dracula.css");
                 StringAssert.Contains(page, "/reveal/dist/plugin/highlight/zenburn.css");
             },
+            ["mde-space"] = page =>
+            {
+                StringAssert.Contains(page, "/reveal/dist/theme/mde-space.css");
+                StringAssert.Contains(page, "data-background-image=\"/mde-space/sfondi/luna.svg\"");
+                StringAssert.Contains(page, "class=\"mde-cielo\"");
+                // le icone restano agli indirizzi del set, in HTML: il titolo conserva il suo testo
+                StringAssert.Contains(page, "class=\"mde-icona-grande\" src=\"/mde-space/icone/razzo.svg\"");
+                StringAssert.Matches(page, new System.Text.RegularExpressions.Regex(
+                    "<h2[^>]*><img class=\"mde-icona\" src=\"/mde-space/icone/telescopio.svg\" alt=\"\"> A che cosa serve</h2>"));
+            },
         };
 
         /// <summary>Examples of what MdExplorer refuses, with a word of the message the skill quotes.</summary>

@@ -1,6 +1,11 @@
 ---
 document_type: slides
+reveal:
+  theme: mde-space
 ---
+
+<!-- .slide: data-background-image="/mde-space/sfondi/luna.svg" class="mde-cielo" -->
+<img class="mde-icona-grande" src="/mde-space/icone/razzo.svg" alt="">
 
 # Progetto vuoto
 
@@ -8,7 +13,7 @@ La cartella che scegli diventa un progetto di MdExplorer **così com'è**: i tuo
 
 ---
 
-## Che cosa aggiunge MDE
+## <img class="mde-icona" src="/mde-space/icone/base.svg" alt=""> Che cosa aggiunge MDE
 
 - la cartella `.md/` con i modelli per Word e PDF
 - `.development.yml`, la configurazione condivisa del gruppo
@@ -17,7 +22,7 @@ La cartella che scegli diventa un progetto di MdExplorer **così com'è**: i tuo
 
 ---
 
-## Quando sceglierlo
+## <img class="mde-icona" src="/mde-space/icone/stella.svg" alt=""> Quando sceglierlo
 
 - hai già della documentazione e vuoi lavorarci con MDE
 - vuoi partire da zero, senza un metodo
