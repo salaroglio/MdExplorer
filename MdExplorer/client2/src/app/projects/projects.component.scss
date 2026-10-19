@@ -586,20 +586,70 @@
 }
 
 // Responsive design
+// Le card delle azioni aperte sopra la lista (finestra stretta): un clic sullo sfondo le richiude.
+.actions-backdrop {
+  display: none;
+}
+
+// Finestra stretta: le azioni non scendono sotto la lista. Restano a destra come una colonnina di icone; un clic la
+// apre nelle card complete, sopra la lista (ProjectsComponent.act). La larghezza è la stessa di compactQuery.
 @media (max-width: 1024px) {
   .main-layout {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
-
-  .right-column {
-    position: static;
-  }
-
-  .actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: 1fr 72px;
     gap: 16px;
+  }
+
+  .right-column:not(.expanded) {
+    .section-title,
+    .diagnostics-section {
+      display: none;
+    }
+
+    .actions-grid {
+      gap: 12px;
+    }
+
+    .action-card {
+      border-radius: 14px;
+
+      &:hover {
+        transform: none;
+      }
+
+      .card-content {
+        justify-content: center;
+        padding: 10px;
+      }
+
+      .card-text,
+      .card-action {
+        display: none;
+      }
+    }
+  }
+
+  .right-column.expanded {
+    position: fixed;
+    top: 52px;
+    right: 16px;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+    box-sizing: border-box;
+    z-index: 1001;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--mde-bg-secondary);
+    box-shadow: 0 12px 32px var(--mde-shadow-color);
+  }
+
+  .actions-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.25);
   }
 }
 
@@ -621,11 +671,7 @@
     border-radius: 24px 24px 0 0;
   }
 
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .action-card .card-content {
+  .right-column.expanded .action-card .card-content {
     padding: 24px 20px;
   }
 

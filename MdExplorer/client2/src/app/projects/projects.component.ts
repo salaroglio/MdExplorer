@@ -325,6 +325,23 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Le card delle azioni aperte sopra la lista, quando la finestra è stretta e sono una colonnina di icone. */
+  actionsExpanded = false;
+  /** La stessa larghezza della regola CSS che riduce le azioni a una colonnina (projects.component.scss). */
+  private readonly compactQuery = window.matchMedia('(max-width: 1024px)');
+
+  isCompact(): boolean { return this.compactQuery.matches; }
+
+  /**
+   * Un clic su una card delle azioni. Con la colonnina chiusa apre le card, così si legge che cosa fa ognuna; con le
+   * card aperte (o con la finestra larga) esegue l'azione.
+   */
+  act(action: 'prepareToClone' | 'openNewFolder' | 'openSettings' | 'openP2PManager'): void {
+    if (this.isCompact() && !this.actionsExpanded) { this.actionsExpanded = true; return; }
+    this.actionsExpanded = false;
+    this[action]();
+  }
+
   /**
    * «Crea nuovo progetto»: prima la vetrina dei template (sprint 2026-10-19-Vetrina-Dei-Template.md, VD1), poi la
    * cartella, poi la configurazione di ciò che resta.

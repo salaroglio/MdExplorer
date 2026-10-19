@@ -111,7 +111,7 @@
     "CLONE_REPO": "Clone Repository",
     "CLONE_REPO_DESC": "Get code from an online repository like GitHub or GitLab",
     "CREATE_NEW": "Create New Project",
-    "CREATE_NEW_DESC": "Choose a filesystem folder to get started with your documentation",
+    "CREATE_NEW_DESC": "Empty or from a template: see what each one is for, then choose the folder",
     "SETTINGS_CARD_DESC": "Configure IDE paths, PlantUML, and other global preferences",
     "P2P_SHARING": "P2P Sharing",
     "P2P_SHARING_DESC": "Share large files directly with other MdExplorer users",
