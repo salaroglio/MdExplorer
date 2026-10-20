@@ -164,8 +164,12 @@ namespace MdExplorer.Services.Templates
                 Directory.CreateDirectory(path);
                 await Run(path, ct, "init", "-q", "-b", ProjectBranch);
 
-                var (tip, branch, manifest) = await PrepareAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion,
-                    new HashSet<string>(StringComparer.Ordinal), ct);
+                var (tip, branch, manifest, tookExample) = await PrepareAsync(path, request.TemplateUrl, request.Language, request.Example, request.MdeVersion,
+                    new HashSet<string>(StringComparer.Ordinal), ct, exampleIfAny: true);
+                // Un progetto nasce dallo strato comune, con i metodi sopra, o dalla demo (M5: l'elenco ha lo strato comune).
+                if (manifest.IsMethod)
+                    throw Problem($"«{manifest.Title}» è un metodo: un progetto nasce dallo strato comune, e il metodo ci si aggiunge sopra.",
+                                  $"«{manifest.Title}» is a method: a project starts from the common layer, and the method is added on top of it.");
                 // La demo ha tutto incluso e sta per conto suo (MC6).
                 if (manifest.Kind == TemplateManifest.Project && request.Methods?.Count > 0)
                     throw Problem($"«{manifest.Title}» ha già tutto incluso: non gli si aggiungono metodi. Scegli lei da sola, o lo strato comune con i metodi.",
@@ -175,7 +179,8 @@ namespace MdExplorer.Services.Templates
                 var (harness, engineChosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
                 await Run(path, ct, "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName);
 
-                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, request.Example, WantsTheory(request.TemplateUrl)), ct)).ToList();
+                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, tookExample, WantsTheory(request.TemplateUrl)), ct)).ToList();
+                if (request.Example && !tookExample) notes.Add(NoExampleNote(manifest, request.Language));
                 if (harness == HarnessTarget.None)
                     notes.Insert(0, UiText.Say("Il progetto non ha un motore: gli agenti e MarkAgent non partono finché non ne scegli uno nelle impostazioni.",
                                                "The project has no engine: the agents and MarkAgent do not start until you choose one in the settings."));
@@ -188,7 +193,7 @@ namespace MdExplorer.Services.Templates
                 // Gli altri metodi, nell'ordine: ognuno con la sua unione e il suo commit.
                 var methods = new List<TemplateAddOutcome>();
                 foreach (var url in request.Methods ?? Array.Empty<string>())
-                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct));
+                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct, exampleIfAny: true));
 
                 string origin;
                 if (localOrigin != null)
@@ -268,10 +273,15 @@ namespace MdExplorer.Services.Templates
         /// Unisce un metodo al progetto (che ha già un commit): scarica, controlla, unisce le storie indipendenti senza
         /// committare, applica il manifesto e fa un commit solo. Chi chiama rimette a posto se qualcosa va storto.
         /// </summary>
-        private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, bool theory, string mdeVersion, CancellationToken ct)
+        /// <param name="exampleIfAny">
+        /// Alla creazione la scelta dell'esempio vale per tutti i template: chi non ha un esempio nella lingua dà la sua
+        /// struttura, e una nota lo dice. Aggiungendo un metodo da solo, l'esempio chiesto e assente resta un errore.
+        /// </param>
+        private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, bool theory, string mdeVersion, CancellationToken ct,
+            bool exampleIfAny = false)
         {
             var present = PresentTemplates(path);
-            var (tip, _, manifest) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct);
+            var (tip, _, manifest, tookExample) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct, exampleIfAny);
             if (manifest.IsFoundation)
                 throw Problem($"«{manifest.Title}» è lo strato comune: un progetto lo prende alla creazione, come primo template, non lo aggiunge dopo.",
                               $"«{manifest.Title}» is the common layer: a project takes it at creation, as the first template, it does not add it later.");
@@ -291,7 +301,8 @@ namespace MdExplorer.Services.Templates
             if (!merge.Ok)
                 throw Problem($"Il metodo non si unisce al progetto: {merge.Describe()}", $"The method does not merge into the project: {merge.Describe()}");
 
-            var notes = await ApplyManifestAsync(path, manifest, Row(manifest, url, language, example, theory), ct);
+            var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, url, language, tookExample, theory), ct)).ToList();
+            if (example && !tookExample) notes.Add(NoExampleNote(manifest, language));
             await Run(path, ct, "commit", "-q", "-m",
                 UiText.Say($"Metodo «{manifest.Title}» {manifest.Version} aggiunto dal template", $"Method «{manifest.Title}» {manifest.Version} added from the template"));
             return new TemplateAddOutcome { Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Notes = notes };
@@ -301,8 +312,8 @@ namespace MdExplorer.Services.Templates
         /// Scarica il template su un remoto provvisorio, ne trova il manifesto, rinomina il remoto <c>template-&lt;id&gt;</c> e
         /// controlla il ramo scelto. Il manifesto che fa fede è quello di quel ramo.
         /// </summary>
-        private async Task<(string Tip, string Branch, TemplateManifest Manifest)> PrepareAsync(
-            string path, string url, string language, bool example, string mdeVersion, ISet<string> presentIds, CancellationToken ct)
+        private async Task<(string Tip, string Branch, TemplateManifest Manifest, bool TookExample)> PrepareAsync(
+            string path, string url, string language, bool example, string mdeVersion, ISet<string> presentIds, CancellationToken ct, bool exampleIfAny = false)
         {
             if (string.IsNullOrWhiteSpace(url)) throw Problem("Manca l'indirizzo di un template.", "A template address is missing.");
             // Il nome vero del remoto si sa dal manifesto: si scarica con un nome provvisorio e poi si rinomina.
@@ -316,7 +327,9 @@ namespace MdExplorer.Services.Templates
             if (presentIds.Contains(id))
                 throw Problem($"Il progetto ha già il template '{id}': un template si aggiunge una volta sola.",
                               $"The project already has the template '{id}': a template is added only once.");
-            var branch = found.BranchFor(language, example);
+            var tookExample = example && (!exampleIfAny || !string.IsNullOrWhiteSpace(
+                found.Languages != null && found.Languages.TryGetValue(language ?? string.Empty, out var branches) ? branches.Example : null));
+            var branch = found.BranchFor(language, tookExample);
             var remote = RemotePrefix + id;
             if ((await _git.RunAsync(path, new[] { "remote", "get-url", remote }, ct)).Ok)
                 throw Problem($"Il progetto ha già un remoto '{remote}' senza la sua riga in {DevelopmentConfigCleanup.FileName}: toglilo, o rimetti la riga, e riprova.",
@@ -330,8 +343,12 @@ namespace MdExplorer.Services.Templates
 
             var manifest = TemplateManifestReader.ReadOrThrow(await ShowAsync(path, tip, TemplateManifest.PathOf(id), ct), id, $"{TemplateManifest.PathOf(id)} ({branch})");
             await CheckAsync(path, tip, manifest, mdeVersion, presentIds, ct);
-            return (tip, branch, manifest);
+            return (tip, branch, manifest, tookExample);
         }
+
+        private static string NoExampleNote(TemplateManifest manifest, string language)
+            => UiText.Say($"«{manifest.Title}» non ha un esempio in '{language}': da lui arriva solo la struttura.",
+                          $"«{manifest.Title}» has no example in '{language}': only its structure comes in.");
 
         private static ProjectTemplateConfig Row(TemplateManifest manifest, string url, string language, bool example, bool theory) => new()
         {

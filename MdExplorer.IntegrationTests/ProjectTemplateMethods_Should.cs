@@ -146,7 +146,7 @@ instructions: .mde-template/ddd/istruzioni.md
         }
 
         [TestMethod]
-        public async Task Create_a_project_from_a_method_alone_with_the_engine_chosen_and_nothing_left_to_commit()
+        public async Task Create_a_project_from_the_common_layer_and_a_method_with_the_engine_chosen_and_nothing_left_to_commit()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
@@ -155,10 +155,10 @@ instructions: .mde-template/ddd/istruzioni.md
 
             var outcome = await Create(ctx, new TemplateCreateRequest
             {
-                Path = path, TemplateUrl = Template(ctx, "ddd", DddBranches()), Language = "it", MdeVersion = Mde, Harness = "claude",
+                Path = path, TemplateUrl = Strato(ctx), Methods = new[] { Template(ctx, "ddd", DddBranches()) }, Language = "it", MdeVersion = Mde, Harness = "claude",
             });
 
-            Assert.AreEqual("ddd", outcome.Id);
+            Assert.AreEqual("ddd", outcome.Methods.Single().Id);
             StringAssert.Contains(Read(path, ".development.yml"), "harness:\n  target: claude");
             StringAssert.Contains(Read(path, ".development.yml"), "agentCity:\n  enabled: true", "il metodo porta un workflow: la città si accende");
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Agent city turned on: the workflows of «Sviluppo con DDD» run there")), string.Join("\n", outcome.Notes));
@@ -172,7 +172,7 @@ instructions: .mde-template/ddd/istruzioni.md
 
             var bad = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
-                Path = NewFolder(ctx, "motore-strano"), TemplateUrl = Template(ctx, "ddd-2", DddBranches()), Language = "it", MdeVersion = Mde, Harness = "vim",
+                Path = NewFolder(ctx, "motore-strano"), TemplateUrl = Strato(ctx), Methods = new[] { Template(ctx, "ddd-2", DddBranches()) }, Language = "it", MdeVersion = Mde, Harness = "vim",
             }));
             StringAssert.Contains(bad.Message, "The engine 'vim' does not exist");
         }

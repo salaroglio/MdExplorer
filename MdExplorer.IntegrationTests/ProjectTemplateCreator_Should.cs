@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using System.Linq;
 using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Services.Templates;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,6 +96,9 @@ version: 1.0.0
             ["main"] = new() { [".mde-template/demo/mde-template.yml"] = Demo("it", requires), ["README.md"] = "# La demo\n", [".development.yml"] = "harness:\n  target: copilot\n" },
             ["en"] = new() { [".mde-template/demo/mde-template.yml"] = Demo("en", requires), ["README.md"] = "# The demo\n", [".development.yml"] = "harness:\n  target: copilot\n" },
         };
+
+        /// <summary>Lo strato comune dei test (un template <c>foundation</c>), da cui nasce un progetto con dei metodi.</summary>
+        internal static string Strato(AgentCityContext ctx) => Template(ctx, "documenti-" + Guid.NewGuid().ToString("N")[..8], ProjectTemplateComposition_Should.Foundation());
 
         internal static string NewFolder(AgentCityContext ctx, string name) => Path.Combine(ctx.Factory.DataDir, "progetti", name);
 
@@ -203,12 +207,18 @@ version: 1.0.0
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var path = NewFolder(ctx, "con-esempio");
 
-            await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "it", Example = true, MdeVersion = Mde });
+            var outcome = await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Strato(ctx), Methods = new[] { url }, Language = "it", Example = true, MdeVersion = Mde, Harness = "claude",
+            });
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("«Scrittura sistematica dei documenti» has no example in 'it': only its structure comes in")),
+                string.Join("\n", outcome.Notes));
+            StringAssert.Contains(File.ReadAllText(Path.Combine(path, ".development.yml")), "  kind: foundation\n  language: it\n  example: false\n",
+                "lo strato comune senza esempio: la riga dice che è arrivata la struttura");
 
             Assert.IsTrue(File.Exists(Path.Combine(path, ".mde-template/gara-iso/esempio/gara.md")));
             var yml = File.ReadAllText(Path.Combine(path, ".development.yml"));
-            StringAssert.Contains(yml, "example: true");
-            Assert.IsFalse(yml.Contains("kind:"), "un metodo non scrive kind");
+            StringAssert.Contains(yml, "- id: gara-iso\n  url: " + url + "\n  language: it\n  example: true\n", "un metodo non scrive kind");
         }
 
         [TestMethod]
@@ -228,7 +238,7 @@ version: 1.0.0
             var path = NewFolder(ctx, "fuori");
 
             var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
-                Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "it", MdeVersion = Mde }));
+                Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = Strato(ctx), Methods = new[] { url }, Language = "it", MdeVersion = Mde, Harness = "claude" }));
 
             StringAssert.Contains(ex.Message, "README.md");
             Assert.IsFalse(Directory.Exists(path), "la cartella creata è stata tolta");

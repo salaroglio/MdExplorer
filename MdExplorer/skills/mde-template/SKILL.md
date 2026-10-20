@@ -73,31 +73,31 @@ layer; for a `project` the zone rule does not apply.
 
 ```yaml
 mde_template: 1                   # format version
-id: ddd                           # kebab-case = zone folder name = prefix of agents and skills
+id: ontologie                     # kebab-case = zone folder name = prefix of agents and skills
 kind: method                      # method | foundation | project
-title: Sviluppo con DDD
-description: "Il DDD strategico: linguaggio, contesti e mappa, confrontati con il codice."
+title: Ontologie
+description: "Disegnare un'ontologia partendo dalle domande a cui deve rispondere."
 version: 1.0.0                    # x.y.z = first CHANGELOG entry = git tag v1.0.0
 requires:
-  mde: 2026.10.18                 # minimum MdExplorer version
+  mde: 2026.10.19.14              # minimum MdExplorer version
   templates: []                   # methods this one cannot stand without (they must be in the project first)
-  features: [code]                # MDE features it uses: fuseki, code (see below)
+  features: [fuseki]              # MDE features it uses: fuseki, code (see below)
 languages:                        # language → branches; at least one
   it: { structure: main, example: esempio }
 roles:                            # added to the project's responsibilities document as OPEN roles
-  - { role: Architetto, description: "approva i contesti e accetta la mappa", agents: [ddd-architetto] }
+  - { role: Ontologo, description: "approva schema, regole, esempi e verifica", agents: [ontologie-ontologo] }
 workflows:                        # the workflow DOCUMENTS (mde_type: workflow) it brings
-  - .mde-template/ddd/workflows/ddd.md
-instructions: .mde-template/ddd/istruzioni.md
+  - .mde-template/ontologie/workflows/ontologia.md
+instructions: .mde-template/ontologie/istruzioni.md
 seeds:                            # starting files: copied once if missing, then they belong to the group
-  - { from: .mde-template/ddd/semi/dominio.md, to: ddd/dominio.md }
+  - { from: .mde-template/ontologie/semi/dominio.md, to: ontology/dominio.md }
 programs:                         # code folders to mark for the code graph (after the seeds: the folder must exist)
   - { path: codice/helpdesk, languages: [csharp] }
 slides:                           # the showcase presentation, one per language of the SLIDES (optional)
-  it: .mde-template/ddd/presentazione.md
-  en: .mde-template/ddd/presentation.md
+  it: .mde-template/ontologie/presentazione.md
+  en: .mde-template/ontologie/presentation.md
 theory:                           # the method's theory, one folder per language it speaks (optional)
-  it: { from: .mde-template/ddd/teoria, to: teoria/ddd }
+  it: { from: .mde-template/ontologie/teoria, to: teoria/ontologie }
 ```
 
 - **Unknown keys are errors.** So is a typo: the reader is strict, like MDE's config reader.

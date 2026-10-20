@@ -26,25 +26,25 @@ namespace MdExplorer.IntegrationTests
         private const string Changelog = "# Changelog\n\n## {0} — 2026-10-19\n\n- Versione {0}.\n";
 
         /// <summary>Lo strato comune: una skill, un agente, e la teoria degli LLM wiki in italiano.</summary>
-        internal static Dictionary<string, Dictionary<string, string>> Foundation() => new()
+        internal static Dictionary<string, Dictionary<string, string>> Foundation(string id = "documenti") => new()
         {
             ["main"] = new Dictionary<string, string>
             {
-                [".mde-template/documenti/mde-template.yml"] = @"mde_template: 1
-id: documenti
+                [$".mde-template/{id}/mde-template.yml"] = $@"mde_template: 1
+id: {id}
 kind: foundation
 title: Scrittura sistematica dei documenti
 version: 1.0.0
 languages:
-  it: { structure: main }
+  it: {{ structure: main }}
 roles:
-  - { role: Redattore, agents: [documenti-redattore] }
+  - {{ role: Redattore, agents: [{id}-redattore] }}
 theory:
-  it: { from: .mde-template/documenti/teoria, to: teoria/documenti }
+  it: {{ from: .mde-template/{id}/teoria, to: teoria/{id} }}
 ",
-                [".mde-template/documenti/agents/documenti-redattore.agent.md"] = Card.Replace("ddd-analista", "documenti-redattore"),
-                [".mde-template/documenti/teoria/llm-wiki.md"] = "# Gli LLM wiki\n",
-                [".claude/skills/documenti-scrivi/SKILL.md"] = "---\nname: documenti-scrivi\ndescription: scrive\n---\n# Scrivi\n",
+                [$".mde-template/{id}/agents/{id}-redattore.agent.md"] = Card.Replace("ddd-analista", id + "-redattore"),
+                [$".mde-template/{id}/teoria/llm-wiki.md"] = "# Gli LLM wiki\n",
+                [$".claude/skills/{id}-scrivi/SKILL.md"] = $"---\nname: {id}-scrivi\ndescription: scrive\n---\n# Scrivi\n",
             },
         };
 
@@ -110,7 +110,14 @@ theory:
                 Path = NewFolder(ctx, "strato-dopo"), TemplateUrl = ddd, Methods = new[] { Template(ctx, "documenti", Foundation()) },
                 Language = "it", MdeVersion = Mde, Harness = "claude",
             }));
-            StringAssert.Contains(second.Message, "is the common layer: a project takes it at creation, as the first template");
+            StringAssert.Contains(second.Message, "is a method: a project starts from the common layer");
+
+            var foundationLater = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "strato-come-metodo"), TemplateUrl = Template(ctx, "documenti", Foundation()),
+                Methods = new[] { Template(ctx, "documenti-bis", Foundation("documenti-bis")) }, Language = "it", MdeVersion = Mde, Harness = "claude",
+            }));
+            StringAssert.Contains(foundationLater.Message, "is the common layer: a project takes it at creation, as the first template");
         }
 
         [TestMethod]

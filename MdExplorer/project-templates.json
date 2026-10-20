@@ -13,14 +13,14 @@
       }
     },
     {
-      "id": "gara-iso",
-      "kind": "method",
-      "url": "https://github.com/salaroglio/mdexplorer-template-gara-iso.git",
+      "id": "documenti",
+      "kind": "foundation",
+      "url": "https://github.com/salaroglio/mdexplorer-template-documenti.git",
       "languages": ["it"],
-      "title": { "it": "Gara con ISO 9001", "en": "Tender with ISO 9001" },
+      "title": { "it": "Scrittura sistematica dei documenti", "en": "Systematic writing of documents" },
       "description": {
-        "it": "Dal bando alla decisione se partecipare, con il riesame dei requisiti prima di impegnarsi (ISO 9001, 8.2.3) registrato.",
-        "en": "From the call for tenders to the decision to bid, with the review of the requirements before committing (ISO 9001, 8.2.3) on record."
+        "it": "Il wiki del progetto, scritto e tenuto in ordine con gli agenti: le fonti restano intatte, le pagine crescono, l'indice e il registro dicono che cosa c'è e che cosa è cambiato.",
+        "en": "The project's wiki, written and kept in order with the agents: the sources stay untouched, the pages grow, the index and the log say what is there and what changed."
       }
     },
     {
@@ -35,14 +35,14 @@
       }
     },
     {
-      "id": "ddd",
+      "id": "iso9001",
       "kind": "method",
-      "url": "https://github.com/salaroglio/mdexplorer-template-ddd.git",
+      "url": "https://github.com/salaroglio/mdexplorer-template-iso9001.git",
       "languages": ["it"],
-      "title": { "it": "Sviluppo con DDD", "en": "Development with DDD" },
+      "title": { "it": "ISO 9001", "en": "ISO 9001" },
       "description": {
-        "it": "Il DDD strategico: il linguaggio del dominio, i contesti e la loro mappa, confrontati con il codice vero attraverso il grafo del codice.",
-        "en": "Strategic DDD: the domain language, the contexts and their map, compared with the real code through the code graph."
+        "it": "Il sistema qualità come insieme di workflow fatti bene: i processi descritti, chi prepara e chi approva, le prove in git per l'audit interno.",
+        "en": "The quality system as a set of well-made workflows: the processes described, who prepares and who approves, the evidence in git for the internal audit."
       }
     }
   ]
