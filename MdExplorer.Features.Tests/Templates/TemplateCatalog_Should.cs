@@ -22,13 +22,13 @@ namespace MdExplorer.Features.Tests.Templates
             Assert.IsNotNull(dir, "project-templates.json non trovato risalendo dalla cartella dei test");
             var entries = TemplateCatalog.Read(File.ReadAllText(Path.Combine(dir.FullName, "MdExplorer", "project-templates.json")));
             Assert.IsTrue(entries.Any(e => e.Id == "demo" && e.Kind == "project"), "la demo è un template dell'elenco (TD1)");
-            // I metodi componibili (M5, 20/10): lo strato comune e due metodi, solo italiano per ora; il DDD non c'è più.
+            // I metodi componibili (M5-M6, 20/10): lo strato comune e due metodi, in italiano e in inglese; il DDD non c'è più.
             foreach (var (id, kind) in new[] { ("documenti", "foundation"), ("ontologie", "method"), ("iso9001", "method") })
             {
                 var m = entries.Single(e => e.Id == id);
                 Assert.AreEqual(kind, m.Kind, id);
                 Assert.AreEqual($"https://github.com/salaroglio/mdexplorer-template-{id}.git", m.Url);
-                CollectionAssert.AreEqual(new[] { "it" }, m.Languages, id);
+                CollectionAssert.AreEqual(new[] { "it", "en" }, m.Languages, id);
             }
             Assert.IsFalse(entries.Any(e => e.Id is "ddd" or "gara-iso"), "il DDD è tolto; gara-iso è diventato iso9001");
         }

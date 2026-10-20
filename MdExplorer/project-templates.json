@@ -16,7 +16,7 @@
       "id": "documenti",
       "kind": "foundation",
       "url": "https://github.com/salaroglio/mdexplorer-template-documenti.git",
-      "languages": ["it"],
+      "languages": ["it", "en"],
       "title": { "it": "Scrittura sistematica dei documenti", "en": "Systematic writing of documents" },
       "description": {
         "it": "Il wiki del progetto, scritto e tenuto in ordine con gli agenti: le fonti restano intatte, le pagine crescono, l'indice e il registro dicono che cosa c'è e che cosa è cambiato.",
@@ -27,7 +27,7 @@
       "id": "ontologie",
       "kind": "method",
       "url": "https://github.com/salaroglio/mdexplorer-template-ontologie.git",
-      "languages": ["it"],
+      "languages": ["it", "en"],
       "title": { "it": "Ontologie", "en": "Ontologies" },
       "description": {
         "it": "Disegnare un'ontologia partendo dalle domande a cui deve rispondere: schema, regole ed esempi, verificati prima di accettarla.",
@@ -38,7 +38,7 @@
       "id": "iso9001",
       "kind": "method",
       "url": "https://github.com/salaroglio/mdexplorer-template-iso9001.git",
-      "languages": ["it"],
+      "languages": ["it", "en"],
       "title": { "it": "ISO 9001", "en": "ISO 9001" },
       "description": {
         "it": "Il sistema qualità come insieme di workflow fatti bene: i processi descritti, chi prepara e chi approva, le prove in git per l'audit interno.",
