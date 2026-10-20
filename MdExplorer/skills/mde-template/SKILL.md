@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -29,12 +29,16 @@ to say what it brings: the manifest says it, and MdExplorer writes the project's
 
 ## Three kinds
 
-A project is the **common layer** plus the **methods** the person ticks, each with its **theory** if asked; or the
-**demo**, alone.
+A project is the **common layer** plus the **methods** the person ticks, each with its **theory** if asked, plus the
+**functions** chosen: the **agent city** (agents, roles, workflows) is one of them. Or the **demo**, alone.
+
+Write templates in **format 2** (`mde_template: 2`): what serves the agents goes in `agent_city` and reaches the project
+**only when the agent city is on**; without it the project has no agents, no roles, no workflows and none of their
+skills. Format 1 is still read, for projects created before.
 
 | `kind` | What it brings | Combines |
 |---|---|---|
-| `method` (a way of working: ISO 9001, ontologies) | only **its zone**: `.mde-template/<id>/**` and `.claude/skills/<id>-*/**` | yes, with the common layer and other methods |
+| `method` (a way of working: ontologies) | only **its zone**: `.mde-template/<id>/**` (format 1 also `.claude/skills/<id>-*/**`) | yes, with the common layer and other methods |
 | `foundation` (the common layer: Document Driven Development) | only its zone, like a method | it is always the **first** template of a project made of methods; MdExplorer has one |
 | `project` (a whole starting project with everything included, like the demo) | files anywhere | **alone**: no methods are added to it, and it has no theory |
 
@@ -51,14 +55,14 @@ layer; for a `project` the zone rule does not apply.
 ├── presentazione.md        the slides of the «Create new project» showcase, one file per language (mde-slide skill)
 ├── teoria/                 the theory, one folder per language: documents to learn the method, copied on request
 ├── istruzioni.md           instructions for the project's agents (MDE puts them in CLAUDE.md / AGENTS.md / copilot-instructions.md)
-├── agents/                 the agent cards  <id>-<name>.agent.md   (mde-agent skill)
-├── workflows/              the workflow document + *.workflow.json  (mde-workflow skill)
+├── skills/<id>-<name>/     the skills (SKILL.md + files): MDE copies the declared ones into .claude/skills/
+├── agents/                 the agent cards  <id>-<name>.agent.md   (mde-agent skill)  — agent city only
+├── workflows/              the workflow document + *.workflow.json  (mde-workflow skill)  — agent city only
 └── semi/                   models of the starting files (seeds), copied once into the project
-.claude/skills/<id>-<name>/SKILL.md     the method's skills: every engine reads .claude/skills
 ```
 
-- **Zone rule** (zero tolerance): every file of every branch of a method is under `.mde-template/<id>/` or
-  `.claude/skills/<id>-*/`. A file outside is an error and MDE does not merge the method. This is what makes two methods
+- **Zone rule** (zero tolerance): in format 2 every file of every branch of a method is under `.mde-template/<id>/`
+  (format 1 also allowed `.claude/skills/<id>-*/`). A file outside is an error and MDE does not merge the method. This is what makes two methods
   safe together: their zones never touch each other, nor the group's files.
 - **Prefix**: the agents are `<id>-<name>` (file name and `a2a.name`), the skills `<id>-<name>` (folder and `name:`).
   Two agents with the same name exclude each other: the prefix keeps two methods from causing it.
@@ -72,7 +76,7 @@ layer; for a `project` the zone rule does not apply.
 ## The manifest `mde-template.yml`
 
 ```yaml
-mde_template: 1                   # format version
+mde_template: 2                   # format version
 id: ontologie                     # kebab-case = zone folder name = prefix of agents and skills
 kind: method                      # method | foundation | project
 title: Ontologie
@@ -84,10 +88,15 @@ requires:
   features: [fuseki]              # MDE features it uses: fuseki, code (see below)
 languages:                        # language → branches; at least one
   it: { structure: main, example: esempio }
-roles:                            # added to the project's responsibilities document as OPEN roles
-  - { role: Ontologo, description: "approva schema, regole, esempi e verifica", agents: [ontologie-ontologo] }
-workflows:                        # the workflow DOCUMENTS (mde_type: workflow) it brings
-  - .mde-template/ontologie/workflows/ontologia.md
+skills:                           # skills that serve always: folders in the zone, copied into .claude/skills/
+  - .mde-template/ontologie/skills/ontologie-domande
+agent_city:                       # what serves the agents: applied ONLY when the project's agent city is on
+  roles:                          # added to the project's responsibilities document as OPEN roles
+    - { role: Ontologo, description: "approva schema, regole, esempi e verifica", agents: [ontologie-ontologo] }
+  workflows:                      # the workflow DOCUMENTS (mde_type: workflow) it brings
+    - .mde-template/ontologie/workflows/ontologia.md
+  skills:                         # skills only the agents use
+    - .mde-template/ontologie/skills/ontologie-verifica
 instructions: .mde-template/ontologie/istruzioni.md
 seeds:                            # starting files: copied once if missing, then they belong to the group
   - { from: .mde-template/ontologie/semi/dominio.md, to: ontology/dominio.md }
@@ -103,9 +112,14 @@ theory:                           # the method's theory, one folder per language
 - **Unknown keys are errors.** So is a typo: the reader is strict, like MDE's config reader.
 - **Quote every value that contains `:` or `,`** (`description: "a: b, c"`). Unquoted, YAML reads something else or
   refuses the file. It is the most frequent mistake.
+- `skills` / `agent_city.skills`: folders `.mde-template/<id>/…/<id>-<name>` with their `SKILL.md` (`name:` = the folder
+  name). MDE copies them into `.claude/skills/<id>-<name>/` and rewrites them on every update: they are the method's.
+- `agent_city`: roles, workflows and skills that only make sense with agents. With the city off MDE leaves them in the
+  zone, does not register the agent cards there, and says in a note that they arrive when the city is turned on.
+  In format 2 top-level `roles` and `workflows` are errors: they go here.
 - `roles`: each role becomes a row with nobody yet; whoever answers for it writes their name there and declares the
   agents theirs («It's mine»). The role names are what the workflow's `person` and `approval.by` use.
-- `workflows`: MDE adds them to the project's list (`agentCity.workflowDocs`) and turns the agent city on. They must
+- `workflows`: MDE adds them to the project's list (`agentCity.workflowDocs`); in format 1 it also turns the agent city on. They must
   read together with the project's other workflows: an agent opens the rounds of one workflow only.
 - `seeds`: `from` is in the zone, `to` is a group path, never under `.mde-template/`, `.claude/skills/`, `.git/`, `.md/`.
   A file that is already there is never touched; on update a changed model is only a note. Use them for registers,
@@ -181,7 +195,7 @@ the English branches). Structure and example of the same language should be at t
 
 ## Checklist
 
-- [ ] Every file is in the zone; agents and skills start with `<id>-`.
+- [ ] `mde_template: 2`; every file is in the zone; agents and skills start with `<id>-`; what only agents need is in `agent_city`.
 - [ ] Values with `:` or `,` are quoted in the manifest.
 - [ ] `theory` (if any) has a folder for each language the method speaks, and `instructions` say where it lands.
 - [ ] `slides` has an English presentation (and one in each language the method speaks), and you looked at it.

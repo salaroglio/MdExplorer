@@ -34,8 +34,16 @@ namespace MdExplorer.Features.Templates
         public string Version { get; set; }
         public TemplateRequires Requires { get; set; }
         public Dictionary<string, TemplateLanguage> Languages { get; set; }
+        /// <summary>Formato 1, e i template di progetto: i ruoli. Nel formato 2 un metodo li mette in <see cref="AgentCity"/>.</summary>
         public List<TemplateRole> Roles { get; set; }
         public List<string> Workflows { get; set; }
+        /// <summary>
+        /// Formato 2 (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C3): le cartelle delle skill del template, nella
+        /// zona (<c>.mde-template/&lt;id&gt;/…/&lt;id&gt;-nome</c>), che MDE copia in <c>.claude/skills/</c>. Servono sempre.
+        /// </summary>
+        public List<string> Skills { get; set; }
+        /// <summary>Formato 2: tutto ciò che serve agli agenti, applicato solo se il progetto ha la città accesa (CF5).</summary>
+        public TemplateAgentCity AgentCity { get; set; }
         public string Instructions { get; set; }
         /// <summary>I file iniziali: copiati una volta nel progetto, se mancano; da lì sono del gruppo (P5).</summary>
         public List<TemplateSeed> Seeds { get; set; }
@@ -69,6 +77,28 @@ namespace MdExplorer.Features.Templates
         }
 
         public bool IsMethod => Kind == Method;
+        /// <summary>Il formato 2: le skill nella zona, la parte degli agenti in <c>agent_city</c>.</summary>
+        public bool IsFormat2 => MdeTemplate >= 2;
+
+        /// <summary>I ruoli che MDE scrive nel progetto, con la città accesa o spenta.</summary>
+        public List<TemplateRole> RolesFor(bool cityOn)
+            => !IsFormat2 || !IsZoned ? Roles ?? new List<TemplateRole>() : cityOn ? AgentCity?.Roles ?? new List<TemplateRole>() : new List<TemplateRole>();
+
+        /// <summary>I workflow che MDE aggiunge al progetto, con la città accesa o spenta.</summary>
+        public List<string> WorkflowsFor(bool cityOn)
+            => !IsFormat2 || !IsZoned ? Workflows ?? new List<string>() : cityOn ? AgentCity?.Workflows ?? new List<string>() : new List<string>();
+
+        /// <summary>Le cartelle delle skill che MDE copia (formato 2), con la città accesa o spenta.</summary>
+        public List<string> SkillsFor(bool cityOn)
+            => (Skills ?? new List<string>()).Concat(cityOn ? AgentCity?.Skills ?? new List<string>() : new List<string>()).ToList();
+
+        /// <summary>Tutti i ruoli e tutti i workflow, quale che sia la città: per i controlli.</summary>
+        public List<TemplateRole> AllRoles => (Roles ?? new List<TemplateRole>()).Concat(AgentCity?.Roles ?? new List<TemplateRole>()).ToList();
+        public List<string> AllWorkflows => (Workflows ?? new List<string>()).Concat(AgentCity?.Workflows ?? new List<string>()).ToList();
+
+        /// <summary>Il template porta qualcosa che arriva solo con la città.</summary>
+        public bool HasAgentCityPart => AgentCity != null
+            && ((AgentCity.Roles?.Count ?? 0) + (AgentCity.Workflows?.Count ?? 0) + (AgentCity.Skills?.Count ?? 0)) > 0;
         public bool IsFoundation => Kind == Foundation;
         /// <summary>Un metodo o lo strato comune: porta solo la sua zona e le sue skill, e gli agenti con il suo id.</summary>
         public bool IsZoned => Kind == Method || Kind == Foundation;
@@ -137,6 +167,14 @@ namespace MdExplorer.Features.Templates
         public List<string> Languages { get; set; }
     }
 
+    /// <summary>La parte di un template che serve agli agenti (formato 2): si applica solo con la città accesa.</summary>
+    public sealed class TemplateAgentCity
+    {
+        public List<TemplateRole> Roles { get; set; }
+        public List<string> Workflows { get; set; }
+        public List<string> Skills { get; set; }
+    }
+
     /// <summary>La teoria in una lingua: <c>from</c> è la cartella nella zona, <c>to</c> quella del progetto in cui si copia.</summary>
     public sealed class TemplateTheory
     {
@@ -161,7 +199,8 @@ namespace MdExplorer.Features.Templates
     /// <summary>Legge il manifesto con tolleranza zero: una chiave sconosciuta o un valore sbagliato sono un problema detto.</summary>
     public static class TemplateManifestReader
     {
-        public const int FormatVersion = 1;
+        /// <summary>Il formato più nuovo che questo MDE conosce; legge anche il formato 1, quello dei progetti nati prima.</summary>
+        public const int FormatVersion = 2;
 
         private static readonly Regex Kebab = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
         private static readonly Regex SemVer = new(@"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$", RegexOptions.Compiled);
@@ -189,9 +228,9 @@ namespace MdExplorer.Features.Templates
             }
             if (m == null) { problems.Add(UiText.Say("il manifesto è vuoto", "the manifest is empty")); return null; }
 
-            if (m.MdeTemplate != FormatVersion)
-                problems.Add(UiText.Say($"mde_template: {m.MdeTemplate} non è un formato che questo MdExplorer conosce (conosce {FormatVersion}): aggiorna MdExplorer.",
-                                        $"mde_template: {m.MdeTemplate} is not a format this MdExplorer knows (it knows {FormatVersion}): update MdExplorer."));
+            if (m.MdeTemplate < 1 || m.MdeTemplate > FormatVersion)
+                problems.Add(UiText.Say($"mde_template: {m.MdeTemplate} non è un formato che questo MdExplorer conosce (conosce da 1 a {FormatVersion}): aggiorna MdExplorer.",
+                                        $"mde_template: {m.MdeTemplate} is not a format this MdExplorer knows (it knows 1 to {FormatVersion}): update MdExplorer."));
             if (string.IsNullOrWhiteSpace(m.Id) || !Kebab.IsMatch(m.Id))
                 problems.Add(UiText.Say($"id '{m.Id}': serve minuscole, cifre e trattini (es. gara-iso)", $"id '{m.Id}': lowercase letters, digits and dashes are needed (e.g. gara-iso)"));
             else if (m.Id != folderId)
@@ -231,8 +270,10 @@ namespace MdExplorer.Features.Templates
                         problems.Add(UiText.Say($"languages.{code}: manca structure, il ramo della struttura", $"languages.{code}: structure, the branch of the structure, is missing"));
                 }
 
+            CheckFormat2(m, problems);
+
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var r in m.Roles ?? new List<TemplateRole>())
+            foreach (var r in m.AllRoles)
             {
                 if (string.IsNullOrWhiteSpace(r?.Role)) { problems.Add(UiText.Say("roles: un ruolo senza role", "roles: a role without role")); continue; }
                 if (!seen.Add(r.Role.Trim()))
@@ -244,6 +285,19 @@ namespace MdExplorer.Features.Templates
             }
 
             foreach (var w in m.Workflows ?? new List<string>()) CheckPath(m, "workflows", w, problems);
+            foreach (var w in m.AgentCity?.Workflows ?? new List<string>()) CheckPath(m, "agent_city.workflows", w, problems);
+            foreach (var (key, folder) in (m.Skills ?? new List<string>()).Select(f => ("skills", f))
+                         .Concat((m.AgentCity?.Skills ?? new List<string>()).Select(f => ("agent_city.skills", f))))
+            {
+                CheckPath(m, key, folder, problems);
+                var name = folder?.Split('/').LastOrDefault();
+                if (m.Id != null && name != null && !name.StartsWith(m.Id + "-", StringComparison.Ordinal))
+                    problems.Add(UiText.Say($"{key}: la skill '{name}' non comincia con '{m.Id}-': le skill di un template portano il suo id",
+                                            $"{key}: the skill '{name}' does not start with '{m.Id}-': a template's skills carry its id"));
+            }
+            var skillNames = (m.Skills ?? new List<string>()).Concat(m.AgentCity?.Skills ?? new List<string>()).Select(f => f?.Split('/').LastOrDefault()).Where(n => n != null);
+            foreach (var twin in skillNames.GroupBy(n => n, StringComparer.Ordinal).Where(g => g.Count() > 1))
+                problems.Add(UiText.Say($"skills: la skill '{twin.Key}' compare due volte", $"skills: the skill '{twin.Key}' appears twice"));
             foreach (var (code, file) in m.Slides ?? new Dictionary<string, string>())
             {
                 if (!LanguageCode.IsMatch(code ?? string.Empty))
@@ -305,6 +359,34 @@ namespace MdExplorer.Features.Templates
             return m;
         }
 
+        /// <summary>
+        /// Le regole del formato 2 (C3): le chiavi nuove solo lì; in un metodo o nello strato comune ruoli e workflow stanno
+        /// in <c>agent_city</c>, perché arrivano solo con la città.
+        /// </summary>
+        private static void CheckFormat2(TemplateManifest m, List<string> problems)
+        {
+            if (!m.IsFormat2)
+            {
+                if (m.Skills != null || m.AgentCity != null)
+                    problems.Add(UiText.Say("skills e agent_city sono del formato 2: scrivi mde_template: 2",
+                                            "skills and agent_city belong to format 2: write mde_template: 2"));
+                return;
+            }
+            if (!m.IsZoned)
+            {
+                if (m.Skills != null || m.AgentCity != null)
+                    problems.Add(UiText.Say("skills e agent_city sono di un metodo o dello strato comune: un template di progetto ha tutto incluso",
+                                            "skills and agent_city belong to a method or the common layer: a project template has everything included"));
+                return;
+            }
+            if (m.Roles != null)
+                problems.Add(UiText.Say("roles: nel formato 2 i ruoli stanno in agent_city.roles, perché arrivano solo con la città degli agenti",
+                                        "roles: in format 2 the roles go in agent_city.roles, because they arrive only with the agent city"));
+            if (m.Workflows != null)
+                problems.Add(UiText.Say("workflows: nel formato 2 i workflow stanno in agent_city.workflows, perché arrivano solo con la città degli agenti",
+                                        "workflows: in format 2 the workflows go in agent_city.workflows, because they arrive only with the agent city"));
+        }
+
         /// <summary>Come <see cref="Read"/>, ma un problema è un'eccezione che li dice tutti.</summary>
         public static TemplateManifest ReadOrThrow(string yaml, string folderId, string where)
         {
@@ -343,9 +425,10 @@ namespace MdExplorer.Features.Templates
         /// La regola della zona: i file di un metodo che stanno fuori da <c>.mde-template/&lt;id&gt;/</c> e da
         /// <c>.claude/skills/&lt;id&gt;-*/</c>. Vuoto = il metodo si può unire senza toccare niente di altri.
         /// </summary>
-        public static List<string> OutsideZone(string id, IEnumerable<string> files)
+        /// <param name="skillsInZone">Formato 2: anche le skill stanno nella zona, e <c>.claude/skills/</c> nel ramo è fuori.</param>
+        public static List<string> OutsideZone(string id, IEnumerable<string> files, bool skillsInZone = false)
             => files.Where(f => !f.StartsWith(TemplateManifest.ZoneOf(id), StringComparison.Ordinal)
-                             && !f.StartsWith($".claude/skills/{id}-", StringComparison.Ordinal))
+                             && (skillsInZone || !f.StartsWith($".claude/skills/{id}-", StringComparison.Ordinal)))
                     .ToList();
 
         /// <summary>Confronta due versioni di MdExplorer (<c>2026.10.17</c>, <c>2026.10.16.8</c>) parte per parte.</summary>

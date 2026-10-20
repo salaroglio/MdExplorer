@@ -200,9 +200,23 @@ namespace MdExplorer.Services.AgentRegistry
             });
         }
 
+        /// <summary>La città degli agenti è accesa in <c>.development.yml</c>; un file che non si legge vale «spenta».</summary>
+        private bool AgentCityEnabled(string projectPath)
+        {
+            var file = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(file)) return false;
+            try { return MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.Enabled == true; }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "[Registry] {File} non si legge: le schede dei template non si registrano", file);
+                return false;
+            }
+        }
+
         private IEnumerable<DiscoveredAgentCard> DiscoverLlmAgents(string projectPath)
         {
             var result = new List<DiscoveredAgentCard>();
+            var cityOn = AgentCityEnabled(projectPath);
             IEngineDB engineDb = null;
             try
             {
@@ -214,6 +228,8 @@ namespace MdExplorer.Services.AgentRegistry
                     // stesso nome due volte, e un nome duplicato esclude TUTTI quelli che lo portano. Sul clone del
                     // demo inglese la rubrica si è svuotata e nessun agente poteva più scrivere a un collega.
                     .Where(f => !MdExplorer.Service.Services.FoldersIgnoreService.IsInsideAgentWorktrees(f.Path, projectPath))
+                    // Le schede dei template contano solo con la città accesa (C3): senza, nel progetto non ci sono agenti.
+                    .Where(f => cityOn || !MdExplorer.Service.Services.FoldersIgnoreService.IsInsideTemplateZones(f.Path, projectPath))
                     .ToList();
 
                 foreach (var f in files)

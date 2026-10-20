@@ -62,14 +62,14 @@ instructions: .mde-template/gara-iso/istruzioni.md
         public void Say_every_wrong_value()
         {
             var yaml = GaraIso
-                .Replace("mde_template: 1", "mde_template: 2")
+                .Replace("mde_template: 1", "mde_template: 3")
                 .Replace("kind: method", "kind: metodo")
                 .Replace("version: 1.2.0", "version: 1.2")
                 .Replace("agents: [gara-iso-account-manager]", "agents: [account-manager]")
                 .Replace("instructions: .mde-template/gara-iso/istruzioni.md", "instructions: CLAUDE.md");
             TemplateManifestReader.Read(yaml, "gara-iso", out var problems);
             var all = string.Join("\n", problems);
-            StringAssert.Contains(all, "mde_template: 2");
+            StringAssert.Contains(all, "mde_template: 3");
             StringAssert.Contains(all, "kind 'metodo'");
             StringAssert.Contains(all, "version '1.2'");
             // Con un kind sconosciuto le regole del metodo non si applicano: l'agente e il percorso non sono contati.
@@ -258,6 +258,54 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             TemplateManifestReader.Read(yaml, "demo", out var problems);
             Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
             StringAssert.Contains(problems[0], "a project template already has everything included");
+        }
+
+        private const string Format2 = @"mde_template: 2
+id: ddd
+kind: method
+title: Document Driven Development
+version: 2.0.0
+languages:
+  it: { structure: main }
+skills:
+  - .mde-template/ddd/skills/ddd-scrittura
+agent_city:
+  roles:
+    - { role: Redattore, agents: [ddd-redattore] }
+  workflows:
+    - .mde-template/ddd/workflows/fonte.md
+  skills:
+    - .mde-template/ddd/skills/ddd-redazione
+";
+
+        [TestMethod]
+        public void Read_the_format_2_with_the_agent_city_part_apart()
+        {
+            var m = TemplateManifestReader.Read(Format2, "ddd", out var problems);
+            Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
+            Assert.IsTrue(m.IsFormat2 && m.HasAgentCityPart);
+            Assert.AreEqual(0, m.RolesFor(cityOn: false).Count, "senza la città niente ruoli");
+            Assert.AreEqual("Redattore", m.RolesFor(cityOn: true).Single().Role);
+            Assert.AreEqual(0, m.WorkflowsFor(cityOn: false).Count);
+            CollectionAssert.AreEqual(new[] { ".mde-template/ddd/skills/ddd-scrittura" }, m.SkillsFor(cityOn: false));
+            CollectionAssert.AreEqual(new[] { ".mde-template/ddd/skills/ddd-scrittura", ".mde-template/ddd/skills/ddd-redazione" }, m.SkillsFor(cityOn: true));
+        }
+
+        [TestMethod]
+        public void Refuse_what_the_format_2_moved_and_what_the_format_1_does_not_have()
+        {
+            TemplateManifestReader.Read(Format2 + "roles:\n  - { role: Revisore }\nworkflows: [.mde-template/ddd/w.md]\n", "ddd", out var problems);
+            var all = string.Join("\n", problems);
+            StringAssert.Contains(all, "roles: in format 2 the roles go in agent_city.roles");
+            StringAssert.Contains(all, "workflows: in format 2 the workflows go in agent_city.workflows");
+
+            TemplateManifestReader.Read(Format2.Replace("mde_template: 2", "mde_template: 1"), "ddd", out problems);
+            StringAssert.Contains(string.Join("\n", problems), "skills and agent_city belong to format 2");
+
+            TemplateManifestReader.Read(Format2.Replace("ddd-scrittura", "scrittura").Replace("skills/ddd-redazione", "fuori/ddd-redazione").Replace(".mde-template/ddd/fuori", "docs"), "ddd", out problems);
+            all = string.Join("\n", problems);
+            StringAssert.Contains(all, "the skill 'scrittura' does not start with 'ddd-'");
+            StringAssert.Contains(all, "agent_city.skills: 'docs/ddd-redazione' is outside the method's folder");
         }
     }
 }

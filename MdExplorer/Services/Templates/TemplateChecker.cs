@@ -247,12 +247,17 @@ namespace MdExplorer.Services.Templates
             var zone = TemplateManifest.ZoneOf(manifest.Id);
             if (manifest.IsZoned)
             {
-                var outside = TemplateManifestReader.OutsideZone(manifest.Id, files);
+                var outside = TemplateManifestReader.OutsideZone(manifest.Id, files, skillsInZone: manifest.IsFormat2);
+                var allowed = manifest.IsFormat2 ? zone : $"{zone} e .claude/skills/{manifest.Id}-*/";
+                var allowedEn = manifest.IsFormat2 ? zone : $"{zone} and .claude/skills/{manifest.Id}-*/";
                 foreach (var f in outside.Take(MaxListed))
                     issues.Add(Err(branch, f,
-                        UiText.Say($"Il file è fuori dalla zona del metodo ({zone} e .claude/skills/{manifest.Id}-*/): MDE non unisce il metodo.",
-                                   $"The file is outside the method's zone ({zone} and .claude/skills/{manifest.Id}-*/): MDE will not merge the method."),
-                        UiText.Say($"Spostalo in {zone}; se deve finire nel progetto, dichiaralo in seeds.", $"Move it into {zone}; if it must end up in the project, declare it in seeds.")));
+                        UiText.Say($"Il file è fuori dalla zona del metodo ({allowed}): MDE non unisce il metodo.",
+                                   $"The file is outside the method's zone ({allowedEn}): MDE will not merge the method."),
+                        manifest.IsFormat2 && f.StartsWith(".claude/skills/", StringComparison.Ordinal)
+                            ? UiText.Say($"Nel formato 2 le skill stanno in {zone}: spostala lì e dichiarala in skills o in agent_city.skills, MDE la copia in .claude/skills/.",
+                                         $"In format 2 the skills live in {zone}: move it there and declare it in skills or agent_city.skills, MDE copies it into .claude/skills/.")
+                            : UiText.Say($"Spostalo in {zone}; se deve finire nel progetto, dichiaralo in seeds.", $"Move it into {zone}; if it must end up in the project, declare it in seeds.")));
                 if (outside.Count > MaxListed)
                     issues.Add(Err(branch, null, UiText.Say($"E altri {outside.Count - MaxListed} file fuori dalla zona.", $"And {outside.Count - MaxListed} more files outside the zone."), null));
             }
@@ -270,7 +275,8 @@ namespace MdExplorer.Services.Templates
                     UiText.Say($"Aggiungi in slides la riga en con una presentazione markdown in {zone} (vedi la skill mde-slide).",
                                $"Add the en line to slides with a markdown presentation in {zone} (see the mde-slide skill).")));
 
-            var named = (manifest.Workflows ?? new List<string>()).Append(manifest.Instructions)
+            var named = manifest.AllWorkflows.Append(manifest.Instructions)
+                .Concat(manifest.SkillsFor(cityOn: true).Select(f => f + "/SKILL.md"))
                 .Concat((manifest.Seeds ?? new List<TemplateSeed>()).Select(s => s.From)).Where(f => f != null);
             var missing = named.Where(f => !files.Contains(f)).Distinct().ToList();
             // Le slide non entrano nel progetto come il resto: un file che manca non ferma la prova dei workflow.
@@ -286,6 +292,14 @@ namespace MdExplorer.Services.Templates
 
             CheckCards(root, files, branch, manifest, issues);
             CheckSkills(root, files, branch, issues);
+            foreach (var folder in manifest.SkillsFor(cityOn: true).Where(f => files.Contains(f + "/SKILL.md")))
+            {
+                var name = folder.Split('/').Last();
+                var m = SkillName.Match(File.ReadAllText(Full(root, folder + "/SKILL.md")));
+                if (!m.Success || m.Groups[1].Value.Trim() != name)
+                    issues.Add(Err(branch, folder + "/SKILL.md",
+                        UiText.Say($"Il front matter della skill deve avere «name: {name}», il nome della sua cartella.", $"The skill's front matter must have «name: {name}», its folder's name."), null));
+            }
             if (missing.Count == 0) CheckAsProject(root, files, branch, manifest, issues);
             return manifest;
         }
@@ -333,7 +347,7 @@ namespace MdExplorer.Services.Templates
                 if (!names.Add(name))
                     issues.Add(Err(branch, card, UiText.Say($"Due schede '{name}': MDE non sa quale usare.", $"Two cards '{name}': MDE does not know which to use."), null));
             }
-            foreach (var role in manifest.Roles ?? new List<TemplateRole>())
+            foreach (var role in manifest.AllRoles)
                 foreach (var agent in (role.Agents ?? new List<string>()).Where(a => !names.Contains(a)))
                     issues.Add(Err(branch, TemplateManifest.PathOf(manifest.Id),
                         UiText.Say($"Il ruolo «{role.Role}» nomina l'agente '{agent}', che nel ramo non ha la scheda.", $"The role «{role.Role}» names the agent '{agent}', which has no card in the branch."), null));
@@ -388,7 +402,7 @@ namespace MdExplorer.Services.Templates
                             UiText.Say("Portala con un seme, o toglila da programs.", "Bring it with a seed, or remove it from programs.")));
 
                 var ownership = OwnershipDocOf(project, branch, manifest, issues);
-                var roles = (manifest.Roles ?? new List<TemplateRole>()).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
+                var roles = manifest.AllRoles.Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
                 if (roles.Count > 0)
                 {
                     var full = Full(project, ownership);
@@ -399,7 +413,7 @@ namespace MdExplorer.Services.Templates
                 }
                 var ownershipDoc = File.Exists(Full(project, ownership)) ? ownership : null;
 
-                var docs = manifest.Workflows ?? new List<string>();
+                var docs = manifest.AllWorkflows;
                 var clean = true;
                 foreach (var doc in docs)
                 {

@@ -189,7 +189,8 @@ namespace MdExplorer.Services.Templates
                 var (harness, engineChosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
                 await Run(path, ct, "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName);
 
-                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, tookExample, WantsTheory(request.TemplateUrl)), ct)).ToList();
+                var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, tookExample, WantsTheory(request.TemplateUrl)), ct,
+                    cityOn: request.AgentCity)).ToList();
                 if (request.Example && !tookExample) notes.Add(NoExampleNote(manifest, request.Language));
                 if (harness == HarnessTarget.None)
                     notes.Insert(0, UiText.Say("Il progetto non ha un motore: gli agenti e MarkAgent non partono finché non ne scegli uno nelle impostazioni.",
@@ -203,7 +204,8 @@ namespace MdExplorer.Services.Templates
                 // Gli altri metodi, nell'ordine: ognuno con la sua unione e il suo commit.
                 var methods = new List<TemplateAddOutcome>();
                 foreach (var url in request.Methods ?? Array.Empty<string>())
-                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct, exampleIfAny: true));
+                    methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct, exampleIfAny: true,
+                        cityOn: request.AgentCity));
 
                 // La città degli agenti, se scelta (C1): dopo i metodi, con un commit suo.
                 if (request.AgentCity)
@@ -295,7 +297,7 @@ namespace MdExplorer.Services.Templates
         /// struttura, e una nota lo dice. Aggiungendo un metodo da solo, l'esempio chiesto e assente resta un errore.
         /// </param>
         private async Task<TemplateAddOutcome> MergeMethodAsync(string path, string url, string language, bool example, bool theory, string mdeVersion, CancellationToken ct,
-            bool exampleIfAny = false)
+            bool exampleIfAny = false, bool? cityOn = null)
         {
             var present = PresentTemplates(path);
             var (tip, _, manifest, tookExample) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct, exampleIfAny);
@@ -318,7 +320,7 @@ namespace MdExplorer.Services.Templates
             if (!merge.Ok)
                 throw Problem($"Il metodo non si unisce al progetto: {merge.Describe()}", $"The method does not merge into the project: {merge.Describe()}");
 
-            var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, url, language, tookExample, theory), ct)).ToList();
+            var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, url, language, tookExample, theory), ct, cityOn: cityOn)).ToList();
             if (example && !tookExample) notes.Add(NoExampleNote(manifest, language));
             await Run(path, ct, "commit", "-q", "-m",
                 UiText.Say($"Metodo «{manifest.Title}» {manifest.Version} aggiunto dal template", $"Method «{manifest.Title}» {manifest.Version} added from the template"));
@@ -396,14 +398,20 @@ namespace MdExplorer.Services.Templates
         /// e i workflow nuovi si aggiungono, quelli che il metodo non ha più restano e lo si dice; il blocco delle istruzioni si
         /// sostituisce.
         /// </param>
+        /// <param name="cityOn">
+        /// La città degli agenti accesa per il progetto (C3): con il formato 2 decide se arrivano ruoli, workflow e skill degli
+        /// agenti. Null = come dice <c>.development.yml</c>; alla creazione la dice la richiesta, perché la città arriva dopo.
+        /// </param>
         private async Task<IReadOnlyList<string>> ApplyManifestAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, CancellationToken ct,
-            bool update = false, TemplateManifest previous = null)
+            bool update = false, TemplateManifest previous = null, bool? cityOn = null)
         {
             var notes = new List<string>();
             var touched = new List<string> { DevelopmentConfigCleanup.FileName };
             try
             {
-                await ApplyManifestCoreAsync(path, manifest, row, notes, touched, update, previous, ct);
+                var city = cityOn ?? (File.Exists(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName))
+                    && DevelopmentConfigCleanup.ReadStrict(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName)).AgentCity?.Enabled == true);
+                await ApplyManifestCoreAsync(path, manifest, row, notes, touched, update, previous, city, ct);
             }
             finally
             {
@@ -415,7 +423,7 @@ namespace MdExplorer.Services.Templates
         }
 
         private async Task ApplyManifestCoreAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, List<string> notes, List<string> touched,
-            bool update, TemplateManifest previous, CancellationToken ct)
+            bool update, TemplateManifest previous, bool cityOn, CancellationToken ct)
         {
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
             var config = File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file) : new DevelopmentConfig();
@@ -431,20 +439,20 @@ namespace MdExplorer.Services.Templates
             // Ciò che la versione nuova non porta più resta nel progetto (è del gruppo, ora): lo si dice.
             if (previous != null)
             {
-                var goneRoles = (previous.Roles ?? new List<TemplateRole>()).Select(r => r.Role)
-                    .Where(r => !(manifest.Roles ?? new List<TemplateRole>()).Any(n => string.Equals(n.Role, r, StringComparison.OrdinalIgnoreCase))).ToList();
+                var goneRoles = previous.RolesFor(cityOn).Select(r => r.Role)
+                    .Where(r => !manifest.RolesFor(cityOn).Any(n => string.Equals(n.Role, r, StringComparison.OrdinalIgnoreCase))).ToList();
                 if (goneRoles.Count > 0)
                     notes.Add(UiText.Say($"La versione nuova non ha più i ruoli {string.Join(", ", goneRoles)}: restano nel documento delle responsabilità, toglili tu se non servono.",
                                          $"The new version no longer has the roles {string.Join(", ", goneRoles)}: they stay in the responsibilities document, remove them yourself if not needed."));
-                var goneDocs = (previous.Workflows ?? new List<string>())
-                    .Where(d => !(manifest.Workflows ?? new List<string>()).Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
+                var goneDocs = previous.WorkflowsFor(cityOn)
+                    .Where(d => !manifest.WorkflowsFor(cityOn).Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
                 if (goneDocs.Count > 0)
                     notes.Add(UiText.Say($"La versione nuova non ha più i workflow {string.Join(", ", goneDocs)}: restano nell'elenco del progetto, toglili dalle impostazioni se non servono.",
                                          $"The new version no longer has the workflows {string.Join(", ", goneDocs)}: they stay in the project's list, remove them from the settings if not needed."));
             }
 
             // I ruoli: righe aperte nel documento delle responsabilità; se il progetto non ne ha uno, nasce alla radice.
-            var roles = (manifest.Roles ?? new List<TemplateRole>()).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
+            var roles = manifest.RolesFor(cityOn).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
             if (roles.Count > 0)
             {
                 config.AgentCity ??= new AgentCityConfig();
@@ -469,7 +477,7 @@ namespace MdExplorer.Services.Templates
             }
 
             // I workflow del metodo nell'elenco del progetto (PW).
-            var docs = manifest.Workflows ?? new List<string>();
+            var docs = manifest.WorkflowsFor(cityOn);
             var docsBefore = (config.AgentCity?.WorkflowDocs ?? new List<string>()).ToList();
             if (docs.Count > 0)
             {
@@ -479,8 +487,9 @@ namespace MdExplorer.Services.Templates
                 config.AgentCity.WorkflowDocs.AddRange(newDocs);
                 if (newDocs.Count > 0)
                     notes.Add(UiText.Say($"Workflow del progetto: {string.Join(", ", newDocs)}.", $"Project workflows: {string.Join(", ", newDocs)}."));
-                // I workflow girano nella città degli agenti: un metodo che li porta la accende (P5), e lo dice.
-                if (!config.AgentCity.Enabled)
+                // I workflow girano nella città degli agenti: un metodo del formato 1 che li porta la accende (P5), e lo dice.
+                // Nel formato 2 i workflow arrivano solo con la città, che sceglie chi crea il progetto (C3).
+                if (!config.AgentCity.Enabled && !manifest.IsFormat2)
                 {
                     config.AgentCity.Enabled = true;
                     notes.Add(UiText.Say($"Città degli agenti accesa: i workflow di «{manifest.Title}» girano lì.",
@@ -518,6 +527,7 @@ namespace MdExplorer.Services.Templates
                     notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
             }
 
+            ApplySkills(path, manifest, cityOn, notes, touched);
             await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
             await ApplyTheoryAsync(path, manifest, row, notes, touched, update, previous, ct);
             ApplyPrograms(path, manifest, notes);
@@ -540,7 +550,7 @@ namespace MdExplorer.Services.Templates
                     if (before == null)
                         throw Problem($"Con «{manifest.Title}» i workflow del progetto non si leggono: {problem}",
                                       $"With «{manifest.Title}» the project's workflows cannot be read: {problem}");
-                    var own = (manifest.Workflows ?? new List<string>()).ToList();
+                    var own = manifest.WorkflowsFor(cityOn).ToList();
                     if (own.Count > 0)
                     {
                         MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadAll(path, own, ownershipDoc, out var mine);
@@ -551,7 +561,10 @@ namespace MdExplorer.Services.Templates
                                          $"The project's workflows could not be read already before «{manifest.Title}» ({before}): until they are fixed, they all stay stopped."));
                 }
             }
-            if (manifest.Roles?.Any(r => r.Agents?.Count > 0) == true)
+            if (manifest.IsFormat2 && manifest.HasAgentCityPart && !cityOn)
+                notes.Add(UiText.Say($"«{manifest.Title}» ha agenti, ruoli e workflow per la città degli agenti: arrivano quando la accendi.",
+                                     $"«{manifest.Title}» has agents, roles and workflows for the agent city: they arrive when you turn it on."));
+            if (manifest.RolesFor(cityOn).Any(r => r.Agents?.Count > 0))
                 notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
                                      "The method's agents start once someone declares them theirs («It is mine») and trusts them."));
 
@@ -563,6 +576,35 @@ namespace MdExplorer.Services.Templates
         /// nuova ha cambiato è solo una nota (il confronto è con il commit di prima dell'unione, che è ancora HEAD), e un seme
         /// che c'era già nella versione di prima non rinasce: se manca, il gruppo l'ha tolto.
         /// </summary>
+        /// <summary>
+        /// Le skill del template nel formato 2 (C3): ogni cartella dichiarata si copia dalla zona in <c>.claude/skills/</c>, dove
+        /// i motori la leggono — quelle di <c>agent_city</c> solo con la città accesa. Sono del metodo, come le skill di MDE: a
+        /// ogni aggiornamento si riscrivono con quelle della versione nuova.
+        /// </summary>
+        private void ApplySkills(string path, TemplateManifest manifest, bool cityOn, List<string> notes, List<string> touched)
+        {
+            var copied = new List<string>();
+            foreach (var folder in manifest.SkillsFor(cityOn))
+            {
+                var source = System.IO.Path.Combine(path, folder.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (!File.Exists(System.IO.Path.Combine(source, "SKILL.md")))
+                    throw Problem($"La skill {folder} del template «{manifest.Title}» non ha il suo SKILL.md.", $"The skill {folder} of the template «{manifest.Title}» has no SKILL.md.");
+                var name = folder.Split('/').Last();
+                foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+                {
+                    var relative = System.IO.Path.GetRelativePath(source, file).Replace('\\', '/');
+                    var target = $".claude/skills/{name}/{relative}";
+                    var full = System.IO.Path.Combine(path, target.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full));
+                    File.Copy(file, full, overwrite: true);
+                    touched.Add(target);
+                }
+                copied.Add(name);
+            }
+            if (copied.Count > 0)
+                notes.Add(UiText.Say($"Skill del template in .claude/skills/: {string.Join(", ", copied)}.", $"Template skills in .claude/skills/: {string.Join(", ", copied)}."));
+        }
+
         private async Task ApplySeedsAsync(string path, TemplateManifest manifest, List<string> notes, List<string> touched, bool update,
             TemplateManifest previous, CancellationToken ct)
         {
@@ -821,12 +863,13 @@ namespace MdExplorer.Services.Templates
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToHashSet(StringComparer.Ordinal);
             if (manifest.IsZoned)
             {
-                var outside = TemplateManifestReader.OutsideZone(manifest.Id, files);
+                var outside = TemplateManifestReader.OutsideZone(manifest.Id, files, skillsInZone: manifest.IsFormat2);
                 if (outside.Count > 0)
                     throw Problem($"Il metodo «{manifest.Title}» ha file fuori dalla sua cartella ({string.Join(", ", outside.Take(5))}): non lo unisco.",
                                   $"The method «{manifest.Title}» has files outside its folder ({string.Join(", ", outside.Take(5))}): I will not merge it.");
             }
-            var missing = (manifest.Workflows ?? new List<string>()).Append(manifest.Instructions)
+            var missing = manifest.AllWorkflows.Append(manifest.Instructions)
+                .Concat(manifest.SkillsFor(cityOn: true).Select(f => f + "/SKILL.md"))
                 .Concat((manifest.Seeds ?? new List<TemplateSeed>()).Select(s => s.From)).Where(f => f != null && !files.Contains(f)).ToList();
             if (missing.Count > 0)
                 throw Problem($"Il manifesto del template nomina file che nel ramo non ci sono: {string.Join(", ", missing)}.",

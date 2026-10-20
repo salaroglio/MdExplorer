@@ -135,6 +135,18 @@ namespace MdExplorer.Service.Services
         /// lo stesso nome, che risponderebbe alle stesse convocazioni.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// Il file sta nella cartella dei template del progetto (<c>.mde-template/</c>): una scheda d'agente lì è di un
+        /// template, e conta solo con la città degli agenti accesa (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C3).
+        /// </summary>
+        public static bool IsInsideTemplateZones(string fullPath, string projectPath)
+        {
+            if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(projectPath)) return false;
+            var root = Path.Combine(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), ".mde-template");
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || fullPath.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IsInsideAgentWorktrees(string fullPath, string projectPath)
         {
             if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(projectPath))
