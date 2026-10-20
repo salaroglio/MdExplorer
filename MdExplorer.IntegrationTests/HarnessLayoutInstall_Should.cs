@@ -43,7 +43,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Install_the_copilot_catalogs_exactly_where_they_have_always_been()
         {
-            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
 
             CollectionAssert.AreEqual(
                 new[]
@@ -59,6 +59,7 @@ namespace MdExplorer.IntegrationTests
                     ".github/skills/mde-e2e-signals/SKILL.md",
                     ".github/skills/mde-e2e/SKILL.md",
                     ".github/skills/mde-features/SKILL.md",
+                    ".github/skills/mde-ownership/SKILL.md",
                     ".github/skills/mde-plantuml/SKILL.md",
                     ".github/skills/mde-prompt-for-agents/SKILL.md",
                     ".github/skills/mde-readme/SKILL.md",
@@ -73,7 +74,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Add_the_fuseki_skills_only_when_fuseki_is_configured()
         {
-            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: true);
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: true, agentCityEnabled: true);
 
             var produced = ProducedFiles();
             foreach (var name in new[] { "mde-tbox", "mde-abox", "mde-shacl" })
@@ -81,13 +82,13 @@ namespace MdExplorer.IntegrationTests
                 CollectionAssert.Contains(produced, $".github/skills/{name}/SKILL.md",
                     $"la skill Fuseki '{name}' deve comparire quando Fuseki è configurato");
             }
-            Assert.AreEqual(20, produced.Length, "15 skill (mde-template dal 18/10) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
+            Assert.AreEqual(21, produced.Length, "16 skill (mde-template dal 18/10, mde-ownership dal 20/10 con la città) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
         }
 
         [TestMethod]
         public void Write_the_mde_version_marker_in_every_file_it_installs()
         {
-            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: true);
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: true, agentCityEnabled: true);
 
             foreach (var relative in ProducedFiles())
             {
@@ -107,7 +108,7 @@ namespace MdExplorer.IntegrationTests
             var mine = "---\nname: mde-doc\ndescription: la mia versione\n---\n\nRegole mie.\n";
             File.WriteAllText(skill, mine);
 
-            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
 
             Assert.AreEqual(mine, File.ReadAllText(skill),
                 "un file senza marker mde: appartiene all'utente e non va sovrascritto");
@@ -116,7 +117,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Install_the_opencode_catalogs_where_opencode_reads_them()
         {
-            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.OpenCode, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.OpenCode, fusekiEnabled: false, agentCityEnabled: true);
 
             CollectionAssert.AreEqual(
                 new[]
@@ -132,6 +133,7 @@ namespace MdExplorer.IntegrationTests
                     ".opencode/skills/mde-e2e-signals/SKILL.md",
                     ".opencode/skills/mde-e2e/SKILL.md",
                     ".opencode/skills/mde-features/SKILL.md",
+                    ".opencode/skills/mde-ownership/SKILL.md",
                     ".opencode/skills/mde-plantuml/SKILL.md",
                     ".opencode/skills/mde-prompt-for-agents/SKILL.md",
                     ".opencode/skills/mde-readme/SKILL.md",
@@ -146,7 +148,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Give_the_opencode_agent_the_frontmatter_opencode_understands()
         {
-            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.OpenCode, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.OpenCode, fusekiEnabled: false, agentCityEnabled: true);
 
             var agent = File.ReadAllText(HarnessLayout.OpenCode.AgentFullPath(_root, "mde-skillcreator"));
 
@@ -168,8 +170,8 @@ namespace MdExplorer.IntegrationTests
             Directory.CreateDirectory(copilotRoot);
             Directory.CreateDirectory(opencodeRoot);
 
-            MdeSkillUpdater.EnsureCatalogsInstalled(copilotRoot, HarnessLayout.Copilot, fusekiEnabled: false);
-            MdeSkillUpdater.EnsureCatalogsInstalled(opencodeRoot, HarnessLayout.OpenCode, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(copilotRoot, HarnessLayout.Copilot, fusekiEnabled: false, agentCityEnabled: true);
+            MdeSkillUpdater.EnsureCatalogsInstalled(opencodeRoot, HarnessLayout.OpenCode, fusekiEnabled: false, agentCityEnabled: true);
 
             var copilotAgent = File.ReadAllText(HarnessLayout.Copilot.AgentFullPath(copilotRoot, "mde-skillcreator"));
             var opencodeAgent = File.ReadAllText(HarnessLayout.OpenCode.AgentFullPath(opencodeRoot, "mde-skillcreator"));
@@ -235,6 +237,23 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(HarnessTarget.OpenCode, oc);
             Assert.IsTrue(HarnessLayout.TryParseId("none", out var none));
             Assert.AreEqual(HarnessTarget.None, none);
+        }
+
+        [TestMethod]
+        public void Install_the_skills_of_the_agents_only_with_the_agent_city()
+        {
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
+            var withoutCity = ProducedFiles();
+            foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
+                CollectionAssert.DoesNotContain(withoutCity, $".github/skills/{name}/SKILL.md", $"'{name}' serve solo agli agenti: senza la città non c'è");
+            CollectionAssert.Contains(withoutCity, ".github/skills/mde-doc/SKILL.md");
+
+            // La città si legge da .development.yml, come la scrive MDE quando la accende.
+            File.WriteAllText(Path.Combine(_root, ".development.yml"), "agentCity:\n  enabled: true\n");
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
+            var withCity = ProducedFiles();
+            foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
+                CollectionAssert.Contains(withCity, $".github/skills/{name}/SKILL.md", $"'{name}' arriva con la città");
         }
     }
 }

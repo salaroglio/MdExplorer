@@ -74,6 +74,7 @@ instructions: .mde-template/ddd/istruzioni.md
 
             Assert.AreEqual("# Base\n", Read(path, ".claude/skills/ddd-base/SKILL.md").Split("---\n").Last(), "la skill di base, copiata dalla zona");
             Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills", "ddd-modella")), "la skill degli agenti no");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills", "mde-workflow")), "nemmeno quelle di MDE per gli agenti");
             var yml = Read(path, ".development.yml");
             Assert.IsFalse(yml.Contains("workflowDocs"), yml);
             Assert.IsFalse(yml.Contains("agentCity:\n  enabled: true"), "la città resta spenta:\n" + yml);

@@ -97,6 +97,12 @@ namespace MdExplorer.Services.Templates
                               $"With the agent city the project's workflows cannot be read: {problem}");
             await _git.RunAsync(path, new[] { "add", "--" }.Concat(touched.Distinct()).ToArray(), ct);
 
+            // Le skill di MDE per gli agenti si installano solo con la città (C4): ora che è accesa, arrivano. Senza un
+            // motore MDE non installa niente, come sempre.
+            var harness = HarnessSettings.Read(path);
+            if (harness != null && harness != HarnessTarget.None)
+                MdeSkillUpdater.EnsureCatalogsInstalled(path, HarnessLayout.For(harness.Value), agentCityEnabled: true);
+
             notes.Add(UiText.Say(
                 $"Città degli agenti accesa, con il workflow d'esempio {starter.WorkflowDoc}: prendi il ruolo «{starter.Role}» in {ownership}, dichiara tuo l'agente {starter.Agent} («È mio») e lancialo.",
                 $"Agent city turned on, with the example workflow {starter.WorkflowDoc}: take the role «{starter.Role}» in {ownership}, declare the agent {starter.Agent} yours («It is mine») and launch it."));

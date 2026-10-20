@@ -37,6 +37,8 @@ namespace MdExplorer.IntegrationTests
             foreach (var file in new[] { "citta/ciao.md", "citta/ciao.workflow.json", "citta/agenti/citta-ciao.agent.md" })
                 Assert.IsTrue(File.Exists(Path.Combine(path, file)), file);
             Assert.IsFalse(Directory.Exists(Path.Combine(path, "citta", "guida")), "la documentazione non è stata chiesta");
+            foreach (var skill in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
+                Assert.IsTrue(File.Exists(Path.Combine(path, ".claude", "skills", skill, "SKILL.md")), $"con la città arriva la skill {skill}");
             var yml = Read(path, ".development.yml");
             StringAssert.Contains(yml, "agentCity:\n  enabled: true");
             StringAssert.Contains(yml, "  - citta/ciao.md");

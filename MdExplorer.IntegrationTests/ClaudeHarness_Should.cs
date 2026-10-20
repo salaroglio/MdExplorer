@@ -72,7 +72,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Install_the_catalogs_where_claude_code_reads_them()
         {
-            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.Claude, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.Claude, fusekiEnabled: false, agentCityEnabled: true);
 
             CollectionAssert.AreEqual(
                 new[]
@@ -88,6 +88,7 @@ namespace MdExplorer.IntegrationTests
                     ".claude/skills/mde-e2e-signals/SKILL.md",
                     ".claude/skills/mde-e2e/SKILL.md",
                     ".claude/skills/mde-features/SKILL.md",
+                    ".claude/skills/mde-ownership/SKILL.md",
                     ".claude/skills/mde-plantuml/SKILL.md",
                     ".claude/skills/mde-prompt-for-agents/SKILL.md",
                     ".claude/skills/mde-readme/SKILL.md",
@@ -102,7 +103,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Give_the_agent_the_frontmatter_claude_code_understands()
         {
-            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.Claude, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(_root, HarnessLayout.Claude, fusekiEnabled: false, agentCityEnabled: true);
 
             var agent = File.ReadAllText(HarnessLayout.Claude.AgentFullPath(_root, "mde-skillcreator"));
 
@@ -122,8 +123,8 @@ namespace MdExplorer.IntegrationTests
             Directory.CreateDirectory(copilotRoot);
             Directory.CreateDirectory(claudeRoot);
 
-            MdeSkillUpdater.EnsureCatalogsInstalled(copilotRoot, HarnessLayout.Copilot, fusekiEnabled: false);
-            MdeSkillUpdater.EnsureCatalogsInstalled(claudeRoot, HarnessLayout.Claude, fusekiEnabled: false);
+            MdeSkillUpdater.EnsureCatalogsInstalled(copilotRoot, HarnessLayout.Copilot, fusekiEnabled: false, agentCityEnabled: true);
+            MdeSkillUpdater.EnsureCatalogsInstalled(claudeRoot, HarnessLayout.Claude, fusekiEnabled: false, agentCityEnabled: true);
 
             var copilotAgent = File.ReadAllText(HarnessLayout.Copilot.AgentFullPath(copilotRoot, "mde-skillcreator"));
             var claudeAgent = File.ReadAllText(HarnessLayout.Claude.AgentFullPath(claudeRoot, "mde-skillcreator"));

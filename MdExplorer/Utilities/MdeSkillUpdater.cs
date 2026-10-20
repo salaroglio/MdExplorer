@@ -100,11 +100,13 @@ namespace MdExplorer.Utilities
             public CatalogEntry(
                 string name,
                 IReadOnlyDictionary<HarnessTarget, AssetSource> sources,
-                bool requiresFuseki = false)
+                bool requiresFuseki = false,
+                bool requiresAgentCity = false)
             {
                 Name = name;
                 _sources = sources;
                 RequiresFuseki = requiresFuseki;
+                RequiresAgentCity = requiresAgentCity;
             }
 
             public string Name { get; }
@@ -114,6 +116,12 @@ namespace MdExplorer.Utilities
             /// installed ONLY for projects that have the Fuseki integration enabled and configured.
             /// </summary>
             public bool RequiresFuseki { get; }
+
+            /// <summary>
+            /// True for the assets that only serve the agent city (cards, workflows, the responsibilities document): they
+            /// are installed ONLY when the project's agent city is on (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C4).
+            /// </summary>
+            public bool RequiresAgentCity { get; }
 
             public AssetSource SourceFor(HarnessTarget target)
             {
@@ -156,9 +164,11 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-tbox", Shared("MdExplorer.Service.skills.mde_tbox.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-abox", Shared("MdExplorer.Service.skills.mde_abox.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-shacl", Shared("MdExplorer.Service.skills.mde_shacl.SKILL.md"), requiresFuseki: true),
-            new CatalogEntry("mde-prompt-for-agents", Shared("MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md")),
-            new CatalogEntry("mde-agent", Shared("MdExplorer.Service.skills.mde_agent.SKILL.md")),
-            new CatalogEntry("mde-workflow", Shared("MdExplorer.Service.skills.mde_workflow.SKILL.md")),
+            // Solo con la città degli agenti (C4): senza, nel progetto non ci sono agenti da scrivere né da far lavorare.
+            new CatalogEntry("mde-prompt-for-agents", Shared("MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md"), requiresAgentCity: true),
+            new CatalogEntry("mde-agent", Shared("MdExplorer.Service.skills.mde_agent.SKILL.md"), requiresAgentCity: true),
+            new CatalogEntry("mde-workflow", Shared("MdExplorer.Service.skills.mde_workflow.SKILL.md"), requiresAgentCity: true),
+            new CatalogEntry("mde-ownership", Shared("MdExplorer.Service.skills.mde_ownership.SKILL.md"), requiresAgentCity: true),
             // Per chi scrive un template di progetto (metodo o base): sempre, il repository di un template si apre come un progetto.
             new CatalogEntry("mde-template", Shared("MdExplorer.Service.skills.mde_template.SKILL.md")),
             new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md")),
@@ -233,8 +243,9 @@ namespace MdExplorer.Utilities
         /// on disk (a project that later disables Fuseki keeps any already-deployed
         /// copies).
         /// </param>
-        public static void EnsureAllSkillsInstalled(string projectPath, bool fusekiEnabled = false)
-            => EnsureCatalogsInstalled(projectPath, HarnessLayout.Copilot, fusekiEnabled);
+        /// <param name="agentCityEnabled">See <see cref="EnsureCatalogsInstalled"/>.</param>
+        public static void EnsureAllSkillsInstalled(string projectPath, bool fusekiEnabled = false, bool? agentCityEnabled = null)
+            => EnsureCatalogsInstalled(projectPath, HarnessLayout.Copilot, fusekiEnabled, agentCityEnabled);
 
         /// <summary>
         /// Installs/updates the three catalogs at the places <paramref name="layout"/> prescribes.
@@ -242,27 +253,46 @@ namespace MdExplorer.Utilities
         /// <param name="projectPath">Project root.</param>
         /// <param name="layout">Harness layout deciding folders and file names.</param>
         /// <param name="fusekiEnabled">See <see cref="EnsureAllSkillsInstalled"/>.</param>
-        public static void EnsureCatalogsInstalled(string projectPath, HarnessLayout layout, bool fusekiEnabled = false)
+        /// <param name="agentCityEnabled">
+        /// Whether the project's agent city is on: the assets that only serve agents are installed only then. Null = read it
+        /// from the project's <c>.development.yml</c> (<c>agentCity.enabled</c>), the source of truth. Like Fuseki, this only
+        /// gates installation: copies already on disk are left alone.
+        /// </param>
+        public static void EnsureCatalogsInstalled(string projectPath, HarnessLayout layout, bool fusekiEnabled = false, bool? agentCityEnabled = null)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
                 return;
             if (layout == null)
                 throw new ArgumentNullException(nameof(layout));
+            var cityOn = agentCityEnabled ?? AgentCityEnabled(projectPath);
 
             InstallCatalog(
-                projectPath, layout, BuiltInSkills, kind: "skill", fusekiEnabled,
+                projectPath, layout, BuiltInSkills, kind: "skill", fusekiEnabled, cityOn,
                 folder: layout.SkillsFolder,
                 targetPathFor: name => layout.SkillFullPath(projectPath, name));
 
             InstallCatalog(
-                projectPath, layout, BuiltInAgents, kind: "agent", fusekiEnabled,
+                projectPath, layout, BuiltInAgents, kind: "agent", fusekiEnabled, cityOn,
                 folder: layout.AgentsFolder,
                 targetPathFor: name => layout.AgentFullPath(projectPath, name));
 
             InstallCatalog(
-                projectPath, layout, BuiltInPrompts, kind: "prompt", fusekiEnabled,
+                projectPath, layout, BuiltInPrompts, kind: "prompt", fusekiEnabled, cityOn,
                 folder: layout.PromptsFolder,
                 targetPathFor: name => layout.PromptFullPath(projectPath, name));
+        }
+
+        /// <summary>The agent city is on in the project's <c>.development.yml</c>; a file that cannot be read counts as off.</summary>
+        private static bool AgentCityEnabled(string projectPath)
+        {
+            var file = Path.Combine(projectPath, DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(file)) return false;
+            try { return DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.Enabled == true; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[MdeSkillUpdater] {file} cannot be read ({ex.Message}): the agent-city assets are not installed.");
+                return false;
+            }
         }
 
         private static void InstallCatalog(
@@ -271,6 +301,7 @@ namespace MdExplorer.Utilities
             IReadOnlyList<CatalogEntry> catalog,
             string kind,
             bool fusekiEnabled,
+            bool agentCityEnabled,
             string folder,
             Func<string, string> targetPathFor)
         {
@@ -284,6 +315,11 @@ namespace MdExplorer.Utilities
                 if (entry.RequiresFuseki && !fusekiEnabled)
                 {
                     Console.WriteLine($"[MdeSkillUpdater] Skipped Fuseki {kind} '{entry.Name}' (Fuseki not configured for this project).");
+                    continue;
+                }
+                if (entry.RequiresAgentCity && !agentCityEnabled)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Skipped agent-city {kind} '{entry.Name}' (the project's agent city is off).");
                     continue;
                 }
                 try
