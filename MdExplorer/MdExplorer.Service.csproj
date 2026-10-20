@@ -262,6 +262,10 @@
          WithCulture=false: senza, MSBuild legge «.it»/«.en» come una cultura e la manda in una dll satellite. -->
     <EmbeddedResource Include="project-templates\empty.it.md" LogicalName="MdExplorer.Service.project-templates.empty.it.md" WithCulture="false" />
     <EmbeddedResource Include="project-templates\empty.en.md" LogicalName="MdExplorer.Service.project-templates.empty.en.md" WithCulture="false" />
+    <!-- La città degli agenti (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, CF6): il suo deck e i file che porta nel progetto, per lingua. -->
+    <EmbeddedResource Include="project-templates\agent-city.it.md" LogicalName="MdExplorer.Service.project-templates.agent-city.it.md" WithCulture="false" />
+    <EmbeddedResource Include="project-templates\agent-city.en.md" LogicalName="MdExplorer.Service.project-templates.agent-city.en.md" WithCulture="false" />
+    <EmbeddedResource Include="agent-city\**\*" LogicalName="MdExplorer.Service.agent-city/%(RecursiveDir)%(Filename)%(Extension)" WithCulture="false" />
     <EmbeddedResource Include="MdExplorer.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>

@@ -76,6 +76,11 @@ namespace MdExplorer.Controllers.Templates
         public IActionResult Empty([FromQuery] string language, [FromQuery] string? theme)
             => Page(_showcase.EmptyProjectDeck(language), "empty", theme);
 
+        /// <summary>La presentazione della città degli agenti (CF1), che viaggia dentro MDE.</summary>
+        [HttpGet("agent-city")]
+        public IActionResult AgentCity([FromQuery] string language, [FromQuery] string? theme)
+            => Page(_showcase.AgentCityDeck(language), "agent-city", theme);
+
         private ContentResult Page(string markdown, string name, string? theme)
         {
             try

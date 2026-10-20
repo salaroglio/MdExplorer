@@ -685,6 +685,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     MdeVersion = request?.MdeVersion,
                     Methods = request?.Methods,
                     Theory = request?.Theory,
+                    AgentCity = request?.AgentCity == true,
                     Harness = request?.Harness,
                 }, ct);
                 return Ok(outcome);
@@ -1394,6 +1395,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public List<string>? Methods { get; set; }
         /// <summary>Gli indirizzi, fra il primo template e i metodi, di cui si vuole anche la teoria (MC5).</summary>
         public List<string>? Theory { get; set; }
+        /// <summary>La città degli agenti di MDE, con il workflow d'esempio (CF1).</summary>
+        public bool AgentCity { get; set; }
         /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
         public string? Harness { get; set; }
     }

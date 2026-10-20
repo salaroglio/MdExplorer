@@ -41,6 +41,8 @@ namespace MdExplorer.Services.Templates
         /// Gli indirizzi (fra il primo template e i metodi) di cui si vuole anche la teoria nel progetto (MC5). Vuoto = nessuna.
         /// </summary>
         public IReadOnlyList<string> Theory { get; init; }
+        /// <summary>La città degli agenti (CF1): MDE porta la sua parte, con il workflow «hello world».</summary>
+        public bool AgentCity { get; init; }
         /// <summary>
         /// Il motore del progetto (<c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>none</c>) quando la base non lo dichiara:
         /// un progetto che parte da un metodo senza base lo sceglie qui (P5). Una base che lo dichiara vince.
@@ -171,6 +173,9 @@ namespace MdExplorer.Services.Templates
                     throw Problem($"«{manifest.Title}» è un metodo: un progetto nasce dallo strato comune, e il metodo ci si aggiunge sopra.",
                                   $"«{manifest.Title}» is a method: a project starts from the common layer, and the method is added on top of it.");
                 // La demo ha tutto incluso e sta per conto suo (MC6).
+                if (manifest.Kind == TemplateManifest.Project && request.AgentCity)
+                    throw Problem($"«{manifest.Title}» ha già la sua città degli agenti: non le si aggiunge quella di MDE.",
+                                  $"«{manifest.Title}» already has its own agent city: MDE's is not added to it.");
                 if (manifest.Kind == TemplateManifest.Project && request.Methods?.Count > 0)
                     throw Problem($"«{manifest.Title}» ha già tutto incluso: non gli si aggiungono metodi. Scegli lei da sola, o lo strato comune con i metodi.",
                                   $"«{manifest.Title}» already has everything included: methods are not added to it. Choose it alone, or the common layer with the methods.");
@@ -194,6 +199,13 @@ namespace MdExplorer.Services.Templates
                 var methods = new List<TemplateAddOutcome>();
                 foreach (var url in request.Methods ?? Array.Empty<string>())
                     methods.Add(await MergeMethodAsync(path, url, request.Language, request.Example, WantsTheory(url), request.MdeVersion, ct, exampleIfAny: true));
+
+                // La città degli agenti, se scelta (C1): dopo i metodi, con un commit suo.
+                if (request.AgentCity)
+                {
+                    notes.AddRange(await ApplyAgentCityAsync(path, request.Language, withGuide: false, ct));
+                    await Run(path, ct, "commit", "-q", "-m", UiText.Say("Città degli agenti, con il workflow d'esempio", "Agent city, with the example workflow"));
+                }
 
                 string origin;
                 if (localOrigin != null)

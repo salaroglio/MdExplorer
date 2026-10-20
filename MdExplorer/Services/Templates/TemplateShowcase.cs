@@ -53,6 +53,9 @@ namespace MdExplorer.Services.Templates
 
         /// <summary>La presentazione del progetto vuoto (VD4), che viaggia dentro MDE: la lingua, o l'inglese.</summary>
         string EmptyProjectDeck(string language);
+
+        /// <summary>La presentazione della città degli agenti (CF1), che viaggia dentro MDE: la lingua, o l'inglese.</summary>
+        string AgentCityDeck(string language);
     }
 
     /// <summary>
@@ -165,21 +168,26 @@ namespace MdExplorer.Services.Templates
             return $"---\ndocument_type: slides\n---\n\n# {title}\n\n{description}\n\n{kind} · {manifest.Version} · {only}\n\n*{missing}*\n";
         }
 
-        public string EmptyProjectDeck(string language)
+        public string EmptyProjectDeck(string language) => BuiltInDeck("empty", language);
+
+        public string AgentCityDeck(string language) => BuiltInDeck("agent-city", language);
+
+        /// <summary>Un deck che viaggia dentro MDE (<c>project-templates/&lt;nome&gt;.&lt;lingua&gt;.md</c>): la lingua, o l'inglese.</summary>
+        private static string BuiltInDeck(string name, string language)
         {
             CheckLanguage(language);
             var assembly = typeof(TemplateShowcase).Assembly;
             foreach (var l in new[] { language, TemplateManifest.SlidesFallbackLanguage }.Distinct())
             {
-                using var stream = assembly.GetManifestResourceStream(EmptyProjectResource(l));
+                using var stream = assembly.GetManifestResourceStream(BuiltInDeckResource(name, l));
                 if (stream == null) continue;
                 using var reader = new StreamReader(stream);
                 return reader.ReadToEnd();
             }
-            throw new InvalidOperationException($"MdExplorer non contiene {EmptyProjectResource(TemplateManifest.SlidesFallbackLanguage)}: la build è incompleta.");
+            throw new InvalidOperationException($"MdExplorer non contiene {BuiltInDeckResource(name, TemplateManifest.SlidesFallbackLanguage)}: la build è incompleta.");
         }
 
-        public static string EmptyProjectResource(string language) => $"MdExplorer.Service.project-templates.empty.{language}.md";
+        public static string BuiltInDeckResource(string name, string language) => $"MdExplorer.Service.project-templates.{name}.{language}.md";
 
         private static void CheckLanguage(string language)
         {
