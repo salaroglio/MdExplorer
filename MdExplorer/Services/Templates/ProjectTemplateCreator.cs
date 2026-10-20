@@ -431,7 +431,7 @@ namespace MdExplorer.Services.Templates
             if (roles.Count > 0)
             {
                 config.AgentCity ??= new AgentCityConfig();
-                var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc) ? OwnershipFile : config.AgentCity.OwnershipDoc.Trim().Replace('\\', '/').TrimStart('/');
+                var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc) ? OwnershipFileFor(row.Language) : config.AgentCity.OwnershipDoc.Trim().Replace('\\', '/').TrimStart('/');
                 var ownershipFull = System.IO.Path.Combine(path, ownership.Replace('/', System.IO.Path.DirectorySeparatorChar));
                 var before = File.Exists(ownershipFull) ? await File.ReadAllTextAsync(ownershipFull, ct) : null;
                 var text = MdExplorer.Features.Agents.OwnershipDocWriter.AddOpenRoles(before, roles, out var added);
@@ -732,6 +732,10 @@ namespace MdExplorer.Services.Templates
 
         /// <summary>Il documento delle responsabilità che nasce quando un metodo porta ruoli e il progetto non ne ha uno.</summary>
         public const string OwnershipFile = "responsabilita.md";
+        public const string OwnershipFileEnglish = "responsibilities.md";
+
+        /// <summary>Il nome del documento delle responsabilità nella lingua del progetto (M6): un progetto inglese non ha un file italiano.</summary>
+        public static string OwnershipFileFor(string language) => language == "it" ? OwnershipFile : OwnershipFileEnglish;
 
         /// <summary>Il progetto torna al commit di prima: l'unione annullata, i file nuovi tolti, il remoto del metodo tolto.</summary>
         private async Task UndoAsync(string path, string head, CancellationToken ct)

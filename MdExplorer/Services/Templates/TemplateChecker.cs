@@ -432,17 +432,20 @@ namespace MdExplorer.Services.Templates
         /// <summary>Il documento delle responsabilità del progetto nato dal template: quello della base, o quello che crea MDE.</summary>
         private static string OwnershipDocOf(string project, string branch, TemplateManifest manifest, List<TemplateCheckIssue> issues)
         {
+            // La lingua del ramo dice il nome del documento che MDE crea (M6).
+            var language = manifest.Languages?.FirstOrDefault(l => l.Value?.Structure == branch || l.Value?.Example == branch).Key;
+            var created = ProjectTemplateCreator.OwnershipFileFor(language ?? "it");
             var file = Path.Combine(project, DevelopmentConfigCleanup.FileName);
-            if (manifest.IsZoned || !File.Exists(file)) return ProjectTemplateCreator.OwnershipFile;
+            if (manifest.IsZoned || !File.Exists(file)) return created;
             try
             {
                 var configured = DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.OwnershipDoc;
-                return string.IsNullOrWhiteSpace(configured) ? ProjectTemplateCreator.OwnershipFile : configured.Trim().Replace('\\', '/').TrimStart('/');
+                return string.IsNullOrWhiteSpace(configured) ? created : configured.Trim().Replace('\\', '/').TrimStart('/');
             }
             catch (InvalidOperationException ex)
             {
                 issues.Add(Err(branch, DevelopmentConfigCleanup.FileName, ex.Message, null));
-                return ProjectTemplateCreator.OwnershipFile;
+                return created;
             }
         }
 

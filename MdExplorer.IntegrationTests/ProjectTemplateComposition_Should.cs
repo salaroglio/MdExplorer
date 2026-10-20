@@ -254,5 +254,24 @@ theory:
             Assert.AreEqual(head, Git(path, "rev-parse HEAD").Out);
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
         }
+
+        [TestMethod]
+        public async Task Name_the_responsibilities_document_in_the_language_of_the_project()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var english = Foundation();
+            var manifest = english["main"][".mde-template/documenti/mde-template.yml"].Replace("  it: { structure: main }\n", "  en: { structure: main }\n")
+                .Replace("theory:\n  it: { from: .mde-template/documenti/teoria, to: teoria/documenti }\n", "");
+            english["main"][".mde-template/documenti/mde-template.yml"] = manifest;
+            var path = NewFolder(ctx, "in-inglese");
+
+            var outcome = await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = Template(ctx, "documenti", english), Language = "en", MdeVersion = Mde, Harness = "claude" });
+
+            Assert.IsTrue(File.Exists(Path.Combine(path, "responsibilities.md")), string.Join("\n", outcome.Notes));
+            Assert.IsFalse(File.Exists(Path.Combine(path, "responsabilita.md")), "un progetto inglese non ha il file italiano");
+            StringAssert.Contains(Read(path, ".development.yml"), "ownershipDoc: responsibilities.md");
+        }
     }
 }
