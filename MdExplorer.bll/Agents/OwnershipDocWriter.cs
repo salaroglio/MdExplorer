@@ -27,6 +27,25 @@ namespace MdExplorer.Features.Agents
             "| Ruolo | Responsabile | Git Email | Agenti |\n" +
             "|--------|--------------|-----------|--------|\n";
 
+        /// <summary>The same document for an English project (M6 of the composable methods): the parser reads both.</summary>
+        public const string NewDocumentEnglish =
+            "---\n" +
+            "mde_type: ownership\n" +
+            "title: Who answers for which agent\n" +
+            "---\n\n" +
+            "# Who answers for which agent\n\n" +
+            "## TL;DR\n\n" +
+            "Every agent of the city answers to a person: it works only on their computer, and that person judges what the\n" +
+            "agent writes. This table says who. An agent that is not here does not start.\n\n" +
+            "- One row per person: their role, their git email and their agents. Several people with the same role are a team.\n" +
+            "- The person is recognised by the git email they work with in the project.\n" +
+            "- MdExplorer adds a row when someone declares an agent theirs; the rest is written by the group.\n\n" +
+            "| Role | Owner | Git Email | Agents |\n" +
+            "|------|-------|-----------|--------|\n";
+
+        /// <summary>The document a project starts with, in its language: Italian for <c>it</c>, English otherwise.</summary>
+        public static string NewDocumentFor(string language) => language == "it" ? NewDocument : NewDocumentEnglish;
+
         /// <summary>
         /// The document with one more row giving <paramref name="agentName"/> to that person.
         /// <paramref name="markdown"/> null or blank = no document yet: <see cref="NewDocument"/> plus the row.
@@ -115,12 +134,14 @@ namespace MdExplorer.Features.Agents
         /// were added. The description goes in the «Descrizione» column, when the table has one. Same table rules as
         /// <see cref="AddRow"/>.
         /// </summary>
-        public static string AddOpenRoles(string markdown, IEnumerable<(string Role, string Description, IReadOnlyList<string> Agents)> roles, out IReadOnlyList<string> added)
+        /// <param name="language">The project's language, for a document that does not exist yet.</param>
+        public static string AddOpenRoles(string markdown, IEnumerable<(string Role, string Description, IReadOnlyList<string> Agents)> roles, out IReadOnlyList<string> added,
+            string language = "it")
         {
             var result = new List<string>();
             added = result;
             var wanted = (roles ?? Enumerable.Empty<(string, string, IReadOnlyList<string>)>()).Where(r => !string.IsNullOrWhiteSpace(r.Role)).ToList();
-            if (string.IsNullOrWhiteSpace(markdown)) markdown = NewDocument;
+            if (string.IsNullOrWhiteSpace(markdown)) markdown = NewDocumentFor(language);
             if (wanted.Count == 0) return markdown;
 
             var newline = markdown.Contains("\r\n") ? "\r\n" : "\n";

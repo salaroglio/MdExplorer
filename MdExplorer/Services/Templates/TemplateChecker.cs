@@ -394,7 +394,8 @@ namespace MdExplorer.Services.Templates
                     var full = Full(project, ownership);
                     var before = File.Exists(full) ? File.ReadAllText(full) : null;
                     Directory.CreateDirectory(Path.GetDirectoryName(full));
-                    File.WriteAllText(full, OwnershipDocWriter.AddOpenRoles(before, roles, out _));
+                    var language = manifest.Languages?.FirstOrDefault(l => l.Value?.Structure == branch || l.Value?.Example == branch).Key ?? "it";
+                    File.WriteAllText(full, OwnershipDocWriter.AddOpenRoles(before, roles, out _, language));
                 }
                 var ownershipDoc = File.Exists(Full(project, ownership)) ? ownership : null;
 

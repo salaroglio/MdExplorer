@@ -434,7 +434,7 @@ namespace MdExplorer.Services.Templates
                 var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc) ? OwnershipFileFor(row.Language) : config.AgentCity.OwnershipDoc.Trim().Replace('\\', '/').TrimStart('/');
                 var ownershipFull = System.IO.Path.Combine(path, ownership.Replace('/', System.IO.Path.DirectorySeparatorChar));
                 var before = File.Exists(ownershipFull) ? await File.ReadAllTextAsync(ownershipFull, ct) : null;
-                var text = MdExplorer.Features.Agents.OwnershipDocWriter.AddOpenRoles(before, roles, out var added);
+                var text = MdExplorer.Features.Agents.OwnershipDocWriter.AddOpenRoles(before, roles, out var added, row.Language);
                 if (before == null || added.Count > 0)
                 {
                     Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ownershipFull));

@@ -272,6 +272,10 @@ theory:
             Assert.IsTrue(File.Exists(Path.Combine(path, "responsibilities.md")), string.Join("\n", outcome.Notes));
             Assert.IsFalse(File.Exists(Path.Combine(path, "responsabilita.md")), "un progetto inglese non ha il file italiano");
             StringAssert.Contains(Read(path, ".development.yml"), "ownershipDoc: responsibilities.md");
+            var doc = Read(path, "responsibilities.md");
+            StringAssert.Contains(doc, "# Who answers for which agent");
+            StringAssert.Contains(doc, "| Role | Owner | Git Email | Agents |", "scritto in inglese, e il lettore lo legge");
+            StringAssert.Contains(doc, "| Redattore |");
         }
     }
 }
