@@ -204,7 +204,7 @@
     "UNREACHABLE": "Le slide di questo template non si raggiungono.",
     "COMPOSE": "Componi il progetto",
     "COMMON_LAYER": "Strato comune",
-    "COMMON_LAYER_ALWAYS": "C'è in ogni progetto composto: la scrittura sistematica dei documenti.",
+    "COMMON_LAYER_ALWAYS": "C'è in ogni progetto composto: il Document Driven Development.",
     "THEORY": "anche la teoria",
     "THEORY_TIP": "I documenti che insegnano il metodo, copiati nel progetto: da leggere da soli o con il MarkAgent. Si possono scaricare anche dopo, dalle impostazioni del progetto.",
     "OR": "Oppure",

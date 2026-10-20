@@ -33,7 +33,7 @@ namespace MdExplorer.IntegrationTests
                 [$".mde-template/{id}/mde-template.yml"] = $@"mde_template: 1
 id: {id}
 kind: foundation
-title: Scrittura sistematica dei documenti
+title: Document Driven Development
 version: 1.0.0
 languages:
   it: {{ structure: main }}

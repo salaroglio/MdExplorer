@@ -17,7 +17,7 @@
       "kind": "foundation",
       "url": "https://github.com/salaroglio/mdexplorer-template-documenti.git",
       "languages": ["it", "en"],
-      "title": { "it": "Scrittura sistematica dei documenti", "en": "Systematic writing of documents" },
+      "title": { "it": "Document Driven Development", "en": "Document Driven Development" },
       "description": {
         "it": "Il wiki del progetto, scritto e tenuto in ordine con gli agenti: le fonti restano intatte, le pagine crescono, l'indice e il registro dicono che cosa c'è e che cosa è cambiato.",
         "en": "The project's wiki, written and kept in order with the agents: the sources stay untouched, the pages grow, the index and the log say what is there and what changed."

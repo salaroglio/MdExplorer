@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -35,7 +35,7 @@ A project is the **common layer** plus the **methods** the person ticks, each wi
 | `kind` | What it brings | Combines |
 |---|---|---|
 | `method` (a way of working: ISO 9001, ontologies) | only **its zone**: `.mde-template/<id>/**` and `.claude/skills/<id>-*/**` | yes, with the common layer and other methods |
-| `foundation` (the common layer: the systematic writing of documents) | only its zone, like a method | it is always the **first** template of a project made of methods; MdExplorer has one |
+| `foundation` (the common layer: Document Driven Development) | only its zone, like a method | it is always the **first** template of a project made of methods; MdExplorer has one |
 | `project` (a whole starting project with everything included, like the demo) | files anywhere | **alone**: no methods are added to it, and it has no theory |
 
 Write a `method` unless the user wants a complete starting project. Everything below is for methods and the common

@@ -26,4 +26,4 @@ The folder you choose becomes an MdExplorer project **as it is**: your files sta
 
 - you already have documentation and want to work on it with MDE
 - you want to start from scratch, without common layer or methods
-- for the systematic writing of documents, with its skills and agents, choose **Compose the project** instead
+- for Document Driven Development, with its skills and agents, choose **Compose the project** instead

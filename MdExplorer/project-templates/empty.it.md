@@ -26,4 +26,4 @@ La cartella che scegli diventa un progetto di MdExplorer **così com'è**: i tuo
 
 - hai già della documentazione e vuoi lavorarci con MDE
 - vuoi partire da zero, senza strato comune né metodi
-- per la scrittura sistematica dei documenti, con le sue skill e i suoi agenti, scegli invece **Componi il progetto**
+- per il Document Driven Development, con le sue skill e i suoi agenti, scegli invece **Componi il progetto**

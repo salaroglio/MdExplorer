@@ -211,7 +211,7 @@ version: 1.0.0
             {
                 Path = path, TemplateUrl = Strato(ctx), Methods = new[] { url }, Language = "it", Example = true, MdeVersion = Mde, Harness = "claude",
             });
-            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("«Scrittura sistematica dei documenti» has no example in 'it': only its structure comes in")),
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("«Document Driven Development» has no example in 'it': only its structure comes in")),
                 string.Join("\n", outcome.Notes));
             StringAssert.Contains(File.ReadAllText(Path.Combine(path, ".development.yml")), "  kind: foundation\n  language: it\n  example: false\n",
                 "lo strato comune senza esempio: la riga dice che è arrivata la struttura");
