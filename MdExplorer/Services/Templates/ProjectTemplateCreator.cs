@@ -43,6 +43,8 @@ namespace MdExplorer.Services.Templates
         public IReadOnlyList<string> Theory { get; init; }
         /// <summary>La città degli agenti (CF1): MDE porta la sua parte, con il workflow «hello world».</summary>
         public bool AgentCity { get; init; }
+        /// <summary>Con la città, anche la sua documentazione (CF3): la guida e il capitolo sulla ISO 9001.</summary>
+        public bool AgentCityGuide { get; init; }
         /// <summary>
         /// Il motore del progetto (<c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>none</c>) quando la base non lo dichiara:
         /// un progetto che parte da un metodo senza base lo sceglie qui (P5). Una base che lo dichiara vince.
@@ -145,6 +147,9 @@ namespace MdExplorer.Services.Templates
             if (stray.Count > 0)
                 throw Problem($"La teoria si chiede solo per i template scelti: {string.Join(", ", stray)} non è fra questi.",
                               $"Theory can be asked only for the chosen templates: {string.Join(", ", stray)} is not one of them.");
+            if (request.AgentCityGuide && !request.AgentCity)
+                throw Problem("La documentazione della città si chiede insieme alla città degli agenti.",
+                              "The agent city's documentation is asked for together with the agent city.");
             bool WantsTheory(string url) => (request.Theory ?? Array.Empty<string>()).Any(t => t?.Trim() == url?.Trim());
 
             var path = System.IO.Path.GetFullPath(request.Path).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
@@ -203,7 +208,7 @@ namespace MdExplorer.Services.Templates
                 // La città degli agenti, se scelta (C1): dopo i metodi, con un commit suo.
                 if (request.AgentCity)
                 {
-                    notes.AddRange(await ApplyAgentCityAsync(path, request.Language, withGuide: false, ct));
+                    notes.AddRange(await ApplyAgentCityAsync(path, request.Language, request.AgentCityGuide, ct));
                     await Run(path, ct, "commit", "-q", "-m", UiText.Say("Città degli agenti, con il workflow d'esempio", "Agent city, with the example workflow"));
                 }
 
@@ -548,7 +553,7 @@ namespace MdExplorer.Services.Templates
             }
             if (manifest.Roles?.Any(r => r.Agents?.Count > 0) == true)
                 notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
-                                     "The method's agents start once someone declares them theirs («It's mine») and trusts them."));
+                                     "The method's agents start once someone declares them theirs («It is mine») and trusts them."));
 
         }
 

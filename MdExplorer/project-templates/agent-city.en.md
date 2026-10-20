@@ -25,7 +25,7 @@ and a log in git of who did what.
 ## <img class="mde-icona" src="/mde-space/icone/astronauta.svg" alt=""> People and agents
 
 - The **responsibilities document** says who answers for which role, and for which agents
-- An agent works on the computer of the person who declared it theirs («It's mine»), and only once they trust it
+- An agent works on the computer of the person who declared it theirs («It is mine»), and only once they trust it
 - Several people with the same role are a team: whoever triggers the request chooses who handles it
 
 ---

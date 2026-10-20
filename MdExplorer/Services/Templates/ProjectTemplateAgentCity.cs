@@ -18,12 +18,12 @@ namespace MdExplorer.Services.Templates
     public sealed partial class ProjectTemplateCreator
     {
         /// <summary>Che cosa porta la città in una lingua: la cartella, il workflow d'esempio, il suo ruolo.</summary>
-        internal sealed record AgentCityStarter(string Language, string Folder, string WorkflowDoc, string GuideFolder,
+        public sealed record AgentCityStarter(string Language, string Folder, string WorkflowDoc, string GuideFolder,
             string Role, string RoleDescription, string Agent);
 
         private const string AgentCityResources = "MdExplorer.Service.agent-city/";
 
-        internal static AgentCityStarter AgentCityStarterFor(string language) => language == "it"
+        public static AgentCityStarter AgentCityStarterFor(string language) => language == "it"
             ? new AgentCityStarter("it", "citta/", "citta/ciao.md", "citta/guida/",
                 "Responsabile della città", "prova la città con il giro «Ciao mondo» e ne risponde", "citta-ciao")
             : new AgentCityStarter("en", "agent-city/", "agent-city/hello.md", "agent-city/guide/",
@@ -33,7 +33,7 @@ namespace MdExplorer.Services.Templates
         /// I file che la città porta in una lingua, come percorsi del progetto e risorse incorporate. Sul Windows di chi
         /// compila <c>%(RecursiveDir)</c> scrive «\»: il nome della risorsa si legge con «/» in tutti e due i casi.
         /// </summary>
-        internal static IReadOnlyList<(string Path, string Resource)> AgentCityFiles(AgentCityStarter starter, bool withGuide)
+        public static IReadOnlyList<(string Path, string Resource)> AgentCityFiles(AgentCityStarter starter, bool withGuide)
         {
             var prefix = AgentCityResources + starter.Language + "/";
             var files = typeof(ProjectTemplateCreator).Assembly.GetManifestResourceNames()
@@ -99,7 +99,10 @@ namespace MdExplorer.Services.Templates
 
             notes.Add(UiText.Say(
                 $"Città degli agenti accesa, con il workflow d'esempio {starter.WorkflowDoc}: prendi il ruolo «{starter.Role}» in {ownership}, dichiara tuo l'agente {starter.Agent} («È mio») e lancialo.",
-                $"Agent city turned on, with the example workflow {starter.WorkflowDoc}: take the role «{starter.Role}» in {ownership}, declare the agent {starter.Agent} yours («It's mine») and launch it."));
+                $"Agent city turned on, with the example workflow {starter.WorkflowDoc}: take the role «{starter.Role}» in {ownership}, declare the agent {starter.Agent} yours («It is mine») and launch it."));
+            if (withGuide)
+                notes.Add(UiText.Say($"La documentazione della città in {starter.GuideFolder}: come funziona, ruoli e responsabilità, il primo giro, come si scrive un workflow, la ISO 9001.",
+                                     $"The agent city's documentation in {starter.GuideFolder}: how it works, roles and responsibilities, the first round, how to write a workflow, ISO 9001."));
             if (kept.Count > 0)
                 notes.Add(UiText.Say($"Questi file della città c'erano già e restano come sono: {string.Join(", ", kept)}.",
                                      $"These files of the city were already there and stay as they are: {string.Join(", ", kept)}."));

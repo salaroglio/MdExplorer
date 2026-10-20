@@ -90,5 +90,41 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(await ctx.Client.GetStringAsync("/api/templateshowcase/agent-city?language=it"), "La città degli agenti");
             StringAssert.Contains(await ctx.Client.GetStringAsync("/api/templateshowcase/agent-city?language=de"), "The agent city");
         }
+
+        [TestMethod]
+        public async Task Bring_the_documentation_of_the_city_only_when_asked_and_only_with_the_city()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "con-la-guida");
+
+            var outcome = await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Strato(ctx), AgentCity = true, AgentCityGuide = true, Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+
+            foreach (var file in new[] { "citta/guida/README.md", "citta/guida/04-scrivere-un-workflow.md", "citta/guida/iso-9001/README.md" })
+                Assert.IsTrue(File.Exists(Path.Combine(path, file)), file);
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("The agent city's documentation in citta/guida/")), string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+
+            var alone = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            {
+                Path = NewFolder(ctx, "guida-senza-citta"), TemplateUrl = Strato(ctx), AgentCityGuide = true, Language = "it", MdeVersion = Mde, Harness = "claude",
+            }));
+            StringAssert.Contains(alone.Message, "is asked for together with the agent city");
+        }
+
+        [TestMethod]
+        public void Carry_the_same_documentation_in_both_languages()
+        {
+            var it = ProjectTemplateCreator.AgentCityFiles(ProjectTemplateCreator.AgentCityStarterFor("it"), withGuide: true)
+                .Count(f => f.Path.StartsWith("citta/guida/", StringComparison.Ordinal));
+            var en = ProjectTemplateCreator.AgentCityFiles(ProjectTemplateCreator.AgentCityStarterFor("en"), withGuide: true)
+                .Count(f => f.Path.StartsWith("agent-city/guide/", StringComparison.Ordinal));
+            Assert.IsTrue(it >= 11, $"la guida italiana ha {it} file");
+            Assert.AreEqual(it, en, "le due lingue hanno gli stessi documenti");
+        }
     }
 }
