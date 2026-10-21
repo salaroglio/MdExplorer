@@ -148,6 +148,44 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Trasloco_HelperCheNonRestituisce_DiceIlMotivoVeroENonCancellaIlSegreto()
+        {
+            // Visto dal vivo il 21/10/2026 su Windows: Git Credential Manager installato, approve
+            // esce 0, ma fill non ritrova la credenziale (voce «Git:https://host» lasciata da un altro
+            // programma). Il rapporto diceva «nessun credential helper configurato»: falso, e mandava
+            // l'utente a installare qualcosa che aveva già. Deve dire l'helper e lo stderr di git.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("non-restituisce");
+            var path = SeedLinkedProject(ctx, url, "non-restituisce");
+            SeedLegacyDbCredential(ctx, path, User, Password);
+
+            // Nel repository un helper che accetta tutto e non restituisce niente, come GCM con la voce altrui.
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm-muto.sh");
+            File.WriteAllText(helper, "#!/bin/sh\n[ \"$1\" = get ] && echo 'fake-gcm: voce non riconosciuta' >&2\nexit 0\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(path, "config", "credential.helper", "");
+            Git(path, "config", "--add", "credential.helper", helper);
+
+            var move = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(move.Raw))
+            {
+                Assert.AreEqual(0, doc.RootElement.GetProperty("moved").GetInt32(), "trasloco: " + move.Raw);
+                Assert.AreEqual(1, doc.RootElement.GetProperty("failed").GetInt32(), "trasloco: " + move.Raw);
+                var reason = doc.RootElement.GetProperty("entries")[0].GetProperty("reason").GetString();
+                Assert.IsFalse(reason.Contains("nessun credential helper") || reason.Contains("no credential helper"), "un helper c'è: " + reason);
+                Assert.IsTrue(reason.Contains("fake-gcm-muto.sh"), "deve dire quale helper: " + reason);
+                Assert.IsTrue(reason.Contains("fake-gcm: voce non riconosciuta"), "deve riportare lo stderr di git: " + reason);
+            }
+
+            // Il segreto resta nel DB: al prossimo avvio si riprova.
+            var again = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(again.Raw))
+                Assert.AreEqual(1, doc.RootElement.GetProperty("failed").GetInt32(), "secondo trasloco: " + again.Raw);
+        }
+
+        [TestMethod]
         public async Task ApertureProgetto_ChiamateDiReteInParallelo_UnSoloTentativoDiLogin()
         {
             // All'apertura del progetto toolbar e polling chiedono insieme remote-status e

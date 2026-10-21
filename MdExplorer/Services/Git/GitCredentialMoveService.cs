@@ -169,7 +169,7 @@ namespace MdExplorer.Services.Git
                 var allMoved = true;
                 foreach (var (repo, url) in targets)
                 {
-                    var (ok, why) = await HandOverAsync(url, row.User, row.Secret, ct);
+                    var (ok, why) = await HandOverAsync(url, row.User, row.Secret, repo, ct);
                     if (ok && repo != null)
                     {
                         await WriteUsernameForHostAsync(repo, url, row.User, ct);
@@ -207,7 +207,8 @@ namespace MdExplorer.Services.Git
                         Reason = UiText.Say("né il repository né il link dicono per quale host valga", "neither the repository nor the link says which host it is for") });
                     continue;
                 }
-                var (ok, why) = await HandOverAsync(url, row.User, row.Password, ct);
+                var repo = row.LocalPath != null && Directory.Exists(row.LocalPath) ? row.LocalPath : null;
+                var (ok, why) = await HandOverAsync(url, row.User, row.Password, repo, ct);
                 if (ok && row.LocalPath != null && Directory.Exists(row.LocalPath))
                     await WriteUsernameForHostAsync(row.LocalPath, url, row.User, ct);
                 entries.Add(new GitCredentialMoveEntry { Source = "GitlabSetting", RepositoryPath = row.LocalPath, Url = url, Username = row.User, Moved = ok, Reason = why });
@@ -244,7 +245,7 @@ namespace MdExplorer.Services.Git
                     Reason = UiText.Say("token senza nome utente: rifai il login una volta (su Windows lo fa Git Credential Manager al primo push)", "token without a user name: log in again once (on Windows Git Credential Manager does it at the first push)") });
                 return;
             }
-            var (ok, why) = await HandOverAsync(url, user, token, ct);
+            var (ok, why) = await HandOverAsync(url, user, token, null, ct);
             entries.Add(new GitCredentialMoveEntry { Source = "Setting:GitHubPersonalAccessToken", Url = url, Username = user, Moved = ok, Reason = why });
             if (ok) DeleteTokenRows();
         }
@@ -257,8 +258,14 @@ namespace MdExplorer.Services.Git
 
         // ------------------------------------------------------------------ meccanica
 
-        /// <summary>approve, poi fill per verificare: senza la verifica il trasloco sarebbe un fallback silenzioso.</summary>
-        private async Task<(bool Ok, string Why)> HandOverAsync(string url, string username, string secret, CancellationToken ct)
+        /// <summary>
+        /// approve, poi fill per verificare: senza la verifica il trasloco sarebbe un fallback silenzioso.
+        /// La verifica gira nel repository (<paramref name="repositoryPath"/>, null = solo config globale),
+        /// non apre mai un login, e quando fallisce racconta il motivo MISURATO: lo stderr di git, e se
+        /// un helper c'è davvero. Fino al 21/10/2026 diceva sempre «nessun credential helper configurato»,
+        /// anche a chi su Windows aveva Git Credential Manager regolarmente installato.
+        /// </summary>
+        private async Task<(bool Ok, string Why)> HandOverAsync(string url, string username, string secret, string repositoryPath, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(username)) return (false, UiText.Say("manca il nome utente", "the user name is missing"));
             if (string.IsNullOrEmpty(secret)) return (false, UiText.Say("manca il segreto", "the secret is missing"));
@@ -268,12 +275,56 @@ namespace MdExplorer.Services.Git
             var approve = await _transport.ApproveCredentialAsync(url, username, secret, ct);
             if (!approve.Ok) return (false, $"git credential approve: {approve.Error}");
 
-            var fill = await _git.RunAsync(Path.GetTempPath(), new[] { "credential", "fill" }, ct,
-                stdin: $"url={url}\nusername={username}\n\n");
-            var found = fill.Ok && (fill.Stdout ?? string.Empty).Split('\n').Any(l => l.StartsWith("password="));
-            if (!found)
+            var lookup = await _transport.LookupCredentialAsync(url, username, repositoryPath, ct);
+            if (lookup.Found) return (true, null);
+
+            var helpers = await _git.RunAsync(repositoryPath ?? Path.GetTempPath(), new[] { "config", "--get-all", "credential.helper" }, ct);
+            if (string.IsNullOrWhiteSpace(helpers.Stdout))
                 return (false, UiText.Say("git non la ritrova: nessun credential helper configurato (git config --global credential.helper). Su Windows installa Git for Windows con Git Credential Manager; su Linux/Mac configura un helper e rifai il login una volta dal terminale", "git cannot find it again: no credential helper configured (git config --global credential.helper). On Windows install Git for Windows with Git Credential Manager; on Linux/Mac configure a helper and log in once from the terminal"));
-            return (true, null);
+
+            var helperList = string.Join(", ", helpers.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            var why = UiText.Say($"git l'ha ricevuta ma non la restituisce (credential helper: {helperList}): {lookup.Error}",
+                                 $"git accepted it but does not give it back (credential helper: {helperList}): {lookup.Error}");
+            var foreign = ForeignWindowsCredentialTarget(uri);
+            if (foreign != null)
+                why += " " + UiText.Say(
+                    $"Nella Gestione credenziali di Windows c'è la voce «{foreign}», scritta da un altro programma: Git Credential Manager cerca «git:» minuscolo e non la riconosce come sua. Chiudi MdExplorer, esegui  cmdkey /delete:{foreign}  e riaprilo: il trasloco riparte da solo.",
+                    $"Windows Credential Manager holds the entry \"{foreign}\", written by another program: Git Credential Manager looks for lowercase \"git:\" and does not recognise it as its own. Close MdExplorer, run  cmdkey /delete:{foreign}  and reopen it: the move runs again by itself.");
+            return (false, why);
+        }
+
+        /// <summary>
+        /// Su Windows Git Credential Manager salva sotto <c>git:https://host</c> e, rileggendo, confronta
+        /// il prefisso alla lettera. Una voce già presente con un altro maiuscolo (<c>Git:https://host</c>,
+        /// lasciata da un programma precedente) fa sì che lo store di GCM sovrascriva la voce (Windows
+        /// confronta i nomi senza maiuscole) ma poi non la ritrovi: visto dal vivo il 21/10/2026 con
+        /// <c>Git:https://repository.dedabit.it</c>. Ritorna il nome di quella voce, o null.
+        /// </summary>
+        private string ForeignWindowsCredentialTarget(Uri uri)
+        {
+            if (!OperatingSystem.IsWindows()) return null;
+            var service = uri.IsDefaultPort ? $"{uri.Scheme}://{uri.Host}" : $"{uri.Scheme}://{uri.Host}:{uri.Port}";
+            try
+            {
+                using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmdkey", $"/list:git:{service}")
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true,
+                });
+                var output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit(10_000);
+                // La riga «Destinazione:»/«Target:» è localizzata: si cerca il nome della voce, non l'etichetta.
+                var match = System.Text.RegularExpressions.Regex.Match(output,
+                    "\\b(git):" + System.Text.RegularExpressions.Regex.Escape(service) + "(?=\\s|$)",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return match.Success && match.Groups[1].Value != "git" ? match.Value : null;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[trasloco] cmdkey non leggibile per {Service}", service);
+                return null;
+            }
         }
 
         private async Task<string> OriginUrlAsync(string repositoryPath, CancellationToken ct)
