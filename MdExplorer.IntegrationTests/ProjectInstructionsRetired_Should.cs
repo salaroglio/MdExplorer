@@ -48,5 +48,31 @@ namespace MdExplorer.IntegrationTests
                 StringAssert.Contains(text, "skill `mde-doc`", file);
             }
         }
+
+        [TestMethod]
+        public void Rewrite_the_file_with_the_encoding_it_had_bom_included()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "istruzioni-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                var text = "# Istruzioni\r\n\r\nRegole del gruppo, à è ì.\r\n\r\n" + Old + "\r\n";
+                foreach (var bom in new[] { true, false })
+                {
+                    var file = Path.Combine(dir, $"copilot-{bom}.md");
+                    File.WriteAllText(file, text, new System.Text.UTF8Encoding(bom));
+
+                    Assert.IsTrue(ProjectInstructionsRetired.ApplyToFile(file));
+
+                    var bytes = File.ReadAllBytes(file);
+                    Assert.AreEqual(bom, bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, $"BOM {bom}: come prima");
+                    var after = File.ReadAllText(file);
+                    StringAssert.StartsWith(after, "# Istruzioni\r\n\r\nRegole del gruppo, à è ì.\r\n\r\n", "il resto, a capo di Windows compresi");
+                    Assert.IsFalse(after.Contains(".kg.md"));
+                    Assert.IsFalse(ProjectInstructionsRetired.ApplyToFile(file), "corretto una volta, poi niente da fare");
+                }
+            }
+            finally { Directory.Delete(dir, recursive: true); }
+        }
     }
 }

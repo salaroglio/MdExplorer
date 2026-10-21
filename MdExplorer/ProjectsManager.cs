@@ -658,13 +658,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 // Il file nasce una volta sola: le frasi che MDE scriveva e che oggi dicono il falso si correggono qui,
                 // solo quelle (ProjectInstructionsRetired), il resto è del gruppo.
-                var before = File.ReadAllText(instructionsPath);
-                var after = ProjectInstructionsRetired.Apply(before);
-                if (after != before)
-                {
-                    File.WriteAllText(instructionsPath, after);
+                if (ProjectInstructionsRetired.ApplyToFile(instructionsPath))
                     Console.WriteLine($"[ProjectsManager] Retired MDE sentences corrected in {instructionsPath}");
-                }
             }
 
             // Version-aware install/update. Each MdE-managed asset has an `mde:` block in its

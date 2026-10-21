@@ -1,3 +1,5 @@
+using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace MdExplorer.Utilities
@@ -25,5 +27,21 @@ namespace MdExplorer.Utilities
         /// <summary>Il testo con le frasi ritirate sostituite; lo stesso testo se non ne ha.</summary>
         public static string Apply(string text)
             => text == null ? null : KgMdSentence.Replace(text, m => MdeDocSentence(m.Groups["path"].Value));
+
+        /// <summary>
+        /// Corregge il file, se ha una frase ritirata; true se l'ha riscritto. Il file si riscrive con la codifica che aveva:
+        /// un BOM UTF-8 in testa (lo mettono alcuni editor di Windows) resta, altrimenti git mostrerebbe cambiata anche la
+        /// prima riga di un testo che per il resto è identico.
+        /// </summary>
+        public static bool ApplyToFile(string path)
+        {
+            var bytes = File.ReadAllBytes(path);
+            var bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            var before = Encoding.UTF8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0));
+            var after = Apply(before);
+            if (after == before) return false;
+            File.WriteAllText(path, after, new UTF8Encoding(encoderShouldEmitUTF8Identifier: bom));
+            return true;
+        }
     }
 }
