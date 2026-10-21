@@ -22,12 +22,33 @@ namespace MdExplorer.Controllers.CodeGraph
     {
         private readonly ICodeRootService _roots;
         private readonly RemoteCodeRootFiles _remoteFiles;
+        private readonly IRemoteSessions _sessions;
+        private readonly IRemoteServerSettings _servers;
 
-        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles) { _roots = roots; _remoteFiles = remoteFiles; }
+        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers)
+        {
+            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers;
+        }
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
         public class DismissRequest { public string ProjectPath { get; set; } public List<string> Aliases { get; set; } }
+        // string? = facoltativo: un string non nullabile diventa [Required] implicito e il binding rifiuta il vuoto
+        public class ServerSettingsRequest { public string Host { get; set; } public string? AgentFolder { get; set; } public bool AllowUpload { get; set; } }
+        public class FileRequest
+        {
+            public string ProjectPath { get; set; }
+            public string Op { get; set; }
+            /// <summary>Percorso logico <c>@alias/…</c>.</summary>
+            public string Path { get; set; }
+            /// <summary><c>move</c>: la destinazione, percorso logico nella stessa radice.</summary>
+            public string? To { get; set; }
+            public string? Text { get; set; }
+            public string? Stamp { get; set; }
+            public bool Recursive { get; set; }
+            public string? Pattern { get; set; }
+            public bool IgnoreCase { get; set; }
+        }
 
         /// <summary>GET /api/coderoots?projectPath — le radici dichiarate e il loro stato qui.</summary>
         [HttpGet]
@@ -96,6 +117,109 @@ namespace MdExplorer.Controllers.CodeGraph
             return Task.FromResult<IActionResult>(Ok(new { dismissed = request.Aliases }));
         }, request?.ProjectPath);
 
+        // ------------------------------------------------------------------ cartelle remote (sprint 2026-10-21, F3)
+
+        /// <summary>GET /api/coderoots/ssh-hosts — gli alias di ~/.ssh/config, da proporre (si può scrivere qualunque host).</summary>
+        [HttpGet("ssh-hosts")]
+        public IActionResult SshHosts() => Ok(SshConfigHosts.Read(SshConfigHosts.DefaultConfigPath));
+
+        /// <summary>
+        /// GET /api/coderoots/server-browse?host&amp;path — le sottocartelle di una cartella del server (path vuoto = la home),
+        /// per scegliere che cosa collegare. 409 se il serverino va caricato e l'utente non ha ancora detto sì (P13).
+        /// </summary>
+        [HttpGet("server-browse")]
+        public Task<IActionResult> ServerBrowse([FromQuery] string host, [FromQuery] string? path, CancellationToken ct) => GuardedRemote(async () =>
+        {
+            var b = await _sessions.BrowseServerAsync(host, path, ct);
+            var at = MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Of(b.Host, b.Path);
+            return Ok(new
+            {
+                host = b.Host, path = b.Path, home = b.Home, location = at.ToString(),
+                parent = b.Path == "/" ? null : b.Path.Substring(0, Math.Max(1, b.Path.LastIndexOf('/'))),
+                folders = b.Folders.Select(f => new { name = f.Name, path = at.Combine(f.Path).Path }),
+            });
+        });
+
+        /// <summary>GET /api/coderoots/server-settings?host — cartella del serverino e consenso a caricarlo per questo server.</summary>
+        [HttpGet("server-settings")]
+        public Task<IActionResult> ServerSettings([FromQuery] string host) => GuardedRemote(() =>
+        {
+            var destination = DestinationOf(host);
+            return Task.FromResult<IActionResult>(Ok(new
+            {
+                host, destination,
+                agentFolder = _servers.AgentFolder(destination),
+                defaultAgentFolder = "~/" + RemoteAgentFolders.DefaultAgentFolder,
+                uploadAllowed = _servers.UploadAllowed(destination),
+            }));
+        });
+
+        /// <summary>POST /api/coderoots/server-settings {host, agentFolder, allowUpload} — salva le scelte per il server.</summary>
+        [HttpPost("server-settings")]
+        public Task<IActionResult> SaveServerSettings([FromBody] ServerSettingsRequest request) => GuardedRemote(() =>
+        {
+            var destination = DestinationOf(request?.Host);
+            _servers.SetAgentFolder(destination, request.AgentFolder);
+            if (request.AllowUpload) _servers.AllowUpload(destination);
+            return Task.FromResult<IActionResult>(Ok(new { host = request.Host, destination, agentFolder = _servers.AgentFolder(destination), uploadAllowed = _servers.UploadAllowed(destination) }));
+        });
+
+        /// <summary>
+        /// POST /api/coderoots/files {projectPath, op, path, …} — un'operazione su un file o una cartella di una radice
+        /// remota (D7): read, write (con stamp), create, mkdir, delete (recursive), move (to), grep (pattern), list.
+        /// </summary>
+        [HttpPost("files")]
+        public Task<IActionResult> Files([FromBody] FileRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var resolver = await _roots.CreateResolverAsync(request.ProjectPath, ct);
+            var target = resolver.RemoteOf(request.Path)
+                ?? throw new InvalidOperationException(UiText.Say($"'{request.Path}' non è in una radice remota: le modifiche dall'albero alle radici locali arrivano con la fase FL.", $"'{request.Path}' is not in a remote root: edits from the tree to local roots come with phase FL."));
+            string to = null;
+            if (!string.IsNullOrEmpty(request.To))
+            {
+                var dest = resolver.RemoteOf(request.To);
+                if (dest == null || dest.Value.Root.Alias != target.Root.Alias)
+                    throw new InvalidOperationException(UiText.Say($"'{request.To}' deve stare nella stessa radice di '{request.Path}'.", $"'{request.To}' must be in the same root as '{request.Path}'."));
+                to = dest.Value.Relative;
+            }
+            var response = await _remoteFiles.OperateAsync(target.Root, new MdExplorer.RemoteProtocol.RemoteRequest
+            {
+                Op = request.Op, Path = target.Relative, To = to, Text = request.Text, Stamp = request.Stamp,
+                Recursive = request.Recursive, Pattern = request.Pattern, IgnoreCase = request.IgnoreCase,
+                Exclude = request.Op == MdExplorer.RemoteProtocol.RemoteOps.Grep ? new List<string> { ".git" } : null,
+            }, ct);
+            var alias = target.Root.Alias;
+            return Ok(new
+            {
+                path = request.Path, text = response.Text, stamp = response.Stamp, bom = response.Bom, truncated = response.Truncated,
+                hits = response.Hits?.Select(h => new { path = CodeRootPaths.Format(alias, h.Path), line = h.Line, text = h.Text }),
+            });
+        }, request?.ProjectPath);
+
+        private static string DestinationOf(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException(UiText.Say("Manca il server.", "The server is missing."));
+            return MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Of(host.Trim(), "/").Destination;
+        }
+
+        /// <summary>Come <see cref="Guarded"/>, senza progetto: per le chiamate che parlano solo con un server.</summary>
+        private async Task<IActionResult> GuardedRemote(Func<Task<IActionResult>> action)
+        {
+            try { return await action(); }
+            catch (RemoteUploadConsentRequiredException ex) { return Consent(ex); }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>409: il serverino va caricato e serve il sì dell'utente; la UI mostra che cosa, dove e quanto (P13).</summary>
+        private IActionResult Consent(RemoteUploadConsentRequiredException ex) => StatusCode(409, new
+        {
+            error = ex.Message,
+            consent = new { destination = ex.Destination, size = ex.Size, folder = ex.Folder },
+        });
+
         private static object View(CodeRootState s) => new
         {
             s.Alias, s.Repository, s.Subpath, s.Tags, s.Languages, s.LocalPath, s.RootPath,
@@ -108,6 +232,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
                 return BadRequest(new { error = UiText.Say($"projectPath non esiste: {projectPath}", $"projectPath does not exist: {projectPath}") });
             try { return await action(); }
+            catch (RemoteUploadConsentRequiredException ex) { return Consent(ex); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
             {
                 return BadRequest(new { error = ex.Message });

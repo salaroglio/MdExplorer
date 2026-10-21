@@ -164,6 +164,11 @@ namespace MdExplorer.Services.CodeGraph
             {
                 return state(ex.Gate == RemoteGate.Folder ? CodeRootStatus.NotFound : CodeRootStatus.Unreachable, ex.Message, null, null, null);
             }
+            catch (RemoteUploadConsentRequiredException ex)
+            {
+                // finché l'utente non dice sì (finestra delle radici), la radice resta ferma e lo dice
+                return state(CodeRootStatus.Unreachable, ex.Message, null, null, null);
+            }
             if (root.Repository == null) return state(CodeRootStatus.Linked, null, null, null, target);
             var git = (await channel.SendAsync(new RemoteRequest { Op = RemoteOps.GitInfo }, ct)).Git;
             if (git == null)

@@ -9,7 +9,7 @@
 .status { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
 .status.linked { color: #2e7d32; }
 .status.notlinked { color: #ef6c00; }
-.status.notfound, .status.mismatch { color: #c62828; }
+.status.notfound, .status.mismatch, .status.unreachable { color: #c62828; }
 .detail { font-size: 12px; opacity: 0.8; word-break: break-all; }
 .detail code { font-size: 12px; }
 .reason { font-size: 12px; color: #c62828; }

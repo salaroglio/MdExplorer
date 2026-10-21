@@ -5,6 +5,7 @@ import { ShowFileSystemComponent } from '../../../../commons/components/show-fil
 import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 import { TranslateService } from '@ngx-translate/core';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dev-environment/dev-environment-dialog.component';
+import { RemoteFolderPickerDialogComponent, RemoteFolderPickerData } from './remote-folder-picker-dialog.component';
 
 export interface CodeRootsDialogData { projectRoot: string; }
 
@@ -61,13 +62,31 @@ export class CodeRootsDialogComponent implements OnInit {
     picker.title = this.translate.instant('CODE_ROOTS.PICK_TITLE', { alias });
     picker.typeOfSelection = 'Folders';
     picker.buttonText = this.translate.instant('CODE_ROOTS.PICK_BUTTON');
-    picker.start = start || 'root';
+    picker.start = start && !start.startsWith('ssh://') ? start : 'root';
     this.dialog.open(ShowFileSystemComponent, { width: '900px', height: '700px', panelClass: 'resizable-dialog-container', data: picker })
       .afterClosed().subscribe(result => {
         const folder = typeof result?.data === 'string' ? result.data : null;
         if (!folder) return;
         this.busy = alias; this.errorMessage = '';
         this.roots$.link(this.data.projectRoot, alias, folder).subscribe({
+          next: () => { this.busy = null; this.newAlias = ''; this.reload(); },
+          error: err => { this.busy = null; this.errorMessage = this.messageOf(err); },
+        });
+      });
+  }
+
+  /**
+   * Collega (o ricollega) una radice a una cartella su un server via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3):
+   * la finestra sceglie host e cartella, e chiede il sì prima di caricare il serverino.
+   */
+  pickRemoteAndLink(alias: string, start: string | null): void {
+    if (!this.aliasRule.test(alias)) { this.errorMessage = this.translate.instant('CODE_ROOTS.ALIAS_RULE'); return; }
+    const data: RemoteFolderPickerData = { alias, start: start && start.startsWith('ssh://') ? start : null };
+    this.dialog.open(RemoteFolderPickerDialogComponent, { width: '720px', data })
+      .afterClosed().subscribe((location?: string) => {
+        if (!location) return;
+        this.busy = alias; this.errorMessage = '';
+        this.roots$.link(this.data.projectRoot, alias, location).subscribe({
           next: () => { this.busy = null; this.newAlias = ''; this.reload(); },
           error: err => { this.busy = null; this.errorMessage = this.messageOf(err); },
         });

@@ -26,6 +26,7 @@
       <div class="detail" *ngIf="r.repository">{{ 'CODE_ROOTS.REPOSITORY' | translate }}: {{ r.repository }}<span *ngIf="r.subpath"> · {{ 'CODE_ROOTS.SUBPATH' | translate }}: {{ r.subpath }}</span></div>
       <div class="detail" *ngIf="!r.repository">{{ 'CODE_ROOTS.NO_GIT' | translate }}</div>
       <div class="detail" *ngIf="r.rootPath">{{ 'CODE_ROOTS.HERE' | translate }}: <code>{{ r.rootPath }}</code></div>
+      <div class="detail" *ngIf="r.remote || (r.localPath && r.localPath.startsWith('ssh://'))">{{ 'CODE_ROOTS.ON_SERVER' | translate }}: <code>{{ r.remote || r.localPath }}</code></div>
       <div class="detail" *ngIf="r.languages.length">{{ 'CODE_ROOTS.LANGUAGES' | translate }}: {{ r.languages.join(', ') }}</div>
       <div class="reason" *ngIf="r.reason">{{ r.reason }}</div>
 
@@ -33,16 +34,19 @@
         <button mat-stroked-button (click)="pickAndLink(r.alias, r.localPath)" [disabled]="!!busy">
           <mat-icon>link</mat-icon> {{ (r.status === 'Linked' ? 'CODE_ROOTS.RELINK' : 'CODE_ROOTS.LINK') | translate }}
         </button>
+        <button mat-stroked-button (click)="pickRemoteAndLink(r.alias, r.localPath)" [disabled]="!!busy">
+          <mat-icon>dns</mat-icon> {{ 'CODE_ROOTS.LINK_REMOTE' | translate }}
+        </button>
         <button mat-stroked-button *ngIf="r.localPath" (click)="unlink(r)" [disabled]="!!busy">
           <mat-icon>link_off</mat-icon> {{ 'CODE_ROOTS.UNLINK' | translate }}
         </button>
-        <button mat-stroked-button *ngIf="r.status === 'Linked'" (click)="openLanguages(r)" [disabled]="!!busy">
+        <button mat-stroked-button *ngIf="r.status === 'Linked' && !r.remote" (click)="openLanguages(r)" [disabled]="!!busy">
           <mat-icon>code</mat-icon> {{ 'CODE_ROOTS.LANGUAGES_AND_ANALYSIS' | translate }}
         </button>
         <button mat-stroked-button (click)="openGraph(r)" [disabled]="!!busy">
           <mat-icon>hub</mat-icon> {{ 'CODE_ROOTS.GRAPH' | translate }}
         </button>
-        <button mat-stroked-button *ngIf="r.status === 'Linked' && r.repository" (click)="toggleChanges(r)" [disabled]="!!busy">
+        <button mat-stroked-button *ngIf="r.status === 'Linked' && r.repository && !r.remote" (click)="toggleChanges(r)" [disabled]="!!busy">
           <mat-icon>difference</mat-icon> {{ 'CODE_ROOTS.CHANGES' | translate }}
         </button>
       </div>
@@ -61,9 +65,14 @@
         <input matInput id="new-alias" [(ngModel)]="newAlias" placeholder="backend" autocomplete="off">
         <mat-hint>{{ 'CODE_ROOTS.ALIAS_RULE' | translate }}</mat-hint>
       </mat-form-field>
-      <button mat-flat-button color="primary" (click)="pickAndLink(newAlias.trim(), null)" [disabled]="!newAliasValid || !!busy">
-        <mat-icon>create_new_folder</mat-icon> {{ 'CODE_ROOTS.PICK_AND_LINK' | translate }}
-      </button>
+      <div class="actions">
+        <button mat-flat-button color="primary" (click)="pickAndLink(newAlias.trim(), null)" [disabled]="!newAliasValid || !!busy">
+          <mat-icon>create_new_folder</mat-icon> {{ 'CODE_ROOTS.PICK_AND_LINK' | translate }}
+        </button>
+        <button mat-stroked-button color="primary" (click)="pickRemoteAndLink(newAlias.trim(), null)" [disabled]="!newAliasValid || !!busy">
+          <mat-icon>dns</mat-icon> {{ 'CODE_ROOTS.PICK_REMOTE_AND_LINK' | translate }}
+        </button>
+      </div>
       <p class="note">{{ 'CODE_ROOTS.PRIVACY' | translate }}</p>
     </div>
 

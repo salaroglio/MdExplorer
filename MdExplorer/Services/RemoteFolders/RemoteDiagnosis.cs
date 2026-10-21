@@ -64,8 +64,8 @@ namespace MdExplorer.Services.RemoteFolders
                     return AccessFailure(location.Destination, stderr);
                 case CannotExecute:
                     return new RemoteUnavailableException(RemoteGate.Execution, UiText.Say(
-                        $"su {location.Host} il serverino non si può eseguire: la home è probabilmente montata «noexec», oppure una regola di sicurezza (SELinux, fapolicyd, antivirus) blocca i programmi nuovi. Serve un'altra cartella per il serverino, o chiedi a chi amministra il server di autorizzarlo.",
-                        $"on {location.Host} the agent cannot be executed: the home is probably mounted «noexec», or a security rule (SELinux, fapolicyd, antivirus) blocks new programs. Another folder for the agent is needed, or ask the server administrator to allow it.") + Detail(stderr));
+                        $"su {location.Host} il serverino non si può eseguire: la home è probabilmente montata «noexec», oppure una regola di sicurezza (SELinux, fapolicyd, antivirus) blocca i programmi nuovi. Scegli un'altra cartella per il serverino di questo server (una che permetta di eseguire programmi), o chiedi a chi amministra il server di autorizzarlo.",
+                        $"on {location.Host} the agent cannot be executed: the home is probably mounted «noexec», or a security rule (SELinux, fapolicyd, antivirus) blocks new programs. Choose another folder for this server's agent (one that allows running programs), or ask the server administrator to allow it.") + Detail(stderr));
                 case CommandNotFound:
                     return new RemoteUnavailableException(RemoteGate.Execution, UiText.Say(
                         $"su {location.Host} il serverino non c'è dove MDE l'ha caricato.",
@@ -89,8 +89,8 @@ namespace MdExplorer.Services.RemoteFolders
 
         public static RemoteUnavailableException AgentFolderNotWritable(string destination, string folder, string output)
             => new(RemoteGate.AgentFolder, UiText.Say(
-                $"su {destination} non si può scrivere nella cartella del serverino ~/{folder} (home in sola lettura, quota piena, account senza home).",
-                $"on {destination} the agent folder ~/{folder} cannot be written (read-only home, full quota, account without a home).") + Detail(output));
+                $"su {destination} non si può scrivere nella cartella del serverino {folder} (home in sola lettura, quota piena, account senza home): scegli un'altra cartella per il serverino di questo server.",
+                $"on {destination} the agent folder {folder} cannot be written (read-only home, full quota, account without a home): choose another folder for this server's agent.") + Detail(output));
 
         private static bool Has(string text, string what) => text.IndexOf(what, StringComparison.OrdinalIgnoreCase) >= 0;
 

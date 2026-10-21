@@ -13,6 +13,23 @@ namespace MdExplorer.Services.RemoteFolders
         public RemoteUnavailableException(RemoteGate gate, string message) : base(message) { Gate = gate; }
     }
 
+    /// <summary>
+    /// Il serverino non c'è ancora su quel server e l'utente non ha dato il consenso a caricarlo (P13): la UI mostra
+    /// che cosa si carica e dove, e con il consenso riprova.
+    /// </summary>
+    public sealed class RemoteUploadConsentRequiredException : InvalidOperationException
+    {
+        public string Destination { get; }
+        public long Size { get; }
+        /// <summary>Dove andrebbe, come lo si legge sul server (<c>~/.cache/mdexplorer/…</c> o assoluto).</summary>
+        public string Folder { get; }
+
+        public RemoteUploadConsentRequiredException(string destination, long size, string folder, string message) : base(message)
+        {
+            Destination = destination; Size = size; Folder = folder;
+        }
+    }
+
     /// <summary>Il serverino ha rifiutato un'operazione (file cambiato, fuori dalla radice, …): il codice del protocollo.</summary>
     public sealed class RemoteOperationException : InvalidOperationException
     {

@@ -39,6 +39,46 @@ export interface CodeRootEntry {
   unreadable: string | null;
 }
 
+/** Le sottocartelle di una cartella di un server, per scegliere che cosa collegare (sprint 2026-10-21, F3). */
+export interface ServerBrowse {
+  host: string;
+  path: string;
+  home: string;
+  /** ssh://host/percorso: quello che si collega. */
+  location: string;
+  parent: string | null;
+  folders: { name: string; path: string }[];
+}
+
+/** Le scelte per un server: cartella del serverino (P11) e consenso a caricarlo (P13). */
+export interface ServerSettings {
+  host: string;
+  destination: string;
+  agentFolder: string | null;
+  defaultAgentFolder: string;
+  uploadAllowed: boolean;
+}
+
+/** Il 409 del backend: il serverino va caricato e serve il sì dell'utente. */
+export interface UploadConsent { destination: string; size: number; folder: string; }
+
+/** Un'operazione su un file o una cartella di una radice remota (D7). */
+export type RemoteFileOp = 'read' | 'write' | 'create' | 'mkdir' | 'delete' | 'move' | 'grep';
+
+export interface RemoteFileResult {
+  path: string;
+  text?: string;
+  stamp?: string;
+  bom?: boolean;
+  truncated?: boolean;
+  hits?: { path: string; line: number; text: string }[];
+}
+
+/** Il consenso richiesto, se l'errore HTTP è il 409 del serverino da caricare; altrimenti null. */
+export function uploadConsentOf(err: any): UploadConsent | null {
+  return err?.status === 409 && err?.error?.consent ? err.error.consent as UploadConsent : null;
+}
+
 /**
  * Le radici di codice esterne: il codice che sta FUORI dalla cartella del progetto di documentazione. L'identità
  * (alias, repository) è nel .development.yml, su Git; dove sta su questa macchina è nel database dell'utente.
@@ -90,5 +130,32 @@ export class CodeRootsService {
 
   changes(projectPath: string, alias: string): Observable<CodeRootChanges> {
     return this.http.get<CodeRootChanges>(`${this.api}/changes`, { params: new HttpParams().set('projectPath', projectPath).set('alias', alias) });
+  }
+
+  // ---------------------------------------------------------------- cartelle remote via SSH (sprint 2026-10-21, F3)
+
+  /** Gli alias di ~/.ssh/config, da proporre: si può scrivere qualunque host. */
+  sshHosts(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.api}/ssh-hosts`);
+  }
+
+  /** Le sottocartelle di una cartella del server; path vuoto = la home. 409 = serve il consenso (uploadConsentOf). */
+  serverBrowse(host: string, path: string | null): Observable<ServerBrowse> {
+    let params = new HttpParams().set('host', host);
+    if (path) { params = params.set('path', path); }
+    return this.http.get<ServerBrowse>(`${this.api}/server-browse`, { params });
+  }
+
+  serverSettings(host: string): Observable<ServerSettings> {
+    return this.http.get<ServerSettings>(`${this.api}/server-settings`, { params: new HttpParams().set('host', host) });
+  }
+
+  saveServerSettings(host: string, agentFolder: string | null, allowUpload: boolean): Observable<ServerSettings> {
+    return this.http.post<ServerSettings>(`${this.api}/server-settings`, { host, agentFolder, allowUpload });
+  }
+
+  /** Un'operazione sui file di una radice remota: path e to sono percorsi logici @alias/…. */
+  file(projectPath: string, op: RemoteFileOp, path: string, extra: { to?: string; text?: string; stamp?: string; recursive?: boolean; pattern?: string; ignoreCase?: boolean } = {}): Observable<RemoteFileResult> {
+    return this.http.post<RemoteFileResult>(`${this.api}/files`, { projectPath, op, path, ...extra });
   }
 }

@@ -60,5 +60,7 @@ export interface IFileInfoNode {
   // Radice di codice esterna (type 'codeRoot'): stato su questa macchina e motivo se non è collegata
   codeRootStatus?: string;
   codeRootReason?: string;
+  /** Radice remota via SSH (sprint 2026-10-21, F3): si crea, rinomina, cancella e modifica dall'albero. */
+  codeRootRemote?: boolean;
 }
 

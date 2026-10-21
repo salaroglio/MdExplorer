@@ -34,6 +34,17 @@ namespace MdExplorer.Services.RemoteFolders
             }).ToList();
         }
 
+        /// <summary>
+        /// Un'operazione sui file della radice (F3, D7): crea, scrive, cartella nuova, cancella, sposta/rinomina, cerca.
+        /// I percorsi sono già relativi alla radice; il serverino applica le sue regole (dentro la radice, niente link,
+        /// impronta per scrivere, mai sopra un file esistente).
+        /// </summary>
+        public async Task<RemoteResponse> OperateAsync(CodeRootState root, RemoteRequest request, CancellationToken ct)
+        {
+            var channel = await _sessions.OpenAsync(root.Remote, ct);
+            return await channel.SendAsync(request, ct);
+        }
+
         /// <summary>Il testo di un file, con l'impronta per riscriverlo; un binario o un file non UTF-8 è rifiutato dal serverino.</summary>
         public async Task<RemoteResponse> ReadAsync(CodeRootState root, string relative, CancellationToken ct)
         {

@@ -19,6 +19,9 @@ import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-mark
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent } from './components/dialogs/dev-environment/dev-environment-dialog.component';
 import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
+import { RemoteFolderPickerDialogComponent } from './components/dialogs/code-roots/remote-folder-picker-dialog.component';
+import { CodeRootNameDialogComponent } from './components/dialogs/code-roots/code-root-name-dialog.component';
+import { RemoteFileEditorDialogComponent } from './components/dialogs/code-roots/remote-file-editor-dialog.component';
 import { CodeRootsReminderDialogComponent } from './components/dialogs/code-roots/code-roots-reminder-dialog.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
@@ -112,6 +115,9 @@ const routes: Routes = [
     NewDirectoryComponent,
     DevEnvironmentDialogComponent,
     CodeRootsDialogComponent,
+    RemoteFolderPickerDialogComponent,
+    CodeRootNameDialogComponent,
+    RemoteFileEditorDialogComponent,
     CodeRootsReminderDialogComponent,
     MdTreeComponent,
     ConnectionLostComponent,

@@ -25,8 +25,17 @@ namespace MdExplorer.Services.RemoteFolders
             LocalPath = localPath; Size = size; Fingerprint = fingerprint;
         }
 
-        /// <summary>La cartella del serverino sul server, relativa alla home dell'utente SSH.</summary>
-        public string InstallFolder => ".cache/mdexplorer/" + Fingerprint;
+        /// <summary>
+        /// La cartella del serverino sul server: <paramref name="baseFolder"/> (assoluta, o relativa alla home; null =
+        /// <c>~/.cache/mdexplorer</c>) più l'impronta. <c>Shell</c> la scrive per sh; <c>Display</c> per le persone.
+        /// </summary>
+        public (string Shell, string Display) InstallFolder(string baseFolder)
+        {
+            var folder = (baseFolder ?? RemoteAgentFolders.DefaultAgentFolder) + "/" + Fingerprint;
+            return folder.StartsWith("/", StringComparison.Ordinal)
+                ? (RemoteShell.Quote(folder), folder)
+                : ("\"$HOME\"/" + RemoteShell.Quote(folder), "~/" + folder);
+        }
 
         public static RemoteAgentBinary Load(string localPath)
         {

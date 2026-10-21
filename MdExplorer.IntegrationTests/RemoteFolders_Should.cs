@@ -5,11 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
+using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Features.Services.RemoteFolders;
 using MdExplorer.RemoteProtocol;
 using MdExplorer.Services.CodeGraph;
 using MdExplorer.Services.Git;
 using MdExplorer.Services.RemoteFolders;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -79,7 +81,7 @@ namespace MdExplorer.IntegrationTests
             Directory.CreateDirectory(_home);
             Directory.CreateDirectory(_project);
             _transport = new LocalShellTransport(_home);
-            _sessions = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance);
+            _sessions = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             _git = new NativeGitRunner(NullLogger<NativeGitRunner>.Instance);
         }
 
@@ -114,6 +116,7 @@ namespace MdExplorer.IntegrationTests
             var channel = await _sessions.OpenAsync(Server(folder));
             var binary = RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath);
             var installed = Path.Combine(_home, ".cache", "mdexplorer", binary.Fingerprint, "mde-remote");
+            Assert.AreEqual("~/.cache/mdexplorer/" + binary.Fingerprint, binary.InstallFolder(null).Display);
             Assert.IsTrue(File.Exists(installed), "caricato nella home, nella cartella con l'impronta del binario");
             Assert.AreEqual(binary.Size, new FileInfo(installed).Length);
             Assert.AreEqual(3, _transport.Commands, "porte + caricamento + avvio");
@@ -127,8 +130,93 @@ namespace MdExplorer.IntegrationTests
             channel.Dispose();
             var again = await _sessions.OpenAsync(Server(folder));
             Assert.AreNotSame(channel, again, "un canale chiuso si riapre");
-            Assert.AreEqual(5, _transport.Commands, "porte + avvio: il serverino c'è già, non si ricarica");
+            Assert.AreEqual(4, _transport.Commands, "solo l'avvio: il server è già preparato in questa sessione");
             Assert.AreEqual(stamp, File.GetLastWriteTimeUtc(installed));
+        }
+
+        [TestMethod]
+        public async Task Ask_consent_before_the_first_upload_and_never_upload_without_it()
+        {
+            var folder = Path.Combine(_base, "code");
+            Directory.CreateDirectory(folder);
+            var settings = new MemoryRemoteServerSettings();
+            using var sessions = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), settings, NullLogger<RemoteSessions>.Instance);
+            var ask = await Assert.ThrowsExceptionAsync<RemoteUploadConsentRequiredException>(() => sessions.OpenAsync(Server(folder)));
+            Assert.AreEqual("server", ask.Destination);
+            Assert.IsTrue(ask.Size > 1_000_000);
+            StringAssert.StartsWith(ask.Folder, "~/.cache/mdexplorer/");
+            Assert.AreEqual(0, Directory.GetFiles(_home, "mde-remote", SearchOption.AllDirectories).Length, "senza consenso niente arriva sul server");
+
+            settings.AllowUpload("server");
+            Assert.IsNotNull(await sessions.OpenAsync(Server(folder)));
+            Assert.AreEqual(1, Directory.GetFiles(_home, "mde-remote", SearchOption.AllDirectories).Length);
+        }
+
+        [TestMethod]
+        public async Task Put_the_agent_in_the_folder_chosen_for_the_server()
+        {
+            var settings = new MemoryRemoteServerSettings(allowAll: true);
+            settings.SetAgentFolder("server", Path.Combine(_base, "opt", "mde"));
+            using var sessions = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), settings, NullLogger<RemoteSessions>.Instance);
+            var channel = await sessions.OpenAsync(Server(_base));
+            Assert.IsNotNull(channel.Hello);
+            Assert.AreEqual(1, Directory.GetFiles(Path.Combine(_base, "opt", "mde"), "mde-remote", SearchOption.AllDirectories).Length, "assoluta: lì");
+            Assert.IsFalse(Directory.Exists(Path.Combine(_home, ".cache")), "non nella home");
+
+            settings.SetAgentFolder("server", "bin/mde");
+            Assert.AreEqual("~/bin/mde/" + RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath).Fingerprint,
+                RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath).InstallFolder(settings.AgentFolder("server")).Display, "relativa: sotto la home");
+            foreach (var bad in new[] { "~/x", "../x", "a/../../x", "a\nb" })
+                Assert.ThrowsException<InvalidOperationException>(() => settings.SetAgentFolder("server", bad), bad);
+        }
+
+        [TestMethod]
+        public async Task Browse_the_server_folders_from_the_home_to_choose_what_to_link()
+        {
+            Directory.CreateDirectory(Path.Combine(_home, "progetti", "backend"));
+            Directory.CreateDirectory(Path.Combine(_home, "documenti"));
+            File.WriteAllText(Path.Combine(_home, "nota.txt"), "x");
+            var home = await _sessions.BrowseServerAsync("server", null);
+            Assert.AreEqual(_home, home.Home);
+            Assert.AreEqual(_home, home.Path);
+            CollectionAssert.AreEqual(new[] { ".cache", "documenti", "progetti" }, home.Folders.Select(f => f.Name).ToArray(), "solo le cartelle, anche quelle nascoste");
+            var inside = await _sessions.BrowseServerAsync("server", Path.Combine(_home, "progetti"));
+            Assert.AreEqual("backend", inside.Folders.Single().Name);
+        }
+
+        /// <summary>
+        /// Nello UserDB vero: consenso e cartella del serverino per PIÙ server. Setting.Name è UNIQUE — il 21/10 la riga del
+        /// secondo server non entrava (prova dal vivo con lab-nx); le impostazioni in memoria non lo avrebbero visto.
+        /// </summary>
+        [TestMethod]
+        public void Remember_consent_and_agent_folder_for_each_server_in_the_user_database()
+        {
+            using var ctx = new AgentCityContext();
+            var settings = ctx.Factory.Services.GetRequiredService<IRemoteServerSettings>();
+            settings.AllowUpload("build-server");
+            settings.AllowUpload("lab-nx");
+            settings.AllowUpload("lab-nx");
+            settings.SetAgentFolder("build-server", "/opt/mde");
+            settings.SetAgentFolder("lab-nx", "bin/mde/");
+            Assert.IsTrue(settings.UploadAllowed("build-server"));
+            Assert.IsTrue(settings.UploadAllowed("lab-nx"));
+            Assert.IsFalse(settings.UploadAllowed("altro"));
+            Assert.AreEqual("/opt/mde", settings.AgentFolder("build-server"));
+            Assert.AreEqual("bin/mde", settings.AgentFolder("lab-nx"));
+            settings.SetAgentFolder("lab-nx", "");
+            Assert.IsNull(settings.AgentFolder("lab-nx"), "vuota = il default");
+            Assert.AreEqual("/opt/mde", settings.AgentFolder("build-server"));
+        }
+
+        [TestMethod]
+        public void Read_the_hosts_of_the_ssh_config_with_includes()
+        {
+            var ssh = Path.Combine(_base, "ssh");
+            Directory.CreateDirectory(Path.Combine(ssh, "config.d"));
+            File.WriteAllText(Path.Combine(ssh, "config"), "Host build-server dev-box\n  User dev\nHost *.internal !x\n  User y\nInclude " + Path.Combine(ssh, "config.d", "*") + "\n# Host commentato\n");
+            File.WriteAllText(Path.Combine(ssh, "config.d", "lab"), "Host lab\n  HostName 10.0.0.5\n");
+            CollectionAssert.AreEqual(new[] { "build-server", "dev-box", "lab" }, SshConfigHosts.Read(Path.Combine(ssh, "config")).ToArray());
+            Assert.AreEqual(0, SshConfigHosts.Read(Path.Combine(ssh, "manca")).Count);
         }
 
         [TestMethod]
@@ -138,18 +226,18 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(RemoteGate.Folder, missing.Gate);
             StringAssert.Contains(missing.Message, "manca");
 
-            var sftpOnly = new RemoteSessions(new CannedTransport("This service allows sftp connections only.", "", 1), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance);
+            var sftpOnly = new RemoteSessions(new CannedTransport("This service allows sftp connections only.", "", 1), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             Assert.AreEqual(RemoteGate.Commands, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => sftpOnly.OpenAsync(Server("/srv")))).Gate);
 
-            var denied = new RemoteSessions(new CannedTransport("", "dev@10.0.0.5: Permission denied (publickey).", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance);
+            var denied = new RemoteSessions(new CannedTransport("", "dev@10.0.0.5: Permission denied (publickey).", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             var access = await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => denied.OpenAsync(Server("/srv")));
             Assert.AreEqual(RemoteGate.Access, access.Gate);
             StringAssert.Contains(access.Message, "ssh-copy-id");
 
-            var unknownHost = new RemoteSessions(new CannedTransport("", "Host key verification failed.", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance);
+            var unknownHost = new RemoteSessions(new CannedTransport("", "Host key verification failed.", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => unknownHost.OpenAsync(Server("/srv")))).Message, "known_hosts");
 
-            var noAgent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(Path.Combine(_base, "non-c-e")), NullLogger<RemoteSessions>.Instance);
+            var noAgent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(Path.Combine(_base, "non-c-e")), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => noAgent.OpenAsync(Server(_base)))).Message, "publish-linux-x64.sh");
         }
 
@@ -213,7 +301,7 @@ namespace MdExplorer.IntegrationTests
             var config = Environment.GetEnvironmentVariable("MDE_REMOTE_LAB_SSH_CONFIG");
             var port = Environment.GetEnvironmentVariable("MDE_REMOTE_LAB_PORT");
             if (string.IsNullOrEmpty(config) || string.IsNullOrEmpty(port)) Assert.Inconclusive("laboratorio SSH non indicato");
-            RemoteSessions Lab() => new(new SshTransport("ssh", new[] { "-F", config }), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance);
+            RemoteSessions Lab() => new(new SshTransport("ssh", new[] { "-F", config }), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
 
             using var lab = Lab();
             var roots = new CodeRootService(new MemoryStore(), _git, lab, NullLogger<CodeRootService>.Instance);
@@ -248,7 +336,7 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(gone.Reason, folder);
 
             var down = new CodeRootService(store, _git,
-                new RemoteSessions(new CannedTransport("", "ssh: connect to host server port 22: Connection refused", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), NullLogger<RemoteSessions>.Instance),
+                new RemoteSessions(new CannedTransport("", "ssh: connect to host server port 22: Connection refused", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance),
                 NullLogger<CodeRootService>.Instance);
             var state = (await down.ListAsync(_project)).Single();
             Assert.AreEqual(CodeRootStatus.Unreachable, state.Status);

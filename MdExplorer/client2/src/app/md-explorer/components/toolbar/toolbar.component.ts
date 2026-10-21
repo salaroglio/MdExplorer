@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MAT_LEGACY_TOOLTIP_DEFAULT_OPTIONS } from '@angular/material/legacy-tooltip';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { RemoteFileEditorDialogComponent, RemoteFileEditorData } from '../dialogs/code-roots/remote-file-editor-dialog.component';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
@@ -647,6 +648,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   OpenEditor() {
+    // Un file di una radice remota (ssh://…, sprint 2026-10-21 F3): nessun editor esterno lo apre da qui; si modifica
+    // nell'editor di MDE, che salva sul server con l'impronta.
+    if ((this.absolutePath || '').startsWith('ssh://') && (this.relativePath || '').startsWith('@')) {
+      const data: RemoteFileEditorData = { projectRoot: this.projectService.currentProjects$.value?.path || '', path: this.relativePath };
+      this.dialog.open(RemoteFileEditorDialogComponent, { width: '90vw', maxWidth: '1400px', data })
+        .afterClosed().subscribe(saved => { if (saved) { this.refreshDocument(); } });
+      return;
+    }
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
     this.http.get<any>(url).subscribe({
       next: data => {

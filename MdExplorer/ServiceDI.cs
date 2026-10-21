@@ -51,10 +51,12 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootBindingStore, MdExplorer.Services.CodeGraph.UserDbCodeRootBindingStore>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootService, MdExplorer.Services.CodeGraph.CodeRootService>();
             // Cartelle remote via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): ssh di sistema, un serverino per cartella.
+            services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteServerSettings, MdExplorer.Services.RemoteFolders.UserDbRemoteServerSettings>();
             services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteTransport>(_ => new MdExplorer.Services.RemoteFolders.SshTransport());
             services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteSessions>(sp => new MdExplorer.Services.RemoteFolders.RemoteSessions(
                 sp.GetRequiredService<MdExplorer.Services.RemoteFolders.IRemoteTransport>(),
                 () => MdExplorer.Services.RemoteFolders.RemoteAgentBinary.Load(MdExplorer.Services.RemoteFolders.RemoteAgentBinary.DefaultLocalPath),
+                sp.GetRequiredService<MdExplorer.Services.RemoteFolders.IRemoteServerSettings>(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MdExplorer.Services.RemoteFolders.RemoteSessions>>()));
             services.AddSingleton<MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeGraphTurnRefresher, MdExplorer.Services.CodeGraph.CodeGraphTurnRefresher>();

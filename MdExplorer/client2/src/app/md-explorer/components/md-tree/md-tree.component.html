@@ -116,6 +116,28 @@
       <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
     </button>
 
+    <!-- Radice remota via SSH (sprint 2026-10-21, F3, D7): si crea, modifica, rinomina e cancella sul server -->
+    <button *ngIf="isRemoteCodeRootContainer(item)" mat-menu-item (click)="remoteNewFile(item)">
+      <mat-icon>note_add</mat-icon>
+      <span>{{ 'REMOTE_TREE.NEW_FILE' | translate }}</span>
+    </button>
+    <button *ngIf="isRemoteCodeRootContainer(item)" mat-menu-item (click)="remoteNewFolder(item)">
+      <mat-icon>create_new_folder</mat-icon>
+      <span>{{ 'REMOTE_TREE.NEW_FOLDER' | translate }}</span>
+    </button>
+    <button *ngIf="item.codeRootRemote && item.type==='codeRootFile' && item.isTextFile" mat-menu-item (click)="remoteEdit(item)">
+      <mat-icon>edit_note</mat-icon>
+      <span>{{ 'REMOTE_TREE.EDIT' | translate }}</span>
+    </button>
+    <button *ngIf="isRemoteCodeRootEntry(item)" mat-menu-item (click)="remoteRename(item)">
+      <mat-icon>drive_file_rename_outline</mat-icon>
+      <span>{{ 'REMOTE_TREE.RENAME' | translate }}</span>
+    </button>
+    <button *ngIf="isRemoteCodeRootEntry(item)" mat-menu-item (click)="remoteDelete(item)">
+      <mat-icon>delete</mat-icon>
+      <span>{{ 'REMOTE_TREE.DELETE' | translate }}</span>
+    </button>
+
     <!-- Radici di codice esterne: il codice FUORI dal progetto (sprint 2026-10-12, F5) -->
     <button *ngIf="item.name==='root' || isCodeRootItem(item)"
             mat-menu-item

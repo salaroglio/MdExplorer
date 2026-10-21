@@ -17,7 +17,12 @@ import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.co
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
-import { CodeRoot, CodeRootsService } from '../../services/code-roots.service';
+import { CodeRoot, CodeRootsService, RemoteFileOp } from '../../services/code-roots.service';
+import { CodeRootNameDialogComponent, CodeRootNameDialogData } from '../dialogs/code-roots/code-root-name-dialog.component';
+import { RemoteFileEditorDialogComponent, RemoteFileEditorData } from '../dialogs/code-roots/remote-file-editor-dialog.component';
+
+/** La cartella che contiene un percorso con «/» (@alias/a/b → @alias/a; ssh://h/x/y → ssh://h/x). */
+function parentOf(path: string): string { return path.substring(0, path.lastIndexOf('/')); }
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -149,7 +154,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       appDescription: node.appDescription,
       // Radice di codice esterna
       codeRootStatus: node.codeRootStatus,
-      codeRootReason: node.codeRootReason
+      codeRootReason: node.codeRootReason,
+      codeRootRemote: node.codeRootRemote
     };
   }
   // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
@@ -2592,8 +2598,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const node = new MdFile('@' + r.alias, '@' + r.alias, 0, linked);
     node.type = 'codeRoot';
     node.relativePath = '@' + r.alias;
-    // collegata: la cartella vera (chiave dell'espansione); non collegata: l'alias, che non è un percorso
-    node.fullPath = linked && r.rootPath ? r.rootPath : '@' + r.alias;
+    // collegata: la cartella vera, su disco o ssh://host/… (chiave dell'espansione); non collegata: l'alias
+    node.fullPath = linked && (r.rootPath || r.remote) ? (r.rootPath || r.remote) : '@' + r.alias;
+    node.codeRootRemote = !!r.remote;
     node.codeRootStatus = r.status;
     node.codeRootReason = r.reason;
     node.childrens = [];
@@ -2610,6 +2617,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   onCodeRootFolderClick(flat: MdFile): void {
     if (flat.type === 'codeRoot' && flat.codeRootStatus !== 'Linked') { this.openCodeRootsDialog(); return; }
     if (this.treeControl.isExpanded(flat)) { this.treeControl.collapse(flat); return; }
+    this.loadCodeRootChildren(flat);
+  }
+
+  /** Chiede al backend i figli di @alias o di una sua cartella e la apre (anche per ricaricarla dopo una modifica). */
+  private loadCodeRootChildren(flat: MdFile): void {
     const nested = this.codeRootNodesByFullPath.get(flat.fullPath);
     const root = this.getProjectRoot();
     if (!nested || !root) { return; }
@@ -2622,6 +2634,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
           child.fullPath = e.fullPath;
           child.isTextFile = e.isText;
           child.childrens = [];
+          child.codeRootRemote = flat.codeRootRemote;
           if (e.isFolder) { this.codeRootNodesByFullPath.set(e.fullPath, child); }
           // un file che non si è potuto leggere lo dice (tooltip sulla riga), non sparisce
           if (e.unreadable) { child.codeRootReason = e.unreadable; }
@@ -2631,6 +2644,82 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.renderCodeRootNodes();
       },
       error: err => this.snackBar.open(this.translate.instant('MD_TREE.CODE_ROOT_BROWSE_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  // ------------------------------------------------------------------ radici remote: modifiche dall'albero (sprint 2026-10-21, F3, D7)
+
+  isRemoteCodeRootContainer(item: MdFile): boolean {
+    return !!item?.codeRootRemote && (item.type === 'codeRootFolder' || (item.type === 'codeRoot' && item.codeRootStatus === 'Linked'));
+  }
+
+  isRemoteCodeRootEntry(item: MdFile): boolean {
+    return !!item?.codeRootRemote && (item.type === 'codeRootFolder' || item.type === 'codeRootFile');
+  }
+
+  remoteNewFile(item: MdFile): void {
+    this.askCodeRootName('REMOTE_TREE.NEW_FILE', 'REMOTE_TREE.FILE_NAME', '', 'REMOTE_TREE.CREATE', name => {
+      const path = item.path + '/' + name;
+      this.remoteFileOp('create', path, { text: '' }, item.fullPath, () => this.remoteEdit({ path, name } as MdFile));
+    });
+  }
+
+  remoteNewFolder(item: MdFile): void {
+    this.askCodeRootName('REMOTE_TREE.NEW_FOLDER', 'REMOTE_TREE.FOLDER_NAME', '', 'REMOTE_TREE.CREATE', name =>
+      this.remoteFileOp('mkdir', item.path + '/' + name, {}, item.fullPath));
+  }
+
+  remoteRename(item: MdFile): void {
+    this.askCodeRootName('REMOTE_TREE.RENAME', 'REMOTE_TREE.NEW_NAME', item.name, 'REMOTE_TREE.RENAME_OK', name => {
+      if (name === item.name) { return; }
+      this.remoteFileOp('move', item.path, { to: parentOf(item.path) + '/' + name }, parentOf(item.fullPath));
+    });
+  }
+
+  remoteDelete(item: MdFile): void {
+    const data: CodeRootNameDialogData = {
+      title: this.translate.instant('REMOTE_TREE.DELETE'),
+      message: this.translate.instant(item.type === 'codeRootFolder' ? 'REMOTE_TREE.DELETE_FOLDER_MESSAGE' : 'REMOTE_TREE.DELETE_FILE_MESSAGE', { path: item.path }),
+      okText: this.translate.instant('REMOTE_TREE.DELETE_OK'),
+      danger: true,
+    };
+    this.dialog.open(CodeRootNameDialogComponent, { width: '460px', data }).afterClosed().subscribe(ok => {
+      if (ok === true) { this.remoteFileOp('delete', item.path, { recursive: item.type === 'codeRootFolder' }, parentOf(item.fullPath)); }
+    });
+  }
+
+  /** Modifica un file remoto nell'editor di MDE; salvato, se è quello mostrato si ricarica la pagina. */
+  remoteEdit(item: MdFile): void {
+    const projectRoot = this.getProjectRoot();
+    if (!projectRoot) { return; }
+    const data: RemoteFileEditorData = { projectRoot, path: item.path };
+    this.dialog.open(RemoteFileEditorDialogComponent, { width: '90vw', maxWidth: '1400px', data })
+      .afterClosed().subscribe(saved => {
+        // i nodi piatti dell'albero sono gli stessi oggetti che il template passa come MdFile
+        const shown = this.treeControl.dataNodes?.find(n => n.path === item.path && n.type === 'codeRootFile') as unknown as MdFile;
+        if (saved && shown && this.isNodeSelected(shown)) { this.getNode(shown); }
+      });
+  }
+
+  private askCodeRootName(titleKey: string, labelKey: string, value: string, okKey: string, then: (name: string) => void): void {
+    const data: CodeRootNameDialogData = {
+      title: this.translate.instant(titleKey), label: this.translate.instant(labelKey), value, okText: this.translate.instant(okKey),
+    };
+    this.dialog.open(CodeRootNameDialogComponent, { width: '420px', data })
+      .afterClosed().subscribe(name => { if (typeof name === 'string') { then(name); } });
+  }
+
+  /** Un'operazione sul server, poi la cartella toccata si ricarica; l'errore del serverino arriva com'è. */
+  private remoteFileOp(op: RemoteFileOp, path: string, extra: any, refreshFullPath: string, after?: () => void): void {
+    const projectRoot = this.getProjectRoot();
+    if (!projectRoot) { return; }
+    this.codeRootsService.file(projectRoot, op, path, extra).subscribe({
+      next: () => {
+        const folder = this.treeControl.dataNodes?.find(n => n.fullPath === refreshFullPath && (n.type === 'codeRoot' || n.type === 'codeRootFolder')) as unknown as MdFile;
+        if (folder) { this.loadCodeRootChildren(folder); }
+        if (after) { after(); }
+      },
+      error: err => this.snackBar.open(err?.error?.error || err?.message || String(err), 'OK', { duration: 8000 }),
     });
   }
 

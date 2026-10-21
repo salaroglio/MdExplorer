@@ -67,4 +67,6 @@ export class MdFile implements IFileInfoNode {
   /** Radice di codice esterna nell'albero (type 'codeRoot'): lo stato su questa macchina e il motivo se non è collegata. */
   codeRootStatus?: string;
   codeRootReason?: string;
+  /** Radice remota via SSH (sprint 2026-10-21, F3): si crea, rinomina, cancella e modifica dall'albero. */
+  codeRootRemote?: boolean;
 }
