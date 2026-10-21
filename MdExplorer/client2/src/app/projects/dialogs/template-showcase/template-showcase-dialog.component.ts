@@ -15,7 +15,7 @@ interface ShowcaseItem {
   id: string | null;
   /** Aggiunto per indirizzo: la riga mostra l'indirizzo, che è ciò che lo distingue. */
   byAddress?: boolean;
-  kind: 'empty' | 'foundation' | 'project' | 'method';
+  kind: 'empty' | 'foundation' | 'project' | 'method' | 'city';
   title: string;
   description: string;
   languages: string[];
@@ -39,6 +39,11 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
   language = 'it';
 
   empty: ShowcaseItem;
+  /** La città degli agenti (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C5): una funzione, con il suo deck dentro MDE. */
+  city: ShowcaseItem;
+  /** La città scelta, e con lei la sua documentazione (CF1, CF3). */
+  agentCity = false;
+  agentCityGuide = false;
   /** Lo strato comune (MC2): null finché l'elenco non ne ha uno; allora si compone con i soli metodi. */
   foundation: ShowcaseItem | null = null;
   /** I template di progetto, cioè la demo: hanno tutto incluso e stanno da soli (MC6). */
@@ -85,6 +90,11 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
       url: null, id: null, kind: 'empty', languages: ['it', 'en'],
       title: this.translate.instant('TEMPLATE_SHOWCASE.EMPTY'),
       description: this.translate.instant('TEMPLATE_SHOWCASE.EMPTY_DESC'),
+    };
+    this.city = {
+      url: null, id: null, kind: 'city', languages: ['it', 'en'],
+      title: this.translate.instant('TEMPLATE_SHOWCASE.AGENT_CITY'),
+      description: this.translate.instant('TEMPLATE_SHOWCASE.AGENT_CITY_DESC'),
     };
     this.viewed = this.empty;
   }
@@ -146,8 +156,8 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
     this.viewed = item;
     this.deckError = '';
     this.deckOnlyIn = '';
-    if (item.kind === 'empty') {
-      this.deckUrl = this.trusted(`/api/templateshowcase/empty?language=${this.language}`);
+    if (item.kind === 'empty' || item.kind === 'city') {
+      this.deckUrl = this.trusted(`/api/templateshowcase/${item.kind === 'city' ? 'agent-city' : 'empty'}?language=${this.language}`);
       return;
     }
     this.deckUrl = null;
@@ -228,7 +238,7 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
       const demo = this.bases.find(b => b.url === this.mode) || null;
       this.dialogRef.close({
         baseUrl: demo?.url || null, methodUrls: [], theoryUrls: [], language: this.language,
-        titles: demo ? [demo.title] : [], asksEngine: !demo,
+        titles: demo ? [demo.title] : [], asksEngine: !demo, agentCity: false, agentCityGuide: false,
       });
       return;
     }
@@ -240,9 +250,11 @@ export class TemplateShowcaseDialogComponent implements OnInit, OnDestroy {
       methodUrls: included.slice(1).map(i => i.url!),
       theoryUrls: included.filter(i => this.theory[i.url!] && this.hasTheory(i)).map(i => i.url!),
       language: this.language,
-      titles: included.map(i => i.title),
+      titles: [...included.map(i => i.title), ...(this.agentCity ? [this.city.title] : [])],
       // Né lo strato comune né un metodo portano il motore: lo sceglie chi crea.
       asksEngine: true,
+      agentCity: this.agentCity,
+      agentCityGuide: this.agentCity && this.agentCityGuide,
     });
   }
 

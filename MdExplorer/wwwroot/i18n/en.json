@@ -211,6 +211,11 @@
     "DEMO_ALONE": "It already has everything included: it stands alone, without methods.",
     "ONE_COMMON_LAYER": "The common layer is already there: «{{title}}». A project has one only.",
     "CHOOSE_A_METHOD": "Choose at least one method.",
+    "FUNCTIONS": "Functions",
+    "AGENT_CITY": "Agent city",
+    "AGENT_CITY_DESC": "Agents that prepare the work, people who approve: the city turned on, the responsibilities document and a first «hello world» round. Without it, the methods' agents do not arrive.",
+    "AGENT_CITY_GUIDE": "with the documentation",
+    "AGENT_CITY_GUIDE_TIP": "How the city works, roles and responsibilities, the first round, how to write a workflow, and how to set up ISO 9001 with workflows.",
     "CHOSEN": "From: {{titles}}"
   },
   "PROJECT_CONFIG": {

@@ -27,6 +27,9 @@ export interface TemplateCreation {
   methods?: string[];
   /** Gli indirizzi, fra il primo template e i metodi, di cui si vuole anche la teoria (MC5). */
   theory?: string[];
+  /** La città degli agenti di MDE, e la sua documentazione (C5 della città come funzione). */
+  agentCity?: boolean;
+  agentCityGuide?: boolean;
   /** Il motore, quando non c'è una base che lo dichiara (P5: un progetto che parte da un metodo). */
   harness?: string;
 }

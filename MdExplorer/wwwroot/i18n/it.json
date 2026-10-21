@@ -211,6 +211,11 @@
     "DEMO_ALONE": "Ha già tutto incluso: sta da sola, senza metodi.",
     "ONE_COMMON_LAYER": "Lo strato comune c'è già: «{{title}}». Un progetto ne ha uno solo.",
     "CHOOSE_A_METHOD": "Scegli almeno un metodo.",
+    "FUNCTIONS": "Funzioni",
+    "AGENT_CITY": "Città degli agenti",
+    "AGENT_CITY_DESC": "Agenti che preparano il lavoro, persone che approvano: la città accesa, il documento delle responsabilità e un primo giro «hello world». Senza, gli agenti dei metodi non arrivano.",
+    "AGENT_CITY_GUIDE": "anche la documentazione",
+    "AGENT_CITY_GUIDE_TIP": "Come funziona la città, ruoli e responsabilità, il primo giro, come si scrive un workflow, e come mettere in piedi la ISO 9001 con i workflow.",
     "CHOSEN": "Da: {{titles}}"
   },
   "PROJECT_CONFIG": {

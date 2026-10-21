@@ -27,6 +27,9 @@ export interface TemplateChoice {
     theoryUrls: string[];
     /** Il motore lo sceglie chi crea: solo la demo porta il suo. */
     asksEngine: boolean;
+    /** La città degli agenti di MDE, e la sua documentazione (C5). */
+    agentCity: boolean;
+    agentCityGuide: boolean;
     language: string;
     example: boolean;
     folderName: string;
@@ -74,6 +77,9 @@ export interface TemplateShowcaseChoice {
     theoryUrls: string[];
     /** Il motore lo sceglie chi crea: falso solo per la demo, che porta il suo. */
     asksEngine: boolean;
+    /** La città degli agenti scelta fra le funzioni, e la sua documentazione (C5). */
+    agentCity: boolean;
+    agentCityGuide: boolean;
     language: string;
     /** I titoli di ciò che si è scelto, per ricordarlo nella configurazione. */
     titles: string[];

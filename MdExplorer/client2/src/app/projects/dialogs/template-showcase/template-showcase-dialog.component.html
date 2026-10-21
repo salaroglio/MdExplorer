@@ -39,6 +39,20 @@
                 </div>
               </div>
             </div>
+
+            <!-- Le funzioni (C5): la città degli agenti, con il suo deck e la sua documentazione. -->
+            <label class="group-label">{{ 'TEMPLATE_SHOWCASE.FUNCTIONS' | translate }}</label>
+            <div class="row" [class.viewed]="viewed === city" (click)="show(city)">
+              <mat-checkbox color="primary" [(ngModel)]="agentCity" [disabled]="!composing" (click)="$event.stopPropagation()"></mat-checkbox>
+              <div class="row-text">
+                <div class="row-title">{{ city.title }}</div>
+                <div class="row-desc">{{ city.description }}</div>
+                <mat-checkbox class="theory" color="primary" [(ngModel)]="agentCityGuide" [disabled]="!composing || !agentCity"
+                              (click)="$event.stopPropagation()" [matTooltip]="'TEMPLATE_SHOWCASE.AGENT_CITY_GUIDE_TIP' | translate">
+                  {{ 'TEMPLATE_SHOWCASE.AGENT_CITY_GUIDE' | translate }}
+                </mat-checkbox>
+              </div>
+            </div>
           </div>
 
           <label class="group-label">{{ 'TEMPLATE_SHOWCASE.OR' | translate }}</label>

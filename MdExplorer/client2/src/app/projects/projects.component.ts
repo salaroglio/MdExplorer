@@ -401,6 +401,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     try {
       const created = await this.projectService.createFromTemplate({
         path, templateUrl: urls[0], methods: urls.slice(1), theory: t.theoryUrls, language: t.language, example: t.example,
+        agentCity: t.agentCity, agentCityGuide: t.agentCityGuide,
         originUrl: t.originUrl || undefined,
         // Il motore lo sceglie chi crea; la demo porta il suo.
         harness: t.asksEngine ? config.harness : undefined,

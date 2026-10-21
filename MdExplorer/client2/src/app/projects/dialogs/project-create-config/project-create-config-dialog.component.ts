@@ -59,6 +59,7 @@ export class ProjectCreateConfigDialogComponent {
       ...this.config,
       template: {
         baseUrl: choice.baseUrl, methodUrls: choice.methodUrls, theoryUrls: choice.theoryUrls, asksEngine: choice.asksEngine,
+        agentCity: choice.agentCity, agentCityGuide: choice.agentCityGuide,
         language: choice.language, example: this.templateExample,
         folderName, originUrl: this.originUrl.trim(),
       },
