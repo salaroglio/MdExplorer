@@ -2632,7 +2632,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const root = this.getProjectRoot();
     if (!nested || !root) { return; }
     this.codeRootsService.browse(root, flat.path).subscribe({
-      next: entries => {
+      next: all => {
+        // l'occhio (FL): di base cartelle e .md, come nell'albero del progetto; gli altri file solo se la cartella è «rivelata»
+        const isOther = (e: { isFolder: boolean, name: string }) => !e.isFolder && !/\.md$/i.test(e.name);
+        if (all.some(isOther)) { this.codeRootHasOtherFiles.add(flat.fullPath); } else { this.codeRootHasOtherFiles.delete(flat.fullPath); }
+        const entries = this.codeRootRevealed.has(flat.fullPath) ? all : all.filter(e => !isOther(e));
         nested.childrens = entries.map(e => {
           const child = new MdFile(e.name, e.path, flat.level + 1, e.isFolder);
           child.type = e.isFolder ? 'codeRootFolder' : 'codeRootFile';
@@ -2653,36 +2657,56 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  // ------------------------------------------------------------------ radici remote: modifiche dall'albero (sprint 2026-10-21, F3, D7)
+  // ------------------------------------------------------------------ radici esterne: modifiche dall'albero (sprint 2026-10-21, F3/D7 remote, FL locali)
 
-  isRemoteCodeRootContainer(item: MdFile): boolean {
-    return !!item?.codeRootRemote && (item.type === 'codeRootFolder' || (item.type === 'codeRoot' && item.codeRootStatus === 'Linked'));
+  isEditableCodeRootContainer(item: MdFile): boolean {
+    return item?.type === 'codeRootFolder' || (item?.type === 'codeRoot' && item.codeRootStatus === 'Linked');
   }
 
-  isRemoteCodeRootEntry(item: MdFile): boolean {
-    return !!item?.codeRootRemote && (item.type === 'codeRootFolder' || item.type === 'codeRootFile');
+  isEditableCodeRootEntry(item: MdFile): boolean {
+    return item?.type === 'codeRootFolder' || item?.type === 'codeRootFile';
   }
 
-  remoteNewFile(item: MdFile): void {
+  // ---- l'occhio (FL): come nel progetto, di base cartelle e .md; «mostra altri file» per cartella ----
+
+  /** Le cartelle (fullPath) in cui l'utente ha chiesto di vedere tutti i file. Per la sessione, come l'albero del progetto. */
+  private readonly codeRootRevealed = new Set<string>();
+  /** Le cartelle (fullPath) che hanno file diversi dai .md: solo lì l'occhio ha senso. */
+  private readonly codeRootHasOtherFiles = new Set<string>();
+
+  codeRootCanReveal(item: MdFile): boolean {
+    return this.isEditableCodeRootContainer(item) && this.codeRootHasOtherFiles.has(item.fullPath) && !this.codeRootRevealed.has(item.fullPath);
+  }
+
+  codeRootCanHide(item: MdFile): boolean {
+    return this.isEditableCodeRootContainer(item) && this.codeRootRevealed.has(item.fullPath);
+  }
+
+  toggleCodeRootExtras(item: MdFile): void {
+    if (this.codeRootRevealed.has(item.fullPath)) { this.codeRootRevealed.delete(item.fullPath); } else { this.codeRootRevealed.add(item.fullPath); }
+    this.loadCodeRootChildren(item);
+  }
+
+  codeRootNewFile(item: MdFile): void {
     this.askCodeRootName('REMOTE_TREE.NEW_FILE', 'REMOTE_TREE.FILE_NAME', '', 'REMOTE_TREE.CREATE', name => {
       const path = item.path + '/' + name;
-      this.remoteFileOp('create', path, { text: '' }, item.fullPath, () => this.remoteEdit({ path, name } as MdFile));
+      this.codeRootFileOp('create', path, { text: '' }, item.fullPath, () => this.codeRootEdit({ path, name } as MdFile));
     });
   }
 
-  remoteNewFolder(item: MdFile): void {
+  codeRootNewFolder(item: MdFile): void {
     this.askCodeRootName('REMOTE_TREE.NEW_FOLDER', 'REMOTE_TREE.FOLDER_NAME', '', 'REMOTE_TREE.CREATE', name =>
-      this.remoteFileOp('mkdir', item.path + '/' + name, {}, item.fullPath));
+      this.codeRootFileOp('mkdir', item.path + '/' + name, {}, item.fullPath));
   }
 
-  remoteRename(item: MdFile): void {
+  codeRootRename(item: MdFile): void {
     this.askCodeRootName('REMOTE_TREE.RENAME', 'REMOTE_TREE.NEW_NAME', item.name, 'REMOTE_TREE.RENAME_OK', name => {
       if (name === item.name) { return; }
-      this.remoteFileOp('move', item.path, { to: parentOf(item.path) + '/' + name }, parentOf(item.fullPath));
+      this.codeRootFileOp('move', item.path, { to: parentOf(item.path) + '/' + name }, parentOf(item.fullPath));
     });
   }
 
-  remoteDelete(item: MdFile): void {
+  codeRootDelete(item: MdFile): void {
     const data: CodeRootNameDialogData = {
       title: this.translate.instant('REMOTE_TREE.DELETE'),
       message: this.translate.instant(item.type === 'codeRootFolder' ? 'REMOTE_TREE.DELETE_FOLDER_MESSAGE' : 'REMOTE_TREE.DELETE_FILE_MESSAGE', { path: item.path }),
@@ -2690,12 +2714,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       danger: true,
     };
     this.dialog.open(CodeRootNameDialogComponent, { width: '460px', data }).afterClosed().subscribe(ok => {
-      if (ok === true) { this.remoteFileOp('delete', item.path, { recursive: item.type === 'codeRootFolder' }, parentOf(item.fullPath)); }
+      if (ok === true) { this.codeRootFileOp('delete', item.path, { recursive: item.type === 'codeRootFolder' }, parentOf(item.fullPath)); }
     });
   }
 
   /** Modifica un file remoto nell'editor di MDE; salvato, se è quello mostrato si ricarica la pagina. */
-  remoteEdit(item: MdFile): void {
+  codeRootEdit(item: MdFile): void {
     const projectRoot = this.getProjectRoot();
     if (!projectRoot) { return; }
     const data: RemoteFileEditorData = { projectRoot, path: item.path };
@@ -2716,7 +2740,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Un'operazione sul server, poi la cartella toccata si ricarica; l'errore del serverino arriva com'è. */
-  private remoteFileOp(op: RemoteFileOp, path: string, extra: any, refreshFullPath: string, after?: () => void): void {
+  private codeRootFileOp(op: RemoteFileOp, path: string, extra: any, refreshFullPath: string, after?: () => void): void {
     const projectRoot = this.getProjectRoot();
     if (!projectRoot) { return; }
     this.codeRootsService.file(projectRoot, op, path, extra).subscribe({

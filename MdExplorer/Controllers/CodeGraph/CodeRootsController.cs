@@ -195,22 +195,26 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Files([FromBody] FileRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var resolver = await _roots.CreateResolverAsync(request.ProjectPath, ct);
-            var target = resolver.RemoteOf(request.Path)
-                ?? throw new InvalidOperationException(UiText.Say($"'{request.Path}' non è in una radice remota: le modifiche dall'albero alle radici locali arrivano con la fase FL.", $"'{request.Path}' is not in a remote root: edits from the tree to local roots come with phase FL."));
+            // remota → il serverino sul server; locale → le stesse regole sulla cartella del disco (FL)
+            var target = resolver.RemoteOf(request.Path) ?? resolver.LocalOf(request.Path)
+                ?? throw new InvalidOperationException(UiText.Say($"'{request.Path}' non è in una radice di codice esterna (@alias/…).", $"'{request.Path}' is not in an external code root (@alias/…)."));
             string to = null;
             if (!string.IsNullOrEmpty(request.To))
             {
-                var dest = resolver.RemoteOf(request.To);
+                var dest = resolver.RemoteOf(request.To) ?? resolver.LocalOf(request.To);
                 if (dest == null || dest.Value.Root.Alias != target.Root.Alias)
                     throw new InvalidOperationException(UiText.Say($"'{request.To}' deve stare nella stessa radice di '{request.Path}'.", $"'{request.To}' must be in the same root as '{request.Path}'."));
                 to = dest.Value.Relative;
             }
-            var response = await _remoteFiles.OperateAsync(target.Root, new MdExplorer.RemoteProtocol.RemoteRequest
+            var operation = new MdExplorer.RemoteProtocol.RemoteRequest
             {
                 Op = request.Op, Path = target.Relative, To = to, Text = request.Text, Stamp = request.Stamp,
                 Recursive = request.Recursive, Pattern = request.Pattern, IgnoreCase = request.IgnoreCase,
                 Exclude = request.Op == MdExplorer.RemoteProtocol.RemoteOps.Grep ? new List<string> { ".git" } : null,
-            }, ct);
+            };
+            var response = target.Root.IsRemote
+                ? await _remoteFiles.OperateAsync(target.Root, operation, ct)
+                : RemoteCodeRootFiles.OperateLocal(target.Root, operation);
             var alias = target.Root.Alias;
             return Ok(new
             {

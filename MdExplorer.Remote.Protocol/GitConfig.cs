@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MdExplorer.RemoteProtocol;
 
-namespace MdExplorer.RemoteAgent
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>I remote da un file <c>config</c> di git, senza il programma <c>git</c> (sul server può non esserci).</summary>
     public static class GitConfig

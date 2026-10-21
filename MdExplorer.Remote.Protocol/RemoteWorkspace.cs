@@ -4,9 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using MdExplorer.RemoteProtocol;
 
-namespace MdExplorer.RemoteAgent
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Le operazioni sui file dentro una radice. Regole (piano, «F1 — il serverino»): nessun percorso esce dalla radice,

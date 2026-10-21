@@ -813,7 +813,7 @@
   },
   "REMOTE_EDITOR": {
     "SAVE": "Save",
-    "SAVED": "Saved on the server.",
+    "SAVED": "Saved.",
     "RELOAD": "Reload from the server",
     "DISCARD_TITLE": "Unsaved changes",
     "DISCARD_MESSAGE": "{{path}} has unsaved changes: closing loses them.",
@@ -830,9 +830,9 @@
     "NEW_NAME": "New name",
     "RENAME_OK": "Rename",
     "DELETE": "Delete",
-    "DELETE_OK": "Delete from the server",
-    "DELETE_FILE_MESSAGE": "Delete {{path}} from the server? It cannot be undone.",
-    "DELETE_FOLDER_MESSAGE": "Delete the folder {{path}} from the server, with everything in it? It cannot be undone."
+    "DELETE_OK": "Delete",
+    "DELETE_FILE_MESSAGE": "Delete {{path}}? It cannot be undone.",
+    "DELETE_FOLDER_MESSAGE": "Delete the folder {{path}} with everything in it? It cannot be undone."
   },
   "CODE_ROOTS": {
     "TITLE": "External code roots",

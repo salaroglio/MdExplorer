@@ -45,6 +45,17 @@ namespace MdExplorer.Services.RemoteFolders
             return await channel.SendAsync(request, ct);
         }
 
+        /// <summary>
+        /// La stessa operazione su una radice LOCALE (FL): le regole del serverino (<see cref="WorkspaceDispatcher"/>) sulla
+        /// cartella del disco, così una radice si modifica allo stesso modo ovunque stia.
+        /// </summary>
+        public static RemoteResponse OperateLocal(CodeRootState root, RemoteRequest request)
+        {
+            var response = WorkspaceDispatcher.Dispatch(new RemoteWorkspace(root.RootPath), request);
+            if (!response.Ok) throw new RemoteOperationException(response.Error?.Code ?? RemoteErrorCodes.Internal, response.Error?.Message ?? "");
+            return response;
+        }
+
         /// <summary>Il testo di un file, con l'impronta per riscriverlo; un binario o un file non UTF-8 è rifiutato dal serverino.</summary>
         public async Task<RemoteResponse> ReadAsync(CodeRootState root, string relative, CancellationToken ct)
         {

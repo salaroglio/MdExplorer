@@ -42,5 +42,18 @@ namespace MdExplorer.Features.Tests.RemoteFolders
             Assert.IsNull(r.RemoteOf("docs/a.md"), "un percorso del progetto");
             Assert.ThrowsException<InvalidOperationException>(() => r.RemoteOf("@srv/../../etc/passwd"));
         }
+
+        [TestMethod]
+        public void Give_root_and_relative_path_of_a_local_root_for_file_operations()
+        {
+            var r = Resolver();
+            var local = r.LocalOf("@local/src/a.cs");
+            Assert.AreEqual("local", local.Value.Root.Alias);
+            Assert.AreEqual("src/a.cs", local.Value.Relative);
+            Assert.AreEqual("", r.LocalOf("@local").Value.Relative);
+            Assert.IsNull(r.LocalOf("@srv/a.cs"), "una radice remota passa da RemoteOf");
+            Assert.ThrowsException<InvalidOperationException>(() => r.LocalOf("@local/../../fuori.txt"));
+            Assert.ThrowsException<InvalidOperationException>(() => r.LocalOf("@down/a.cs"), "non utilizzabile qui");
+        }
     }
 }

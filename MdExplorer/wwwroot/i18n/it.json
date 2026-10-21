@@ -813,7 +813,7 @@
   },
   "REMOTE_EDITOR": {
     "SAVE": "Salva",
-    "SAVED": "Salvato sul server.",
+    "SAVED": "Salvato.",
     "RELOAD": "Ricarica dal server",
     "DISCARD_TITLE": "Modifiche non salvate",
     "DISCARD_MESSAGE": "{{path}} ha modifiche non salvate: chiudendo si perdono.",
@@ -830,9 +830,9 @@
     "NEW_NAME": "Nuovo nome",
     "RENAME_OK": "Rinomina",
     "DELETE": "Elimina",
-    "DELETE_OK": "Elimina dal server",
-    "DELETE_FILE_MESSAGE": "Eliminare {{path}} dal server? Non si può annullare.",
-    "DELETE_FOLDER_MESSAGE": "Eliminare la cartella {{path}} dal server, con tutto quello che contiene? Non si può annullare."
+    "DELETE_OK": "Elimina",
+    "DELETE_FILE_MESSAGE": "Eliminare {{path}}? Non si può annullare.",
+    "DELETE_FOLDER_MESSAGE": "Eliminare la cartella {{path}} con tutto quello che contiene? Non si può annullare."
   },
   "CODE_ROOTS": {
     "TITLE": "Radici di codice esterne",

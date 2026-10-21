@@ -113,6 +113,20 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
+        /// Gemello di <see cref="RemoteOf"/> per una radice collegata su QUESTO disco (FL): la radice e il percorso relativo
+        /// (<c>/</c>) per le operazioni sui file. Null se la radice è remota; eccezione se non è utilizzabile o il percorso esce.
+        /// </summary>
+        public (CodeRootState Root, string Relative)? LocalOf(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !CodeRootPaths.IsLogical(path)) return null;
+            var (alias, _) = CodeRootPaths.Parse(path);
+            if (!_byAlias.TryGetValue(alias, out var root) || root.IsRemote) return null;
+            var full = Resolve(path);   // non collegata, «..» che esce: l'errore con il motivo
+            var rel = PathContainment.RelativeOrNull(root.RootPath, full);
+            return (root, rel == null || rel == "." ? string.Empty : rel.Replace(Path.DirectorySeparatorChar, '/'));
+        }
+
+        /// <summary>
         /// Il percorso logico di un file di questa macchina: relativo al progetto se ci sta dentro, <c>@alias/…</c> se sta
         /// in una radice collegata, null se non sta da nessuna parte che il progetto conosca.
         /// </summary>

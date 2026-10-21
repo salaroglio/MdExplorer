@@ -1,6 +1,6 @@
 using System;
 
-namespace MdExplorer.RemoteAgent
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>Un rifiuto con il suo codice (<see cref="MdExplorer.RemoteProtocol.RemoteErrorCodes"/>).</summary>
     public sealed class RemoteFailure : Exception
