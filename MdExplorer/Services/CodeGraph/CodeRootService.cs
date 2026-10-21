@@ -166,8 +166,9 @@ namespace MdExplorer.Services.CodeGraph
             }
             catch (RemoteUploadConsentRequiredException ex)
             {
-                // finché l'utente non dice sì (finestra delle radici), la radice resta ferma e lo dice
-                return state(CodeRootStatus.Unreachable, ex.Message, null, null, null);
+                // finché l'utente non dice sì (finestra delle radici), la radice resta ferma e lo dice — con il suo stato:
+                // «non raggiungibile» era improprio, il server risponde (21/10)
+                return state(CodeRootStatus.ConsentRequired, ex.Message, null, null, null);
             }
             if (root.Repository == null) return state(CodeRootStatus.Linked, null, null, null, target);
             var git = (await channel.SendAsync(new RemoteRequest { Op = RemoteOps.GitInfo }, ct)).Git;
@@ -421,8 +422,10 @@ namespace MdExplorer.Services.CodeGraph
         });
 
         /// <summary>
-        /// «Non ricordarmelo più»: una riga <see cref="Setting"/> per progetto (Name fisso, Description = progetto,
-        /// ValueString = alias uno per riga). Una preferenza dell'utente su questa macchina, come la posizione.
+        /// «Non ricordarmelo più»: una riga <see cref="Setting"/> per progetto (Name = <c>CodeRootsReminderDismissed:</c> +
+        /// progetto, Description = progetto, ValueString = alias uno per riga). Una preferenza dell'utente su questa
+        /// macchina, come la posizione. ⚠️ <c>Setting.Name</c> è UNIQUE: fino al 21/10/2026 il Name era fisso e il secondo
+        /// progetto non entrava (migrazione M2026_10_21_001 per la riga che esisteva già).
         /// </summary>
         private const string ReminderSetting = "CodeRootsReminderDismissed";
 
@@ -432,7 +435,7 @@ namespace MdExplorer.Services.CodeGraph
 
         public void DismissReminders(string projectPath, IEnumerable<string> aliases) => WithDb(db =>
         {
-            var row = FindReminder(db, projectPath) ?? new Setting { Name = ReminderSetting, Description = Key(projectPath) };
+            var row = FindReminder(db, projectPath) ?? new Setting { Name = ReminderName(projectPath), Description = Key(projectPath) };
             var all = (row.ValueString ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Concat(aliases).Distinct(StringComparer.Ordinal).OrderBy(a => a, StringComparer.Ordinal);
             row.ValueString = string.Join("\n", all);
@@ -440,10 +443,13 @@ namespace MdExplorer.Services.CodeGraph
             return true;
         });
 
+        private static string ReminderName(string projectPath) => ReminderSetting + ":" + Key(projectPath);
+
+        // ⚠️ .ToList() prima del confronto: NHibernate non traduce i confronti tolleranti (vedi FindProjectByPath)
         private static Setting FindReminder(IUserSettingsDB db, string projectPath)
         {
             var key = Key(projectPath);
-            return db.GetDal<Setting>().GetList().Where(s => s.Name == ReminderSetting).ToList()
+            return db.GetDal<Setting>().GetList().Where(s => s.Name.StartsWith(ReminderSetting + ":")).ToList()
                 .FirstOrDefault(s => string.Equals(s.Description, key, PathContainment.Comparison));
         }
 

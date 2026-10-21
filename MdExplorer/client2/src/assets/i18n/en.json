@@ -842,6 +842,7 @@
     "STATUS_NOTFOUND": "not found",
     "STATUS_MISMATCH": "different repository",
     "STATUS_UNREACHABLE": "server unreachable",
+    "STATUS_CONSENTREQUIRED": "needs your consent",
     "ON_SERVER": "On the server",
     "LINK_REMOTE": "Link on a server",
     "PICK_REMOTE_AND_LINK": "Choose on a server (SSH) and link",

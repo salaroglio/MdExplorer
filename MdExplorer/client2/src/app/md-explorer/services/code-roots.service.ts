@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 /** Lo stato di una radice di codice esterna su questa macchina (sprint 2026-10-12-Radici-Di-Codice-Esterne). */
-export type CodeRootStatus = 'Linked' | 'NotLinked' | 'NotFound' | 'Mismatch' | 'Unreachable';
+export type CodeRootStatus = 'Linked' | 'NotLinked' | 'NotFound' | 'Mismatch' | 'Unreachable' | 'ConsentRequired';
 
 export interface CodeRoot {
   alias: string;

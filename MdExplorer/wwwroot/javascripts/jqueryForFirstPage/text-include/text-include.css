@@ -66,7 +66,9 @@
     font-family: 'Consolas', 'Courier New', 'Menlo', 'Monaco', monospace;
     background: transparent;
     padding: 0;
-    color: #24292f;
+    /* inherit, non un colore fisso: Prism scurisce il <pre> (pre[class*="language-"], prism-tomorrow) e un #24292f
+       qui rendeva illeggibile il testo senza linguaggio (.txt): scuro su scuro, visto il 21/10/2026 */
+    color: inherit;
     white-space: pre;
 }
 

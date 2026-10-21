@@ -352,6 +352,22 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Show_a_remote_root_waiting_for_consent_with_its_own_status()
+        {
+            var folder = Path.Combine(_base, "code");
+            Directory.CreateDirectory(folder);
+            var store = new MemoryStore();
+            await Roots(store).LinkAsync(_project, "code", "ssh://server" + folder);
+
+            // un'altra installazione (UserDB senza consenso) e un server su cui il serverino non c'è più
+            Directory.Delete(Path.Combine(_home, ".cache"), true);
+            using var noConsent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(), NullLogger<RemoteSessions>.Instance);
+            var state = (await new CodeRootService(store, _git, noConsent, NullLogger<CodeRootService>.Instance).ListAsync(_project)).Single();
+            Assert.AreEqual(CodeRootStatus.ConsentRequired, state.Status, "il server risponde: non è «non raggiungibile»");
+            StringAssert.Contains(state.Reason, ".cache/mdexplorer");
+        }
+
+        [TestMethod]
         public async Task Show_an_unreachable_or_vanished_remote_root_with_its_reason()
         {
             var folder = Path.Combine(_base, "code");

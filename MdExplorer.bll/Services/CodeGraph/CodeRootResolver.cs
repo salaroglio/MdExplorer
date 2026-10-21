@@ -21,6 +21,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Mismatch,
         /// <summary>Radice remota (<c>ssh://</c>): il server non si raggiunge o il serverino non parte; il motivo dice quale porta è chiusa.</summary>
         Unreachable,
+        /// <summary>Radice remota: il serverino va caricato sul server e l'utente non ha ancora detto sì (P13).</summary>
+        ConsentRequired,
     }
 
     public sealed class CodeRootState

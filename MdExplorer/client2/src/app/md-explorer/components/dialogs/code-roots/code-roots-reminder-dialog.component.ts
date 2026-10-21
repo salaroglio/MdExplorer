@@ -38,8 +38,8 @@ export interface CodeRootsReminderData { projectRoot: string; roots: CodeRoot[];
     .intro { margin: 0 0 10px; }
     .root { padding: 6px 10px; margin-bottom: 6px; border-radius: 6px; background: var(--mde-surface-2, rgba(0,0,0,0.04)); }
     .status { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; margin-left: 6px; }
-    .status.notlinked { color: #ef6c00; }
-    .status.notfound, .status.mismatch { color: #c62828; }
+    .status.notlinked, .status.consentrequired { color: #ef6c00; }
+    .status.notfound, .status.mismatch, .status.unreachable { color: #c62828; }
     .reason { font-size: 12px; opacity: 0.8; margin-top: 2px; }
     .note { font-size: 12px; opacity: 0.75; margin: 10px 0; }
     .error { color: #c62828; margin-top: 8px; }
