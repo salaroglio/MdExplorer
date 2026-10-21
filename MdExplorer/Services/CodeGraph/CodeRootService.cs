@@ -332,7 +332,9 @@ namespace MdExplorer.Services.CodeGraph
                     if (e.Length < 2 || e.IndexOfAny(new[] { '/', '\\', '*', '?' }) >= 0)
                         throw new InvalidOperationException(UiText.Say($"«{e}» non è un'estensione (es. .cbl).", $"«{e}» is not an extension (e.g. .cbl)."));
                     if (seen.TryGetValue(e, out var other))
-                        throw new InvalidOperationException(UiText.Say($"L'estensione {e} è assegnata due volte ({other} e {rule.Encoding}).", $"The extension {e} is assigned twice ({other} and {rule.Encoding})."));
+                        throw new InvalidOperationException(UiText.Say(
+                            $"L'estensione {e} è assegnata due volte ({MdExplorer.RemoteProtocol.TextDecoding.DisplayName(other)} e {MdExplorer.RemoteProtocol.TextDecoding.DisplayName(rule.Encoding)}).",
+                            $"The extension {e} is assigned twice ({MdExplorer.RemoteProtocol.TextDecoding.DisplayName(other)} and {MdExplorer.RemoteProtocol.TextDecoding.DisplayName(rule.Encoding)})."));
                     seen[e] = rule.Encoding;
                 }
                 result.Add(new CodeRootEncodingRule { Extensions = exts, Encoding = rule.Encoding });

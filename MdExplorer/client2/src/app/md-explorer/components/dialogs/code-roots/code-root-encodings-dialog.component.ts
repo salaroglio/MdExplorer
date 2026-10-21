@@ -60,6 +60,8 @@ interface Row { extensions: string; encoding: string; }
     .rule { display: flex; align-items: flex-end; gap: 10px; }
     .rule-field { display: flex; flex-direction: column; flex: 2; }
     .rule-field.encoding { flex: 1; min-width: 150px; }
+    /* allineato ai campi, non al loro spazio per i suggerimenti sotto (visto a schermo il 21/10) */
+    .rule > button { margin-bottom: 36px; }
   `]
 })
 export class CodeRootEncodingsDialogComponent implements OnInit {
