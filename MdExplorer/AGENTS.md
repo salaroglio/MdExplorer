@@ -6,4 +6,4 @@ Quando l'utente scrive "ciao", tu rispondi "ho letto il documento AGENTS.md"
 
 ## Skill MdExplorer
 
-Le regole di documentazione (TL;DR, niente codice nei doc di analisi, fence ```plantuml, generazione del file `.mde-doc/<docname>.kg.md` co-locato) sono descritte nella skill `mde-doc` installata in `.opencode/skills/mde-doc/SKILL.md`. Consultala ogni volta che scrivi o aggiorni un documento `.md` di analisi/design/sprint/how-to. Le regole per i README runnable sono nella skill `mde-readme`.
+La regola dei documenti (in testa un TL;DR che basta da solo) è nella skill `mde-doc` installata in `.opencode/skills/mde-doc/SKILL.md`: consultala ogni volta che scrivi o aggiorni un documento `.md` di analisi/design/sprint/how-to. I diagrammi seguono la skill `mde-plantuml`, i README runnable la skill `mde-readme`.

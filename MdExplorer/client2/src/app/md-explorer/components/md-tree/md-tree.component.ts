@@ -974,8 +974,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async openTocDirectory(node: MdFile) {
     // Deterministic TOC: always regenerate, then navigate to the .md.directory file.
-    // The generation reads the file system + each doc's TL;DR + MD5 hash, and appends
-    // the aggregated knowledge graph from any .mde-doc/*.kg.md siblings. No AI involved.
+    // The generation reads the file system + each doc's TL;DR + MD5 hash, and pushes the
+    // folder's .mde-doc/*.kg.cypher scripts to Neo4j when the knowledge graph is on. No AI involved.
     this.generateTocWithAI(node, true);
   }
 

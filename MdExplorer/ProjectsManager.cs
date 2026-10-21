@@ -654,6 +654,18 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 FileUtil.ExtractResFile(layout.InstructionsResource, instructionsPath);
                 Console.WriteLine($"Created project instructions file ({layout.Id}): {instructionsPath}");
             }
+            else
+            {
+                // Il file nasce una volta sola: le frasi che MDE scriveva e che oggi dicono il falso si correggono qui,
+                // solo quelle (ProjectInstructionsRetired), il resto è del gruppo.
+                var before = File.ReadAllText(instructionsPath);
+                var after = ProjectInstructionsRetired.Apply(before);
+                if (after != before)
+                {
+                    File.WriteAllText(instructionsPath, after);
+                    Console.WriteLine($"[ProjectsManager] Retired MDE sentences corrected in {instructionsPath}");
+                }
+            }
 
             // Version-aware install/update. Each MdE-managed asset has an `mde:` block in its
             // frontmatter; the updater upgrades it on every project open if the embedded version

@@ -24,7 +24,7 @@
     let _overlay = null;
     let _graph = null;          // active ForceGraph instance
     let _source = 'files';      // 'files' = links between markdown files (default, legacy)
-                                 // 'concepts' = concept graph from Neo4j (.kg.md payloads)
+                                 // 'concepts' = concept graph from Neo4j (.mde-doc/*.kg.cypher scripts)
     let _data = null;
     let _layout = null;         // cluster layout for current data
     let _isDark = false;
@@ -1322,7 +1322,7 @@
                 '<div class="kgTitle"><span class="kgTitleIcon">◈</span>Knowledge Graph</div>' +
                 '<div class="kgViewTabs" role="tablist" aria-label="Source">' +
                     '<button type="button" class="kgViewTab" data-source="files"    role="tab" title="Links between markdown files (legacy view)">Files</button>' +
-                    '<button type="button" class="kgViewTab" data-source="concepts" role="tab" title="Concept graph from .kg.md (Neo4j)">Concepts</button>' +
+                    '<button type="button" class="kgViewTab" data-source="concepts" role="tab" title="Concept graph from .kg.cypher (Neo4j)">Concepts</button>' +
                 '</div>' +
                 '<select class="kgNsPicker" style="margin-left:8px;display:none" title="Namespace filter (concepts only)">' +
                     '<option value="">All namespaces</option>' +

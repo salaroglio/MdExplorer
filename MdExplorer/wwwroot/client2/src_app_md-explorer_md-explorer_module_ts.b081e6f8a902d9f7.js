@@ -32312,8 +32312,8 @@ class MdTreeComponent {
     var _this3 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       // Deterministic TOC: always regenerate, then navigate to the .md.directory file.
-      // The generation reads the file system + each doc's TL;DR + MD5 hash, and appends
-      // the aggregated knowledge graph from any .mde-doc/*.kg.md siblings. No AI involved.
+      // The generation reads the file system + each doc's TL;DR + MD5 hash, and pushes the
+      // folder's .mde-doc/*.kg.cypher scripts to Neo4j when the knowledge graph is on. No AI involved.
       _this3.generateTocWithAI(node, true);
     })();
   }
@@ -48582,4 +48582,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.918728c5d43700e1.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.b081e6f8a902d9f7.js.map
