@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- I messaggi tra il backend e il serverino mde-remote (sprint Cartella-Remota-Via-SSH): una sola definizione per i due
+       lati. Compatibile con Native AOT: niente riflessione, JSON solo dal source generator. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+</Project>

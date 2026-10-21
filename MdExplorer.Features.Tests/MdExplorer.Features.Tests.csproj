@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
+    <ProjectReference Include="..\MdExplorer.RemoteAgent\MdExplorer.RemoteAgent.csproj" />
     <ProjectReference Include="..\MdExplorer.Migrations\MdExplorer.Migrations.csproj" />
     <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
   </ItemGroup>
