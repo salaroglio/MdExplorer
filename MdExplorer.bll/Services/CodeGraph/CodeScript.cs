@@ -49,6 +49,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         public bool IsStatic { get; set; }
         public bool IsAsync { get; set; }
         public string ParentId { get; set; }
+        /// <summary>
+        /// Un metodo «finto» (D41, 21/10/2026): <c>getter</c>, <c>setter</c>, <c>constant</c> o <c>empty</c>, riconosciuto
+        /// dall'estrattore dal corpo di un'istruzione sola. Non va all'LLM e non conta nei livelli della descrizione dal
+        /// basso: la sua descrizione la scrive MdExplorer. Null = un metodo vero.
+        /// </summary>
+        public string Trivial { get; set; }
+        /// <summary>Il campo letto o scritto, o la costante restituita (com'è scritta nel codice); null per <c>empty</c>.</summary>
+        public string TrivialOf { get; set; }
         /// <summary><c>external</c> = fuori perimetro: nessun file, nessuna riga, condiviso fra gli script.</summary>
         public bool IsExternal => string.Equals(Kind, "external", StringComparison.OrdinalIgnoreCase);
     }
@@ -80,6 +88,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string ReturnsDescription { get; set; }
         public string Remarks { get; set; }
         public string SignatureHash { get; set; }
+        /// <summary>
+        /// Chi ha scritto QUESTA descrizione, se non è chi ha scritto lo script (intestazione): le descrizioni fisse dei
+        /// metodi banali (D41) le scrive MdExplorer, quelle rimaste da un giro precedente il loro LLM. Null = l'intestazione.
+        /// </summary>
+        public string WrittenBy { get; set; }
     }
 
     public sealed class ScriptParameterDoc
@@ -152,6 +165,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates" };
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };
+        public static readonly string[] TrivialShapes = { "getter", "setter", "constant", "empty" };
 
         /// <summary>Uno script Turtle, o il JSON Lines delle risposte dell'LLM: il formato si riconosce dalla prima riga.</summary>
         public static CodeScript Parse(string content, string scriptPath)

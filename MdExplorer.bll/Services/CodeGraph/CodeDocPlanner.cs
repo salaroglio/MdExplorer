@@ -20,6 +20,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// della firma: è da rifare quando un parametro non ha descrizione.
         /// </summary>
         public bool ParametersOnly { get; init; }
+        /// <summary>Il percorso logico del sorgente (program/x.java): in una domanda su più file (un ciclo) dice a quale appartiene.</summary>
+        public string Source { get; init; }
     }
 
     /// <summary>
@@ -39,6 +41,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
             "component", "service", "directive", "pipe", "ngmodule",
         };
+
+        /// <summary>Un kind che si descrive (non i campi, non i moduli, non gli esterni).</summary>
+        public static bool IsDescribable(string kind) => Describable.Contains(kind);
+
+        /// <summary>Chi scrive le descrizioni fisse dei metodi banali (D41): MdExplorer, non un LLM.</summary>
+        public const string TrivialAuthor = "mdexplorer (metodo banale)";
 
         /// <summary>L'hash della firma: cambia se cambiano firma, tipo di ritorno o parametri — non se il metodo si sposta.</summary>
         public static string SignatureHash(ScriptSymbol s, IEnumerable<ScriptParameter> parameters)
@@ -67,15 +75,52 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     if (prms.Count == 0) continue;
                     var missing = prms.Any(p => existingDoc == null || !existingDoc.ParameterDocs.Any(d => d.SymbolId == s.Id && d.ParameterName == p.Name));
-                    if (force || missing) list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = SignatureHash(s, prms), ParametersOnly = true });
+                    if (force || missing) list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = SignatureHash(s, prms), ParametersOnly = true, Source = ast.Header.Source });
                     continue;
                 }
                 if (!Describable.Contains(s.Kind)) continue;
+                // i metodi banali li descrive MdExplorer (TrivialDocs), mai l'LLM (D41)
+                if (s.Trivial != null) continue;
                 var hash = SignatureHash(s, prms);
                 if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)) continue;
-                list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash });
+                list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source });
             }
             return list;
+        }
+
+        /// <summary>
+        /// Le descrizioni fisse dei metodi banali (D41) che mancano o hanno la firma cambiata (con <paramref name="force"/>
+        /// tutte): una frase dalla forma del corpo, nella lingua dell'interfaccia, scritte da <see cref="TrivialAuthor"/>.
+        /// </summary>
+        public static List<ScriptSymbolDoc> TrivialDocs(CodeScript ast, CodeScript existingDoc, string language, bool force)
+        {
+            var docs = existingDoc?.SymbolDocs.ToDictionary(d => d.SymbolId, d => d, StringComparer.Ordinal) ?? new Dictionary<string, ScriptSymbolDoc>();
+            var list = new List<ScriptSymbolDoc>();
+            foreach (var s in ast.Symbols.Where(s => s.Trivial != null))
+            {
+                var hash = SignatureHash(s, ast.Parameters.Where(p => p.SymbolId == s.Id));
+                if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)) continue;
+                list.Add(new ScriptSymbolDoc { SymbolId = s.Id, Summary = TrivialSummary(s, language), SignatureHash = hash, WrittenBy = TrivialAuthor });
+            }
+            return list;
+        }
+
+        public static string TrivialSummary(ScriptSymbol s, string language)
+        {
+            var en = language switch
+            {
+                "it" => false,
+                "en" => true,
+                _ => throw new ArgumentException(UiText.Say($"Lingua delle descrizioni '{language}' non prevista: it oppure en.", $"Description language '{language}' not supported: it or en."), nameof(language)),
+            };
+            return s.Trivial switch
+            {
+                "getter" => en ? $"Returns the field `{s.TrivialOf}`." : $"Restituisce il campo `{s.TrivialOf}`.",
+                "setter" => en ? $"Sets the field `{s.TrivialOf}`." : $"Assegna il campo `{s.TrivialOf}`.",
+                "constant" => en ? $"Always returns `{s.TrivialOf}`." : $"Restituisce sempre `{s.TrivialOf}`.",
+                "empty" => en ? "Does nothing (empty body)." : "Non fa niente (corpo vuoto).",
+                _ => throw new InvalidOperationException($"forma di metodo banale '{s.Trivial}' sconosciuta"),
+            };
         }
 
         /// <summary>
@@ -121,11 +166,54 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
+        /// Il sorgente di una domanda su un ciclo che attraversa più file (F12a): per ogni simbolo le sue righe, sotto
+        /// l'intestazione del suo file. <paramref name="sources"/>: percorso logico → testo.
+        /// </summary>
+        public static string CycleSource(IReadOnlyDictionary<string, string> sources, IReadOnlyList<CodeDocCandidate> candidates)
+        {
+            var sb = new StringBuilder();
+            foreach (var file in candidates.GroupBy(c => c.Source).OrderBy(g => g.Key, StringComparer.Ordinal))
+            {
+                var lines = sources[file.Key].Replace("\r\n", "\n").Split('\n');
+                sb.Append("// ==== ").Append(file.Key).Append(" ====\n");
+                foreach (var c in file.OrderBy(c => c.Symbol.LineStart ?? 0))
+                {
+                    var from = Math.Max(1, c.Symbol.LineStart ?? 1);
+                    var to = Math.Min(lines.Length, Math.Max(from, c.Symbol.LineEnd ?? from));
+                    sb.Append("// ---- righe ").Append(from).Append('-').Append(to).Append(" ----\n");
+                    for (var l = from; l <= to; l++) sb.Append(lines[l - 1]).Append('\n');
+                    sb.Append('\n');
+                }
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Quello che si sa intorno a un simbolo quando lo si descrive dal basso (F12a): chi chiama e, per un tipo, i membri.</summary>
+        public sealed class SymbolContext
+        {
+            public IReadOnlyList<CodeDocCall> Calls { get; init; }
+            public IReadOnlyList<CodeDocCall> Members { get; init; }
+        }
+
+        private static object CallJson(CodeDocCall c) => c.Candidates != null
+            ? new { line = c.Line, ambiguous = c.Candidates.Select(CallJson).ToList() }
+            : new
+            {
+                line = c.Line, name = c.QualifiedName, signature = c.Signature,
+                external = c.External ? true : (bool?)null,
+                summary = c.External ? null : c.Summary,
+                notYetDescribed = !c.External && c.Summary == null ? true : (bool?)null,
+            };
+
+        /// <summary>
         /// Il prompt: la skill, il sorgente, i simboli da descrivere (JSON Lines), la lingua e il formato della risposta. La
         /// lingua la decide chi chiama (quella dell'interfaccia): «la lingua dei commenti» lasciata al modello dava descrizioni
-        /// in italiano su codice commentato in inglese.
+        /// in italiano su codice commentato in inglese. Con <paramref name="context"/> (descrizione dal basso, F12a) ogni
+        /// simbolo porta le funzioni che chiama (<c>calls</c>) e, se è un tipo, i suoi membri (<c>members</c>), con le
+        /// sintesi già scritte.
         /// </summary>
-        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, string language, bool askFile = false)
+        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, string language, bool askFile = false,
+            IReadOnlyDictionary<string, SymbolContext> context = null)
         {
             var languageName = language switch
             {
@@ -141,12 +229,16 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.Append("---- SIMBOLI DA DESCRIVERE (uno per riga) ----\n");
             foreach (var c in candidates)
             {
+                SymbolContext ctx = null;
+                context?.TryGetValue(c.Symbol.Id, out ctx);
                 sb.Append(JsonSerializer.Serialize(new
                 {
                     symbolId = c.Symbol.Id, kind = c.Symbol.Kind, qualifiedName = c.Symbol.QualifiedName, signature = c.Symbol.Signature,
-                    returnType = c.Symbol.ReturnType, lineStart = c.Symbol.LineStart,
+                    returnType = c.Symbol.ReturnType, file = c.Source != sourceRelativePath ? c.Source : null, lineStart = c.Symbol.LineStart,
                     onlyParameters = c.ParametersOnly ? true : (bool?)null,
                     parameters = c.Parameters.Select(p => new { name = p.Name, type = p.ParameterType, direction = p.Direction, defaultValue = p.DefaultValue }),
+                    calls = ctx?.Calls is { Count: > 0 } calls ? calls.Select(CallJson).ToList() : null,
+                    members = ctx?.Members is { Count: > 0 } members ? members.Select(CallJson).ToList() : null,
                 }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping })).Append('\n');
             }
             sb.Append("\n---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in ").Append(languageName).Append(".\n");
@@ -210,7 +302,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             var touched = new HashSet<string>(fresh.SymbolDocs.Select(d => d.SymbolId).Concat(fresh.ParameterDocs.Select(p => p.SymbolId)), StringComparer.Ordinal);
             if (existing != null)
             {
-                merged.SymbolDocs.AddRange(existing.SymbolDocs.Where(d => !touched.Contains(d.SymbolId)));
+                // chi resta tiene il suo autore: prima prendeva quello del giro nuovo (D34, autore per descrizione)
+                foreach (var d in existing.SymbolDocs.Where(d => !touched.Contains(d.SymbolId)))
+                {
+                    d.WrittenBy ??= existing.Header?.WrittenBy;
+                    if (d.WrittenBy == fresh.Header?.WrittenBy) d.WrittenBy = null;
+                    merged.SymbolDocs.Add(d);
+                }
                 merged.ParameterDocs.AddRange(existing.ParameterDocs.Where(p => !touched.Contains(p.SymbolId)));
             }
             merged.SymbolDocs.AddRange(fresh.SymbolDocs);

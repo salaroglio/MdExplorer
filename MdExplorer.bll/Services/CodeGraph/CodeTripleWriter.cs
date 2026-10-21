@@ -75,6 +75,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.ReturnType != null) sb.Append(" ; code:returnType ").Append(Lit(s.ReturnType));
                 if (s.Visibility != null) sb.Append(" ; code:visibility ").Append(Lit(s.Visibility));
                 if (s.ParentId != null) sb.Append(" ; code:parent ").Append(Iri(Symbol(s.ParentId)));
+                if (s.Trivial != null) sb.Append(" ; code:trivial ").Append(Lit(s.Trivial));
+                if (s.TrivialOf != null) sb.Append(" ; code:trivialOf ").Append(Lit(s.TrivialOf));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
                 FromScript(sb, fromScriptLit).Append(" .\n");
@@ -152,7 +154,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 sb.Append(Iri(Doc(d.SymbolId))).Append(" a ").Append(CodeOntology.ClassDescription)
                   .Append(" ; code:describes ").Append(Iri(Symbol(d.SymbolId)))
                   .Append(" ; code:summary ").Append(Lit(d.Summary ?? string.Empty))
-                  .Append(" ; code:writtenBy ").Append(Lit(h.WrittenBy ?? string.Empty))
+                  .Append(" ; code:writtenBy ").Append(Lit(d.WrittenBy ?? h.WrittenBy ?? string.Empty))
                   .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty));
                 if (d.ReturnsDescription != null) sb.Append(" ; code:returnsDescription ").Append(Lit(d.ReturnsDescription));
                 if (d.Remarks != null) sb.Append(" ; code:remarks ").Append(Lit(d.Remarks));

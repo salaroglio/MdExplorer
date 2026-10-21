@@ -342,5 +342,43 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(extractor.Availability, "grammatica da scaricare");
             Assert.ThrowsException<InvalidOperationException>(() => extractor.Extract(Request()));
         }
+
+        [TestMethod]
+        public void Mark_getters_setters_constants_and_empty_methods_but_not_delegates()
+        {
+            InstallGrammarFromNuGet();
+            File.WriteAllText(Path.Combine(_src, "app", "Shapes.java"),
+                "package com.acme.app;\n\npublic class Shapes {\n    private int width; private String name; private Shapes inner;\n" +
+                "    public int getWidth() { return width; }\n" +
+                "    public String getName() { /* il nome */ return this.name; }\n" +
+                "    public void setWidth(int w) { this.width = w; }\n" +
+                "    public void setName(String n) { name = n; }\n" +
+                "    public int height() { return 20; }\n" +
+                "    public String kind() { return \"box\"; }\n" +
+                "    public java.util.List<String> none() { return java.util.Collections.EMPTY_LIST; }\n" +
+                "    public void onClose() { }\n" +
+                "    public void grow(int w) { this.width += w; }\n" +
+                "    public int delegate() { return inner.getWidth(); }\n" +
+                "    public int twice() { int x = width; return x * 2; }\n" +
+                "    public Shapes(int w) { this.width = w; }\n" +
+                "}\n");
+            var script = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance).Extract(Request())
+                .Scripts.Single(s => s.File.LogicalPath.EndsWith("/Shapes.java")).Script;
+            (string, string) T(string name) { var m = script.Symbols.Single(x => x.Name == name && x.Kind != "field"); return (m.Trivial, m.TrivialOf); }
+
+            Assert.AreEqual(("getter", "width"), T("getWidth"));
+            Assert.AreEqual(("getter", "name"), T("getName"), "un commento non conta");
+            Assert.AreEqual(("setter", "width"), T("setWidth"));
+            Assert.AreEqual(("setter", "name"), T("setName"));
+            Assert.AreEqual(("constant", "20"), T("height"));
+            Assert.AreEqual(("constant", "\"box\""), T("kind"));
+            Assert.AreEqual(("constant", "java.util.Collections.EMPTY_LIST"), T("none"));
+            Assert.AreEqual(("empty", (string)null), T("onClose"));
+            Assert.AreEqual(((string)null, (string)null), T("grow"), "+= non è un setter");
+            Assert.AreEqual(((string)null, (string)null), T("delegate"), "un delegante lo descrive l'LLM");
+            Assert.AreEqual(((string)null, (string)null), T("twice"), "due istruzioni");
+            Assert.IsNull(script.Symbols.Single(x => x.Kind == "constructor" && x.Name == "Shapes").Trivial, "i costruttori no");
+            Assert.AreEqual("4", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
+        }
     }
 }

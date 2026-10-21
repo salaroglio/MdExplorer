@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "3";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38)
+        public string ExtractorVersion => "4";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -519,6 +519,54 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
         }
 
+        /// <summary>
+        /// Un metodo «finto» (D41): il corpo è vuoto, o è UN'istruzione che restituisce un campo (<c>return x;</c>,
+        /// <c>return this.x;</c>), una costante (<c>return 20;</c>, <c>return Margins.NONE;</c>) o assegna un parametro a un
+        /// campo (<c>this.x = x;</c>). Un delegante (<c>return cmd.isEligibleFor(pass);</c>) NON lo è: il suo significato
+        /// dipende da chi riceve la chiamata, lo dice l'LLM.
+        /// </summary>
+        internal static string TrivialShape(Node block, out string of)
+        {
+            of = null;
+            var statements = block.NamedChildren.Where(c => c.Type is not ("line_comment" or "block_comment")).ToList();
+            if (statements.Count == 0) return "empty";
+            if (statements.Count != 1) return null;
+            var st = statements[0];
+            if (st.Type == "return_statement")
+            {
+                var e = st.NamedChildren.FirstOrDefault(c => c.Type is not ("line_comment" or "block_comment"));
+                if (e == null) return null;   // «return;» in un void: è un metodo vuoto scritto così, raro; lo descrive l'LLM
+                if (e.Type == "identifier") { of = e.Text; return "getter"; }
+                if (e.Type == "field_access")
+                {
+                    var obj = e.NamedChildren.FirstOrDefault();
+                    var field = e.NamedChildren.LastOrDefault(c => c.Type == "identifier");
+                    if (obj?.Type == "this" && field != null) { of = field.Text; return "getter"; }
+                    // Tipo.COSTANTE (anche a.b.Tipo.COSTANTE): solo nomi, nessuna chiamata dentro
+                    if (obj != null && (obj.Type is "identifier" or "field_access") && IsNameChain(obj) && char.IsUpper(LastName(obj)[0])) { of = e.Text; return "constant"; }
+                    return null;
+                }
+                if (e.Type is "decimal_integer_literal" or "hex_integer_literal" or "octal_integer_literal" or "binary_integer_literal"
+                    or "decimal_floating_point_literal" or "hex_floating_point_literal" or "string_literal" or "character_literal"
+                    or "true" or "false" or "null_literal") { of = e.Text; return "constant"; }
+                return null;
+            }
+            if (st.Type == "expression_statement")
+            {
+                var a = st.NamedChildren.FirstOrDefault();
+                if (a?.Type != "assignment_expression" || a.NamedChildren.Count() != 2) return null;
+                var left = a.NamedChildren.First(); var right = a.NamedChildren.Last();
+                var op = a.Text.Substring(left.Text.Length, a.Text.Length - left.Text.Length - right.Text.Length).Trim();
+                if (op != "=" || right.Type != "identifier") return null;
+                if (left.Type == "identifier") { of = left.Text; return "setter"; }
+                if (left.Type == "field_access" && left.NamedChildren.FirstOrDefault()?.Type == "this") { of = left.NamedChildren.Last().Text; return "setter"; }
+            }
+            return null;
+        }
+
+        private static bool IsNameChain(Node n) => n.Type == "identifier" || n.Type == "field_access" && n.NamedChildren.All(IsNameChain);
+        private static string LastName(Node n) => n.Type == "identifier" ? n.Text : n.NamedChildren.Last().Text;
+
         private static string NameOf(Node decl) => decl.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text;
 
         private static Node BodyOf(Node decl)
@@ -748,6 +796,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var throws = m.NamedChildren.FirstOrDefault(c => c.Type == "throws");
                 foreach (var t in TypeNames(throws)) Reference(id, t, Line(m));
                 var body = BodyOf(m);
+                if (kind == "method" && body?.Type == "block")
+                {
+                    var shape = TrivialShape(body, out var of);
+                    if (shape != null) { var sym = _script.Symbols.Last(x => x.Id == id); sym.Trivial = shape; sym.TrivialOf = of; }   // non [^1]: i riferimenti al tipo di ritorno aggiungono esterni
+                }
                 if (body != null) WalkBody(body, id, fqn, Locals(m), m);
             }
 

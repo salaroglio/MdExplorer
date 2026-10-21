@@ -95,8 +95,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   private onDescribeProgress(p: any): void {
     if (!p) { return; }
     switch (p.phase) {
-      case 'started': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal })); break;
-      case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, file: p.file, symbols: p.symbols })); break;
+      case 'started': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal, levels: p.levels, symbols: p.symbols, trivial: p.trivial })); break;
+      case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })); break;
       case 'file-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE_DONE', { file: p.file, described: p.described, rejected: p.rejected })); break;
       case 'file-failed': case 'file-skipped': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
       case 'done': this.describing = false; this.describeDone = { files: p.files, described: p.described, rejected: p.rejected }; break;
