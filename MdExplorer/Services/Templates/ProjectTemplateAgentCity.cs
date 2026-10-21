@@ -5,8 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services;
+using MdExplorer.Features.Templates;
 using MdExplorer.Service.Models;
 using MdExplorer.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services.Templates
 {
@@ -15,7 +17,13 @@ namespace MdExplorer.Services.Templates
     /// nel progetto la sua parte — la città accesa, il documento delle responsabilità con il ruolo dell'esempio, il
     /// workflow «hello world» con il suo agente — prendendola da sé (CF6), nella lingua del progetto.
     /// </summary>
-    public sealed partial class ProjectTemplateCreator
+    public interface IProjectAgentCity
+    {
+        /// <summary>«Accendi la città» (C6): vedi <see cref="ProjectTemplateCreator.EnableAgentCityAsync"/>.</summary>
+        Task<IReadOnlyList<string>> EnableAgentCityAsync(string projectPath, string language, bool withGuide, CancellationToken ct = default);
+    }
+
+    public sealed partial class ProjectTemplateCreator : IProjectAgentCity
     {
         /// <summary>Che cosa porta la città in una lingua: la cartella, il workflow d'esempio, il suo ruolo.</summary>
         public sealed record AgentCityStarter(string Language, string Folder, string WorkflowDoc, string GuideFolder,
@@ -113,6 +121,117 @@ namespace MdExplorer.Services.Templates
                 notes.Add(UiText.Say($"Questi file della città c'erano già e restano come sono: {string.Join(", ", kept)}.",
                                      $"These files of the city were already there and stay as they are: {string.Join(", ", kept)}."));
             return notes;
+        }
+
+        /// <summary>
+        /// «Accendi la città» dalle impostazioni del progetto (C6): ciò che avrebbe fatto la creazione. La parte
+        /// <c>agent_city</c> di ogni template del progetto (formato 2, non staccato), poi i file della città — con la sua
+        /// documentazione, se chiesta — e le skill degli agenti, in un commit. Con la città già accesa porta solo la
+        /// documentazione, se manca. Il progetto deve essere un repository git senza modifiche non committate; in errore
+        /// torna com'era. Non pubblica.
+        /// </summary>
+        public async Task<IReadOnlyList<string>> EnableAgentCityAsync(string projectPath, string language, bool withGuide, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
+                throw Problem($"Il progetto '{projectPath}' non esiste.", $"The project '{projectPath}' does not exist.");
+            var path = Full(projectPath);
+            await EnsureCommitReadyAsync(path, UiText.Say("accendere la città degli agenti", "turning the agent city on"), ct);
+
+            var rows = PresentTemplates(path).Where(r => string.IsNullOrEmpty(r.Detached)).ToList();
+            // La lingua è quella del progetto, cioè dei suoi template; un progetto senza template usa quella chiesta.
+            var lang = rows.FirstOrDefault()?.Language ?? (string.IsNullOrWhiteSpace(language) ? "it" : language.Trim());
+            var starter = AgentCityStarterFor(lang);
+            var configFile = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            var enabled = File.Exists(configFile) && DevelopmentConfigCleanup.ReadStrict(configFile).AgentCity?.Enabled == true;
+            if (enabled && (!withGuide || Directory.Exists(System.IO.Path.Combine(path, starter.GuideFolder.TrimEnd('/').Replace('/', System.IO.Path.DirectorySeparatorChar)))))
+                throw Problem(withGuide ? "La città è già accesa, e la sua documentazione c'è già." : "La città degli agenti è già accesa.",
+                              withGuide ? "The agent city is already on, and its documentation is already there." : "The agent city is already on.");
+
+            var head = (await Run(path, ct, "rev-parse", "HEAD")).Trim();
+            try
+            {
+                var notes = new List<string>();
+                if (enabled)
+                {
+                    notes.Add(await ApplyAgentCityGuideAsync(path, starter, ct));
+                    await Run(path, ct, "commit", "-q", "-m", UiText.Say("La documentazione della città degli agenti", "The agent city's documentation"));
+                    return notes;
+                }
+                foreach (var row in rows)
+                {
+                    var local = System.IO.Path.Combine(path, TemplateManifest.PathOf(row.Id).Replace('/', System.IO.Path.DirectorySeparatorChar));
+                    if (!File.Exists(local)) continue;
+                    var manifest = TemplateManifestReader.ReadOrThrow(await File.ReadAllTextAsync(local, ct), row.Id, TemplateManifest.PathOf(row.Id));
+                    if (!manifest.IsFormat2 || !manifest.HasAgentCityPart) continue;
+                    notes.AddRange(await ApplyTemplateAgentCityPartAsync(path, manifest, row, ct));
+                }
+                notes.InsertRange(0, await ApplyAgentCityAsync(path, starter.Language, withGuide, ct));
+                await Run(path, ct, "commit", "-q", "-m", UiText.Say("Città degli agenti accesa", "Agent city turned on"));
+                _logger.LogInformation("[Template] '{Path}': città degli agenti accesa.", path);
+                return notes;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Template] '{Path}': la città non si accende; il progetto torna com'era.", path);
+                await UndoAsync(path, head, ct);
+                if (ex is InvalidOperationException) throw;
+                throw Problem($"La città non si è accesa: {ex.Message}", $"The city was not turned on: {ex.Message}");
+            }
+        }
+
+        /// <summary>La parte <c>agent_city</c> di un template già nel progetto: ruoli, workflow, skill degli agenti, nell'indice.</summary>
+        private async Task<IReadOnlyList<string>> ApplyTemplateAgentCityPartAsync(string path, TemplateManifest manifest, ProjectTemplateConfig row, CancellationToken ct)
+        {
+            var notes = new List<string>();
+            var touched = new List<string> { DevelopmentConfigCleanup.FileName };
+            var configFile = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
+            var config = DevelopmentConfigCleanup.ReadStrict(configFile);
+            config.AgentCity ??= new AgentCityConfig();
+
+            var roles = manifest.RolesFor(cityOn: true).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();
+            if (roles.Count > 0)
+            {
+                var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc)
+                    ? OwnershipFileFor(row.Language)
+                    : config.AgentCity.OwnershipDoc.Trim().Replace('\\', '/').TrimStart('/');
+                config.AgentCity.OwnershipDoc = ownership;
+                var full = System.IO.Path.Combine(path, ownership.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                var before = File.Exists(full) ? await File.ReadAllTextAsync(full, ct) : null;
+                var text = MdExplorer.Features.Agents.OwnershipDocWriter.AddOpenRoles(before, roles, out var added, row.Language);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full));
+                await File.WriteAllTextAsync(full, text, ct);
+                touched.Add(ownership);
+                if (added.Count > 0)
+                    notes.Add(UiText.Say($"Ruoli aperti di «{manifest.Title}» in {ownership}: {string.Join(", ", added)}.",
+                                         $"Open roles of «{manifest.Title}» in {ownership}: {string.Join(", ", added)}."));
+            }
+            config.AgentCity.WorkflowDocs ??= new List<string>();
+            var newDocs = manifest.WorkflowsFor(cityOn: true).Where(d => !config.AgentCity.WorkflowDocs.Contains(d, StringComparer.OrdinalIgnoreCase)).ToList();
+            config.AgentCity.WorkflowDocs.AddRange(newDocs);
+            if (newDocs.Count > 0)
+                notes.Add(UiText.Say($"Workflow di «{manifest.Title}»: {string.Join(", ", newDocs)}.", $"Workflows of «{manifest.Title}»: {string.Join(", ", newDocs)}."));
+            Write(configFile, config);
+            ApplySkills(path, manifest, cityOn: true, notes, touched);
+            await _git.RunAsync(path, new[] { "add", "--" }.Concat(touched.Distinct()).ToArray(), ct);
+            return notes;
+        }
+
+        /// <summary>Solo la documentazione della città, se manca: i suoi file, nell'indice.</summary>
+        private async Task<string> ApplyAgentCityGuideAsync(string path, AgentCityStarter starter, CancellationToken ct)
+        {
+            var touched = new List<string>();
+            foreach (var (file, resource) in AgentCityFiles(starter, withGuide: true).Where(f => f.Path.StartsWith(starter.GuideFolder, StringComparison.Ordinal)))
+            {
+                var full = System.IO.Path.Combine(path, file.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                if (File.Exists(full)) continue;
+                using var stream = typeof(ProjectTemplateCreator).Assembly.GetManifestResourceStream(resource);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full));
+                using (var target = File.Create(full)) await stream.CopyToAsync(target, ct);
+                touched.Add(file);
+            }
+            if (touched.Count > 0) await _git.RunAsync(path, new[] { "add", "--" }.Concat(touched).ToArray(), ct);
+            return UiText.Say($"La documentazione della città in {starter.GuideFolder}: {touched.Count} documenti.",
+                              $"The agent city's documentation in {starter.GuideFolder}: {touched.Count} documents.");
         }
     }
 }

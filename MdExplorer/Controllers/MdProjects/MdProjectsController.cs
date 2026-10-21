@@ -212,6 +212,26 @@ namespace MdExplorer.Service.Controllers.MdProjects
             return Ok(ToAgentCityDto(cfg, path));
         }
 
+        /// <summary>
+        /// «Accendi la città» (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C6): la parte degli agenti dei template
+        /// del progetto, i file della città e le sue skill, in un commit; con la città accesa, solo la sua documentazione.
+        /// 400 con il motivo se non si può; il progetto resta com'era.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> EnableAgentCity([FromBody] AgentCityEnableRequest request,
+            [FromServices] MdExplorer.Services.Templates.IProjectAgentCity city, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                var notes = await city.EnableAgentCityAsync(request?.Path, request?.Language, request?.Guide == true, ct);
+                return Ok(new { notes, agentCity = ToAgentCityDto(_projectMetadataService.GetAgentCity(request.Path), request.Path) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         /// <summary>Attiva/disattiva la città e imposta il doc di ownership (§12.4).</summary>
         [HttpPost]
         public IActionResult SetAgentCity([FromQuery] string path, [FromBody] AgentCityRequest request)
@@ -265,6 +285,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
             relayUrl = cfg?.RelayUrl,
             hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
             useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
+            // La documentazione della città manca (C6): «Scarica la documentazione» si offre solo allora.
+            guideMissing = (cfg?.Enabled ?? false) && !string.IsNullOrWhiteSpace(projectPath)
+                           && !Directory.Exists(Path.Combine(projectPath, "citta", "guida"))
+                           && !Directory.Exists(Path.Combine(projectPath, "agent-city", "guide")),
             // Senza git non esistono né worktree né merge: la UI disabilita le due opzioni
             // invece di lasciarle spuntabili e poi inerti.
             isGitRepository = !string.IsNullOrWhiteSpace(projectPath)
@@ -1402,6 +1426,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public bool AgentCityGuide { get; set; }
         /// <summary>Il motore, quando la base non lo dichiara (un progetto che parte da un metodo).</summary>
         public string? Harness { get; set; }
+    }
+
+    /// <summary>La richiesta di <see cref="MdProjectsController.EnableAgentCity"/>.</summary>
+    public class AgentCityEnableRequest
+    {
+        public string? Path { get; set; }
+        /// <summary>La lingua dell'interfaccia: vale solo per un progetto senza template.</summary>
+        public string? Language { get; set; }
+        public bool Guide { get; set; }
     }
 
     /// <summary>La richiesta di <see cref="MdProjectsController.AddTheory"/>.</summary>

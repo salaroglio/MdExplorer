@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Services.Templates;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using static MdExplorer.IntegrationTests.ProjectTemplateCreator_Should;
 using static MdExplorer.IntegrationTests.ProjectTemplateMethods_Should;
@@ -127,6 +128,70 @@ namespace MdExplorer.IntegrationTests
                 .Count(f => f.Path.StartsWith("agent-city/guide/", StringComparison.Ordinal));
             Assert.IsTrue(it >= 11, $"la guida italiana ha {it} file");
             Assert.AreEqual(it, en, "le due lingue hanno gli stessi documenti");
+        }
+
+        private static async Task<System.Collections.Generic.IReadOnlyList<string>> Enable(AgentCityContext ctx, string path, bool guide = false)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<IProjectAgentCity>().EnableAgentCityAsync(path, "it", guide);
+        }
+
+        [TestMethod]
+        public async Task Turn_the_city_on_later_with_the_agents_part_of_the_templates()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "citta-dopo");
+            await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Strato(ctx), Methods = new[] { Template(ctx, "ddd", ProjectTemplateFormat2_Should.Method()) },
+                Language = "it", MdeVersion = Mde, Harness = "claude",
+            });
+            Git(path, "config user.email io@test.local"); Git(path, "config user.name Io"); Git(path, "config commit.gpgsign false");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills", "ddd-modella")));
+            var head = Git(path, "rev-parse HEAD").Out;
+
+            var notes = await Enable(ctx, path);
+
+            StringAssert.Contains(Read(path, "responsabilita.md"), "| Analista DDD |  |  | ddd-analista |");
+            StringAssert.Contains(Read(path, "responsabilita.md"), "| Responsabile della città |  |  | citta-ciao |");
+            var yml = Read(path, ".development.yml");
+            StringAssert.Contains(yml, "agentCity:\n  enabled: true");
+            StringAssert.Contains(yml, "  - .mde-template/ddd/workflows/ddd.md");
+            StringAssert.Contains(yml, "  - citta/ciao.md");
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".claude", "skills", "ddd-modella", "SKILL.md")), "la skill degli agenti del metodo");
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".claude", "skills", "mde-workflow", "SKILL.md")), "quelle di MDE per gli agenti");
+            Assert.IsTrue(File.Exists(Path.Combine(path, "citta", "ciao.md")));
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, "citta", "guida")), "la documentazione non è stata chiesta");
+            Assert.AreEqual(head, Git(path, "rev-parse HEAD~1").Out, "un commit solo");
+            Assert.AreEqual("Agent city turned on", Git(path, "log -1 --format=%s").Out);
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+            Assert.IsTrue(notes.Any(n => n.Contains("Workflows of «Sviluppo con DDD»: .mde-template/ddd/workflows/ddd.md")), string.Join("\n", notes));
+
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path))).Message, "The agent city is already on");
+            var guide = await Enable(ctx, path, guide: true);
+            Assert.IsTrue(File.Exists(Path.Combine(path, "citta", "guida", "README.md")));
+            Assert.IsTrue(guide.Single().Contains("The agent city's documentation in citta/guida/"), guide.Single());
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path, guide: true))).Message,
+                "its documentation is already there");
+        }
+
+        [TestMethod]
+        public async Task Refuse_to_turn_the_city_on_over_uncommitted_work()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "citta-sporca");
+            await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = Strato(ctx), Language = "it", MdeVersion = Mde, Harness = "claude" });
+            File.AppendAllText(Path.Combine(path, ".development.yml"), "\n");
+
+            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path));
+
+            StringAssert.Contains(ex.Message, "The project has uncommitted changes");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, "citta")));
         }
     }
 }

@@ -61,6 +61,12 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityWorkflowDocs: string[] = [];
   /** Perché l'ultimo salvataggio della città non è andato, detto dal servizio (es. lo stesso workflow due volte). */
   agentCityError = '';
+  /** Com'era la città all'ultima lettura: spuntarla da spenta la accende con tutto ciò che porta (C6). */
+  agentCityWasEnabled = false;
+  /** La città è accesa ma la sua documentazione non c'è: si offre di scaricarla. */
+  agentCityGuideMissing = false;
+  agentCityBusy = false;
+  agentCityNotes: string[] = [];
   agentCityHasRoomSecret: boolean = false;
   agentUseWorktrees: boolean = false;
   /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
@@ -616,6 +622,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectSettingsService.getAgentCity(this.projectPath).subscribe({
       next: (res) => {
         this.agentCityEnabled = !!res?.enabled;
+        this.agentCityWasEnabled = this.agentCityEnabled;
+        this.agentCityGuideMissing = !!(res as any)?.guideMissing;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityWorkflowDocs = [...(res?.workflowDocs || [])];
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
@@ -942,7 +950,33 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     return index;
   }
 
+  /**
+   * «Accendi la città» (C6): la parte degli agenti dei template del progetto, i file della città e le sue skill, con un
+   * commit; con <paramref name="guide"/> e la città già accesa, solo la sua documentazione.
+   */
+  enableAgentCity(guide: boolean): void {
+    this.agentCityBusy = true;
+    this.agentCityError = '';
+    this.agentCityNotes = [];
+    this.projectSettingsService.enableAgentCity(this.projectPath, guide, this.translate.currentLang === 'en' ? 'en' : 'it').subscribe({
+      next: res => {
+        this.agentCityBusy = false;
+        this.agentCityNotes = res?.notes || [];
+        this.agentCityState.set(this.projectPath, true);
+        this.loadAgentCity();
+        this.loadTemplates();
+      },
+      error: err => {
+        this.agentCityBusy = false;
+        this.agentCityError = err?.error?.error || err?.message || '';
+        this.loadAgentCity();
+      },
+    });
+  }
+
   onAgentCityChange(): void {
+    // Da spenta ad accesa: la città arriva con tutto ciò che le serve, come alla creazione del progetto.
+    if (this.agentCityEnabled && !this.agentCityWasEnabled) { this.enableAgentCity(false); return; }
     this.saving = true;
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
@@ -956,6 +990,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+        this.agentCityWasEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityError = '';
         // Una riga appena aggiunta e ancora vuota resta lì da scrivere: il salvataggio parte anche dal blur di un'altra.

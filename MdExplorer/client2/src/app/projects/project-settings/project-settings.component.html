@@ -181,12 +181,20 @@
               <mat-checkbox
                 [(ngModel)]="agentCityEnabled"
                 (change)="onAgentCityChange()"
-                [disabled]="saving">
+                [disabled]="saving || agentCityBusy">
                 <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_CITY_ENABLE' | translate }}</span>
               </mat-checkbox>
+              <mat-spinner *ngIf="agentCityBusy" diameter="20" class="inline-spinner"></mat-spinner>
               <p class="setting-description">
                 {{ 'PROJECT_SETTINGS.AGENT_CITY_ENABLE_DESC' | translate }}
               </p>
+              <button mat-stroked-button color="primary" type="button" *ngIf="agentCityEnabled && agentCityGuideMissing"
+                      [disabled]="agentCityBusy" [matTooltip]="'PROJECT_SETTINGS.AGENT_CITY_GUIDE_ADD_TIP' | translate" (click)="enableAgentCity(true)">
+                <mat-icon>menu_book</mat-icon> {{ 'PROJECT_SETTINGS.AGENT_CITY_GUIDE_ADD' | translate }}
+              </button>
+              <ul class="setting-description" *ngIf="agentCityNotes.length">
+                <li *ngFor="let n of agentCityNotes">{{ n }}</li>
+              </ul>
             </div>
 
             <div class="setting-item" *ngIf="agentCityEnabled">

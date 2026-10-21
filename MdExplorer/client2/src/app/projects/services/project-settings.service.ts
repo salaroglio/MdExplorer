@@ -326,6 +326,11 @@ export class ProjectSettingsService {
     return this.http.post<{ message: string }>('../api/MdProjects/DetachTemplate', { path: projectPath, id });
   }
 
+  /** «Accendi la città» (C6), o solo la sua documentazione se è già accesa: un commit; 400 { error } se non si può. */
+  enableAgentCity(projectPath: string, guide: boolean, language: string): Observable<{ notes: string[]; agentCity: any }> {
+    return this.http.post<{ notes: string[]; agentCity: any }>('../api/MdProjects/EnableAgentCity', { path: projectPath, guide, language });
+  }
+
   setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDocs?: string[]; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {
     return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
   }

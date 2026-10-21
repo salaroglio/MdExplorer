@@ -4246,6 +4246,14 @@ class ProjectSettingsService {
       id
     });
   }
+  /** «Accendi la città» (C6), o solo la sua documentazione se è già accesa: un commit; 400 { error } se non si può. */
+  enableAgentCity(projectPath, guide, language) {
+    return this.http.post('../api/MdProjects/EnableAgentCity', {
+      path: projectPath,
+      guide,
+      language
+    });
+  }
   setAgentCity(projectPath, body) {
     return this.http.post('../api/MdProjects/SetAgentCity', body, {
       params: {
@@ -8762,4 +8770,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.ffde995659ea8138.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.ff598185e5d2d86e.js.map
