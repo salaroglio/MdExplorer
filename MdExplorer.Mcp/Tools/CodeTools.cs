@@ -68,7 +68,7 @@ public sealed class CodeTools : McpToolsBase
     [McpServerTool, Description(
         "Describe a code symbol in full: signature, return type, every parameter with type/direction/default, and the functional " +
         "descriptions written by the project's AI (summary, what it returns, what each parameter means, remarks). " +
-        "`descriptionStale` = true means the description was written for an older signature: trust the signature, double-check the prose. " +
+        "`descriptionStale` = true means the description was written for an older signature or body: trust the code, double-check the prose. " +
         "Answers 'what does X do, what do I pass it, what does it return' without opening the file.")]
     public async Task<string> code_describe(
         [Description("Project name.")] string project,

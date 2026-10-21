@@ -98,12 +98,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
             ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount"),
-            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf" }
+            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
             ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line"),
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
-            ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash"),
+            ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash", "bodyHash", "contextHash", "promptVersion"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
             ["FileDescription"] = Set("describes", "summary", "writtenBy", "writtenAt"),
         };
@@ -180,6 +180,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ParentId = n.OptIri("parent") is { } parent ? SymbolId(parent) : null,
                     Trivial = n.OptStr("trivial") != null ? n.Enum("trivial", CodeScriptParser.TrivialShapes, path) : null,
                     TrivialOf = n.OptStr("trivialOf"),
+                    BodyHash = n.OptStr("bodyHash"),
                 });
             }
             foreach (var n in nodes.Where(n => n.Class == "Parameter"))
@@ -213,6 +214,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ReturnsDescription = n.OptStr("returnsDescription"), Remarks = n.OptStr("remarks"), SignatureHash = n.OptStr("signatureHash"),
                     // uguale all'intestazione = null, così la riscrittura resta identica
                     WrittenBy = n.OptStr("writtenBy") is { } who && who != (script.Header.WrittenBy ?? string.Empty) ? who : null,
+                    BodyHash = n.OptStr("bodyHash"), ContextHash = n.OptStr("contextHash"), PromptVersion = n.OptStr("promptVersion"),
                 });
             var fileDocs = nodes.Where(n => n.Class == "FileDescription").ToList();
             if (fileDocs.Count > 1) throw new CodeScriptFormatException(path, 0, UiText.Say("più di un code:FileDescription: uno solo per script", "more than one code:FileDescription: only one per script"));

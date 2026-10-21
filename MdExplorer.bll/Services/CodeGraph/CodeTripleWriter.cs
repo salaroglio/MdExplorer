@@ -77,6 +77,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.ParentId != null) sb.Append(" ; code:parent ").Append(Iri(Symbol(s.ParentId)));
                 if (s.Trivial != null) sb.Append(" ; code:trivial ").Append(Lit(s.Trivial));
                 if (s.TrivialOf != null) sb.Append(" ; code:trivialOf ").Append(Lit(s.TrivialOf));
+                if (s.BodyHash != null) sb.Append(" ; code:bodyHash ").Append(Lit(s.BodyHash));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
                 FromScript(sb, fromScriptLit).Append(" .\n");
@@ -159,6 +160,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (d.ReturnsDescription != null) sb.Append(" ; code:returnsDescription ").Append(Lit(d.ReturnsDescription));
                 if (d.Remarks != null) sb.Append(" ; code:remarks ").Append(Lit(d.Remarks));
                 if (d.SignatureHash != null) sb.Append(" ; code:signatureHash ").Append(Lit(d.SignatureHash));
+                if (d.BodyHash != null) sb.Append(" ; code:bodyHash ").Append(Lit(d.BodyHash));
+                if (d.ContextHash != null) sb.Append(" ; code:contextHash ").Append(Lit(d.ContextHash));
+                if (d.PromptVersion != null) sb.Append(" ; code:promptVersion ").Append(Lit(d.PromptVersion));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
             foreach (var d in script.ParameterDocs)
@@ -239,6 +243,7 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:status ").Append(Lit(run.Status))
               .Append(" ; code:engine ").Append(Lit(run.Engine ?? string.Empty))
               .Append(" ; code:force ").Append(Bool(run.Force))
+              .Append(" ; code:review ").Append(Bool(run.Review))
               .Append(" ; code:startedAt ").Append(Lit(run.StartedAt ?? string.Empty))
               .Append(" ; code:updatedAt ").Append(Lit(run.UpdatedAt ?? DateTime.UtcNow.ToString("o")))
               .Append(" ; code:fileIndex ").Append(Int(run.FileIndex))

@@ -404,13 +404,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var rows = await RowsAsync(
-                $"SELECT ?folder ?status ?engine ?force ?started ?updated ?idx ?tot ?done ?cur ?err WHERE {{ GRAPH {g.StateIri} {{ ?r a {CodeOntology.ClassDescriptionRun} ; " +
+                $"SELECT ?folder ?status ?engine ?force ?review ?started ?updated ?idx ?tot ?done ?cur ?err WHERE {{ GRAPH {g.StateIri} {{ ?r a {CodeOntology.ClassDescriptionRun} ; " +
                 "code:programFolder ?folder ; code:status ?status ; code:engine ?engine ; code:force ?force ; code:startedAt ?started ; code:updatedAt ?updated ; " +
-                "code:fileIndex ?idx ; code:fileTotal ?tot ; code:filesDescribed ?done . OPTIONAL { ?r code:currentFile ?cur } OPTIONAL { ?r code:error ?err } } } ORDER BY ?folder", ct);
+                "code:fileIndex ?idx ; code:fileTotal ?tot ; code:filesDescribed ?done . OPTIONAL { ?r code:currentFile ?cur } OPTIONAL { ?r code:error ?err } OPTIONAL { ?r code:review ?review } } } ORDER BY ?folder", ct);
             return rows.Select(r => new CodeDescriptionRun
             {
                 ProgramFolder = SparqlResults.Str(r, "folder"), Status = SparqlResults.Str(r, "status"), Engine = SparqlResults.Str(r, "engine"),
-                Force = SparqlResults.Bool(r, "force"), StartedAt = SparqlResults.Str(r, "started"), UpdatedAt = SparqlResults.Str(r, "updated"),
+                Force = SparqlResults.Bool(r, "force"), Review = SparqlResults.Bool(r, "review"), StartedAt = SparqlResults.Str(r, "started"), UpdatedAt = SparqlResults.Str(r, "updated"),
                 FileIndex = SparqlResults.Count(r, "idx"), FileTotal = SparqlResults.Count(r, "tot"), FilesDescribed = SparqlResults.Count(r, "done"),
                 CurrentFile = SparqlResults.Str(r, "cur"), Error = SparqlResults.Str(r, "err"),
             }).ToList();

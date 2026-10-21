@@ -86,7 +86,7 @@ namespace MdExplorer.Controllers.CodeGraph
             return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
         });
 
-        public class DescribeRequest : FolderRequest { public string ConnectionId { get; set; } public bool Force { get; set; } }
+        public class DescribeRequest : FolderRequest { public string ConnectionId { get; set; } public bool Force { get; set; } public bool Review { get; set; } }
         public class CancelRequest { public string ConnectionId { get; set; } }
 
         /// <summary>
@@ -103,10 +103,26 @@ namespace MdExplorer.Controllers.CodeGraph
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
             if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
-            try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, rel, request.Force, CancellationToken.None); }
+            try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, rel, request.Force, CancellationToken.None, review: request.Review); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
             return Ok(new { started = true, folder = rel });
         }
+
+        /// <summary>
+        /// GET /api/codegraph/describe/preview?projectPath&amp;folderPath&amp;review — l'anteprima di «Analizza il codice con Mark»
+        /// (F12b): quante da descrivere o rifare, quante «da rivedere» e perché, quante domande. Non scrive, non chiama l'LLM.
+        /// </summary>
+        [HttpGet("describe/preview")]
+        public Task<IActionResult> PreviewDescribe([FromQuery] string projectPath, [FromQuery] string folderPath, [FromQuery] bool review = false, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath);
+            if (bad != null) return bad;
+            var rel = ToRelative(projectPath, folderPath);
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            try { return Ok(await job.PreviewAsync(projectPath, rel, review, ct)); }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        });
 
         public class ResumeRequest { public string? ProjectPath { get; set; } public string? Folder { get; set; } public string? ConnectionId { get; set; } }
 

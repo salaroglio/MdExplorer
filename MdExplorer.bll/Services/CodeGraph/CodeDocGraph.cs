@@ -174,6 +174,47 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result.OrderBy(c => c.Line ?? 0).ToList();
         }
 
+        private Dictionary<string, int> _cycleOf;
+
+        /// <summary>
+        /// L'impronta di quello che una descrizione sa intorno al simbolo (F12b): le sintesi delle funzioni chiamate (anche
+        /// le candidate di un arco ambiguo, i nomi degli esterni) e, per un tipo, dei membri. Le funzioni dello stesso ciclo
+        /// di chiamate restano fuori: si descrivono nella stessa domanda e la loro sintesi non c'è ancora quando si scrive.
+        /// Stessa <paramref name="summaryOf"/> del prompt, così l'impronta è quella di quello che l'LLM ha visto.
+        /// </summary>
+        public string ContextHash(string symbolId, Func<string, string> summaryOf)
+        {
+            _cycleOf ??= CyclesOfAll();
+            _cycleOf.TryGetValue(symbolId, out var mine);
+            bool SameCycle(string id) => _cycleOf.TryGetValue(id, out var c) && c == mine && mine != 0;
+            var tokens = new List<string>();
+            string Token(string id) => _symbols.TryGetValue(id, out var s) ? $"{s.Symbol.QualifiedName}={summaryOf(id) ?? "∅"}"
+                : _externals.TryGetValue(id, out var x) ? $"ext:{x.QualifiedName}" : $"?:{id}";
+            if (_calls.TryGetValue(symbolId, out var calls))
+                foreach (var e in calls)
+                    if (e.TargetId != symbolId && !SameCycle(e.TargetId)) tokens.Add((e.Confidence == "ambiguous" ? "amb:" : "call:") + Token(e.TargetId));
+            if (_symbols.TryGetValue(symbolId, out var me) && TypeKinds.Contains(me.Symbol.Kind) && _members.TryGetValue(symbolId, out var members))
+                foreach (var m in members)
+                    if (_symbols.TryGetValue(m, out var ms) && CodeDocPlanner.IsDescribable(ms.Symbol.Kind)) tokens.Add("member:" + Token(m));
+            tokens.Sort(StringComparer.Ordinal);
+            return CodeBodyHash.Hash(string.Join("\n", tokens.Distinct(StringComparer.Ordinal)));
+        }
+
+        /// <summary>I cicli di chiamate fra TUTTI i simboli descrivibili non banali: id → numero del ciclo (1…), assente se non è in un ciclo.</summary>
+        private Dictionary<string, int> CyclesOfAll()
+        {
+            var nodes = _symbols.Where(kv => CodeDocPlanner.IsDescribable(kv.Value.Symbol.Kind) && kv.Value.Symbol.Trivial == null).Select(kv => kv.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
+            var set = new HashSet<string>(nodes, StringComparer.Ordinal);
+            var adj = nodes.ToDictionary(n => n, n => _calls.TryGetValue(n, out var c)
+                ? c.Where(e => e.Confidence != "ambiguous" && e.TargetId != n && set.Contains(e.TargetId)).Select(e => e.TargetId).Distinct(StringComparer.Ordinal).OrderBy(t => t, StringComparer.Ordinal).ToList()
+                : new List<string>(), StringComparer.Ordinal);
+            var (_, components) = Tarjan(nodes, adj);
+            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            var n = 0;
+            foreach (var comp in components.Where(c => c.Count > 1)) { n++; foreach (var v in comp) result[v] = n; }
+            return result;
+        }
+
         private CodeDocCall Call(string targetId, int? line, Func<string, string> summaryOf)
         {
             if (_symbols.TryGetValue(targetId, out var s))

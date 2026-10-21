@@ -514,6 +514,9 @@ namespace MdExplorer.Services.CodeGraph
                     foreach (var (file, script) in extracted.Scripts)
                     {
                         CodeProgramScope.Apply(script, folderRelative, bridgeSet.ForeignIds);
+                        // l'impronta del corpo (F12b), per ogni linguaggio: dice quando una descrizione va rifatta
+                        CodeBodyHash.Apply(script, File.ReadAllText(file.AbsolutePath, System.Text.Encoding.UTF8));
+                        script.Header.ExtractorVersion = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
                         var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
                         if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
                         outcome.Reparsed++;
@@ -601,11 +604,11 @@ namespace MdExplorer.Services.CodeGraph
                     if (!languages.Contains(language, StringComparer.OrdinalIgnoreCase)) continue;
                     var current = _extractors.Get(language);
                     if (current == null) continue;   // oggi non si analizza: lo dice già la finestra Ambiente di sviluppo
-                    if (ext == current.ExtractorName && ver == current.ExtractorVersion) continue;
+                    if (ext == current.ExtractorName && ver == CodeBodyHash.EmitterVersion(current.ExtractorVersion)) continue;
                     string sourceAbs;
                     try { sourceAbs = resolver.Resolve(source); } catch (InvalidOperationException) { continue; }
                     if (!File.Exists(sourceAbs)) continue;   // sorgente sparito: lo toglie l'analisi
-                    list.Add(new CodeOutdatedScript { Folder = key, Source = source, Language = language, Extractor = ext, Version = ver, CurrentExtractor = current.ExtractorName, CurrentVersion = current.ExtractorVersion });
+                    list.Add(new CodeOutdatedScript { Folder = key, Source = source, Language = language, Extractor = ext, Version = ver, CurrentExtractor = current.ExtractorName, CurrentVersion = CodeBodyHash.EmitterVersion(current.ExtractorVersion) });
                 }
             }
             return list;
@@ -615,14 +618,14 @@ namespace MdExplorer.Services.CodeGraph
         private static bool ScriptFromOtherExtractor(string projectPath, CodeSourceFile file, ICodeExtractor extractor)
         {
             var header = CodeScriptTurtle.ReadHeaderLine(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast));
-            return header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != extractor.ExtractorVersion;
+            return header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
         }
 
         /// <summary>L'hash nell'intestazione dello script esistente conferma o smentisce il candidato (D14).</summary>
         private static bool NeedsReparse(string projectPath, CodeSourceFile file, ICodeExtractor extractor)
         {
             var header = CodeScriptTurtle.ReadHeaderLine(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast));
-            if (header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != extractor.ExtractorVersion) return true;
+            if (header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != CodeBodyHash.EmitterVersion(extractor.ExtractorVersion)) return true;
             return !string.Equals(header.SourceHash, CodeGraphStore.Sha256(File.ReadAllText(file.AbsolutePath)), StringComparison.OrdinalIgnoreCase);
         }
 

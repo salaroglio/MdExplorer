@@ -3,7 +3,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DetectedLanguage } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DetectedLanguage } from '../../../services/code-graph.service';
 
 export interface DevEnvironmentDialogData {
   /** Il fullPath della cartella nell'albero. */
@@ -50,6 +50,10 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public describing = false;
   public describeLog: string[] = [];
   public describeDone: { files: number; described: number; rejected: number } | null = null;
+  /** L'anteprima del prossimo giro (F12b): campi semplici, niente getter che allocano nel template. */
+  public preview: DescribePreview | null = null;
+  public previewTodo = 0;
+  public previewReview = 0;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DevEnvironmentDialogData,
@@ -69,14 +73,27 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   /** La cartella ha già dei linguaggi scelti: si può descrivere senza rifare l'analisi. */
   get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing; }
 
-  describe(force = false): void {
+  /** Quante da descrivere e quante da rivedere: si chiede quando la cartella è già configurata e dopo ogni giro. */
+  private loadPreview(): void {
+    this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
+      next: (p) => {
+        this.preview = p;
+        this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged;
+        this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
+      },
+      // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
+      error: () => { this.preview = null; this.previewTodo = 0; this.previewReview = 0; }
+    });
+  }
+
+  describe(force = false, review = false): void {
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId || this.describing) { return; }
     this.describing = true;
     this.describeLog = [];
     this.describeDone = null;
     this.errorMessage = '';
-    this.codeGraph.describe(this.data.projectRoot, this.data.folderPath, connectionId, force).subscribe({
+    this.codeGraph.describe(this.data.projectRoot, this.data.folderPath, connectionId, force, review).subscribe({
       error: (err) => {
         this.describing = false;
         this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
@@ -99,7 +116,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })); break;
       case 'file-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE_DONE', { file: p.file, described: p.described, rejected: p.rejected })); break;
       case 'file-failed': case 'file-skipped': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
-      case 'done': this.describing = false; this.describeDone = { files: p.files, described: p.described, rejected: p.rejected }; break;
+      case 'done': this.describing = false; this.describeDone = { files: p.files, described: p.described, rejected: p.rejected }; this.loadPreview(); break;
       case 'cancelled': this.describing = false; this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_CANCELLED')); break;
       case 'error': this.describing = false; this.errorMessage = p.detail || p.message; break;
     }
@@ -115,6 +132,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
         this.descriptionMode = this.configured ? res.describe : null;
+        if (this.configured) { this.loadPreview(); }
         this.descriptionParallel = res.descriptionParallel || 3;
         // Prima volta: si propongono i linguaggi rilevati che hanno un estrattore pronto.
         if (this.selected.size === 0) {
@@ -198,7 +216,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
           next: (res) => {
             this.analyzing = false;
             this.outcome = res.folder ?? null;
-            if (this.outcome?.error) { this.errorMessage = this.outcome.error; }
+            if (this.outcome?.error) { this.errorMessage = this.outcome.error; } else { this.loadPreview(); }
           },
           error: (err) => {
             this.analyzing = false;

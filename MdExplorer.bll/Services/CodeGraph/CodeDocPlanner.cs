@@ -8,6 +8,35 @@ using System.Text.Json;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
+    /// <summary>
+    /// Com'è la descrizione di un simbolo (F12b). Le prime quattro si rifanno da sole; le «Review…» sono «da rivedere»
+    /// (D39 b): si dicono e si rifanno solo quando l'utente chiede di rivederle.
+    /// </summary>
+    public enum CodeDocVerdict
+    {
+        Fresh,
+        Missing,
+        SignatureChanged,
+        BodyChanged,
+        /// <summary>Le sintesi delle funzioni che chiama (o dei membri) sono cambiate da quando è stata scritta.</summary>
+        ReviewContext,
+        /// <summary>Scritta con un'altra versione del prompt mde-code-doc.</summary>
+        ReviewPrompt,
+        /// <summary>Senza impronta del contesto o del prompt: scritta prima del 21/10/2026, o da «Descrivi» su un solo simbolo.</summary>
+        ReviewNoFingerprint,
+    }
+
+    /// <summary>Chi descrivere in un giro e perché, con i conti per la finestra.</summary>
+    public sealed class CodeDocAssessment
+    {
+        public List<CodeDocCandidate> Candidates { get; } = new();
+        public Dictionary<CodeDocVerdict, int> Counts { get; } = new();
+        /// <summary>Simboli con un corpo ma senza impronta nello script AST (script di prima del 21/10): il corpo cambiato non si vede finché non si rifà «Analizza il codice».</summary>
+        public int BodyUnknown { get; set; }
+        public int Count(CodeDocVerdict v) => Counts.TryGetValue(v, out var n) ? n : 0;
+        public int ToReview => Count(CodeDocVerdict.ReviewContext) + Count(CodeDocVerdict.ReviewPrompt) + Count(CodeDocVerdict.ReviewNoFingerprint);
+    }
+
     /// <summary>Un simbolo da far descrivere all'AI, con quello che le serve sapere.</summary>
     public sealed class CodeDocCandidate
     {
@@ -22,6 +51,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public bool ParametersOnly { get; init; }
         /// <summary>Il percorso logico del sorgente (program/x.java): in una domanda su più file (un ciclo) dice a quale appartiene.</summary>
         public string Source { get; init; }
+        /// <summary>Perché è nel giro (F12b).</summary>
+        public CodeDocVerdict Verdict { get; init; } = CodeDocVerdict.Missing;
     }
 
     /// <summary>
@@ -48,6 +79,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Chi scrive le descrizioni fisse dei metodi banali (D41): MdExplorer, non un LLM.</summary>
         public const string TrivialAuthor = "mdexplorer (metodo banale)";
 
+        /// <summary>
+        /// La «versione del prompt» di una descrizione corretta a mano o da MarkAgent (<c>code_set_description</c>): non
+        /// l'ha scritta il prompt, quindi non diventa mai «da rivedere» (né per il prompt né per il contesto); si rifà
+        /// solo se cambiano firma o corpo.
+        /// </summary>
+        public const string EditedPromptVersion = "edit";
+
         /// <summary>L'hash della firma: cambia se cambiano firma, tipo di ritorno o parametri — non se il metodo si sposta.</summary>
         public static string SignatureHash(ScriptSymbol s, IEnumerable<ScriptParameter> parameters)
         {
@@ -60,14 +98,22 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
-        /// Chi va descritto: i simboli descrivibili dello script AST che non hanno una descrizione, o la cui firma è
-        /// cambiata da quando sono stati descritti (hash diverso); il module con parametri quando un parametro non ha
-        /// descrizione (<see cref="CodeDocCandidate.ParametersOnly"/>). Con <paramref name="force"/> tutti.
+        /// Chi va descritto: i simboli descrivibili senza descrizione, con la firma o il corpo cambiati; il module con
+        /// parametri quando un parametro non ha descrizione (<see cref="CodeDocCandidate.ParametersOnly"/>). Con
+        /// <paramref name="force"/> tutti. Senza le impronte di contesto e prompt: per «Descrivi» su un simbolo e i test.
         /// </summary>
         public static List<CodeDocCandidate> Select(CodeScript ast, CodeScript existingDoc, bool force)
+            => Assess(ast, existingDoc, force, review: false, contextHashOf: null, promptVersion: null).Candidates;
+
+        /// <summary>
+        /// Il giudizio di ogni descrizione (F12b, <see cref="Verdict"/>) e chi entra nel giro: quelle da fare o da rifare e,
+        /// con <paramref name="review"/>, anche quelle «da rivedere». <paramref name="contextHashOf"/> e
+        /// <paramref name="promptVersion"/> null = le «da rivedere» non si cercano.
+        /// </summary>
+        public static CodeDocAssessment Assess(CodeScript ast, CodeScript existingDoc, bool force, bool review, Func<string, string> contextHashOf, string promptVersion)
         {
             var docs = existingDoc?.SymbolDocs.ToDictionary(d => d.SymbolId, d => d, StringComparer.Ordinal) ?? new Dictionary<string, ScriptSymbolDoc>();
-            var list = new List<CodeDocCandidate>();
+            var result = new CodeDocAssessment();
             foreach (var s in ast.Symbols)
             {
                 var prms = ast.Parameters.Where(p => p.SymbolId == s.Id).OrderBy(p => p.Position).ToList();
@@ -75,17 +121,39 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     if (prms.Count == 0) continue;
                     var missing = prms.Any(p => existingDoc == null || !existingDoc.ParameterDocs.Any(d => d.SymbolId == s.Id && d.ParameterName == p.Name));
-                    if (force || missing) list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = SignatureHash(s, prms), ParametersOnly = true, Source = ast.Header.Source });
+                    if (force || missing) result.Candidates.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = SignatureHash(s, prms), ParametersOnly = true, Source = ast.Header.Source });
                     continue;
                 }
                 if (!Describable.Contains(s.Kind)) continue;
                 // i metodi banali li descrive MdExplorer (TrivialDocs), mai l'LLM (D41)
                 if (s.Trivial != null) continue;
                 var hash = SignatureHash(s, prms);
-                if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)) continue;
-                list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source });
+                if (CodeBodyHash.HasBody(s.Kind) && s.BodyHash == null) result.BodyUnknown++;
+                docs.TryGetValue(s.Id, out var d);
+                var verdict = Verdict(s, hash, d, contextHashOf == null ? null : () => contextHashOf(s.Id), promptVersion);
+                result.Counts[verdict] = result.Count(verdict) + 1;
+                var take = force || verdict is CodeDocVerdict.Missing or CodeDocVerdict.SignatureChanged or CodeDocVerdict.BodyChanged
+                           || review && verdict is CodeDocVerdict.ReviewContext or CodeDocVerdict.ReviewPrompt or CodeDocVerdict.ReviewNoFingerprint;
+                if (take) result.Candidates.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source, Verdict = verdict });
             }
-            return list;
+            return result;
+        }
+
+        /// <summary>
+        /// Com'è la descrizione <paramref name="d"/> del simbolo oggi. Rifare: manca, firma o corpo cambiati, oppure è la
+        /// frase fissa di un metodo che non è più banale. Da rivedere: senza impronte, prompt diverso, contesto cambiato.
+        /// <paramref name="contextHash"/> null = non si guarda (né il prompt).
+        /// </summary>
+        public static CodeDocVerdict Verdict(ScriptSymbol s, string signatureHash, ScriptSymbolDoc d, Func<string> contextHash, string promptVersion)
+        {
+            if (d == null) return CodeDocVerdict.Missing;
+            if (!string.Equals(d.SignatureHash, signatureHash, StringComparison.OrdinalIgnoreCase)) return CodeDocVerdict.SignatureChanged;
+            if (s.BodyHash != null && d.BodyHash != null && !string.Equals(s.BodyHash, d.BodyHash, StringComparison.Ordinal)) return CodeDocVerdict.BodyChanged;
+            if (d.WrittenBy == TrivialAuthor && s.Trivial == null) return CodeDocVerdict.Missing;
+            if (contextHash == null || d.PromptVersion == EditedPromptVersion) return CodeDocVerdict.Fresh;
+            if (d.ContextHash == null || d.PromptVersion == null) return CodeDocVerdict.ReviewNoFingerprint;
+            if (promptVersion != null && d.PromptVersion != promptVersion) return CodeDocVerdict.ReviewPrompt;
+            return d.ContextHash == contextHash() ? CodeDocVerdict.Fresh : CodeDocVerdict.ReviewContext;
         }
 
         /// <summary>
@@ -99,8 +167,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var s in ast.Symbols.Where(s => s.Trivial != null))
             {
                 var hash = SignatureHash(s, ast.Parameters.Where(p => p.SymbolId == s.Id));
-                if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)) continue;
-                list.Add(new ScriptSymbolDoc { SymbolId = s.Id, Summary = TrivialSummary(s, language), SignatureHash = hash, WrittenBy = TrivialAuthor });
+                if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)
+                    && (s.BodyHash == null || d.BodyHash == null || s.BodyHash == d.BodyHash)) continue;
+                list.Add(new ScriptSymbolDoc { SymbolId = s.Id, Summary = TrivialSummary(s, language), SignatureHash = hash, BodyHash = s.BodyHash, WrittenBy = TrivialAuthor });
             }
             return list;
         }

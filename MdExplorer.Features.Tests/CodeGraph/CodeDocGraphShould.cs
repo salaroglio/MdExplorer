@@ -183,5 +183,107 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(text, CodeScriptWriter.Serialize(back));
             Assert.ThrowsException<CodeScriptFormatException>(() => CodeScriptParser.Parse(text.Replace("code:trivial \"getter\"", "code:trivial \"pigro\""), "a.java.ast.ttl"), "una forma sconosciuta non passa");
         }
+
+        // ---------------------------------------------------------------- F12b: freschezza
+
+        [TestMethod]
+        public void Fingerprint_the_body_of_what_runs_ignoring_spaces_but_not_types()
+        {
+            var a = Script("prog/a.java");
+            a.Symbols.Add(new ScriptSymbol { Id = "A", Kind = "class", Name = "A", QualifiedName = "p.A", LineStart = 1, LineEnd = 5 });
+            Method(a, "m", 2, "A");
+            CodeBodyHash.Apply(a, "class A {\n  int m() {\n    return 1;\n  }\n}");
+            var first = a.Symbols.Single(x => x.Id == "m").BodyHash;
+            Assert.IsNotNull(first);
+            Assert.IsNull(a.Symbols.Single(x => x.Id == "A").BodyHash, "un tipo non ha un'impronta sua: dipende dai membri");
+            CodeBodyHash.Apply(a, "class A {\n      int m()   {\n return 1;\n\t}\n}");
+            Assert.AreEqual(first, a.Symbols.Single(x => x.Id == "m").BodyHash, "rientri e spazi non cambiano il significato");
+            CodeBodyHash.Apply(a, "class A {\n  int m() {\n    return 2;\n  }\n}");
+            Assert.AreNotEqual(first, a.Symbols.Single(x => x.Id == "m").BodyHash, "il corpo cambiato sì");
+        }
+
+        private static ScriptSymbolDoc Doc(string id, string sig, string body = null, string ctx = null, string prompt = null, string by = null)
+            => new() { SymbolId = id, Summary = "s", SignatureHash = sig, BodyHash = body, ContextHash = ctx, PromptVersion = prompt, WrittenBy = by };
+
+        [TestMethod]
+        public void Judge_each_description_redo_what_changed_and_only_signal_what_to_review()
+        {
+            var s = new ScriptSymbol { Id = "m", Kind = "method", QualifiedName = "p.A.m()", BodyHash = "b1" };
+            string Ctx() => "c1";
+            Assert.AreEqual(CodeDocVerdict.Missing, CodeDocPlanner.Verdict(s, "h", null, Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.SignatureChanged, CodeDocPlanner.Verdict(s, "h", Doc("m", "old", "b1", "c1", "8"), Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.BodyChanged, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b0", "c1", "8"), Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.ReviewNoFingerprint, CodeDocPlanner.Verdict(s, "h", Doc("m", "h"), Ctx, "8"), "scritta prima del 21/10");
+            Assert.AreEqual(CodeDocVerdict.ReviewPrompt, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b1", "c1", "7"), Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.ReviewContext, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b1", "c0", "8"), Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.Fresh, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b1", "c1", "8"), Ctx, "8"));
+            Assert.AreEqual(CodeDocVerdict.Fresh, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", null, "c1", "8"), Ctx, "8"), "un'impronta che manca da una parte non si confronta");
+            Assert.AreEqual(CodeDocVerdict.Fresh, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b1", null, CodeDocPlanner.EditedPromptVersion), Ctx, "8"), "corretta a mano: mai da rivedere");
+            Assert.AreEqual(CodeDocVerdict.BodyChanged, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b0", null, CodeDocPlanner.EditedPromptVersion), Ctx, "8"), "…ma il corpo cambiato la rifà");
+            Assert.AreEqual(CodeDocVerdict.Missing, CodeDocPlanner.Verdict(s, "h", Doc("m", "h", "b1", by: CodeDocPlanner.TrivialAuthor), Ctx, "8"), "non è più banale: la frase fissa non basta");
+            Assert.AreEqual(CodeDocVerdict.Fresh, CodeDocPlanner.Verdict(s, "h", Doc("m", "h"), null, null), "senza impronte di contesto (Select): solo firma e corpo");
+        }
+
+        [TestMethod]
+        public void Take_what_changed_always_and_what_to_review_only_when_asked()
+        {
+            var (a, _) = Fixture();
+            foreach (var x in a.Symbols.Where(x => x.Kind == "method")) x.BodyHash = "b-" + x.Id;
+            var sig = a.Symbols.Where(x => x.Kind == "method").ToDictionary(x => x.Id, x => CodeDocPlanner.SignatureHash(x, Array.Empty<ScriptParameter>()));
+            var doc = Script("prog/a.java"); doc.Header.Kind = CodeScriptKind.Doc;
+            doc.SymbolDocs.Add(Doc("top", sig["top"], "b-top", "c", "8"));       // fresca
+            doc.SymbolDocs.Add(Doc("mid", sig["mid"], "VECCHIO", "c", "8"));     // corpo cambiato
+            doc.SymbolDocs.Add(Doc("leaf", sig["leaf"], "b-leaf", "c", "7"));    // prompt vecchio
+            var plain = CodeDocPlanner.Assess(a, doc, force: false, review: false, _ => "c", "8");
+            CollectionAssert.AreEquivalent(new[] { "mid", "rec", "rec2", "A" }, plain.Candidates.Select(c => c.Symbol.Id).ToArray(), "rifatte: corpo cambiato e mancanti; non quella da rivedere");
+            Assert.AreEqual(1, plain.Count(CodeDocVerdict.ReviewPrompt));
+            Assert.AreEqual(1, plain.ToReview);
+            var withReview = CodeDocPlanner.Assess(a, doc, force: false, review: true, _ => "c", "8");
+            Assert.IsTrue(withReview.Candidates.Any(c => c.Symbol.Id == "leaf" && c.Verdict == CodeDocVerdict.ReviewPrompt), "con «Rivedi» entra");
+            Assert.IsFalse(withReview.Candidates.Any(c => c.Symbol.Id == "top"), "la fresca no");
+        }
+
+        [TestMethod]
+        public void Fingerprint_the_context_from_the_summaries_of_callees_and_members_but_not_of_the_same_cycle()
+        {
+            var (a, b) = Fixture();
+            var graph = new CodeDocGraph(new[] { a, b });
+            var sums = new Dictionary<string, string> { ["leaf"] = "uno", ["rec2"] = "x" };
+            string S(string id) => sums.TryGetValue(id, out var v) ? v : null;
+            var mid = graph.ContextHash("mid", S);
+            var rec = graph.ContextHash("rec", S);
+            var cls = graph.ContextHash("A", S);
+            sums["leaf"] = "due";
+            Assert.AreNotEqual(mid, graph.ContextHash("mid", S), "la sintesi di una funzione chiamata è cambiata");
+            Assert.AreNotEqual(cls, graph.ContextHash("A", S), "…e quella di un membro della classe");
+            sums["rec2"] = "y";
+            Assert.AreEqual(rec, graph.ContextHash("rec", S), "rec2 è nello stesso ciclo: si descrivono insieme, non conta");
+        }
+
+        [TestMethod]
+        public void Read_back_the_fingerprints_and_keep_hand_written_corrections_out_of_review()
+        {
+            var (a, _) = Fixture();
+            foreach (var x in a.Symbols.Where(x => x.Kind == "method")) x.BodyHash = "b-" + x.Id;
+            var ast = CodeScriptParser.Parse(CodeScriptWriter.Serialize(a), "a.java.ast.ttl");
+            Assert.AreEqual("b-mid", ast.Symbols.Single(x => x.Id == "mid").BodyHash);
+
+            var doc = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = "prog/a.java", WrittenBy = "mde-code-doc 8 / claude", WrittenAt = "t" } };
+            doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "mid", Summary = "Legge.", SignatureHash = "h", BodyHash = "b-mid", ContextHash = "c", PromptVersion = "8" });
+            doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "top", Summary = "In cima.", SignatureHash = "h2", BodyHash = "b-top", ContextHash = "c2", PromptVersion = "8" });
+            var text = CodeScriptWriter.Serialize(doc);
+            var back = CodeScriptParser.Parse(text, "a.java.doc.ttl");
+            var mid = back.SymbolDocs.Single(d => d.SymbolId == "mid");
+            Assert.AreEqual(("b-mid", "c", "8"), (mid.BodyHash, mid.ContextHash, mid.PromptVersion));
+            Assert.AreEqual(text, CodeScriptWriter.Serialize(back));
+
+            // MarkAgent corregge «mid»: lei diventa «a mano», «top» tiene il suo autore
+            var edited = CodeDocEditor.EditSymbol(ast, back, "mid", "Legge davvero.", null, null, null, "code_set_description");
+            var em = edited.SymbolDocs.Single(d => d.SymbolId == "mid");
+            Assert.AreEqual(CodeDocPlanner.EditedPromptVersion, em.PromptVersion);
+            Assert.AreEqual("b-mid", em.BodyHash);
+            var reread = CodeScriptParser.Parse(CodeScriptWriter.Serialize(edited), "a.java.doc.ttl");
+            Assert.AreEqual("mde-code-doc 8 / claude", reread.SymbolDocs.Single(d => d.SymbolId == "top").WrittenBy, "prima prendeva l'autore della correzione");
+        }
     }
 }

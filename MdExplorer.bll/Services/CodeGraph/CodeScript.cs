@@ -55,6 +55,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// basso: la sua descrizione la scrive MdExplorer. Null = un metodo vero.
         /// </summary>
         public string Trivial { get; set; }
+        /// <summary>
+        /// L'impronta del corpo (F12b): hash delle righe del simbolo con gli spazi compattati, calcolata dopo l'estrazione
+        /// per ogni linguaggio (<see cref="CodeBodyHash"/>), solo per chi ha un corpo che si esegue (metodi, funzioni,
+        /// costruttori, proprietà). Null = non calcolata (script di prima del 21/10/2026, o un tipo).
+        /// </summary>
+        public string BodyHash { get; set; }
         /// <summary>Il campo letto o scritto, o la costante restituita (com'è scritta nel codice); null per <c>empty</c>.</summary>
         public string TrivialOf { get; set; }
         /// <summary><c>external</c> = fuori perimetro: nessun file, nessuna riga, condiviso fra gli script.</summary>
@@ -93,6 +99,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// metodi banali (D41) le scrive MdExplorer, quelle rimaste da un giro precedente il loro LLM. Null = l'intestazione.
         /// </summary>
         public string WrittenBy { get; set; }
+        /// <summary>L'impronta del corpo quando la descrizione è stata scritta (F12b): diversa da quella di oggi = da rifare.</summary>
+        public string BodyHash { get; set; }
+        /// <summary>
+        /// L'impronta di quello che la descrizione sapeva intorno al simbolo (F12b): le sintesi delle funzioni chiamate e,
+        /// per un tipo, dei membri, come erano nel prompt. Diversa da quella di oggi = «da rivedere» (D39 b), non rifatta.
+        /// </summary>
+        public string ContextHash { get; set; }
+        /// <summary>La versione del prompt mde-code-doc che l'ha scritta: più vecchia di quella di oggi = «da rivedere».</summary>
+        public string PromptVersion { get; set; }
     }
 
     public sealed class ScriptParameterDoc

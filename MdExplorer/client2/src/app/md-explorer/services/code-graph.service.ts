@@ -82,6 +82,22 @@ export interface BackgroundWork {
   scans: { folder: string; startedAt: string }[];
 }
 
+/** L'anteprima di un giro di descrizioni (F12b), come la calcola il backend (CodeDocPreview). */
+export interface DescribePreview {
+  folder: string;
+  questions: number;
+  levels: number;
+  missing: number;
+  signatureChanged: number;
+  bodyChanged: number;
+  reviewContext: number;
+  reviewPrompt: number;
+  reviewNoFingerprint: number;
+  fresh: number;
+  trivial: number;
+  bodyUnknown: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CodeGraphService {
   constructor(private http: HttpClient) { }
@@ -103,8 +119,13 @@ export class CodeGraphService {
     return this.http.post('../api/codegraph/generate', { projectPath });
   }
 
-  describe(projectPath: string, folderPath: string, connectionId: string, force = false): Observable<any> {
-    return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force });
+  describe(projectPath: string, folderPath: string, connectionId: string, force = false, review = false): Observable<any> {
+    return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force, review });
+  }
+
+  /** L'anteprima di «Analizza il codice con Mark» (F12b): da descrivere, da rivedere e perché. Non scrive niente. */
+  describePreview(projectPath: string, folderPath: string): Observable<DescribePreview> {
+    return this.http.get<DescribePreview>('../api/codegraph/describe/preview', { params: { projectPath, folderPath } });
   }
 
   /** Il pannello dei lavori in sfondo: descrizioni in corso o da riprendere, scansioni in corso (punto 2d). */

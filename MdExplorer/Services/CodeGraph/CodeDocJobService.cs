@@ -28,7 +28,12 @@ namespace MdExplorer.Services.CodeGraph
         /// era arrivata (rifatto: la sua risposta poteva essere a metà), con lo stesso <c>force</c>. Mai da sola: lo chiede
         /// l'utente dall'avviso all'apertura del progetto.
         /// </remarks>
-        Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null);
+        Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null, bool review = false);
+        /// <summary>
+        /// L'anteprima di «Analizza il codice con Mark» (F12b): quante descrizioni mancano o vanno rifatte, quante sono «da
+        /// rivedere» e perché, quante domande su quanti livelli. Non scrive niente e non chiama l'LLM.
+        /// </summary>
+        Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default);
         /// <summary>Le descrizioni interrotte del progetto: traccia «in corso» senza un lavoro vivo (MdExplorer chiuso o caduto), o fallite.</summary>
         Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default);
         /// <summary>
@@ -102,6 +107,24 @@ namespace MdExplorer.Services.CodeGraph
         public int FilesFailed { get; set; }
         /// <summary>La traccia di questo lavoro (null finché non è partito davvero).</summary>
         public CodeDescriptionRun Run { get; set; }
+    }
+
+    /// <summary>L'anteprima di un giro di descrizioni (F12b): i conti per la finestra «Ambiente di sviluppo».</summary>
+    public sealed class CodeDocPreview
+    {
+        public string Folder { get; set; }
+        public int Questions { get; set; }
+        public int Levels { get; set; }
+        public int Missing { get; set; }
+        public int SignatureChanged { get; set; }
+        public int BodyChanged { get; set; }
+        public int ReviewContext { get; set; }
+        public int ReviewPrompt { get; set; }
+        public int ReviewNoFingerprint { get; set; }
+        public int Fresh { get; set; }
+        /// <summary>Metodi banali la cui frase fissa manca o va rifatta: la scrive MdExplorer al giro, senza LLM.</summary>
+        public int Trivial { get; set; }
+        public int BodyUnknown { get; set; }
     }
 
     public sealed class CodeDescriptionEditOutcome
@@ -187,8 +210,9 @@ namespace MdExplorer.Services.CodeGraph
         /// NON async: i rifiuti («già in corso») devono arrivare a chi chiama, che lancia il lavoro senza aspettarlo. In un
         /// metodo async finivano nel Task scartato dal controller e la seconda richiesta non diceva niente (14/10/2026).
         /// </summary>
-        public Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null)
+        public Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null, bool review = false)
         {
+            review = resume?.Review ?? review;
             // Anche le precondizioni qui: una ripresa dall'avviso all'apertura non ascolta SignalR, e «ripresa» seguito da
             // niente era peggio di un rifiuto col motivo (14/10/2026).
             var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
@@ -222,10 +246,10 @@ namespace MdExplorer.Services.CodeGraph
                 // subito, non dopo il primo await: due richieste ravvicinate sulla stessa cartella partivano tutte e due
                 _progress[connectionId] = new CodeDocJobProgress { ProjectPath = projectPath, Folder = normalized, StartedAt = DateTime.UtcNow.ToString("o") };
             }
-            return RunDescribeCoreAsync(connectionId, projectPath, normalized, force, cts, resume, scriptsFolder, engine, model, skillBody, promptVersion);
+            return RunDescribeCoreAsync(connectionId, projectPath, normalized, force, review, cts, resume, scriptsFolder, engine, model, skillBody, promptVersion);
         }
 
-        private async Task RunDescribeCoreAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationTokenSource cts, CodeDescriptionRun resume,
+        private async Task RunDescribeCoreAsync(string connectionId, string projectPath, string folderRelative, bool force, bool review, CancellationTokenSource cts, CodeDescriptionRun resume,
             string scriptsFolder, MarkAgentEngine engine, string model, string skillBody, string promptVersion)
         {
             await Task.Yield();
@@ -238,67 +262,13 @@ namespace MdExplorer.Services.CodeGraph
                 var writtenBy = $"mde-code-doc {promptVersion} / {engineLabel}";
 
                 var resolver = await _roots.CreateResolverAsync(projectPath, token);
-                var astScripts = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToList();
                 var progress = _progress[connectionId];
                 progress.Engine = engineLabel;
 
-                // Tutti gli script AST della cartella: servono interi per l'ordine dal basso (F12a), anche quelli già descritti.
-                var docFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal);
-                foreach (var astPath in astScripts)
-                {
-                    token.ThrowIfCancellationRequested();
-                    var astRel = CodeGraphPaths.ToProjectRelative(projectPath, astPath);
-                    CodeScript ast;
-                    try { ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), astRel); }
-                    catch (CodeScriptFormatException ex) { await SendAsync(connectionId, new { phase = "file-skipped", file = astRel, detail = ex.Message }); continue; }
-                    var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
-                    docFiles[ast.Header.Source] = new DocFile { Ast = ast, DocPath = docPath, DocRel = CodeGraphPaths.ToProjectRelative(projectPath, docPath) };
-                }
-
-                // Le sintesi già scritte, per il prompt di chi le chiama; i metodi banali (D41) le ricevono da MdExplorer subito.
-                var summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
-                var candidates = new List<CodeDocCandidate>();
-                var askFiles = new HashSet<string>(StringComparer.Ordinal);
-                var trivialWritten = 0;
-                foreach (var f in docFiles.Values)
-                {
-                    token.ThrowIfCancellationRequested();
-                    CodeScript existing = null;
-                    try { existing = CodeDocPlanner.ReadScriptOrNull(f.DocPath, f.DocRel); }
-                    catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
-                    var trivial = CodeDocPlanner.TrivialDocs(f.Ast, existing, _language.Current, force);
-                    var orphans = existing != null && CodeDocPlanner.DropOrphans(existing, f.Ast) > 0;
-                    if (trivial.Count > 0 || orphans)
-                    {
-                        var fresh = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = f.Ast.Header.Source,
-                            WrittenBy = existing?.Header?.WrittenBy ?? CodeDocPlanner.TrivialAuthor, WrittenAt = DateTime.UtcNow.ToString("o") } };
-                        fresh.SymbolDocs.AddRange(trivial);
-                        existing = CodeDocPlanner.Merge(existing, fresh);
-                        CodeDocPlanner.DropOrphans(existing, f.Ast);
-                        CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(existing));
-                        await _store.LoadScriptAsync(projectPath, f.DocPath, token);
-                        trivialWritten += trivial.Count;
-                    }
-                    if (existing != null) foreach (var d in existing.SymbolDocs) summaries[d.SymbolId] = d.Summary;
-                    candidates.AddRange(CodeDocPlanner.Select(f.Ast, existing, force));
-                    if (CodeDocPlanner.NeedsFileDoc(existing, force)) askFiles.Add(f.Ast.Header.Source);
-                }
-
-                var graph = new CodeDocGraph(docFiles.Values.Select(f => f.Ast));
-                var groups = graph.Plan(candidates);
-                // i file a cui manca la descrizione del file e che non hanno una domanda loro (niente simboli da descrivere, o solo
-                // dentro un ciclo fra file): una domanda senza simboli, senza dipendenze
-                var withSymbols = new HashSet<string>(groups.Where(g => !g.IsCrossFileCycle).SelectMany(g => g.Sources), StringComparer.Ordinal);
-                foreach (var source in askFiles.Where(a => !withSymbols.Contains(a)).OrderBy(a => a, StringComparer.Ordinal))
-                    groups.Add(new CodeDocGroup { Index = groups.Count, Level = 0, Sources = new[] { source }, Candidates = Array.Empty<CodeDocCandidate>(), DependsOn = Array.Empty<int>() });
-                // la descrizione del file si chiede una volta, nella prima domanda che lo riguarda (non in un ciclo fra file)
-                var askFileIn = new Dictionary<int, string>();
-                foreach (var source in askFiles)
-                {
-                    var first = groups.FirstOrDefault(g => !g.IsCrossFileCycle && g.Sources[0] == source);
-                    if (first != null) askFileIn[first.Index] = source;
-                }
-                foreach (var w in graph.Warnings.Take(20)) _logger.LogWarning("[CodeDoc] {Warning}", w);
+                var plan = await BuildPlanAsync(projectPath, scriptsFolder, force, review, promptVersion, write: true,
+                    (file, detail) => SendAsync(connectionId, new { phase = "file-skipped", file, detail }), token);
+                var docFiles = plan.DocFiles; var summaries = plan.Summaries; var graph = plan.Graph; var groups = plan.Groups; var askFileIn = plan.AskFileIn;
+                var candidates = plan.Candidates; var trivialWritten = plan.Trivial;
 
                 // Una ripresa con force rifà lo stesso piano (stessi script): riparte dalla domanda a cui era arrivata. Senza
                 // force il piano contiene già solo quello che manca.
@@ -308,14 +278,16 @@ namespace MdExplorer.Services.CodeGraph
                 // la traccia, così un'interruzione si vede anche dopo un riavvio
                 run = new CodeDescriptionRun
                 {
-                    ProgramFolder = folderRelative, Status = CodeDescriptionRun.Running, Engine = engineLabel, Force = force,
+                    ProgramFolder = folderRelative, Status = CodeDescriptionRun.Running, Engine = engineLabel, Force = force, Review = review,
                     StartedAt = resume?.StartedAt ?? progress.StartedAt, FileIndex = start, FileTotal = groups.Count, FilesDescribed = resume?.FilesDescribed ?? 0,
                     SessionStartedAt = progress.StartedAt, SessionStartIndex = start,
                 };
                 progress.Run = run;
                 await SaveRunAsync(projectPath, run, token);
-                await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = groups.Count, levels, symbols = candidates.Count, trivial = trivialWritten, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1 });
-                _logger.LogInformation("[CodeDoc] '{Folder}': {Symbols} simboli in {Groups} domande su {Levels} livelli, {Trivial} metodi banali descritti da MdExplorer", folderRelative, candidates.Count, groups.Count, levels, trivialWritten);
+                await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = groups.Count, levels, symbols = candidates.Count, trivial = trivialWritten, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1,
+                    toReview = plan.Assessment.ToReview, reviewing = review, bodyUnknown = plan.Assessment.BodyUnknown });
+                _logger.LogInformation("[CodeDoc] '{Folder}': {Symbols} simboli in {Groups} domande su {Levels} livelli, {Trivial} metodi banali descritti da MdExplorer; da rivedere {Review} ({Reviewing}), corpo senza impronta {BodyUnknown}",
+                    folderRelative, candidates.Count, groups.Count, levels, trivialWritten, plan.Assessment.ToReview, review ? "rivisti in questo giro" : "non in questo giro", plan.Assessment.BodyUnknown);
 
                 // Dal basso (F12a): ogni domanda parte quando quelle da cui dipende sono finite, N insieme (punto 2b del 14/10).
                 // «Arrivata alla domanda X» = tutte quelle prima di X sono finite (il punto più basso ancora aperto).
@@ -339,7 +311,7 @@ namespace MdExplorer.Services.CodeGraph
                     {
                         await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count });
                         askFileIn.TryGetValue(group.Index, out var askFileOf);
-                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, fileLocks, askFileOf != null, engine, model, skillBody, writtenBy, t);
+                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, fileLocks, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, t);
                         lock (sync) rejectedTotal += result.Rejected;
                         if (result.Error != null) { lock (sync) progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = label, detail = result.Error }); return; }
                         lock (sync)
@@ -471,6 +443,116 @@ namespace MdExplorer.Services.CodeGraph
             catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] traccia '{Folder}' non chiusa come {Status}: resterà un'interruzione", run.ProgramFolder, status); }
         }
 
+        private sealed class DocPlan
+        {
+            public Dictionary<string, DocFile> DocFiles;
+            public ConcurrentDictionary<string, string> Summaries;
+            public CodeDocGraph Graph;
+            public List<CodeDocGroup> Groups;
+            public Dictionary<int, string> AskFileIn;
+            public List<CodeDocCandidate> Candidates;
+            public CodeDocAssessment Assessment;
+            public int Trivial;
+        }
+
+        /// <summary>
+        /// Il piano di un giro: tutti gli script AST della cartella (servono interi per l'ordine dal basso, anche quelli già
+        /// descritti), le descrizioni fisse dei metodi banali (scritte solo con <paramref name="write"/>), le sintesi di
+        /// adesso, il giudizio di ogni descrizione (F12b) e le domande. Due passate: il giudizio «contesto cambiato» ha
+        /// bisogno di TUTTE le sintesi.
+        /// </summary>
+        private async Task<DocPlan> BuildPlanAsync(string projectPath, string scriptsFolder, bool force, bool review, string promptVersion, bool write,
+            Func<string, string, Task> onSkipped, CancellationToken token)
+        {
+            var plan = new DocPlan { DocFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal), Summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal), Assessment = new CodeDocAssessment(), Candidates = new List<CodeDocCandidate>() };
+            foreach (var astPath in Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
+            {
+                token.ThrowIfCancellationRequested();
+                var astRel = CodeGraphPaths.ToProjectRelative(projectPath, astPath);
+                CodeScript ast;
+                try { ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), astRel); }
+                catch (CodeScriptFormatException ex) { if (onSkipped != null) await onSkipped(astRel, ex.Message); continue; }
+                var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
+                plan.DocFiles[ast.Header.Source] = new DocFile { Ast = ast, DocPath = docPath, DocRel = CodeGraphPaths.ToProjectRelative(projectPath, docPath) };
+            }
+
+            // 1) le descrizioni che ci sono e quelle fisse dei metodi banali (D41): le sintesi di adesso
+            var existingOf = new Dictionary<string, CodeScript>(StringComparer.Ordinal);
+            foreach (var f in plan.DocFiles.Values)
+            {
+                token.ThrowIfCancellationRequested();
+                CodeScript existing = null;
+                try { existing = CodeDocPlanner.ReadScriptOrNull(f.DocPath, f.DocRel); }
+                catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
+                var trivial = CodeDocPlanner.TrivialDocs(f.Ast, existing, _language.Current, force);
+                var orphans = existing != null && CodeDocPlanner.DropOrphans(existing, f.Ast) > 0;
+                if (trivial.Count > 0 || orphans)
+                {
+                    var fresh = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = f.Ast.Header.Source,
+                        WrittenBy = existing?.Header?.WrittenBy ?? CodeDocPlanner.TrivialAuthor, WrittenAt = DateTime.UtcNow.ToString("o") } };
+                    fresh.SymbolDocs.AddRange(trivial);
+                    existing = CodeDocPlanner.Merge(existing, fresh);
+                    CodeDocPlanner.DropOrphans(existing, f.Ast);
+                    if (write)
+                    {
+                        CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(existing));
+                        await _store.LoadScriptAsync(projectPath, f.DocPath, token);
+                    }
+                    plan.Trivial += trivial.Count;
+                }
+                existingOf[f.Ast.Header.Source] = existing;
+                if (existing != null) foreach (var d in existing.SymbolDocs) plan.Summaries[d.SymbolId] = d.Summary;
+            }
+
+            // 2) il giudizio di ogni descrizione e chi entra nel giro
+            plan.Graph = new CodeDocGraph(plan.DocFiles.Values.Select(f => f.Ast));
+            string Summary(string id) => plan.Summaries.TryGetValue(id, out var x) ? x : null;
+            var askFiles = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var f in plan.DocFiles.Values)
+            {
+                var existing = existingOf[f.Ast.Header.Source];
+                var a = CodeDocPlanner.Assess(f.Ast, existing, force, review, id => plan.Graph.ContextHash(id, Summary), promptVersion);
+                plan.Candidates.AddRange(a.Candidates);
+                foreach (var kv in a.Counts) plan.Assessment.Counts[kv.Key] = plan.Assessment.Count(kv.Key) + kv.Value;
+                plan.Assessment.BodyUnknown += a.BodyUnknown;
+                if (CodeDocPlanner.NeedsFileDoc(existing, force)) askFiles.Add(f.Ast.Header.Source);
+            }
+            plan.Assessment.Candidates.AddRange(plan.Candidates);
+
+            plan.Groups = plan.Graph.Plan(plan.Candidates);
+            // i file a cui manca la descrizione del file e che non hanno una domanda loro (niente simboli da descrivere, o solo
+            // dentro un ciclo fra file): una domanda senza simboli, senza dipendenze
+            var withSymbols = new HashSet<string>(plan.Groups.Where(g => !g.IsCrossFileCycle).SelectMany(g => g.Sources), StringComparer.Ordinal);
+            foreach (var source in askFiles.Where(x => !withSymbols.Contains(x)).OrderBy(x => x, StringComparer.Ordinal))
+                plan.Groups.Add(new CodeDocGroup { Index = plan.Groups.Count, Level = 0, Sources = new[] { source }, Candidates = Array.Empty<CodeDocCandidate>(), DependsOn = Array.Empty<int>() });
+            // la descrizione del file si chiede una volta, nella prima domanda che lo riguarda (non in un ciclo fra file)
+            plan.AskFileIn = new Dictionary<int, string>();
+            foreach (var source in askFiles)
+            {
+                var first = plan.Groups.FirstOrDefault(g => !g.IsCrossFileCycle && g.Sources[0] == source);
+                if (first != null) plan.AskFileIn[first.Index] = source;
+            }
+            foreach (var w in plan.Graph.Warnings.Take(20)) _logger.LogWarning("[CodeDoc] {Warning}", w);
+            return plan;
+        }
+
+        public async Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default)
+        {
+            var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
+            var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
+            if (!Directory.Exists(scriptsFolder))
+                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».", $"No AST script in {scriptsFolder}: first «Analyse the code»."));
+            var plan = await BuildPlanAsync(projectPath, scriptsFolder, force: false, review, PromptVersion(projectPath, "mde-code-doc"), write: false, null, ct);
+            var a = plan.Assessment;
+            return new CodeDocPreview
+            {
+                Folder = normalized, Questions = plan.Groups.Count, Levels = plan.Groups.Count == 0 ? 0 : plan.Groups.Max(g => g.Level) + 1,
+                Missing = a.Count(CodeDocVerdict.Missing), SignatureChanged = a.Count(CodeDocVerdict.SignatureChanged), BodyChanged = a.Count(CodeDocVerdict.BodyChanged),
+                ReviewContext = a.Count(CodeDocVerdict.ReviewContext), ReviewPrompt = a.Count(CodeDocVerdict.ReviewPrompt), ReviewNoFingerprint = a.Count(CodeDocVerdict.ReviewNoFingerprint),
+                Fresh = a.Count(CodeDocVerdict.Fresh), Trivial = plan.Trivial, BodyUnknown = a.BodyUnknown,
+            };
+        }
+
         /// <summary>Uno script AST della cartella e dove sta lo script delle sue descrizioni.</summary>
         private sealed class DocFile
         {
@@ -486,7 +568,7 @@ namespace MdExplorer.Services.CodeGraph
         /// </summary>
         private async Task<FileResult> DescribeGroupAsync(string projectPath, CodeRootResolver resolver, CodeDocGroup group, IReadOnlyDictionary<string, DocFile> docFiles,
             CodeDocGraph graph, ConcurrentDictionary<string, string> summaries, ConcurrentDictionary<string, SemaphoreSlim> fileLocks, bool askFile,
-            MarkAgentEngine engine, string model, string skillBody, string writtenBy, CancellationToken token)
+            MarkAgentEngine engine, string model, string skillBody, string writtenBy, string promptVersion, CancellationToken token)
         {
             var result = new FileResult();
             var sources = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -499,12 +581,21 @@ namespace MdExplorer.Services.CodeGraph
                 sources[source] = await File.ReadAllTextAsync(abs, token);
             }
 
-            string Summary(string id) => summaries.TryGetValue(id, out var x) ? x : null;
+            // la sintesi di ogni simbolo letta UNA volta: il prompt e l'impronta del contesto (F12b) vedono la stessa (una
+            // candidata di un arco ambiguo non è una dipendenza e può cambiare mentre questa domanda si prepara)
+            var seen = new Dictionary<string, string>(StringComparer.Ordinal);
+            string Summary(string id)
+            {
+                if (!seen.TryGetValue(id, out var x)) seen[id] = x = summaries.TryGetValue(id, out var y) ? y : null;
+                return x;
+            }
             var context = group.Candidates.ToDictionary(c => c.Symbol.Id, c => new CodeDocPlanner.SymbolContext
             {
                 Calls = graph.CallsOf(c.Symbol.Id, Summary),
                 Members = graph.MembersOf(c.Symbol.Id, Summary),
             }, StringComparer.Ordinal);
+            var contextHashes = group.Candidates.ToDictionary(c => c.Symbol.Id, c => graph.ContextHash(c.Symbol.Id, Summary), StringComparer.Ordinal);
+            var symbolOf = group.Candidates.ToDictionary(c => c.Symbol.Id, c => c.Symbol, StringComparer.Ordinal);
 
             var label = group.IsCrossFileCycle ? string.Join(" + ", group.Sources) : group.Sources[0];
             var batches = group.IsCrossFileCycle
@@ -541,6 +632,13 @@ namespace MdExplorer.Services.CodeGraph
                 result.FirstRejected ??= rejected.FirstOrDefault();
                 foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", label, r);
                 freshCount += CodeDocPlanner.CountDescribed(fresh, batch);
+                // l'impronta di quello che la descrizione sapeva (F12b): corpo, contesto, prompt
+                foreach (var d in fresh.SymbolDocs)
+                {
+                    d.BodyHash = symbolOf[d.SymbolId].BodyHash;
+                    d.ContextHash = contextHashes[d.SymbolId];
+                    d.PromptVersion = promptVersion;
+                }
                 freshDocs.AddRange(fresh.SymbolDocs);
                 freshParams.AddRange(fresh.ParameterDocs);
                 fileDoc ??= fresh.FileDoc;

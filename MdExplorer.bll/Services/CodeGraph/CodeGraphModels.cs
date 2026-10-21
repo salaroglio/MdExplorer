@@ -76,6 +76,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Status { get; set; }
         public string Engine { get; set; }
         public bool Force { get; set; }
+        /// <summary>Rivede anche le descrizioni «da rivedere» (F12b): una ripresa lo ricorda.</summary>
+        public bool Review { get; set; }
         public string StartedAt { get; set; }
         public string UpdatedAt { get; set; }
         /// <summary>Il file a cui era arrivata (1-based) sul totale; <see cref="CurrentFile"/> il suo percorso logico.</summary>

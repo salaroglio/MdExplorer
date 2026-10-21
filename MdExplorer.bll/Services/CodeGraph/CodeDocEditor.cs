@@ -68,6 +68,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 ReturnsDescription = Field(returnsDescription, old?.ReturnsDescription),
                 Remarks = Field(remarks, old?.Remarks),
                 SignatureHash = candidate.SignatureHash,
+                // corretta a mano (o da MarkAgent): si rifà se cambiano firma o corpo, mai «da rivedere» (F12b)
+                BodyHash = symbol.BodyHash, PromptVersion = CodeDocPlanner.EditedPromptVersion,
             };
             doc.SymbolDocs.RemoveAll(d => d.SymbolId == symbolId);
             doc.SymbolDocs.Add(updated);
@@ -121,6 +123,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             };
             if (existing != null)
             {
+                // ognuna tiene il suo autore: prima prendevano tutte quello della correzione
+                foreach (var d in existing.SymbolDocs)
+                {
+                    d.WrittenBy ??= existing.Header?.WrittenBy;
+                    if (d.WrittenBy == writtenBy) d.WrittenBy = null;
+                }
                 doc.SymbolDocs.AddRange(existing.SymbolDocs);
                 doc.ParameterDocs.AddRange(existing.ParameterDocs);
             }
