@@ -142,7 +142,7 @@ namespace MdExplorer.Services.RemoteFolders
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(CommandTimeout);
-            using var process = Process.Start(psi) ?? throw new RemoteUnavailableException(RemoteGate.Access, $"{psi.FileName}: process not started");
+            using var process = RemoteDiagnosis.StartSsh(psi);
             var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
             var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
             try

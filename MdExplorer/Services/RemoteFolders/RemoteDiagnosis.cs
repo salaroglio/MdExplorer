@@ -17,6 +17,28 @@ namespace MdExplorer.Services.RemoteFolders
         public const int CannotExecute = 126;
         public const int CommandNotFound = 127;
 
+        /// <summary>
+        /// Avvia ssh; se il programma non c'è lo dice con il rimedio (F5): su Windows il client OpenSSH è una funzionalità
+        /// facoltativa, e senza questo l'errore arrivava come eccezione non gestita (500 con lo stack).
+        /// </summary>
+        public static System.Diagnostics.Process StartSsh(System.Diagnostics.ProcessStartInfo psi)
+        {
+            try
+            {
+                return System.Diagnostics.Process.Start(psi) ?? throw new RemoteUnavailableException(RemoteGate.Access, $"{psi.FileName}: process not started");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                throw new RemoteUnavailableException(RemoteGate.Access, (OperatingSystem.IsWindows()
+                    ? UiText.Say(
+                        $"il programma «{psi.FileName}» non c'è: installa il client OpenSSH (Impostazioni → App → Funzionalità facoltative → Client OpenSSH) e riavvia MdExplorer.",
+                        $"the program «{psi.FileName}» is missing: install the OpenSSH client (Settings → Apps → Optional features → OpenSSH Client) and restart MdExplorer.")
+                    : UiText.Say(
+                        $"il programma «{psi.FileName}» non c'è: installa il client OpenSSH (es. pacchetto openssh-client) e riavvia MdExplorer.",
+                        $"the program «{psi.FileName}» is missing: install the OpenSSH client (e.g. the openssh-client package) and restart MdExplorer.")) + Detail(ex.Message));
+            }
+        }
+
         /// <summary>ssh è uscito con 255: non è entrato nel server. Il messaggio di ssh dice perché.</summary>
         public static RemoteUnavailableException AccessFailure(string destination, string stderr)
         {

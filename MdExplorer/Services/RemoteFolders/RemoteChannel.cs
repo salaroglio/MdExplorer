@@ -37,7 +37,7 @@ namespace MdExplorer.Services.RemoteFolders
         /// <summary>Avvia il processo e aspetta il saluto (D6): senza saluto non si manda nessuna richiesta.</summary>
         public static async Task<RemoteChannel> StartAsync(ProcessStartInfo psi, RemoteLocation location, TimeSpan helloTimeout, CancellationToken ct)
         {
-            var process = Process.Start(psi) ?? throw new RemoteUnavailableException(RemoteGate.Access, $"{psi.FileName}: process not started");
+            var process = RemoteDiagnosis.StartSsh(psi);
             var channel = new RemoteChannel(process, location);
             process.ErrorDataReceived += (_, e) => { if (e.Data != null) lock (channel._stderr) channel._stderr.AppendLine(e.Data); };
             process.BeginErrorReadLine();

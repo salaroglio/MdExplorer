@@ -267,6 +267,10 @@ namespace MdExplorer.IntegrationTests
             var unknownHost = new RemoteSessions(new CannedTransport("", "Host key verification failed.", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => unknownHost.OpenAsync(Server("/srv")))).Message, "known_hosts");
 
+            var noSsh = new RemoteSessions(new SshTransport(Path.Combine(_base, "ssh-che-non-c-e")), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
+            var sshMissing = await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => noSsh.OpenAsync(Server("/srv")), "ssh assente: un messaggio, non un'eccezione qualunque");
+            StringAssert.Contains(sshMissing.Message, "OpenSSH");
+
             var noAgent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(Path.Combine(_base, "non-c-e")), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
             StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => noAgent.OpenAsync(Server(_base)))).Message, "publish-linux-x64.sh");
         }
@@ -320,6 +324,56 @@ namespace MdExplorer.IntegrationTests
 
             await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => roots.ChangesAsync(_project, "backend"), "file modificati: non ancora sulle radici remote");
         }
+
+        /// <summary>
+        /// F5: con l'ssh di SISTEMA (su Windows ssh.exe di OpenSSH) e il ~/.ssh dell'utente, contro un server vero.
+        /// Parte solo con MDE_REMOTE_TEST_LOCATION = ssh://host/cartella-scrivibile (es. la VM di sviluppo); facoltativo
+        /// MDE_REMOTE_TEST_SSH_CONFIG = un ssh_config da usare con -F. Carica il serverino nella home dell'utente SSH (la
+        /// variabile è il consenso) e lavora SOLO in una sottocartella nuova, che alla fine cancella.
+        /// </summary>
+        [TestMethod]
+        public async Task Work_with_the_system_ssh_on_a_real_server()
+        {
+            var location = Environment.GetEnvironmentVariable("MDE_REMOTE_TEST_LOCATION");
+            if (string.IsNullOrEmpty(location)) Assert.Inconclusive("server non indicato (MDE_REMOTE_TEST_LOCATION)");
+            var config = Environment.GetEnvironmentVariable("MDE_REMOTE_TEST_SSH_CONFIG");
+            var transport = string.IsNullOrEmpty(config) ? new SshTransport() : new SshTransport("ssh", new[] { "-F", config });
+            using var sessions = new RemoteSessions(transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath),
+                new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
+
+            var server = RemoteLocation.Parse(location);
+            var home = await sessions.BrowseServerAsync(server.Host, null);
+            Assert.IsFalse(string.IsNullOrEmpty(home.Home), "la home dell'utente SSH");
+
+            // una cartella con spazio e apostrofo: la riga di comando passa da Windows (ssh.exe) alla shell del server
+            var scratch = "mde-f5 prova l'apice " + Guid.NewGuid().ToString("N").Substring(0, 8);
+            var root = await sessions.OpenAsync(server);
+            Ok(await root.SendAsync(new RemoteRequest { Op = RemoteOps.Mkdir, Path = scratch }));
+            try
+            {
+                var work = await sessions.OpenAsync(server.Combine(scratch));
+                Assert.AreEqual(server.Combine(scratch).Path, work.Hello.Root, "il serverino è partito DENTRO la cartella con spazio e apice");
+                var created = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Create, Path = "sub/nota.md", Text = "# Nota àèìòù €\r\nseconda riga\n" }));
+                var read = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = "sub/nota.md" }));
+                Assert.AreEqual("# Nota àèìòù €\r\nseconda riga\n", read.Text, "UTF-8 e \\r\\n intatti andata e ritorno");
+                Assert.AreEqual(created.Stamp, read.Stamp);
+                Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Write, Path = "sub/nota.md", Text = "cambiata\n", Stamp = read.Stamp }));
+                var hits = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Grep, Path = "", Pattern = "cambiata" })).Hits;
+                Assert.AreEqual("sub/nota.md", hits.Single().Path);
+                Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Move, Path = "sub/nota.md", To = "sub/rinominata.md" }));
+                var stale = await Assert.ThrowsExceptionAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Write, Path = "sub/rinominata.md", Text = "x", Stamp = read.Stamp }));
+                Assert.AreEqual(RemoteErrorCodes.Changed, stale.Code);
+                var outside = await Assert.ThrowsExceptionAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = "../../etc/passwd" }));
+                Assert.AreEqual(RemoteErrorCodes.OutsideRoot, outside.Code);
+            }
+            finally
+            {
+                await root.SendAsync(new RemoteRequest { Op = RemoteOps.Delete, Path = scratch, Recursive = true });
+            }
+            Assert.IsFalse(Ok(await root.SendAsync(new RemoteRequest { Op = RemoteOps.List, Path = "" })).Entries.Any(e => e.Name == scratch), "la cartella di prova non resta sul server");
+        }
+
+        private static RemoteResponse Ok(RemoteResponse r) { Assert.IsTrue(r.Ok, r.Error?.Message); return r; }
 
         /// <summary>
         /// Con ssh vero, nel laboratorio Docker del piano (docs-internal/Sprints/proofs/2026-10-21-remote-ssh-f0/sshlab):
