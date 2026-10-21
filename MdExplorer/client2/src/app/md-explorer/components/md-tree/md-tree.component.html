@@ -13,6 +13,9 @@
       <button *ngIf="item.type==='folder'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_PATH' | translate"><mat-icon>link</mat-icon></button>
       <button *ngIf="(item.type==='folder' || item.name==='root') && item.hasExtraContent && !item.extraLoaded" mat-icon-button color="primary" (click)="revealFolderExtras(item)" [matTooltip]="'MD_TREE.SHOW_FOLDER_CONTENT' | translate"><mat-icon>visibility</mat-icon></button>
       <button *ngIf="(item.type==='folder' || item.name==='root') && item.hasExtraContent && item.extraLoaded" mat-icon-button color="primary" (click)="hideFolderExtras(item)" [matTooltip]="'MD_TREE.HIDE_FOLDER_CONTENT' | translate"><mat-icon>visibility_off</mat-icon></button>
+      <!-- l'occhio delle radici esterne, nella stessa fila di icone del progetto -->
+      <button *ngIf="codeRootCanReveal(item)" mat-icon-button color="primary" (click)="toggleCodeRootExtras(item)" [matTooltip]="'MD_TREE.SHOW_FOLDER_CONTENT' | translate"><mat-icon>visibility</mat-icon></button>
+      <button *ngIf="codeRootCanHide(item)" mat-icon-button color="primary" (click)="toggleCodeRootExtras(item)" [matTooltip]="'MD_TREE.HIDE_FOLDER_CONTENT' | translate"><mat-icon>visibility_off</mat-icon></button>
       <button *ngIf="item.type==='folder'" mat-icon-button [matTooltip]="'MD_TREE.MARK_ASSIST' | translate" (click)="openMarkForFolder(item)"><img src="/assets/mark.png" alt="Mark" style="width:22px;height:22px;border-radius:4px;" /></button>
       <button *ngIf="item.type==='genericFile'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_PATH' | translate"><mat-icon>link</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="deleteFile(item)" [matTooltip]="'MD_TREE.DELETE_DOCUMENT' | translate"><mat-icon>delete</mat-icon></button>

@@ -2627,23 +2627,27 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Chiede al backend i figli di @alias o di una sua cartella e la apre (anche per ricaricarla dopo una modifica). */
-  private loadCodeRootChildren(flat: MdFile): void {
+  /** @param then dopo che i figli sono arrivati e l'albero è stato ridisegnato (per ricaricare in ordine). */
+  private loadCodeRootChildren(flat: MdFile, then?: () => void): void {
     const nested = this.codeRootNodesByFullPath.get(flat.fullPath);
     const root = this.getProjectRoot();
-    if (!nested || !root) { return; }
+    if (!nested || !root) { then?.(); return; }
     this.codeRootsService.browse(root, flat.path).subscribe({
       next: all => {
-        // l'occhio (FL): di base cartelle e .md, come nell'albero del progetto; gli altri file solo se la cartella è «rivelata»
+        // l'occhio (FL): di base cartelle e .md, come nell'albero del progetto; gli altri file se la cartella, o una che
+        // la contiene, è «rivelata»
         const isOther = (e: { isFolder: boolean, name: string }) => !e.isFolder && !/\.md$/i.test(e.name);
-        if (all.some(isOther)) { this.codeRootHasOtherFiles.add(flat.fullPath); } else { this.codeRootHasOtherFiles.delete(flat.fullPath); }
-        const entries = this.codeRootRevealed.has(flat.fullPath) ? all : all.filter(e => !isOther(e));
+        const entries = this.isCodeRootRevealed(flat.fullPath) ? all : all.filter(e => !isOther(e));
+        // una sottocartella già aperta tiene i figli che aveva: ricaricare questa cartella (nuovo file, rinomina, occhio)
+        // non deve svuotare quelle aperte sotto di lei
+        const before = new Map((nested.childrens ?? []).filter(c => c.type === 'codeRootFolder').map(c => [c.fullPath, c.childrens] as [string, MdFile[]]));
         nested.childrens = entries.map(e => {
           const child = new MdFile(e.name, e.path, flat.level + 1, e.isFolder);
           child.type = e.isFolder ? 'codeRootFolder' : 'codeRootFile';
           child.relativePath = e.path;
           child.fullPath = e.fullPath;
           child.isTextFile = e.isText;
-          child.childrens = [];
+          child.childrens = (e.isFolder && before.get(e.fullPath)) || [];
           child.codeRootRemote = flat.codeRootRemote;
           if (e.isFolder) { this.codeRootNodesByFullPath.set(e.fullPath, child); }
           // un file che non si è potuto leggere lo dice (tooltip sulla riga), non sparisce
@@ -2652,8 +2656,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         });
         this.treeControl.expand(flat);
         this.renderCodeRootNodes();
+        then?.();
       },
-      error: err => this.snackBar.open(this.translate.instant('MD_TREE.CODE_ROOT_BROWSE_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+      error: err => {
+        this.snackBar.open(this.translate.instant('MD_TREE.CODE_ROOT_BROWSE_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 });
+        then?.();
+      },
     });
   }
 
@@ -2669,22 +2677,61 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ---- l'occhio (FL): come nel progetto, di base cartelle e .md; «mostra altri file» per cartella ----
 
-  /** Le cartelle (fullPath) in cui l'utente ha chiesto di vedere tutti i file. Per la sessione, come l'albero del progetto. */
+  /**
+   * Le cartelle (fullPath) in cui l'utente ha chiesto di vedere tutti i file: vale per la cartella E per tutte quelle sotto
+   * (l'occhio su @alias mostra tutta la radice). Per la sessione, come l'albero del progetto.
+   */
   private readonly codeRootRevealed = new Set<string>();
-  /** Le cartelle (fullPath) che hanno file diversi dai .md: solo lì l'occhio ha senso. */
-  private readonly codeRootHasOtherFiles = new Set<string>();
 
-  codeRootCanReveal(item: MdFile): boolean {
-    return this.isEditableCodeRootContainer(item) && this.codeRootHasOtherFiles.has(item.fullPath) && !this.codeRootRevealed.has(item.fullPath);
+  /** La cartella è rivelata, o lo è una cartella che la contiene (percorsi locali o ssh://, separatore «/» o «\»). */
+  private isCodeRootRevealed(fullPath: string): boolean {
+    for (const r of this.codeRootRevealed) {
+      if (fullPath === r || fullPath.startsWith(r + '/') || fullPath.startsWith(r + '\\')) { return true; }
+    }
+    return false;
   }
 
+  /** L'occhio c'è sempre su @alias e sulle sue cartelle, anche ancora chiuse: prima di aprirle non si sa che cosa c'è. */
+  codeRootCanReveal(item: MdFile): boolean {
+    return this.isEditableCodeRootContainer(item) && !this.isCodeRootRevealed(item.fullPath);
+  }
+
+  /** Si nasconde dove si è rivelato (una sottocartella di una cartella rivelata segue la sua). */
   codeRootCanHide(item: MdFile): boolean {
     return this.isEditableCodeRootContainer(item) && this.codeRootRevealed.has(item.fullPath);
   }
 
   toggleCodeRootExtras(item: MdFile): void {
-    if (this.codeRootRevealed.has(item.fullPath)) { this.codeRootRevealed.delete(item.fullPath); } else { this.codeRootRevealed.add(item.fullPath); }
-    this.loadCodeRootChildren(item);
+    if (this.codeRootRevealed.has(item.fullPath)) {
+      this.codeRootRevealed.delete(item.fullPath);
+    } else {
+      // una cartella rivelata dentro questa non serve più: la copre questa
+      for (const r of [...this.codeRootRevealed]) {
+        if (r.startsWith(item.fullPath + '/') || r.startsWith(item.fullPath + '\\')) { this.codeRootRevealed.delete(r); }
+      }
+      this.codeRootRevealed.add(item.fullPath);
+    }
+    this.reloadExpandedCodeRootFolders(item.fullPath);
+  }
+
+  /**
+   * Ricarica la cartella e quelle aperte sotto di lei, così il filtro nuovo vale per tutto ciò che si vede. IN ORDINE,
+   * dall'alto: in parallelo la risposta della cartella di sopra, arrivando per ultima, svuotava quelle sotto (visto il 21/10).
+   */
+  private reloadExpandedCodeRootFolders(fullPath: string): void {
+    const under = (n: any) => n.fullPath === fullPath || n.fullPath?.startsWith(fullPath + '/') || n.fullPath?.startsWith(fullPath + '\\');
+    const paths = (this.treeControl.dataNodes ?? [])
+      .filter(n => (n.type === 'codeRoot' || n.type === 'codeRootFolder') && under(n) && (n.fullPath === fullPath || this.treeControl.isExpanded(n)))
+      .map(n => n.fullPath)
+      .sort((a, b) => a.length - b.length);
+    const next = (i: number) => {
+      if (i >= paths.length) { return; }
+      // il nodo piatto si cerca ADESSO: il ridisegno dopo la cartella di sopra lo ha ricreato
+      const node = this.treeControl.dataNodes?.find(n => n.fullPath === paths[i]) as unknown as MdFile;
+      if (!node) { next(i + 1); return; }
+      this.loadCodeRootChildren(node, () => next(i + 1));
+    };
+    next(0);
   }
 
   codeRootNewFile(item: MdFile): void {
