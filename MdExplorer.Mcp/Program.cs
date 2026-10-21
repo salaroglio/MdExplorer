@@ -14,7 +14,12 @@ if (args.Contains("--list-groups"))
     return 0;
 }
 
-var builder = Host.CreateApplicationBuilder(args);
+// ContentRoot = la cartella dell'eseguibile, NON la cartella corrente. Di default è il cwd, e la configurazione di default
+// sorveglia ricorsivamente il ContentRoot per ricaricare appsettings.json: lanciato da un CLI dentro un progetto, il server
+// prendeva un watch inotify per OGNI sottocartella (misurato il 21/10/2026: cwd con 200 cartelle → 201 watch; tre istanze
+// nella radice del repository ≈ 52.000 dei 65.536 dell'utente). Esaurito il limite, il FileSystemWatcher del servizio va
+// in errore e l'albero si ricarica in ciclo.
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = args, ContentRootPath = AppContext.BaseDirectory });
 
 // Log to stderr only (stdout is reserved for MCP JSON-RPC)
 builder.Logging.ClearProviders();
