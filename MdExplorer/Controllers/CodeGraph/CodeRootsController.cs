@@ -9,6 +9,8 @@ using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Services.CodeGraph;
 using MdExplorer.Services.RemoteFolders;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Controllers.CodeGraph
 {
@@ -58,7 +60,28 @@ namespace MdExplorer.Controllers.CodeGraph
         /// <summary>POST /api/coderoots/link {projectPath, alias, localPath} — collega (e, se nuova, dichiara) una radice.</summary>
         [HttpPost("link")]
         public Task<IActionResult> Link([FromBody] LinkRequest request, CancellationToken ct) => Guarded(async () =>
-            Ok(View(await _roots.LinkAsync(request.ProjectPath, request.Alias, request.LocalPath, ct))), request?.ProjectPath);
+        {
+            var state = await _roots.LinkAsync(request.ProjectPath, request.Alias, request.LocalPath, ct);
+            // una radice remota porta gli strumenti remote_* a MarkAgent subito (F4): come «Salva e analizza» per code_*
+            if (state.IsRemote) TurnOnRemoteTools(request.ProjectPath);
+            return Ok(View(state));
+        }, request?.ProjectPath);
+
+        private void TurnOnRemoteTools(string projectPath)
+        {
+            try
+            {
+                var db = HttpContext.RequestServices.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+                var argument = MdExplorer.Service.ProjectsManager.TurnOnMcpGroup(db, projectPath, "remote");
+                if (argument != null) MdExplorer.Service.ProjectsManager.RefreshMcpRegistration(projectPath, argument);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // il catalogo dei gruppi non si legge (MdExplorer.Mcp mancante): la radice è collegata, gli strumenti no — nel log
+                HttpContext.RequestServices.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CodeRootsController>>()
+                    .LogWarning(ex, "[CodeRoots] gruppo MCP 'remote' non acceso per {Project}", projectPath);
+            }
+        }
 
         /// <summary>POST /api/coderoots/unlink {projectPath, alias} — dimentica la posizione su questa macchina.</summary>
         [HttpPost("unlink")]
@@ -233,6 +256,8 @@ namespace MdExplorer.Controllers.CodeGraph
                 return BadRequest(new { error = UiText.Say($"projectPath non esiste: {projectPath}", $"projectPath does not exist: {projectPath}") });
             try { return await action(); }
             catch (RemoteUploadConsentRequiredException ex) { return Consent(ex); }
+            // il codice del serverino (not_found, changed, exists…) serve a chi chiama: MarkAgent decide se creare o rileggere
+            catch (RemoteOperationException ex) { return BadRequest(new { error = ex.Message, code = ex.Code }); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
             {
                 return BadRequest(new { error = ex.Message });

@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -53,6 +53,7 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 | What breaks if X changes | `code_impact` |
 | How A reaches B | `code_path` |
 | Where the code is on this machine (external roots `@alias/…`) | `code_roots` |
+| Read, search or edit a REMOTE root (`remote` set in `code_roots`, a folder on an SSH server) | `remote_list`, `remote_read`, `remote_grep`, `remote_edit`, `remote_write` |
 | A description is wrong or missing | read the source, then `code_set_description` |
 
 ## Reading the answers right
@@ -66,3 +67,6 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
   part of the code. `code_inventory` tells how many files and symbols are described.
 - **Paths** are logical (`program/…`, `@alias/…`), the same on every machine; open `absolutePath`, which is where the
   file is on this machine.
+- **Remote roots** (`code_roots` shows `remote: ssh://host/…`) are on an SSH server: there is no `absolutePath` and your own
+  file tools cannot reach them. Use the `remote_*` tools with the logical path `@alias/…`; search with `remote_grep`, which
+  runs on the server. They are not in the code graph yet.

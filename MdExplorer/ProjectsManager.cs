@@ -738,7 +738,13 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// <c>code</c>, lo aggiunge. Restituisce l'argomento <c>--groups</c> da registrare, o null se il progetto non è
         /// fra quelli registrati (nessuna sessione da aggiornare).
         /// </summary>
-        internal static string TurnOnCodeMcpGroup(IUserSettingsDB db, string projectPath)
+        internal static string TurnOnCodeMcpGroup(IUserSettingsDB db, string projectPath) => TurnOnMcpGroup(db, projectPath, "code");
+
+        /// <summary>
+        /// Come <see cref="TurnOnCodeMcpGroup"/> per un gruppo qualunque: collegare una radice remota (sprint
+        /// 2026-10-21-Cartella-Remota-Via-SSH, F4) è chiedere gli strumenti <c>remote_*</c>.
+        /// </summary>
+        internal static string TurnOnMcpGroup(IUserSettingsDB db, string projectPath, string group)
         {
             db.Clear();
             db.BeginTransaction();
@@ -748,9 +754,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 if (project == null) { db.Commit(); return null; }
                 if (!string.IsNullOrWhiteSpace(project.McpToolGroups) &&
                     !project.McpToolGroups.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Contains("code", StringComparer.OrdinalIgnoreCase))
+                        .Contains(group, StringComparer.OrdinalIgnoreCase))
                 {
-                    project.McpToolGroups = project.McpToolGroups.TrimEnd(',') + ",code";
+                    project.McpToolGroups = project.McpToolGroups.TrimEnd(',') + "," + group;
                     db.GetDal<Project>().Save(project);
                 }
                 var argument = McpToolGroupsSettings.ToArgument(McpToolGroupsSettings.Resolve(project, db, out _));

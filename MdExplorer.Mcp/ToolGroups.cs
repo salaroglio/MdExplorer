@@ -46,6 +46,7 @@ public static class ToolGroups
     public const string KnowledgeGraph = "kg";
     public const string Agents = "agents";
     public const string Code = "code";
+    public const string Remote = "remote";
 
     /// <summary>Il nome dell'argomento di riga di comando, e quindi anche la chiave di configurazione.</summary>
     public const string Argument = "groups";
@@ -73,6 +74,9 @@ public static class ToolGroups
         new Group(Code, typeof(CodeTools), false,
             "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica, e dove sta il codice su questa macchina (radici).",
             b => b.WithTools<CodeTools>()),
+        new Group(Remote, typeof(RemoteTools), false,
+            "Le radici di codice remote (cartelle su un server via SSH): elencare, leggere, cercare sul server, modificare, creare, spostare e cancellare i file.",
+            b => b.WithTools<RemoteTools>()),
     };
 
     /// <summary>Gli id validi, per i messaggi d'errore e per la documentazione.</summary>

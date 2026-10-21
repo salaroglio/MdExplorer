@@ -179,7 +179,8 @@ public sealed class CodeTools : McpToolsBase
         "relative to it; external roots (code checked out elsewhere) have logical paths '@alias/…' — the same on every machine — " +
         "and here you get, for each alias, the absolute folder on this machine, its git repository and whether it is linked. " +
         "Every code_* tool already returns `absolutePath` next to `path`; use this to know which folders you may read and edit, " +
-        "and why one is not available (not linked here, folder moved, different repository).")]
+        "and why one is not available (not linked here, folder moved, different repository, server unreachable). A root with `remote` " +
+        "set (ssh://host/path) lives on an SSH server: it has no absolute path here, use the remote_* tools for its files.")]
     public async Task<string> code_roots(
         [Description("Project name.")] string project)
     {

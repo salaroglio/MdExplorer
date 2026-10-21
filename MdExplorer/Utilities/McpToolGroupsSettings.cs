@@ -205,6 +205,16 @@ namespace MdExplorer.Utilities
                 groups.Add("code");
             }
 
+            // Le radici remote (sprint 2026-10-21-Cartella-Remota-Via-SSH, F4): la posizione ssh:// sta nello UserDB di
+            // QUESTA macchina, non nel .development.yml — un collega con il codice in locale non riceve i remote_*.
+            // ⚠️ `.ToList()` prima del confronto per percorso (vedi sopra).
+            if (db.GetDal<CodeRootBinding>().GetList().ToList().Any(b =>
+                    (b.LocalPath ?? string.Empty).StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)
+                    && string.Equals((b.ProjectPath ?? string.Empty).TrimEnd('/', '\\'), projectPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                groups.Add("remote");
+            }
+
             return groups;
         }
 

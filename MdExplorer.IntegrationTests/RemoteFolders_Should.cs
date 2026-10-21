@@ -208,6 +208,36 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("/opt/mde", settings.AgentFolder("build-server"));
         }
 
+        /// <summary>
+        /// F4: gli strumenti remote_* (gruppo MCP «remote») si propongono accesi solo dove su QUESTA macchina c'è una radice
+        /// collegata via ssh://: un progetto con radici solo locali non ne paga il peso nel contesto.
+        /// </summary>
+        [TestMethod]
+        public void Propose_the_remote_tools_only_for_projects_with_a_remote_root_here()
+        {
+            using var ctx = new AgentCityContext();
+            using var scope = ctx.Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+            var withRemote = Path.Combine(_base, "con-remota");
+            var onlyLocal = Path.Combine(_base, "solo-locale");
+            db.BeginTransaction();
+            foreach (var p in new[] { withRemote, onlyLocal })
+                Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>(db)
+                    .Save(new MdExplorer.Abstractions.Entities.UserDB.Project { Name = Path.GetFileName(p), Path = p, LastUpdate = DateTime.UtcNow });
+            var bindings = Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.CodeRootBinding>(db);
+            bindings.Save(new MdExplorer.Abstractions.Entities.UserDB.CodeRootBinding { ProjectPath = withRemote, Alias = "backend", LocalPath = "ssh://lab-dev/srv/proj", BoundAt = DateTime.UtcNow });
+            bindings.Save(new MdExplorer.Abstractions.Entities.UserDB.CodeRootBinding { ProjectPath = onlyLocal, Alias = "backend", LocalPath = Path.Combine(_base, "code"), BoundAt = DateTime.UtcNow });
+            Ad.Tools.Dal.Extensions.SessionExtensions.Commit(db);
+
+            db.BeginTransaction();
+            var projects = Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>(db).GetList().ToList();
+            var remote = MdExplorer.Utilities.McpToolGroupsSettings.DefaultFor(projects.Single(x => x.Path == withRemote), db);
+            var local = MdExplorer.Utilities.McpToolGroupsSettings.DefaultFor(projects.Single(x => x.Path == onlyLocal), db);
+            Ad.Tools.Dal.Extensions.SessionExtensions.Commit(db);
+            CollectionAssert.Contains(remote.ToList(), "remote");
+            CollectionAssert.DoesNotContain(local.ToList(), "remote");
+        }
+
         [TestMethod]
         public void Read_the_hosts_of_the_ssh_config_with_includes()
         {
