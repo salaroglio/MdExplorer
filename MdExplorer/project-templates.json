@@ -33,17 +33,6 @@
         "it": "Disegnare un'ontologia partendo dalle domande a cui deve rispondere: schema, regole ed esempi, verificati prima di accettarla.",
         "en": "Design an ontology starting from the questions it must answer: schema, rules and examples, checked before accepting it."
       }
-    },
-    {
-      "id": "iso9001",
-      "kind": "method",
-      "url": "https://github.com/salaroglio/mdexplorer-template-iso9001.git",
-      "languages": ["it", "en"],
-      "title": { "it": "ISO 9001", "en": "ISO 9001" },
-      "description": {
-        "it": "Il sistema qualità come insieme di workflow fatti bene: i processi descritti, chi prepara e chi approva, le prove in git per l'audit interno.",
-        "en": "The quality system as a set of well-made workflows: the processes described, who prepares and who approves, the evidence in git for the internal audit."
-      }
     }
   ]
 }

@@ -22,15 +22,16 @@ namespace MdExplorer.Features.Tests.Templates
             Assert.IsNotNull(dir, "project-templates.json non trovato risalendo dalla cartella dei test");
             var entries = TemplateCatalog.Read(File.ReadAllText(Path.Combine(dir.FullName, "MdExplorer", "project-templates.json")));
             Assert.IsTrue(entries.Any(e => e.Id == "demo" && e.Kind == "project"), "la demo è un template dell'elenco (TD1)");
-            // I metodi componibili (M5-M6, 20/10): lo strato comune e due metodi, in italiano e in inglese; il DDD non c'è più.
-            foreach (var (id, kind) in new[] { ("documenti", "foundation"), ("ontologie", "method"), ("iso9001", "method") })
+            // I metodi componibili (M5-M6, 20/10): lo strato comune e le ontologie, in italiano e in inglese. Il DDD (Domain
+            // Driven Design) non c'è più, e ISO 9001 è diventato la documentazione della città degli agenti (CF4, 21/10).
+            foreach (var (id, kind) in new[] { ("documenti", "foundation"), ("ontologie", "method") })
             {
                 var m = entries.Single(e => e.Id == id);
                 Assert.AreEqual(kind, m.Kind, id);
                 Assert.AreEqual($"https://github.com/salaroglio/mdexplorer-template-{id}.git", m.Url);
                 CollectionAssert.AreEqual(new[] { "it", "en" }, m.Languages, id);
             }
-            Assert.IsFalse(entries.Any(e => e.Id is "ddd" or "gara-iso"), "il DDD è tolto; gara-iso è diventato iso9001");
+            Assert.IsFalse(entries.Any(e => e.Id is "ddd" or "gara-iso" or "iso9001"), "il DDD è tolto; gara-iso, poi iso9001, è la documentazione della città");
         }
 
         [TestMethod]
