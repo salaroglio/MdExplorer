@@ -102,11 +102,12 @@ namespace MdExplorer.Features.Utilities
         }
 
         /// <summary>The colored source box, with the file name, "copy path" and "fullscreen".</summary>
-        public static string ContainerHtml(string id, string filePath, string language, string content)
+        /// <param name="label">Accanto al nome nell'intestazione, es. la codifica di un file non UTF-8 («CP-850»).</param>
+        public static string ContainerHtml(string id, string filePath, string language, string content, string label = null)
         {
             var encodedContent = HttpUtility.HtmlEncode(content);
             var encodedPath    = HttpUtility.HtmlAttributeEncode(filePath);
-            var encodedFileNameForHeader = HttpUtility.HtmlEncode(Path.GetFileName(filePath));
+            var encodedFileNameForHeader = HttpUtility.HtmlEncode(Path.GetFileName(filePath) + (string.IsNullOrEmpty(label) ? "" : " · " + label));
 
             var languageClass = string.IsNullOrEmpty(language) ? "" : $" class=\"language-{language}\"";
 

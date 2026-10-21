@@ -9,7 +9,8 @@ namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Le operazioni sui file dentro una radice. Regole (piano, «F1 — il serverino»): nessun percorso esce dalla radice,
-    /// i link simbolici non si seguono, una scrittura presenta l'impronta letta, il testo è UTF-8 e il BOM si conserva.
+    /// i link simbolici non si seguono, una scrittura presenta l'impronta letta, il testo si riscrive nella sua codifica (UTF-8,
+    /// CP-850, CP-1252, UTF-16, riconosciuta dal contenuto) e il BOM si conserva.
     /// </summary>
     public sealed class RemoteWorkspace
     {
@@ -17,8 +18,6 @@ namespace MdExplorer.RemoteProtocol
         private const int SniffBytes = 8192;
         private const int MaxHitText = 1000;
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
-        private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-        private static readonly byte[] Utf8Bom = { 0xEF, 0xBB, 0xBF };
 
         /// <summary>La radice assoluta, senza separatore finale.</summary>
         public string Root { get; }
@@ -52,17 +51,13 @@ namespace MdExplorer.RemoteProtocol
             return entry;
         }
 
-        public (string Text, string Stamp, bool Bom) Read(string? path)
+        /// <summary>Il testo nella sua codifica, riconosciuta dal contenuto (<see cref="TextDecoding"/>): UTF-8, CP-850, CP-1252, UTF-16.</summary>
+        public (string Text, string Stamp, bool Bom, string Encoding) Read(string? path)
         {
             var file = ExistingFile(path);
-            var bytes = File.ReadAllBytes(file.FullName);
-            if (Array.IndexOf(bytes, (byte)0, 0, Math.Min(bytes.Length, SniffBytes)) >= 0)
-                throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}");
-            var bom = bytes.AsSpan().StartsWith(Utf8Bom);
-            string text;
-            try { text = StrictUtf8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)); }
-            catch (DecoderFallbackException) { throw new RemoteFailure(RemoteErrorCodes.NotUtf8, $"not UTF-8: {path}"); }
-            return (text, StampOf(file), bom);
+            var decoded = TextDecoding.Decode(File.ReadAllBytes(file.FullName))
+                ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}");
+            return (decoded.Text, StampOf(file), decoded.Bom, decoded.Encoding);
         }
 
         /// <summary>Riscrive un file esistente se è ancora quello letto (<paramref name="stamp"/>); BOM e permessi restano.</summary>
@@ -73,16 +68,14 @@ namespace MdExplorer.RemoteProtocol
             var file = ExistingFile(path);
             var current = StampOf(file);
             if (current != stamp) throw new RemoteFailure(RemoteErrorCodes.Changed, $"changed since read: {path}");
-            bool bom;
-            using (var head = file.OpenRead())
-            {
-                var first = new byte[3];
-                bom = head.Read(first, 0, 3) == 3 && first.AsSpan().SequenceEqual(Utf8Bom);
-            }
+            // la stessa codifica (e lo stesso BOM) del file com'è: con l'impronta uguale sono i byte che si sono letti
+            var existing = TextDecoding.Decode(File.ReadAllBytes(file.FullName))
+                ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}");
+            var bytes = TextDecoding.Encode(text, existing.Encoding, existing.Bom);
             var tmp = Path.Combine(file.DirectoryName!, $".{file.Name}.mde-{Guid.NewGuid():N}.tmp");
             try
             {
-                File.WriteAllBytes(tmp, Encode(text, bom));
+                File.WriteAllBytes(tmp, bytes);
                 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(tmp, File.GetUnixFileMode(file.FullName));
                 File.Move(tmp, file.FullName, overwrite: true);
             }
@@ -100,7 +93,7 @@ namespace MdExplorer.RemoteProtocol
             Directory.CreateDirectory(Path.GetDirectoryName(full)!);
             using (var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write))
             {
-                var bytes = Encode(text ?? "", bom: false);
+                var bytes = TextDecoding.Encode(text ?? "", TextDecoding.Utf8, bom: false);
                 stream.Write(bytes, 0, bytes.Length);
             }
             return StampOf(new FileInfo(full));
@@ -154,7 +147,7 @@ namespace MdExplorer.RemoteProtocol
             {
                 if (!LooksLikeText(file)) continue;
                 var number = 0;
-                foreach (var line in ReadLinesOrNothing(file))
+                foreach (var line in DecodedLinesOrNothing(file))
                 {
                     number++;
                     bool match;
@@ -269,7 +262,7 @@ namespace MdExplorer.RemoteProtocol
                 using var stream = File.OpenRead(file);
                 var buffer = new byte[SniffBytes];
                 var read = stream.Read(buffer, 0, buffer.Length);
-                return Array.IndexOf(buffer, (byte)0, 0, read) < 0;
+                return TextDecoding.LooksLikeText(buffer.AsSpan(0, read));
             }
             catch (Exception) when (!rethrow) { return false; }
         }
@@ -291,23 +284,19 @@ namespace MdExplorer.RemoteProtocol
             }
         }
 
-        /// <summary>Le righe di un file da cercare; un file che non si apre non ferma la ricerca.</summary>
-        private static IEnumerable<string> ReadLinesOrNothing(string file)
+        /// <summary>
+        /// Le righe di un file da cercare, decodificato nella sua codifica (un file CP-850 si trova cercando «città»); un
+        /// file che non si apre non ferma la ricerca.
+        /// </summary>
+        private static IEnumerable<string> DecodedLinesOrNothing(string file)
         {
-            IEnumerable<string> lines;
-            try { lines = File.ReadLines(file); }
+            DecodedText? decoded;
+            try { decoded = TextDecoding.Decode(File.ReadAllBytes(file)); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { yield break; }
-            foreach (var line in lines) yield return line;
-        }
-
-        private static byte[] Encode(string text, bool bom)
-        {
-            var body = StrictUtf8.GetBytes(text);
-            if (!bom) return body;
-            var all = new byte[body.Length + 3];
-            Utf8Bom.CopyTo(all, 0);
-            body.CopyTo(all, 3);
-            return all;
+            if (decoded == null) yield break;
+            using var reader = new StringReader(decoded.Text);
+            string? line;
+            while ((line = reader.ReadLine()) != null) yield return line;
         }
 
         // ---- git ----

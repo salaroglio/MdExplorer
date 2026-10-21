@@ -59,7 +59,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             bool isText = false;
             string unreadable = null;
-            try { isText = TextFileView.IsText(f.FullName); }
+            // testo nella codifica che ha, riconosciuta dal contenuto (UTF-8, CP-850, CP-1252, UTF-16): un file CP-850 non è
+            // binario (sprint 2026-10-21-Cartella-Remota-Via-SSH, dopo FL)
+            try { isText = LooksLikeText(f.FullName); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { unreadable = ex.Message; }
             return new CodeRootEntry
             {
@@ -69,6 +71,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                 IsText = isText,
                 Unreadable = unreadable,
             };
+        }
+
+        private static bool LooksLikeText(string path)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var head = new byte[8192];
+            var read = stream.Read(head, 0, head.Length);
+            return MdExplorer.RemoteProtocol.TextDecoding.LooksLikeText(head.AsSpan(0, read));
         }
 
         private static string Join(string rest, string name) => rest.Length == 0 ? name : rest + "/" + name;

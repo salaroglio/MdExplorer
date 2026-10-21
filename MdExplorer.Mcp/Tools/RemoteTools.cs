@@ -49,12 +49,16 @@ public sealed class RemoteTools : McpToolsBase
     {
         var (ok, result) = await FileOpAsync("remote_read", project, new { op = "read", path });
         if (!ok) return result;
-        var text = JsonDocument.Parse(result).RootElement.GetProperty("text").GetString() ?? "";
+        var parsed = JsonDocument.Parse(result).RootElement;
+        var text = parsed.GetProperty("text").GetString() ?? "";
+        var encoding = parsed.TryGetProperty("encoding", out var enc) && enc.ValueKind == JsonValueKind.String ? enc.GetString() : null;
         var numbered = new StringBuilder();
         var lines = text.Split('\n');
         var count = text.EndsWith('\n') ? lines.Length - 1 : lines.Length;
         for (var i = 0; i < count; i++) numbered.Append((i + 1).ToString().PadLeft(5)).Append("| ").Append(lines[i]).Append('\n');
-        return $"{path} ({count} lines)\n{numbered}";
+        // la codifica (CP-850…) si dice: remote_edit e remote_write riscrivono in quella, e un carattere che non ha è rifiutato
+        var encodingNote = encoding is null or "utf-8" ? "" : $", encoding {encoding}: write only characters it can hold";
+        return $"{path} ({count} lines{encodingNote})\n{numbered}";
     }
 
     [McpServerTool, Description(

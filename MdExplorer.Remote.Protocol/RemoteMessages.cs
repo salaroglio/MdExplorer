@@ -38,8 +38,10 @@ namespace MdExplorer.RemoteProtocol
         public RemoteEntry? Entry { get; set; }
         public string? Text { get; set; }
         public string? Stamp { get; set; }
-        /// <summary><c>read</c>: il file comincia con il BOM UTF-8 (che <c>write</c> conserva).</summary>
+        /// <summary><c>read</c>: il file comincia con un BOM (che <c>write</c> conserva).</summary>
         public bool? Bom { get; set; }
+        /// <summary><c>read</c>: la codifica riconosciuta (<see cref="TextDecoding"/>), in cui <c>write</c> riscrive.</summary>
+        public string? Encoding { get; set; }
         public List<RemoteHit>? Hits { get; set; }
         /// <summary><c>grep</c>: c'erano altre righe oltre <see cref="RemoteRequest.MaxHits"/>.</summary>
         public bool? Truncated { get; set; }

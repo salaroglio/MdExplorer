@@ -21,6 +21,7 @@ export interface RemoteFileEditorData {
     <div mat-dialog-title class="dialog-header">
       <mat-icon class="dialog-icon">edit_note</mat-icon>
       <span class="editor-title">{{ data.path }}</span>
+      <span class="encoding" *ngIf="encodingLabel" [matTooltip]="'REMOTE_EDITOR.ENCODING_HINT' | translate: { encoding: encodingLabel }">{{ encodingLabel }}</span>
       <span class="dirty" *ngIf="dirty">●</span>
     </div>
     <mat-dialog-content class="editor-content">
@@ -44,6 +45,7 @@ export interface RemoteFileEditorData {
       background: var(--mde-surface-2, rgba(0,0,0,0.03)); color: inherit; }
     .editor-title { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; word-break: break-all; }
     .dirty { color: var(--mde-accent, #1976d2); }
+    .encoding { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: 0.75; }
     .saved { font-size: 12px; opacity: 0.7; }
   `]
 })
@@ -56,6 +58,8 @@ export class RemoteFileEditorDialogComponent implements OnInit {
   public savedNote = false;
   public changedOnServer = false;
   public errorMessage = '';
+  /** La codifica del file se non è UTF-8 («CP-850»): si riscrive in quella. */
+  public encodingLabel = '';
   private stamp = '';
   private savedOnce = false;
 
@@ -72,7 +76,10 @@ export class RemoteFileEditorDialogComponent implements OnInit {
   load(): void {
     this.loading = true; this.errorMessage = ''; this.changedOnServer = false;
     this.roots$.file(this.data.projectRoot, 'read', this.data.path).subscribe({
-      next: r => { this.text = r.text ?? ''; this.stamp = r.stamp ?? ''; this.loading = false; this.loaded = true; this.dirty = false; },
+      next: r => {
+        this.text = r.text ?? ''; this.stamp = r.stamp ?? ''; this.loading = false; this.loaded = true; this.dirty = false;
+        this.encodingLabel = labelOf(r.encoding);
+      },
       error: err => { this.loading = false; this.errorMessage = this.messageOf(err); },
     });
   }
@@ -109,5 +116,17 @@ export class RemoteFileEditorDialogComponent implements OnInit {
 
   private messageOf(err: any): string {
     return err?.error?.error || err?.error?.message || (typeof err?.error === 'string' ? err.error : null) || err?.message || String(err);
+  }
+}
+
+/** Il nome da mostrare per una codifica non UTF-8 (come TextDecoding.DisplayName nel backend); vuoto per UTF-8. */
+function labelOf(encoding?: string): string {
+  switch (encoding) {
+    case undefined: case null: case '': case 'utf-8': return '';
+    case 'ibm850': return 'CP-850';
+    case 'windows-1252': return 'CP-1252';
+    case 'utf-16': return 'UTF-16 LE';
+    case 'utf-16BE': return 'UTF-16 BE';
+    default: return encoding;
   }
 }

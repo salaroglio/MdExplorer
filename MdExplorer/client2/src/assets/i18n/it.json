@@ -812,6 +812,7 @@
     "LINK_THIS": "Collega questa cartella"
   },
   "REMOTE_EDITOR": {
+    "ENCODING_HINT": "Il file è in {{encoding}}: si riscrive in {{encoding}}, e un carattere che non ha (es. un'emoji) non si può salvare.",
     "SAVE": "Salva",
     "SAVED": "Salvato.",
     "RELOAD": "Ricarica dal server",

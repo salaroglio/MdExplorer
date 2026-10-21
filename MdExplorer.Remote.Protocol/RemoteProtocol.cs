@@ -44,6 +44,8 @@ namespace MdExplorer.RemoteProtocol
         public const string Changed = "changed";
         public const string Binary = "binary";
         public const string NotUtf8 = "not_utf8";
+        /// <summary>Un carattere che la codifica del file non ha (es. un'emoji in un file CP-850): niente sostituzioni.</summary>
+        public const string NotRepresentable = "not_representable";
         public const string Denied = "denied";
         public const string Timeout = "timeout";
         public const string Io = "io";

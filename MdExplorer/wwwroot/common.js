@@ -47,6 +47,18 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/prismjs/prism-turtle.min.js');
     loadScriptOnce('/prismjs/prism-json.min.js');
     loadScriptOnce('/prismjs/prism-yaml.min.js');
+    // Linguaggi che TextFileView.LanguageFor già nominava ma che non c'erano: quei file si vedevano senza colori (visto il
+    // 21/10/2026 con un COBOL). Prism 1.29.0, dopo le loro dipendenze (clike, javascript, markup, turtle sopra).
+    loadScriptOnce('/prismjs/prism-css.min.js');
+    loadScriptOnce('/prismjs/prism-scss.min.js');
+    loadScriptOnce('/prismjs/prism-typescript.min.js');
+    loadScriptOnce('/prismjs/prism-kotlin.min.js');
+    loadScriptOnce('/prismjs/prism-bash.min.js');
+    loadScriptOnce('/prismjs/prism-powershell.min.js');
+    loadScriptOnce('/prismjs/prism-markdown.min.js');
+    loadScriptOnce('/prismjs/prism-cypher.min.js');
+    loadScriptOnce('/prismjs/prism-sparql.min.js');
+    loadScriptOnce('/prismjs/prism-cobol.min.js');
 
     // Always load mermaid but configure it differently based on environment
     const isElectron = navigator.userAgent.includes('Electron');

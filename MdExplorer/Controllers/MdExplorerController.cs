@@ -810,8 +810,9 @@ namespace MdExplorer.Controllers
             try
             {
                 var resolver = await _codeRoots.CreateResolverAsync(GetProjectPath(), HttpContext.RequestAborted);
-                if (resolver.RemoteOf(logicalPath) is { } remote)
-                    return await ShowRemoteCodeRootFile(remote.Root, remote.Relative, logicalPath, rootPathSystem, connectionId, theme, isDetached);
+                // remota o locale, il file si legge con le regole delle radici: codifica riconosciuta (UTF-8, CP-850…)
+                if ((resolver.RemoteOf(logicalPath) ?? resolver.LocalOf(logicalPath)) is { } target)
+                    return await ShowRemoteCodeRootFile(target.Root, target.Relative, logicalPath, rootPathSystem, connectionId, theme, isDetached);
                 fullPath = resolver.Resolve(logicalPath);
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
@@ -835,20 +836,25 @@ namespace MdExplorer.Controllers
         /// </summary>
         private async Task<IActionResult> ShowRemoteCodeRootFile(CodeRootState root, string relative, string logicalPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
         {
-            var location = root.Remote.Combine(relative).ToString();
+            var location = root.IsRemote ? root.Remote.Combine(relative).ToString() : Path.Combine(root.RootPath, relative.Replace('/', Path.DirectorySeparatorChar));
             var files = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles>();
+            var request = new MdExplorer.RemoteProtocol.RemoteRequest { Op = MdExplorer.RemoteProtocol.RemoteOps.Read, Path = relative };
             MdExplorer.RemoteProtocol.RemoteResponse read;
             try
             {
-                read = await files.ReadAsync(root, relative, HttpContext.RequestAborted);
+                read = root.IsRemote
+                    ? await files.ReadAsync(root, relative, HttpContext.RequestAborted)
+                    : MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles.OperateLocal(root, request);
             }
             catch (MdExplorer.Services.RemoteFolders.RemoteOperationException ex) when (ex.Code is MdExplorer.RemoteProtocol.RemoteErrorCodes.Binary or MdExplorer.RemoteProtocol.RemoteErrorCodes.NotUtf8)
             {
-                return CodeRootMessagePage(MdExplorer.Features.Services.UiText.Say($"{logicalPath}: non è un file di testo UTF-8, qui non si può mostrare.", $"{logicalPath}: it is not a UTF-8 text file, it cannot be shown here."), rootPathSystem, connectionId, theme);
+                return CodeRootMessagePage(MdExplorer.Features.Services.UiText.Say($"{logicalPath}: non è un file di testo, qui non si può mostrare.", $"{logicalPath}: it is not a text file, it cannot be shown here."), rootPathSystem, connectionId, theme);
             }
             var text = read.Text ?? string.Empty;
-            var parent = location.Substring(0, location.LastIndexOf('/'));
-            return await ShowText(location, System.Text.Encoding.UTF8.GetByteCount(text), () => text, rootPathSystem, parent, rootPathSystem, connectionId, theme, isDetached, logicalPath);
+            var parent = root.IsRemote ? location.Substring(0, location.LastIndexOf('/')) : Path.GetDirectoryName(location);
+            // la codifica si dice quando non è UTF-8: chi guarda sa come è stato letto (e come verrà riscritto)
+            var label = read.Encoding is null or MdExplorer.RemoteProtocol.TextDecoding.Utf8 ? null : MdExplorer.RemoteProtocol.TextDecoding.DisplayName(read.Encoding);
+            return await ShowText(location, System.Text.Encoding.UTF8.GetByteCount(text), () => text, rootPathSystem, parent, rootPathSystem, connectionId, theme, isDetached, logicalPath, label);
         }
 
         private ContentResult CodeRootMessagePage(string message, string fullPathForBase, string connectionId, string theme)
@@ -868,7 +874,7 @@ namespace MdExplorer.Controllers
         /// <param name="fullPath">Il percorso con cui il file si chiama nella pagina e nella barra (su disco, o <c>ssh://…</c>).</param>
         /// <param name="basePath">Il file da cui la pagina prende la sua base (un file remoto non ne ha una qui: il progetto).</param>
         private async Task<IActionResult> ShowText(string fullPath, long size, Func<string> readContent, string directory, string basePath,
-            string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath)
+            string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath, string label = null)
         {
             string body;
             if (size > TextFileView.MaxBytes)
@@ -882,7 +888,7 @@ namespace MdExplorer.Controllers
             else
             {
                 var content = readContent();
-                body = $@"<div class=""mde-text-file-view"">{TextFileView.ContainerHtml(Guid.NewGuid().ToString("N"), fullPath, TextFileView.LanguageFor(fullPath), content)}</div>";
+                body = $@"<div class=""mde-text-file-view"">{TextFileView.ContainerHtml(Guid.NewGuid().ToString("N"), fullPath, TextFileView.LanguageFor(fullPath), content, label)}</div>";
             }
 
             var monitoredMd = new MonitoredMDModel

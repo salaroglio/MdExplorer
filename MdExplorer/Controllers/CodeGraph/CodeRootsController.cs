@@ -219,6 +219,7 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new
             {
                 path = request.Path, text = response.Text, stamp = response.Stamp, bom = response.Bom, truncated = response.Truncated,
+                encoding = response.Encoding,
                 hits = response.Hits?.Select(h => new { path = CodeRootPaths.Format(alias, h.Path), line = h.Line, text = h.Text }),
             });
         }, request?.ProjectPath);

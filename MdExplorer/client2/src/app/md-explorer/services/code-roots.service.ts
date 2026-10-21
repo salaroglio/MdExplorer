@@ -70,6 +70,8 @@ export interface RemoteFileResult {
   text?: string;
   stamp?: string;
   bom?: boolean;
+  /** La codifica riconosciuta dal contenuto (utf-8, ibm850, windows-1252, utf-16): il file si riscrive in quella. */
+  encoding?: string;
   truncated?: boolean;
   hits?: { path: string; line: number; text: string }[];
 }

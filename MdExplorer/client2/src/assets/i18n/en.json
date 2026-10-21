@@ -812,6 +812,7 @@
     "LINK_THIS": "Link this folder"
   },
   "REMOTE_EDITOR": {
+    "ENCODING_HINT": "The file is in {{encoding}}: it is written back in {{encoding}}, and a character it does not have (e.g. an emoji) cannot be saved.",
     "SAVE": "Save",
     "SAVED": "Saved.",
     "RELOAD": "Reload from the server",
