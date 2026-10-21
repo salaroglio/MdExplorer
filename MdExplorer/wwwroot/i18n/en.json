@@ -774,6 +774,8 @@
     "STORM_FILES_CREATED": "{{count}} new files added to the tree",
     "OPEN_LAST_CREATED": "Open {{name}}",
     "WATCHER_OVERFLOW_RELOAD": "File system events were lost: tree reloaded automatically",
+    "WATCHER_LIMIT": "The system ran out of slots to watch folders (inotify limit): some folders do not refresh by themselves. Close programs that use many, or raise fs.inotify.max_user_watches.",
+    "IGNORE_RULES_CHANGED": "{{file}} changed: the tree was reloaded with the new rules.",
     "TREE_NOT_LOADED": "Tree not loaded yet",
     "FILE_NOT_FOUND": "File not found in tree",
     "CANNOT_DETERMINE_ROOT": "Error: Could not determine project root",

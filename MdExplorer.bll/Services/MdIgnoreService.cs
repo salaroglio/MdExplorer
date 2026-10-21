@@ -14,13 +14,21 @@ namespace MdExplorer.Features.Services
     public class MdIgnoreService : IMdIgnoreService
     {
         private readonly ILogger<MdIgnoreService> _logger;
+        private readonly MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules _gitIgnore;
         private readonly object _lockObject = new object();
         private List<string> _ignorePatterns = new List<string>();
         private string _lastLoadedPath = string.Empty;
 
-        public MdIgnoreService(ILogger<MdIgnoreService> logger)
+        public MdIgnoreService(ILogger<MdIgnoreService> logger, MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules gitIgnore)
         {
             _logger = logger;
+            _gitIgnore = gitIgnore;
+        }
+
+        public void ReloadPatterns(string projectPath)
+        {
+            lock (_lockObject) { _lastLoadedPath = string.Empty; }
+            LoadPatterns(projectPath);
         }
 
         public void LoadPatterns(string projectPath)
@@ -68,6 +76,11 @@ namespace MdExplorer.Features.Services
 
         public bool ShouldIgnorePath(string fullPath, string projectPath)
         {
+            // Ciò che git ignora non è documentazione: non si mostra e non si indicizza (sprint
+            // 2026-10-21-Watcher-Selettivo-E-Gitignore, W2). Prima del .mdignore, che può solo aggiungere.
+            if (_gitIgnore.IsIgnored(fullPath, projectPath))
+                return true;
+
             // Ensure patterns are loaded
             LoadPatterns(projectPath);
 

@@ -60,6 +60,9 @@ export class MdFileService {
       this.loadAll(null, null);
     });
 
+    // Le regole d'ignoranza sono cambiate (.gitignore, .mdFoldersIgnore, .mdignore): l'albero si rifà.
+    this.mdServerMessages.ignoreRulesChanged$.subscribe(() => this.loadAll(null, null));
+
     // Subscribe to Git pull events to refresh tree
     this.mdServerMessages.gitPullRefreshed$.subscribe((data) => {
       console.log('🌳 Git pull completed - refreshing tree. Files changed:', data.fileCount);

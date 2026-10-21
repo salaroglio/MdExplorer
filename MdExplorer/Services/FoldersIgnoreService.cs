@@ -15,16 +15,19 @@ namespace MdExplorer.Service.Services
     {
         private readonly ILogger<FoldersIgnoreService> _logger;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
+        private readonly MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules _gitIgnore;
 
         // Cache configurations per project path to avoid re-reading file on every call
         private readonly ConcurrentDictionary<string, FoldersIgnoreConfiguration> _configurationCache = new();
 
         public FoldersIgnoreService(
             ILogger<FoldersIgnoreService> logger,
-            IFileSystemWatcherManager fileSystemWatcherManager)
+            IFileSystemWatcherManager fileSystemWatcherManager,
+            MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules gitIgnore)
         {
             _logger = logger;
             _fileSystemWatcherManager = fileSystemWatcherManager;
+            _gitIgnore = gitIgnore;
         }
 
         /// <summary>
@@ -167,6 +170,13 @@ namespace MdExplorer.Service.Services
             // Regola incorporata: vale anche quando il progetto non ha (ancora) una
             // configurazione, che è precisamente il caso di un progetto appena aperto.
             if (string.Equals(Path.GetFileName(folderPath), AgentWorktreesFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // Ciò che git ignora non è documentazione (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore, W2): vale anche
+            // senza .mdFoldersIgnore, che può solo aggiungere cartelle.
+            if (Path.IsPathRooted(folderPath) && _gitIgnore.IsIgnored(folderPath, projectPath))
             {
                 return true;
             }

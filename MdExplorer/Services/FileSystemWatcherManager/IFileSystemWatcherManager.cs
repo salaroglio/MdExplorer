@@ -89,9 +89,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         public string ProjectPath { get; set; }
 
         /// <summary>
-        /// FileSystemWatcher instance for this client
+        /// The project watcher for this client: only the useful folders (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore).
         /// </summary>
-        public System.IO.FileSystemWatcher Watcher { get; set; }
+        public IProjectWatcher Watcher { get; set; }
 
         /// <summary>
         /// Timestamp when this watcher was registered

@@ -59,8 +59,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             IHelper helper,
             IMdIgnoreService mdIgnoreService,
             IServiceProvider serviceProvider,
-            IMarkdownFtsService markdownFtsService)
+            IMarkdownFtsService markdownFtsService,
+            MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules gitIgnore)
         {
+            _gitIgnore = gitIgnore;
             _hubContext = hubContext;
             _logger = logger;
             _databaseManager = databaseManager;
@@ -70,6 +72,61 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             _mdIgnoreService = mdIgnoreService;
             _serviceProvider = serviceProvider;
             _markdownFtsService = markdownFtsService;
+        }
+
+        private readonly MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules _gitIgnore;
+
+        /// <summary>
+        /// Quali cartelle sorvegliare (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore, W1/W5): non .git, non i posti di lavoro
+        /// degli agenti, non ciò che git ignora, non ciò che .mdFoldersIgnore e .mdignore nascondono — tranne .mde-doc e
+        /// .mde-code, nascoste dall'albero ma con eventi che servono (.kg.cypher, script del grafo).
+        /// </summary>
+        private bool ShouldWatchDirectory(string projectPath, string dir)
+        {
+            var name = Path.GetFileName(dir);
+            if (string.Equals(name, ".git", StringComparison.OrdinalIgnoreCase)) return false;
+            if (FoldersIgnoreService.IsInsideAgentWorktrees(dir, projectPath)) return false;
+            if (_gitIgnore.IsIgnored(dir, projectPath)) return false;
+            if (IsInsideManagedEventFolder(dir, projectPath)) return true;
+            if (GetFoldersIgnoreService().ShouldIgnoreFolderForProject(dir, projectPath)) return false;
+            if (_mdIgnoreService.ShouldIgnorePath(dir, projectPath)) return false;
+            return true;
+        }
+
+        private static bool IsInsideManagedEventFolder(string dir, string projectPath)
+        {
+            var rel = Path.GetRelativePath(projectPath, dir).Replace('\\', '/');
+            var first = rel.Split('/')[0];
+            return first == ".mde-doc" || first == ".mde-code";
+        }
+
+        /// <summary>I file che cambiano le regole: .gitignore (ovunque), .mdFoldersIgnore, .mdignore.</summary>
+        private static bool IsIgnoreRulesFile(string fullPath)
+        {
+            var name = Path.GetFileName(fullPath);
+            return name == ".gitignore" || name == ".mdFoldersIgnore" || name == ".mdignore";
+        }
+
+        /// <summary>
+        /// Le regole sono cambiate (W6): nuova fotografia di git, cartelle sorvegliate rifatte, e l'albero si ricarica perché
+        /// ciò che si vede è cambiato.
+        /// </summary>
+        private void OnIgnoreRulesChanged(WatcherContext context, string fullPath)
+        {
+            try
+            {
+                _gitIgnore.Invalidate(context.ProjectPath);
+                GetFoldersIgnoreService().InvalidateCache(context.ProjectPath);
+                _mdIgnoreService.ReloadPatterns(context.ProjectPath);
+                context.Watcher?.Resync();
+                _logger.LogInformation("[{ConnectionId}] regole d'ignoranza cambiate ({File}): {Count} cartelle sorvegliate",
+                    context.ConnectionId, Path.GetFileName(fullPath), context.Watcher?.WatchedDirectories);
+                _hubContext.Clients.Client(context.ConnectionId).SendAsync("ignoreRulesChanged", new { file = Path.GetFileName(fullPath) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[{ConnectionId}] ricalcolo delle regole d'ignoranza fallito ({File})", context.ConnectionId, fullPath);
+            }
         }
 
         private FoldersIgnoreService GetFoldersIgnoreService()
@@ -159,19 +216,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Load ignore configuration for this project
                 var ignoreConfig = LoadIgnoreConfiguration(normalizedPath);
 
-                // Create FileSystemWatcher
-                var watcher = new System.IO.FileSystemWatcher(normalizedPath)
-                {
-                    NotifyFilter = NotifyFilters.FileName
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.LastWrite,
-                    IncludeSubdirectories = true,
-                    EnableRaisingEvents = true,
-                    // Default is 8KB ≈ ~160 events: a git checkout/agent burst overflows
-                    // it and .NET silently STOPS delivering events (only the Error event
-                    // fires). 64KB is the documented maximum useful size.
-                    InternalBufferSize = 64 * 1024
-                };
+                // Solo le cartelle utili (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore): su Linux un watch per cartella
+                // utile invece che per OGNI cartella (.git, node_modules…). Parte con Start(), dopo gli handler.
+                var watcher = ProjectWatchers.Create(normalizedPath, dir => ShouldWatchDirectory(normalizedPath, dir));
 
                 // Create context
                 var context = new WatcherContext
@@ -207,6 +254,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // until the user reopened the project. Recovery is explicit: tell
                 // the client to do a full reload.
                 watcher.Error += (sender, e) => OnWatcherError(context, e);
+                // le regole d'ignoranza cambiano: nuove cartelle da sorvegliare o da lasciare (W6)
+                FileSystemEventHandler rulesHandler = (sender, e) => { if (IsIgnoreRulesFile(e.FullPath)) OnIgnoreRulesChanged(context, e.FullPath); };
+                watcher.Changed += rulesHandler;
+                watcher.Created += rulesHandler;
+                watcher.Deleted += rulesHandler;
+                watcher.Renamed += (sender, e) => { if (IsIgnoreRulesFile(e.FullPath) || IsIgnoreRulesFile(e.OldFullPath)) OnIgnoreRulesChanged(context, e.FullPath); };
+                watcher.Start();
+                _logger.LogInformation("📁 [{ConnectionId}] watcher su {Path}: {Count} cartelle sorvegliate", connectionId, normalizedPath, watcher.WatchedDirectories);
 
                 // Cache LinkIndexingEnabled setting from UserDB (Project table)
                 // Use IServiceScopeFactory because FileSystemWatcherManager is Singleton
@@ -479,15 +534,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             var ex = e.GetException();
             _logger.LogError(ex,
-                "⚠️ [{ConnectionId}] FileSystemWatcher ERROR (events lost, buffer overflow likely) — asking client for a full reload",
-                context.ConnectionId);
+                "⚠️ [{ConnectionId}] watcher ERROR ({Kind}) — asking client for a full reload",
+                context.ConnectionId, ex is InternalBufferOverflowException ? "events lost: buffer overflow" : ex?.Message);
 
             try
             {
                 _hubContext.Clients.Client(context.ConnectionId)
                     .SendAsync("fileSystemWatcherError", new
                     {
-                        reason = ex is InternalBufferOverflowException ? "buffer-overflow" : "watcher-error",
+                        reason = ex is InternalBufferOverflowException ? "buffer-overflow"
+                            : ex?.Message?.Contains("watch limit", StringComparison.Ordinal) == true ? "watch-limit" : "watcher-error",
                         message = ex?.Message
                     });
             }

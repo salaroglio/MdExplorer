@@ -12051,6 +12051,8 @@ class MdFileService {
       // Use loadAll() to properly update dataStore and notify subscribers
       this.loadAll(null, null);
     });
+    // Le regole d'ignoranza sono cambiate (.gitignore, .mdFoldersIgnore, .mdignore): l'albero si rifà.
+    this.mdServerMessages.ignoreRulesChanged$.subscribe(() => this.loadAll(null, null));
     // Subscribe to Git pull events to refresh tree
     this.mdServerMessages.gitPullRefreshed$.subscribe(data => {
       console.log('🌳 Git pull completed - refreshing tree. Files changed:', data.fileCount);
@@ -18306,6 +18308,8 @@ class MdServerMessagesService {
     // FSW buffer overflow / internal error: events were LOST server-side.
     // Consumers must do a full reload — incremental state can no longer be trusted.
     this.fileSystemWatcherError$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** Un .gitignore, .mdFoldersIgnore o .mdignore è cambiato: ciò che si vede è cambiato (sprint 2026-10-21, W6). */
+    this.ignoreRulesChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.connectionIsLost = false;
     this.consoleIsClosed = false;
     this.startConnection = () => {
@@ -18519,6 +18523,10 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('knowledgeProgress', data => {
           this.knowledgeProgress$.next(data);
+        });
+        this.hubConnection.on('ignoreRulesChanged', data => {
+          console.log('🙈 [SignalR] ignoreRulesChanged:', data);
+          this.ignoreRulesChanged$.next(data);
         });
         this.hubConnection.on('fileSystemWatcherError', data => {
           console.error('⚠️ [SignalR] fileSystemWatcherError — events were lost server-side:', data);
@@ -18861,8 +18869,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.21.10',
-  buildTime: '2026.10.21 12:18:59'
+  version: '2026.10.21.11',
+  buildTime: '2026.10.21 12:55:21'
 };
 
 /***/ }),
@@ -18896,4 +18904,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.cd7d39f3aa8ff0ef.js.map
+//# sourceMappingURL=main.f144258bd674cdbc.js.map

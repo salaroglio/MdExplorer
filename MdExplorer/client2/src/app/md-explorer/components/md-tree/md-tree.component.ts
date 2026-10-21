@@ -397,8 +397,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // FSW overflow/errore: md-file.service fa già il reload completo; qui solo
     // il feedback visibile all'utente (mai recovery silenzioso).
-    this.mdServerMessages.fileSystemWatcherError$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.snackBar.open(this.translate.instant('MD_TREE.WATCHER_OVERFLOW_RELOAD'), '', { duration: 5000 });
+    this.mdServerMessages.fileSystemWatcherError$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+      // limite dei watch del sistema pieno: alcune cartelle non si aggiornano da sole, e lo si dice (non si ripete:
+      // il backend lo segnala una volta per watcher)
+      const key = data?.reason === 'watch-limit' ? 'MD_TREE.WATCHER_LIMIT' : 'MD_TREE.WATCHER_OVERFLOW_RELOAD';
+      this.snackBar.open(this.translate.instant(key), 'OK', { duration: data?.reason === 'watch-limit' ? 15000 : 5000 });
+    });
+    this.mdServerMessages.ignoreRulesChanged$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+      this.snackBar.open(this.translate.instant('MD_TREE.IGNORE_RULES_CHANGED', { file: data?.file }), '', { duration: 4000 });
     });
   }
  

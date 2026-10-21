@@ -27,8 +27,9 @@ namespace MdExplorer.IntegrationTests
         {
             _project = Path.Combine(Path.GetTempPath(), "eye-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_project);
-            _mdIgnore = new MdIgnoreService(NullLogger<MdIgnoreService>.Instance);
-            _foldersIgnore = new FoldersIgnoreService(NullLogger<FoldersIgnoreService>.Instance, null);
+            var gitIgnore = new MdExplorer.Features.Services.GitIgnore.GitIgnoreRules();
+            _mdIgnore = new MdIgnoreService(NullLogger<MdIgnoreService>.Instance, gitIgnore);
+            _foldersIgnore = new FoldersIgnoreService(NullLogger<FoldersIgnoreService>.Instance, null, gitIgnore);
         }
 
         [TestCleanup]

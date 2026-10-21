@@ -33017,9 +33017,19 @@ class MdTreeComponent {
     });
     // FSW overflow/errore: md-file.service fa già il reload completo; qui solo
     // il feedback visibile all'utente (mai recovery silenzioso).
-    this.mdServerMessages.fileSystemWatcherError$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_39__.takeUntil)(this.destroy$)).subscribe(() => {
-      this.snackBar.open(this.translate.instant('MD_TREE.WATCHER_OVERFLOW_RELOAD'), '', {
-        duration: 5000
+    this.mdServerMessages.fileSystemWatcherError$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_39__.takeUntil)(this.destroy$)).subscribe(data => {
+      // limite dei watch del sistema pieno: alcune cartelle non si aggiornano da sole, e lo si dice (non si ripete:
+      // il backend lo segnala una volta per watcher)
+      const key = data?.reason === 'watch-limit' ? 'MD_TREE.WATCHER_LIMIT' : 'MD_TREE.WATCHER_OVERFLOW_RELOAD';
+      this.snackBar.open(this.translate.instant(key), 'OK', {
+        duration: data?.reason === 'watch-limit' ? 15000 : 5000
+      });
+    });
+    this.mdServerMessages.ignoreRulesChanged$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_39__.takeUntil)(this.destroy$)).subscribe(data => {
+      this.snackBar.open(this.translate.instant('MD_TREE.IGNORE_RULES_CHANGED', {
+        file: data?.file
+      }), '', {
+        duration: 4000
       });
     });
   }
@@ -50024,4 +50034,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.dd45c49c463347b5.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.7e7c5851b20e2b9f.js.map

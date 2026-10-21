@@ -16,6 +16,7 @@ namespace MdExplorer.Service
         public static IServiceCollection AddServiceFeatures(this IServiceCollection services)
         {
             services.AddSingleton<ProcessUtil>();
+            services.AddSingleton<MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules, MdExplorer.Features.Services.GitIgnore.GitIgnoreRules>();
             services.AddSingleton<IMdIgnoreService, MdIgnoreService>();
             services.AddScoped<ISearchService, SearchService>();
             services.AddSingleton<IMarkdownFtsService>(sp => new MarkdownFtsService(

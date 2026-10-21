@@ -217,6 +217,8 @@ export class MdServerMessagesService {
   // FSW buffer overflow / internal error: events were LOST server-side.
   // Consumers must do a full reload — incremental state can no longer be trusted.
   public fileSystemWatcherError$ = new Subject<{ reason: string, message?: string }>();
+  /** Un .gitignore, .mdFoldersIgnore o .mdignore è cambiato: ciò che si vede è cambiato (sprint 2026-10-21, W6). */
+  public ignoreRulesChanged$ = new Subject<{ file: string }>();
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
@@ -455,6 +457,10 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('knowledgeProgress', (data) => {
         this.knowledgeProgress$.next(data);
+      });
+      this.hubConnection.on('ignoreRulesChanged', (data) => {
+        console.log('🙈 [SignalR] ignoreRulesChanged:', data);
+        this.ignoreRulesChanged$.next(data);
       });
       this.hubConnection.on('fileSystemWatcherError', (data) => {
         console.error('⚠️ [SignalR] fileSystemWatcherError — events were lost server-side:', data);

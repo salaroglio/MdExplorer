@@ -774,6 +774,8 @@
     "STORM_FILES_CREATED": "{{count}} nuovi file aggiunti all'albero",
     "OPEN_LAST_CREATED": "Apri {{name}}",
     "WATCHER_OVERFLOW_RELOAD": "Eventi del file system persi: albero ricaricato automaticamente",
+    "WATCHER_LIMIT": "Il sistema ha finito gli spazi per sorvegliare le cartelle (limite inotify): alcune cartelle non si aggiornano da sole. Chiudi i programmi che ne usano molti o alza fs.inotify.max_user_watches.",
+    "IGNORE_RULES_CHANGED": "{{file}} è cambiato: l'albero è stato ricaricato con le nuove regole.",
     "TREE_NOT_LOADED": "Albero non ancora caricato",
     "FILE_NOT_FOUND": "File non trovato nell'albero",
     "CANNOT_DETERMINE_ROOT": "Errore: impossibile determinare la radice del progetto",

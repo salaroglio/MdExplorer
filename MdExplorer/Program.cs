@@ -150,6 +150,14 @@ namespace MdExplorer
             }
 
             var toReturn = Host.CreateDefaultBuilder(args)
+               // Niente ricaricamento a caldo di appsettings.json: per farlo l'host sorveglia RICORSIVAMENTE il ContentRoot,
+               // e su Linux è un watch inotify per ogni sottocartella (con dotnet run il ContentRoot è MdExplorer/, client2/
+               // node_modules compreso: 5.862 watch misurati il 21/10/2026, 0 senza). Nessuno in MDE usa il ricaricamento.
+               // Sprint 2026-10-21-Watcher-Selettivo-E-Gitignore.
+               .ConfigureHostConfiguration(config => config.AddInMemoryCollection(new[]
+               {
+                   new KeyValuePair<string, string>("hostBuilder:reloadConfigOnChange", "false"),
+               }))
                .ConfigureLogging((hostingContext, logging) =>
                {
                    logging.ClearProviders();
