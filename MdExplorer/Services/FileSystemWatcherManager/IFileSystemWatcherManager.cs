@@ -219,6 +219,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// </summary>
         public Timer StormCooldownTimer { get; set; }
 
+        /// <summary>Al più un «ricarica l'albero» per finestra (vedi <see cref="WatcherErrorThrottle"/>).</summary>
+        public WatcherErrorThrottle ErrorThrottle { get; } = new WatcherErrorThrottle();
+
+        /// <summary>L'avviso finale di una finestra con errori tenuti da parte.</summary>
+        public Timer ErrorTrailingTimer { get; set; }
+
         /// <summary>
         /// Lock object for storm state transitions.
         /// </summary>

@@ -406,6 +406,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     // Dispose storm cooldown timer
                     context.StormCooldownTimer?.Dispose();
+                    context.ErrorTrailingTimer?.Dispose();
 
                     // Dispose the commit hook watcher + its debounce timer
                     if (context.CommitWatcher != null)
@@ -533,19 +534,41 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private void OnWatcherError(WatcherContext context, ErrorEventArgs e)
         {
             var ex = e.GetException();
-            _logger.LogError(ex,
-                "⚠️ [{ConnectionId}] watcher ERROR ({Kind}) — asking client for a full reload",
-                context.ConnectionId, ex is InternalBufferOverflowException ? "events lost: buffer overflow" : ex?.Message);
+            var reason = ex is InternalBufferOverflowException ? "buffer-overflow"
+                : ex?.Message?.Contains("watch limit", StringComparison.Ordinal) == true ? "watch-limit" : "watcher-error";
 
+            // Al più un avviso (= una ricarica completa dell'albero) per finestra: un errore che si ripete era un ciclo di
+            // migliaia di ricariche. Gli errori della finestra si contano e si dicono alla sua fine.
+            switch (context.ErrorThrottle.OnError(DateTime.UtcNow))
+            {
+                case WatcherErrorThrottle.Decision.SendNow:
+                    _logger.LogError(ex, "⚠️ [{ConnectionId}] watcher ERROR ({Kind}) — asking client for a full reload",
+                        context.ConnectionId, ex is InternalBufferOverflowException ? "events lost: buffer overflow" : ex?.Message);
+                    NotifyWatcherError(context, reason, ex?.Message, suppressed: 0);
+                    break;
+                case WatcherErrorThrottle.Decision.ScheduleTrailing:
+                    var delay = context.ErrorThrottle.DelayUntilTrailing(DateTime.UtcNow);
+                    context.ErrorTrailingTimer?.Dispose();
+                    context.ErrorTrailingTimer = new System.Threading.Timer(_ =>
+                    {
+                        var n = context.ErrorThrottle.TakeSuppressed(DateTime.UtcNow);
+                        if (n == 0) return;
+                        _logger.LogError("⚠️ [{ConnectionId}] {Count} altri errori del watcher negli ultimi {Seconds} s (l'ultimo: {Kind}) — una sola ricarica",
+                            context.ConnectionId, n, (int)WatcherErrorThrottle.Window.TotalSeconds, ex?.Message);
+                        NotifyWatcherError(context, reason, ex?.Message, suppressed: n);
+                    }, null, delay, System.Threading.Timeout.InfiniteTimeSpan);
+                    break;
+                case WatcherErrorThrottle.Decision.Suppressed:
+                    break;
+            }
+        }
+
+        private void NotifyWatcherError(WatcherContext context, string reason, string message, int suppressed)
+        {
             try
             {
                 _hubContext.Clients.Client(context.ConnectionId)
-                    .SendAsync("fileSystemWatcherError", new
-                    {
-                        reason = ex is InternalBufferOverflowException ? "buffer-overflow"
-                            : ex?.Message?.Contains("watch limit", StringComparison.Ordinal) == true ? "watch-limit" : "watcher-error",
-                        message = ex?.Message
-                    });
+                    .SendAsync("fileSystemWatcherError", new { reason, message, suppressed });
             }
             catch (Exception sendEx)
             {
