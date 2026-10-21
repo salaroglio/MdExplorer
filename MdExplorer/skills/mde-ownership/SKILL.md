@@ -1,9 +1,9 @@
 ---
 name: mde-ownership
-description: Author or reorganize the project OWNERSHIP document (responsabilita.md) for the agent city. Use when a project enables the agent city and needs a machine-readable map of "who has which role, with which agents" — the roles that workflow steps of people (`person`) and approvals (`approval.by`) name. Produces a single markdown doc with `mde_type: ownership` and a well-formed table.
+description: "Author or reorganize the project OWNERSHIP document (responsabilita.md) for the agent city. Use when a project enables the agent city and needs a machine-readable map of \"who has which role, with which agents\" — the roles that workflow steps of people (`person`) and approvals (`approval.by`) name. Produces a single markdown doc with `mde_type: ownership` and a well-formed table."
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 

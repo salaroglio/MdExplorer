@@ -1,9 +1,9 @@
 ---
 name: mde-tbox
-description: Convention for generating TBox (schema/ontology) files inside an MDE project. Use when authoring a new OWL ontology layer in `ontology/TBox/`: produces a `.ttl` with class and property definitions plus a `.md` companion with description + runnable PowerShell that loads the file into Apache Jena Fuseki via Graph Store Protocol PUT. Triggers on "create new TBox layer", "generate OWL ontology", "define schema classes", "model domain in OWL", "new ontology layer". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill.
+description: "Convention for generating TBox (schema/ontology) files inside an MDE project. Use when authoring a new OWL ontology layer in `ontology/TBox/`: produces a `.ttl` with class and property definitions plus a `.md` companion with description + runnable PowerShell that loads the file into Apache Jena Fuseki via Graph Store Protocol PUT. Triggers on \"create new TBox layer\", \"generate OWL ontology\", \"define schema classes\", \"model domain in OWL\", \"new ontology layer\". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 

@@ -1,9 +1,9 @@
 ---
 name: mde-shacl
-description: Convention for generating SHACL constraint files (Shapes) inside an MDE project. Use when authoring validation rules for a TBox in `ontology/Shapes/`: produces a `.shapes.ttl` with NodeShape/PropertyShape definitions plus a `.md` companion with description + runnable PowerShell that loads the shapes into Apache Jena Fuseki and runs `shacl validate` against ABox data. Triggers on "add SHACL constraints", "validate ontology", "define cardinality rules", "enforce enum values", "model invariants", "constrain ABox", "shacl shape". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill.
+description: "Convention for generating SHACL constraint files (Shapes) inside an MDE project. Use when authoring validation rules for a TBox in `ontology/Shapes/`: produces a `.shapes.ttl` with NodeShape/PropertyShape definitions plus a `.md` companion with description + runnable PowerShell that loads the shapes into Apache Jena Fuseki and runs `shacl validate` against ABox data. Triggers on \"add SHACL constraints\", \"validate ontology\", \"define cardinality rules\", \"enforce enum values\", \"model invariants\", \"constrain ABox\", \"shacl shape\". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 

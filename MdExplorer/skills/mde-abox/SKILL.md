@@ -1,9 +1,9 @@
 ---
 name: mde-abox
-description: Convention for generating ABox (instance data) files inside an MDE project. Use when extracting instance triples from a source document (analyses, requirements, mapping tables) into `ontology/ABox/`: produces a `.ttl` with concrete instances conforming to a referenced TBox plus a `.md` companion with description + runnable PowerShell load + sample SPARQL query. Triggers on "extract instances", "generate ABox", "create RDF data from doc", "populate ontology with examples", "instance data for ontology". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill.
+description: "Convention for generating ABox (instance data) files inside an MDE project. Use when extracting instance triples from a source document (analyses, requirements, mapping tables) into `ontology/ABox/`: produces a `.ttl` with concrete instances conforming to a referenced TBox plus a `.md` companion with description + runnable PowerShell load + sample SPARQL query. Triggers on \"extract instances\", \"generate ABox\", \"create RDF data from doc\", \"populate ontology with examples\", \"instance data for ontology\". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
