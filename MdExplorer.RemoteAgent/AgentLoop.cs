@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using MdExplorer.Remote.Protocol;
+using MdExplorer.RemoteProtocol;
 
 namespace MdExplorer.RemoteAgent
 {
@@ -19,7 +19,7 @@ namespace MdExplorer.RemoteAgent
             {
                 Id = 0,
                 Ok = true,
-                Hello = new RemoteHello { Protocol = RemoteProtocol.Version, Version = version, Root = workspace.Root },
+                Hello = new RemoteHello { Protocol = AgentProtocol.Version, Version = version, Root = workspace.Root },
             });
             string? line;
             while ((line = input.ReadLine()) != null)

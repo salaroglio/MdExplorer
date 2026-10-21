@@ -10,6 +10,9 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Services.RemoteFolders;
+using MdExplorer.RemoteProtocol;
+using MdExplorer.Services.RemoteFolders;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.Git;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,12 +88,13 @@ namespace MdExplorer.Services.CodeGraph
     {
         private readonly ICodeRootBindingStore _bindings;
         private readonly INativeGitRunner _git;
+        private readonly IRemoteSessions _remote;
         private readonly ILogger<CodeRootService> _logger;
         private readonly SemaphoreSlim _configGate = new(1, 1);
 
-        public CodeRootService(ICodeRootBindingStore bindings, INativeGitRunner git, ILogger<CodeRootService> logger)
+        public CodeRootService(ICodeRootBindingStore bindings, INativeGitRunner git, IRemoteSessions remote, ILogger<CodeRootService> logger)
         {
-            _bindings = bindings; _git = git; _logger = logger;
+            _bindings = bindings; _git = git; _remote = remote; _logger = logger;
         }
 
         // ------------------------------------------------------------------ lettura
@@ -109,13 +113,16 @@ namespace MdExplorer.Services.CodeGraph
         private async Task<CodeRootState> StateOfAsync(string projectPath, CodeRootConfig root, CancellationToken ct)
         {
             var local = _bindings.Get(projectPath, root.Alias);
-            CodeRootState State(CodeRootStatus status, string reason, string rootPath = null, IReadOnlyList<string> remotes = null) => new()
+            CodeRootState State(CodeRootStatus status, string reason, string rootPath = null, IReadOnlyList<string> remotes = null, RemoteLocation remote = null) => new()
             {
                 Alias = root.Alias, Repository = root.Repository, Subpath = root.Subpath ?? string.Empty,
                 Tags = root.Tags ?? new List<string>(), Languages = root.CodeGraph?.Languages ?? new List<string>(),
                 LocalPath = local, RootPath = rootPath, Status = status, Reason = reason, ActualRemotes = remotes ?? Array.Empty<string>(),
+                Remote = remote,
             };
 
+            if (local != null && RemoteLocation.IsRemote(local))
+                return await RemoteStateOfAsync(root, local, State, ct);
             if (local == null)
                 return State(CodeRootStatus.NotLinked, UiText.Say($"su questa macchina non è collegata: indica dove sta la cartella{(root.Repository != null ? " del repository " + root.Repository : string.Empty)}.", $"it is not linked on this machine: say where the folder{(root.Repository != null ? " of repository " + root.Repository : string.Empty)} is."));
             if (!Directory.Exists(local))
@@ -137,11 +144,47 @@ namespace MdExplorer.Services.CodeGraph
             return State(CodeRootStatus.Linked, null, Combine(local, root.Subpath));
         }
 
+        /// <summary>
+        /// Una radice su un server (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): collegata se il serverino parte sulla
+        /// cartella analizzata e, con un repository dichiarato, se i remote letti da <c>.git</c> sul server sono quelli (R7).
+        /// Server irraggiungibile o serverino fermo → <see cref="CodeRootStatus.Unreachable"/> con la porta chiusa.
+        /// </summary>
+        private async Task<CodeRootState> RemoteStateOfAsync(CodeRootConfig root, string local,
+            Func<CodeRootStatus, string, string, IReadOnlyList<string>, RemoteLocation, CodeRootState> state, CancellationToken ct)
+        {
+            RemoteLocation target;
+            try { target = RemoteLocation.Parse(local).Combine(root.Subpath ?? string.Empty); }
+            catch (Exception ex) when (ex is FormatException or InvalidOperationException)
+            {
+                return state(CodeRootStatus.NotFound, UiText.Say($"la posizione salvata {local} non è valida ({ex.Message}): ricollegala.", $"the saved location {local} is not valid ({ex.Message}): link it again."), null, null, null);
+            }
+            RemoteChannel channel;
+            try { channel = await _remote.OpenAsync(target, ct); }
+            catch (RemoteUnavailableException ex)
+            {
+                return state(ex.Gate == RemoteGate.Folder ? CodeRootStatus.NotFound : CodeRootStatus.Unreachable, ex.Message, null, null, null);
+            }
+            if (root.Repository == null) return state(CodeRootStatus.Linked, null, null, null, target);
+            var git = (await channel.SendAsync(new RemoteRequest { Op = RemoteOps.GitInfo }, ct)).Git;
+            if (git == null)
+                return state(CodeRootStatus.Mismatch, UiText.Say($"{target} non è un repository git, ma la radice è il repository {root.Repository}.", $"{target} is not a git repository, but the root is the repository {root.Repository}."), null, null, null);
+            var remotes = git.Remotes.Select(r => r.Url).Distinct(StringComparer.Ordinal).ToList();
+            if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
+                return state(CodeRootStatus.Mismatch, UiText.Say($"{target} è {Describe(remotes)}, non il repository dichiarato {root.Repository}.", $"{target} is {Describe(remotes)}, not the declared repository {root.Repository}."), null, remotes, null);
+            return state(CodeRootStatus.Linked, null, null, remotes, target);
+        }
+
         // ------------------------------------------------------------------ collegare
 
-        public async Task<CodeRootState> LinkAsync(string projectPath, string alias, string localPath, CancellationToken ct = default)
+        /// <summary>
+        /// Che cosa c'è nella cartella scelta, locale o remota: la radice del repository (null senza git), i remote, come
+        /// si scrive la posizione da salvare e se una sottocartella esiste. Le regole d'identità di <see cref="LinkAsync"/>
+        /// sono le stesse per i due casi.
+        /// </summary>
+        private sealed record Place(string Chosen, string Top, IReadOnlyList<string> Remotes, Func<string, string> RelativeToTop, Func<string, CancellationToken, Task<bool>> SubpathExistsAsync);
+
+        private async Task<Place> InspectLocalAsync(string projectPath, string localPath, CancellationToken ct)
         {
-            CodeRootPaths.RequireAlias(alias);
             if (string.IsNullOrWhiteSpace(localPath) || !Directory.Exists(localPath))
                 throw new InvalidOperationException(UiText.Say($"La cartella '{localPath}' non esiste.", $"The folder '{localPath}' does not exist."));
             var chosen = Path.GetFullPath(localPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -149,9 +192,33 @@ namespace MdExplorer.Services.CodeGraph
                 throw new InvalidOperationException(UiText.Say($"{chosen} sta dentro il progetto: non serve una radice esterna, marcala come cartella «program» dall'albero.", $"{chosen} is inside the project: no external root is needed, mark it as a «program» folder from the tree."));
             if (PathContainment.IsInside(chosen, projectPath))
                 throw new InvalidOperationException(UiText.Say($"{chosen} contiene il progetto stesso: scegli la cartella del codice, non una che la contiene.", $"{chosen} contains the project itself: choose the code folder, not one that contains it."));
-
             var top = await TopLevelAsync(chosen, ct);
             var remotes = top == null ? (IReadOnlyList<string>)Array.Empty<string>() : await RemotesAsync(top, ct);
+            return new Place(chosen, top, remotes, t => Relative(t, chosen), (sub, _) => Task.FromResult(Directory.Exists(Combine(top, sub))));
+        }
+
+        /// <summary>Una cartella su un server: il serverino deve partire lì (porte P10), e i remote si leggono da <c>.git</c> sul server.</summary>
+        private async Task<Place> InspectRemoteAsync(string localPath, CancellationToken ct)
+        {
+            var chosen = RemoteLocation.Parse(localPath);
+            var channel = await _remote.OpenAsync(chosen, ct);
+            var git = (await channel.SendAsync(new RemoteRequest { Op = RemoteOps.GitInfo }, ct)).Git;
+            var top = git == null ? null : RemoteLocation.Of(chosen.Host, git.Top);
+            var remotes = git?.Remotes.Select(r => r.Url).Distinct(StringComparer.Ordinal).ToList() ?? new List<string>();
+            return new Place(chosen.ToString(), top?.ToString(), remotes,
+                _ => chosen.RelativeTo(top) ?? string.Empty,
+                async (sub, token) =>
+                {
+                    try { await _remote.OpenAsync(top.Combine(sub ?? string.Empty), token); return true; }
+                    catch (RemoteUnavailableException ex) when (ex.Gate == RemoteGate.Folder) { return false; }
+                });
+        }
+
+        public async Task<CodeRootState> LinkAsync(string projectPath, string alias, string localPath, CancellationToken ct = default)
+        {
+            CodeRootPaths.RequireAlias(alias);
+            var place = RemoteLocation.IsRemote(localPath) ? await InspectRemoteAsync(localPath, ct) : await InspectLocalAsync(projectPath, localPath, ct);
+            var (chosen, top, remotes) = (place.Chosen, place.Top, place.Remotes);
 
             await _configGate.WaitAsync(ct);
             try
@@ -168,7 +235,7 @@ namespace MdExplorer.Services.CodeGraph
                     {
                         if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
                             throw new InvalidOperationException(UiText.Say($"{chosen} è {Describe(remotes)}, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone giusto.", $"{chosen} is {Describe(remotes)}, but the root «@{alias}» is the repository {root.Repository}: choose the right clone."));
-                        if (!Directory.Exists(Combine(top, root.Subpath)))
+                        if (!await place.SubpathExistsAsync(root.Subpath, ct))
                             throw new InvalidOperationException(UiText.Say($"Nel clone {top} manca la sottocartella «{root.Subpath}» della radice «@{alias}» (un altro ramo?).", $"The clone {top} is missing the subfolder «{root.Subpath}» of the root «@{alias}» (another branch?)."));
                     }
                     else
@@ -176,7 +243,7 @@ namespace MdExplorer.Services.CodeGraph
                         var origin = PreferredRemote(remotes);
                         if (origin == null)
                             throw new InvalidOperationException(UiText.Say($"{top} è un repository git senza remote: senza un remote i colleghi non possono riconoscere la stessa cartella. Aggiungi un remote (git remote add origin …) e ricollega.", $"{top} is a git repository without a remote: without a remote colleagues cannot recognise the same folder. Add a remote (git remote add origin …) and link it again."));
-                        var subpath = Relative(top, chosen);
+                        var subpath = place.RelativeToTop(top);
                         if (root == null)
                         {
                             root = new CodeRootConfig { Alias = alias, Repository = origin, Subpath = subpath, Tags = new List<string> { "program" } };
@@ -242,6 +309,8 @@ namespace MdExplorer.Services.CodeGraph
             var root = (await ListAsync(projectPath, ct)).FirstOrDefault(r => r.Alias == alias)
                 ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml.", $"The root «@{alias}» is not declared in .development.yml."));
             if (root.Status != CodeRootStatus.Linked) throw new InvalidOperationException($"@{alias}: {root.Reason}");
+            if (root.IsRemote)
+                throw new InvalidOperationException(UiText.Say($"@{alias} è una radice remota ({root.Remote}): i file modificati sulle radici remote non ci sono ancora.", $"@{alias} is a remote root ({root.Remote}): changed files on remote roots are not available yet."));
             if (root.Repository == null) return new CodeRootChanges { Alias = alias, IsGit = false };
             var status = await _git.RunAsync(root.RootPath, new[] { "status", "--porcelain=v1", "--branch", "--untracked-files=all", "--", "." }, ct);
             if (!status.Ok) throw new InvalidOperationException($"git status in {root.RootPath}: {status.Stderr}".Trim());

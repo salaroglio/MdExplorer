@@ -795,6 +795,7 @@
     "STATUS_NOTLINKED": "to link",
     "STATUS_NOTFOUND": "not found",
     "STATUS_MISMATCH": "different repository",
+    "STATUS_UNREACHABLE": "server unreachable",
     "REPOSITORY": "Repository",
     "SUBPATH": "subfolder",
     "NO_GIT": "Folder outside Git: no identity to check on other computers.",

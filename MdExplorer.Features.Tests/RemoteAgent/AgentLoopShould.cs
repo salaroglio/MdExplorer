@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using MdExplorer.Remote.Protocol;
+using MdExplorer.RemoteProtocol;
 using MdExplorer.RemoteAgent;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
                 """{"id":2,"op":"list","path":""}""");
             Assert.AreEqual(3, responses.Length, "saluto + due risposte; le righe vuote si saltano");
             Assert.AreEqual(0, responses[0].Id);
-            Assert.AreEqual(RemoteProtocol.Version, responses[0].Hello.Protocol);
+            Assert.AreEqual(AgentProtocol.Version, responses[0].Hello.Protocol);
             Assert.AreEqual("1.2.3", responses[0].Hello.Version);
             Assert.AreEqual(Path.TrimEndingDirectorySeparator(Path.GetFullPath(_root)), responses[0].Hello.Root);
             Assert.AreEqual("uno", responses[1].Text);

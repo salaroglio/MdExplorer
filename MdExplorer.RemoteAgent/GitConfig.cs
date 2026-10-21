@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MdExplorer.Remote.Protocol;
+using MdExplorer.RemoteProtocol;
 
 namespace MdExplorer.RemoteAgent
 {

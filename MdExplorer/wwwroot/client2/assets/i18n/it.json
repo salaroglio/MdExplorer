@@ -795,6 +795,7 @@
     "STATUS_NOTLINKED": "da collegare",
     "STATUS_NOTFOUND": "non trovata",
     "STATUS_MISMATCH": "repository diverso",
+    "STATUS_UNREACHABLE": "server non raggiungibile",
     "REPOSITORY": "Repository",
     "SUBPATH": "sottocartella",
     "NO_GIT": "Cartella fuori da Git: nessuna identità da verificare sugli altri computer.",

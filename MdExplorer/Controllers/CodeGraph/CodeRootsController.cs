@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Services.CodeGraph;
+using MdExplorer.Services.RemoteFolders;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MdExplorer.Controllers.CodeGraph
@@ -20,8 +21,9 @@ namespace MdExplorer.Controllers.CodeGraph
     public class CodeRootsController : ControllerBase
     {
         private readonly ICodeRootService _roots;
+        private readonly RemoteCodeRootFiles _remoteFiles;
 
-        public CodeRootsController(ICodeRootService roots) { _roots = roots; }
+        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles) { _roots = roots; _remoteFiles = remoteFiles; }
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
@@ -50,6 +52,8 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Resolve([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct) => Guarded(async () =>
         {
             var resolver = await _roots.CreateResolverAsync(projectPath, ct);
+            if (resolver.RemoteOf(path) is { } remote)
+                return Ok(new { path, absolutePath = (string)null, remote = remote.Root.Remote.Combine(remote.Relative).ToString() });
             return Ok(new { path, absolutePath = resolver.Resolve(path) });
         }, projectPath);
 
@@ -61,7 +65,11 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Browse([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct) => Guarded(async () =>
         {
             var resolver = await _roots.CreateResolverAsync(projectPath, ct);
-            return Ok(CodeRootBrowser.List(resolver, path).Select(e => new
+            // una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): stessi elementi, dal serverino
+            var entries = resolver.RemoteOf(path) is { } remote
+                ? await _remoteFiles.ListAsync(remote.Root, remote.Relative, ct)
+                : CodeRootBrowser.List(resolver, path);
+            return Ok(entries.Select(e => new
             {
                 name = e.Name, path = e.LogicalPath, fullPath = e.AbsolutePath, isFolder = e.IsFolder, isText = e.IsText, unreadable = e.Unreadable,
             }));
@@ -92,6 +100,7 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             s.Alias, s.Repository, s.Subpath, s.Tags, s.Languages, s.LocalPath, s.RootPath,
             status = s.Status.ToString(), s.Reason, s.ActualRemotes,
+            remote = s.Remote?.ToString(),
         };
 
         private async Task<IActionResult> Guarded(Func<Task<IActionResult>> action, string projectPath)

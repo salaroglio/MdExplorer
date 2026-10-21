@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace MdExplorer.Remote.Protocol
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>Il JSON del protocollo: camelCase, campi nulli omessi, generato a compile time (Native AOT).</summary>
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

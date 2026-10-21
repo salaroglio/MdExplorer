@@ -1,10 +1,10 @@
-namespace MdExplorer.Remote.Protocol
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Il protocollo tra il backend e <c>mde-remote</c>: una riga JSON per messaggio su stdin/stdout del comando lanciato
     /// via <c>ssh</c>. Il serverino saluta per primo (D6), poi serve una richiesta alla volta, nell'ordine.
     /// </summary>
-    public static class RemoteProtocol
+    public static class AgentProtocol
     {
         /// <summary>Si alza quando cambia la forma dei messaggi: il backend rifiuta un serverino con un altro numero.</summary>
         public const int Version = 1;

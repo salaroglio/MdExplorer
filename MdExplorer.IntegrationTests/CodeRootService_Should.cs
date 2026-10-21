@@ -60,7 +60,11 @@ namespace MdExplorer.IntegrationTests
             return dir;
         }
 
-        private CodeRootService Service(ICodeRootBindingStore store) => new(store, _git, NullLogger<CodeRootService>.Instance);
+        // Le radici di questi test sono locali: il canale remoto non si apre mai (vedi RemoteFolders_Should).
+        private CodeRootService Service(ICodeRootBindingStore store) => new(store, _git,
+            new MdExplorer.Services.RemoteFolders.RemoteSessions(new MdExplorer.Services.RemoteFolders.SshTransport(),
+                () => throw new InvalidOperationException("radice remota inattesa"), NullLogger<MdExplorer.Services.RemoteFolders.RemoteSessions>.Instance),
+            NullLogger<CodeRootService>.Instance);
 
         [TestMethod]
         public async Task Remind_unlinked_roots_until_dismissed_and_remind_again_for_a_new_alias()

@@ -220,8 +220,19 @@ namespace MdExplorer.Services.CodeGraph
             return new Scope(key, rootPath, root.Languages.ToList(),
                 root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)),
                 abs => CodeRootPaths.Format(alias, PathContainment.RelativeOrNull(rootPath, abs) is { } rel && rel != "." ? rel : string.Empty),
-                root.Status == CodeRootStatus.Linked ? null : $"@{alias}: {root.Reason}");
+                Analyzable(root) ? null : $"@{alias}: {NotAnalyzableReason(root)}");
         }
+
+        /// <summary>
+        /// Una radice esterna si analizza se è collegata su questo disco. Una remota no, per ora (sprint
+        /// 2026-10-21-Cartella-Remota-Via-SSH, P9): tree-sitter legge i file qui, e i suoi file stanno sul server.
+        /// </summary>
+        private static bool Analyzable(CodeRootState root) => root.Status == CodeRootStatus.Linked && !root.IsRemote;
+
+        private static string NotAnalyzableReason(CodeRootState root) =>
+            root.Status != CodeRootStatus.Linked ? root.Reason
+            : root.IsRemote ? UiText.Say($"è una radice remota ({root.Remote}): il grafo del codice sulle radici remote non c'è ancora.", $"it is a remote root ({root.Remote}): the code graph on remote roots is not available yet.")
+            : null;
 
         // ------------------------------------------------------------------ .development.yml
 
@@ -305,7 +316,7 @@ namespace MdExplorer.Services.CodeGraph
                 .Select(f => new CodeProgramFolder { Folder = NormalizeRelative(f.Path), Languages = f.CodeGraph.Languages.ToList() }));
             list.AddRange((await _roots.ListAsync(projectPath, ct))
                 .Where(r => r.Languages.Count > 0 && r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
-                .Select(r => new CodeProgramFolder { Folder = "@" + r.Alias, Languages = r.Languages.ToList(), Linked = r.Status == CodeRootStatus.Linked, Reason = r.Status == CodeRootStatus.Linked ? null : r.Reason }));
+                .Select(r => new CodeProgramFolder { Folder = "@" + r.Alias, Languages = r.Languages.ToList(), Linked = Analyzable(r), Reason = NotAnalyzableReason(r) }));
             return list;
         }
 
@@ -413,7 +424,7 @@ namespace MdExplorer.Services.CodeGraph
             var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
             var keys = config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
                 .Select(f => NormalizeRelative(f.Path))
-                .Concat((await _roots.ListAsync(projectPath, ct)).Where(r => r.Status == CodeRootStatus.Linked && r.Languages.Count > 0 &&
+                .Concat((await _roots.ListAsync(projectPath, ct)).Where(r => Analyzable(r) && r.Languages.Count > 0 &&
                                                                             r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
                     .Select(r => "@" + r.Alias))
                 .ToList();

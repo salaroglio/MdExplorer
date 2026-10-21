@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Features.Services.RemoteFolders;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
@@ -18,6 +19,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         NotFound,
         /// <summary>La cartella c'è ma non è il repository dichiarato (remote diverso, o non è più un repository).</summary>
         Mismatch,
+        /// <summary>Radice remota (<c>ssh://</c>): il server non si raggiunge o il serverino non parte; il motivo dice quale porta è chiusa.</summary>
+        Unreachable,
     }
 
     public sealed class CodeRootState
@@ -36,6 +39,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Reason { get; init; }
         /// <summary>I remote trovati nella cartella collegata (per dire «questa cartella è X, non Y»).</summary>
         public IReadOnlyList<string> ActualRemotes { get; init; } = Array.Empty<string>();
+        /// <summary>
+        /// Radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH): la cartella analizzata sul server. Allora
+        /// <see cref="RootPath"/> è null — sul disco di questa macchina non c'è — e i file passano dal serverino.
+        /// </summary>
+        public RemoteLocation Remote { get; init; }
+        public bool IsRemote => Remote != null;
     }
 
     /// <summary>
@@ -77,10 +86,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml di questo progetto.", $"The root «@{alias}» is not declared in this project's .development.yml."));
             if (root.Status != CodeRootStatus.Linked)
                 throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è utilizzabile su questa macchina: {root.Reason}", $"The root «@{alias}» cannot be used on this machine: {root.Reason}"));
+            if (root.IsRemote)
+                throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» è remota ({root.Remote}): i suoi file stanno sul server, non su questo disco.", $"The root «@{alias}» is remote ({root.Remote}): its files are on the server, not on this disk."));
             var full = Path.GetFullPath(rest.Length == 0 ? root.RootPath : Path.Combine(root.RootPath, rest.Replace('/', Path.DirectorySeparatorChar)));
             if (!PathContainment.IsInside(root.RootPath, full))
                 throw new InvalidOperationException(UiText.Say($"'{path}' esce dalla radice «@{alias}».", $"'{path}' goes outside the root «@{alias}»."));
             return full;
+        }
+
+        /// <summary>
+        /// La radice remota di un percorso <c>@alias/…</c> e il percorso relativo dentro di essa (<c>/</c>, <c>""</c> = la
+        /// radice), per il serverino. Null se la radice è locale; eccezione con il motivo se non è dichiarata, non è
+        /// utilizzabile qui o il percorso esce.
+        /// </summary>
+        public (CodeRootState Root, string Relative)? RemoteOf(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !CodeRootPaths.IsLogical(path)) return null;
+            var (alias, rest) = CodeRootPaths.Parse(path);
+            if (!_byAlias.TryGetValue(alias, out var root) || !root.IsRemote) return null;
+            if (root.Status != CodeRootStatus.Linked)
+                throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è utilizzabile su questa macchina: {root.Reason}", $"The root «@{alias}» cannot be used on this machine: {root.Reason}"));
+            var inside = root.Remote.Combine(rest).RelativeTo(root.Remote);
+            return (root, inside);
         }
 
         /// <summary>
@@ -92,7 +119,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (string.IsNullOrWhiteSpace(absolutePath)) return null;
             var inProject = PathContainment.RelativeOrNull(ProjectPath, absolutePath);
             if (inProject != null) return inProject == "." ? string.Empty : inProject;
-            foreach (var root in Roots.Where(r => r.Status == CodeRootStatus.Linked))
+            foreach (var root in Linked)
             {
                 var rel = PathContainment.RelativeOrNull(root.RootPath, absolutePath);
                 if (rel != null) return CodeRootPaths.Format(root.Alias, rel == "." ? string.Empty : rel);
@@ -100,7 +127,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             return null;
         }
 
-        /// <summary>Le radici collegate: quelle a cui MarkAgent può accedere (F3) e che si possono analizzare.</summary>
-        public IEnumerable<CodeRootState> Linked => Roots.Where(r => r.Status == CodeRootStatus.Linked);
+        /// <summary>
+        /// Le radici collegate su questo disco: quelle a cui MarkAgent accede con i suoi strumenti (F3) e che si possono
+        /// analizzare. Le remote no: i loro file passano dal serverino (<see cref="LinkedRemote"/>).
+        /// </summary>
+        public IEnumerable<CodeRootState> Linked => Roots.Where(r => r.Status == CodeRootStatus.Linked && !r.IsRemote);
+
+        /// <summary>Le radici remote collegate (server raggiunto, serverino partito).</summary>
+        public IEnumerable<CodeRootState> LinkedRemote => Roots.Where(r => r.Status == CodeRootStatus.Linked && r.IsRemote);
     }
 }

@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 /** Lo stato di una radice di codice esterna su questa macchina (sprint 2026-10-12-Radici-Di-Codice-Esterne). */
-export type CodeRootStatus = 'Linked' | 'NotLinked' | 'NotFound' | 'Mismatch';
+export type CodeRootStatus = 'Linked' | 'NotLinked' | 'NotFound' | 'Mismatch' | 'Unreachable';
 
 export interface CodeRoot {
   alias: string;
@@ -16,6 +16,8 @@ export interface CodeRoot {
   status: CodeRootStatus;
   reason: string | null;
   actualRemotes: string[];
+  /** Radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH): la cartella analizzata sul server, ssh://host/…; rootPath è null. */
+  remote: string | null;
 }
 
 export interface CodeRootChanges {

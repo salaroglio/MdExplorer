@@ -246,6 +246,11 @@
     <None Include="Binaries\jena-fuseki-server.jar">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Il serverino per le cartelle remote via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH): eseguibile Linux x64
+         compilato da MdExplorer.RemoteAgent/publish-linux-x64.sh, caricato sui server, mai eseguito qui. -->
+    <None Include="Binaries\remote\linux-x64\mde-remote">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />
@@ -347,6 +352,7 @@
     <ProjectReference Include="..\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator\Ad.Tools.FluentMigrator.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
     <ProjectReference Include="..\MdExplorer.bll\MdExplorer.Features.csproj" />
+    <ProjectReference Include="..\MdExplorer.Remote.Protocol\MdExplorer.Remote.Protocol.csproj" />
     <ProjectReference Include="..\MDExplorer.dal\MDExplorer.DataAccess.csproj" />
     <ProjectReference Include="..\MdExplorer.DataAccess.Engine\MdExplorer.DataAccess.Engine.csproj" />
     <ProjectReference Include="..\MdExplorer.DataAccess.Project\MdExplorer.DataAccess.Project.csproj" />

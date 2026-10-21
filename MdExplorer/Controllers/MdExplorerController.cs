@@ -809,7 +809,10 @@ namespace MdExplorer.Controllers
             string fullPath;
             try
             {
-                fullPath = (await _codeRoots.CreateResolverAsync(GetProjectPath(), HttpContext.RequestAborted)).Resolve(logicalPath);
+                var resolver = await _codeRoots.CreateResolverAsync(GetProjectPath(), HttpContext.RequestAborted);
+                if (resolver.RemoteOf(logicalPath) is { } remote)
+                    return await ShowRemoteCodeRootFile(remote.Root, remote.Relative, logicalPath, rootPathSystem, connectionId, theme, isDetached);
+                fullPath = resolver.Resolve(logicalPath);
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
             {
@@ -826,6 +829,28 @@ namespace MdExplorer.Controllers
             return await ShowTextFile(fullPath, rootPathSystem, connectionId, theme, isDetached, logicalPath);
         }
 
+        /// <summary>
+        /// Un file di una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): il testo arriva dal serverino.
+        /// Binario, non UTF-8, sparito, server irraggiungibile → la pagina dice perché.
+        /// </summary>
+        private async Task<IActionResult> ShowRemoteCodeRootFile(CodeRootState root, string relative, string logicalPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
+        {
+            var location = root.Remote.Combine(relative).ToString();
+            var files = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles>();
+            MdExplorer.RemoteProtocol.RemoteResponse read;
+            try
+            {
+                read = await files.ReadAsync(root, relative, HttpContext.RequestAborted);
+            }
+            catch (MdExplorer.Services.RemoteFolders.RemoteOperationException ex) when (ex.Code is MdExplorer.RemoteProtocol.RemoteErrorCodes.Binary or MdExplorer.RemoteProtocol.RemoteErrorCodes.NotUtf8)
+            {
+                return CodeRootMessagePage(MdExplorer.Features.Services.UiText.Say($"{logicalPath}: non è un file di testo UTF-8, qui non si può mostrare.", $"{logicalPath}: it is not a UTF-8 text file, it cannot be shown here."), rootPathSystem, connectionId, theme);
+            }
+            var text = read.Text ?? string.Empty;
+            var parent = location.Substring(0, location.LastIndexOf('/'));
+            return await ShowText(location, System.Text.Encoding.UTF8.GetByteCount(text), () => text, rootPathSystem, parent, rootPathSystem, connectionId, theme, isDetached, logicalPath);
+        }
+
         private ContentResult CodeRootMessagePage(string message, string fullPathForBase, string connectionId, string theme)
         {
             var body = $@"<div class=""mde-text-file-view""><p class=""mde-text-file-too-big"">{HttpUtility.HtmlEncode(message)}</p></div>";
@@ -837,9 +862,14 @@ namespace MdExplorer.Controllers
             return new ContentResult { ContentType = "text/html; charset=utf-8", Content = html };
         }
 
-        private async Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath = null)
+        private Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath = null)
+            => ShowText(fullPath, new FileInfo(fullPath).Length, () => TextFileView.ReadText(fullPath), Path.GetDirectoryName(fullPath), fullPath, rootPathSystem, connectionId, theme, isDetached, logicalPath);
+
+        /// <param name="fullPath">Il percorso con cui il file si chiama nella pagina e nella barra (su disco, o <c>ssh://…</c>).</param>
+        /// <param name="basePath">Il file da cui la pagina prende la sua base (un file remoto non ne ha una qui: il progetto).</param>
+        private async Task<IActionResult> ShowText(string fullPath, long size, Func<string> readContent, string directory, string basePath,
+            string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath)
         {
-            var size = new FileInfo(fullPath).Length;
             string body;
             if (size > TextFileView.MaxBytes)
             {
@@ -851,7 +881,7 @@ namespace MdExplorer.Controllers
             }
             else
             {
-                var content = TextFileView.ReadText(fullPath);
+                var content = readContent();
                 body = $@"<div class=""mde-text-file-view"">{TextFileView.ContainerHtml(Guid.NewGuid().ToString("N"), fullPath, TextFileView.LanguageFor(fullPath), content)}</div>";
             }
 
@@ -862,7 +892,7 @@ namespace MdExplorer.Controllers
                 // Un file di una radice esterna si chiama col suo percorso logico, non con un ../../ dal progetto.
                 RelativePath = logicalPath ?? Path.GetRelativePath(rootPathSystem, fullPath),
                 FullPath = fullPath,
-                FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                FullDirectoryPath = directory
             };
             // The document toolbar acts on the file the panel shows, whatever its kind.
             if (!isDetached)
@@ -871,7 +901,7 @@ namespace MdExplorer.Controllers
             }
 
             var doc1 = new XmlDocument();
-            CreateHTMLBody(body, doc1, fullPath, connectionId, GetProjectPath(), theme, sourceHash: "", viewKind: "text");
+            CreateHTMLBody(body, doc1, basePath, connectionId, GetProjectPath(), theme, sourceHash: "", viewKind: "text");
             var htmlContent = doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true"
                 ? doc1.DocumentElement.InnerText
                 : doc1.InnerXml;

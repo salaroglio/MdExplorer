@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using MdExplorer.Remote.Protocol;
+using MdExplorer.RemoteProtocol;
 using MdExplorer.RemoteAgent;
 
 // mde-remote --version            → stampa la versione ed esce
@@ -19,7 +19,7 @@ var at = Array.IndexOf(args, "--root");
 if (at < 0 || at + 1 >= args.Length)
 {
     Console.Error.WriteLine("usage: mde-remote --root <folder> | --version");
-    return RemoteProtocol.ExitBadArguments;
+    return AgentProtocol.ExitBadArguments;
 }
 RemoteWorkspace workspace;
 try
@@ -29,7 +29,7 @@ try
 catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
 {
     Console.Error.WriteLine(ex.Message);
-    return RemoteProtocol.ExitRootNotFound;
+    return AgentProtocol.ExitRootNotFound;
 }
 var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 using var input = new StreamReader(Console.OpenStandardInput(), utf8);

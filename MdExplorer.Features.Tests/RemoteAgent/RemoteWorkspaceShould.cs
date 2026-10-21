@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
-using MdExplorer.Remote.Protocol;
+using MdExplorer.RemoteProtocol;
 using MdExplorer.RemoteAgent;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

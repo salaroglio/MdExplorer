@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace MdExplorer.Remote.Protocol
+namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Una richiesta. I percorsi sono relativi alla radice con <c>/</c> come separatore; <c>""</c> è la radice.
