@@ -6,7 +6,7 @@ using MdExplorer.Features.Services;
 namespace MdExplorer.Services.RemoteFolders
 {
     /// <summary>
-    /// Il serverino che MDE carica sui server (<c>Binaries/remote/linux-x64/mde-remote</c>, compilato da
+    /// MDE Remote che MDE carica sui server (<c>Binaries/remote/linux-x64/mde-remote</c>, compilato da
     /// <c>MdExplorer.RemoteAgent/publish-linux-x64.sh</c>). Sul server sta in <c>~/.cache/mdexplorer/&lt;impronta&gt;/</c>:
     /// l'impronta è lo SHA256 del file (calcolato qui, dove OpenSSL c'è), così un binario cambiato si ricarica sempre
     /// anche se nessuno alza la versione, e due versioni di MDE sullo stesso server non si pestano i piedi.
@@ -26,7 +26,7 @@ namespace MdExplorer.Services.RemoteFolders
         }
 
         /// <summary>
-        /// La cartella del serverino sul server: <paramref name="baseFolder"/> (assoluta, o relativa alla home; null =
+        /// La cartella di MDE Remote sul server: <paramref name="baseFolder"/> (assoluta, o relativa alla home; null =
         /// <c>~/.cache/mdexplorer</c>) più l'impronta. <c>Shell</c> la scrive per sh; <c>Display</c> per le persone.
         /// </summary>
         public (string Shell, string Display) InstallFolder(string baseFolder)
@@ -41,8 +41,8 @@ namespace MdExplorer.Services.RemoteFolders
         {
             if (!File.Exists(localPath))
                 throw new RemoteUnavailableException(RemoteGate.AgentFolder, UiText.Say(
-                    $"Il serverino per le cartelle remote non è in questa installazione ({localPath}). Va compilato con MdExplorer.RemoteAgent/publish-linux-x64.sh.",
-                    $"The agent for remote folders is not in this installation ({localPath}). Build it with MdExplorer.RemoteAgent/publish-linux-x64.sh."));
+                    $"MDE Remote per le cartelle remote non è in questa installazione ({localPath}). Va compilato con MdExplorer.RemoteAgent/publish-linux-x64.sh.",
+                    $"MDE Remote (the component for remote folders) is not in this installation ({localPath}). Build it with MdExplorer.RemoteAgent/publish-linux-x64.sh."));
             using var stream = File.OpenRead(localPath);
             var hash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
             return new RemoteAgentBinary(localPath, new FileInfo(localPath).Length, hash.Substring(0, 16));

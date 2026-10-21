@@ -788,6 +788,19 @@
     "CODE_ROOTS": "Radici di codice esterne…",
     "CODE_ROOT_BROWSE_FAILED": "Non riesco ad aprire la cartella: {{error}}"
   },
+  "CODE_ROOT_ENCODINGS": {
+    "MENU": "Codifiche dei file…",
+    "TITLE": "Codifiche dei file di @{{alias}}",
+    "INTRO": "Per estensione: un file con un'estensione elencata si legge e si scrive in quella codifica, senza stime. Un'estensione non elencata è UTF-8; se il file non lo è, MDE stima la codifica dal contenuto.",
+    "EXTENSIONS": "Estensioni",
+    "ENCODING": "Codifica",
+    "ADD": "Aggiungi una regola",
+    "REMOVE": "Togli la regola",
+    "NONE": "Nessuna regola: tutto UTF-8, con la stima per i file che non lo sono.",
+    "NOTE": "Si salva nel .development.yml, su Git: vale per tutto il team. Un BOM nel file vince comunque.",
+    "SAVE": "Salva",
+    "SAVED": "Codifiche salvate: i file si aprono con la regola nuova."
+  },
   "REMOTE_PICKER": {
     "TITLE": "Cartella su un server per @{{alias}}",
     "INTRO": "MDE entra nel server con il tuo ssh (le chiavi e ~/.ssh/config del terminale): non chiede password e nella cartella del progetto remoto non scrive niente di suo.",
@@ -795,13 +808,13 @@
     "HOST_HINT": "Come lo scriveresti dopo «ssh»: un alias di ~/.ssh/config, utente@server, utente@server:porta",
     "CONNECT": "Entra",
     "CONNECTING": "Collegamento al server…",
-    "CONSENT_TITLE": "Serve il serverino di MDE su questo server",
+    "CONSENT_TITLE": "Serve MDE Remote su questo server",
     "CONSENT_SERVER": "Server",
     "CONSENT_WHERE": "Dove",
     "CONSENT_SIZE": "Dimensione",
     "CONSENT_NOTE": "Un solo eseguibile, fuori dal progetto, che gira solo finché MDE è collegato e con i tuoi permessi (mai sudo). Se la policy del server non permette di caricare programmi, non proseguire.",
     "CONSENT_YES": "Carica e continua",
-    "AGENT_FOLDER": "Cartella del serverino su questo server",
+    "AGENT_FOLDER": "Cartella di MDE Remote su questo server",
     "AGENT_FOLDER_HINT": "Vuota = quella indicata. Assoluta (/opt/…) o relativa alla home; serve se la home non permette di eseguire programmi (noexec).",
     "SAVE_AND_RETRY": "Salva e riprova",
     "FOLDER": "Cartella",
@@ -812,13 +825,20 @@
     "LINK_THIS": "Collega questa cartella"
   },
   "REMOTE_EDITOR": {
-    "ENCODING_HINT": "Il file è in {{encoding}}: si riscrive in {{encoding}}, e un carattere che non ha (es. un'emoji) non si può salvare.",
+    "ENCODING_HINT": "Il file è letto in {{encoding}} e si salva in {{encoding}}; un carattere che non ha (es. un'emoji) non si può salvare. Dal menu: rileggerlo in un'altra codifica, riparare un file misto, convertirlo.",
     "SAVE": "Salva",
     "SAVED": "Salvato.",
     "RELOAD": "Ricarica dal server",
     "DISCARD_TITLE": "Modifiche non salvate",
     "DISCARD_MESSAGE": "{{path}} ha modifiche non salvate: chiudendo si perdono.",
-    "DISCARD": "Chiudi senza salvare"
+    "DISCARD": "Chiudi senza salvare",
+    "ON_SAVE": "al salvataggio",
+    "READ_AS": "Rileggi come",
+    "REPAIR_MIXED": "Ripara codifica mista",
+    "SAVE_IN": "Salva in",
+    "REPAIRED_NOTE": "Riparato: le parti UTF-8 e quelle {{encoding}} sono ricomposte. Controlla il testo, poi salva: il file sarà tutto in {{encoding}}.",
+    "READ_AS_NOTE": "Riletto come {{encoding}}: salvando resta in {{encoding}}.",
+    "CONVERT_NOTE": "Al salvataggio il file sarà convertito in {{encoding}}."
   },
   "REMOTE_TREE": {
     "NEW_FILE": "Nuovo file",

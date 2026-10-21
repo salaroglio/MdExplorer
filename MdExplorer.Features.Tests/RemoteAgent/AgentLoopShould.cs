@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace MdExplorer.Features.Tests.RemoteAgent
 {
-    /// <summary>Sprint Cartella-Remota-Via-SSH, F1: il ciclo JSON su stdin/stdout del serverino.</summary>
+    /// <summary>Sprint Cartella-Remota-Via-SSH, F1: il ciclo JSON su stdin/stdout di MDE Remote.</summary>
     [TestClass]
     public class AgentLoopShould
     {

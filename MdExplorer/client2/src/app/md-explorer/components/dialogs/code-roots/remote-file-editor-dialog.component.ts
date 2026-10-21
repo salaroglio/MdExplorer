@@ -11,8 +11,8 @@ export interface RemoteFileEditorData {
 }
 
 /**
- * Modifica un file di una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3): il testo arriva dal serverino
- * con la sua impronta; salvando la si ripresenta, e se nel frattempo qualcun altro l'ha cambiato il serverino rifiuta
+ * Modifica un file di una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3): il testo arriva da MDE Remote
+ * con la sua impronta; salvando la si ripresenta, e se nel frattempo qualcun altro l'ha cambiato MDE Remote rifiuta
  * (P6) — si ricarica, non si sovrascrive. Ctrl+S salva. Chiude con true se ha salvato almeno una volta.
  */
 @Component({
@@ -21,7 +21,21 @@ export interface RemoteFileEditorData {
     <div mat-dialog-title class="dialog-header">
       <mat-icon class="dialog-icon">edit_note</mat-icon>
       <span class="editor-title">{{ data.path }}</span>
-      <span class="encoding" *ngIf="encodingLabel" [matTooltip]="'REMOTE_EDITOR.ENCODING_HINT' | translate: { encoding: encodingLabel }">{{ encodingLabel }}</span>
+      <span class="spacer"></span>
+      <!-- La codifica (l'utente, 21/10: se un LLM rovina la codifica, raddrizzarla da MDE): quella in cui il file è letto e
+           sarà salvato; il menu rilegge, ripara un file misto, o converte al salvataggio. -->
+      <button mat-stroked-button class="encoding-button" [matMenuTriggerFor]="encodingMenu" [disabled]="loading || saving"
+              [matTooltip]="'REMOTE_EDITOR.ENCODING_HINT' | translate: { encoding: labelOf(encoding) }">
+        <mat-icon>translate</mat-icon> {{ labelOf(encoding) }}<span *ngIf="converting"> → {{ 'REMOTE_EDITOR.ON_SAVE' | translate }}</span>
+      </button>
+      <mat-menu #encodingMenu="matMenu">
+        <div class="menu-title" mat-menu-item disabled>{{ 'REMOTE_EDITOR.READ_AS' | translate }}</div>
+        <button mat-menu-item *ngFor="let e of encodings" (click)="readAs(e)"><mat-icon>visibility</mat-icon>{{ labelOf(e) }}</button>
+        <div class="menu-title" mat-menu-item disabled>{{ 'REMOTE_EDITOR.REPAIR_MIXED' | translate }}</div>
+        <button mat-menu-item *ngFor="let e of eightBit" (click)="readAs('mixed-' + e)"><mat-icon>healing</mat-icon>UTF-8 + {{ labelOf(e) }}</button>
+        <div class="menu-title" mat-menu-item disabled>{{ 'REMOTE_EDITOR.SAVE_IN' | translate }}</div>
+        <button mat-menu-item *ngFor="let e of encodings" (click)="convertTo(e)" [disabled]="e === encoding"><mat-icon>save_as</mat-icon>{{ labelOf(e) }}</button>
+      </mat-menu>
       <span class="dirty" *ngIf="dirty">●</span>
     </div>
     <mat-dialog-content class="editor-content">
@@ -29,6 +43,7 @@ export interface RemoteFileEditorData {
       <textarea *ngIf="!loading && loaded" class="editor" [(ngModel)]="text" (ngModelChange)="dirty = true" spellcheck="false" wrap="off"></textarea>
       <div class="error" *ngIf="errorMessage"><mat-icon>error</mat-icon><span>{{ errorMessage }}</span></div>
       <div class="saved" *ngIf="savedNote && !dirty">{{ 'REMOTE_EDITOR.SAVED' | translate }}</div>
+      <div class="repair-note" *ngIf="encodingNote">{{ encodingNote }}</div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button *ngIf="changedOnServer" (click)="load()"><mat-icon>refresh</mat-icon> {{ 'REMOTE_EDITOR.RELOAD' | translate }}</button>
@@ -45,7 +60,11 @@ export interface RemoteFileEditorData {
       background: var(--mde-surface-2, rgba(0,0,0,0.03)); color: inherit; }
     .editor-title { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; word-break: break-all; }
     .dirty { color: var(--mde-accent, #1976d2); }
-    .encoding { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: 0.75; }
+    .spacer { flex: 1; }
+    .encoding-button { font-size: 12px; line-height: 28px; height: 30px; }
+    .encoding-button mat-icon { font-size: 16px; width: 16px; height: 16px; margin-right: 4px; }
+    .menu-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; height: 32px; line-height: 32px; }
+    .repair-note { font-size: 12px; color: var(--mde-accent, #1976d2); }
     .saved { font-size: 12px; opacity: 0.7; }
   `]
 })
@@ -58,8 +77,14 @@ export class RemoteFileEditorDialogComponent implements OnInit {
   public savedNote = false;
   public changedOnServer = false;
   public errorMessage = '';
-  /** La codifica del file se non è UTF-8 («CP-850»): si riscrive in quella. */
-  public encodingLabel = '';
+  /** La codifica in cui il file è letto e sarà salvato (utf-8, ibm850, windows-1252, utf-16…). */
+  public encoding = '';
+  /** Al salvataggio il file cambia codifica (convertito, o riparato da una lettura mista). */
+  public converting = false;
+  public encodingNote = '';
+  public readonly encodings = ['utf-8', 'ibm850', 'windows-1252'];
+  public readonly eightBit = ['ibm850', 'windows-1252'];
+  public readonly labelOf = labelOf;
   private stamp = '';
   private savedOnce = false;
 
@@ -73,15 +98,38 @@ export class RemoteFileEditorDialogComponent implements OnInit {
 
   ngOnInit(): void { this.load(); }
 
-  load(): void {
+  /** @param as una codifica scelta (Rileggi come / Ripara); assente = riconosciuta dal contenuto. */
+  load(as?: string): void {
     this.loading = true; this.errorMessage = ''; this.changedOnServer = false;
-    this.roots$.file(this.data.projectRoot, 'read', this.data.path).subscribe({
+    this.roots$.file(this.data.projectRoot, 'read', this.data.path, as ? { encoding: as } : {}).subscribe({
       next: r => {
         this.text = r.text ?? ''; this.stamp = r.stamp ?? ''; this.loading = false; this.loaded = true; this.dirty = false;
-        this.encodingLabel = labelOf(r.encoding);
+        this.converting = false; this.encodingNote = '';
+        const read = r.encoding ?? 'utf-8';
+        if (read.startsWith('mixed-')) {
+          // riparato: il testo è ricomposto, si salva in UNA codifica (quella a 8 bit scelta)
+          this.encoding = read.substring('mixed-'.length);
+          this.converting = true; this.dirty = true;
+          this.encodingNote = this.translate.instant('REMOTE_EDITOR.REPAIRED_NOTE', { encoding: labelOf(this.encoding) });
+        } else {
+          this.encoding = read;
+          if (as) { this.encodingNote = this.translate.instant('REMOTE_EDITOR.READ_AS_NOTE', { encoding: labelOf(read) }); }
+        }
       },
       error: err => { this.loading = false; this.errorMessage = this.messageOf(err); },
     });
+  }
+
+  readAs(encoding: string): void {
+    if (!this.dirty || encoding.startsWith('mixed-')) { this.load(encoding); return; }
+    this.confirmDiscard(() => this.load(encoding));
+  }
+
+  /** Al salvataggio il file si riscrive in questa codifica. */
+  convertTo(encoding: string): void {
+    this.encoding = encoding;
+    this.converting = true; this.dirty = true;
+    this.encodingNote = this.translate.instant('REMOTE_EDITOR.CONVERT_NOTE', { encoding: labelOf(encoding) });
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -92,8 +140,12 @@ export class RemoteFileEditorDialogComponent implements OnInit {
   save(): void {
     if (!this.loaded || this.saving || !this.dirty) { return; }
     this.saving = true; this.errorMessage = '';
-    this.roots$.file(this.data.projectRoot, 'write', this.data.path, { text: this.text, stamp: this.stamp }).subscribe({
-      next: r => { this.saving = false; this.stamp = r.stamp ?? this.stamp; this.dirty = false; this.savedNote = true; this.savedOnce = true; },
+    // la codifica esplicita, quella che si vede: niente stima al salvataggio
+    this.roots$.file(this.data.projectRoot, 'write', this.data.path, { text: this.text, stamp: this.stamp, encoding: this.encoding || undefined }).subscribe({
+      next: r => {
+        this.saving = false; this.stamp = r.stamp ?? this.stamp; this.dirty = false; this.savedNote = true; this.savedOnce = true;
+        this.converting = false; this.encodingNote = '';
+      },
       error: err => {
         this.saving = false;
         this.errorMessage = this.messageOf(err);
@@ -104,6 +156,10 @@ export class RemoteFileEditorDialogComponent implements OnInit {
 
   close(): void {
     if (!this.dirty) { this.dialogRef.close(this.savedOnce); return; }
+    this.confirmDiscard(() => this.dialogRef.close(this.savedOnce));
+  }
+
+  private confirmDiscard(then: () => void): void {
     const data: CodeRootNameDialogData = {
       title: this.translate.instant('REMOTE_EDITOR.DISCARD_TITLE'),
       message: this.translate.instant('REMOTE_EDITOR.DISCARD_MESSAGE', { path: this.data.path }),
@@ -111,7 +167,7 @@ export class RemoteFileEditorDialogComponent implements OnInit {
       danger: true,
     };
     this.dialog.open(CodeRootNameDialogComponent, { width: '420px', data })
-      .afterClosed().subscribe(ok => { if (ok === true) { this.dialogRef.close(this.savedOnce); } });
+      .afterClosed().subscribe(ok => { if (ok === true) { then(); } });
   }
 
   private messageOf(err: any): string {
@@ -121,8 +177,9 @@ export class RemoteFileEditorDialogComponent implements OnInit {
 
 /** Il nome da mostrare per una codifica non UTF-8 (come TextDecoding.DisplayName nel backend); vuoto per UTF-8. */
 function labelOf(encoding?: string): string {
+  if (encoding?.startsWith('mixed-')) { return 'UTF-8 + ' + labelOf(encoding.substring('mixed-'.length)); }
   switch (encoding) {
-    case undefined: case null: case '': case 'utf-8': return '';
+    case undefined: case null: case '': case 'utf-8': return 'UTF-8';
     case 'ibm850': return 'CP-850';
     case 'windows-1252': return 'CP-1252';
     case 'utf-16': return 'UTF-16 LE';

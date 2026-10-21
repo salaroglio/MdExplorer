@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace MdExplorer.Features.Tests.RemoteAgent
 {
-    /// <summary>Sprint Cartella-Remota-Via-SSH, F1: le operazioni del serverino dentro una radice.</summary>
+    /// <summary>Sprint Cartella-Remota-Via-SSH, F1: le operazioni di MDE Remote dentro una radice.</summary>
     [TestClass]
     public class RemoteWorkspaceShould
     {

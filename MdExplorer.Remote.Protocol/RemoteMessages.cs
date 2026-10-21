@@ -4,7 +4,7 @@ namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Una richiesta. I percorsi sono relativi alla radice con <c>/</c> come separatore; <c>""</c> è la radice.
-    /// Ogni operazione usa solo i suoi campi (vedi il piano, «F1 — il serverino»).
+    /// Ogni operazione usa solo i suoi campi (vedi il piano, «F1 — MDE Remote»).
     /// </summary>
     public sealed class RemoteRequest
     {
@@ -19,10 +19,20 @@ namespace MdExplorer.RemoteProtocol
         public string? Stamp { get; set; }
         /// <summary><c>delete</c>: una cartella non vuota si cancella solo se richiesto.</summary>
         public bool Recursive { get; set; }
+        /// <summary>
+        /// <c>read</c>: rileggere in questa codifica invece di riconoscerla (anche <c>mixed-ibm850</c>); <c>write</c>:
+        /// scrivere in questa (convertire). Assente = riconosciuta dal contenuto, come sempre.
+        /// </summary>
+        public string? Encoding { get; set; }
+        /// <summary>
+        /// Le codifiche della radice per estensione (<c>.cbl</c> → <c>ibm850</c>), impostate dall'utente: decidono prima di
+        /// ogni stima, in lettura, scrittura e ricerca. Un'estensione non elencata: UTF-8, e se non lo è la stima.
+        /// </summary>
+        public Dictionary<string, string>? ExtensionEncodings { get; set; }
         /// <summary><c>grep</c>: espressione regolare .NET.</summary>
         public string? Pattern { get; set; }
         public bool IgnoreCase { get; set; }
-        /// <summary><c>grep</c>: al più tante righe; 0 = il default del serverino.</summary>
+        /// <summary><c>grep</c>: al più tante righe; 0 = il default di MDE Remote.</summary>
         public int MaxHits { get; set; }
         /// <summary><c>grep</c>: nomi di cartelle da saltare (il backend manda <c>.git</c>).</summary>
         public List<string>? Exclude { get; set; }
@@ -54,7 +64,7 @@ namespace MdExplorer.RemoteProtocol
         public string Message { get; set; } = "";
     }
 
-    /// <summary>Il saluto (id 0) con cui il serverino dice che è pronto.</summary>
+    /// <summary>Il saluto (id 0) con cui MDE Remote dice che è pronto.</summary>
     public sealed class RemoteHello
     {
         public int Protocol { get; set; }

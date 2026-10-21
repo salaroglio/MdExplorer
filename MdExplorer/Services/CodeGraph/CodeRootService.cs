@@ -52,6 +52,9 @@ namespace MdExplorer.Services.CodeGraph
         /// <summary>Dimentica dove sta la radice su questa macchina; la dichiarazione nel progetto resta (è del team).</summary>
         void Unlink(string projectPath, string alias);
 
+        /// <summary>Le codifiche per estensione della radice (nel <c>.development.yml</c>, su Git). Eccezione con il motivo se non sono valide.</summary>
+        Task<CodeRootState> SetEncodingsAsync(string projectPath, string alias, IReadOnlyList<CodeRootEncodingRule> rules, CancellationToken ct = default);
+
         /// <summary>
         /// Ramo e file modificati del repository di una radice collegata (radici esterne F5, R6): per vedere che cosa ha
         /// toccato MarkAgent prima di committare con i propri strumenti. Solo lettura.
@@ -118,7 +121,7 @@ namespace MdExplorer.Services.CodeGraph
                 Alias = root.Alias, Repository = root.Repository, Subpath = root.Subpath ?? string.Empty,
                 Tags = root.Tags ?? new List<string>(), Languages = root.CodeGraph?.Languages ?? new List<string>(),
                 LocalPath = local, RootPath = rootPath, Status = status, Reason = reason, ActualRemotes = remotes ?? Array.Empty<string>(),
-                Remote = remote,
+                Remote = remote, ExtensionEncodings = EncodingMap(root),
             };
 
             if (local != null && RemoteLocation.IsRemote(local))
@@ -145,9 +148,9 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>
-        /// Una radice su un server (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): collegata se il serverino parte sulla
+        /// Una radice su un server (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): collegata se MDE Remote parte sulla
         /// cartella analizzata e, con un repository dichiarato, se i remote letti da <c>.git</c> sul server sono quelli (R7).
-        /// Server irraggiungibile o serverino fermo → <see cref="CodeRootStatus.Unreachable"/> con la porta chiusa.
+        /// Server irraggiungibile o MDE Remote fermo → <see cref="CodeRootStatus.Unreachable"/> con la porta chiusa.
         /// </summary>
         private async Task<CodeRootState> RemoteStateOfAsync(CodeRootConfig root, string local,
             Func<CodeRootStatus, string, string, IReadOnlyList<string>, RemoteLocation, CodeRootState> state, CancellationToken ct)
@@ -203,7 +206,7 @@ namespace MdExplorer.Services.CodeGraph
             return new Place(chosen, top, remotes, t => Relative(t, chosen), (sub, _) => Task.FromResult(Directory.Exists(Combine(top, sub))));
         }
 
-        /// <summary>Una cartella su un server: il serverino deve partire lì (porte P10), e i remote si leggono da <c>.git</c> sul server.</summary>
+        /// <summary>Una cartella su un server: MDE Remote deve partire lì (porte P10), e i remote si leggono da <c>.git</c> sul server.</summary>
         private async Task<Place> InspectRemoteAsync(string localPath, CancellationToken ct)
         {
             var chosen = RemoteLocation.Parse(localPath);
@@ -286,6 +289,61 @@ namespace MdExplorer.Services.CodeGraph
             }
             finally { _configGate.Release(); }
         }
+
+        public async Task<CodeRootState> SetEncodingsAsync(string projectPath, string alias, IReadOnlyList<CodeRootEncodingRule> rules, CancellationToken ct = default)
+        {
+            CodeRootPaths.RequireAlias(alias);
+            var normalized = NormalizeEncodings(rules);
+            await _configGate.WaitAsync(ct);
+            CodeRootConfig root;
+            try
+            {
+                var config = ReadConfig(projectPath);
+                root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)
+                    ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml.", $"The root «@{alias}» is not declared in .development.yml."));
+                root.Encodings = normalized.Count == 0 ? null : normalized;
+                WriteConfig(projectPath, config);
+            }
+            finally { _configGate.Release(); }
+            _logger.LogInformation("[CodeRoots] '{Project}': @{Alias} codifiche {Rules}", projectPath, alias,
+                string.Join("; ", normalized.Select(r => string.Join(",", r.Extensions) + " → " + r.Encoding)));
+            return await StateOfAsync(projectPath, root, ct);
+        }
+
+        /// <summary>
+        /// Estensioni con il punto e in minuscolo, codifiche fra quelle assegnabili, un'estensione in una regola sola, regole
+        /// vuote tolte. Niente correzioni silenziose: un errore dice che cosa non va.
+        /// </summary>
+        public static List<CodeRootEncodingRule> NormalizeEncodings(IReadOnlyList<CodeRootEncodingRule> rules)
+        {
+            var result = new List<CodeRootEncodingRule>();
+            var seen = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var rule in rules ?? Array.Empty<CodeRootEncodingRule>())
+            {
+                var exts = (rule.Extensions ?? new List<string>())
+                    .SelectMany(e => (e ?? "").Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    .Select(e => (e.StartsWith(".", StringComparison.Ordinal) ? e : "." + e).ToLowerInvariant())
+                    .Distinct(StringComparer.Ordinal).ToList();
+                if (exts.Count == 0) continue;
+                if (!MdExplorer.RemoteProtocol.TextDecoding.Assignable.Contains(rule.Encoding))
+                    throw new InvalidOperationException(UiText.Say($"«{rule.Encoding}» non è una codifica che MDE sa usare: scegli fra UTF-8, CP-850, CP-1252, UTF-16.", $"«{rule.Encoding}» is not an encoding MDE can use: choose among UTF-8, CP-850, CP-1252, UTF-16."));
+                foreach (var e in exts)
+                {
+                    if (e.Length < 2 || e.IndexOfAny(new[] { '/', '\\', '*', '?' }) >= 0)
+                        throw new InvalidOperationException(UiText.Say($"«{e}» non è un'estensione (es. .cbl).", $"«{e}» is not an extension (e.g. .cbl)."));
+                    if (seen.TryGetValue(e, out var other))
+                        throw new InvalidOperationException(UiText.Say($"L'estensione {e} è assegnata due volte ({other} e {rule.Encoding}).", $"The extension {e} is assigned twice ({other} and {rule.Encoding})."));
+                    seen[e] = rule.Encoding;
+                }
+                result.Add(new CodeRootEncodingRule { Extensions = exts, Encoding = rule.Encoding });
+            }
+            return result;
+        }
+
+        private static IReadOnlyDictionary<string, string> EncodingMap(CodeRootConfig root)
+            => (root.Encodings ?? new List<CodeRootEncodingRule>())
+                .SelectMany(r => (r.Extensions ?? new List<string>()).Select(e => (Ext: e.ToLowerInvariant(), r.Encoding)))
+                .GroupBy(x => x.Ext).ToDictionary(g => g.Key, g => g.First().Encoding, StringComparer.Ordinal);
 
         public void Unlink(string projectPath, string alias)
         {

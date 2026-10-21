@@ -51,7 +51,7 @@ namespace MdExplorer.Service
             // Radici di codice esterne (sprint 2026-10-12): identità nel .development.yml, posizione nello UserDB
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootBindingStore, MdExplorer.Services.CodeGraph.UserDbCodeRootBindingStore>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootService, MdExplorer.Services.CodeGraph.CodeRootService>();
-            // Cartelle remote via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): ssh di sistema, un serverino per cartella.
+            // Cartelle remote via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): ssh di sistema, MDE Remote per cartella.
             services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteServerSettings, MdExplorer.Services.RemoteFolders.UserDbRemoteServerSettings>();
             services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteTransport>(_ => new MdExplorer.Services.RemoteFolders.SshTransport());
             services.AddSingleton<MdExplorer.Services.RemoteFolders.IRemoteSessions>(sp => new MdExplorer.Services.RemoteFolders.RemoteSessions(

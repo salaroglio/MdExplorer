@@ -788,6 +788,19 @@
     "CODE_ROOTS": "External code roots…",
     "CODE_ROOT_BROWSE_FAILED": "Cannot open the folder: {{error}}"
   },
+  "CODE_ROOT_ENCODINGS": {
+    "MENU": "File encodings…",
+    "TITLE": "File encodings of @{{alias}}",
+    "INTRO": "By extension: a file with a listed extension is read and written in that encoding, with no guessing. An extension not listed is UTF-8; if the file is not, MDE guesses the encoding from the content.",
+    "EXTENSIONS": "Extensions",
+    "ENCODING": "Encoding",
+    "ADD": "Add a rule",
+    "REMOVE": "Remove the rule",
+    "NONE": "No rules: everything UTF-8, with guessing for files that are not.",
+    "NOTE": "Saved in .development.yml, on Git: it applies to the whole team. A BOM in the file wins anyway.",
+    "SAVE": "Save",
+    "SAVED": "Encodings saved: files open with the new rule."
+  },
   "REMOTE_PICKER": {
     "TITLE": "Folder on a server for @{{alias}}",
     "INTRO": "MDE gets into the server with your ssh (the terminal's keys and ~/.ssh/config): it asks no passwords and writes nothing of its own in the remote project folder.",
@@ -795,13 +808,13 @@
     "HOST_HINT": "As you would write it after «ssh»: an ~/.ssh/config alias, user@server, user@server:port",
     "CONNECT": "Connect",
     "CONNECTING": "Connecting to the server…",
-    "CONSENT_TITLE": "MDE's agent is needed on this server",
+    "CONSENT_TITLE": "MDE Remote is needed on this server",
     "CONSENT_SERVER": "Server",
     "CONSENT_WHERE": "Where",
     "CONSENT_SIZE": "Size",
     "CONSENT_NOTE": "A single executable, outside the project, running only while MDE is connected and with your permissions (never sudo). If the server policy does not allow uploading programs, do not continue.",
     "CONSENT_YES": "Upload and continue",
-    "AGENT_FOLDER": "Agent folder on this server",
+    "AGENT_FOLDER": "MDE Remote folder on this server",
     "AGENT_FOLDER_HINT": "Empty = the one shown. Absolute (/opt/…) or relative to the home; needed if the home does not allow running programs (noexec).",
     "SAVE_AND_RETRY": "Save and retry",
     "FOLDER": "Folder",
@@ -812,13 +825,20 @@
     "LINK_THIS": "Link this folder"
   },
   "REMOTE_EDITOR": {
-    "ENCODING_HINT": "The file is in {{encoding}}: it is written back in {{encoding}}, and a character it does not have (e.g. an emoji) cannot be saved.",
+    "ENCODING_HINT": "The file is read in {{encoding}} and saved in {{encoding}}; a character it does not have (e.g. an emoji) cannot be saved. From the menu: read it in another encoding, repair a mixed file, convert it.",
     "SAVE": "Save",
     "SAVED": "Saved.",
     "RELOAD": "Reload from the server",
     "DISCARD_TITLE": "Unsaved changes",
     "DISCARD_MESSAGE": "{{path}} has unsaved changes: closing loses them.",
-    "DISCARD": "Close without saving"
+    "DISCARD": "Close without saving",
+    "ON_SAVE": "on save",
+    "READ_AS": "Read as",
+    "REPAIR_MIXED": "Repair mixed encoding",
+    "SAVE_IN": "Save in",
+    "REPAIRED_NOTE": "Repaired: the UTF-8 and {{encoding}} parts are put back together. Check the text, then save: the file will be all {{encoding}}.",
+    "READ_AS_NOTE": "Read as {{encoding}}: saving keeps it {{encoding}}.",
+    "CONVERT_NOTE": "On save the file will be converted to {{encoding}}."
   },
   "REMOTE_TREE": {
     "NEW_FILE": "New file",

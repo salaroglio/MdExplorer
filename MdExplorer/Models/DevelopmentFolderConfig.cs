@@ -128,6 +128,21 @@ namespace MdExplorer.Service.Models
 
         /// <summary>I linguaggi da analizzare, come per le cartelle interne.</summary>
         public FolderCodeGraphConfig CodeGraph { get; set; }
+
+        /// <summary>
+        /// Le codifiche dei file per estensione (sprint 2026-10-21-Cartella-Remota-Via-SSH: «.cbl, .cpy → CP-850»), dal menu
+        /// della radice. Su Git: la codifica è del codice, uguale per tutti. Un'estensione non elencata: UTF-8, e se il file
+        /// non lo è la stima.
+        /// </summary>
+        public List<CodeRootEncodingRule> Encodings { get; set; }
+    }
+
+    public class CodeRootEncodingRule
+    {
+        /// <summary>Con il punto, minuscole: <c>.cbl</c>.</summary>
+        public List<string> Extensions { get; set; } = new List<string>();
+        /// <summary><c>ibm850</c>, <c>windows-1252</c>, <c>utf-8</c>, <c>utf-16</c>, <c>utf-16BE</c>.</summary>
+        public string Encoding { get; set; }
     }
 
     /// <summary>

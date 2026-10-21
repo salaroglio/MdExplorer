@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
-    /// Le operazioni sui file dentro una radice. Regole (piano, «F1 — il serverino»): nessun percorso esce dalla radice,
+    /// Le operazioni sui file dentro una radice. Regole (piano, «F1 — MDE Remote»): nessun percorso esce dalla radice,
     /// i link simbolici non si seguono, una scrittura presenta l'impronta letta, il testo si riscrive nella sua codifica (UTF-8,
     /// CP-850, CP-1252, UTF-16, riconosciuta dal contenuto) e il BOM si conserva.
     /// </summary>
@@ -21,6 +21,17 @@ namespace MdExplorer.RemoteProtocol
 
         /// <summary>La radice assoluta, senza separatore finale.</summary>
         public string Root { get; }
+
+        /// <summary>Le codifiche per estensione della radice (arrivano con ogni richiesta; vedi <see cref="TextDecoding.ForExtension"/>).</summary>
+        public IReadOnlyDictionary<string, string>? ExtensionEncodings { get; set; }
+
+        /// <summary>Il testo di un file: la codifica dell'estensione se assegnata, altrimenti UTF-8 o la stima. Null = binario.</summary>
+        private DecodedText? DecodeFile(string fullPath, byte[] bytes)
+        {
+            var assigned = TextDecoding.ForExtension(fullPath, bytes, ExtensionEncodings);
+            if (assigned != null) return bytes.AsSpan().IndexOf((byte)0) >= 0 && !assigned.StartsWith("utf-16", StringComparison.Ordinal) ? null : TextDecoding.DecodeAs(bytes, assigned);
+            return TextDecoding.Decode(bytes);
+        }
 
         public RemoteWorkspace(string root)
         {
@@ -52,16 +63,20 @@ namespace MdExplorer.RemoteProtocol
         }
 
         /// <summary>Il testo nella sua codifica, riconosciuta dal contenuto (<see cref="TextDecoding"/>): UTF-8, CP-850, CP-1252, UTF-16.</summary>
-        public (string Text, string Stamp, bool Bom, string Encoding) Read(string? path)
+        /// <param name="encoding">Rileggere in questa invece di riconoscerla (l'editor, «Rileggi come» / «Ripara»).</param>
+        public (string Text, string Stamp, bool Bom, string Encoding) Read(string? path, string? encoding = null)
         {
             var file = ExistingFile(path);
-            var decoded = TextDecoding.Decode(File.ReadAllBytes(file.FullName))
-                ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}");
+            var bytes = File.ReadAllBytes(file.FullName);
+            var decoded = string.IsNullOrEmpty(encoding)
+                ? DecodeFile(file.FullName, bytes) ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}")
+                : TextDecoding.DecodeAs(bytes, encoding);
             return (decoded.Text, StampOf(file), decoded.Bom, decoded.Encoding);
         }
 
         /// <summary>Riscrive un file esistente se è ancora quello letto (<paramref name="stamp"/>); BOM e permessi restano.</summary>
-        public string Write(string? path, string? text, string? stamp)
+        /// <param name="encoding">Scrivere in questa (convertire); assente = la codifica del file com'è.</param>
+        public string Write(string? path, string? text, string? stamp, string? encoding = null)
         {
             if (text == null) throw new RemoteFailure(RemoteErrorCodes.BadRequest, "text required");
             if (string.IsNullOrEmpty(stamp)) throw new RemoteFailure(RemoteErrorCodes.BadRequest, "stamp required: read the file first");
@@ -69,9 +84,12 @@ namespace MdExplorer.RemoteProtocol
             var current = StampOf(file);
             if (current != stamp) throw new RemoteFailure(RemoteErrorCodes.Changed, $"changed since read: {path}");
             // la stessa codifica (e lo stesso BOM) del file com'è: con l'impronta uguale sono i byte che si sono letti
-            var existing = TextDecoding.Decode(File.ReadAllBytes(file.FullName))
+            var existing = DecodeFile(file.FullName, File.ReadAllBytes(file.FullName))
                 ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}");
-            var bytes = TextDecoding.Encode(text, existing.Encoding, existing.Bom);
+            // convertire: il BOM resta solo se la codifica non cambia (UTF-16 lo vuole sempre)
+            var target = string.IsNullOrEmpty(encoding) ? existing.Encoding : encoding;
+            var bom = target.StartsWith("utf-16", StringComparison.Ordinal) || (target == existing.Encoding && existing.Bom);
+            var bytes = TextDecoding.Encode(text, target, bom);
             var tmp = Path.Combine(file.DirectoryName!, $".{file.Name}.mde-{Guid.NewGuid():N}.tmp");
             try
             {
@@ -91,9 +109,11 @@ namespace MdExplorer.RemoteProtocol
         {
             var full = ResolveNew(path);
             Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            // un file nuovo nella codifica della sua estensione, se la radice ne ha assegnata una; altrimenti UTF-8
+            var encoding = TextDecoding.ForExtension(full, ReadOnlySpan<byte>.Empty, ExtensionEncodings) ?? TextDecoding.Utf8;
             using (var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write))
             {
-                var bytes = TextDecoding.Encode(text ?? "", TextDecoding.Utf8, bom: false);
+                var bytes = TextDecoding.Encode(text ?? "", encoding, bom: encoding.StartsWith("utf-16", StringComparison.Ordinal));
                 stream.Write(bytes, 0, bytes.Length);
             }
             return StampOf(new FileInfo(full));
@@ -147,7 +167,7 @@ namespace MdExplorer.RemoteProtocol
             {
                 if (!LooksLikeText(file)) continue;
                 var number = 0;
-                foreach (var line in DecodedLinesOrNothing(file))
+                foreach (var line in DecodedLinesOrNothing(file, DecodeFile))
                 {
                     number++;
                     bool match;
@@ -288,10 +308,10 @@ namespace MdExplorer.RemoteProtocol
         /// Le righe di un file da cercare, decodificato nella sua codifica (un file CP-850 si trova cercando «città»); un
         /// file che non si apre non ferma la ricerca.
         /// </summary>
-        private static IEnumerable<string> DecodedLinesOrNothing(string file)
+        private static IEnumerable<string> DecodedLinesOrNothing(string file, Func<string, byte[], DecodedText?> decode)
         {
             DecodedText? decoded;
-            try { decoded = TextDecoding.Decode(File.ReadAllBytes(file)); }
+            try { decoded = decode(file, File.ReadAllBytes(file)); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { yield break; }
             if (decoded == null) yield break;
             using var reader = new StringReader(decoded.Text);

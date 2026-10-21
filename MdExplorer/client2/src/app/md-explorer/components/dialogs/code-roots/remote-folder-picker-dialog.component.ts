@@ -10,9 +10,9 @@ export interface RemoteFolderPickerData {
 
 /**
  * Sceglie una cartella su un server raggiunto via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3). L'host è quello
- * che si scriverebbe dopo «ssh» (proposti gli alias di ~/.ssh/config). Se il serverino non c'è ancora su quel server lo
+ * che si scriverebbe dopo «ssh» (proposti gli alias di ~/.ssh/config). Se MDE Remote non c'è ancora su quel server lo
  * dice prima — che cosa, dove, quanto — e lo carica solo con il sì (P13). Se la home non permette di eseguire programmi
- * si sceglie un'altra cartella per il serverino (P11). Chiude con «ssh://host/percorso».
+ * si sceglie un'altra cartella per MDE Remote (P11). Chiude con «ssh://host/percorso».
  */
 @Component({
   selector: 'app-remote-folder-picker-dialog',
@@ -32,7 +32,7 @@ export class RemoteFolderPickerDialogComponent implements OnInit {
   public defaultAgentFolder = '~/.cache/mdexplorer';
   public showServerSettings = false;
   private startPath: string | null = null;
-  /** La cartella chiesta per ultima: dopo il sì o la cartella del serverino si riprova da lì, non dalla home. */
+  /** La cartella chiesta per ultima: dopo il sì o la cartella di MDE Remote si riprova da lì, non dalla home. */
   private requested: string | null = null;
 
   constructor(
@@ -78,10 +78,10 @@ export class RemoteFolderPickerDialogComponent implements OnInit {
 
   goTo(): void { if (this.pathInput.trim()) { this.open(this.pathInput.trim()); } }
 
-  /** Il sì al caricamento (e la cartella del serverino scelta), poi si riprova. */
+  /** Il sì al caricamento (e la cartella di MDE Remote scelta), poi si riprova. */
   allowAndRetry(): void { this.saveSettings(true); }
 
-  /** Solo la cartella del serverino (home noexec), poi si riprova. */
+  /** Solo la cartella di MDE Remote (home noexec), poi si riprova. */
   saveFolderAndRetry(): void { this.saveSettings(false); }
 
   link(): void { if (this.browse) { this.dialogRef.close(this.browse.location); } }

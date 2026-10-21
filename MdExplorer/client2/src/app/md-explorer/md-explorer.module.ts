@@ -22,6 +22,7 @@ import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-r
 import { RemoteFolderPickerDialogComponent } from './components/dialogs/code-roots/remote-folder-picker-dialog.component';
 import { CodeRootNameDialogComponent } from './components/dialogs/code-roots/code-root-name-dialog.component';
 import { RemoteFileEditorDialogComponent } from './components/dialogs/code-roots/remote-file-editor-dialog.component';
+import { CodeRootEncodingsDialogComponent } from './components/dialogs/code-roots/code-root-encodings-dialog.component';
 import { CodeRootsReminderDialogComponent } from './components/dialogs/code-roots/code-roots-reminder-dialog.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
@@ -118,6 +119,7 @@ const routes: Routes = [
     RemoteFolderPickerDialogComponent,
     CodeRootNameDialogComponent,
     RemoteFileEditorDialogComponent,
+    CodeRootEncodingsDialogComponent,
     CodeRootsReminderDialogComponent,
     MdTreeComponent,
     ConnectionLostComponent,

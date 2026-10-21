@@ -5,7 +5,7 @@ using MdExplorer.RemoteProtocol;
 namespace MdExplorer.RemoteAgent
 {
     /// <summary>
-    /// Il ciclo del serverino: saluta (D6), poi una richiesta per riga e una risposta per riga, nell'ordine, finché
+    /// Il ciclo di MDE Remote: saluta (D6), poi una richiesta per riga e una risposta per riga, nell'ordine, finché
     /// stdin non si chiude. L'esecuzione sta in <see cref="WorkspaceDispatcher"/>, condivisa con il backend.
     /// </summary>
     public static class AgentLoop

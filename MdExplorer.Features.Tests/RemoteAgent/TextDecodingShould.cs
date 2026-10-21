@@ -87,5 +87,124 @@ namespace MdExplorer.Features.Tests.RemoteAgent
             }
             finally { Directory.Delete(dir, true); }
         }
+
+        // ---- raddrizzare (l'utente, 21/10: «che succede se l'llm modifica in maniera sbagliata un file?») ----
+
+        private static string Dir()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "mde-fix-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        [TestMethod]
+        public void Repair_a_cp850_file_where_an_llm_added_utf8_lines()
+        {
+            var dir = Dir();
+            try
+            {
+                // le righe originali in CP-850, la riga aggiunta (sed/perl con un testo UTF-8) in UTF-8
+                var mixed = In("ibm850", "      * Quantità già consegnata\n").Concat(Encoding.UTF8.GetBytes("      * Uscita: è più pulito\n")).Concat(In("ibm850", "           STOP RUN.\n")).ToArray();
+                File.WriteAllBytes(Path.Combine(dir, "p.cbl"), mixed);
+                var ws = new RemoteWorkspace(dir);
+                var auto = ws.Read("p.cbl");
+                Assert.AreEqual(TextDecoding.Ibm850, auto.Encoding, "riconosciuto CP-850 (la maggioranza)");
+                Assert.IsFalse(auto.Text.Contains("è più"), "letta in automatico, la riga UTF-8 si vede storta: " + auto.Text);
+
+                var repaired = ws.Read("p.cbl", "mixed-ibm850");
+                Assert.AreEqual("      * Quantità già consegnata\n      * Uscita: è più pulito\n           STOP RUN.\n", repaired.Text);
+                ws.Write("p.cbl", repaired.Text, repaired.Stamp, TextDecoding.Ibm850);
+                CollectionAssert.AreEqual(In("ibm850", repaired.Text), File.ReadAllBytes(Path.Combine(dir, "p.cbl")), "tutto in CP-850");
+                Assert.AreEqual(TextDecoding.Ibm850, ws.Read("p.cbl").Encoding);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [TestMethod]
+        public void Keep_dos_boxes_as_cp850_when_repairing_even_where_their_bytes_look_like_utf8()
+        {
+            // «═╗» in CP-850 = CD BB, UTF-8 valido per caso (U+037B «ͻ»): visto dal vivo il 21/10 su una maschera COBOL
+            var original = In("ibm850", DosScreen);
+            var mixed = original.Concat(Encoding.UTF8.GetBytes("  Nota: è più semplice – € 10\n")).ToArray();
+            Assert.AreEqual(DosScreen + "  Nota: è più semplice – € 10\n", TextDecoding.DecodeMixed(mixed, TextDecoding.Ibm850));
+        }
+
+        [TestMethod]
+        public void Convert_a_file_an_llm_turned_into_utf8_back_to_cp850_and_read_as_another_encoding()
+        {
+            var dir = Dir();
+            try
+            {
+                File.WriteAllBytes(Path.Combine(dir, "p.cbl"), new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Encoding.UTF8.GetBytes(Italian)).ToArray());
+                var ws = new RemoteWorkspace(dir);
+                var read = ws.Read("p.cbl");
+                Assert.AreEqual((TextDecoding.Utf8, true), (read.Encoding, read.Bom));
+                ws.Write("p.cbl", read.Text, read.Stamp, TextDecoding.Ibm850);
+                CollectionAssert.AreEqual(In("ibm850", Italian), File.ReadAllBytes(Path.Combine(dir, "p.cbl")), "in CP-850, senza il BOM UTF-8");
+
+                // stima sbagliata: «rileggi come» cambia solo la lettura; salvato così com'è, i byte non cambiano
+                var asWin = ws.Read("p.cbl", TextDecoding.Windows1252);
+                Assert.AreEqual(TextDecoding.Windows1252, asWin.Encoding);
+                ws.Write("p.cbl", asWin.Text, asWin.Stamp, TextDecoding.Windows1252);
+                Assert.IsTrue(In("ibm850", Italian).AsSpan().StartsWith(File.ReadAllBytes(Path.Combine(dir, "p.cbl")).AsSpan(0, 10)));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [TestMethod]
+        public void Refuse_to_read_as_utf8_what_is_not_and_to_write_in_two_encodings()
+        {
+            var dir = Dir();
+            try
+            {
+                File.WriteAllBytes(Path.Combine(dir, "p.cbl"), In("ibm850", Italian));
+                var ws = new RemoteWorkspace(dir);
+                try { ws.Read("p.cbl", TextDecoding.Utf8); Assert.Fail("non è UTF-8"); }
+                catch (RemoteFailure f) { Assert.AreEqual(RemoteErrorCodes.NotUtf8, f.Code); }
+                var r = ws.Read("p.cbl");
+                try { ws.Write("p.cbl", r.Text, r.Stamp, "mixed-ibm850"); Assert.Fail("si scrive in UNA codifica"); }
+                catch (RemoteFailure f) { Assert.AreEqual(RemoteErrorCodes.BadRequest, f.Code); }
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- le codifiche per estensione della radice (l'utente, 21/10: «in base all'estensione viene scelto il formato») ----
+
+        [TestMethod]
+        public void Use_the_encoding_assigned_to_the_extension_before_any_guess_and_let_a_bom_win()
+        {
+            var rules = new System.Collections.Generic.Dictionary<string, string> { [".cbl"] = TextDecoding.Ibm850, [".md"] = TextDecoding.Utf8 };
+            Assert.AreEqual(TextDecoding.Ibm850, TextDecoding.ForExtension("/srv/p/PROG.CBL", In("windows-1252", Italian), rules), "maiuscole indifferenti");
+            Assert.IsNull(TextDecoding.ForExtension("/srv/p/a.java", In("ibm850", Italian), rules), "non elencata: UTF-8 o stima");
+            Assert.IsNull(TextDecoding.ForExtension("/srv/p/a.md", In("ibm850", Italian), rules), "UTF-8 assegnato = il comportamento normale");
+            Assert.IsNull(TextDecoding.ForExtension("/srv/p/a.cbl", new byte[] { 0xEF, 0xBB, 0xBF, 0x41 }, rules), "il BOM lo dichiara il file: vince");
+            Assert.IsNull(TextDecoding.ForExtension("/srv/p/a.cbl", In("ibm850", Italian), null));
+        }
+
+        [TestMethod]
+        public void Read_write_create_and_search_with_the_rules_of_the_root()
+        {
+            var dir = Dir();
+            try
+            {
+                // un CP-1252 che la stima riconoscerebbe come tale: la regola dice CP-850, e vince la regola
+                File.WriteAllBytes(Path.Combine(dir, "a.cbl"), In("windows-1252", "perché\n"));
+                var ws = new RemoteWorkspace(dir) { ExtensionEncodings = new System.Collections.Generic.Dictionary<string, string> { [".cbl"] = TextDecoding.Ibm850 } };
+                var read = ws.Read("a.cbl");
+                Assert.AreEqual(TextDecoding.Ibm850, read.Encoding);
+                Assert.AreEqual(Encoding.GetEncoding("ibm850").GetString(In("windows-1252", "perché\n")), read.Text);
+
+                ws.Create("nuovo.cbl", "città\n");
+                CollectionAssert.AreEqual(In("ibm850", "città\n"), File.ReadAllBytes(Path.Combine(dir, "nuovo.cbl")), "un file nuovo nasce nella codifica della sua estensione");
+                ws.Create("nuovo.md", "città\n");
+                CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("città\n"), File.ReadAllBytes(Path.Combine(dir, "nuovo.md")));
+
+                Assert.AreEqual("nuovo.cbl", ws.Grep("", "città", false, 0, null).Hits.Select(h => h.Path).OrderBy(p => p).First(), "la ricerca legge con la regola");
+                var stamp = ws.Read("nuovo.cbl").Stamp;
+                ws.Write("nuovo.cbl", "più\n", stamp);
+                CollectionAssert.AreEqual(In("ibm850", "più\n"), File.ReadAllBytes(Path.Combine(dir, "nuovo.cbl")));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
     }
 }

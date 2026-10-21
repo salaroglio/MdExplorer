@@ -19,9 +19,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         NotFound,
         /// <summary>La cartella c'è ma non è il repository dichiarato (remote diverso, o non è più un repository).</summary>
         Mismatch,
-        /// <summary>Radice remota (<c>ssh://</c>): il server non si raggiunge o il serverino non parte; il motivo dice quale porta è chiusa.</summary>
+        /// <summary>Radice remota (<c>ssh://</c>): il server non si raggiunge o MDE Remote non parte; il motivo dice quale porta è chiusa.</summary>
         Unreachable,
-        /// <summary>Radice remota: il serverino va caricato sul server e l'utente non ha ancora detto sì (P13).</summary>
+        /// <summary>Radice remota: MDE Remote va caricato sul server e l'utente non ha ancora detto sì (P13).</summary>
         ConsentRequired,
     }
 
@@ -43,10 +43,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyList<string> ActualRemotes { get; init; } = Array.Empty<string>();
         /// <summary>
         /// Radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH): la cartella analizzata sul server. Allora
-        /// <see cref="RootPath"/> è null — sul disco di questa macchina non c'è — e i file passano dal serverino.
+        /// <see cref="RootPath"/> è null — sul disco di questa macchina non c'è — e i file passano da MDE Remote.
         /// </summary>
         public RemoteLocation Remote { get; init; }
         public bool IsRemote => Remote != null;
+
+        /// <summary>Le codifiche per estensione (<c>.cbl</c> → <c>ibm850</c>), dal <c>.development.yml</c>: vanno con ogni richiesta sui file.</summary>
+        public IReadOnlyDictionary<string, string> ExtensionEncodings { get; init; } = new Dictionary<string, string>();
     }
 
     /// <summary>
@@ -98,7 +101,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>
         /// La radice remota di un percorso <c>@alias/…</c> e il percorso relativo dentro di essa (<c>/</c>, <c>""</c> = la
-        /// radice), per il serverino. Null se la radice è locale; eccezione con il motivo se non è dichiarata, non è
+        /// radice), per MDE Remote. Null se la radice è locale; eccezione con il motivo se non è dichiarata, non è
         /// utilizzabile qui o il percorso esce.
         /// </summary>
         public (CodeRootState Root, string Relative)? RemoteOf(string path)
@@ -145,11 +148,11 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>
         /// Le radici collegate su questo disco: quelle a cui MarkAgent accede con i suoi strumenti (F3) e che si possono
-        /// analizzare. Le remote no: i loro file passano dal serverino (<see cref="LinkedRemote"/>).
+        /// analizzare. Le remote no: i loro file passano da MDE Remote (<see cref="LinkedRemote"/>).
         /// </summary>
         public IEnumerable<CodeRootState> Linked => Roots.Where(r => r.Status == CodeRootStatus.Linked && !r.IsRemote);
 
-        /// <summary>Le radici remote collegate (server raggiunto, serverino partito).</summary>
+        /// <summary>Le radici remote collegate (server raggiunto, MDE Remote partito).</summary>
         public IEnumerable<CodeRootState> LinkedRemote => Roots.Where(r => r.Status == CodeRootStatus.Linked && r.IsRemote);
     }
 }

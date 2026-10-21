@@ -18,7 +18,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.IntegrationTests
 {
     /// <summary>
-    /// Cartelle remote via SSH, F2 (sprint 2026-10-21): diagnosi, caricamento e canale con il serverino VERO
+    /// Cartelle remote via SSH, F2 (sprint 2026-10-21): diagnosi, caricamento e canale con MDE Remote VERO
     /// (<c>Binaries/remote/linux-x64/mde-remote</c>), su un trasporto che al posto di ssh lancia <c>sh -c</c> con una
     /// HOME temporanea. La prova con ssh vero sta nel laboratorio Docker del piano (Esiti di F2).
     /// </summary>
@@ -74,7 +74,7 @@ namespace MdExplorer.IntegrationTests
         [TestInitialize]
         public void Setup()
         {
-            if (OperatingSystem.IsWindows()) Assert.Inconclusive("il serverino è un eseguibile Linux: si prova su Linux");
+            if (OperatingSystem.IsWindows()) Assert.Inconclusive("MDE Remote è un eseguibile Linux: si prova su Linux");
             _base = Path.Combine(Path.GetTempPath(), "mde-remotefolders", Guid.NewGuid().ToString("N"));
             _home = Path.Combine(_base, "home");
             _project = Path.Combine(_base, "doc");
@@ -185,7 +185,7 @@ namespace MdExplorer.IntegrationTests
         }
 
         /// <summary>
-        /// Nello UserDB vero: consenso e cartella del serverino per PIÙ server. Setting.Name è UNIQUE — il 21/10 la riga del
+        /// Nello UserDB vero: consenso e cartella di MDE Remote per PIÙ server. Setting.Name è UNIQUE — il 21/10 la riga del
         /// secondo server non entrava (prova dal vivo con lab-nx); le impostazioni in memoria non lo avrebbero visto.
         /// </summary>
         [TestMethod]
@@ -328,7 +328,7 @@ namespace MdExplorer.IntegrationTests
         /// <summary>
         /// F5: con l'ssh di SISTEMA (su Windows ssh.exe di OpenSSH) e il ~/.ssh dell'utente, contro un server vero.
         /// Parte solo con MDE_REMOTE_TEST_LOCATION = ssh://host/cartella-scrivibile (es. la VM di sviluppo); facoltativo
-        /// MDE_REMOTE_TEST_SSH_CONFIG = un ssh_config da usare con -F. Carica il serverino nella home dell'utente SSH (la
+        /// MDE_REMOTE_TEST_SSH_CONFIG = un ssh_config da usare con -F. Carica MDE Remote nella home dell'utente SSH (la
         /// variabile è il consenso) e lavora SOLO in una sottocartella nuova, che alla fine cancella.
         /// </summary>
         [TestMethod]
@@ -352,7 +352,7 @@ namespace MdExplorer.IntegrationTests
             try
             {
                 var work = await sessions.OpenAsync(server.Combine(scratch));
-                Assert.AreEqual(server.Combine(scratch).Path, work.Hello.Root, "il serverino è partito DENTRO la cartella con spazio e apice");
+                Assert.AreEqual(server.Combine(scratch).Path, work.Hello.Root, "MDE Remote è partito DENTRO la cartella con spazio e apice");
                 var created = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Create, Path = "sub/nota.md", Text = "# Nota àèìòù €\r\nseconda riga\n" }));
                 var read = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = "sub/nota.md" }));
                 Assert.AreEqual("# Nota àèìòù €\r\nseconda riga\n", read.Text, "UTF-8 e \\r\\n intatti andata e ritorno");
@@ -413,7 +413,7 @@ namespace MdExplorer.IntegrationTests
             var store = new MemoryStore();
             await Roots(store).LinkAsync(_project, "code", "ssh://server" + folder);
 
-            // un'altra installazione (UserDB senza consenso) e un server su cui il serverino non c'è più
+            // un'altra installazione (UserDB senza consenso) e un server su cui MDE Remote non c'è più
             Directory.Delete(Path.Combine(_home, ".cache"), true);
             using var noConsent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(), NullLogger<RemoteSessions>.Instance);
             var state = (await new CodeRootService(store, _git, noConsent, NullLogger<CodeRootService>.Instance).ListAsync(_project)).Single();

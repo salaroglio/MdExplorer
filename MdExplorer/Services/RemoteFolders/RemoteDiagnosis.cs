@@ -7,8 +7,8 @@ using MdExplorer.RemoteProtocol;
 namespace MdExplorer.Services.RemoteFolders
 {
     /// <summary>
-    /// Da exit code e messaggi di ssh / del serverino alla porta chiusa e al rimedio (sprint 2026-10-21-Cartella-Remota-Via-SSH,
-    /// P10, segnali verificati in F0): 255 = ssh non è entrato; 126 = il serverino non si può eseguire; 3 = la cartella
+    /// Da exit code e messaggi di ssh / di MDE Remote alla porta chiusa e al rimedio (sprint 2026-10-21-Cartella-Remota-Via-SSH,
+    /// P10, segnali verificati in F0): 255 = ssh non è entrato; 126 = MDE Remote non si può eseguire; 3 = la cartella
     /// non c'è. Puro, per i test.
     /// </summary>
     public static class RemoteDiagnosis
@@ -77,7 +77,7 @@ namespace MdExplorer.Services.RemoteFolders
             return new RemoteUnavailableException(RemoteGate.Access, UiText.Say(it, en) + Detail(e));
         }
 
-        /// <summary>Il serverino non ha salutato: perché, dall'exit code.</summary>
+        /// <summary>MDE Remote non ha salutato: perché, dall'exit code.</summary>
         public static RemoteUnavailableException StartFailure(RemoteLocation location, int? exitCode, string stderr)
         {
             switch (exitCode)
@@ -86,20 +86,20 @@ namespace MdExplorer.Services.RemoteFolders
                     return AccessFailure(location.Destination, stderr);
                 case CannotExecute:
                     return new RemoteUnavailableException(RemoteGate.Execution, UiText.Say(
-                        $"su {location.Host} il serverino non si può eseguire: la home è probabilmente montata «noexec», oppure una regola di sicurezza (SELinux, fapolicyd, antivirus) blocca i programmi nuovi. Scegli un'altra cartella per il serverino di questo server (una che permetta di eseguire programmi), o chiedi a chi amministra il server di autorizzarlo.",
-                        $"on {location.Host} the agent cannot be executed: the home is probably mounted «noexec», or a security rule (SELinux, fapolicyd, antivirus) blocks new programs. Choose another folder for this server's agent (one that allows running programs), or ask the server administrator to allow it.") + Detail(stderr));
+                        $"su {location.Host} MDE Remote non si può eseguire: la home è probabilmente montata «noexec», oppure una regola di sicurezza (SELinux, fapolicyd, antivirus) blocca i programmi nuovi. Scegli un'altra cartella per MDE Remote di questo server (una che permetta di eseguire programmi), o chiedi a chi amministra il server di autorizzarlo.",
+                        $"on {location.Host} MDE Remote cannot be executed: the home is probably mounted «noexec», or a security rule (SELinux, fapolicyd, antivirus) blocks new programs. Choose another MDE Remote folder for this server (one that allows running programs), or ask the server administrator to allow it.") + Detail(stderr));
                 case CommandNotFound:
                     return new RemoteUnavailableException(RemoteGate.Execution, UiText.Say(
-                        $"su {location.Host} il serverino non c'è dove MDE l'ha caricato.",
-                        $"on {location.Host} the agent is not where MDE uploaded it.") + Detail(stderr));
+                        $"su {location.Host} MDE Remote non c'è dove MDE l'ha caricato.",
+                        $"on {location.Host} MDE Remote is not where MDE uploaded it.") + Detail(stderr));
                 case AgentProtocol.ExitRootNotFound:
                     return new RemoteUnavailableException(RemoteGate.Folder, UiText.Say(
                         $"la cartella {location.Path} non c'è su {location.Host} (o l'utente SSH non la vede).",
                         $"the folder {location.Path} is not on {location.Host} (or the SSH user cannot see it).") + Detail(stderr));
                 default:
                     return new RemoteUnavailableException(RemoteGate.Channel, UiText.Say(
-                        $"{location}: il serverino non è partito (uscita {exitCode?.ToString() ?? "nessuna"}).",
-                        $"{location}: the agent did not start (exit {exitCode?.ToString() ?? "none"}).") + Detail(stderr));
+                        $"{location}: MDE Remote non è partito (uscita {exitCode?.ToString() ?? "nessuna"}).",
+                        $"{location}: MDE Remote did not start (exit {exitCode?.ToString() ?? "none"}).") + Detail(stderr));
             }
         }
 
@@ -111,8 +111,8 @@ namespace MdExplorer.Services.RemoteFolders
 
         public static RemoteUnavailableException AgentFolderNotWritable(string destination, string folder, string output)
             => new(RemoteGate.AgentFolder, UiText.Say(
-                $"su {destination} non si può scrivere nella cartella del serverino {folder} (home in sola lettura, quota piena, account senza home): scegli un'altra cartella per il serverino di questo server.",
-                $"on {destination} the agent folder {folder} cannot be written (read-only home, full quota, account without a home): choose another folder for this server's agent.") + Detail(output));
+                $"su {destination} non si può scrivere nella cartella di MDE Remote {folder} (home in sola lettura, quota piena, account senza home): scegli un'altra cartella per MDE Remote di questo server.",
+                $"on {destination} the MDE Remote folder {folder} cannot be written (read-only home, full quota, account without a home): choose another MDE Remote folder for this server.") + Detail(output));
 
         private static bool Has(string text, string what) => text.IndexOf(what, StringComparison.OrdinalIgnoreCase) >= 0;
 

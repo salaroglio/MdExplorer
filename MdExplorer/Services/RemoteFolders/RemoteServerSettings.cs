@@ -13,8 +13,8 @@ namespace MdExplorer.Services.RemoteFolders
     /// Le scelte dell'utente per un server (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3), per destinatario ssh: valgono
     /// per tutte le cartelle di quel server, perché <c>noexec</c> e le regole sui programmi nuovi sono del server.
     /// <list type="bullet">
-    /// <item>P13: il consenso a caricare il serverino. Senza, MDE non carica niente e lo chiede.</item>
-    /// <item>P11: la cartella del serverino al posto di <c>~/.cache/mdexplorer</c> (home <c>noexec</c>).</item>
+    /// <item>P13: il consenso a caricare MDE Remote. Senza, MDE non carica niente e lo chiede.</item>
+    /// <item>P11: la cartella di MDE Remote al posto di <c>~/.cache/mdexplorer</c> (home <c>noexec</c>).</item>
     /// </list>
     /// </summary>
     public interface IRemoteServerSettings
@@ -22,7 +22,7 @@ namespace MdExplorer.Services.RemoteFolders
         bool UploadAllowed(string destination);
         void AllowUpload(string destination);
 
-        /// <summary>La cartella base del serverino (assoluta, o relativa alla home); null = <see cref="DefaultAgentFolder"/>.</summary>
+        /// <summary>La cartella base di MDE Remote (assoluta, o relativa alla home); null = <see cref="DefaultAgentFolder"/>.</summary>
         string AgentFolder(string destination);
         void SetAgentFolder(string destination, string folder);
     }
@@ -32,7 +32,7 @@ namespace MdExplorer.Services.RemoteFolders
         public const string DefaultAgentFolder = ".cache/mdexplorer";
 
         /// <summary>
-        /// Una cartella del serverino scritta dall'utente: assoluta (<c>/opt/dev/mde</c>) o relativa alla home
+        /// Una cartella di MDE Remote scritta dall'utente: assoluta (<c>/opt/dev/mde</c>) o relativa alla home
         /// (<c>bin/mde</c>); niente <c>..</c>, niente <c>~</c>, niente a capo. Null o vuota = il default.
         /// </summary>
         public static string Normalize(string folder)
@@ -42,8 +42,8 @@ namespace MdExplorer.Services.RemoteFolders
             if (f.Length == 0 || f.StartsWith("~", StringComparison.Ordinal) || f.IndexOfAny(new[] { '\n', '\r', '\0' }) >= 0
                 || f.Split('/').Any(p => p == ".."))
                 throw new InvalidOperationException(UiText.Say(
-                    $"«{folder}» non è una cartella valida per il serverino: scrivi un percorso assoluto (/opt/…) o relativo alla home, senza ~ e senza «..».",
-                    $"«{folder}» is not a valid folder for the agent: write an absolute path (/opt/…) or one relative to the home, without ~ and without «..»."));
+                    $"«{folder}» non è una cartella valida per MDE Remote: scrivi un percorso assoluto (/opt/…) o relativo alla home, senza ~ e senza «..».",
+                    $"«{folder}» is not a valid folder for MDE Remote: write an absolute path (/opt/…) or one relative to the home, without ~ and without «..»."));
             return f;
         }
     }

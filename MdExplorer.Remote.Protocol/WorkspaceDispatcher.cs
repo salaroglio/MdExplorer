@@ -8,7 +8,7 @@ namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Una richiesta del protocollo eseguita su una radice, con la risposta (un rifiuto diventa una risposta con il suo
-    /// codice, non un'eccezione). La usano il serverino sul server e il backend per le radici LOCALI (sprint
+    /// codice, non un'eccezione). La usano MDE Remote sul server e il backend per le radici LOCALI (sprint
     /// 2026-10-21-Cartella-Remota-Via-SSH, FL): le stesse regole — dentro la radice, niente link, impronta per scrivere —
     /// ovunque stia la cartella.
     /// </summary>
@@ -35,6 +35,7 @@ namespace MdExplorer.RemoteProtocol
         {
             try
             {
+                workspace.ExtensionEncodings = request.ExtensionEncodings;
                 var response = Execute(workspace, request);
                 response.Id = request.Id;
                 response.Ok = true;
@@ -56,10 +57,10 @@ namespace MdExplorer.RemoteProtocol
                 case RemoteOps.Stat:
                     return new RemoteResponse { Entry = ws.Stat(r.Path) };
                 case RemoteOps.Read:
-                    var (text, stamp, bom, encoding) = ws.Read(r.Path);
+                    var (text, stamp, bom, encoding) = ws.Read(r.Path, r.Encoding);
                     return new RemoteResponse { Text = text, Stamp = stamp, Bom = bom, Encoding = encoding };
                 case RemoteOps.Write:
-                    return new RemoteResponse { Stamp = ws.Write(r.Path, r.Text, r.Stamp) };
+                    return new RemoteResponse { Stamp = ws.Write(r.Path, r.Text, r.Stamp, r.Encoding) };
                 case RemoteOps.Create:
                     return new RemoteResponse { Stamp = ws.Create(r.Path, r.Text) };
                 case RemoteOps.Mkdir:

@@ -18,7 +18,11 @@ export interface CodeRoot {
   actualRemotes: string[];
   /** Radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH): la cartella analizzata sul server, ssh://host/…; rootPath è null. */
   remote: string | null;
+  /** Le codifiche dei file per estensione (nel .development.yml): un'estensione non elencata è UTF-8, e se non lo è si stima. */
+  encodings: CodeRootEncodingRule[];
 }
+
+export interface CodeRootEncodingRule { encoding: string; extensions: string[]; }
 
 export interface CodeRootChanges {
   alias: string;
@@ -50,7 +54,7 @@ export interface ServerBrowse {
   folders: { name: string; path: string }[];
 }
 
-/** Le scelte per un server: cartella del serverino (P11) e consenso a caricarlo (P13). */
+/** Le scelte per un server: cartella di MDE Remote (P11) e consenso a caricarlo (P13). */
 export interface ServerSettings {
   host: string;
   destination: string;
@@ -59,7 +63,7 @@ export interface ServerSettings {
   uploadAllowed: boolean;
 }
 
-/** Il 409 del backend: il serverino va caricato e serve il sì dell'utente. */
+/** Il 409 del backend: MDE Remote va caricato e serve il sì dell'utente. */
 export interface UploadConsent { destination: string; size: number; folder: string; }
 
 /** Un'operazione su un file o una cartella di una radice remota (D7). */
@@ -76,7 +80,7 @@ export interface RemoteFileResult {
   hits?: { path: string; line: number; text: string }[];
 }
 
-/** Il consenso richiesto, se l'errore HTTP è il 409 del serverino da caricare; altrimenti null. */
+/** Il consenso richiesto, se l'errore HTTP è il 409 di MDE Remote da caricare; altrimenti null. */
 export function uploadConsentOf(err: any): UploadConsent | null {
   return err?.status === 409 && err?.error?.consent ? err.error.consent as UploadConsent : null;
 }
@@ -134,6 +138,11 @@ export class CodeRootsService {
     return this.http.get<CodeRootChanges>(`${this.api}/changes`, { params: new HttpParams().set('projectPath', projectPath).set('alias', alias) });
   }
 
+  /** Salva le codifiche per estensione della radice (sostituisce quelle che c'erano). */
+  setEncodings(projectPath: string, alias: string, rules: CodeRootEncodingRule[]): Observable<CodeRoot> {
+    return this.http.post<CodeRoot>(`${this.api}/encodings`, { projectPath, alias, rules });
+  }
+
   // ---------------------------------------------------------------- cartelle remote via SSH (sprint 2026-10-21, F3)
 
   /** Gli alias di ~/.ssh/config, da proporre: si può scrivere qualunque host. */
@@ -157,7 +166,7 @@ export class CodeRootsService {
   }
 
   /** Un'operazione sui file di una radice remota: path e to sono percorsi logici @alias/…. */
-  file(projectPath: string, op: RemoteFileOp, path: string, extra: { to?: string; text?: string; stamp?: string; recursive?: boolean; pattern?: string; ignoreCase?: boolean } = {}): Observable<RemoteFileResult> {
+  file(projectPath: string, op: RemoteFileOp, path: string, extra: { to?: string; text?: string; stamp?: string; recursive?: boolean; pattern?: string; ignoreCase?: boolean; encoding?: string } = {}): Observable<RemoteFileResult> {
     return this.http.post<RemoteFileResult>(`${this.api}/files`, { projectPath, op, path, ...extra });
   }
 }

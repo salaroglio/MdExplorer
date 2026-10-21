@@ -36,6 +36,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
         public class DismissRequest { public string ProjectPath { get; set; } public List<string> Aliases { get; set; } }
         // string? = facoltativo: un string non nullabile diventa [Required] implicito e il binding rifiuta il vuoto
+        public class EncodingsRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public List<MdExplorer.Service.Models.CodeRootEncodingRule> Rules { get; set; } }
         public class ServerSettingsRequest { public string Host { get; set; } public string? AgentFolder { get; set; } public bool AllowUpload { get; set; } }
         public class FileRequest
         {
@@ -49,6 +50,8 @@ namespace MdExplorer.Controllers.CodeGraph
             public string? Stamp { get; set; }
             public bool Recursive { get; set; }
             public string? Pattern { get; set; }
+            /// <summary><c>read</c>: rileggere in questa codifica (anche <c>mixed-ibm850</c>); <c>write</c>: scrivere in questa.</summary>
+            public string? Encoding { get; set; }
             public bool IgnoreCase { get; set; }
         }
 
@@ -109,7 +112,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Browse([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct) => Guarded(async () =>
         {
             var resolver = await _roots.CreateResolverAsync(projectPath, ct);
-            // una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): stessi elementi, dal serverino
+            // una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): stessi elementi, da MDE Remote
             var entries = resolver.RemoteOf(path) is { } remote
                 ? await _remoteFiles.ListAsync(remote.Root, remote.Relative, ct)
                 : CodeRootBrowser.List(resolver, path);
@@ -140,6 +143,14 @@ namespace MdExplorer.Controllers.CodeGraph
             return Task.FromResult<IActionResult>(Ok(new { dismissed = request.Aliases }));
         }, request?.ProjectPath);
 
+        /// <summary>
+        /// POST /api/coderoots/encodings {projectPath, alias, rules:[{extensions:[".cbl"], encoding:"ibm850"}]} — le codifiche
+        /// dei file per estensione della radice (nel .development.yml, su Git).
+        /// </summary>
+        [HttpPost("encodings")]
+        public Task<IActionResult> SetEncodings([FromBody] EncodingsRequest request, CancellationToken ct) => Guarded(async () =>
+            Ok(View(await _roots.SetEncodingsAsync(request.ProjectPath, request.Alias, request.Rules ?? new List<MdExplorer.Service.Models.CodeRootEncodingRule>(), ct))), request?.ProjectPath);
+
         // ------------------------------------------------------------------ cartelle remote (sprint 2026-10-21, F3)
 
         /// <summary>GET /api/coderoots/ssh-hosts — gli alias di ~/.ssh/config, da proporre (si può scrivere qualunque host).</summary>
@@ -148,7 +159,7 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>
         /// GET /api/coderoots/server-browse?host&amp;path — le sottocartelle di una cartella del server (path vuoto = la home),
-        /// per scegliere che cosa collegare. 409 se il serverino va caricato e l'utente non ha ancora detto sì (P13).
+        /// per scegliere che cosa collegare. 409 se MDE Remote va caricato e l'utente non ha ancora detto sì (P13).
         /// </summary>
         [HttpGet("server-browse")]
         public Task<IActionResult> ServerBrowse([FromQuery] string host, [FromQuery] string? path, CancellationToken ct) => GuardedRemote(async () =>
@@ -163,7 +174,7 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         });
 
-        /// <summary>GET /api/coderoots/server-settings?host — cartella del serverino e consenso a caricarlo per questo server.</summary>
+        /// <summary>GET /api/coderoots/server-settings?host — cartella di MDE Remote e consenso a caricarlo per questo server.</summary>
         [HttpGet("server-settings")]
         public Task<IActionResult> ServerSettings([FromQuery] string host) => GuardedRemote(() =>
         {
@@ -195,7 +206,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Files([FromBody] FileRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var resolver = await _roots.CreateResolverAsync(request.ProjectPath, ct);
-            // remota → il serverino sul server; locale → le stesse regole sulla cartella del disco (FL)
+            // remota → MDE Remote sul server; locale → le stesse regole sulla cartella del disco (FL)
             var target = resolver.RemoteOf(request.Path) ?? resolver.LocalOf(request.Path)
                 ?? throw new InvalidOperationException(UiText.Say($"'{request.Path}' non è in una radice di codice esterna (@alias/…).", $"'{request.Path}' is not in an external code root (@alias/…)."));
             string to = null;
@@ -209,7 +220,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var operation = new MdExplorer.RemoteProtocol.RemoteRequest
             {
                 Op = request.Op, Path = target.Relative, To = to, Text = request.Text, Stamp = request.Stamp,
-                Recursive = request.Recursive, Pattern = request.Pattern, IgnoreCase = request.IgnoreCase,
+                Recursive = request.Recursive, Pattern = request.Pattern, IgnoreCase = request.IgnoreCase, Encoding = request.Encoding,
                 Exclude = request.Op == MdExplorer.RemoteProtocol.RemoteOps.Grep ? new List<string> { ".git" } : null,
             };
             var response = target.Root.IsRemote
@@ -241,7 +252,7 @@ namespace MdExplorer.Controllers.CodeGraph
             }
         }
 
-        /// <summary>409: il serverino va caricato e serve il sì dell'utente; la UI mostra che cosa, dove e quanto (P13).</summary>
+        /// <summary>409: MDE Remote va caricato e serve il sì dell'utente; la UI mostra che cosa, dove e quanto (P13).</summary>
         private IActionResult Consent(RemoteUploadConsentRequiredException ex) => StatusCode(409, new
         {
             error = ex.Message,
@@ -253,6 +264,7 @@ namespace MdExplorer.Controllers.CodeGraph
             s.Alias, s.Repository, s.Subpath, s.Tags, s.Languages, s.LocalPath, s.RootPath,
             status = s.Status.ToString(), s.Reason, s.ActualRemotes,
             remote = s.Remote?.ToString(),
+            encodings = s.ExtensionEncodings.GroupBy(p => p.Value).Select(g => new { encoding = g.Key, extensions = g.Select(p => p.Key).OrderBy(e => e).ToList() }),
         };
 
         private async Task<IActionResult> Guarded(Func<Task<IActionResult>> action, string projectPath)
@@ -261,7 +273,7 @@ namespace MdExplorer.Controllers.CodeGraph
                 return BadRequest(new { error = UiText.Say($"projectPath non esiste: {projectPath}", $"projectPath does not exist: {projectPath}") });
             try { return await action(); }
             catch (RemoteUploadConsentRequiredException ex) { return Consent(ex); }
-            // il codice del serverino (not_found, changed, exists…) serve a chi chiama: MarkAgent decide se creare o rileggere
+            // il codice di MDE Remote (not_found, changed, exists…) serve a chi chiama: MarkAgent decide se creare o rileggere
             catch (RemoteOperationException ex) { return BadRequest(new { error = ex.Message, code = ex.Code }); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace MdExplorer.RemoteProtocol
@@ -56,9 +57,106 @@ namespace MdExplorer.RemoteProtocol
             return new DecodedText(Get(name).GetString(bytes), name, bom: false);
         }
 
+        /// <summary>Le codifiche che si possono assegnare a un'estensione (e scegliere nell'editor).</summary>
+        public static readonly string[] Assignable = { Utf8, Ibm850, Windows1252, "utf-16", "utf-16BE" };
+
+        /// <summary>
+        /// La codifica di un file secondo le regole della radice (l'utente, 21/10: «in base all'estensione del file viene
+        /// scelto il formato»): il BOM, se c'è, la dichiara il file stesso e vince; poi l'estensione; altrimenti null =
+        /// UTF-8, e se non lo è la stima (<see cref="Decode"/>).
+        /// </summary>
+        public static string? ForExtension(string path, ReadOnlySpan<byte> head, IReadOnlyDictionary<string, string>? rules)
+        {
+            if (rules == null || rules.Count == 0) return null;
+            if (Utf16Bom(head) != null || head.StartsWith(Utf8Bom)) return null;
+            var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            return ext.Length > 0 && rules.TryGetValue(ext, out var encoding) && encoding != Utf8 ? encoding : null;
+        }
+
+        /// <summary>Prefisso di una lettura «mista»: <c>mixed-ibm850</c> = sequenze UTF-8 valide come UTF-8, gli altri byte alti in CP-850.</summary>
+        public const string MixedPrefix = "mixed-";
+
+        /// <summary>
+        /// Rileggere in una codifica SCELTA dall'utente (l'editor, «Rileggi come» / «Ripara codifica mista»): niente stima.
+        /// UTF-8 stretto (un byte non valido → <see cref="RemoteErrorCodes.NotUtf8"/>); 8 bit e UTF-16 come sono;
+        /// <c>mixed-…</c> per i file in cui un LLM o uno script ha messo testo UTF-8 dentro un file CP-850.
+        /// </summary>
+        public static DecodedText DecodeAs(byte[] bytes, string encoding)
+        {
+            if (encoding.StartsWith(MixedPrefix, StringComparison.Ordinal))
+                return new DecodedText(DecodeMixed(bytes, encoding.Substring(MixedPrefix.Length)), encoding, bom: false);
+            var span = bytes.AsSpan();
+            if (encoding == Utf8)
+            {
+                var bom = span.StartsWith(Utf8Bom);
+                var offset = bom ? 3 : 0;
+                try { return new DecodedText(StrictUtf8.GetString(bytes, offset, bytes.Length - offset), Utf8, bom); }
+                catch (DecoderFallbackException ex) { throw new RemoteFailure(RemoteErrorCodes.NotUtf8, $"not valid UTF-8 (byte at {ex.Index + offset}): choose another encoding"); }
+            }
+            if (encoding.StartsWith("utf-16", StringComparison.Ordinal))
+            {
+                var enc = Get(encoding);
+                var preamble = enc.GetPreamble();
+                var hasBom = preamble.Length > 0 && span.StartsWith(preamble);
+                var start = hasBom ? preamble.Length : 0;
+                return new DecodedText(enc.GetString(bytes, start, bytes.Length - start), encoding, bom: true);
+            }
+            return new DecodedText(Get(encoding).GetString(bytes), encoding, bom: false);
+        }
+
+        /// <summary>
+        /// Un file con due codifiche: una sequenza UTF-8 valida di 2-4 byte si legge come UTF-8 SE dà un carattere plausibile
+        /// in un testo aggiunto (lettere latine accentate, €, virgolette e trattini tipografici, riquadri); ogni altro byte
+        /// alto nella codifica a 8 bit data. Il filtro serve perché i riquadri DOS in CP-850 formano UTF-8 valido per caso:
+        /// «═╗» = <c>CD BB</c> = «ͻ» greco (visto dal vivo il 21/10 su una maschera COBOL). Si vede nell'editor prima di salvare.
+        /// </summary>
+        public static string DecodeMixed(byte[] bytes, string eightBit)
+        {
+            var single = Get(eightBit);
+            var text = new StringBuilder(bytes.Length);
+            var i = 0;
+            while (i < bytes.Length)
+            {
+                var b = bytes[i];
+                if (b < 0x80) { text.Append((char)b); i++; continue; }
+                var length = b >= 0xC2 && b <= 0xDF ? 2 : b >= 0xE0 && b <= 0xEF ? 3 : b >= 0xF0 && b <= 0xF4 ? 4 : 0;
+                if (length > 0 && i + length <= bytes.Length)
+                {
+                    try
+                    {
+                        var candidate = StrictUtf8.GetString(bytes, i, length);
+                        if (PlausibleAdded(candidate))
+                        {
+                            text.Append(candidate);
+                            i += length;
+                            continue;
+                        }
+                    }
+                    catch (DecoderFallbackException) { /* non è UTF-8: il byte è della codifica a 8 bit */ }
+                }
+                text.Append(single.GetString(bytes, i, 1));
+                i++;
+            }
+            return text.ToString();
+        }
+
+        /// <summary>Un carattere che qualcuno scrive davvero in un commento o in una stringa, non un incidente di byte.</summary>
+        private static bool PlausibleAdded(string candidate)
+        {
+            var c = candidate[0];
+            if (char.IsSurrogate(c)) return true;                       // emoji e simili: nessun CP-850 li forma
+            return (c >= '\u00C0' && c <= '\u024F' && char.IsLetter(c))  // lettere latine accentate (À…ÿ, estese)
+                   || (c >= '\u00A0' && c <= '\u00BF')                    // « » ° ± ¿ ¡ § £ …
+                   || c == '\u20AC'                                       // €
+                   || (c >= '\u2010' && c <= '\u2027')                    // trattini, virgolette, puntini
+                   || (c >= '\u2500' && c <= '\u259F');                   // riquadri scritti in UTF-8
+        }
+
         /// <summary>Il testo nella codifica data (e il BOM se c'era); un carattere che la codifica non ha → eccezione con il motivo.</summary>
         public static byte[] Encode(string text, string encoding, bool bom)
         {
+            if (encoding.StartsWith(MixedPrefix, StringComparison.Ordinal))
+                throw new RemoteFailure(RemoteErrorCodes.BadRequest, "a file is written in ONE encoding: choose UTF-8, CP-850 or CP-1252");
             var enc = Get(encoding);
             byte[] body;
             try { body = enc.GetBytes(text); }
@@ -85,6 +183,7 @@ namespace MdExplorer.RemoteProtocol
             Windows1252 => "CP-1252",
             "utf-16" => "UTF-16 LE",
             "utf-16BE" => "UTF-16 BE",
+            _ when encoding.StartsWith(MixedPrefix, StringComparison.Ordinal) => "UTF-8 + " + DisplayName(encoding.Substring(MixedPrefix.Length)),
             _ => encoding,
         };
 

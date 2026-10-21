@@ -10,11 +10,13 @@ namespace MdExplorer.IntegrationTests
 {
     /// <summary>
     /// FL (sprint 2026-10-21-Cartella-Remota-Via-SSH, D8): una radice esterna LOCALE si modifica dall'albero con le stesse
-    /// regole del serverino (dentro la radice, impronta per scrivere, mai sopra un file esistente).
+    /// regole di MDE Remote (dentro la radice, impronta per scrivere, mai sopra un file esistente).
     /// </summary>
     [TestClass]
     public class LocalCodeRootFiles_Should
     {
+        static LocalCodeRootFiles_Should() => System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
         private string _root;
         private CodeRootState _state;
 
@@ -57,6 +59,39 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(RemoteErrorCodes.Exists, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Create, "src/a.cs", "x")).Code);
             Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Read, "../fuori.txt")).Code);
             Assert.AreEqual(RemoteErrorCodes.NotEmpty, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Delete, "src")).Code);
+        }
+
+        [TestMethod]
+        public void Validate_and_save_the_encoding_rules_of_a_root_in_the_development_yml()
+        {
+            var rules = MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
+            {
+                new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { "CBL, .cpy", "cob" }, Encoding = TextDecoding.Ibm850 },
+                new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string>(), Encoding = TextDecoding.Utf8 },
+            });
+            Assert.AreEqual(1, rules.Count, "le regole vuote si tolgono");
+            CollectionAssert.AreEqual(new[] { ".cbl", ".cpy", ".cob" }, rules[0].Extensions, "punto e minuscole");
+
+            Assert.ThrowsException<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
+            {
+                new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".cbl" }, Encoding = TextDecoding.Ibm850 },
+                new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".CBL" }, Encoding = TextDecoding.Windows1252 },
+            }), "un'estensione in due regole");
+            Assert.ThrowsException<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
+            {
+                new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".cbl" }, Encoding = "ebcdic" },
+            }), "una codifica che MDE non sa usare");
+        }
+
+        [TestMethod]
+        public void Read_a_local_root_file_with_the_rule_of_its_extension()
+        {
+            File.WriteAllBytes(Path.Combine(_root, "src", "p.cbl"), System.Text.Encoding.GetEncoding(1252).GetBytes("perché\n"));
+            var withRules = new CodeRootState { Alias = "codice", Status = CodeRootStatus.Linked, RootPath = _root,
+                ExtensionEncodings = new System.Collections.Generic.Dictionary<string, string> { [".cbl"] = TextDecoding.Ibm850 } };
+            var read = RemoteCodeRootFiles.OperateLocal(withRules, new RemoteRequest { Op = RemoteOps.Read, Path = "src/p.cbl" });
+            Assert.AreEqual(TextDecoding.Ibm850, read.Encoding, "la regola della radice arriva fino alla lettura");
+            Assert.AreEqual(TextDecoding.Windows1252, RemoteCodeRootFiles.OperateLocal(_state, new RemoteRequest { Op = RemoteOps.Read, Path = "src/p.cbl" }).Encoding, "senza regola: la stima");
         }
     }
 }

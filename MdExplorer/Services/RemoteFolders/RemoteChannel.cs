@@ -12,8 +12,8 @@ using MdExplorer.RemoteProtocol;
 namespace MdExplorer.Services.RemoteFolders
 {
     /// <summary>
-    /// Un serverino acceso su una cartella remota: il processo <c>ssh … mde-remote --root …</c> con una riga JSON per
-    /// messaggio su stdin/stdout. Una richiesta alla volta, nell'ordine (il serverino non ne sovrappone). Se una risposta
+    /// MDE Remote acceso su una cartella remota: il processo <c>ssh … mde-remote --root …</c> con una riga JSON per
+    /// messaggio su stdin/stdout. Una richiesta alla volta, nell'ordine (MDE Remote non ne sovrappone). Se una risposta
     /// non arriva — processo morto, richiesta annullata a metà — il canale è guasto e non si riusa: le risposte
     /// successive non si accoppierebbero più alle richieste.
     /// </summary>
@@ -63,21 +63,21 @@ namespace MdExplorer.Services.RemoteFolders
             {
                 channel.Dispose();
                 throw new RemoteUnavailableException(RemoteGate.Channel, UiText.Say(
-                    $"{location}: il serverino ha risposto in un modo inatteso al posto del saluto: {Trim(line)}",
-                    $"{location}: the agent answered something unexpected instead of its greeting: {Trim(line)}"));
+                    $"{location}: MDE Remote ha risposto in un modo inatteso al posto del saluto: {Trim(line)}",
+                    $"{location}: MDE Remote answered something unexpected instead of its greeting: {Trim(line)}"));
             }
             if (hello.Hello.Protocol != AgentProtocol.Version)
             {
                 channel.Dispose();
                 throw new RemoteUnavailableException(RemoteGate.Channel, UiText.Say(
-                    $"{location}: il serverino parla il protocollo {hello.Hello.Protocol}, MDE il {AgentProtocol.Version}.",
-                    $"{location}: the agent speaks protocol {hello.Hello.Protocol}, MDE speaks {AgentProtocol.Version}."));
+                    $"{location}: MDE Remote parla il protocollo {hello.Hello.Protocol}, MDE il {AgentProtocol.Version}.",
+                    $"{location}: MDE Remote speaks protocol {hello.Hello.Protocol}, MDE speaks {AgentProtocol.Version}."));
             }
             channel.Hello = hello.Hello;
             return channel;
         }
 
-        /// <summary>Manda una richiesta e aspetta la sua risposta; un rifiuto del serverino diventa <see cref="RemoteOperationException"/>.</summary>
+        /// <summary>Manda una richiesta e aspetta la sua risposta; un rifiuto di MDE Remote diventa <see cref="RemoteOperationException"/>.</summary>
         public async Task<RemoteResponse> SendAsync(RemoteRequest request, CancellationToken ct = default)
         {
             await _gate.WaitAsync(ct);
@@ -122,7 +122,7 @@ namespace MdExplorer.Services.RemoteFolders
             {
                 if (!HasExited())
                 {
-                    _process.StandardInput.Close();   // stdin chiuso: il serverino esce da solo, e con lui ssh
+                    _process.StandardInput.Close();   // stdin chiuso: MDE Remote esce da solo, e con lui ssh
                     if (!_process.WaitForExit(2000)) _process.Kill(entireProcessTree: true);
                 }
             }
@@ -140,8 +140,8 @@ namespace MdExplorer.Services.RemoteFolders
         {
             var exit = HasExited() ? _process.ExitCode.ToString() : "?";
             return new RemoteUnavailableException(RemoteGate.Channel, UiText.Say(
-                $"{Location}: il collegamento al serverino si è interrotto (uscita {exit}). {Stderr()}".Trim(),
-                $"{Location}: the connection to the agent was interrupted (exit {exit}). {Stderr()}".Trim()));
+                $"{Location}: il collegamento a MDE Remote si è interrotto (uscita {exit}). {Stderr()}".Trim(),
+                $"{Location}: the connection to MDE Remote was interrupted (exit {exit}). {Stderr()}".Trim()));
         }
 
         private bool HasExited()

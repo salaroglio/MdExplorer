@@ -8,7 +8,7 @@ namespace MdExplorer.Mcp;
 /// <summary>
 /// Gruppo <c>remote</c>: i file delle radici di codice REMOTE, cartelle su un server raggiunto via SSH (sprint
 /// 2026-10-21-Cartella-Remota-Via-SSH, F4). I CLI vedono solo il disco locale: per una radice remota leggono, cercano e
-/// scrivono con questi tool, che passano dal backend e dal serverino sul server (dentro la radice, niente link, impronta
+/// scrivono con questi tool, che passano dal backend e da MDE Remote sul server (dentro la radice, niente link, impronta
 /// per scrivere). Acceso di default nei progetti con una radice remota collegata su questa macchina.
 /// </summary>
 [McpServerToolType]
@@ -168,7 +168,7 @@ public sealed class RemoteTools : McpToolsBase
         return path == null ? (client, null, $"Project '{project}' not found. Use GetProjects to list the available names.") : (client, path, null);
     }
 
-    /// <summary>POST /api/coderoots/files: (true, corpo) se riuscita, altrimenti (false, «Error: …» con il codice del serverino).</summary>
+    /// <summary>POST /api/coderoots/files: (true, corpo) se riuscita, altrimenti (false, «Error: …» con il codice di MDE Remote).</summary>
     /// <param name="tool">Il nome del tool per il log (remote_edit fa una lettura e una scrittura: nel log resta remote_edit).</param>
     private async Task<(bool Ok, string Body)> FileOpAsync(string tool, string project, object request)
     {

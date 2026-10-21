@@ -10,7 +10,7 @@ namespace MdExplorer.Services.RemoteFolders
     /// <summary>
     /// I file di una radice esterna remota, per l'albero e per la pagina del documento (sprint
     /// 2026-10-21-Cartella-Remota-Via-SSH, F2): la stessa forma di <see cref="CodeRootBrowser"/>, ma i byte arrivano dal
-    /// serverino. Il percorso assoluto di un elemento è la sua posizione <c>ssh://host/…</c>.
+    /// MDE Remote. Il percorso assoluto di un elemento è la sua posizione <c>ssh://host/…</c>.
     /// </summary>
     public sealed class RemoteCodeRootFiles
     {
@@ -22,7 +22,7 @@ namespace MdExplorer.Services.RemoteFolders
         public async Task<IReadOnlyList<CodeRootEntry>> ListAsync(CodeRootState root, string relative, CancellationToken ct)
         {
             var channel = await _sessions.OpenAsync(root.Remote, ct);
-            var entries = (await channel.SendAsync(new RemoteRequest { Op = RemoteOps.List, Path = relative }, ct)).Entries ?? new List<RemoteEntry>();
+            var entries = (await channel.SendAsync(WithRules(root, new RemoteRequest { Op = RemoteOps.List, Path = relative }), ct)).Entries ?? new List<RemoteEntry>();
             return entries.Select(e => new CodeRootEntry
             {
                 Name = e.Name,
@@ -36,31 +36,38 @@ namespace MdExplorer.Services.RemoteFolders
 
         /// <summary>
         /// Un'operazione sui file della radice (F3, D7): crea, scrive, cartella nuova, cancella, sposta/rinomina, cerca.
-        /// I percorsi sono già relativi alla radice; il serverino applica le sue regole (dentro la radice, niente link,
+        /// I percorsi sono già relativi alla radice; MDE Remote applica le sue regole (dentro la radice, niente link,
         /// impronta per scrivere, mai sopra un file esistente).
         /// </summary>
         public async Task<RemoteResponse> OperateAsync(CodeRootState root, RemoteRequest request, CancellationToken ct)
         {
             var channel = await _sessions.OpenAsync(root.Remote, ct);
-            return await channel.SendAsync(request, ct);
+            return await channel.SendAsync(WithRules(root, request), ct);
         }
 
         /// <summary>
-        /// La stessa operazione su una radice LOCALE (FL): le regole del serverino (<see cref="WorkspaceDispatcher"/>) sulla
+        /// La stessa operazione su una radice LOCALE (FL): le regole di MDE Remote (<see cref="WorkspaceDispatcher"/>) sulla
         /// cartella del disco, così una radice si modifica allo stesso modo ovunque stia.
         /// </summary>
         public static RemoteResponse OperateLocal(CodeRootState root, RemoteRequest request)
         {
-            var response = WorkspaceDispatcher.Dispatch(new RemoteWorkspace(root.RootPath), request);
+            var response = WorkspaceDispatcher.Dispatch(new RemoteWorkspace(root.RootPath), WithRules(root, request));
             if (!response.Ok) throw new RemoteOperationException(response.Error?.Code ?? RemoteErrorCodes.Internal, response.Error?.Message ?? "");
             return response;
         }
 
-        /// <summary>Il testo di un file, con l'impronta per riscriverlo; un binario o un file non UTF-8 è rifiutato dal serverino.</summary>
+        /// <summary>Il testo di un file, con l'impronta per riscriverlo; un binario o un file non UTF-8 è rifiutato da MDE Remote.</summary>
         public async Task<RemoteResponse> ReadAsync(CodeRootState root, string relative, CancellationToken ct)
         {
             var channel = await _sessions.OpenAsync(root.Remote, ct);
-            return await channel.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = relative }, ct);
+            return await channel.SendAsync(WithRules(root, new RemoteRequest { Op = RemoteOps.Read, Path = relative }), ct);
+        }
+
+        /// <summary>Le codifiche per estensione della radice vanno con ogni richiesta: MDE Remote non ha configurazioni sue.</summary>
+        private static RemoteRequest WithRules(CodeRootState root, RemoteRequest request)
+        {
+            if (root.ExtensionEncodings.Count > 0) request.ExtensionEncodings = new Dictionary<string, string>(root.ExtensionEncodings);
+            return request;
         }
     }
 }

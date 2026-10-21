@@ -2,14 +2,14 @@ namespace MdExplorer.RemoteProtocol
 {
     /// <summary>
     /// Il protocollo tra il backend e <c>mde-remote</c>: una riga JSON per messaggio su stdin/stdout del comando lanciato
-    /// via <c>ssh</c>. Il serverino saluta per primo (D6), poi serve una richiesta alla volta, nell'ordine.
+    /// via <c>ssh</c>. MDE Remote saluta per primo (D6), poi serve una richiesta alla volta, nell'ordine.
     /// </summary>
     public static class AgentProtocol
     {
-        /// <summary>Si alza quando cambia la forma dei messaggi: il backend rifiuta un serverino con un altro numero.</summary>
+        /// <summary>Si alza quando cambia la forma dei messaggi: il backend rifiuta MDE Remote con un altro numero.</summary>
         public const int Version = 1;
 
-        /// <summary>Exit code del serverino quando la radice non esiste o non è una cartella: niente saluto.</summary>
+        /// <summary>Exit code di MDE Remote quando la radice non esiste o non è una cartella: niente saluto.</summary>
         public const int ExitRootNotFound = 3;
 
         /// <summary>Exit code per argomenti sbagliati.</summary>

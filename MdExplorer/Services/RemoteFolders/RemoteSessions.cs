@@ -13,19 +13,19 @@ using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services.RemoteFolders
 {
-    /// <summary>I serverini accesi, uno per cartella remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2-F3).</summary>
+    /// <summary>Le istanze di MDE Remote accesi, uno per cartella remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2-F3).</summary>
     public interface IRemoteSessions
     {
         /// <summary>
-        /// Il canale verso il serverino acceso su <paramref name="location"/>: quello già aperto se è vivo, altrimenti uno
-        /// nuovo dopo aver attraversato le porte (P10) e, se serve e l'utente l'ha permesso (P13), caricato il serverino.
+        /// Il canale verso MDE Remote acceso su <paramref name="location"/>: quello già aperto se è vivo, altrimenti uno
+        /// nuovo dopo aver attraversato le porte (P10) e, se serve e l'utente l'ha permesso (P13), caricato MDE Remote.
         /// Eccezioni: <see cref="RemoteUnavailableException"/> (porta chiusa e rimedio),
         /// <see cref="RemoteUploadConsentRequiredException"/> (serve il consenso).
         /// </summary>
         Task<RemoteChannel> OpenAsync(RemoteLocation location, CancellationToken ct = default);
 
         /// <summary>
-        /// Le sottocartelle di una cartella del server, per scegliere che cosa collegare (F3). Un serverino acceso solo per
+        /// Le sottocartelle di una cartella del server, per scegliere che cosa collegare (F3). MDE Remote acceso solo per
         /// questo elenco e poi spento. <paramref name="path"/> null = la home dell'utente SSH.
         /// </summary>
         Task<RemoteBrowse> BrowseServerAsync(string host, string path, CancellationToken ct = default);
@@ -44,7 +44,7 @@ namespace MdExplorer.Services.RemoteFolders
         private readonly ILogger<RemoteSessions> _logger;
         private readonly ConcurrentDictionary<RemoteLocation, RemoteChannel> _channels = new();
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _opening = new();
-        /// <summary>Per destinatario: la home e la cartella del serverino già verificata (porte 1-3 e caricamento fatti).</summary>
+        /// <summary>Per destinatario: la home e la cartella di MDE Remote già verificata (porte 1-3 e caricamento fatti).</summary>
         private readonly ConcurrentDictionary<string, (string Home, string Folder)> _prepared = new();
 
         public RemoteSessions(IRemoteTransport transport, Func<RemoteAgentBinary> binary, IRemoteServerSettings settings, ILogger<RemoteSessions> logger)
@@ -70,7 +70,7 @@ namespace MdExplorer.Services.RemoteFolders
                 }
                 var channel = await StartAsync(location, ct);
                 _channels[location] = channel;
-                _logger.LogInformation("[Remote] serverino {Version} acceso su {Location}", channel.Hello.Version, location);
+                _logger.LogInformation("[Remote] MDE Remote {Version} acceso su {Location}", channel.Hello.Version, location);
                 return channel;
             }
             finally { gate.Release(); }
@@ -102,8 +102,8 @@ namespace MdExplorer.Services.RemoteFolders
         }
 
         /// <summary>
-        /// Porte 1-3 in un solo giro di ssh (accesso, comandi permessi, cartella del serverino scrivibile), la home
-        /// dell'utente e, se nella cartella il serverino non c'è, il caricamento — solo con il consenso (P13). Una volta
+        /// Porte 1-3 in un solo giro di ssh (accesso, comandi permessi, cartella di MDE Remote scrivibile), la home
+        /// dell'utente e, se nella cartella MDE Remote non c'è, il caricamento — solo con il consenso (P13). Una volta
         /// per destinatario finché un avvio non fallisce.
         /// </summary>
         private async Task<(string Home, string Folder)> PrepareAsync(RemoteLocation location, CancellationToken ct)
@@ -124,9 +124,9 @@ namespace MdExplorer.Services.RemoteFolders
             {
                 if (!_settings.UploadAllowed(destination))
                     throw new RemoteUploadConsentRequiredException(destination, binary.Size, display, UiText.Say(
-                        $"Per usare {destination} MDE deve caricare il suo serverino ({binary.Size / 1024 / 1024.0:0.0} MB, un solo file) in {display}. Nella cartella del progetto remoto non scrive niente.",
-                        $"To use {destination} MDE must upload its agent ({binary.Size / 1024 / 1024.0:0.0} MB, a single file) to {display}. It writes nothing in the remote project folder."));
-                _logger.LogInformation("[Remote] carico il serverino su {Destination}: {Size} byte in {Folder}", destination, binary.Size, display);
+                        $"Per usare {destination} MDE deve caricare il suo MDE Remote ({binary.Size / 1024 / 1024.0:0.0} MB, un solo file) in {display}. Nella cartella del progetto remoto non scrive niente.",
+                        $"To use {destination} MDE must upload MDE Remote ({binary.Size / 1024 / 1024.0:0.0} MB, a single file) to {display}. It writes nothing in the remote project folder."));
+                _logger.LogInformation("[Remote] carico MDE Remote su {Destination}: {Size} byte in {Folder}", destination, binary.Size, display);
                 var tmp = $"{dir}/{RemoteAgentBinary.FileName}.tmp";
                 var upload = $"cat > {tmp} && chmod +x {tmp} && mv -f {tmp} {dir}/{RemoteAgentBinary.FileName} && echo mde-uploaded";
                 (exit, stdout, stderr) = await RunAsync(_transport.Command(destination, upload), binary.LocalPath, ct);

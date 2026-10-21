@@ -150,6 +150,12 @@
       <span>{{ 'REMOTE_TREE.DELETE' | translate }}</span>
     </button>
 
+    <!-- Le codifiche dei file per estensione (sprint 2026-10-21: «.cbl → CP-850»), dal menu della radice -->
+    <button *ngIf="item.type==='codeRoot'" mat-menu-item (click)="openCodeRootEncodings(item)">
+      <mat-icon>translate</mat-icon>
+      <span>{{ 'CODE_ROOT_ENCODINGS.MENU' | translate }}</span>
+    </button>
+
     <!-- Radici di codice esterne: il codice FUORI dal progetto (sprint 2026-10-12, F5) -->
     <button *ngIf="item.name==='root' || isCodeRootItem(item)"
             mat-menu-item

@@ -20,6 +20,7 @@ import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dial
 import { CodeRoot, CodeRootsService, RemoteFileOp } from '../../services/code-roots.service';
 import { CodeRootNameDialogComponent, CodeRootNameDialogData } from '../dialogs/code-roots/code-root-name-dialog.component';
 import { RemoteFileEditorDialogComponent, RemoteFileEditorData } from '../dialogs/code-roots/remote-file-editor-dialog.component';
+import { CodeRootEncodingsDialogComponent, CodeRootEncodingsData } from '../dialogs/code-roots/code-root-encodings-dialog.component';
 
 /** La cartella che contiene un percorso con «/» (@alias/a/b → @alias/a; ssh://h/x/y → ssh://h/x). */
 function parentOf(path: string): string { return path.substring(0, path.lastIndexOf('/')); }
@@ -2675,6 +2676,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return item?.type === 'codeRootFolder' || item?.type === 'codeRootFile';
   }
 
+  /**
+   * Le codifiche dei file della radice, per estensione (dal menu di @alias). Salvate, le cartelle aperte si ricaricano:
+   * le pagine aperte dopo leggono con la regola nuova.
+   */
+  openCodeRootEncodings(item: MdFile): void {
+    const projectRoot = this.getProjectRoot();
+    if (!projectRoot) { return; }
+    const data: CodeRootEncodingsData = { projectRoot, alias: item.name.replace(/^@/, '') };
+    this.dialog.open(CodeRootEncodingsDialogComponent, { width: '620px', data })
+      .afterClosed().subscribe(saved => {
+        if (saved) { this.snackBar.open(this.translate.instant('CODE_ROOT_ENCODINGS.SAVED'), '', { duration: 4000 }); }
+      });
+  }
+
   // ---- l'occhio (FL): come nel progetto, di base cartelle e .md; «mostra altri file» per cartella ----
 
   /**
@@ -2786,7 +2801,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       .afterClosed().subscribe(name => { if (typeof name === 'string') { then(name); } });
   }
 
-  /** Un'operazione sul server, poi la cartella toccata si ricarica; l'errore del serverino arriva com'è. */
+  /** Un'operazione sul server, poi la cartella toccata si ricarica; l'errore di MDE Remote arriva com'è. */
   private codeRootFileOp(op: RemoteFileOp, path: string, extra: any, refreshFullPath: string, after?: () => void): void {
     const projectRoot = this.getProjectRoot();
     if (!projectRoot) { return; }

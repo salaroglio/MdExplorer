@@ -77,7 +77,7 @@ export class CodeRootsDialogComponent implements OnInit {
 
   /**
    * Collega (o ricollega) una radice a una cartella su un server via SSH (sprint 2026-10-21-Cartella-Remota-Via-SSH, F3):
-   * la finestra sceglie host e cartella, e chiede il sì prima di caricare il serverino.
+   * la finestra sceglie host e cartella, e chiede il sì prima di caricare MDE Remote.
    */
   pickRemoteAndLink(alias: string, start: string | null): void {
     if (!this.aliasRule.test(alias)) { this.errorMessage = this.translate.instant('CODE_ROOTS.ALIAS_RULE'); return; }

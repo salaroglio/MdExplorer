@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- mde-remote: il serverino che MDE carica nella home dell'utente SSH e lancia con «ssh host mde-remote, opzione root»
+  <!-- mde-remote: MDE Remote che MDE carica nella home dell'utente SSH e lancia con «ssh host mde-remote, opzione root»
        (sprint Cartella-Remota-Via-SSH). Native AOT senza dipendenze: sul server basta glibc (D5). La build per i server
        si fa in rockylinux:8 con publish-linux-x64.sh, così gira da glibc 2.17 in su. -->
   <PropertyGroup>

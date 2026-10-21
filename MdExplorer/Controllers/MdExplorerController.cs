@@ -831,7 +831,7 @@ namespace MdExplorer.Controllers
         }
 
         /// <summary>
-        /// Un file di una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): il testo arriva dal serverino.
+        /// Un file di una radice remota (sprint 2026-10-21-Cartella-Remota-Via-SSH, F2): il testo arriva da MDE Remote.
         /// Binario, non UTF-8, sparito, server irraggiungibile → la pagina dice perché.
         /// </summary>
         private async Task<IActionResult> ShowRemoteCodeRootFile(CodeRootState root, string relative, string logicalPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
