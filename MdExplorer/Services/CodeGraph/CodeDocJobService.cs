@@ -617,12 +617,13 @@ namespace MdExplorer.Services.CodeGraph
             var withSymbols = new HashSet<string>(plan.Groups.Where(g => !g.IsCrossFileCycle).SelectMany(g => g.Sources), StringComparer.Ordinal);
             foreach (var source in askFiles.Where(x => !withSymbols.Contains(x)).OrderBy(x => x, StringComparer.Ordinal))
                 plan.Groups.Add(new CodeDocGroup { Index = plan.Groups.Count, Level = 0, Sources = new[] { source }, Candidates = Array.Empty<CodeDocCandidate>(), DependsOn = Array.Empty<int>() });
-            // la descrizione del file si chiede una volta, nella prima domanda che lo riguarda (non in un ciclo fra file)
+            // la descrizione del file si chiede una volta, nell'ULTIMA domanda che lo riguarda (non in un ciclo fra file): il
+            // file non arriva più intero, e a che cosa serve si ricava dai suoi simboli già descritti (22/10/2026)
             plan.AskFileIn = new Dictionary<int, string>();
             foreach (var source in askFiles)
             {
-                var first = plan.Groups.FirstOrDefault(g => !g.IsCrossFileCycle && g.Sources[0] == source);
-                if (first != null) plan.AskFileIn[first.Index] = source;
+                var last = plan.Groups.LastOrDefault(g => !g.IsCrossFileCycle && g.Sources[0] == source);
+                if (last != null) plan.AskFileIn[last.Index] = source;
             }
             foreach (var w in plan.Graph.Warnings.Take(20)) _logger.LogWarning("[CodeDoc] {Warning}", w);
             return plan;
@@ -691,8 +692,13 @@ namespace MdExplorer.Services.CodeGraph
 
             var label = group.IsCrossFileCycle ? string.Join(" + ", group.Sources) : group.Sources[0];
             var batches = group.IsCrossFileCycle
-                ? new List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> { (group.Candidates, CodeDocPlanner.CycleSource(sources, group.Candidates)) }
-                : CodeDocPlanner.Batches(sources[label], group.Candidates, askFile);
+                ? new List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> { (group.Candidates, CodeDocPlanner.CycleSource(sources, group.Candidates, group.Sources.ToDictionary(x => x, x => docFiles[x].Ast, StringComparer.Ordinal))) }
+                : CodeDocPlanner.Pieces(sources[label], group.Candidates, docFiles[label].Ast, askFile);
+            // per la descrizione del file: i suoi simboli con le sintesi che ci sono adesso (quelli di questa domanda no)
+            var fileContents = askFile && !group.IsCrossFileCycle
+                ? docFiles[label].Ast.Symbols.Where(s => !s.IsExternal && CodeDocPlanner.IsDescribable(s.Kind) && Summary(s.Id) != null && !context.ContainsKey(s.Id))
+                    .OrderBy(s => s.LineStart ?? 0).Select(s => new CodeDocCall { QualifiedName = s.QualifiedName, Signature = s.Signature, Summary = Summary(s.Id) }).ToList()
+                : null;
 
             var freshDocs = new List<ScriptSymbolDoc>();
             var freshParams = new List<ScriptParameterDoc>();
@@ -706,7 +712,7 @@ namespace MdExplorer.Services.CodeGraph
                 token.ThrowIfCancellationRequested();
                 var askThis = askFile && !fileAsked;
                 fileAsked |= askThis;
-                var prompt = CodeDocPlanner.BuildPrompt(skillBody, label, text, batch, _language.Current, askThis, context);
+                var prompt = CodeDocPlanner.BuildPrompt(skillBody, label, text, batch, _language.Current, askThis, context, askThis ? fileContents : null);
                 string answer;
                 try
                 {
@@ -789,7 +795,7 @@ namespace MdExplorer.Services.CodeGraph
 
         /// <summary>
         /// Un file: i candidati all'LLM — tutto il sorgente se ci sta, altrimenti a gruppi con il pezzo di sorgente di ogni
-        /// simbolo (<see cref="CodeDocPlanner.Batches"/>) — poi unione con lo script esistente, scrittura e caricamento.
+        /// simbolo (<see cref="CodeDocPlanner.Pieces"/>) — poi unione con lo script esistente, scrittura e caricamento.
         /// </summary>
         private async Task<FileResult> DescribeFileAsync(string projectPath, CodeRootResolver resolver, CodeScript ast, IReadOnlyList<CodeDocCandidate> candidates, CodeScript existing,
             string docPath, MarkAgentEngine engine, string model, string skillBody, string writtenBy, CancellationToken token, bool askFile = false)
@@ -806,13 +812,19 @@ namespace MdExplorer.Services.CodeGraph
             var freshCount = 0;
             var failures = new List<string>();
             var fileAsked = false;
-            foreach (var (batch, text) in CodeDocPlanner.Batches(sourceText, candidates, askFile))
+            // solo le righe dei simboli; per la sola descrizione del file l'intestazione più le sintesi dei suoi simboli
+            var fileContents = askFile
+                ? ast.Symbols.Where(s => !s.IsExternal && CodeDocPlanner.IsDescribable(s.Kind))
+                    .Select(s => (s, d: existing?.SymbolDocs.FirstOrDefault(x => x.SymbolId == s.Id))).Where(x => x.d != null)
+                    .OrderBy(x => x.s.LineStart ?? 0).Select(x => new CodeDocCall { QualifiedName = x.s.QualifiedName, Signature = x.s.Signature, Summary = x.d.Summary }).ToList()
+                : null;
+            foreach (var (batch, text) in CodeDocPlanner.Pieces(sourceText, candidates, ast, askFile))
             {
                 token.ThrowIfCancellationRequested();
                 // la descrizione del file si chiede una volta, nella prima domanda
                 var askThis = askFile && !fileAsked;
                 fileAsked |= askThis;
-                var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch, _language.Current, askThis);
+                var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch, _language.Current, askThis, fileContents: askThis ? fileContents : null);
                 string answer;
                 try
                 {

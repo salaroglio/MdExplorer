@@ -32,8 +32,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "en"), "---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in inglese (English).");
             StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it"), "la descrizione del file in italiano.");
             Assert.ThrowsException<ArgumentException>(() => CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "de"), "una lingua non prevista non si indovina");
-            Assert.AreEqual(1, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>(), askFile: true).Count, "solo il file: una domanda");
-            Assert.AreEqual(0, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>()).Count);
+            Assert.AreEqual(1, CodeDocPlanner.Pieces("class Foo {}", new List<CodeDocCandidate>(), ast, askFile: true).Count, "solo il file: una domanda");
+            Assert.AreEqual(0, CodeDocPlanner.Pieces("class Foo {}", new List<CodeDocCandidate>(), ast).Count);
 
             var answer = "{\"type\":\"fileDoc\",\"summary\":\"Il punto d'ingresso del servizio.\"}\n{\"type\":\"symbolDoc\",\"symbolId\":\"c1\",\"summary\":\"La classe.\"}";
             var fresh = CodeDocPlanner.ParseAnswer(answer, "src/Foo.cs", cands, "t", out var rejected, askedFile: true);
@@ -102,28 +102,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
     
         [TestMethod]
-        public void Send_a_short_file_whole_and_a_long_one_in_excerpt_batches_without_truncating()
+        public void Send_only_the_lines_of_the_symbols_and_split_them_when_too_long()
         {
-            var cands = Enumerable.Range(1, 30).Select(i => new CodeDocCandidate
+            // 30 funzioni da 81 righe, a 100 righe l'una dall'altra; fra una e l'altra righe di codice qualsiasi
+            var lines = Enumerable.Range(1, 3100).Select(i => (i % 100 == 0 ? "function F" + (i / 100) + " {" : "    x = " + i + ";") + new string(' ', 25)).ToList();
+            var source = string.Join("\n", lines);
+            var ast = new CodeScript { Header = new CodeScriptHeader { Kind = CodeScriptKind.Ast, Source = "m.ps1" } };
+            var cands = Enumerable.Range(1, 30).Select(i =>
             {
-                Symbol = new ScriptSymbol { Id = "f" + i, Kind = "function", Name = "F" + i, QualifiedName = "m:F" + i, LineStart = i * 100, LineEnd = i * 100 + 2 },
-                Parameters = new List<ScriptParameter>(),
+                var s = new ScriptSymbol { Id = "f" + i, Kind = "function", Name = "F" + i, QualifiedName = "m:F" + i, LineStart = i * 100, LineEnd = i * 100 + 80 };
+                ast.Symbols.Add(s);
+                return new CodeDocCandidate { Symbol = s, Parameters = new List<ScriptParameter>() };
             }).ToList();
 
-            var shortSource = "function F1 { }";
-            var one = CodeDocPlanner.Batches(shortSource, cands);
-            Assert.AreEqual(1, one.Count); Assert.AreEqual(shortSource, one[0].Source); Assert.AreEqual(30, one[0].Candidates.Count);
+            var one = CodeDocPlanner.Pieces(source, cands.Take(2).ToList(), ast);
+            Assert.AreEqual(1, one.Count);
+            StringAssert.Contains(one[0].Source, "// ---- righe 100-180 ----");
+            StringAssert.Contains(one[0].Source, "// ---- righe 200-280 ----");
+            Assert.IsFalse(one[0].Source.Contains("x = 190;"), "le righe fra le due funzioni non si mandano");
+            Assert.IsFalse(one[0].Source.Contains("x = 1;"), "né l'inizio del file");
 
-            // 3.100 righe da ~40 caratteri: ben oltre MaxSourceChars
-            var lines = Enumerable.Range(1, 3100).Select(i => (i % 100 == 0 ? "function F" + (i / 100) + " {" : "    # riga " + i) + new string(' ', 25)).ToList();
-            var longSource = string.Join("\n", lines);
-            Assert.IsTrue(longSource.Length > CodeDocPlanner.MaxSourceChars);
-            var batches = CodeDocPlanner.Batches(longSource, cands);
-            Assert.AreEqual(3, batches.Count, "30 simboli a gruppi di " + CodeDocPlanner.ExcerptBatchSize);
+            var batches = CodeDocPlanner.Pieces(source, cands, ast);
+            Assert.IsTrue(batches.Count > 1, "30 × 81 righe superano MaxSourceChars: a gruppi di " + CodeDocPlanner.ExcerptBatchSize);
             Assert.AreEqual(30, batches.Sum(b => b.Candidates.Count), "nessun simbolo perso");
-            var last = batches[2];
-            StringAssert.Contains(last.Source, "// ---- righe 3000-3002 ----");
-            StringAssert.Contains(last.Source, "function F30 {", "l'ultima funzione, oltre il vecchio taglio, c'è");
+            StringAssert.Contains(batches[^1].Source, "function F30 {");
             Assert.IsTrue(batches.All(b => b.Source.Length < CodeDocPlanner.MaxSourceChars));
         }
 }

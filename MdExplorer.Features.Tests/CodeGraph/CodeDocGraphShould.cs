@@ -98,7 +98,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             {
                 ["prog/a.java"] = string.Join("\n", Enumerable.Range(1, 50).Select(i => "a" + i)),
                 ["prog/b.java"] = string.Join("\n", Enumerable.Range(1, 20).Select(i => "b" + i)),
-            }, cycle.Candidates);
+            }, cycle.Candidates, new Dictionary<string, CodeScript> { ["prog/a.java"] = a, ["prog/b.java"] = b });
             StringAssert.Contains(text, "// ==== prog/a.java ====\n// ---- righe 2-4 ----\na2\na3\na4");
             StringAssert.Contains(text, "// ==== prog/b.java ====\n// ---- righe 2-4 ----\nb2\nb3\nb4");
             var prompt = CodeDocPlanner.BuildPrompt("SKILL", "prog/a.java + prog/b.java", text, cycle.Candidates, "it");
@@ -338,6 +338,54 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Calls(b, "b1", "leaf", 4, "ambiguous");
             Assert.AreEqual(1, CodeDocPlanner.DropOrphans(back, b), "una candidata nuova: la scelta non regge più");
             Assert.AreEqual(0, back.CallResolutions.Count);
+        }
+
+        // ---------------------------------------------------------------- il taglia e cuci (22/10/2026)
+
+        [TestMethod]
+        public void Cut_the_source_to_the_symbols_keeping_their_javadoc_and_without_the_bodies_inside_a_class()
+        {
+            var source = string.Join("\n", new[]
+            {
+                "package p;",                       // 1
+                "import java.util.List;",           // 2
+                "",                                 // 3
+                "/** La classe. */",                // 4
+                "public class A {",                 // 5
+                "    private int n;",               // 6
+                "    /**",                          // 7
+                "     * Somma.",                    // 8
+                "     */",                          // 9
+                "    public int sum(int x) {",      // 10
+                "        return n + x;",            // 11
+                "    }",                            // 12
+                "    public void other() {",        // 13
+                "        n++;",                     // 14
+                "    }",                            // 15
+                "}",                                // 16
+            });
+            var ast = Script("prog/A.java");
+            var cls = new ScriptSymbol { Id = "A", Kind = "class", Name = "A", QualifiedName = "p.A", LineStart = 5, LineEnd = 16 };
+            var field = new ScriptSymbol { Id = "n", Kind = "field", Name = "n", QualifiedName = "p.A.n", LineStart = 6, LineEnd = 6, ParentId = "A" };
+            var sum = new ScriptSymbol { Id = "sum", Kind = "method", Name = "sum", QualifiedName = "p.A.sum(int)", LineStart = 10, LineEnd = 12, ParentId = "A" };
+            var other = new ScriptSymbol { Id = "other", Kind = "method", Name = "other", QualifiedName = "p.A.other()", LineStart = 13, LineEnd = 15, ParentId = "A" };
+            ast.Symbols.AddRange(new[] { cls, field, sum, other });
+
+            var method = CodeSourceExcerpt.For(source, new[] { sum }, ast);
+            StringAssert.StartsWith(method, "// ---- righe 7-12 ----\n    /**\n     * Somma.", "il Javadoc sopra il metodo viene con lui");
+            Assert.IsFalse(method.Contains("other"), "solo le righe del metodo");
+            Assert.IsFalse(method.Contains("package"));
+
+            var type = CodeSourceExcerpt.For(source, new[] { cls }, ast);
+            StringAssert.Contains(type, "/** La classe. */\npublic class A {\n    private int n;", "intestazione, Javadoc e campi della classe");
+            StringAssert.Contains(type, "    public int sum(int x) {\n    // … corpo di sum (righe 10-12): vedi members …", "del metodo resta la firma");
+            Assert.IsFalse(type.Contains("return n + x;"), "i corpi dei metodi no: l'LLM li conosce dalle sintesi");
+            Assert.IsFalse(type.Contains("n++;"));
+            StringAssert.Contains(type, "}\n");
+
+            var header = CodeSourceExcerpt.Header(source, ast);
+            StringAssert.Contains(header, "package p;\nimport java.util.List;");
+            Assert.IsFalse(header.Contains("class A"), "solo le righe prima del primo simbolo");
         }
     }
 }

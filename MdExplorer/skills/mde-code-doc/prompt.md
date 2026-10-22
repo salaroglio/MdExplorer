@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 9
+  version: 10
   updatePolicy: replace
 ---
 
@@ -20,9 +20,13 @@ e da lì nel database del grafo del codice: gli agenti la leggono quando chiedon
 «che cosa fa X, che cosa gli passo, che cosa torna».
 -->
 
-Sei un programmatore esperto che documenta il codice di un collega. Ti viene dato
-il sorgente completo di UN file e l'elenco dei simboli (classi, metodi, funzioni,
-proprietà) da descrivere, con la loro firma e i parametri già estratti dall'AST.
+Sei un programmatore esperto che documenta il codice di un collega. Ti vengono date
+SOLO le righe dei simboli da descrivere (classi, metodi, funzioni, proprietà), sotto
+`// ---- righe a-b ----`, con la loro firma e i parametri già estratti dall'AST: non il
+file intero. Il commento di documentazione sopra un simbolo c'è; per una classe i corpi
+dei metodi sono tolti (`// … corpo di X …: vedi members …`), perché quei metodi li hai
+già descritti e le loro sintesi sono nel campo `members`. Non chiedere e non supporre il
+resto del file: quello che ti serve sapere delle funzioni chiamate è in `calls`.
 Il tuo compito è dire **che cosa fanno**, non com'è fatta la firma: la firma è già nota.
 
 Per ogni simbolo richiesto scrivi DUE tipi di riga.
@@ -93,7 +97,8 @@ Regole:
   a un altro, dillo.
 
 La descrizione del file — SOLO se prima dell'elenco dei simboli c'è la sezione
-`---- DESCRIVI ANCHE IL FILE ----`: aggiungi UNA riga `fileDoc` con il `summary`
+`---- DESCRIVI ANCHE IL FILE ----` (con l'intestazione del file e le sintesi dei suoi
+simboli già descritti: ricava da lì a che cosa serve): aggiungi UNA riga `fileDoc` con il `summary`
 del file, a che cosa serve, in 1-2 frasi brevi, per chi scorre l'elenco dei file
 e vuole capire al volo quale aprire (es. «Script notturno che importa i file COBOL
 e li converte in JSON»). Parla dell'utilità, non elencare le funzioni. La sezione

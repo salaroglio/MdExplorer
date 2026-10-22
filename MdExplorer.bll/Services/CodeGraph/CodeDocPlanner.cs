@@ -204,57 +204,38 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const int ExcerptBatchSize = 12;
 
         /// <summary>
-        /// Che cosa mandare all'LLM. Un file entro <see cref="MaxSourceChars"/> va intero con tutti i candidati. Uno più
-        /// lungo NON si tronca: prima (fino al 12/10/2026) il troncamento lasciava le funzioni oltre il taglio senza
-        /// descrizione, perché l'LLM non le vedeva. Si mandano i candidati a gruppi, ognuno con il pezzo di sorgente
-        /// delle righe dei suoi simboli (intestate «righe a-b»).
+        /// Il sorgente di una domanda su un ciclo che attraversa più file (F12a): per ogni file, sotto la sua intestazione
+        /// <c>// ==== file ====</c>, solo le righe dei suoi simboli (<see cref="CodeSourceExcerpt"/>).
         /// </summary>
-        public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Batches(string sourceText, IReadOnlyList<CodeDocCandidate> candidates, bool askFile = false)
-        {
-            var list = new List<(IReadOnlyList<CodeDocCandidate>, string)>();
-            // solo il file da descrivere: una domanda con il sorgente (tagliato in BuildPrompt se è enorme: per dire a che
-            // cosa serve un file basta l'inizio)
-            if (candidates.Count == 0) { if (askFile) list.Add((candidates, sourceText)); return list; }
-            if (sourceText.Length <= MaxSourceChars) { list.Add((candidates, sourceText)); return list; }
-            var lines = sourceText.Replace("\r\n", "\n").Split('\n');
-            for (var i = 0; i < candidates.Count; i += ExcerptBatchSize)
-            {
-                var batch = candidates.Skip(i).Take(ExcerptBatchSize).ToList();
-                var sb = new StringBuilder();
-                foreach (var c in batch.OrderBy(c => c.Symbol.LineStart ?? 0))
-                {
-                    var from = Math.Max(1, c.Symbol.LineStart ?? 1);
-                    var to = Math.Min(lines.Length, Math.Max(from, c.Symbol.LineEnd ?? from));
-                    sb.Append("// ---- righe ").Append(from).Append('-').Append(to).Append(" ----\n");
-                    for (var l = from; l <= to; l++) sb.Append(lines[l - 1]).Append('\n');
-                    sb.Append('\n');
-                }
-                list.Add((batch, sb.ToString()));
-            }
-            return list;
-        }
-
-        /// <summary>
-        /// Il sorgente di una domanda su un ciclo che attraversa più file (F12a): per ogni simbolo le sue righe, sotto
-        /// l'intestazione del suo file. <paramref name="sources"/>: percorso logico → testo.
-        /// </summary>
-        public static string CycleSource(IReadOnlyDictionary<string, string> sources, IReadOnlyList<CodeDocCandidate> candidates)
+        public static string CycleSource(IReadOnlyDictionary<string, string> sources, IReadOnlyList<CodeDocCandidate> candidates, IReadOnlyDictionary<string, CodeScript> asts)
         {
             var sb = new StringBuilder();
             foreach (var file in candidates.GroupBy(c => c.Source).OrderBy(g => g.Key, StringComparer.Ordinal))
             {
-                var lines = sources[file.Key].Replace("\r\n", "\n").Split('\n');
                 sb.Append("// ==== ").Append(file.Key).Append(" ====\n");
-                foreach (var c in file.OrderBy(c => c.Symbol.LineStart ?? 0))
-                {
-                    var from = Math.Max(1, c.Symbol.LineStart ?? 1);
-                    var to = Math.Min(lines.Length, Math.Max(from, c.Symbol.LineEnd ?? from));
-                    sb.Append("// ---- righe ").Append(from).Append('-').Append(to).Append(" ----\n");
-                    for (var l = from; l <= to; l++) sb.Append(lines[l - 1]).Append('\n');
-                    sb.Append('\n');
-                }
+                sb.Append(CodeSourceExcerpt.For(sources[file.Key], file.Select(c => c.Symbol), asts[file.Key]));
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Che cosa mandare all'LLM per una domanda su UN file (22/10/2026): mai più il file intero, solo le righe dei simboli
+        /// da descrivere (<see cref="CodeSourceExcerpt.For"/>); se non ce ne sono (la sola descrizione del file),
+        /// l'intestazione. Se gli estratti superano <see cref="MaxSourceChars"/>, a gruppi di <see cref="ExcerptBatchSize"/> simboli.
+        /// </summary>
+        public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Pieces(string sourceText, IReadOnlyList<CodeDocCandidate> candidates, CodeScript ast, bool askFile = false)
+        {
+            var list = new List<(IReadOnlyList<CodeDocCandidate>, string)>();
+            if (candidates.Count == 0) { if (askFile) list.Add((candidates, CodeSourceExcerpt.Header(sourceText, ast))); return list; }
+            var all = CodeSourceExcerpt.For(sourceText, candidates.Select(c => c.Symbol), ast);
+            if (all.Length <= MaxSourceChars) { list.Add((candidates, all)); return list; }
+            var ordered = candidates.OrderBy(c => c.Symbol.LineStart ?? 0).ToList();
+            for (var i = 0; i < ordered.Count; i += ExcerptBatchSize)
+            {
+                var batch = ordered.Skip(i).Take(ExcerptBatchSize).ToList();
+                list.Add((batch, CodeSourceExcerpt.For(sourceText, batch.Select(c => c.Symbol), ast)));
+            }
+            return list;
         }
 
         /// <summary>Quello che si sa intorno a un simbolo quando lo si descrive dal basso (F12a): chi chiama e, per un tipo, i membri.</summary>
@@ -282,7 +263,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// sintesi già scritte.
         /// </summary>
         public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, string language, bool askFile = false,
-            IReadOnlyDictionary<string, SymbolContext> context = null)
+            IReadOnlyDictionary<string, SymbolContext> context = null, IReadOnlyList<CodeDocCall> fileContents = null)
         {
             var languageName = language switch
             {
@@ -294,7 +275,19 @@ namespace MdExplorer.Features.Services.CodeGraph
             var sb = new StringBuilder();
             sb.Append(skillBody.Trim()).Append("\n\n");
             sb.Append("---- FILE ----\n").Append(sourceRelativePath).Append('\n').Append(sourceText).Append("\n\n");
-            if (askFile) sb.Append("---- DESCRIVI ANCHE IL FILE ----\nScrivi una riga {\"type\":\"fileDoc\",\"summary\":\"…\"} con a che cosa serve il file.\n\n");
+            if (askFile)
+            {
+                sb.Append("---- DESCRIVI ANCHE IL FILE ----\nScrivi una riga {\"type\":\"fileDoc\",\"summary\":\"…\"} con a che cosa serve il file.\n");
+                // il file non arriva intero (22/10/2026): a che cosa serve si ricava dai suoi simboli già descritti
+                if (fileContents is { Count: > 0 })
+                {
+                    sb.Append("I simboli del file, con le descrizioni già scritte (uno per riga):\n");
+                    foreach (var f in fileContents)
+                        sb.Append(JsonSerializer.Serialize(new { name = f.QualifiedName, signature = f.Signature, summary = f.Summary },
+                            new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping })).Append('\n');
+                }
+                sb.Append('\n');
+            }
             sb.Append("---- SIMBOLI DA DESCRIVERE (uno per riga) ----\n");
             foreach (var c in candidates)
             {
