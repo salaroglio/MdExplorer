@@ -19,23 +19,30 @@ namespace MdExplorer.Services.LlmSessions
     public static class ReadOnlyEngineSessions
     {
         /// <summary>Claude Code: no execution, nothing written (dontAsk denies what is not granted; the bans say it too).</summary>
-        public static ClaudeCodeSessionOptions ClaudeOptions(string profileKey, string resumeSessionId = null) => new()
+        /// <param name="mcpConfigPath">
+        /// Un <c>--mcp-config</c> (con <c>--strict-mcp-config</c>): solo i server lì dentro, quelli dell'utente no; i suoi
+        /// strumenti si possono usare (<see cref="ClaudeCodeMcp.ServerName"/>). Null = i server MCP dell'utente, come prima.
+        /// </param>
+        public static ClaudeCodeSessionOptions ClaudeOptions(string profileKey, string resumeSessionId = null, string mcpConfigPath = null) => new()
         {
             ToolPolicy = ClaudeCodeToolPolicy.NoExecution,
             DisallowedTools = new[] { "Edit", "Write", "NotebookEdit", "Bash" },
             AllowedTools = Array.Empty<string>(),
             ProfileKey = profileKey,
             ResumeSessionId = resumeSessionId,
+            McpConfigPath = mcpConfigPath,
+            AllowedMcpServers = mcpConfigPath == null ? null : new[] { ClaudeCodeMcp.ServerName },
         };
 
         /// <summary>Copilot (SDK transport): no shell, no writing, with the reason the model is told.</summary>
-        public static CopilotSessionProfile CopilotProfile(string key, string reason, string resumeSessionId = null) => new()
+        public static CopilotSessionProfile CopilotProfile(string key, string reason, string resumeSessionId = null, IReadOnlyList<string> onlyMcpServers = null) => new()
         {
             Key = key,
             DenyShell = true,
             DenyWrite = true,
             DenyReason = reason,
             ResumeSessionId = resumeSessionId,
+            OnlyMcpServers = onlyMcpServers,
         };
 
         /// <summary>
@@ -106,12 +113,38 @@ namespace MdExplorer.Services.LlmSessions
         private readonly ClaudeCodeSessionPool _claude;
         private readonly CopilotChatSessionPool _copilot;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopes;
 
-        public OneShotReadOnlySession(ClaudeCodeSessionPool claude, CopilotChatSessionPool copilot, ILoggerFactory loggerFactory)
+        public OneShotReadOnlySession(ClaudeCodeSessionPool claude, CopilotChatSessionPool copilot, ILoggerFactory loggerFactory,
+            Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopes)
         {
             _claude = claude;
             _copilot = copilot;
             _loggerFactory = loggerFactory;
+            _scopes = scopes;
+        }
+
+        /// <summary>
+        /// Una domanda singola (descrizioni del codice, riassunti) tiene acceso solo il server MCP di MdExplorer: il modello
+        /// ha già tutto nel prompt, gli altri server dell'utente partivano a ogni domanda (22/10/2026, Copilot: GitHub,
+        /// MdExplorer e uno SPARQL dell'utente, ~1 s e tre processi l'una). MdExplorer resta (utente: «così se ci viene in
+        /// mente qualcosa in più, lo possiamo fare»).
+        /// </summary>
+        private static readonly IReadOnlyList<string> OnlyMdExplorer = new[] { ClaudeCodeMcp.ServerName };
+
+        /// <summary>
+        /// Il <c>--mcp-config</c> di Claude con il solo MdExplorer e i gruppi di strumenti del progetto. Senza l'eseguibile
+        /// MCP (pacchetto incompleto) un file VUOTO: la sessione resta isolata dai server dell'utente, e il log lo dice.
+        /// </summary>
+        private string ClaudeMcpConfig(string projectPath)
+        {
+            string groups;
+            using (var scope = _scopes.CreateScope())
+                groups = MdExplorer.Service.ProjectsManager.McpGroupsArgument(scope.ServiceProvider, projectPath);
+            var path = ClaudeCodeMcp.WriteSessionConfig(groups);
+            if (path != null) return path;
+            _loggerFactory.CreateLogger<OneShotReadOnlySession>().LogWarning("[OneShot] MdExplorer.Mcp non trovato: la domanda parte senza server MCP");
+            return ClaudeCodeMcp.WriteSessionConfig(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "MdExplorer"), nonce: "no-mcp");
         }
 
         /// <summary>The text of the answer to <paramref name="prompt"/>, with the engine and model given.</summary>
@@ -125,7 +158,7 @@ namespace MdExplorer.Services.LlmSessions
                 case MarkAgentEngine.Claude:
                     try
                     {
-                        var session = await _claude.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.ClaudeOptions(profileKey), ct).ConfigureAwait(false);
+                        var session = await _claude.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.ClaudeOptions(profileKey, mcpConfigPath: ClaudeMcpConfig(projectPath)), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == ClaudeCodeChunk.KindMessage) answer.Append(chunk.Text);
                     }
@@ -134,7 +167,7 @@ namespace MdExplorer.Services.LlmSessions
                 case MarkAgentEngine.Copilot:
                     try
                     {
-                        var session = await _copilot.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.CopilotProfile(profileKey, denyReason), ct).ConfigureAwait(false);
+                        var session = await _copilot.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.CopilotProfile(profileKey, denyReason, onlyMcpServers: OnlyMdExplorer), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == CopilotChatChunk.KindMessage) answer.Append(chunk.Text);
                     }

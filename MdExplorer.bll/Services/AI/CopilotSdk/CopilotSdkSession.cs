@@ -244,6 +244,15 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     config.Model = _modelId;
                 }
 
+                if (_profile?.OnlyMcpServers != null)
+                {
+                    var keep = new HashSet<string>(_profile.OnlyMcpServers, StringComparer.Ordinal);
+                    var off = CopilotMcpNames.Known(_workingDirectory, out var problems).Where(n => !keep.Contains(n)).ToList();
+                    foreach (var p in problems) _logger.LogWarning("[CopilotSdkSession] configurazione MCP non letta: {Problem}", p);
+                    config.DisabledMcpServers = off;
+                    _logger.LogInformation("[CopilotSdkSession] server MCP accesi: solo {Keep}; spenti: {Off}", string.Join(", ", keep), off.Count == 0 ? "(nessuno)" : string.Join(", ", off));
+                }
+
                 if (_profile != null)
                 {
                     config.McpServers = _profile.McpServers.ToDictionary(
@@ -745,8 +754,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 .ToList();
             foreach (var (name, status, error) in servers)
             {
+                CopilotMcpNames.Learn(name);
                 _logger.LogInformation("[CopilotSdkSession] MCP {Server}: {Status}{Error}", name, status,
                     string.IsNullOrWhiteSpace(error) ? "" : " — " + error);
+                if (_profile?.OnlyMcpServers != null && !_profile.OnlyMcpServers.Contains(name) && status != "disabled")
+                    _logger.LogWarning("[CopilotSdkSession] MCP {Server} acceso anche se la sessione voleva solo {Keep}: non lo conoscevo, dalla prossima sessione è spento", name, string.Join(", ", _profile.OnlyMcpServers));
             }
 
             var notice = CopilotMcpDiagnostics.NoticeFor(servers);

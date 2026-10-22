@@ -22,6 +22,14 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
         public IReadOnlyDictionary<string, CopilotMcpServer> McpServers { get; init; } = new Dictionary<string, CopilotMcpServer>();
 
+        /// <summary>
+        /// Solo questi server MCP (per nome) restano accesi; gli altri che il CLI avvierebbe da sé (il server integrato di
+        /// GitHub, quelli della configurazione dell'utente) si spengono. Null = tutti, come sempre. Le domande singole in sola
+        /// lettura (descrizioni del codice, riassunti) tengono solo «mdexplorer» (utente, 22/10/2026: tre server avviati a
+        /// ogni domanda, uno era il suo SPARQL su localhost:3030).
+        /// </summary>
+        public IReadOnlyList<string> OnlyMcpServers { get; init; }
+
         /// <summary>Absolute paths the agent must not read.</summary>
         public IReadOnlyList<string> DeniedReadPaths { get; init; } = Array.Empty<string>();
 
