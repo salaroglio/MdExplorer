@@ -43,6 +43,14 @@ export interface CodeFolderAnalysisOutcome {
   error?: string;
 }
 
+/** Gli script AST scritti da un estrattore precedente (D25): il grafo di quei file è quello vecchio. */
+export interface OutdatedScripts {
+  count: number;
+  /** Per linguaggio: da quale estrattore a quale, quanti file. */
+  changes: { language: string; from: string; to: string; files: number }[];
+  scripts: { folder: string; source: string; language: string }[];
+}
+
 export interface CodeGraphStatus {
   scriptsFolderExists: boolean;
   scriptsOnDisk: number;
@@ -139,7 +147,17 @@ export class CodeGraphService {
     return this.http.get<GraphStorage>('../api/codegraph/storage');
   }
 
-  /** L'anteprima di «Analizza il codice con Mark» (F12b): da descrivere, da rivedere e perché. Non scrive niente. */
+  /** Gli script della cartella scritti da un estrattore precedente (D25); `folder` relativa alla radice del progetto o «@alias». */
+  outdated(projectPath: string, folder: string): Observable<OutdatedScripts> {
+    return this.http.get<OutdatedScripts>('../api/codegraph/outdated', { params: { projectPath, folder } });
+  }
+
+  /** «Aggiorna la struttura»: riestrae solo i file dell'estrattore precedente. */
+  upgradeOutdated(projectPath: string, folder: string): Observable<{ reparsed: number }> {
+    return this.http.post<{ reparsed: number }>('../api/codegraph/outdated/upgrade', { projectPath, folder });
+  }
+
+  /** L'anteprima di «Descrivi con Mark» (F12b): da descrivere, da rivedere e perché. Non scrive niente. */
   describePreview(projectPath: string, folderPath: string): Observable<DescribePreview> {
     return this.http.get<DescribePreview>('../api/codegraph/describe/preview', { params: { projectPath, folderPath } });
   }

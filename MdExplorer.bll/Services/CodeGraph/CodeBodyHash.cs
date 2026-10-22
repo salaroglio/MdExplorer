@@ -25,7 +25,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>
         /// La versione scritta negli script AST: quella dell'estrattore più quella di questo passaggio. L'hash del sorgente
         /// non dice se uno script ha l'impronta (regola: serve la versione di chi lo emette): con questo suffisso gli script
-        /// di prima del 21/10/2026 risultano «di un altro estrattore» e «Salva e analizza» li rifà.
+        /// di prima del 21/10/2026 risultano «di un altro estrattore» e «Estrai la struttura» li rifà.
         /// </summary>
         public static string EmitterVersion(string extractorVersion) => extractorVersion + "+body1";
 

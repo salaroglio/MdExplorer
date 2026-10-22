@@ -733,7 +733,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
-        /// «Salva e analizza» del grafo del codice (D28): scegliere un linguaggio da analizzare è chiedere gli strumenti
+        /// «Estrai la struttura» del grafo del codice (D28): scegliere un linguaggio da analizzare è chiedere gli strumenti
         /// <c>code_*</c>. Se il progetto ha una lista di gruppi MCP salvata (che vince su quelli automatici) e non contiene
         /// <c>code</c>, lo aggiunge. Restituisce l'argomento <c>--groups</c> da registrare, o null se il progetto non è
         /// fra quelli registrati (nessuna sessione da aggiornare).

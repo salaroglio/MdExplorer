@@ -188,7 +188,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
         /// <summary>
         /// I gruppi MCP di MdExplorer con cui parte la sessione (l'argomento <c>--groups</c> del server in
-        /// <see cref="McpConfigPath"/>). Il server li legge solo all'avvio: se cambiano (es. «Salva e analizza»
+        /// <see cref="McpConfigPath"/>). Il server li legge solo all'avvio: se cambiano (es. «Estrai la struttura»
         /// accende il gruppo <c>code</c>), il pool riavvia la sessione riprendendo la conversazione, così gli
         /// strumenti nuovi ci sono alla domanda successiva (grafo del codice, D28, 12/10/2026).
         /// </summary>

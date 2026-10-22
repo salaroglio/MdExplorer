@@ -109,7 +109,7 @@ namespace MdExplorer.Controllers.CodeGraph
         }
 
         /// <summary>
-        /// GET /api/codegraph/describe/preview?projectPath&amp;folderPath&amp;review — l'anteprima di «Analizza il codice con Mark»
+        /// GET /api/codegraph/describe/preview?projectPath&amp;folderPath&amp;review — l'anteprima di «Descrivi con Mark»
         /// (F12b): quante da descrivere o rifare, quante «da rivedere» e perché, quante domande. Non scrive, non chiama l'LLM.
         /// </summary>
         [HttpGet("describe/preview")]
@@ -312,7 +312,7 @@ namespace MdExplorer.Controllers.CodeGraph
         }
 
         /// <summary>
-        /// POST /api/codegraph/analyze {projectPath, folderPath?} — «Analizza il codice»: scanner → estrattori → script →
+        /// POST /api/codegraph/analyze {projectPath, folderPath?} — «Estrai la struttura»: scanner → estrattori → script →
         /// caricatore. Senza folderPath: tutte le cartelle program con dei linguaggi scelti.
         /// </summary>
         [HttpPost("analyze")]
@@ -353,7 +353,7 @@ namespace MdExplorer.Controllers.CodeGraph
 
         public class UpgradeRequest { public string ProjectPath { get; set; } public string Folder { get; set; } }
 
-        /// <summary>POST /api/codegraph/outdated/upgrade {projectPath, folder} — «Aggiorna l'analisi» dall'avviso della pagina del grafo.</summary>
+        /// <summary>POST /api/codegraph/outdated/upgrade {projectPath, folder} — «Aggiorna la struttura» dall'avviso della pagina del grafo.</summary>
         [HttpPost("outdated/upgrade")]
         public Task<IActionResult> UpgradeOutdated([FromBody] UpgradeRequest request, CancellationToken ct) => Guarded(async () =>
         {

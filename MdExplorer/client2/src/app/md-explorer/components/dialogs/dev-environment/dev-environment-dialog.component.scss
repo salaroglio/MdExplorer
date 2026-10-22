@@ -43,3 +43,28 @@
 }
 .mode-name { font-weight: 500; }
 .mode-hint { display: block; font-size: 12px; color: var(--mde-text-secondary); white-space: normal; }
+
+// Avviso della struttura vecchia (D25) e domanda prima di descrivere (22/10/2026)
+.outdated, .ask-outdated {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  border-left: 3px solid #ef6c00;
+  background: rgba(239, 108, 0, 0.08);
+}
+.ask-outdated { margin-top: 8px; }
+.outdated-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.outdated-actions mat-spinner { display: inline-block; margin-right: 4px; }
+.outdated-files { display: flex; flex-wrap: wrap; gap: 4px 8px; max-height: 120px; overflow: auto; font-size: 12px; }
+
+// I due passi uno sotto l'altro, la spiegazione a fianco del pulsante
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step { display: flex; flex-direction: column; gap: 6px; }
+.step-title { font-size: 12px; font-weight: 600; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; }
+.step-row { display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 12px; }
+.step-button { width: 100%; justify-content: flex-start; }
+.step-hint { font-size: 12px; color: var(--mde-text-secondary); }
+.step-hint .warn { display: block; color: #ef6c00; margin-top: 2px; }

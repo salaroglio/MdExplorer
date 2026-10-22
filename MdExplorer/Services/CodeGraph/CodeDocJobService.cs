@@ -30,7 +30,7 @@ namespace MdExplorer.Services.CodeGraph
         /// </remarks>
         Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null, bool review = false);
         /// <summary>
-        /// L'anteprima di «Analizza il codice con Mark» (F12b): quante descrizioni mancano o vanno rifatte, quante sono «da
+        /// L'anteprima di «Descrivi con Mark» (F12b): quante descrizioni mancano o vanno rifatte, quante sono «da
         /// rivedere» e perché, quante domande su quanti livelli. Non scrive niente e non chiama l'LLM.
         /// </summary>
         Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default);
@@ -223,7 +223,7 @@ namespace MdExplorer.Services.CodeGraph
             var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(scriptsFolder))
-                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».", $"No AST script in {scriptsFolder}: first «Analyse the code»."));
+                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Estrai la struttura».", $"No AST script in {scriptsFolder}: first «Extract the structure»."));
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
                 (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
@@ -636,7 +636,7 @@ namespace MdExplorer.Services.CodeGraph
             var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(scriptsFolder))
-                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».", $"No AST script in {scriptsFolder}: first «Analyse the code»."));
+                throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Estrai la struttura».", $"No AST script in {scriptsFolder}: first «Extract the structure»."));
             var plan = await BuildPlanAsync(projectPath, scriptsFolder, force: false, review, PromptVersion(projectPath, "mde-code-doc"), write: false, null, ct);
             var a = plan.Assessment;
             return new CodeDocPreview
@@ -882,7 +882,7 @@ namespace MdExplorer.Services.CodeGraph
             if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = UiText.Say($"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)", $"'{symbol.QualifiedName}' has no source file (it is outside the project)"); return outcome; }
 
             var astPath = CodeScriptWriter.ScriptPathFor(projectPath, symbol.Path, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {symbol.Path}: prima «Analizza il codice»", $"the AST script of {symbol.Path} is missing: first «Analyse the code»"); return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {symbol.Path}: prima «Estrai la struttura»", $"the AST script of {symbol.Path} is missing: first «Extract the structure»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(projectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
             CodeScript existing = null;
@@ -921,7 +921,7 @@ namespace MdExplorer.Services.CodeGraph
             if (string.IsNullOrWhiteSpace(logicalPath)) { outcome.Error = UiText.Say("path è obbligatorio (il percorso del file nel grafo)", "path is required (the path of the file in the graph)"); return outcome; }
             logicalPath = logicalPath.Replace('\\', '/').TrimStart('/');
             var astPath = CodeScriptWriter.ScriptPathFor(projectPath, logicalPath, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Analizza il codice»", $"the AST script of {logicalPath} is missing: first «Analyse the code»"); return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Estrai la struttura»", $"the AST script of {logicalPath} is missing: first «Extract the structure»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(projectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
             CodeScript existing = null;
@@ -965,13 +965,13 @@ namespace MdExplorer.Services.CodeGraph
             }
             outcome.Path = logicalPath;
             var astPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, logicalPath, CodeScriptKind.Ast);
-            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Analizza il codice»", $"the AST script of {logicalPath} is missing: first «Analyse the code»"); return outcome; }
+            if (!File.Exists(astPath)) { outcome.Error = UiText.Say($"manca lo script AST di {logicalPath}: prima «Estrai la struttura»", $"the AST script of {logicalPath} is missing: first «Extract the structure»"); return outcome; }
             var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(edit.ProjectPath, astPath));
             var docPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, ast.Header.Source, CodeScriptKind.Doc);
             // uno script illeggibile non si riscrive alla cieca: si perderebbero le altre descrizioni
             CodeScript existing;
             try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath)); }
-            catch (CodeScriptFormatException ex) { outcome.Error = UiText.Say("lo script delle descrizioni non si legge, correggilo o rigeneralo con «Analizza il codice con Mark»: ", "the descriptions script cannot be read, fix it or regenerate it with «Analyse the code with Mark»: ") + ex.Message; return outcome; }
+            catch (CodeScriptFormatException ex) { outcome.Error = UiText.Say("lo script delle descrizioni non si legge, correggilo o rigeneralo con «Descrivi con Mark»: ", "the descriptions script cannot be read, fix it or regenerate it with «Describe with Mark»: ") + ex.Message; return outcome; }
 
             var writtenBy = string.IsNullOrWhiteSpace(edit.WrittenBy) ? "code_set_description" : edit.WrittenBy.Trim();
             CodeScript doc;

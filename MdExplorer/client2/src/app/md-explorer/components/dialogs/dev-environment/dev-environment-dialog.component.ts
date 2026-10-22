@@ -3,7 +3,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionRun, DetectedLanguage } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
 
 export interface DevEnvironmentDialogData {
   /** Il fullPath della cartella nell'albero. */
@@ -26,6 +26,8 @@ export interface DevEnvironmentDialogResult {
  * come ambiente di sviluppo e chiede con quale linguaggio è scritto il programma. Mostra i linguaggi RILEVATI
  * (conteggio dei file per estensione, dopo gli ignore), per ciascuno se l'estrattore è pronto; la scelta va in
  * `.development.yml` (codeGraph.languages) e, confermando, parte l'analisi della cartella.
+ * Due passi uno sotto l'altro (22/10/2026): «1 · Struttura» = il parser (AST), «2 · Significato» = Mark descrive; con
+ * script di un estrattore precedente la finestra lo dice e chiede prima di descrivere sul grafo vecchio.
  */
 @Component({
   selector: 'app-dev-environment-dialog',
@@ -54,6 +56,12 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public preview: DescribePreview | null = null;
   public previewTodo = 0;
   public previewReview = 0;
+  /** Gli script dell'estrattore precedente (D25): l'avviso in alto e la domanda prima di «Descrivi con Mark». */
+  public outdated: OutdatedScripts | null = null;
+  public showOutdatedFiles = false;
+  public upgrading = false;
+  /** «Descrivi con Mark» premuto con la struttura vecchia: la domanda è aperta (review = il giro «da rivedere»). */
+  public askBeforeDescribe: { review: boolean } | null = null;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DevEnvironmentDialogData,
@@ -111,7 +119,60 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { this.destroy$.next(); this.destroy$.complete(); }
 
   /** La cartella ha già dei linguaggi scelti: si può descrivere senza rifare l'analisi. */
-  get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing && this.runningRun == null; }
+  get canDescribe(): boolean { return this.structureReady && !this.loading && !this.saving && !this.analyzing && !this.upgrading && this.runningRun == null; }
+
+  /**
+   * Nessuno script AST per la cartella: l'anteprima risponde 409 (o la cartella non è mai stata configurata). Senza
+   * struttura «Descrivi con Mark» non ha niente da descrivere; un altro errore dell'anteprima non lo spegne.
+   */
+  public noStructure = true;
+  get structureReady(): boolean { return this.outcome != null || !this.noStructure; }
+
+  private loadOutdated(): void {
+    this.codeGraph.outdated(this.data.projectRoot, this.folderRelative).subscribe({
+      next: o => { this.outdated = o.count > 0 ? o : null; },
+      error: (err) => { this.outdated = null; this.errorMessage = this.translate.instant('DEV_ENV.OUTDATED_CHECK_FAILED', { detail: err?.error?.error || err?.message || '' }); }
+    });
+  }
+
+  /** «Aggiorna la struttura»: riestrae solo i file dell'estrattore precedente; poi, se chiesto, descrive. */
+  upgradeStructure(then?: () => void): void {
+    if (this.upgrading) { return; }
+    this.upgrading = true;
+    this.errorMessage = '';
+    this.codeGraph.upgradeOutdated(this.data.projectRoot, this.folderRelative).subscribe({
+      next: () => {
+        this.upgrading = false;
+        this.outdated = null;
+        this.showOutdatedFiles = false;
+        this.loadOutdated();
+        this.loadPreview();
+        if (then) { then(); }
+      },
+      error: (err) => {
+        this.upgrading = false;
+        this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
+
+  /** «Descrivi con Mark»: con la struttura vecchia prima si chiede, perché le domande all'LLM costano. */
+  requestDescribe(review = false): void {
+    if (this.outdated) { this.askBeforeDescribe = { review }; return; }
+    this.describe(false, review);
+  }
+
+  upgradeThenDescribe(): void {
+    const review = this.askBeforeDescribe?.review ?? false;
+    this.askBeforeDescribe = null;
+    this.upgradeStructure(() => this.describe(false, review));
+  }
+
+  describeAnyway(): void {
+    const review = this.askBeforeDescribe?.review ?? false;
+    this.askBeforeDescribe = null;
+    this.describe(false, review);
+  }
 
   /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */
   public storageMb: number | null = null;
@@ -134,12 +195,13 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (p) => {
         this.preview = p;
+        this.noStructure = false;
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
         this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
-      error: () => { this.preview = null; this.previewTodo = 0; this.previewReview = 0; this.updateEstimate(); }
+      error: (err) => { this.noStructure = err?.status === 409; this.preview = null; this.previewTodo = 0; this.previewReview = 0; this.updateEstimate(); }
     });
   }
 
@@ -189,7 +251,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
         this.descriptionMode = this.configured ? res.describe : null;
-        if (this.configured) { this.loadPreview(); }
+        if (this.configured) { this.loadPreview(); this.loadOutdated(); }
         this.descriptionParallel = res.descriptionParallel || 3;
         // Prima volta: si propongono i linguaggi rilevati che hanno un estrattore pronto.
         if (this.selected.size === 0) {
@@ -278,7 +340,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
           next: (res) => {
             this.analyzing = false;
             this.outcome = res.folder ?? null;
-            if (this.outcome?.error) { this.errorMessage = this.outcome.error; } else { this.loadPreview(); }
+            if (this.outcome?.error) { this.errorMessage = this.outcome.error; } else { this.loadPreview(); this.loadOutdated(); }
           },
           error: (err) => {
             this.analyzing = false;

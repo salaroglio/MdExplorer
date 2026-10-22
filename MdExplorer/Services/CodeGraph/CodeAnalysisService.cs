@@ -499,7 +499,7 @@ namespace MdExplorer.Services.CodeGraph
                     // estrattore o un'altra sua versione — git non lo sa, il sorgente è fermo ma l'AST va rifatto (12/10/2026:
                     // l'estrattore PowerShell v2 non arrivava agli script dei file non toccati).
                     // All'apertura del progetto (includeExtractorChanges = false) quei file si contano soltanto: li rifà l'utente
-                    // dall'avviso della pagina del grafo, o con «Salva e analizza».
+                    // dall'avviso della pagina del grafo, o con «Estrai la struttura».
                     var candidatePaths = new HashSet<string>(candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
                     var outdated = all.Where(f => !candidatePaths.Contains(f.AbsolutePath) && ScriptFromOtherExtractor(projectPath, f, extractor)).ToList();
                     if (!includeExtractorChanges) outcome.OutdatedScripts += outdated.Count;

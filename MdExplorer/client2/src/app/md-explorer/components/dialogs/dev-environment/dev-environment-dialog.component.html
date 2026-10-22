@@ -13,6 +13,26 @@
       </div>
     </div>
 
+    <!-- Script di un estrattore precedente (D25): lo stesso avviso della pagina del grafo (22/10/2026) -->
+    <div class="outdated" *ngIf="outdated && !loading">
+      <div>
+        <strong>⚠ {{ (outdated.count === 1 ? 'DEV_ENV.OUTDATED_ONE' : 'DEV_ENV.OUTDATED_MANY') | translate: { n: outdated.count } }}</strong>
+        <span *ngFor="let c of outdated.changes"> — {{ c.language }}: {{ c.from }} → {{ c.to }} ({{ 'DEV_ENV.FILES' | translate: { count: c.files } }})</span>.
+        {{ 'DEV_ENV.OUTDATED_OLD' | translate }}
+      </div>
+      <div class="outdated-actions">
+        <button mat-stroked-button color="primary" (click)="upgradeStructure()" [disabled]="upgrading || analyzing || describing">
+          <mat-spinner diameter="16" *ngIf="upgrading"></mat-spinner>
+          <mat-icon *ngIf="!upgrading">account_tree</mat-icon>
+          {{ (upgrading ? 'DEV_ENV.UPGRADING' : 'DEV_ENV.UPGRADE') | translate }}
+        </button>
+        <button mat-button (click)="showOutdatedFiles = !showOutdatedFiles">{{ 'DEV_ENV.WHICH_FILES' | translate }}</button>
+      </div>
+      <div class="outdated-files" *ngIf="showOutdatedFiles">
+        <code *ngFor="let f of outdated.scripts">{{ f.source }}</code>
+      </div>
+    </div>
+
     <p class="intro" *ngIf="!outcome">{{ 'DEV_ENV.INTRO' | translate }}</p>
 
     <div class="loading" *ngIf="loading">
@@ -70,6 +90,62 @@
       </div>
     </ng-container>
 
+    <!-- I due passi, uno sotto l'altro con la spiegazione a fianco (22/10/2026): prima il parser, poi l'LLM -->
+    <div class="steps" *ngIf="!loading && (hasReadySelection || configured || outcome)">
+      <div class="step" *ngIf="hasReadySelection">
+        <div class="step-title">{{ 'DEV_ENV.STEP_STRUCTURE' | translate }}</div>
+        <div class="step-row">
+          <button mat-raised-button color="primary" class="step-button" (click)="confirm()"
+                  [disabled]="saving || analyzing || upgrading || describing || needsDescriptionChoice"
+                  [title]="needsDescriptionChoice ? ('DEV_ENV.DESCRIPTION_REQUIRED' | translate) : ''">
+            <mat-icon>account_tree</mat-icon>
+            {{ 'DEV_ENV.EXTRACT_STRUCTURE' | translate }}
+          </button>
+          <span class="step-hint">{{ 'DEV_ENV.EXTRACT_STRUCTURE_HINT' | translate }}</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title">{{ 'DEV_ENV.STEP_MEANING' | translate }}</div>
+        <div class="step-row">
+          <button mat-stroked-button color="primary" class="step-button" *ngIf="!describing" (click)="requestDescribe(false)" [disabled]="!canDescribe">
+            <mat-icon>auto_awesome</mat-icon>
+            {{ 'DEV_ENV.DESCRIBE' | translate }}
+          </button>
+          <button mat-stroked-button color="warn" class="step-button" *ngIf="describing" (click)="cancelDescribe()">
+            <mat-icon>stop</mat-icon>
+            {{ 'DEV_ENV.STOP' | translate }}
+          </button>
+          <span class="step-hint">
+            {{ 'DEV_ENV.DESCRIBE_HINT' | translate }}
+            <span class="warn" *ngIf="!structureReady">{{ 'DEV_ENV.DESCRIBE_NEEDS_STRUCTURE' | translate }}</span>
+          </span>
+        </div>
+        <div class="step-row" *ngIf="!describing && previewReview > 0">
+          <button mat-stroked-button class="step-button" (click)="requestDescribe(true)" [disabled]="!canDescribe">
+            <mat-icon>rate_review</mat-icon>
+            {{ 'DEV_ENV.DESCRIBE_REVIEW' | translate: { count: previewReview } }}
+          </button>
+        </div>
+        <div class="step-row" *ngIf="!describing && runningRun">
+          <button mat-stroked-button color="warn" class="step-button" (click)="stopRunning()">
+            <mat-icon>stop</mat-icon>
+            {{ 'DEV_ENV.STOP' | translate }}
+          </button>
+        </div>
+
+        <!-- «Descrivi con Mark» con la struttura vecchia: si chiede, le domande all'LLM costano -->
+        <div class="ask-outdated" *ngIf="askBeforeDescribe && outdated">
+          <div>{{ (outdated.count === 1 ? 'DEV_ENV.ASK_OUTDATED_ONE' : 'DEV_ENV.ASK_OUTDATED') | translate: { n: outdated.count } }}</div>
+          <div class="outdated-actions">
+            <button mat-raised-button color="primary" (click)="upgradeThenDescribe()">{{ 'DEV_ENV.UPGRADE_THEN_DESCRIBE' | translate }}</button>
+            <button mat-stroked-button (click)="describeAnyway()">{{ 'DEV_ENV.DESCRIBE_ANYWAY' | translate }}</button>
+            <button mat-button (click)="askBeforeDescribe = null">{{ 'COMMON.CANCEL' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="loading" *ngIf="analyzing">
       <mat-spinner diameter="24"></mat-spinner>
       <span>{{ 'DEV_ENV.ANALYZING' | translate }}</span>
@@ -101,7 +177,7 @@
       </div>
     </div>
 
-    <!-- L'anteprima del prossimo giro di «Analizza il codice con Mark» (F12b): da descrivere e da rivedere, con i motivi -->
+    <!-- L'anteprima del prossimo giro di «Descrivi con Mark» (F12b): da descrivere e da rivedere, con i motivi -->
     <div class="describe-preview" *ngIf="preview && !describing">
       <div>{{ 'DEV_ENV.PREVIEW_TODO' | translate: { todo: previewTodo, missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0, questions: preview.questions, levels: preview.levels } }}</div>
       <div *ngIf="previewReview > 0">{{ 'DEV_ENV.PREVIEW_REVIEW' | translate: { review: previewReview, context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
@@ -130,62 +206,19 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <ng-container *ngIf="!outcome">
-    <!-- Cartella già configurata, riaperta dal menu: gli script ci sono, si può descrivere senza rifare l'analisi
-         (prima il pulsante compariva solo dopo «Salva e analizza» nella stessa finestra: misurato l'11/10/2026 sul demo). -->
-    <button mat-stroked-button color="primary" *ngIf="configured && !describing" (click)="describe(false)" [disabled]="!canDescribe">
-      <mat-icon>auto_awesome</mat-icon>
-      {{ 'DEV_ENV.DESCRIBE' | translate }}
-    </button>
-    <button mat-stroked-button *ngIf="configured && !describing && previewReview > 0" (click)="describe(false, true)" [disabled]="!canDescribe">
-      <mat-icon>rate_review</mat-icon>
-      {{ 'DEV_ENV.DESCRIBE_REVIEW' | translate: { count: previewReview } }}
-    </button>
-    <button mat-stroked-button color="warn" *ngIf="configured && describing" (click)="cancelDescribe()">
-      <mat-icon>stop</mat-icon>
-      {{ 'DEV_ENV.STOP' | translate }}
-    </button>
-    <button mat-stroked-button color="warn" *ngIf="configured && !describing && runningRun" (click)="stopRunning()">
-      <mat-icon>stop</mat-icon>
-      {{ 'DEV_ENV.STOP' | translate }}
-    </button>
-    <button mat-stroked-button *ngIf="configured && !describing" (click)="openReport()">
-      <mat-icon>summarize</mat-icon>
-      {{ 'DEV_ENV.OPEN_REPORT' | translate }}
-    </button>
-    <button mat-button (click)="close()" [disabled]="saving || analyzing">{{ 'COMMON.CANCEL' | translate }}</button>
-    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="loading || saving || analyzing || needsDescriptionChoice"
-            [title]="needsDescriptionChoice ? ('DEV_ENV.DESCRIPTION_REQUIRED' | translate) : ''">
-      <mat-icon>play_arrow</mat-icon>
-      {{ (hasReadySelection ? 'DEV_ENV.SAVE_AND_ANALYZE' : 'DEV_ENV.SAVE') | translate }}
-    </button>
-  </ng-container>
-  <ng-container *ngIf="outcome">
-    <button mat-stroked-button *ngIf="!describing && previewReview > 0" (click)="describe(false, true)" [disabled]="!canDescribe">
-      <mat-icon>rate_review</mat-icon>
-      {{ 'DEV_ENV.DESCRIBE_REVIEW' | translate: { count: previewReview } }}
-    </button>
-    <button mat-stroked-button color="primary" *ngIf="!describing" (click)="describe(false)" [disabled]="!canDescribe">
-      <mat-icon>auto_awesome</mat-icon>
-      {{ 'DEV_ENV.DESCRIBE' | translate }}
-    </button>
-    <button mat-stroked-button color="warn" *ngIf="describing" (click)="cancelDescribe()">
-      <mat-icon>stop</mat-icon>
-      {{ 'DEV_ENV.STOP' | translate }}
-    </button>
-    <button mat-stroked-button color="warn" *ngIf="!describing && runningRun" (click)="stopRunning()">
-      <mat-icon>stop</mat-icon>
-      {{ 'DEV_ENV.STOP' | translate }}
-    </button>
-    <button mat-stroked-button *ngIf="!describing" (click)="openGraph()">
-      <mat-icon>hub</mat-icon>
-      {{ 'DEV_ENV.OPEN_GRAPH' | translate }}
-    </button>
-    <button mat-stroked-button *ngIf="!describing" (click)="openReport()">
-      <mat-icon>summarize</mat-icon>
-      {{ 'DEV_ENV.OPEN_REPORT' | translate }}
-    </button>
-    <!-- si chiude anche mentre descrive: il lavoro è del servizio, non della finestra -->
-    <button mat-raised-button color="primary" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
-  </ng-container>
+  <!-- I passi stanno nella finestra; qui solo dove andare e chiudere (22/10/2026) -->
+  <button mat-stroked-button *ngIf="(configured || outcome) && !describing" (click)="openGraph()">
+    <mat-icon>hub</mat-icon>
+    {{ 'DEV_ENV.OPEN_GRAPH' | translate }}
+  </button>
+  <button mat-stroked-button *ngIf="(configured || outcome) && !describing" (click)="openReport()">
+    <mat-icon>summarize</mat-icon>
+    {{ 'DEV_ENV.OPEN_REPORT' | translate }}
+  </button>
+  <!-- Nessun linguaggio pronto scelto: si salva soltanto la scelta (anche «nessuno») -->
+  <button mat-raised-button color="primary" *ngIf="!outcome && !loading && !hasReadySelection" (click)="confirm()" [disabled]="saving || analyzing">
+    {{ 'DEV_ENV.SAVE' | translate }}
+  </button>
+  <!-- si chiude anche mentre descrive: il lavoro è del servizio, non della finestra -->
+  <button mat-button (click)="close()" [disabled]="!outcome && (saving || analyzing)">{{ (outcome ? 'COMMON.CLOSE' : 'COMMON.CANCEL') | translate }}</button>
 </mat-dialog-actions>

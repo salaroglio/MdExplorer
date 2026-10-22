@@ -12,8 +12,8 @@
  *   la scheda di chi li chiama li nomina.
  * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
  *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
- *   «Analizza con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
- * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Analizza il file con Mark» scrive a che
+ *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
+ * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Descrivi il file con Mark» scrive a che
  *   cosa serve il file (code:FileDescription, POST /api/codegraph/describe-file). Tasto destro su un ARCO: MarkAgent
  *   spiega che cosa vuol dire quel legame (quali punti, se certo o dedotto) — le sigle extracted/inferred non dicevano niente.
  * - ACCORDION dei file (12/10): il «▸» a sinistra del box apre sotto il file a che cosa serve, in breve (la sua
@@ -36,30 +36,30 @@ const CG_TEXTS = {
         loading: 'Carico il grafo…',
         noAnswer: 'MdExplorer non risponde: {detail}',
         error: 'Errore {status}',
-        noSymbols: 'Nessun simbolo per «{folder}»: apri «Ambiente di sviluppo» sulla cartella e lancia l\'analisi.',
+        noSymbols: 'Nessun simbolo per «{folder}»: apri «Ambiente di sviluppo» sulla cartella ed estrai la struttura.',
         wholeProject: 'tutto il progetto',
         statusFiles: '{n} file',
         statusFilesUndescribed: ' ({n} senza descrizione)',
         statusCounts: ', {symbols} simboli mostrati, {links} archi',
         statusUncalled: ' · {n} che nessuno chiama',
         statusUndescribed: ' · {n} senza descrizione',
-        noDescription: 'Nessuna descrizione ancora. Tasto destro sul file → «Analizza il file con Mark», oppure «Analizza il codice con Mark» sulla cartella.',
+        noDescription: 'Nessuna descrizione ancora. Tasto destro sul file → «Descrivi il file con Mark», oppure «Descrivi con Mark» nell\'Ambiente di sviluppo della cartella.',
         filesPurpose: 'Utilità dei file',
         askGraph: '💬 Chiedi a MarkAgent',
         askGraphTip: 'Fai una domanda su questo codice: a che cosa serve, dove sta una cosa, che cosa rompo se la cambio',
         filesPurposeClose: 'Chiudi le descrizioni dei file',
         filesPurposeOpen: 'Mostra sotto ogni file a che cosa serve',
         askFile: 'Chiedi a MarkAgent di spiegare «{name}» e i suoi legami',
-        redoFile: 'Rifai l\'analisi del file con Mark',
-        analyzeFile: 'Analizza il file con Mark',
+        redoFile: 'Rifai la descrizione del file con Mark',
+        analyzeFile: 'Descrivi il file con Mark',
         closePurpose: 'Chiudi l\'utilità del file',
         showPurpose: 'Mostra l\'utilità del file',
         closeSymbols: 'Chiudi i simboli',
         showSymbols: 'Mostra i simboli',
         openFile: 'Apri il file',
         askSymbol: 'Chiedi a MarkAgent di «{name}»',
-        redoSymbol: 'Rifai l\'analisi con Mark',
-        analyzeSymbol: 'Analizza con Mark',
+        redoSymbol: 'Rifai la descrizione con Mark',
+        analyzeSymbol: 'Descrivi con Mark',
         hideSymbol: 'Nascondi «{name}» dal grafo',
         closeCalls: 'Chiudi le chiamate',
         followCalls: 'Segui le chiamate ({n})',
@@ -78,7 +78,7 @@ const CG_TEXTS = {
         'conf.llm-resolved': 'scelto dall\'LLM fra più candidati',
         cannotOpen: 'Non si apre: {detail}',
         analyzing: 'Mark sta analizzando «{name}»… (può volerci un minuto)',
-        analyzedBy: 'Analizzato da {engine}',
+        analyzedBy: 'Descritto da {engine}',
         rejectedLines: ' ({n} righe della risposta scartate)',
         analysisFailed: 'Analisi non riuscita: {detail}',
         hiddenChip: 'Nascosti: {n}',
@@ -109,42 +109,42 @@ const CG_TEXTS = {
         cannotCheckOutdated: 'Non riesco a controllare se il grafo è aggiornato: {detail}',
         outdatedOne: '{n} file analizzato con una versione precedente dell\'estrattore',
         outdatedMany: '{n} file analizzati con una versione precedente dell\'estrattore',
-        outdatedOld: 'Per questi file stai guardando il grafo vecchio.',
-        upgrade: 'Aggiorna l\'analisi',
+        outdatedOld: 'Per questi file stai guardando la struttura vecchia.',
+        upgrade: 'Aggiorna la struttura',
         whichFiles: 'Quali file',
-        upgrading: 'Aggiorno l\'analisi…',
-        upgradedOne: 'Analisi aggiornata: {n} file riparsato.',
-        upgradedMany: 'Analisi aggiornata: {n} file riparsati.',
+        upgrading: 'Aggiorno la struttura…',
+        upgradedOne: 'Struttura aggiornata: {n} file riletto.',
+        upgradedMany: 'Struttura aggiornata: {n} file riletti.',
         upgradeFailed: 'Aggiornamento fallito: {detail}'
     },
     en: {
         loading: 'Loading the graph…',
         noAnswer: 'MdExplorer does not answer: {detail}',
         error: 'Error {status}',
-        noSymbols: 'No symbols for «{folder}»: open «Development environment» on the folder and run the analysis.',
+        noSymbols: 'No symbols for «{folder}»: open «Development environment» on the folder and run «Extract the structure».',
         wholeProject: 'the whole project',
         statusFiles: '{n} files',
         statusFilesUndescribed: ' ({n} without a description)',
         statusCounts: ', {symbols} symbols shown, {links} edges',
         statusUncalled: ' · {n} that nobody calls',
         statusUndescribed: ' · {n} without a description',
-        noDescription: 'No description yet. Right-click the file → «Analyze the file with Mark», or «Analyze the code with Mark» on the folder.',
+        noDescription: 'No description yet. Right-click the file → «Describe the file with Mark», or «Describe with Mark» in the folder\'s Development environment.',
         filesPurpose: 'What the files are for',
         askGraph: '💬 Ask MarkAgent',
         askGraphTip: 'Ask a question about this code: what it is for, where something is, what breaks if you change it',
         filesPurposeClose: 'Close the descriptions of the files',
         filesPurposeOpen: 'Show under each file what it is for',
         askFile: 'Ask MarkAgent to explain «{name}» and its links',
-        redoFile: 'Analyze the file with Mark again',
-        analyzeFile: 'Analyze the file with Mark',
+        redoFile: 'Describe the file with Mark again',
+        analyzeFile: 'Describe the file with Mark',
         closePurpose: 'Close what the file is for',
         showPurpose: 'Show what the file is for',
         closeSymbols: 'Close the symbols',
         showSymbols: 'Show the symbols',
         openFile: 'Open the file',
         askSymbol: 'Ask MarkAgent about «{name}»',
-        redoSymbol: 'Analyze with Mark again',
-        analyzeSymbol: 'Analyze with Mark',
+        redoSymbol: 'Describe with Mark again',
+        analyzeSymbol: 'Describe with Mark',
         hideSymbol: 'Hide «{name}» from the graph',
         closeCalls: 'Close the calls',
         followCalls: 'Follow the calls ({n})',
@@ -163,7 +163,7 @@ const CG_TEXTS = {
         'conf.llm-resolved': 'chosen by the LLM among several candidates',
         cannotOpen: 'It does not open: {detail}',
         analyzing: 'Mark is analyzing «{name}»… (it can take a minute)',
-        analyzedBy: 'Analyzed by {engine}',
+        analyzedBy: 'Described by {engine}',
         rejectedLines: ' ({n} lines of the answer rejected)',
         analysisFailed: 'Analysis failed: {detail}',
         hiddenChip: 'Hidden: {n}',
@@ -194,12 +194,12 @@ const CG_TEXTS = {
         cannotCheckOutdated: 'Cannot check whether the graph is up to date: {detail}',
         outdatedOne: '{n} file analyzed with an earlier version of the extractor',
         outdatedMany: '{n} files analyzed with an earlier version of the extractor',
-        outdatedOld: 'For these files you are looking at the old graph.',
-        upgrade: 'Update the analysis',
+        outdatedOld: 'For these files you are looking at the old structure.',
+        upgrade: 'Update the structure',
         whichFiles: 'Which files',
-        upgrading: 'Updating the analysis…',
-        upgradedOne: 'Analysis updated: {n} file re-parsed.',
-        upgradedMany: 'Analysis updated: {n} files re-parsed.',
+        upgrading: 'Updating the structure…',
+        upgradedOne: 'Structure updated: {n} file re-read.',
+        upgradedMany: 'Structure updated: {n} files re-read.',
         upgradeFailed: 'Update failed: {detail}'
     }
 };
@@ -662,12 +662,12 @@ const CG_TEXTS = {
         document.getElementById('cg-header').appendChild(btn);
     }
 
-    /** «Analizza il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
+    /** «Descrivi il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
     function describeFile(n) {
         return describeOn(n, '/api/codegraph/describe-file', { projectPath, path: n.path }, () => { descOpen.add(n.path); saveDescInUrl(); });
     }
 
-    /** «Analizza con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
+    /** «Descrivi con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
     function describeSymbol(n) { return describeOn(n, '/api/codegraph/describe-symbol', { projectPath, symbolId: n.id }); }
 
     async function describeOn(n, endpoint, body, onDone) {

@@ -36,7 +36,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public List<CodeDocCandidate> Candidates { get; } = new();
         public Dictionary<CodeDocVerdict, int> Counts { get; } = new();
-        /// <summary>Simboli con un corpo ma senza impronta nello script AST (script di prima del 21/10): il corpo cambiato non si vede finché non si rifà «Analizza il codice».</summary>
+        /// <summary>Simboli con un corpo ma senza impronta nello script AST (script di prima del 21/10): il corpo cambiato non si vede finché non si rifà «Estrai la struttura».</summary>
         public int BodyUnknown { get; set; }
         public int Count(CodeDocVerdict v) => Counts.TryGetValue(v, out var n) ? n : 0;
         public int ToReview => Count(CodeDocVerdict.ReviewContext) + Count(CodeDocVerdict.ReviewPrompt) + Count(CodeDocVerdict.ReviewNoFingerprint);

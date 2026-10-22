@@ -93,7 +93,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     if (!ProfileFits(existing, options))
                     {
                         // A test launch needs another Playwright server, other secrets or other bans — or the
-                        // project's MCP groups changed (D28: «Salva e analizza» turns on `code`): they are fixed
+                        // project's MCP groups changed (D28: «Estrai la struttura» turns on `code`): they are fixed
                         // when the CLI starts, so the session restarts — and resumes the same conversation
                         // (verified 27/09/2026: --resume with another --mcp-config keeps it).
                         if (existing.SessionId != null &&
