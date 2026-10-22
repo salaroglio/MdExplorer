@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -257,6 +258,45 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(ex.Message, options.JarPath);
             StringAssert.Contains(ex.Message, "reinstall MdExplorer");
             try { Directory.Delete(dataDir, true); } catch { }
+        }
+
+        [TestMethod]
+        public async Task Keep_only_the_newest_tdb2_generation_after_compaction_and_at_start()
+        {
+            if (!Java21Available(out var why)) { Assert.Inconclusive(why); return; }
+            var dataDir = NewDataDir();
+            using var manager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
+            var codeDir = Path.Combine(dataDir, "databases", FusekiManagedConfig.CodeDataset);
+            try
+            {
+                var baseUri = await manager.EnsureRunningAsync();
+                using var http = new HttpClient();
+                var update = "PREFIX code: <https://mdexplorer.net/ns/code#> INSERT DATA { GRAPH <urn:mde:code:test:data> { <urn:mde:sym:a> code:name \"A\" . } }";
+                Assert.IsTrue((await http.PostAsync(baseUri + "/code/update", new StringContent(update, System.Text.Encoding.UTF8, "application/sparql-update"))).IsSuccessStatusCode);
+
+                // la compattazione scrive una generazione nuova e alla fine ne resta una sola (su Windows col riavvio)
+                await manager.CompactAsync(FusekiManagedConfig.CodeDataset);
+                var gens = FusekiProcessManager.Generations(codeDir);
+                Assert.AreEqual(1, gens.Count, string.Join(", ", gens.Select(g => g.Name)));
+                Assert.AreEqual("Data-0002", gens[0].Name);
+
+                // una generazione vecchia rimasta da un avvio precedente (Windows) si toglie all'avvio, la più alta resta
+                await manager.StopAsync();
+                var stale = Directory.CreateDirectory(Path.Combine(codeDir, "Data-0001"));
+                File.WriteAllText(Path.Combine(stale.FullName, "nodes.dat"), new string('x', 1024));
+                var again = await manager.EnsureRunningAsync();
+                CollectionAssert.AreEqual(new[] { "Data-0002" }, FusekiProcessManager.Generations(codeDir).Select(g => g.Name).ToArray());
+                var query = "SELECT (COUNT(*) AS ?n) WHERE { GRAPH ?g { ?s ?p ?o } }";
+                var req = new HttpRequestMessage(HttpMethod.Post, again + "/code/query")
+                { Content = new FormUrlEncodedContent(new[] { new System.Collections.Generic.KeyValuePair<string, string>("query", query) }) };
+                req.Headers.Accept.ParseAdd("application/sparql-results+json");
+                StringAssert.Contains(await (await http.SendAsync(req)).Content.ReadAsStringAsync(), "\"1\"", "i dati della generazione buona ci sono ancora");
+            }
+            finally
+            {
+                await manager.StopAsync();
+                try { Directory.Delete(dataDir, true); } catch { }
+            }
         }
     }
 }

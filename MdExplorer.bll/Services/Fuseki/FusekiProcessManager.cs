@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Net.Http;
 using System.Threading;
@@ -130,6 +131,8 @@ namespace MdExplorer.Features.Services.Fuseki
                         FusekiManagedConfig.CodeDataset, config.Path, FusekiManagedConfig.ConfigVersion);
 
                 StopLeftoverOrThrow();
+                // Fuseki è giù: è l'unico momento in cui su Windows le generazioni vecchie del TDB2 si possono cancellare
+                DeleteOldGenerations();
 
                 var port = FreeLoopbackPort();
                 var baseUri = $"http://127.0.0.1:{port}";
@@ -219,8 +222,52 @@ namespace MdExplorer.Features.Services.Fuseki
             }
         }
 
+        /// <summary>
+        /// Le generazioni di un dataset TDB2: <c>databases/&lt;dataset&gt;/Data-0001</c>, <c>Data-0002</c>… Fuseki usa la più
+        /// alta; una compattazione ne scrive una nuova con i soli dati vivi e dovrebbe cancellare le vecchie.
+        /// </summary>
+        public static List<DirectoryInfo> Generations(string datasetDirectory)
+            => Directory.Exists(datasetDirectory)
+                ? new DirectoryInfo(datasetDirectory).GetDirectories("Data-*")
+                    .Where(d => d.Name.Length == 9 && d.Name.Substring(5).All(char.IsDigit))
+                    .OrderBy(d => d.Name, StringComparer.Ordinal).ToList()
+                : new List<DirectoryInfo>();
+
+        /// <summary>Quanti MB occupano i file di una cartella (dimensione dei file, come la mostra Windows).</summary>
+        public static long SizeMb(DirectoryInfo dir)
+        {
+            try { return dir.Exists ? dir.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length) / (1024 * 1024) : 0; }
+            catch (IOException) { return -1; }
+        }
+
+        private string DatasetDirectory(string dataset) => Path.Combine(_options.DataDirectory, "databases", dataset);
+
+        /// <summary>
+        /// Via le generazioni vecchie di ogni dataset, tenendo la più alta (quella che Fuseki apre). Solo a Fuseki SPENTO:
+        /// su Windows, a Fuseki acceso, i file sono aperti e la compattazione non riesce a cancellarle (22/10/2026: 21 GB di
+        /// Data-0001 rimasti accanto ai 13 GB di Data-0002). Una che non si cancella si dice nel log, non blocca l'avvio.
+        /// </summary>
+        private void DeleteOldGenerations()
+        {
+            var databases = Path.Combine(_options.DataDirectory, "databases");
+            if (!Directory.Exists(databases)) return;
+            foreach (var dataset in Directory.GetDirectories(databases))
+            {
+                var gens = Generations(dataset);
+                foreach (var old in gens.Take(Math.Max(0, gens.Count - 1)))
+                {
+                    var mb = SizeMb(old);
+                    try { old.Delete(recursive: true); _logger.LogInformation("[Fuseki] generazione vecchia {Dir} cancellata ({Mb} MB liberati)", old.FullName, mb); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    { _logger.LogWarning("[Fuseki] generazione vecchia {Dir} ({Mb} MB) non cancellata: {Why}", old.FullName, mb, ex.Message); }
+                }
+            }
+        }
+
         public async Task CompactAsync(string dataset, CancellationToken ct = default)
         {
+            var before = Generations(DatasetDirectory(dataset)).LastOrDefault();
+            var beforeMb = before == null ? 0 : SizeMb(before);
             var baseUri = await EnsureRunningAsync(ct);
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
             var started = DateTime.UtcNow;
@@ -243,7 +290,17 @@ namespace MdExplorer.Features.Services.Fuseki
                     await Task.Delay(500, ct);
                 }
             }
-            _logger.LogInformation("[Fuseki] dataset '{Dataset}' compattato in {Seconds:0.0} s", dataset, (DateTime.UtcNow - started).TotalSeconds);
+            var gens = Generations(DatasetDirectory(dataset));
+            _logger.LogInformation("[Fuseki] dataset '{Dataset}' compattato in {Seconds:0.0} s: {Before} MB → {After} MB",
+                dataset, (DateTime.UtcNow - started).TotalSeconds, beforeMb, gens.Count == 0 ? 0 : SizeMb(gens[^1]));
+            // deleteOld non ce l'ha fatta (Windows: file ancora aperti): si spegne Fuseki, si cancellano, si riaccende
+            if (gens.Count > 1)
+            {
+                _logger.LogInformation("[Fuseki] {Count} generazioni vecchie di '{Dataset}' rimaste dopo la compattazione ({Mb} MB): riavvio Fuseki per toglierle",
+                    gens.Count - 1, dataset, gens.Take(gens.Count - 1).Sum(SizeMb));
+                await StopAsync();
+                await EnsureRunningAsync(ct);
+            }
         }
 
         private string ResolveJarOrThrow()

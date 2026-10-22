@@ -329,5 +329,26 @@ namespace MdExplorer.Features.Tests.CodeGraph
             await _store.LoadProjectAsync(_project);
             Assert.AreEqual(2, (await _store.NeighborsAsync(_project, "s-foo-ingest", "calls", "out", 1, 50)).Count(e => e.Confidence == "ambiguous"));
         }
+
+        [TestMethod]
+        public async Task Reload_one_folder_from_scratch_without_touching_the_others()
+        {
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            var otherDir = Path.Combine(_project, ".mde-code", "other");
+            Directory.CreateDirectory(otherDir);
+            var otherHeader = AstHeader.Replace("src/Demo/Foo.cs", "other/Bar.cs");
+            var otherBody = "{\"type\":\"symbol\",\"id\":\"s-bar\",\"kind\":\"class\",\"name\":\"Bar\",\"qualifiedName\":\"Other.Bar\",\"lineStart\":1,\"lineEnd\":3}\n";
+            File.WriteAllText(Path.Combine(otherDir, "Bar.cs.ast.ttl"), Ttl(otherHeader + "\n" + otherBody));
+            Assert.AreEqual(2, (await _store.LoadProjectAsync(_project)).Loaded);
+            Assert.AreEqual(4, (await _store.GetStatusAsync(_project)).Symbols);
+
+            var outcome = await _store.ReloadFolderAsync(_project, "src");
+            Assert.AreEqual(1, outcome.Loaded, "solo lo script della cartella: quello di «other» resta caricato");
+            Assert.AreEqual(1, outcome.Skipped);
+            var status = await _store.GetStatusAsync(_project);
+            Assert.AreEqual(4, status.Symbols, "dopo la ricarica ci sono ancora tutti");
+            Assert.AreEqual(0, status.ScriptsPending);
+            Assert.AreEqual(1, (await _store.SearchSymbolsAsync(_project, "Bar")).Count, "l'altra cartella non si è mossa");
+        }
     }
 }

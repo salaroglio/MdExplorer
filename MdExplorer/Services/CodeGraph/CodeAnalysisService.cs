@@ -534,6 +534,11 @@ namespace MdExplorer.Services.CodeGraph
                     foreach (var gone in removed) outcome.Load.Results.Add(await _store.RemoveScriptAsync(projectPath, gone, ct));
                     foreach (var script in written) outcome.Load.Results.Add(await _store.LoadScriptAsync(projectPath, script, ct));
                 }
+                // Da capo (tutti gli script della cartella riscritti: estrattore cambiato, prima analisi): la cartella si toglie
+                // dal grafo in una volta e si ricarica a lotti, invece di cancellare e reinserire script per script dentro
+                // un database che cresce (Windows 22/10/2026: 35 GB per 1.414 file). Utente: «in automatico».
+                else if (outcome.Reparsed > 0 && outcome.Reparsed == inPerimeter.Count)
+                    outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct);
                 else outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
                 await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {

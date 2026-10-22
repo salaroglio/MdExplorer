@@ -194,6 +194,26 @@ namespace MdExplorer.Features.Services.CodeGraph
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Via in UNA transazione tutto ciò che gli script sotto <paramref name="scriptsPrefix"/> (<c>.mde-code/&lt;cartella&gt;/</c>)
+        /// avevano portato, archi diretti e stato dei caricamenti compresi: la ricarica da capo di una cartella (22/10/2026).
+        /// Le altre cartelle e gli altri progetti non si toccano.
+        /// </summary>
+        public static string RemoveFolderUpdate(string scriptsPrefix, string dataGraph, string stateGraph)
+        {
+            var g = Iri(dataGraph);
+            var p = Lit(scriptsPrefix);
+            var sb = new StringBuilder();
+            sb.Append(CodeOntology.SparqlPrefixes);
+            sb.Append("DELETE { GRAPH ").Append(g).Append(" { ?a ?p ?b } } WHERE { GRAPH ").Append(g)
+              .Append(" { ?e a code:Edge ; code:fromScript ?sc ; code:source ?a ; code:target ?b ; code:relationIri ?p . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } } ;\n");
+            sb.Append("DELETE { GRAPH ").Append(g).Append(" { ?s ?p ?o } } WHERE { GRAPH ").Append(g)
+              .Append(" { ?s code:fromScript ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } } ;\n");
+            sb.Append("DELETE { GRAPH ").Append(Iri(stateGraph)).Append(" { ?s ?p ?o } } WHERE { GRAPH ").Append(Iri(stateGraph))
+              .Append(" { ?s a ").Append(CodeOntology.ClassScript).Append(" ; code:scriptPath ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } }\n");
+            return sb.ToString();
+        }
+
         private static void AppendRemove(StringBuilder sb, string scriptRel, string g)
         {
             var rel = Lit(scriptRel);

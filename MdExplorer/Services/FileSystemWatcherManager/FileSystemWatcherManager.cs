@@ -1112,8 +1112,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // indice markdown né SignalR per l'albero. Sono la verità, il DB dedicato è l'indice.
                 if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
                 {
-                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script changed: {e.FullPath}");
-                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script changed: {e.FullPath}");
+                    QueueCodeScriptReload(context);
                     return;
                 }
 
@@ -1369,8 +1369,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
                 {
-                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script created: {e.FullPath}");
-                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script created: {e.FullPath}");
+                    QueueCodeScriptReload(context);
                     return;
                 }
 
@@ -1498,9 +1498,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var newIsCodeScript = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath);
                 if (oldIsCodeScript || newIsCodeScript)
                 {
-                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script renamed: {e.OldFullPath} -> {e.FullPath}");
-                    if (oldIsCodeScript) _ = LoadCodeScriptBestEffortAsync(context, e.OldFullPath, remove: true);
-                    if (newIsCodeScript) _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script renamed: {e.OldFullPath} -> {e.FullPath}");
+                    QueueCodeScriptReload(context);
                     return;
                 }
 
@@ -1701,8 +1700,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
                 {
-                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script deleted: {e.FullPath}");
-                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: true);
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script deleted: {e.FullPath}");
+                    QueueCodeScriptReload(context);
                     return;
                 }
 
@@ -2173,28 +2172,75 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         //   Code graph: script → DB dedicato (sprint 2026-10-09, F1)
         // ============================================================
 
+        /// <summary>Quanto silenzio sul disco prima di caricare gli script raccolti, e quanto al massimo si aspetta dal primo evento.</summary>
+        private static readonly TimeSpan CodeScriptQuiet = TimeSpan.FromSeconds(10);   // durante una descrizione gli script cambiano ogni pochi secondi: così un lotto al minuto, non uno per domanda
+        private static readonly TimeSpan CodeScriptMaxWait = TimeSpan.FromMinutes(1);
+
+        private sealed class CodeScriptBatch
+        {
+            public DateTime First, Last;
+            public int Events;
+            public bool Scheduled;
+        }
+
+        private readonly ConcurrentDictionary<string, CodeScriptBatch> _codeScriptBatches = new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
-        /// Carica (o toglie) uno script di <c>.mde-code/</c> nel grafo del codice (Fuseki, D19). Best effort: un errore
-        /// di formato finisce nel log con file, riga e campo, e lo script resta «da caricare» nello stato.
+        /// Uno script di <c>.mde-code/</c> è cambiato (creato, modificato, rinominato, cancellato): si RACCOGLIE e si carica nel
+        /// grafo del codice a lotti (<see cref="MdExplorer.Features.Services.CodeGraph.ICodeGraphStore.LoadProjectAsync"/>, che
+        /// confronta gli hash e toglie quelli spariti), quando il disco tace da <see cref="CodeScriptQuiet"/> o comunque entro
+        /// <see cref="CodeScriptMaxWait"/> dal primo evento. Prima ogni evento era una transazione TDB2 a sé, due per file
+        /// (created + changed): un «Salva e analizza» di 1.414 file ne faceva ~2.800 e su Windows il database del grafo è
+        /// arrivato a 35 GB (22/10/2026).
         /// </summary>
-        private async Task LoadCodeScriptBestEffortAsync(WatcherContext context, string fullPath, bool remove)
+        private void QueueCodeScriptReload(WatcherContext context)
+        {
+            var batch = _codeScriptBatches.GetOrAdd(context.ProjectPath, _ => new CodeScriptBatch());
+            bool start;
+            lock (batch)
+            {
+                var now = DateTime.UtcNow;
+                if (batch.Events == 0) batch.First = now;
+                batch.Last = now;
+                batch.Events++;
+                start = !batch.Scheduled;
+                batch.Scheduled = true;
+            }
+            if (start) _ = LoadCodeScriptsWhenQuietAsync(context, batch);
+        }
+
+        private async Task LoadCodeScriptsWhenQuietAsync(WatcherContext context, CodeScriptBatch batch)
         {
             try
             {
-                await Task.Yield();
+                while (true)
+                {
+                    await Task.Delay(500);
+                    lock (batch)
+                    {
+                        var now = DateTime.UtcNow;
+                        if (now - batch.Last >= CodeScriptQuiet || now - batch.First >= CodeScriptMaxWait) break;
+                    }
+                }
+                int events;
+                lock (batch) { events = batch.Events; batch.Events = 0; }
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 using var scope = _serviceScopeFactory.CreateScope();
                 var store = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
-                var result = remove
-                    ? await store.RemoveScriptAsync(context.ProjectPath, fullPath)
-                    : await store.LoadScriptAsync(context.ProjectPath, fullPath);
-                if (result.HasError)
-                    _logger.LogWarning($"🧩 [{context.ConnectionId}] code script NOT loaded: {result.Error}");
-                else
-                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script {(result.Removed ? "removed" : result.Skipped ? "unchanged" : "loaded")}: {result.ScriptPath} ({result.RecordCount} records)");
+                var outcome = await store.LoadProjectAsync(context.ProjectPath);
+                _logger.LogInformation($"🧩 [{context.ConnectionId}] code scripts: {events} eventi raccolti → {outcome.Loaded} caricati, {outcome.Removed} tolti, {outcome.Failed} falliti in {sw.Elapsed.TotalSeconds:0.0} s");
+                if (outcome.Failed > 0) _logger.LogWarning($"🧩 [{context.ConnectionId}] code scripts NOT loaded: {outcome.FirstError}");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, $"🧩 [{context.ConnectionId}] code script hook threw for {fullPath}");
+                _logger.LogWarning(ex, $"🧩 [{context.ConnectionId}] code scripts: caricamento a lotti fallito per {context.ProjectPath}");
+            }
+            finally
+            {
+                // eventi arrivati mentre si caricava: un altro giro
+                bool again;
+                lock (batch) { again = batch.Events > 0; batch.Scheduled = again; if (again) batch.First = DateTime.UtcNow; }
+                if (again) _ = LoadCodeScriptsWhenQuietAsync(context, batch);
             }
         }
 

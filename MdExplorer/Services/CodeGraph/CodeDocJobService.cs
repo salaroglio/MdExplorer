@@ -160,6 +160,9 @@ namespace MdExplorer.Services.CodeGraph
         public const string ParallelSettingName = "CodeDescriptionParallel";
         public const int DefaultParallel = 3;
         public const int MaxParallel = 8;
+        /// <summary>Ogni quante domande, o minuti, le descrizioni scritte su disco entrano in Fuseki (a lotti, senza compattare).</summary>
+        public const int FlushEvery = 200;
+        public const int FlushEveryMinutes = 5;
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
             MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
@@ -300,20 +303,63 @@ namespace MdExplorer.Services.CodeGraph
                 using var slots = new SemaphoreSlim(parallel, parallel);
                 Exception firstFailure = null;
                 using var failFast = CancellationTokenSource.CreateLinkedTokenSource(token);
-                var fileLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.Ordinal);
+                using var writeGate = new SemaphoreSlim(1, 1);
+                // per il log (22/10/2026: «si è fermato a una funzione» e il log non diceva niente): chi è in corso da quando,
+                // chi è pronto e aspetta un posto, chi aspetta altre domande
+                var runningSince = new Dictionary<int, DateTime>();
+                var readyNow = new HashSet<int>();
+                var doneCount = start;
+                var failedCount = 0;
+
+                // Fuseki a lotti: ogni FlushEvery domande o FlushEveryMinutes, senza compattare; alla fine si compatta una volta.
+                var sinceFlush = 0;
+                var lastFlush = DateTime.UtcNow;
+                var flushing = 0;
+                var loadedInRun = 0;
+                async Task FlushAsync(bool compact, CancellationToken ct)
+                {
+                    await writeGate.WaitAsync(ct);
+                    try
+                    {
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        var load = await _store.LoadProjectAsync(projectPath, ct, compact: false);
+                        loadedInRun += load.Loaded;
+                        _logger.LogInformation("[CodeDoc] '{Folder}': in Fuseki {Loaded} script a lotti ({Failed} falliti) in {Seconds:0.0} s",
+                            folderRelative, load.Loaded, load.Failed, sw.Elapsed.TotalSeconds);
+                        if (load.Failed > 0) _logger.LogWarning("[CodeDoc] caricamento: {Error}", load.FirstError);
+                        // a fine giro, una compattazione sola per tutto quello che il giro ha caricato
+                        if (compact && loadedInRun >= CodeGraphStore.CompactAfterScripts)
+                        {
+                            _logger.LogInformation("[CodeDoc] '{Folder}': compattazione del grafo dopo {Loaded} script caricati nel giro", folderRelative, loadedInRun);
+                            await _store.CompactAsync(ct);
+                        }
+                    }
+                    finally { writeGate.Release(); }
+                }
+                if (plan.Trivial > 0) await FlushAsync(compact: false, token);
 
                 async Task OneGroupAsync(CodeDocGroup group)
                 {
                     var t = failFast.Token;
                     var describedHere = false;
                     var label = group.IsCrossFileCycle ? string.Join(" + ", group.Sources) : group.Sources[0];
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    lock (sync) { readyNow.Remove(group.Index); runningSince[group.Index] = DateTime.UtcNow; }
+                    _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} liv {Level} partita: {File} ({Symbols} simboli, dipende da {Deps})",
+                        group.Index + 1, groups.Count, group.Level, label, group.Candidates.Count, group.DependsOn.Count);
                     try
                     {
                         await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count });
                         askFileIn.TryGetValue(group.Index, out var askFileOf);
-                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, fileLocks, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, t);
+                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, writeGate, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, t);
                         lock (sync) rejectedTotal += result.Rejected;
-                        if (result.Error != null) { lock (sync) progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = label, detail = result.Error }); return; }
+                        if (result.Error != null)
+                        {
+                            lock (sync) { progress.FilesFailed++; failedCount++; }
+                            _logger.LogWarning("[CodeDoc] domanda {Index}/{Total} FALLITA in {Seconds:0.0} s: {File} — {Error}", group.Index + 1, groups.Count, sw.Elapsed.TotalSeconds, label, result.Error);
+                            await SendAsync(connectionId, new { phase = "file-failed", file = label, detail = result.Error });
+                            return;
+                        }
                         lock (sync)
                         {
                             files++; described += result.Described;
@@ -321,24 +367,65 @@ namespace MdExplorer.Services.CodeGraph
                             run.FilesDescribed++;
                         }
                         describedHere = true;
+                        _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} finita in {Seconds:0.0} s: {File} ({Described} descritti, {Rejected} righe scartate)",
+                            group.Index + 1, groups.Count, sw.Elapsed.TotalSeconds, label, result.Described, result.Rejected);
                         await SendAsync(connectionId, new { phase = "file-done", file = label, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
                     }
                     finally
                     {
-                        bool save;
+                        bool save, flush = false;
                         lock (sync)
                         {
+                            runningSince.Remove(group.Index);
+                            doneCount++;
                             finished[group.Index] = true;
                             while (low < groups.Count && finished[low]) low++;
                             run.FileIndex = low; progress.FileIndex = low;
-                            run.CurrentFile = low < groups.Count ? groups[low].Sources[0] : null;
+                            // nel pannello le domande IN CORSO, non la prima non finita (che sembrava «ferma»)
+                            run.CurrentFile = runningSince.Count > 0
+                                ? string.Join(", ", runningSince.Keys.OrderBy(k => k).Select(k => groups[k].Sources[0].Split('/').Last()))
+                                : (low < groups.Count ? groups[low].Sources[0] : null);
                             progress.CurrentFile = run.CurrentFile;
                             save = describedHere || ++sinceSave >= 100;
                             if (save) sinceSave = 0;
+                            if (++sinceFlush >= FlushEvery || DateTime.UtcNow - lastFlush > TimeSpan.FromMinutes(FlushEveryMinutes))
+                            {
+                                if (Interlocked.CompareExchange(ref flushing, 1, 0) == 0) { flush = true; sinceFlush = 0; lastFlush = DateTime.UtcNow; }
+                            }
                         }
                         if (save && !t.IsCancellationRequested) await SaveRunAsync(projectPath, run, t);
+                        if (flush)
+                        {
+                            try { if (!t.IsCancellationRequested) await FlushAsync(compact: false, t); }
+                            finally { Interlocked.Exchange(ref flushing, 0); }
+                        }
                     }
                 }
+
+                // Il battito: ogni minuto, nel log, a che punto è e chi aspetta chi.
+                using var heartbeatStop = new CancellationTokenSource();
+                var heartbeat = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            await Task.Delay(TimeSpan.FromMinutes(1), heartbeatStop.Token);
+                            string inFlight; int ready, waiting, done, failed; string firstWaiting = null;
+                            lock (sync)
+                            {
+                                inFlight = string.Join("; ", runningSince.OrderBy(kv => kv.Value).Select(kv => $"{kv.Key + 1} {groups[kv.Key].Sources[0].Split('/').Last()} da {(int)(DateTime.UtcNow - kv.Value).TotalSeconds} s"));
+                                ready = readyNow.Count; done = doneCount; failed = failedCount;
+                                waiting = groups.Count - done - runningSince.Count - ready;
+                                var w = Enumerable.Range(low, Math.Max(0, groups.Count - low)).FirstOrDefault(i => !finished[i] && !runningSince.ContainsKey(i) && !readyNow.Contains(i), -1);
+                                if (w >= 0) firstWaiting = $"{w + 1} aspetta {string.Join(",", groups[w].DependsOn.Where(d => !finished[d]).Take(5).Select(d => d + 1))}";
+                            }
+                            _logger.LogInformation("[CodeDoc] battito '{Folder}': fatte {Done}/{Total} ({Failed} fallite), in corso [{InFlight}], pronte senza posto {Ready}, in attesa di altre domande {Waiting}{First}",
+                                folderRelative, done, groups.Count, failed, inFlight, ready, waiting, firstWaiting == null ? string.Empty : " — la prima " + firstWaiting);
+                        }
+                    }
+                    catch (OperationCanceledException) { }
+                });
 
                 // Le dipendenze hanno sempre un indice più basso (livello più basso): i task si creano in ordine e ognuno
                 // aspetta i suoi. Un task non fallisce mai: il primo errore vero ferma tutti (failFast).
@@ -353,6 +440,7 @@ namespace MdExplorer.Services.CodeGraph
                         try
                         {
                             await Task.WhenAll(deps);
+                            lock (sync) readyNow.Add(group.Index);
                             await slots.WaitAsync(failFast.Token);
                             try { await OneGroupAsync(group); }
                             finally { slots.Release(); }
@@ -362,6 +450,12 @@ namespace MdExplorer.Services.CodeGraph
                     });
                 }
                 await Task.WhenAll(tasks);
+                heartbeatStop.Cancel();
+                await heartbeat;
+                // l'ultimo lotto, anche se il giro è stato fermato o è fallito: quello che è su disco entra nel grafo; la
+                // compattazione solo a giro finito bene
+                try { await FlushAsync(compact: firstFailure == null && !token.IsCancellationRequested, CancellationToken.None); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] ultimo caricamento in Fuseki non riuscito: gli script sono su disco, entrano alla prossima apertura del progetto"); }
                 if (firstFailure != null) throw firstFailure;
                 token.ThrowIfCancellationRequested();
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} domande, dal basso, {rejectedTotal} righe scartate" }); }
@@ -493,11 +587,8 @@ namespace MdExplorer.Services.CodeGraph
                     fresh.SymbolDocs.AddRange(trivial);
                     existing = CodeDocPlanner.Merge(existing, fresh);
                     CodeDocPlanner.DropOrphans(existing, f.Ast);
-                    if (write)
-                    {
-                        CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(existing));
-                        await _store.LoadScriptAsync(projectPath, f.DocPath, token);
-                    }
+                    // solo su disco: in Fuseki ci vanno a lotti (una transazione per file gonfiava il TDB2, 22/10/2026)
+                    if (write) CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(existing));
                     plan.Trivial += trivial.Count;
                 }
                 existingOf[f.Ast.Header.Source] = existing;
@@ -567,7 +658,7 @@ namespace MdExplorer.Services.CodeGraph
         /// finire insieme), poi il caricamento in Fuseki e le sintesi nuove per chi viene dopo.
         /// </summary>
         private async Task<FileResult> DescribeGroupAsync(string projectPath, CodeRootResolver resolver, CodeDocGroup group, IReadOnlyDictionary<string, DocFile> docFiles,
-            CodeDocGraph graph, ConcurrentDictionary<string, string> summaries, ConcurrentDictionary<string, SemaphoreSlim> fileLocks, bool askFile,
+            CodeDocGraph graph, ConcurrentDictionary<string, string> summaries, SemaphoreSlim writeGate, bool askFile,
             MarkAgentEngine engine, string model, string skillBody, string writtenBy, string promptVersion, CancellationToken token)
         {
             var result = new FileResult();
@@ -664,8 +755,9 @@ namespace MdExplorer.Services.CodeGraph
                 if (!group.IsCrossFileCycle) fresh.FileDoc = fileDoc;
                 if (fresh.SymbolDocs.Count == 0 && fresh.ParameterDocs.Count == 0 && fresh.CallResolutions.Count == 0 && fresh.FileDoc == null) continue;
 
-                var gate = fileLocks.GetOrAdd(source, _ => new SemaphoreSlim(1, 1));
-                await gate.WaitAsync(token);
+                // un lucchetto solo per tutte le scritture (pochi millisecondi l'una): lo prende anche il caricamento a lotti in
+                // Fuseki, che così non legge mai uno script scritto a metà
+                await writeGate.WaitAsync(token);
                 try
                 {
                     // riletto qui dentro: un'altra domanda dello stesso file può averlo appena scritto
@@ -674,12 +766,11 @@ namespace MdExplorer.Services.CodeGraph
                     catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
                     var merged = CodeDocPlanner.Merge(existing, fresh);
                     CodeDocPlanner.DropOrphans(merged, f.Ast);
+                    // solo su disco: in Fuseki a lotti (FlushAsync). Una transazione per domanda ricopiava ogni volta le pagine
+                    // degli indici del TDB2: 35 GB su Windows il 22/10/2026 per 1.414 file
                     CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(merged));
-                    var load = await _store.LoadScriptAsync(projectPath, f.DocPath, token);
-                    result.Loaded |= load.Loaded;
-                    result.LoadError ??= load.Error;
                 }
-                finally { gate.Release(); }
+                finally { writeGate.Release(); }
                 foreach (var d in fresh.SymbolDocs) summaries[d.SymbolId] = d.Summary;
             }
             result.Described = freshCount;
