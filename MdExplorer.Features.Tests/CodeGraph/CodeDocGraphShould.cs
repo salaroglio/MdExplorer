@@ -65,11 +65,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, LevelOf("leaf"), "chiama solo un esterno e un getter: è una foglia");
             Assert.AreEqual(1, LevelOf("mid"), "rigoroso anche nello stesso file (D40): aspetta leaf");
             Assert.AreEqual(2, LevelOf("top"));
-            Assert.AreEqual(1, LevelOf("b1"), "fra file: aspetta leaf; le ambigue non danno ordine");
+            Assert.AreEqual(3, LevelOf("b1"), "fra file aspetta leaf, e una chiamata ambigua aspetta tutte le candidate (top al 2, mid all'1)");
             Assert.AreEqual(0, LevelOf("rec"));
             Assert.AreSame(groups.Single(g => g.Candidates.Any(c => c.Symbol.Id == "rec")), groups.Single(g => g.Candidates.Any(c => c.Symbol.Id == "rec2")), "un ciclo: una domanda");
             Assert.AreEqual(3, LevelOf("A"), "la classe dopo tutti i suoi membri (top è al 2)");
-            Assert.AreEqual(2, LevelOf("B"));
+            Assert.AreEqual(4, LevelOf("B"));
             Assert.IsFalse(groups.Any(g => g.Candidates.Any(c => c.Symbol.Id == "get")), "il getter non va all'LLM (D41)");
 
             // ogni domanda viene dopo quelle da cui dipende, e le dipendenze sono quelle giuste

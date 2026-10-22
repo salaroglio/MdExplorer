@@ -37,8 +37,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// La parte deterministica della descrizione dal basso (D39-D41): dagli script AST di una cartella program il grafo
     /// delle chiamate fra i simboli da descrivere, i cicli raggruppati (Tarjan), i livelli — 0 chi non chiama niente da
     /// descrivere, sennò 1 + il più alto dei chiamati, rigoroso per funzione anche dentro lo stesso file (D40) — e le
-    /// domande con le loro dipendenze. Una classe (interfaccia, enum, record) viene dopo i suoi membri. Gli archi
-    /// <c>ambiguous</c> non danno ordine: entrano nel prompt come candidate.
+    /// domande con le loro dipendenze. Una classe (interfaccia, enum, record) viene dopo i suoi membri. Una chiamata
+    /// <c>ambiguous</c> fa aspettare TUTTE le sue candidate (utente, 22/10/2026: «qualunque chiamata, ambigua o meno, rende
+    /// una funzione NON foglia»); non aspettano gli esterni, i metodi banali e chi è già descritto.
     /// </summary>
     public sealed class CodeDocGraph
     {
@@ -94,7 +95,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var deps = new HashSet<string>(StringComparer.Ordinal);
                 if (_calls.TryGetValue(n, out var calls))
                     foreach (var e in calls)
-                        if (e.Confidence != "ambiguous" && e.TargetId != n && byId.ContainsKey(e.TargetId)) deps.Add(e.TargetId);
+                        // anche le candidate di una chiamata ambigua (22/10/2026): per scegliere quella vera l'LLM deve
+                        // conoscerle; prima non davano ordine e il chiamante passava prima di loro, «foglia» per sbaglio
+                        if (e.TargetId != n && byId.ContainsKey(e.TargetId)) deps.Add(e.TargetId);
                 if (TypeKinds.Contains(byId[n].Symbol.Kind) && _members.TryGetValue(n, out var members))
                     foreach (var m in members)
                         if (m != n && byId.ContainsKey(m)) deps.Add(m);
@@ -208,7 +211,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var nodes = _symbols.Where(kv => CodeDocPlanner.IsDescribable(kv.Value.Symbol.Kind) && kv.Value.Symbol.Trivial == null).Select(kv => kv.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
             var set = new HashSet<string>(nodes, StringComparer.Ordinal);
             var adj = nodes.ToDictionary(n => n, n => _calls.TryGetValue(n, out var c)
-                ? c.Where(e => e.Confidence != "ambiguous" && e.TargetId != n && set.Contains(e.TargetId)).Select(e => e.TargetId).Distinct(StringComparer.Ordinal).OrderBy(t => t, StringComparer.Ordinal).ToList()
+                ? c.Where(e => e.TargetId != n && set.Contains(e.TargetId)).Select(e => e.TargetId).Distinct(StringComparer.Ordinal).OrderBy(t => t, StringComparer.Ordinal).ToList()
                 : new List<string>(), StringComparer.Ordinal);
             var (_, components) = Tarjan(nodes, adj);
             var result = new Dictionary<string, int>(StringComparer.Ordinal);
