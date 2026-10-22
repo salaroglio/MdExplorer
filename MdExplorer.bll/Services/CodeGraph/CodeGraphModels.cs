@@ -231,6 +231,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Undescribed { get; set; }
         public List<string[]> UndescribedList { get; set; } = new();   // kind, qualifiedName, path, line
         public int Ambiguous { get; set; }
+        /// <summary>Archi ambigui scelti dall'LLM (F12c): le loro candidate scartate non si contano più fra gli ambigui.</summary>
+        public int LlmResolved { get; set; }
         public int Inferred { get; set; }
         public List<string[]> AmbiguousList { get; set; } = new();     // source qn, relation, target qn, path, line
         public List<string[]> StaleList { get; set; } = new();         // qualifiedName, path, line

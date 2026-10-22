@@ -51,6 +51,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 $"- {o.DescribedSymbols} symbols described and {o.DescribedFiles} files out of {o.Files} with what they are for, {undescribed} still without a description, {stale.Count} descriptions to review (signature changed)."));
             sb.AppendLine(L($"- {ambiguous} archi ambigui e {inferred} inferiti: le chiamate che l'analisi ha risolto per nome, non con certezza.",
                 $"- {ambiguous} ambiguous and {inferred} inferred edges: the calls the analysis resolved by name, not with certainty."));
+            if (data.LlmResolved > 0)
+                sb.AppendLine(L($"- {data.LlmResolved} chiamate ambigue risolte dall'LLM mentre descriveva il codice (certezza `llm-resolved`): le altre candidate non si mostrano più, ma restano negli script AST.",
+                    $"- {data.LlmResolved} ambiguous calls resolved by the LLM while describing the code (confidence `llm-resolved`): the other candidates are no longer shown, but they stay in the AST scripts."));
             var none = L("nessuno", "none");
             var mostConnected = o.MostConnected.Count > 0 ? "`" + o.MostConnected[0].Symbol.QualifiedName + "`" : none;
             var largest = o.LargestFiles.Count > 0 ? "`" + o.LargestFiles[0].Path + "`" : none;

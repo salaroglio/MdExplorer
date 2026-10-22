@@ -295,5 +295,39 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, outcome.Results.Count);
             Assert.IsFalse((await _store.GetStatusAsync(_project)).ScriptsFolderExists);
         }
+
+        [TestMethod]
+        public async Task Show_only_the_candidate_the_llm_chose_as_llm_resolved()
+        {
+            // IngestFile chiama alla riga 6 un «Save» che il parser non sa risolvere: due candidate
+            var ast = AstBody +
+                "{\"type\":\"symbol\",\"id\":\"s-a-save\",\"kind\":\"method\",\"name\":\"Save\",\"qualifiedName\":\"Demo.A.Save\",\"lineStart\":10,\"lineEnd\":10}\n" +
+                "{\"type\":\"symbol\",\"id\":\"s-b-save\",\"kind\":\"method\",\"name\":\"Save\",\"qualifiedName\":\"Demo.B.Save\",\"lineStart\":11,\"lineEnd\":11}\n" +
+                "{\"type\":\"edge\",\"sourceId\":\"s-foo-ingest\",\"targetId\":\"s-a-save\",\"relation\":\"calls\",\"confidence\":\"ambiguous\",\"line\":6}\n" +
+                "{\"type\":\"edge\",\"sourceId\":\"s-foo-ingest\",\"targetId\":\"s-b-save\",\"relation\":\"calls\",\"confidence\":\"ambiguous\",\"line\":6}\n";
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + ast));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            var before = await _store.NeighborsAsync(_project, "s-foo-ingest", "calls", "out", 1, 50);
+            Assert.AreEqual(2, before.Count(e => e.Confidence == "ambiguous"));
+
+            var doc = CodeScriptParser.Parse(DocScript, "fixture.jsonl");
+            var res = new ScriptCallResolution { SourceId = "s-foo-ingest", Line = 6, TargetId = "s-b-save" }; res.Rejected.Add("s-a-save");
+            doc.CallResolutions.Add(res);
+            File.WriteAllText(DocPath, CodeScriptWriter.Serialize(doc));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var after = await _store.NeighborsAsync(_project, "s-foo-ingest", "calls", "out", 1, 50);
+            Assert.IsFalse(after.Any(e => e.Other.Id == "s-a-save"), "la candidata scartata non si mostra");
+            Assert.AreEqual("llm-resolved", after.Single(e => e.Other.Id == "s-b-save").Confidence);
+            Assert.AreEqual("extracted", after.Single(e => e.Other.Id == "x-console").Confidence, "gli altri archi come prima");
+            var report = await _store.GetReportDataAsync(_project);
+            Assert.AreEqual((0, 1), (report.Ambiguous, report.LlmResolved));
+            Assert.AreEqual(0, report.AmbiguousList.Count);
+
+            // la scelta sparisce con lo script delle descrizioni: torna l'ambiguità del parser
+            File.Delete(DocPath);
+            await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(2, (await _store.NeighborsAsync(_project, "s-foo-ingest", "calls", "out", 1, 50)).Count(e => e.Confidence == "ambiguous"));
+        }
     }
 }

@@ -98,7 +98,8 @@ public sealed class CodeTools : McpToolsBase
         "Neighbors of a symbol in the code graph. direction='out' = what the symbol uses (calls, instantiates, references, inherits, implements, imports, contains); " +
         "direction='in' = who uses it (its callers, implementers, subclasses). Optional `relation` filters one relation. " +
         "`depth` follows the edges up to N hops (1-5). Each edge carries `confidence`: extracted (certain), inferred (resolved by name, " +
-        "e.g. an interface call to its implementations), ambiguous (several candidates). Answers 'who calls X', 'which classes implement I', 'what does X depend on'.")]
+        "e.g. an interface call to its implementations), llm-resolved (several candidates, the LLM that described the code chose this one: a deduction, not the parser), " +
+        "ambiguous (several candidates). Answers 'who calls X', 'which classes implement I', 'what does X depend on'.")]
     public async Task<string> code_neighbors(
         [Description("Project name.")] string project,
         [Description("Symbol id (or exact qualified name).")] string symbol,

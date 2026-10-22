@@ -604,6 +604,7 @@ namespace MdExplorer.Services.CodeGraph
 
             var freshDocs = new List<ScriptSymbolDoc>();
             var freshParams = new List<ScriptParameterDoc>();
+            var freshResolutions = new List<ScriptCallResolution>();
             ScriptFileDoc fileDoc = null;
             var freshCount = 0;
             var failures = new List<string>();
@@ -627,7 +628,7 @@ namespace MdExplorer.Services.CodeGraph
                     failures.Add(ex.Message);
                     continue;
                 }
-                var fresh = CodeDocPlanner.ParseAnswer(answer, label, batch, writtenBy, out var rejected, askThis);
+                var fresh = CodeDocPlanner.ParseAnswer(answer, label, batch, writtenBy, out var rejected, askThis, graph.AmbiguousAt);
                 result.Rejected += rejected.Count;
                 result.FirstRejected ??= rejected.FirstOrDefault();
                 foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", label, r);
@@ -641,6 +642,7 @@ namespace MdExplorer.Services.CodeGraph
                 }
                 freshDocs.AddRange(fresh.SymbolDocs);
                 freshParams.AddRange(fresh.ParameterDocs);
+                freshResolutions.AddRange(fresh.CallResolutions);
                 fileDoc ??= fresh.FileDoc;
             }
             if (freshCount == 0)
@@ -658,8 +660,9 @@ namespace MdExplorer.Services.CodeGraph
                 var fresh = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = source, WrittenBy = writtenBy, WrittenAt = DateTime.UtcNow.ToString("o") } };
                 fresh.SymbolDocs.AddRange(freshDocs.Where(d => sourceOf[d.SymbolId] == source));
                 fresh.ParameterDocs.AddRange(freshParams.Where(p => sourceOf[p.SymbolId] == source));
+                fresh.CallResolutions.AddRange(freshResolutions.Where(r => sourceOf[r.SourceId] == source));
                 if (!group.IsCrossFileCycle) fresh.FileDoc = fileDoc;
-                if (fresh.SymbolDocs.Count == 0 && fresh.ParameterDocs.Count == 0 && fresh.FileDoc == null) continue;
+                if (fresh.SymbolDocs.Count == 0 && fresh.ParameterDocs.Count == 0 && fresh.CallResolutions.Count == 0 && fresh.FileDoc == null) continue;
 
                 var gate = fileLocks.GetOrAdd(source, _ => new SemaphoreSlim(1, 1));
                 await gate.WaitAsync(token);
@@ -680,6 +683,7 @@ namespace MdExplorer.Services.CodeGraph
                 foreach (var d in fresh.SymbolDocs) summaries[d.SymbolId] = d.Summary;
             }
             result.Described = freshCount;
+            if (freshResolutions.Count > 0) _logger.LogInformation("[CodeDoc] {File}: {Count} chiamate ambigue risolte dall'LLM", label, freshResolutions.Count);
             if (failures.Count > 0) _logger.LogWarning("[CodeDoc] {File}: {Failed} gruppi senza risposta", label, failures.Count);
             return result;
         }

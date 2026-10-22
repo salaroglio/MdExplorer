@@ -268,7 +268,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ? new { line = c.Line, ambiguous = c.Candidates.Select(CallJson).ToList() }
             : new
             {
-                line = c.Line, name = c.QualifiedName, signature = c.Signature,
+                id = c.Id, line = c.Line, name = c.QualifiedName, signature = c.Signature,
                 external = c.External ? true : (bool?)null,
                 summary = c.External ? null : c.Summary,
                 notYetDescribed = !c.External && c.Summary == null ? true : (bool?)null,
@@ -320,7 +320,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// simboli chiesti, con il <c>signatureHash</c> calcolato da noi; righe non JSON o fuori formato finiscono in
         /// <paramref name="rejected"/> con il motivo, mai ignorate in silenzio.
         /// </summary>
-        public static CodeScript ParseAnswer(string answer, string sourceRelativePath, IReadOnlyList<CodeDocCandidate> candidates, string writtenBy, out List<string> rejected, bool askedFile = false)
+        public static CodeScript ParseAnswer(string answer, string sourceRelativePath, IReadOnlyList<CodeDocCandidate> candidates, string writtenBy, out List<string> rejected, bool askedFile = false,
+            Func<string, int?, List<string>> ambiguousAt = null)
         {
             rejected = new List<string>();
             var byId = candidates.ToDictionary(c => c.Symbol.Id, c => c, StringComparer.Ordinal);
@@ -353,6 +354,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     result.SymbolDocs.RemoveAll(x => x.SymbolId == d.SymbolId);
                     result.SymbolDocs.Add(d);
                 }
+                // la scelta su una chiamata ambigua (F12c): solo fra le candidate di quella riga; le scartate le dice l'AST
+                foreach (var r in one.CallResolutions)
+                {
+                    if (!byId.ContainsKey(r.SourceId)) { rejected.Add(UiText.Say($"riga {lineNo}: callResolution per '{r.SourceId}', simbolo non richiesto", $"line {lineNo}: callResolution for '{r.SourceId}', symbol not requested")); continue; }
+                    var options = ambiguousAt?.Invoke(r.SourceId, r.Line) ?? new List<string>();
+                    if (!options.Contains(r.TargetId)) { rejected.Add(UiText.Say($"riga {lineNo}: '{r.TargetId}' non è una candidata della chiamata ambigua alla riga {r.Line} di {byId[r.SourceId].Symbol.QualifiedName}", $"line {lineNo}: '{r.TargetId}' is not a candidate of the ambiguous call at line {r.Line} of {byId[r.SourceId].Symbol.QualifiedName}")); continue; }
+                    r.Rejected.AddRange(options.Where(o => o != r.TargetId));
+                    result.CallResolutions.RemoveAll(x => x.SourceId == r.SourceId && x.Line == r.Line && x.TargetId == r.TargetId);
+                    result.CallResolutions.Add(r);
+                }
                 foreach (var p in one.ParameterDocs)
                 {
                     if (!byId.TryGetValue(p.SymbolId, out var c)) { rejected.Add(UiText.Say($"riga {lineNo}: symbolId '{p.SymbolId}' non richiesto", $"line {lineNo}: symbolId '{p.SymbolId}' not requested")); continue; }
@@ -382,6 +393,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             merged.SymbolDocs.AddRange(fresh.SymbolDocs);
             merged.ParameterDocs.AddRange(fresh.ParameterDocs);
+            // le scelte sulle chiamate ambigue: la nuova su (chiamante, riga) sostituisce la vecchia, le altre restano
+            var resolved = new HashSet<(string, int?)>(fresh.CallResolutions.Select(r => (r.SourceId, r.Line)));
+            if (existing != null) merged.CallResolutions.AddRange(existing.CallResolutions.Where(r => !resolved.Contains((r.SourceId, r.Line))));
+            merged.CallResolutions.AddRange(fresh.CallResolutions);
             return merged;
         }
 
@@ -395,6 +410,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             var aliveParams = new HashSet<(string, string)>(ast.Parameters.Select(p => (p.SymbolId, p.Name)));
             var n = doc.SymbolDocs.RemoveAll(d => !alive.Contains(d.SymbolId));
             n += doc.ParameterDocs.RemoveAll(p => !aliveParams.Contains((p.SymbolId, p.ParameterName)));
+            // una scelta su una chiamata ambigua vale finché le candidate di quella riga sono le stesse (F12c): se la chiamata
+            // è sparita, o il parser ora la risolve, o è arrivata una candidata nuova, la scelta non regge più
+            var ambiguous = ast.Edges.Where(e => e.Relation == "calls" && e.Confidence == "ambiguous")
+                .GroupBy(e => (e.SourceId, e.Line)).ToDictionary(g => g.Key, g => g.Select(e => e.TargetId).ToHashSet(StringComparer.Ordinal));
+            n += doc.CallResolutions.RemoveAll(r => !ambiguous.TryGetValue((r.SourceId, r.Line), out var set)
+                || !set.SetEquals(r.Rejected.Append(r.TargetId)));
             return n;
         }
 

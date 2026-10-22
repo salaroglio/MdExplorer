@@ -165,6 +165,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (d.PromptVersion != null) sb.Append(" ; code:promptVersion ").Append(Lit(d.PromptVersion));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
+            foreach (var r in script.CallResolutions)
+            {
+                sb.Append(Iri(Resolution(r.SourceId, r.Line, r.TargetId))).Append(" a ").Append(CodeOntology.ClassCallResolution)
+                  .Append(" ; code:source ").Append(Iri(Symbol(r.SourceId)))
+                  .Append(" ; code:target ").Append(Iri(Symbol(r.TargetId)))
+                  .Append(" ; code:chooses ").Append(Iri(Edge(r.SourceId, "calls", r.TargetId, r.Line)));
+                if (r.Line != null) sb.Append(" ; code:line ").Append(Int(r.Line.Value));
+                foreach (var x in r.Rejected) sb.Append(" ; code:rejects ").Append(Iri(Edge(r.SourceId, "calls", x, r.Line)));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+            }
             foreach (var d in script.ParameterDocs)
             {
                 sb.Append(Iri(ParamDoc(d.SymbolId, d.ParameterName))).Append(" a ").Append(CodeOntology.ClassParameterDescription)

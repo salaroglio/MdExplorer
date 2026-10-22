@@ -46,7 +46,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     .Aggregate("\"\"", (inner, p) => $"IF(STRSTARTS({variable}, {Lit(p.TrimEnd('/') + "/")}), {Lit(p)}, {inner})");
                 var rows = await RowsAsync(
                     $"SELECT ?a ?b ?rel ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ " +
-                    "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf ; code:path ?sp ; code:target ?t . ?t code:path ?tp . " +
+                    "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?sp ; code:target ?t . ?t code:path ?tp . " + EffectiveConfidence +
                     $"FILTER({RelationFilter}) BIND({Owner("?sp")} AS ?a) BIND({Owner("?tp")} AS ?b) " +
                     "FILTER(?a != \"\" && ?b != \"\" && ?a != ?b) } } GROUP BY ?a ?b ?rel ?conf", ct);
                 foreach (var r in rows)
@@ -116,7 +116,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             // dall'interno: verso un'altra parte o fuori
             var outgoing = await RowsAsync(
                 $"SELECT ?ga ?gb ?rel ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ " +
-                "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf ; code:path ?sp ; code:target ?t . " +
+                "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?sp ; code:target ?t . " + EffectiveConfidence +
                 $"FILTER({RelationFilter} && STRSTARTS(?sp, {prefix})) ?t code:path ?tp . " +
                 $"BIND(STRAFTER(?sp, {prefix}) AS ?ra) {bind}" +
                 $"BIND(IF(STRSTARTS(?tp, {prefix}), STRAFTER(?tp, {prefix}), \"{OutsideMarker}/\") AS ?rb) " +
@@ -124,7 +124,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             // da fuori verso l'interno
             var incoming = await RowsAsync(
                 $"SELECT ?ga ?rel ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ " +
-                "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf ; code:path ?sp ; code:target ?t . ?t code:path ?tp . " +
+                "?e a code:Edge ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?sp ; code:target ?t . ?t code:path ?tp . " + EffectiveConfidence +
                 $"FILTER({RelationFilter} && STRSTARTS(?tp, {prefix}) && !STRSTARTS(?sp, {prefix})) " +
                 $"BIND(STRAFTER(?tp, {prefix}) AS ?ra) {bind}}} }} GROUP BY ?ga ?rel ?conf", ct);
 

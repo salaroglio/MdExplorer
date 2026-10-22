@@ -24,7 +24,7 @@
  *   sovrapponevano. Le chiamate fra nodi che non sono padre e figlio sono archi curvi di lato. Un nodo trascinato resta
  *   dove lo si lascia; se dopo un'apertura qualcosa esce dallo schermo, la vista si adatta.
  * - Gli archi hanno un colore per relazione e sono tratteggiati quando la confidenza è `inferred`
- *   o `ambiguous`; fra due file si sommano (il numero sull'arco).
+ *   o `ambiguous` (a punto e linea se `llm-resolved`: un'ambigua scelta dall'LLM, F12c); fra due file si sommano (il numero sull'arco).
  * - Il clic su un simbolo apre la scheda con firma, parametri e la descrizione scritta dalla skill;
  *   «Apri il sorgente» naviga il visualizzatore sul file (messaggio `md-navigate` al genitore).
  * - I dati arrivano da GET /api/codegraph/graph (D15: solo il DB); niente sorgenti letti qui.
@@ -75,6 +75,7 @@ const CG_TEXTS = {
         'conf.extracted': 'scritto nel codice',
         'conf.inferred': 'dedotto dal nome',
         'conf.ambiguous': 'ambiguo: più candidati',
+        'conf.llm-resolved': 'scelto dall\'LLM fra più candidati',
         cannotOpen: 'Non si apre: {detail}',
         analyzing: 'Mark sta analizzando «{name}»… (può volerci un minuto)',
         analyzedBy: 'Analizzato da {engine}',
@@ -159,6 +160,7 @@ const CG_TEXTS = {
         'conf.extracted': 'written in the code',
         'conf.inferred': 'deduced from the name',
         'conf.ambiguous': 'ambiguous: several candidates',
+        'conf.llm-resolved': 'chosen by the LLM among several candidates',
         cannotOpen: 'It does not open: {detail}',
         analyzing: 'Mark is analyzing «{name}»… (it can take a minute)',
         analyzedBy: 'Analyzed by {engine}',
@@ -368,7 +370,7 @@ const CG_TEXTS = {
             // padre → figlio: dritto (è il gradino della scaletta); ogni altro arco passerebbe sopra le righe in mezzo: si curva di lato
             .linkCurvature(l => (l.source && l.target && l.target.parentId === l.source.id && !l.__pair) ? 0 : 0.6 + 0.35 * (l.__pair || 0))
             .linkWidth(l => Math.min(4, 1 + Math.log2(l.count || 1)))
-            .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : [2, 4])
+            .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : l.confidence === 'llm-resolved' ? [8, 3, 2, 3] : [2, 4])
             .linkDirectionalArrowLength(6).linkDirectionalArrowRelPos(1)
             .linkLabel(l => relationText(l) + T('linkTip'))
             .onLinkRightClick((l, ev) => showLinkMenu(l, ev))
@@ -786,7 +788,7 @@ const CG_TEXTS = {
     function renderLegend() {
         const el = document.getElementById('cg-legend');
         el.innerHTML = Object.keys(REL_COLORS).filter(k => k !== 'contains').map(k => '<span title="' + k + '"><i style="background:' + REL_COLORS[k] + '"></i>' + relLabel(k) + '</span>').join('') +
-            '<span class="cg-sep"></span><span title="extracted">— ' + confLabel('extracted') + '</span><span title="inferred">– – ' + confLabel('inferred') + '</span><span title="ambiguous">·· ' + confLabel('ambiguous') + '</span>' +
+            '<span class="cg-sep"></span><span title="extracted">— ' + confLabel('extracted') + '</span><span title="inferred">– – ' + confLabel('inferred') + '</span><span title="llm-resolved">–·– ' + confLabel('llm-resolved') + '</span><span title="ambiguous">·· ' + confLabel('ambiguous') + '</span>' +
             '<span class="cg-sep"></span><span><i class="cg-uncalled"></i>' + T('legendUncalled') + '</span>' +
             (data.folders.length > 1 ? '<span class="cg-sep"></span>' + data.folders.map(f => '<span><i style="background:' + folderColor(f) + '"></i>' + (f || '/') + '</span>').join('') : '');
     }

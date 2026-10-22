@@ -37,6 +37,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>A che cosa serve un file (12/10/2026): <c>code:describes</c> punta al <c>code:File</c>.</summary>
         public const string ClassFileDescription = "code:FileDescription";
         public const string ClassScript = "code:Script";
+        /// <summary>La scelta dell'LLM su una chiamata ambigua (F12c): <c>code:chooses</c> l'arco giusto, <c>code:rejects</c> gli altri.</summary>
+        public const string ClassCallResolution = "code:CallResolution";
+        /// <summary>La certezza di un arco ambiguo scelto dall'LLM: mai confusa con quelle del parser.</summary>
+        public const string LlmResolved = "llm-resolved";
         public const string ClassScanState = "code:ScanState";
         /// <summary>La traccia dell'ultima descrizione di una cartella program (punto 2c del 14/10): da qui si sa se si è interrotta.</summary>
         public const string ClassDescriptionRun = "code:DescriptionRun";

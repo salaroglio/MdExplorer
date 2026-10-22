@@ -32,6 +32,7 @@ const CG_MAP_TEXTS = {
         arrowCertain: '{n} certi',
         arrowInferred: '{n} dedotti',
         arrowAmbiguous: '{n} ambigui',
+        arrowLlm: '{n} scelti dall\'LLM',
         legend: 'Frecce: legami sommati fra le parti (chiamate, tipi usati, ereditarietà, implementazioni, creazioni; senza gli import) · spessore = quanti · tratteggio = per lo più non certi',
         moreTitle: 'Le cartelle raccolte',
     },
@@ -59,6 +60,7 @@ const CG_MAP_TEXTS = {
         arrowCertain: '{n} certain',
         arrowInferred: '{n} inferred',
         arrowAmbiguous: '{n} ambiguous',
+        arrowLlm: '{n} chosen by the LLM',
         legend: 'Arrows: links summed between the parts (calls, used types, inheritance, implementations, creations; no imports) · width = how many · dashed = mostly not certain',
         moreTitle: 'The gathered folders',
     },
@@ -154,6 +156,7 @@ const CG_MAP_TEXTS = {
         const rel = Object.entries(l.byRelation).sort((a, b) => b[1] - a[1]).map(([r, n]) => REL_TEXT(r) + ' ' + nf.format(n)).join(', ');
         const c = l.byConfidence;
         const conf = [c.extracted ? T('arrowCertain', { n: nf.format(c.extracted) }) : null, c.inferred ? T('arrowInferred', { n: nf.format(c.inferred) }) : null,
+            c['llm-resolved'] ? T('arrowLlm', { n: nf.format(c['llm-resolved']) }) : null,
             c.ambiguous ? T('arrowAmbiguous', { n: nf.format(c.ambiguous) }) : null].filter(Boolean).join(', ');
         return T('arrow', { from, to, n: nf.format(l.count) }) + '<br>' + rel + '<br>' + conf;
     }

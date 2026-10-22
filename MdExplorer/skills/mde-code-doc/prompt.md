@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 8
+  version: 9
   updatePolicy: replace
 ---
 
@@ -52,8 +52,11 @@ dire che cosa fa il simbolo **nell'insieme**, mettendo insieme quello che fanno 
 - `external: true`: funzione fuori dal progetto (libreria): sai solo il nome.
 - `notYetDescribed: true`: la sua descrizione non c'è ancora (sta nella tua stessa domanda,
   in un ciclo di chiamate, o non è riuscita): ricavala dal sorgente se lo vedi.
-- `ambiguous: [...]`: il parser non sa quale di queste candidate venga chiamata davvero;
-  scegli dal sorgente quella che torna, e se non puoi dirlo resta generico.
+- `ambiguous: [...]`: il parser non sa quale di queste candidate venga chiamata davvero.
+  Se dal sorgente si capisce quale (il tipo dell'oggetto, il contesto), descrivi con quella
+  E scrivi una riga `callResolution` con il suo `id`:
+  `{"type":"callResolution","symbolId":"<id del simbolo che chiama>","line":<line della chiamata>,"target":"<id della candidata>"}`.
+  Solo se ne sei sicuro dal codice che vedi: se non si capisce, niente riga e descrizione generica.
 
 **I membri di un tipo** — campo `members` di una classe, interfaccia, enum o record: i suoi
 metodi con la `summary` già scritta. La `summary` del tipo dice la sua responsabilità
@@ -77,6 +80,8 @@ Regole:
 - Se un simbolo ha il campo `file`, il sorgente è in più pezzi (un ciclo di chiamate fra
   più file): le sue righe stanno sotto `// ==== <file> ====`.
 - Un campo che non serve si omette, non si scrive vuoto o `null`.
+- Una riga `callResolution` solo per le chiamate `ambiguous` del simbolo, con `line` e `id`
+  copiati dalla richiesta: MdExplorer scarta le altre.
 - Nessuna riga `fileDoc`, tranne quando c'è la sezione `---- DESCRIVI ANCHE IL FILE ----`
   (vedi sotto).
 - Niente code fence, niente testo prima o dopo, niente commenti: solo le righe JSON.

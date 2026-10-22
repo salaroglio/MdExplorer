@@ -215,7 +215,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (links.TryGetValue(key, out var l))
                 {
                     l.Count++;
-                    if (Rank(confidence) > Rank(l.Confidence)) l.Confidence = confidence;   // il peggiore vince: ambiguous > inferred > extracted
+                    if (Rank(confidence) > Rank(l.Confidence)) l.Confidence = confidence;   // il peggiore vince: ambiguous > llm-resolved > inferred > extracted
                 }
                 else links[key] = new CodeGraphViewModel.ViewLink { Source = a, Target = b, Relation = relation, Confidence = confidence, Count = 1 };
             }
@@ -269,6 +269,6 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private static string FolderOf(string path) => path.Contains('/') ? path.Substring(0, path.LastIndexOf('/')) : string.Empty;
 
-        private static int Rank(string confidence) => confidence switch { "ambiguous" => 2, "inferred" => 1, _ => 0 };
+        private static int Rank(string confidence) => confidence switch { "ambiguous" => 3, CodeOntology.LlmResolved => 2, "inferred" => 1, _ => 0 };   // llm-resolved: una deduzione, fra le due
     }
 }

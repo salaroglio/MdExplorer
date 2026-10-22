@@ -106,6 +106,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash", "bodyHash", "contextHash", "promptVersion"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
             ["FileDescription"] = Set("describes", "summary", "writtenBy", "writtenAt"),
+            ["CallResolution"] = Set("source", "target", "chooses", "rejects", "line"),
         };
 
         private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
@@ -225,6 +226,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     throw new CodeScriptFormatException(path, 0, UiText.Say($"code:FileDescription descrive <{described}>, non il file dello script «{script.Header.Source}»", $"code:FileDescription describes <{described}>, not the script's file «{script.Header.Source}»"));
                 script.FileDoc = new ScriptFileDoc { Summary = fileDocs[0].Str("summary", path) };
             }
+            foreach (var n in nodes.Where(n => n.Class == "CallResolution"))
+            {
+                var r = new ScriptCallResolution { SourceId = SymbolId(n.IriValue("source", path)), TargetId = SymbolId(n.IriValue("target", path)), Line = n.OptInt("line", path) };
+                foreach (var e in n.IriValues("rejects"))
+                    r.Rejected.Add(CodeGraphIris.ParseEdge(e)?.Target ?? throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:rejects <{e}> non è un arco", $"<{n.Iri}>: code:rejects <{e}> is not an edge")));
+                script.CallResolutions.Add(r);
+            }
             foreach (var n in nodes.Where(n => n.Class == "ParameterDescription"))
                 script.ParameterDocs.Add(new ScriptParameterDoc
                 {
@@ -307,6 +315,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return v == "true" ? true : v == "false" ? false : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} = «{v}» non è un booleano", $"<{Iri}>: code:{p} = «{v}» is not a boolean"));
             }
             public string IriValue(string p, string path) => One(p, path, true) is IUriNode u ? u.Uri.OriginalString : throw new CodeScriptFormatException(path, 0, UiText.Say($"<{Iri}>: code:{p} deve essere un IRI", $"<{Iri}>: code:{p} must be an IRI"));
+            public List<string> IriValues(string p) => Values.TryGetValue(p, out var l) ? l.OfType<IUriNode>().Select(u => u.Uri.OriginalString).ToList() : new List<string>();
             public string OptIri(string p) => Values.TryGetValue(p, out var l) && l.Count == 1 && l[0] is IUriNode u ? u.Uri.OriginalString : null;
             public string Enum(string p, string[] allowed, string path)
             {

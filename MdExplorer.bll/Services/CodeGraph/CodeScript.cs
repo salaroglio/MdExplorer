@@ -110,6 +110,20 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string PromptVersion { get; set; }
     }
 
+    /// <summary>
+    /// La scelta dell'LLM su una chiamata ambigua (F12c, D39 «llm-resolved»): in quella riga il chiamante chiama davvero
+    /// <see cref="TargetId"/>, non le altre candidate (<see cref="Rejected"/>). Sta nello script delle descrizioni, mai in
+    /// quello AST: il fatto del parser («ambigua») resta com'è; le viste mostrano la scelta come <c>llm-resolved</c> e
+    /// nascondono le scartate (utente, 22/10/2026).
+    /// </summary>
+    public sealed class ScriptCallResolution
+    {
+        public string SourceId { get; set; }
+        public int? Line { get; set; }
+        public string TargetId { get; set; }
+        public List<string> Rejected { get; } = new();
+    }
+
     public sealed class ScriptParameterDoc
     {
         public string SymbolId { get; set; }
@@ -136,6 +150,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptEdge> Edges { get; } = new();
         public List<ScriptSymbolDoc> SymbolDocs { get; } = new();
         public List<ScriptParameterDoc> ParameterDocs { get; } = new();
+        public List<ScriptCallResolution> CallResolutions { get; } = new();
         /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
         public ScriptFileDoc FileDoc { get; set; }
         public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
@@ -172,6 +187,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             { "type", "symbolId", "parameterName", "description" };
         private static readonly HashSet<string> FileDocFields = new(StringComparer.Ordinal)
             { "type", "summary" };
+        private static readonly HashSet<string> CallResolutionFields = new(StringComparer.Ordinal)
+            { "type", "symbolId", "line", "target" };
 
         public static readonly string[] SymbolKinds =
             { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "type",
@@ -321,6 +338,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (string.IsNullOrWhiteSpace(fd.Summary)) throw Missing(path, line, "summary", "fileDoc");
                     if (script.FileDoc != null) throw new CodeScriptFormatException(path, line, UiText.Say("un solo fileDoc per script", "only one fileDoc per script"));
                     script.FileDoc = fd;
+                    break;
+                case "callResolution":
+                    // solo dalle risposte dell'LLM (le candidate scartate le aggiunge CodeDocPlanner, che conosce l'AST)
+                    if (isAst) throw WrongKind(path, line, type, "doc");
+                    RejectUnknown(root, CallResolutionFields, path, line, type);
+                    script.CallResolutions.Add(new ScriptCallResolution
+                    {
+                        SourceId = RequireString(root, "symbolId", path, line),
+                        Line = OptInt(root, "line", path, line) ?? throw Missing(path, line, "line", "callResolution"),
+                        TargetId = RequireString(root, "target", path, line),
+                    });
                     break;
                 case "symbolDoc":
                     if (isAst) throw WrongKind(path, line, type, "doc");

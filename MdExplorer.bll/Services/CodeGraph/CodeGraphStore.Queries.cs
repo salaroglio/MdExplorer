@@ -16,6 +16,17 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public sealed partial class CodeGraphStore
     {
+        /// <summary>
+        /// La certezza di un arco come la vedono viste e strumenti (F12c, utente 22/10/2026): un arco ambiguo scelto
+        /// dall'LLM (<c>code:chooses</c> di una <c>code:CallResolution</c>) vale <c>llm-resolved</c>, le candidate scartate
+        /// (<c>code:rejects</c>) non escono. Si mette DOPO il pattern che lega <c>?e</c> con <c>code:confidence ?conf0</c> e dà
+        /// <c>?conf</c>. Il fatto del parser resta nello script AST e nel grafo così com'è.
+        /// </summary>
+        internal const string EffectiveConfidence =
+            "FILTER NOT EXISTS { ?rejectedBy code:rejects ?e } BIND(IF(EXISTS { ?chosenBy code:chooses ?e }, \"" + CodeOntology.LlmResolved + "\", ?conf0) AS ?conf) ";
+        /// <summary>Solo il filtro delle candidate scartate, dove la certezza non serve (conti, gradi).</summary>
+        internal const string NotRejected = "FILTER NOT EXISTS { ?rejectedBy code:rejects ?e } ";
+
         /// <summary>Le colonne di un simbolo: il pattern si lega a <c>?s</c> già vincolato dal chiamante.</summary>
         private const string SymbolPattern =
             "?s a code:Symbol ; code:kind ?kind ; code:name ?name ; code:qualifiedName ?qn . " +
@@ -155,7 +166,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var values = string.Join(" ", ids.Skip(i).Take(200).Select(id => Iri(Symbol(id))));
                 var rows = await RowsAsync(
                     $"SELECT ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES ?from {{ {values} }} " +
-                    $"?e a code:Edge ; {fromProp} ?from ; {toProp} ?to ; code:relation ?rel ; code:confidence ?conf ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} " +
+                    $"?e a code:Edge ; {fromProp} ?from ; {toProp} ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} {EffectiveConfidence}" +
                     (relation != null ? $"FILTER(?rel = {Lit(relation)}) " : string.Empty) + "} }", ct);
                 list.AddRange(rows.Select(r => new EdgeRow
                 {
@@ -208,7 +219,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             const int maxDepth = 8;
             var g = GraphsOf(projectPath);
             var rows = await RowsAsync(
-                $"SELECT ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?from ; code:target ?to ; code:relation ?rel ; code:confidence ?conf ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} }} }}", ct);
+                $"SELECT ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?from ; code:target ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} {EffectiveConfidence}}} }}", ct);
             var edges = rows.Select(r => new EdgeRow { From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line") }).ToList();
             var adj = new Dictionary<string, List<(string To, int Edge)>>(StringComparer.Ordinal);
             for (var i = 0; i < edges.Count; i++)
@@ -267,11 +278,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 o.SymbolsByLanguage[Str(r, "lang") ?? "?"] = Count(r, "n");
             foreach (var r in await RowsAsync($"SELECT ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k }} }} GROUP BY ?k", ct))
                 o.SymbolsByKind[Str(r, "k") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel }} }} GROUP BY ?rel", ct))
+            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel . {NotRejected}}} }} GROUP BY ?rel", ct))
                 o.EdgesByRelation[Str(r, "rel") ?? "?"] = Count(r, "n");
 
             var degrees = await RowsAsync(
-                $"SELECT ?s (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") " +
+                $"SELECT ?s (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") {NotRejected}" +
                 "{ ?e code:source ?s } UNION { ?e code:target ?s } ?s code:kind ?k . FILTER(?k != \"external\") } } GROUP BY ?s ORDER BY DESC(?n) LIMIT 15", ct);
             var symbols = await SymbolsByIdsAsync(g, degrees.Select(r => SymbolId(r["s"])), ct);
             foreach (var r in degrees)
@@ -362,7 +373,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 input.SymbolFiles[SymbolId(r["s"])] = Str(r, "p");
 
             foreach (var r in await RowsAsync(
-                $"SELECT ?a ?b ?rel ?conf ?tk ?tn ?tq WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf ; code:path ?p . " +
+                $"SELECT ?a ?b ?rel ?conf ?tk ?tn ?tq WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?p . {EffectiveConfidence}" +
                 $"FILTER(?rel != \"contains\" && STRSTARTS(?p, {prefixLit})) ?b code:kind ?tk ; code:name ?tn ; code:qualifiedName ?tq }} }}", ct))
                 input.Edges.Add(new CodeGraphViewInput.EdgeInput { Source = SymbolId(r["a"]), Target = SymbolId(r["b"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), TargetKind = Str(r, "tk"), TargetName = Str(r, "tn"), TargetQualifiedName = Str(r, "tq") });
 
@@ -396,11 +407,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var r in await RowsAsync($"SELECT ?k ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ {undescribedWhere} }} }} ORDER BY ?p ?l LIMIT 40", ct))
                 data.UndescribedList.Add(new[] { Str(r, "k"), Str(r, "qn"), Str(r, "p") ?? string.Empty, Str(r, "l") ?? string.Empty });
 
-            var conf = (await RowsAsync($"SELECT ?c (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence ?c }} }} GROUP BY ?c", ct)).ToDictionary(r => Str(r, "c"), r => Count(r, "n"));
+            var conf = (await RowsAsync($"SELECT ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence ?conf0 . {EffectiveConfidence}}} }} GROUP BY ?conf", ct)).ToDictionary(r => Str(r, "conf"), r => Count(r, "n"));
             data.Ambiguous = conf.TryGetValue("ambiguous", out var amb) ? amb : 0;
             data.Inferred = conf.TryGetValue("inferred", out var inf) ? inf : 0;
+            data.LlmResolved = conf.TryGetValue(CodeOntology.LlmResolved, out var llm) ? llm : 0;
             foreach (var r in await RowsAsync(
-                $"SELECT ?sq ?rel ?tq ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence \"ambiguous\" ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:path ?p . OPTIONAL {{ ?e code:line ?l }} ?a code:qualifiedName ?sq . ?b code:qualifiedName ?tq }} }} ORDER BY ?p ?l LIMIT 30", ct))
+                $"SELECT ?sq ?rel ?tq ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence \"ambiguous\" ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:path ?p . OPTIONAL {{ ?e code:line ?l }} ?a code:qualifiedName ?sq . ?b code:qualifiedName ?tq FILTER NOT EXISTS {{ ?rejectedBy code:rejects ?e }} FILTER NOT EXISTS {{ ?chosenBy code:chooses ?e }} }} }} ORDER BY ?p ?l LIMIT 30", ct))
                 data.AmbiguousList.Add(new[] { Str(r, "sq"), Str(r, "rel"), Str(r, "tq"), Str(r, "p") ?? string.Empty, Str(r, "l") ?? string.Empty });
             foreach (var r in await RowsAsync(
                 $"SELECT ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?d a code:Description ; code:describes ?s ; code:signatureHash ?dh . ?s code:signatureHash ?sh ; code:qualifiedName ?qn . OPTIONAL {{ ?s code:bodyHash ?bh }} OPTIONAL {{ ?d code:bodyHash ?dbh }} FILTER(?dh != ?sh || (BOUND(?bh) && BOUND(?dbh) && ?bh != ?dbh)) OPTIONAL {{ ?s code:path ?p }} OPTIONAL {{ ?s code:lineStart ?l }} }} }} ORDER BY ?p ?l LIMIT 40", ct))

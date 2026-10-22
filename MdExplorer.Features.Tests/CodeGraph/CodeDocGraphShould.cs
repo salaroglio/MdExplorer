@@ -285,5 +285,59 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var reread = CodeScriptParser.Parse(CodeScriptWriter.Serialize(edited), "a.java.doc.ttl");
             Assert.AreEqual("mde-code-doc 8 / claude", reread.SymbolDocs.Single(d => d.SymbolId == "top").WrittenBy, "prima prendeva l'autore della correzione");
         }
+
+        // ---------------------------------------------------------------- F12c: llm-resolved
+
+        [TestMethod]
+        public void Accept_the_llm_choice_only_among_the_candidates_and_record_the_ones_it_rejects()
+        {
+            var (a, b) = Fixture();
+            var graph = new CodeDocGraph(new[] { a, b });
+            var cands = Candidates(b).Where(c => c.Symbol.Id == "b1").ToList();
+            var prompt = CodeDocPlanner.BuildPrompt("SKILL", "prog/b.java", "class B {}", cands, "it",
+                context: new Dictionary<string, CodeDocPlanner.SymbolContext> { ["b1"] = new() { Calls = graph.CallsOf("b1", _ => null), Members = new List<CodeDocCall>() } });
+            StringAssert.Contains(prompt, "\"ambiguous\":[{\"id\":\"", "le candidate portano l'id da indicare");
+
+            var answer = "{\"type\":\"symbolDoc\",\"symbolId\":\"b1\",\"summary\":\"Chiama mid.\"}\n" +
+                         "{\"type\":\"callResolution\",\"symbolId\":\"b1\",\"line\":4,\"target\":\"mid\"}\n" +
+                         "{\"type\":\"callResolution\",\"symbolId\":\"b1\",\"line\":4,\"target\":\"leaf\"}\n" +
+                         "{\"type\":\"callResolution\",\"symbolId\":\"b1\",\"line\":9,\"target\":\"top\"}\n" +
+                         "{\"type\":\"callResolution\",\"symbolId\":\"top\",\"line\":4,\"target\":\"mid\"}";
+            var fresh = CodeDocPlanner.ParseAnswer(answer, "prog/b.java", cands, "t", out var rejected, ambiguousAt: graph.AmbiguousAt);
+            var r = fresh.CallResolutions.Single();
+            Assert.AreEqual(("b1", (int?)4, "mid"), (r.SourceId, r.Line, r.TargetId));
+            CollectionAssert.AreEqual(new[] { "top" }, r.Rejected, "le altre candidate di quella riga");
+            Assert.AreEqual(3, rejected.Count, "leaf non è una candidata, la riga 9 non è ambigua, top non era chiesto: " + string.Join("; ", rejected));
+            CodeDocPlanner.ParseAnswer(answer, "prog/b.java", cands, "t", out var noGraph);
+            Assert.IsTrue(noGraph.Count(x => x.Contains("callResolution") || x.Contains("candidate")) >= 3, "senza le candidate (Descrivi su un simbolo) nessuna scelta passa");
+        }
+
+        [TestMethod]
+        public void Keep_the_choice_in_the_description_script_and_drop_it_when_the_candidates_change()
+        {
+            var (_, b) = Fixture();
+            var doc = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = "prog/b.java", WrittenBy = "t", WrittenAt = "t" } };
+            var res = new ScriptCallResolution { SourceId = "b1", Line = 4, TargetId = "mid" }; res.Rejected.Add("top");
+            doc.CallResolutions.Add(res);
+            var text = CodeScriptWriter.Serialize(doc);
+            StringAssert.Contains(text, "code:chooses <urn:mde:edge:b1:calls:mid:4>");
+            StringAssert.Contains(text, "code:rejects <urn:mde:edge:b1:calls:top:4>");
+            var back = CodeScriptParser.Parse(text, "b.java.doc.ttl");
+            var r = back.CallResolutions.Single();
+            Assert.AreEqual(("b1", (int?)4, "mid"), (r.SourceId, r.Line, r.TargetId));
+            CollectionAssert.AreEqual(new[] { "top" }, r.Rejected);
+            Assert.AreEqual(text, CodeScriptWriter.Serialize(back), "riscritto è identico");
+
+            // una nuova scelta sulla stessa riga sostituisce la vecchia
+            var fresh = new CodeScript { Header = doc.Header };
+            var again = new ScriptCallResolution { SourceId = "b1", Line = 4, TargetId = "top" }; again.Rejected.Add("mid");
+            fresh.CallResolutions.Add(again);
+            Assert.AreEqual("top", CodeDocPlanner.Merge(back, fresh).CallResolutions.Single().TargetId);
+
+            Assert.AreEqual(0, CodeDocPlanner.DropOrphans(back, b), "candidate uguali: resta");
+            Calls(b, "b1", "leaf", 4, "ambiguous");
+            Assert.AreEqual(1, CodeDocPlanner.DropOrphans(back, b), "una candidata nuova: la scelta non regge più");
+            Assert.AreEqual(0, back.CallResolutions.Count);
+        }
     }
 }

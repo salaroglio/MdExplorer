@@ -40,6 +40,18 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string DocSet(string logicalPath) => $"urn:mde:docs:{Enc(logicalPath)}";
         public static string Edge(string sourceId, string relation, string targetId, int? line) => $"urn:mde:edge:{sourceId}:{relation}:{targetId}:{line ?? 0}";
         public static string Doc(string symbolId) => "urn:mde:doc:" + symbolId;
+        /// <summary>La scelta dell'LLM su una chiamata ambigua (F12c): una per chiamante, riga e candidata scelta.</summary>
+        public static string Resolution(string sourceId, int? line, string targetId) => $"urn:mde:res:{sourceId}:{line ?? 0}:{targetId}";
+
+        /// <summary>Il contrario di <see cref="Edge"/>: (sorgente, relazione, destinazione, riga) dall'IRI di un arco; null se non lo è.</summary>
+        public static (string Source, string Relation, string Target, int? Line)? ParseEdge(string iri)
+        {
+            const string prefix = "urn:mde:edge:";
+            if (iri == null || !iri.StartsWith(prefix, StringComparison.Ordinal)) return null;
+            var parts = iri.Substring(prefix.Length).Split(':');
+            if (parts.Length != 4 || !int.TryParse(parts[3], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var line)) return null;
+            return (parts[0], parts[1], parts[2], line == 0 ? null : line);
+        }
         public static string FileDoc(string logicalPath) => $"urn:mde:fdoc:{Enc(logicalPath)}";
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";
         public static string Script(string projectHash, string scriptRelativePath) => $"urn:mde:script:{projectHash}:{Enc(scriptRelativePath)}";

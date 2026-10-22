@@ -22,6 +22,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <summary>Una funzione chiamata, per il prompt di chi la chiama (F12a, punto 2).</summary>
     public sealed class CodeDocCall
     {
+        /// <summary>L'id del simbolo: solo per le candidate di un arco ambiguo, che l'LLM indica per id nella sua scelta (F12c).</summary>
+        public string Id { get; init; }
         public int? Line { get; init; }
         public string QualifiedName { get; init; }
         public string Signature { get; init; }
@@ -156,7 +158,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             foreach (var line in calls.Where(e => e.Confidence == "ambiguous").GroupBy(e => e.Line).OrderBy(g => g.Key ?? 0))
             {
-                var options = line.Select(e => Call(e.TargetId, null, summaryOf)).Where(c => c != null).ToList();
+                var options = line.Select(e => Call(e.TargetId, null, summaryOf, withId: true)).Where(c => c != null).ToList();
                 if (options.Count == 0) continue;
                 result.Add(new CodeDocCall { Line = line.Key, Candidates = options });
             }
@@ -215,12 +217,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result;
         }
 
-        private CodeDocCall Call(string targetId, int? line, Func<string, string> summaryOf)
+        /// <summary>
+        /// Le candidate di una chiamata ambigua di <paramref name="callerId"/> alla riga <paramref name="line"/> (F12c): per
+        /// accettare la scelta dell'LLM solo fra queste, e per sapere quali scarta.
+        /// </summary>
+        public List<string> AmbiguousAt(string callerId, int? line)
+            => _calls.TryGetValue(callerId, out var calls)
+                ? calls.Where(e => e.Confidence == "ambiguous" && e.Line == line).Select(e => e.TargetId).Distinct(StringComparer.Ordinal).ToList()
+                : new List<string>();
+
+        private CodeDocCall Call(string targetId, int? line, Func<string, string> summaryOf, bool withId = false)
         {
             if (_symbols.TryGetValue(targetId, out var s))
-                return new CodeDocCall { Line = line, QualifiedName = s.Symbol.QualifiedName, Signature = s.Symbol.Signature, Summary = summaryOf(targetId) };
+                return new CodeDocCall { Id = withId ? targetId : null, Line = line, QualifiedName = s.Symbol.QualifiedName, Signature = s.Symbol.Signature, Summary = summaryOf(targetId) };
             if (_externals.TryGetValue(targetId, out var x))
-                return new CodeDocCall { Line = line, QualifiedName = x.QualifiedName, External = true };
+                return new CodeDocCall { Id = withId ? targetId : null, Line = line, QualifiedName = x.QualifiedName, External = true };
             Warnings.Add($"arco verso '{targetId}', che nessuno script della cartella dichiara");
             return null;
         }
