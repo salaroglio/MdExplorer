@@ -106,6 +106,7 @@
       <div>{{ 'DEV_ENV.PREVIEW_TODO' | translate: { todo: previewTodo, missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0, questions: preview.questions, levels: preview.levels } }}</div>
       <div *ngIf="previewReview > 0">{{ 'DEV_ENV.PREVIEW_REVIEW' | translate: { review: previewReview, context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
       <div *ngIf="preview.bodyUnknown > 0" class="warn">{{ 'DEV_ENV.PREVIEW_BODY_UNKNOWN' | translate: { count: preview.bodyUnknown } }}</div>
+      <div *ngIf="storageMb !== null" [class.warn]="storageGenerations > 1">{{ (storageGenerations > 1 ? 'DEV_ENV.STORAGE_OLD' : 'DEV_ENV.STORAGE') | translate: { mb: storageMb, generations: storageGenerations } }}</div>
     </div>
 
     <div class="describe" *ngIf="describing || describeLog.length > 0 || describeDone">

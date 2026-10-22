@@ -921,6 +921,8 @@
     "DESCRIBING": "Mark sta analizzando il codice…",
     "DESCRIBE_REVIEW": "Rivedi anche le {{count}} da rivedere",
     "STOP": "Ferma",
+    "STORAGE": "Database del grafo (tutti i progetti): {{mb}} MB su disco.",
+    "STORAGE_OLD": "Database del grafo (tutti i progetti): {{mb}} MB su disco, {{generations}} generazioni: lo spazio di quelle vecchie si libera alla prossima compattazione o al riavvio di MdExplorer.",
     "STARTED_IN_BACKGROUND": "Parte in sfondo: puoi chiudere questa finestra e continuare a lavorare con MdExplorer. La segui, e la fermi, nel riquadro «Costruzione della conoscenza» in basso a destra.",
     "RUNNING": "Descrizione in corso con {{engine}}: {{index}} domande fatte su {{total}}; in corso: {{current}}.",
     "RUNNING_HINT": "Finché non finisce non se ne può lanciare un'altra su questa cartella. La segui anche nel riquadro «Costruzione della conoscenza»; «Ferma» la interrompe, quello che è già descritto resta.",

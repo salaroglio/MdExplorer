@@ -66,6 +66,25 @@ namespace MdExplorer.Features.Services.Fuseki
         /// vecchi restano su disco finché non si compatta. Aspetta la fine del task; un rifiuto è un'eccezione, non un silenzio.
         /// </summary>
         Task CompactAsync(string dataset, CancellationToken ct = default);
+
+        /// <summary>Quanto occupa su disco la cartella dei dati di Fuseki, per dataset e generazione (22/10/2026: un database arrivato a 35 GB senza che nessuno lo vedesse).</summary>
+        FusekiStorage Storage();
+    }
+
+    public sealed class FusekiStorage
+    {
+        public string DataDirectory { get; set; }
+        public long TotalMb { get; set; }
+        public List<FusekiDatasetStorage> Datasets { get; set; } = new();
+    }
+
+    public sealed class FusekiDatasetStorage
+    {
+        public string Name { get; set; }
+        /// <summary>Le generazioni TDB2 (Data-0001…): più di una = spazio da recuperare con la compattazione o al prossimo avvio.</summary>
+        public List<string> Generations { get; set; } = new();
+        public long DatabaseMb { get; set; }
+        public long TextIndexMb { get; set; }
     }
 
     public class FusekiProcessManager : IFusekiProcessManager, IDisposable
@@ -241,6 +260,23 @@ namespace MdExplorer.Features.Services.Fuseki
         }
 
         private string DatasetDirectory(string dataset) => Path.Combine(_options.DataDirectory, "databases", dataset);
+
+        public FusekiStorage Storage()
+        {
+            var result = new FusekiStorage { DataDirectory = _options.DataDirectory };
+            var databases = new DirectoryInfo(Path.Combine(_options.DataDirectory, "databases"));
+            if (databases.Exists)
+                foreach (var ds in databases.GetDirectories().OrderBy(d => d.Name, StringComparer.Ordinal))
+                    result.Datasets.Add(new FusekiDatasetStorage
+                    {
+                        Name = ds.Name,
+                        Generations = Generations(ds.FullName).Select(g => g.Name).ToList(),
+                        DatabaseMb = SizeMb(ds),
+                        TextIndexMb = SizeMb(new DirectoryInfo(Path.Combine(_options.DataDirectory, "lucene", ds.Name))),
+                    });
+            result.TotalMb = result.Datasets.Sum(d => Math.Max(0, d.DatabaseMb) + Math.Max(0, d.TextIndexMb));
+            return result;
+        }
 
         /// <summary>
         /// Via le generazioni vecchie di ogni dataset, tenendo la più alta (quella che Fuseki apre). Solo a Fuseki SPENTO:

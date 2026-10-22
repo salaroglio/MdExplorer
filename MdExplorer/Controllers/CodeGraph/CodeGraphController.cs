@@ -631,6 +631,14 @@ namespace MdExplorer.Controllers.CodeGraph
             return rel == null ? null : rel == "." ? string.Empty : rel;
         }
 
+        /// <summary>
+        /// GET /api/codegraph/storage — quanto occupa il database del grafo (Fuseki, unico per tutti i progetti): per dataset,
+        /// con le generazioni TDB2. Non avvia Fuseki: guarda solo il disco.
+        /// </summary>
+        [HttpGet("storage")]
+        public IActionResult Storage()
+            => Ok(HttpContext.RequestServices.GetRequiredService<MdExplorer.Features.Services.Fuseki.IFusekiProcessManager>().Storage());
+
         /// <summary>GET /api/codegraph/status?projectPath=… — conteggi e quanti script restano da caricare.</summary>
         [HttpGet("status")]
         public Task<IActionResult> Status([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>

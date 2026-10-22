@@ -113,8 +113,24 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   /** La cartella ha già dei linguaggi scelti: si può descrivere senza rifare l'analisi. */
   get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing && this.runningRun == null; }
 
+  /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */
+  public storageMb: number | null = null;
+  public storageGenerations = 0;
+
+  private loadStorage(): void {
+    this.codeGraph.storage().subscribe({
+      next: st => {
+        const code = (st.datasets ?? []).find(d => d.name === 'code');
+        this.storageMb = st.totalMb;
+        this.storageGenerations = code ? code.generations.length : 0;
+      },
+      error: () => { this.storageMb = null; }
+    });
+  }
+
   /** Quante da descrivere e quante da rivedere: si chiede quando la cartella è già configurata e dopo ogni giro. */
   private loadPreview(): void {
+    this.loadStorage();
     this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (p) => {
         this.preview = p;

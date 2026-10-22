@@ -921,6 +921,8 @@
     "DESCRIBING": "Mark is analyzing the code…",
     "DESCRIBE_REVIEW": "Also review the {{count}} to review",
     "STOP": "Stop",
+    "STORAGE": "Graph database (all projects): {{mb}} MB on disk.",
+    "STORAGE_OLD": "Graph database (all projects): {{mb}} MB on disk, {{generations}} generations: the space of the old ones is freed at the next compaction or when MdExplorer restarts.",
     "STARTED_IN_BACKGROUND": "It runs in the background: you can close this window and keep working with MdExplorer. Follow it, and stop it, in the «Building knowledge» panel at the bottom right.",
     "RUNNING": "Description in progress with {{engine}}: {{index}} of {{total}} questions done; in progress: {{current}}.",
     "RUNNING_HINT": "Until it finishes, another one cannot be started on this folder. Follow it also in the «Building knowledge» panel; «Stop» interrupts it, what is already described stays.",

@@ -84,6 +84,13 @@ export interface BackgroundWork {
   scans: { folder: string; startedAt: string }[];
 }
 
+/** Quanto occupa il database del grafo (Fuseki, unico per tutti i progetti): per dataset, con le generazioni TDB2. */
+export interface GraphStorage {
+  dataDirectory: string;
+  totalMb: number;
+  datasets: { name: string; generations: string[]; databaseMb: number; textIndexMb: number }[];
+}
+
 /** L'anteprima di un giro di descrizioni (F12b), come la calcola il backend (CodeDocPreview). */
 export interface DescribePreview {
   folder: string;
@@ -125,6 +132,11 @@ export class CodeGraphService {
 
   describe(projectPath: string, folderPath: string, connectionId: string, force = false, review = false): Observable<any> {
     return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force, review });
+  }
+
+  /** Quanto occupa il database del grafo su disco (non avvia Fuseki). */
+  storage(): Observable<GraphStorage> {
+    return this.http.get<GraphStorage>('../api/codegraph/storage');
   }
 
   /** L'anteprima di «Analizza il codice con Mark» (F12b): da descrivere, da rivedere e perché. Non scrive niente. */
