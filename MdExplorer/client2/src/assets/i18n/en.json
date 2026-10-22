@@ -961,7 +961,18 @@
     "ASK_OUTDATED_ONE": "The structure of 1 file comes from the earlier extractor: Mark would describe the old graph. Update the structure first?",
     "ASK_OUTDATED": "The structure of {{n}} files comes from the earlier extractor: Mark would describe the old graph. Update the structure first?",
     "UPGRADE_THEN_DESCRIBE": "Update, then describe",
-    "DESCRIBE_ANYWAY": "Describe anyway"
+    "DESCRIBE_ANYWAY": "Describe anyway",
+    "DESCRIBE_MODEL": "Model for descriptions",
+    "DESCRIBE_MODEL_AS_TAB": "Same as MarkAgent ({{model}})",
+    "DESCRIBE_MODEL_DEFAULT": "Default for descriptions ({{model}})",
+    "DEFAULT_NOT_LISTED": "The engine does not list {{model}}: pick a model from the list, otherwise the engine may silently use another one.",
+    "ENGINE_DEFAULT": "engine default",
+    "MODEL_NOT_LISTED": "{{model}} (no longer listed by the engine)",
+    "MODELS_LOADING": "Asking the engine for its models…",
+    "DESCRIBE_MODEL_HINT": "Engine: {{engine}}, the project's one. Descriptions are many questions: here you can pick a model other than the MarkAgent tab's, for this project on this computer.",
+    "MODELS_NONE": "The engine declares no model.",
+    "MODELS_ERROR": "Cannot read the engine's models: {{error}}",
+    "NO_ENGINE": "The project has no MarkAgent engine: choose it in the project settings to describe with Mark."
   },
   "LEAVE_COPY": {
     "TITLE": "Back to your work: saving the copy of {{agent}}",

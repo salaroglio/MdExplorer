@@ -29,6 +29,9 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.CopilotChatModel).Length(200).Nullable();
             Map(_ => _.ClaudeCodeChatModel).Length(200).Nullable();
             Map(_ => _.OpenCodeChatModel).Length(200).Nullable();
+            Map(_ => _.CopilotCodeDescriptionModel).Length(200).Nullable();
+            Map(_ => _.ClaudeCodeDescriptionModel).Length(200).Nullable();
+            Map(_ => _.OpenCodeCodeDescriptionModel).Length(200).Nullable();
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
             Map(_ => _.UseAgentWorktrees).Nullable();
             Map(_ => _.AgentWorktreeSlots).Nullable();

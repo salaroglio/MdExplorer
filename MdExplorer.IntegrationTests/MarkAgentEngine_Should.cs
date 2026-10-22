@@ -133,7 +133,7 @@ namespace MdExplorer.IntegrationTests
             // was written by hand in five places.
             var project = new MdExplorer.Abstractions.Entities.UserDB.Project();
             Assert.AreEqual(MarkAgentEngines.ClaudeDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude));
-            Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot), "Copilot: the CLI chooses");
+            Assert.AreEqual(MarkAgentEngines.CopilotDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot), "Copilot: gpt-6-terra since 22/10/2026");
             Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.OpenCode), "opencode: the server chooses");
 
             project.ClaudeCodeChatModel = " opus ";
@@ -149,6 +149,27 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public void Give_the_description_model_chosen_for_the_engine_or_the_light_default()
+        {
+            // 22/10/2026: «Descrivi con Mark» ha un modello suo, per motore; senza scelta parte dal modello leggero.
+            var project = new MdExplorer.Abstractions.Entities.UserDB.Project();
+            Assert.AreEqual("haiku", MarkAgentEngines.CodeDescriptionDefaultModelOf(MarkAgentEngine.Claude));
+            Assert.AreEqual("gpt-6-luna", MarkAgentEngines.CodeDescriptionDefaultModelOf(MarkAgentEngine.Copilot));
+            Assert.IsNull(MarkAgentEngines.CodeDescriptionDefaultModelOf(MarkAgentEngine.OpenCode), "opencode: come il tab");
+            Assert.IsNull(MarkAgentEngines.CodeDescriptionModelOf(project, MarkAgentEngine.Claude));
+
+            MarkAgentEngines.SetCodeDescriptionModel(project, MarkAgentEngine.Claude, " opus ");
+            MarkAgentEngines.SetCodeDescriptionModel(project, MarkAgentEngine.Copilot, "gpt-6-terra");
+            Assert.AreEqual("opus", MarkAgentEngines.CodeDescriptionModelOf(project, MarkAgentEngine.Claude));
+            Assert.AreEqual("gpt-6-terra", MarkAgentEngines.CodeDescriptionModelOf(project, MarkAgentEngine.Copilot));
+            Assert.IsNull(MarkAgentEngines.CodeDescriptionModelOf(project, MarkAgentEngine.OpenCode), "ogni motore ha la sua scelta");
+            Assert.AreEqual(MarkAgentEngines.ClaudeDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude), "il tab non cambia");
+
+            MarkAgentEngines.SetCodeDescriptionModel(project, MarkAgentEngine.Claude, "  ");
+            Assert.IsNull(MarkAgentEngines.CodeDescriptionModelOf(project, MarkAgentEngine.Claude), "vuoto = torna al predefinito");
+        }
+
+        [TestMethod]
         public void Take_the_model_from_this_machine_then_from_the_project_default_then_from_the_engine()
         {
             // 16/10/2026, P1/P6: il modello segue lo stesso ordine del motore.
@@ -160,7 +181,7 @@ namespace MdExplorer.IntegrationTests
                 var project = new MdExplorer.Abstractions.Entities.UserDB.Project { Path = dir };
 
                 Assert.AreEqual("opus", MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude), "il predefinito del progetto");
-                Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot),
+                Assert.AreEqual(MarkAgentEngines.CopilotDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot),
                     "il modello del progetto è del SUO motore: un altro motore parte dal suo default");
 
                 project.ClaudeCodeChatModel = "haiku";

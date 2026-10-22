@@ -43,6 +43,18 @@ export interface CodeFolderAnalysisOutcome {
   error?: string;
 }
 
+/** Il modello di «Descrivi con Mark» (22/10/2026): l'harness è quello del progetto, il modello si sceglie a parte. */
+export interface DescriptionModelInfo {
+  /** 'claude' | 'copilot' | 'opencode' | 'none'. */
+  engine: string;
+  engineName: string;
+  /** Il modello scelto per descrivere, null = il predefinito per descrivere (o quello del tab se il motore non ne ha). */
+  model: string | null;
+  /** Il predefinito per descrivere del motore: haiku (Claude Code), gpt-6-luna (Copilot), null (opencode). */
+  defaultModel: string | null;
+  tabModel: string | null;
+}
+
 /** Gli script AST scritti da un estrattore precedente (D25): il grafo di quei file è quello vecchio. */
 export interface OutdatedScripts {
   count: number;
@@ -145,6 +157,16 @@ export class CodeGraphService {
   /** Quanto occupa il database del grafo su disco (non avvia Fuseki). */
   storage(): Observable<GraphStorage> {
     return this.http.get<GraphStorage>('../api/codegraph/storage');
+  }
+
+  /** Il motore del progetto e il modello di «Descrivi con Mark» (null = come il tab MarkAgent), con quello del tab. */
+  descriptionModel(projectPath: string): Observable<DescriptionModelInfo> {
+    return this.http.get<DescriptionModelInfo>('../api/codegraph/description-model', { params: { projectPath } });
+  }
+
+  /** Salva il modello di «Descrivi con Mark» per il motore in vigore; null = come il tab MarkAgent. */
+  saveDescriptionModel(projectPath: string, model: string | null): Observable<{ model: string | null }> {
+    return this.http.post<{ model: string | null }>('../api/codegraph/description-model', { projectPath, model });
   }
 
   /** Gli script della cartella scritti da un estrattore precedente (D25); `folder` relativa alla radice del progetto o «@alias». */

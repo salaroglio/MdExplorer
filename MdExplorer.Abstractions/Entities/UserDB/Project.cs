@@ -83,6 +83,15 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </para>
         /// </summary>
         public virtual string OpenCodeChatModel { get; set; }
+
+        /// <summary>
+        /// Il modello con cui «Descrivi con Mark» descrive il codice, uno per motore come quelli della chat (scelta
+        /// dell'utente 22/10/2026: le descrizioni sono migliaia di domande, il modello si sceglie a parte). L'harness resta
+        /// quello del progetto; <c>null</c> = come il tab MarkAgent. Migrazione M2026_10_22_001.
+        /// </summary>
+        public virtual string CopilotCodeDescriptionModel { get; set; }
+        public virtual string ClaudeCodeDescriptionModel { get; set; }
+        public virtual string OpenCodeCodeDescriptionModel { get; set; }
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

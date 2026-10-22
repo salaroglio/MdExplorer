@@ -351,6 +351,47 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         }
 
+        public class DescriptionModelRequest { public string? ProjectPath { get; set; } public string? Model { get; set; } }
+
+        /// <summary>
+        /// GET /api/codegraph/description-model?projectPath — la combo di «Descrivi con Mark» (22/10/2026): il motore del
+        /// progetto (id per l'elenco dei modelli, nome da mostrare), il modello scelto per descrivere (null = il predefinito
+        /// per descrivere del motore, o quello del tab se il motore non ne ha uno), il predefinito e quello del tab.
+        /// </summary>
+        [HttpGet("description-model")]
+        public IActionResult DescriptionModel([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            try
+            {
+                var db = HttpContext.RequestServices.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+                var (engine, chosen, tabModel) = MdExplorer.Service.ProjectsManager.CodeDescriptionChoice(db, projectPath);
+                return Ok(new
+                {
+                    engine = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine),
+                    engineName = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, null),
+                    model = chosen,
+                    defaultModel = MdExplorer.Utilities.MarkAgentEngines.CodeDescriptionDefaultModelOf(engine),
+                    tabModel,
+                });
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        }
+
+        /// <summary>POST /api/codegraph/description-model {projectPath, model} — model null o vuoto = come il tab MarkAgent.</summary>
+        [HttpPost("description-model")]
+        public IActionResult SaveDescriptionModel([FromBody] DescriptionModelRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            try
+            {
+                var db = HttpContext.RequestServices.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+                MdExplorer.Service.ProjectsManager.SaveCodeDescriptionModel(db, request.ProjectPath, request.Model);
+                return Ok(new { model = string.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim() });
+            }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        }
+
         public class UpgradeRequest { public string ProjectPath { get; set; } public string Folder { get; set; } }
 
         /// <summary>POST /api/codegraph/outdated/upgrade {projectPath, folder} — «Aggiorna la struttura» dall'avviso della pagina del grafo.</summary>

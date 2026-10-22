@@ -101,12 +101,35 @@ namespace MdExplorer.Utilities
         public const string ClaudeDefaultModel = "sonnet";
 
         /// <summary>
-        /// Il modello predefinito di un motore. Copilot e opencode: <c>null</c>, lo sceglie il CLI o il
-        /// server, perché i modelli disponibili dipendono dall'installazione e un nome scritto qui sarebbe
-        /// sbagliato altrove.
+        /// Il modello di Copilot quando il progetto non ne ha scelto uno (decisione dell'utente 22/10/2026: prima lo
+        /// sceglieva il CLI). ⚠️ Copilot CLI accetta un <c>--model</c> che non esiste e risponde con un altro: la combo del
+        /// tab mostra un modello che l'elenco del motore non ha come «non disponibile», invece di nasconderlo.
         /// </summary>
-        public static string DefaultModelOf(MarkAgentEngine engine) =>
-            engine == MarkAgentEngine.Claude ? ClaudeDefaultModel : null;
+        public const string CopilotDefaultModel = "gpt-6-terra";
+
+        /// <summary>
+        /// Il modello predefinito di un motore: Claude Code <see cref="ClaudeDefaultModel"/>, Copilot
+        /// <see cref="CopilotDefaultModel"/>; opencode <c>null</c>, lo sceglie il server, perché i suoi modelli
+        /// dipendono dai provider collegati a quella installazione.
+        /// </summary>
+        public static string DefaultModelOf(MarkAgentEngine engine) => engine switch
+        {
+            MarkAgentEngine.Claude => ClaudeDefaultModel,
+            MarkAgentEngine.Copilot => CopilotDefaultModel,
+            _ => null,
+        };
+
+        /// <summary>
+        /// Il modello di «Descrivi con Mark» quando non ne è stato scelto uno (decisione dell'utente 22/10/2026): le
+        /// descrizioni sono migliaia di domande, si parte dal modello leggero del motore — Claude Code <c>haiku</c> (il tab
+        /// resta su <c>sonnet</c>), Copilot <c>gpt-6-luna</c> (il tab su <c>gpt-6-terra</c>). opencode: <c>null</c>, come il tab.
+        /// </summary>
+        public static string CodeDescriptionDefaultModelOf(MarkAgentEngine engine) => engine switch
+        {
+            MarkAgentEngine.Claude => "haiku",
+            MarkAgentEngine.Copilot => "gpt-6-luna",
+            _ => null,
+        };
 
         /// <summary>
         /// Il modello in vigore per quel motore, nello stesso ordine del motore (16/10/2026, P1/P6):
@@ -136,6 +159,34 @@ namespace MdExplorer.Utilities
                 MarkAgentEngine.OpenCode => project?.OpenCodeChatModel,
                 _ => null,
             };
+
+        /// <summary>Il modello scelto per «Descrivi con Mark» con questo motore, o null (= come il tab MarkAgent).</summary>
+        public static string CodeDescriptionModelOf(MdExplorer.Abstractions.Entities.UserDB.Project project, MarkAgentEngine engine)
+        {
+            var chosen = engine switch
+            {
+                MarkAgentEngine.Copilot => project?.CopilotCodeDescriptionModel,
+                MarkAgentEngine.Claude => project?.ClaudeCodeDescriptionModel,
+                MarkAgentEngine.OpenCode => project?.OpenCodeCodeDescriptionModel,
+                _ => null,
+            };
+            return string.IsNullOrWhiteSpace(chosen) ? null : chosen.Trim();
+        }
+
+        /// <summary>Scrive il modello di «Descrivi con Mark» per il motore; null o vuoto = torna a «come il tab MarkAgent».</summary>
+        public static void SetCodeDescriptionModel(MdExplorer.Abstractions.Entities.UserDB.Project project, MarkAgentEngine engine, string model)
+        {
+            var value = string.IsNullOrWhiteSpace(model) ? null : model.Trim();
+            switch (engine)
+            {
+                case MarkAgentEngine.Copilot: project.CopilotCodeDescriptionModel = value; break;
+                case MarkAgentEngine.Claude: project.ClaudeCodeDescriptionModel = value; break;
+                case MarkAgentEngine.OpenCode: project.OpenCodeCodeDescriptionModel = value; break;
+                default: throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.",
+                    "The project has no MarkAgent engine: choose it in the project settings."));
+            }
+        }
 
         /// <summary>L'harness i cui file legge un motore: l'inverso di <see cref="FromHarness"/>.</summary>
         public static HarnessTarget HarnessFor(MarkAgentEngine engine) => engine switch

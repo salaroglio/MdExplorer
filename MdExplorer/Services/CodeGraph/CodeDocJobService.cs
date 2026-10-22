@@ -140,7 +140,8 @@ namespace MdExplorer.Services.CodeGraph
     /// L'azione «Descrivi il codice» (F4, D11): per ogni script AST della cartella sceglie i simboli senza descrizione o
     /// con la firma cambiata (<see cref="CodeDocPlanner"/>), chiede al motore LLM del progetto — una sessione di sola
     /// lettura per file, come «Riassumi documentazione» — e scrive lo script <c>.doc.ttl</c> accanto a quello AST;
-    /// il caricatore lo porta nel DB. Il modello: lo stesso del tab MarkAgent (motore unico, sprint 2026-09-29).
+    /// il caricatore lo porta nel DB. Il motore: quello del tab MarkAgent (motore unico, sprint 2026-09-29); il modello: quello
+    /// scelto per descrivere nella finestra Ambiente di sviluppo, altrimenti quello del tab (22/10/2026).
     /// </summary>
     public sealed class CodeDocJobService : ICodeDocJobService
     {
@@ -226,7 +227,7 @@ namespace MdExplorer.Services.CodeGraph
                 throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Estrai la struttura».", $"No AST script in {scriptsFolder}: first «Extract the structure»."));
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
-                (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+                (engine, model) = MdExplorer.Service.ProjectsManager.CodeDescriptionEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
             var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
             if (whyNot != null) throw new InvalidOperationException(whyNot);
             // anche il prompt: senza harness non è installato, e lo si dice qui invece che come traccia fallita dopo
@@ -897,7 +898,7 @@ namespace MdExplorer.Services.CodeGraph
 
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
-                (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+                (engine, model) = MdExplorer.Service.ProjectsManager.CodeDescriptionEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
             var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
             if (whyNot != null) { outcome.Error = whyNot; return outcome; }
             var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);
@@ -930,7 +931,7 @@ namespace MdExplorer.Services.CodeGraph
 
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
-                (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+                (engine, model) = MdExplorer.Service.ProjectsManager.CodeDescriptionEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
             var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
             if (whyNot != null) { outcome.Error = whyNot; return outcome; }
             var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);

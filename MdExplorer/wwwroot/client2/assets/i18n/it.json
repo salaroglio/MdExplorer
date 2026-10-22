@@ -961,7 +961,18 @@
     "ASK_OUTDATED_ONE": "La struttura di 1 file è dell'estrattore precedente: Mark la descriverebbe sul grafo vecchio. Aggiorno la struttura prima?",
     "ASK_OUTDATED": "La struttura di {{n}} file è dell'estrattore precedente: Mark la descriverebbe sul grafo vecchio. Aggiorno la struttura prima?",
     "UPGRADE_THEN_DESCRIBE": "Aggiorna e poi descrivi",
-    "DESCRIBE_ANYWAY": "Descrivi lo stesso"
+    "DESCRIBE_ANYWAY": "Descrivi lo stesso",
+    "DESCRIBE_MODEL": "Modello per descrivere",
+    "DESCRIBE_MODEL_AS_TAB": "Come MarkAgent ({{model}})",
+    "DESCRIBE_MODEL_DEFAULT": "Predefinito per descrivere ({{model}})",
+    "DEFAULT_NOT_LISTED": "Il motore non elenca {{model}}: scegli un modello dall'elenco, altrimenti il motore potrebbe usarne un altro senza dirlo.",
+    "ENGINE_DEFAULT": "predefinito del motore",
+    "MODEL_NOT_LISTED": "{{model}} (non più nell'elenco del motore)",
+    "MODELS_LOADING": "Chiedo i modelli al motore…",
+    "DESCRIBE_MODEL_HINT": "Motore: {{engine}}, quello del progetto. Le descrizioni sono molte domande: qui puoi scegliere un modello diverso da quello del tab MarkAgent, per questo progetto su questo computer.",
+    "MODELS_NONE": "Il motore non dichiara nessun modello.",
+    "MODELS_ERROR": "Non riesco a leggere i modelli del motore: {{error}}",
+    "NO_ENGINE": "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto per descrivere con Mark."
   },
   "LEAVE_COPY": {
     "TITLE": "Torni al tuo lavoro: salvare la copia di {{agent}}",

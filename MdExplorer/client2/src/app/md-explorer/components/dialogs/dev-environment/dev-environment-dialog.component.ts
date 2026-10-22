@@ -1,9 +1,10 @@
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, finalize, of, switchMap, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
+import { AiChatService } from '../../../../services/ai-chat.service';
 
 export interface DevEnvironmentDialogData {
   /** Il fullPath della cartella nell'albero. */
@@ -68,11 +69,13 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     private dialogRef: MatDialogRef<DevEnvironmentDialogComponent, DevEnvironmentDialogResult | undefined>,
     private codeGraph: CodeGraphService,
     private translate: TranslateService,
-    private serverMessages: MdServerMessagesService
+    private serverMessages: MdServerMessagesService,
+    private aiChat: AiChatService
   ) { }
 
   ngOnInit(): void {
     this.loadLanguages();
+    this.loadDescriptionModel();
     this.serverMessages.codeDocProgress$.pipe(takeUntil(this.destroy$)).subscribe(p => this.onDescribeProgress(p));
     // una descrizione già in corso su questa cartella (lanciata prima, o da un'altra finestra): la finestra lo dice e non
     // offre di lanciarne un'altra; si aggiorna a ogni avanzamento e si riattiva quando finisce (22/10/2026)
@@ -172,6 +175,88 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     const review = this.askBeforeDescribe?.review ?? false;
     this.askBeforeDescribe = null;
     this.describe(false, review);
+  }
+
+  /**
+   * Il modello di «Descrivi con Mark» (scelta dell'utente 22/10/2026): l'harness resta quello del progetto, l'elenco è quello
+   * del suo motore (lo stesso del tab MarkAgent), la scelta vale per questo progetto su questa macchina. '' = come il tab.
+   */
+  public descriptionModelInfo: DescriptionModelInfo | null = null;
+  public descriptionModel = '';
+  /** Le voci della combo, calcolate quando cambiano: niente getter che allocano dentro mat-select. */
+  public descriptionModelChoices: { id: string; name: string; notListed: boolean }[] = [];
+  public descriptionModelsLoading = false;
+  public descriptionModelsError = '';
+  public savingDescriptionModel = false;
+  /** Il modello che vale con la voce vuota della combo (predefinito per descrivere, o quello del tab), e se il motore non lo elenca. */
+  public descriptionDefaultLabel = '';
+  public descriptionDefaultNotListed = false;
+  private descriptionModels: { id: string; name: string }[] = [];
+
+  private loadDescriptionModel(): void {
+    this.codeGraph.descriptionModel(this.data.projectRoot).subscribe({
+      next: info => {
+        this.descriptionModelInfo = info;
+        this.descriptionModel = info.model ?? '';
+        this.loadDescriptionModels(info.engine);
+      },
+      error: (err) => { this.descriptionModelInfo = null; this.descriptionModelsError = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }
+    });
+  }
+
+  /** I modelli del motore: prima quelli salvati; se non ce ne sono si chiedono al motore, come la finestra di lancio degli agenti. */
+  private loadDescriptionModels(engine: string): void {
+    this.descriptionModels = [];
+    this.descriptionModelsError = '';
+    if (engine === 'none') { this.updateDescriptionModelChoices(); return; }
+    const cached = (): Observable<{ id: string; name: string }[]> => engine === 'claude' ? this.aiChat.getClaudeCodeChatModels()
+      : engine === 'copilot' ? this.aiChat.getCopilotChatModels()
+      : this.aiChat.getOpenCodeChatModels();
+    const refresh = (): Observable<unknown> => engine === 'claude' ? this.aiChat.refreshClaudeCodeModels()
+      : engine === 'copilot' ? this.aiChat.refreshCopilotCliModels()
+      : this.aiChat.refreshOpenCodeModels();
+    this.descriptionModelsLoading = true;
+    cached().pipe(
+      switchMap(list => list.length ? of(list) : refresh().pipe(switchMap(() => cached()))),
+      finalize(() => { this.descriptionModelsLoading = false; this.updateDescriptionModelChoices(); }),
+    ).subscribe({
+      next: list => {
+        this.descriptionModels = list.map(m => ({ id: m.id, name: m.name || m.id }));
+        if (!this.descriptionModels.length) { this.descriptionModelsError = this.translate.instant('DEV_ENV.MODELS_NONE'); }
+      },
+      error: err => { this.descriptionModelsError = this.translate.instant('DEV_ENV.MODELS_ERROR', { error: err?.error?.error || err?.error?.message || err?.message || err }); }
+    });
+  }
+
+  /** Un modello scelto che il motore non elenca più si vede, con l'avviso, invece di sparire. */
+  private updateDescriptionModelChoices(): void {
+    const choices = this.descriptionModels.map(m => ({ ...m, notListed: false }));
+    if (this.descriptionModel && !this.descriptionModelsLoading && !choices.some(c => c.id === this.descriptionModel)) {
+      choices.unshift({ id: this.descriptionModel, name: this.descriptionModel, notListed: true });
+    }
+    this.descriptionModelChoices = choices;
+    const info = this.descriptionModelInfo;
+    const fallback = info?.defaultModel || info?.tabModel || '';
+    this.descriptionDefaultLabel = info?.defaultModel
+      ? this.translate.instant('DEV_ENV.DESCRIBE_MODEL_DEFAULT', { model: info.defaultModel })
+      : this.translate.instant('DEV_ENV.DESCRIBE_MODEL_AS_TAB', { model: info?.tabModel || this.translate.instant('DEV_ENV.ENGINE_DEFAULT') });
+    // il CLI accetta un modello che non ha e ne usa un altro in silenzio: se il predefinito non c'è, si dice
+    this.descriptionDefaultNotListed = !this.descriptionModel && !!fallback && !this.descriptionModelsLoading
+      && this.descriptionModels.length > 0 && !this.descriptionModels.some(m => m.id === fallback);
+  }
+
+  saveDescriptionModel(model: string): void {
+    this.descriptionModel = model;
+    this.savingDescriptionModel = true;
+    this.errorMessage = '';
+    this.codeGraph.saveDescriptionModel(this.data.projectRoot, model || null).subscribe({
+      next: () => { this.savingDescriptionModel = false; this.updateDescriptionModelChoices(); },
+      error: (err) => {
+        this.savingDescriptionModel = false;
+        this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+        this.loadDescriptionModel();
+      }
+    });
   }
 
   /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */

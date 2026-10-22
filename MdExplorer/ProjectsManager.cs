@@ -733,6 +733,69 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
+        /// Il motore e il modello di «Descrivi con Mark»: il motore del progetto (lo stesso di MarkAgent) e il modello scelto
+        /// per descrivere con quel motore; se non è stato scelto, il predefinito per descrivere del motore, altrimenti quello
+        /// del tab (22/10/2026).
+        /// </summary>
+        internal static (MdExplorer.Utilities.MarkAgentEngine Engine, string Model) CodeDescriptionEngine(IUserSettingsDB db, string projectPath)
+        {
+            if (db == null || string.IsNullOrWhiteSpace(projectPath)) return (MdExplorer.Utilities.MarkAgentEngine.None, null);
+            db.BeginTransaction();
+            try
+            {
+                var project = FindProjectByPath(db, projectPath);
+                if (project == null) return (MdExplorer.Utilities.MarkAgentEngine.None, null);
+                var engine = MdExplorer.Utilities.MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
+                return (engine, MdExplorer.Utilities.MarkAgentEngines.CodeDescriptionModelOf(project, engine)
+                                ?? MdExplorer.Utilities.MarkAgentEngines.CodeDescriptionDefaultModelOf(engine)
+                                ?? MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, engine));
+            }
+            finally
+            {
+                db.Commit();
+            }
+        }
+
+        /// <summary>Per la combo della finestra Ambiente di sviluppo: il motore, il modello scelto per descrivere (o null) e quello del tab.</summary>
+        internal static (MdExplorer.Utilities.MarkAgentEngine Engine, string Chosen, string TabModel) CodeDescriptionChoice(IUserSettingsDB db, string projectPath)
+        {
+            Project project;
+            db.Clear();
+            db.BeginTransaction();
+            try { project = FindProjectByPath(db, projectPath); }
+            finally { db.Commit(); }
+            // il messaggio fuori dalla transazione: UiText legge la lingua dal DB
+            if (project == null) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Progetto non registrato: {projectPath}", $"Project not registered: {projectPath}"));
+            var engine = MdExplorer.Utilities.MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
+            return (engine, MdExplorer.Utilities.MarkAgentEngines.CodeDescriptionModelOf(project, engine), MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, engine));
+        }
+
+        /// <summary>Salva il modello di «Descrivi con Mark» per il motore in vigore; null o vuoto = come il tab MarkAgent.</summary>
+        internal static void SaveCodeDescriptionModel(IUserSettingsDB db, string projectPath, string model)
+        {
+            // motore e messaggi fuori dalla transazione: UiText legge la lingua dal DB
+            var (engine, _, _) = CodeDescriptionChoice(db, projectPath);
+            if (engine == MdExplorer.Utilities.MarkAgentEngine.None)
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.",
+                    "The project has no MarkAgent engine: choose it in the project settings."));
+            db.Clear();
+            db.BeginTransaction();
+            try
+            {
+                var project = FindProjectByPath(db, projectPath);
+                MdExplorer.Utilities.MarkAgentEngines.SetCodeDescriptionModel(project, engine, model);
+                db.GetDal<Project>().Save(project);
+                db.Commit();
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// «Estrai la struttura» del grafo del codice (D28): scegliere un linguaggio da analizzare è chiedere gli strumenti
         /// <c>code_*</c>. Se il progetto ha una lista di gruppi MCP salvata (che vince su quelli automatici) e non contiene
         /// <c>code</c>, lo aggiunge. Restituisce l'argomento <c>--groups</c> da registrare, o null se il progetto non è

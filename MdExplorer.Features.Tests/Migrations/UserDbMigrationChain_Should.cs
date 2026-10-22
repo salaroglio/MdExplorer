@@ -80,7 +80,9 @@ namespace MdExplorer.Features.Tests.Migrations
                 }
 
                 // Scelta del modello di Claude Code (M2026_09_13_001): le due colonne nullable esistono.
-                foreach (var (table, column) in new[] { ("Project", "ClaudeCodeChatModel"), ("AvailableModel", "Description") })
+                // Modello di «Descrivi con Mark» per motore (M2026_10_22_001): tre colonne nullable.
+                foreach (var (table, column) in new[] { ("Project", "ClaudeCodeChatModel"), ("AvailableModel", "Description"),
+                             ("Project", "CopilotCodeDescriptionModel"), ("Project", "ClaudeCodeDescriptionModel"), ("Project", "OpenCodeCodeDescriptionModel") })
                 {
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}' AND \"notnull\" = 0";

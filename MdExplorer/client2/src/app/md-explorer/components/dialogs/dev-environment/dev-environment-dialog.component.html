@@ -134,6 +134,28 @@
           </button>
         </div>
 
+        <!-- Il modello per descrivere (22/10/2026): l'harness è quello del progetto, il modello si sceglie a parte -->
+        <div class="step-row model-row" *ngIf="descriptionModelInfo && descriptionModelInfo.engine !== 'none'">
+          <div>
+            <label class="field-label" for="describe-model">{{ 'DEV_ENV.DESCRIBE_MODEL' | translate }}</label>
+            <mat-form-field appearance="outline" class="model-field">
+              <mat-select id="describe-model" [ngModel]="descriptionModel" (ngModelChange)="saveDescriptionModel($event)"
+                          [disabled]="descriptionModelsLoading || savingDescriptionModel || describing || runningRun != null">
+                <mat-option value="">{{ descriptionDefaultLabel }}</mat-option>
+                <mat-option *ngFor="let m of descriptionModelChoices" [value]="m.id">
+                  {{ m.notListed ? ('DEV_ENV.MODEL_NOT_LISTED' | translate: { model: m.id }) : m.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+          <span class="step-hint">
+            {{ (descriptionModelsLoading ? 'DEV_ENV.MODELS_LOADING' : 'DEV_ENV.DESCRIBE_MODEL_HINT') | translate: { engine: descriptionModelInfo.engineName } }}
+            <span class="warn" *ngIf="descriptionModelsError">{{ descriptionModelsError }}</span>
+            <span class="warn" *ngIf="descriptionDefaultNotListed">{{ 'DEV_ENV.DEFAULT_NOT_LISTED' | translate: { model: descriptionModelInfo.defaultModel || descriptionModelInfo.tabModel } }}</span>
+          </span>
+        </div>
+        <div class="step-hint warn" *ngIf="descriptionModelInfo?.engine === 'none'">{{ 'DEV_ENV.NO_ENGINE' | translate }}</div>
+
         <!-- «Descrivi con Mark» con la struttura vecchia: si chiede, le domande all'LLM costano -->
         <div class="ask-outdated" *ngIf="askBeforeDescribe && outdated">
           <div>{{ (outdated.count === 1 ? 'DEV_ENV.ASK_OUTDATED_ONE' : 'DEV_ENV.ASK_OUTDATED') | translate: { n: outdated.count } }}</div>
