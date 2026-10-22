@@ -322,6 +322,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, idleCts.Token, hardCts.Token);
             _activePromptIdleCts = idleCts;
 
+            // The timeouts must close the ANSWER, not only the send: SendAsync returns as soon as
+            // the message is accepted, so a tool that hangs (a shell waiting forever) left the chat
+            // stuck on its last line for good, the watchdog firing into the void.
+            var timeoutWatch = CloseOnTimeout(channel.Writer, idleCts, hardCts);
+
             // Fire the turn; the events feed the channel while we yield.
             var sendTask = _session.SendAsync(text, linkedCts.Token);
 
@@ -365,6 +370,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     try { await CancelAsync(CancellationToken.None).ConfigureAwait(false); } catch { }
                 }
 
+                timeoutWatch.Dispose();
                 try { idleCts.Dispose(); } catch { }
                 try { hardCts.Dispose(); } catch { }
                 try { linkedCts.Dispose(); } catch { }
@@ -797,6 +803,35 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         {
             if (string.IsNullOrEmpty(text)) return;
             channel.Writer.TryWrite(new CopilotChatChunk(kind, text));
+        }
+
+        /// <summary>
+        /// Ends the answer with the reason when the idle or the hard timeout fires. Disposing the
+        /// result stops the watch (the answer ended on its own).
+        /// </summary>
+        internal static IDisposable CloseOnTimeout(
+            ChannelWriter<CopilotChatChunk> writer, CancellationTokenSource idleCts, CancellationTokenSource hardCts)
+        {
+            void Close() => writer.TryComplete(new OperationCanceledException(DescribeCancellation(idleCts, hardCts)));
+            var onIdle = idleCts.Token.Register(Close);
+            var onHard = hardCts.Token.Register(Close);
+            return new TimeoutWatch(onIdle, onHard);
+        }
+
+        private sealed class TimeoutWatch : IDisposable
+        {
+            private readonly CancellationTokenRegistration _onIdle;
+            private readonly CancellationTokenRegistration _onHard;
+            public TimeoutWatch(CancellationTokenRegistration onIdle, CancellationTokenRegistration onHard)
+            {
+                _onIdle = onIdle;
+                _onHard = onHard;
+            }
+            public void Dispose()
+            {
+                _onIdle.Dispose();
+                _onHard.Dispose();
+            }
         }
 
         private static string DescribeCancellation(CancellationTokenSource idleCts, CancellationTokenSource hardCts)
