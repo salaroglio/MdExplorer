@@ -24,7 +24,7 @@ namespace MdExplorer.Services.Templates
         /// <summary>
         /// «Scarica la teoria» (sprint 2026-10-19-Metodi-Componibili.md, M3): copia la teoria del template dalla sua zona nel
         /// progetto — cioè dalla versione che il progetto usa, senza rete — e lo ricorda nella riga, con un commit. Il progetto
-        /// deve essere un repository git senza modifiche non committate; in errore torna com'era. Non pubblica.
+        /// deve essere un repository git senza modifiche senza commit; in errore torna com'era. Non pubblica.
         /// </summary>
         Task<TemplateAddOutcome> AddTheoryAsync(TemplateTheoryRequest request, CancellationToken ct = default);
     }
@@ -99,7 +99,7 @@ namespace MdExplorer.Services.Templates
                               $"The project has a merge left half done: finish or abort it before {doing}.");
             var dirty = (await Run(path, ct, "status", "--porcelain", "--untracked-files=no")).Trim();
             if (dirty.Length > 0)
-                throw Problem($"Il progetto ha modifiche non committate ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): committale o annullale, poi riprova. MDE fa un commit suo, che non deve portarsi dietro il tuo lavoro.",
+                throw Problem($"Il progetto ha modifiche senza commit ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): fai il commit o annullale, poi riprova. MDE fa un commit suo, che non deve portarsi dietro il tuo lavoro.",
                               $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them, then try again. MDE makes its own commit, which must not carry your work.");
         }
     }

@@ -27,7 +27,7 @@ namespace MdExplorer.Services
         /// <summary>
         /// Il segreto del PROGETTO (<c>agentCity.roomSecret</c>), che apre la sua stanza sul relay per la
         /// città e per la chat. Se manca lo genera e lo scrive in <c>.development.yml</c> senza accendere la
-        /// città: <c>Created</c> = true vuol dire che va committato e pushato perché i colleghi lo abbiano.
+        /// città: <c>Created</c> = true vuol dire che servono commit e push perché i colleghi lo abbiano.
         /// </summary>
         (string Secret, bool Created) EnsureRoomSecret(string projectPath);
         ProjectIconConfig GetIcon(string projectPath);
@@ -430,7 +430,7 @@ namespace MdExplorer.Services
                 .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
                 .Build();
             File.WriteAllText(filePath, serializer.Serialize(root));
-            _logger.LogInformation("Room secret del progetto creato in {FilePath}: va committato e pushato", filePath);
+            _logger.LogInformation("Room secret del progetto creato in {FilePath}: servono commit e push", filePath);
             return (root.AgentCity.RoomSecret, true);
         }
 

@@ -514,7 +514,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// <para>
         /// Le cartelle <c>mde-*</c> di quel layout vanno in <c>.git/info/exclude</c>, che resta su questa
         /// macchina: il <c>.gitignore</c> del team non deve cambiare per una scelta personale, e senza
-        /// l'esclusione quei file comparirebbero da committare.
+        /// l'esclusione quei file comparirebbero in attesa di commit.
         /// </para>
         /// </summary>
         public static void ApplyPersonalEngine(IServiceProvider serviceProvider, string projectPath, MdExplorer.Utilities.MarkAgentEngine engine)
@@ -539,7 +539,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
         /// <summary>
         /// La parte su disco di <see cref="ApplyPersonalEngine"/>: prima l'esclusione locale, poi i cataloghi
-        /// <c>mde-*</c> (così nessun file compare da committare nemmeno per un istante). Senza file di istruzioni.
+        /// <c>mde-*</c> (così nessun file compare in attesa di commit nemmeno per un istante). Senza file di istruzioni.
         /// </summary>
         public static void PreparePersonalEngineFiles(string projectPath, HarnessLayout layout, bool fusekiEnabled)
         {
@@ -576,7 +576,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// </summary>
         /// <summary>
         /// Un progetto creato da template (P5): ciò che la prima apertura scriverebbe nei file tracciati va nel commit della
-        /// creazione, altrimenti il progetto nasce con modifiche da committare (che fermano aggiornamenti e metodi). Una base
+        /// creazione, altrimenti il progetto nasce con modifiche in attesa di commit (che fermano aggiornamenti e metodi). Una base
         /// che porta già questi file (la demo) resta com'è: il suo motore è il predefinito del gruppo.
         /// </summary>
         /// <returns>Il motore del progetto, e se l'ha deciso la richiesta (false = c'era già nella base).</returns>

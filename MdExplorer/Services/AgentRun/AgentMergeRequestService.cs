@@ -212,7 +212,7 @@ namespace MdExplorer.Services.AgentRun
             // Nessuna richiesta in attesa (già decisa, o mai nata). La consegna dell'agente committerebbe a suo
             // nome ciò che trova non committato: qui pubblica una persona, quindi prima deve aver committato lei.
             if ((await _worktree.UncommittedAsync(deskPath, ct)).Count > 0)
-                return "ci sono modifiche non committate: committale prima di pubblicare";
+                return "ci sono modifiche senza commit: fai il commit prima di pubblicare";
             var attempt = await _worktree.TryCommitAndPushBranchAsync(projectPath, agentName, null, ct);
             if (attempt?.Pushed == null) return attempt?.Error ?? "non c'è niente da pubblicare";
             Open(projectPath, agentName, attempt.Pushed.Branch, attempt.Pushed.LocalBranch, attempt.Pushed.HeadSha,

@@ -1081,7 +1081,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 // avanzamento semplice. Fino all'01/10/2026 qui c'era un pull: con commit locali che
                 // toccavano le stesse righe di quelli remoti lasciava un'unione a meta', in silenzio,
                 // come effetto collaterale di un cambio di ramo (visto nell'app). Se il ramo e il suo
-                // remoto divergono si resta dove si e': lo dice il pannello «da pullare», e unire e'
+                // remoto divergono si resta dove si e': lo dice il pannello «in attesa di pull», e unire e'
                 // una scelta di chi lavora.
                 if (branch.TrackedBranch != null)
                 {
@@ -1100,7 +1100,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 }
 
                 // I submodule vanno al commit che il ramo nuovo registra: senza, restano a quello del
-                // ramo di prima e compaiono come «da committare» (provato in sandbox l'01/10/2026).
+                // ramo di prima e compaiono come «in attesa di commit» (provato in sandbox l'01/10/2026).
                 var switchWarnings = new List<string>();
                 if (_aligner != null)
                 {

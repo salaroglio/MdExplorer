@@ -48,7 +48,7 @@
       </ul>
     </div>
 
-    <!-- Un gruppo per repository: e' l'unita' in cui si committa, quindi e' l'unita' di cui
+    <!-- Un gruppo per repository: e' l'unita' in cui si fa il commit, quindi e' l'unita' di cui
          si parla. Un elenco unico metterebbe vicine due righe che finiscono in posti diversi. -->
     <div class="repo" *ngFor="let r of view.repos; trackBy: trackByRepo"
          [class.repo-nested]="r.depth > 0" [class.repo-quiet]="!hasSomething(r)">

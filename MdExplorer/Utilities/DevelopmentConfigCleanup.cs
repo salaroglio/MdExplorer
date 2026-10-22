@@ -55,7 +55,7 @@ namespace MdExplorer.Utilities
                 if (removed.Count == 0) return false;
 
                 File.WriteAllText(path, cleaned);
-                logger?.LogWarning("[Config] '{File}': tolte o convertite le righe ritirate {Keys}. Il file risulta modificato: va committato.",
+                logger?.LogWarning("[Config] '{File}': tolte o convertite le righe ritirate {Keys}. Il file risulta modificato: serve un commit.",
                     path, string.Join(", ", removed));
                 return true;
             }

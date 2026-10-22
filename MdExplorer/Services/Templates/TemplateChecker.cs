@@ -111,7 +111,7 @@ namespace MdExplorer.Services.Templates
             branches.Add(new TemplateCheckedBranch { Branch = current, From = WorkingTree, Files = listed.Count });
             if ((await Run(folder, ct, "status", "--porcelain")).Trim().Length > 0)
                 issues.Add(Warn(current, null,
-                    UiText.Say($"Nel ramo '{current}' ci sono modifiche non committate: le ho controllate così come sono, ma chi usa il template vede solo i commit.",
+                    UiText.Say($"Nel ramo '{current}' ci sono modifiche senza commit: le ho controllate così come sono, ma chi usa il template vede solo i commit.",
                                $"The branch '{current}' has uncommitted changes: I checked them as they are, but whoever uses the template sees the commits only."),
                     UiText.Say("Committale quando sono a posto.", "Commit them once they are right.")));
 

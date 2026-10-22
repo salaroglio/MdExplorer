@@ -136,7 +136,7 @@ namespace MdExplorer.Controllers.A2A
             return Ok(new { worktreePath = desk.Path, branch = desk.Branch, slot = desk.Index });
         }
 
-        /// <summary>Ciò che resta da salvare in una copia: file non committati e commit non pubblicati, per repository.</summary>
+        /// <summary>Ciò che resta da salvare in una copia: file senza commit e commit non pubblicati, per repository.</summary>
         private sealed class PendingWork
         {
             public System.Collections.Generic.List<RepoChanges> Dirty { get; } = new();
@@ -213,7 +213,7 @@ namespace MdExplorer.Controllers.A2A
                 if (work.Any && body.Authorized != true)
                     return Conflict(new
                     {
-                        error = UiText.Say($"Nella copia di '{body.AgentName}' c'è lavoro da salvare: serve la tua autorizzazione per committarlo e pubblicarlo.", $"There is unsaved work in the copy of '{body.AgentName}': your authorization is needed to commit and publish it."),
+                        error = UiText.Say($"Nella copia di '{body.AgentName}' c'è lavoro da salvare: serve la tua autorizzazione per farne il commit e pubblicarlo.", $"There is unsaved work in the copy of '{body.AgentName}': your authorization is needed to commit and publish it."),
                         needsAuthorization = true,
                         pending = Describe(work, body.AgentName),
                     });
@@ -229,7 +229,7 @@ namespace MdExplorer.Controllers.A2A
                         : System.IO.Path.Combine(desk.Path, repo.Path.Replace('/', System.IO.Path.DirectorySeparatorChar));
                     var problem = await _worktree.CommitAllAsync(dir, body.CommitMessage);
                     if (problem != null)
-                        return Conflict(new { error = UiText.Say($"Non riesco a committare in '{Name(repo)}': {problem}. Resti nella copia.", $"I can't commit in '{Name(repo)}': {problem}. You stay in the copy.") });
+                        return Conflict(new { error = UiText.Say($"Non riesco a fare il commit in '{Name(repo)}': {problem}. Resti nella copia.", $"I can't commit in '{Name(repo)}': {problem}. You stay in the copy.") });
                     committed.Add(Name(repo));
                 }
 
@@ -238,7 +238,7 @@ namespace MdExplorer.Controllers.A2A
                 if (left.Count > 0)
                     return Conflict(new
                     {
-                        error = UiText.Say($"Dopo il commit nella copia di '{body.AgentName}' restano {left.Count} file non committati. Resti nella copia.", $"After the commit in the copy of '{body.AgentName}', {left.Count} files are still uncommitted. You stay in the copy."),
+                        error = UiText.Say($"Dopo il commit nella copia di '{body.AgentName}' restano {left.Count} file senza commit. Resti nella copia.", $"After the commit in the copy of '{body.AgentName}', {left.Count} files are still uncommitted. You stay in the copy."),
                         uncommitted = left,
                     });
 
@@ -271,14 +271,14 @@ namespace MdExplorer.Controllers.A2A
 
         private static string NotPublished(string agentName, string what, string why)
             => UiText.Say(
-                $"Il lavoro nella copia di '{agentName}' è committato ma non riesco a pubblicarlo ('{what}': {why}). " +
+                $"Il lavoro nella copia di '{agentName}' ha il commit ma non riesco a pubblicarlo ('{what}': {why}). " +
                 "Resti nella copia: riprova quando il problema è risolto.",
                 $"The work in the copy of '{agentName}' is committed but I can't publish it ('{what}': {why}). " +
                 "You stay in the copy: try again once the problem is solved.");
 
         /// <summary>
         /// Prima che un agente parta: che cosa, nella cartella della persona, l'agente NON vedrebbe. La sua copia
-        /// nasce da <c>origin</c>, quindi i file non committati e i commit non pubblicati restano fuori.
+        /// nasce da <c>origin</c>, quindi i file senza commit e i commit non pubblicati restano fuori.
         /// </summary>
         [HttpPost("project-pending")]
         public async Task<IActionResult> ProjectPending([FromBody] WorkspaceRequest body)
@@ -322,7 +322,7 @@ namespace MdExplorer.Controllers.A2A
                 var problem = await _worktree.CommitAllAsync(dir, body.CommitMessage);
                 if (problem != null)
                     return Conflict(new { error = UiText.Say(
-                        $"Non riesco a committare in '{(string.IsNullOrEmpty(repo.Path) ? "progetto" : repo.Label)}': {problem}. L'agente non è partito.",
+                        $"Non riesco a fare il commit in '{(string.IsNullOrEmpty(repo.Path) ? "progetto" : repo.Label)}': {problem}. L'agente non è partito.",
                         $"I can't commit in '{(string.IsNullOrEmpty(repo.Path) ? "project" : repo.Label)}': {problem}. The agent did not start.") });
             }
 
@@ -348,7 +348,7 @@ namespace MdExplorer.Controllers.A2A
             if (pushed.Refused != null)
                 return Conflict(new { error = UiText.Say($"Committato, ma non pubblicato: {pushed.Refused} L'agente non è partito.", $"Committed, but not published: {pushed.Refused} The agent did not start.") });
             if (!pushed.Success)
-                return Conflict(new { error = UiText.Say("Committato, ma la pubblicazione si è interrotta: controlla il pannello «da pushare». L'agente non è partito.", "Committed, but publishing was interrupted: check the «to push» panel. The agent did not start.") });
+                return Conflict(new { error = UiText.Say("Commit fatto, ma la pubblicazione si è interrotta: controlla il pannello «in attesa di push». L'agente non è partito.", "Committed, but publishing was interrupted: check the «to push» panel. The agent did not start.") });
             return Ok(new { saved = true });
         }
 

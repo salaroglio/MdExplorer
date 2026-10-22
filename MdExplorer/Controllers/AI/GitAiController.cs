@@ -43,7 +43,7 @@ namespace MdExplorer.Controllers.AI
             var prompt = await _gitCommitAiService.BuildCommitPromptAsync(request.ProjectPath, request.Language);
             var it = (request.Language ?? "en").Trim().ToLowerInvariant().StartsWith("it");
             if (prompt == null)
-                return Ok(new { noChanges = true, message = it ? "Nessuna modifica da committare." : "No changes to commit." });
+                return Ok(new { noChanges = true, message = it ? "Nessuna modifica per un commit." : "No changes to commit." });
             return Ok(new { prompt });
         }
 

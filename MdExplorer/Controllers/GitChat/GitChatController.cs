@@ -86,7 +86,7 @@ namespace MdExplorer.Controllers.GitChat
                     var userId = ComputeUserId(userEmail);
 
                     // La chiave della stanza è il segreto del PROGETTO, in git. Se manca si crea qui, al
-                    // primo ingresso nella chat: va committato e pushato perché i colleghi entrino.
+                    // primo ingresso nella chat: servono commit e push perché i colleghi entrino.
                     var (secret, created) = _metadata.EnsureRoomSecret(repositoryPath);
                     _roomKeys.Register(roomId, repositoryPath, secret);
                     var keyState = KeyState(repo, repositoryPath, secret);

@@ -110,9 +110,9 @@ export interface RepoChanges {
   recordedCommitUnknown: string | null;
 
   files: WorkingChange[];
-  /** Commit locali che il ramo di riferimento non ha ancora: da pushare. */
+  /** Commit locali che il ramo di riferimento non ha ancora: in attesa di push. */
   unpushed?: WorkingChange[];
-  /** Solo ciò che `git status` vede: da committare. `files` include anche i commit non pubblicati. */
+  /** Solo ciò che `git status` vede: in attesa di commit. `files` include anche i commit non pubblicati. */
   uncommitted?: WorkingChange[];
   /** Ciò che il ramo di riferimento ha e tu no: da scaricare. Non è lavoro tuo. */
   incoming?: WorkingChange[];

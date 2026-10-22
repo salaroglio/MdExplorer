@@ -1498,7 +1498,7 @@ class GitBranchDialogComponent {
   }
   showUncommittedChangesDialog(branch) {
     const changesCount = this.currentBranch?.howManyFilesAreChanged || 0;
-    const message = `Hai ${changesCount} file${changesCount !== 1 ? 's' : ''} modificati non committati. Cambiando branch potresti perdere le modifiche.`;
+    const message = `Hai ${changesCount} file${changesCount !== 1 ? 's' : ''} modificati senza commit. Cambiando branch potresti perdere le modifiche.`;
     const confirmed = confirm(`${message}\n\nVuoi comunque cambiare branch?`);
     if (confirmed) {
       this.performCheckout(branch, true);
@@ -8770,4 +8770,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.c37cdcb82f513a20.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.f2e418fe0809de56.js.map

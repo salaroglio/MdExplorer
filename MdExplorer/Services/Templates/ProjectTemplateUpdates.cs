@@ -60,7 +60,7 @@ namespace MdExplorer.Services.Templates
 
         /// <summary>
         /// Porta un template all'ultima versione: unione, manifesto riapplicato, versione nella riga, un commit, <c>origin</c>
-        /// allineato. Il progetto non deve avere modifiche non committate; in errore torna com'era.
+        /// allineato. Il progetto non deve avere modifiche senza commit; in errore torna com'era.
         /// </summary>
         Task<TemplateUpdateOutcome> UpdateAsync(TemplateUpdateRequest request, CancellationToken ct = default);
 
@@ -169,7 +169,7 @@ namespace MdExplorer.Services.Templates
                 {
                     var push = await _transport.PushAsync(path, "origin", branch, ct);
                     if (!push.Ok)
-                        notes.Add(UiText.Say($"L'aggiornamento è nella tua cartella, ma non sono riuscito a portarlo su 'origin': {push.Error}. Pubblicalo dal pannello «da pushare».",
+                        notes.Add(UiText.Say($"L'aggiornamento è nella tua cartella, ma non sono riuscito a portarlo su 'origin': {push.Error}. Pubblicalo dal pannello «in attesa di push».",
                                              $"The update is in your folder, but I could not push it to 'origin': {push.Error}. Push it from the «To push» panel."));
                 }
                 _logger.LogInformation("[Template] '{Path}': '{Id}' aggiornato da {From} a {To}.", path, row.Id, source.Row.Version, manifest.Version);
@@ -193,7 +193,7 @@ namespace MdExplorer.Services.Templates
             if (!File.Exists(file)) throw Problem($"Il progetto non ha {DevelopmentConfigCleanup.FileName}: non viene da un template.", $"The project has no {DevelopmentConfigCleanup.FileName}: it does not come from a template.");
             var dirty = (await Run(path, ct, "status", "--porcelain", "--", DevelopmentConfigCleanup.FileName)).Trim();
             if (dirty.Length > 0)
-                throw Problem($"{DevelopmentConfigCleanup.FileName} ha modifiche non committate: committale o annullale, poi staccati dal template.",
+                throw Problem($"{DevelopmentConfigCleanup.FileName} ha modifiche senza commit: fai il commit o annullale, poi staccati dal template.",
                               $"{DevelopmentConfigCleanup.FileName} has uncommitted changes: commit or discard them, then detach from the template.");
 
             var config = DevelopmentConfigCleanup.ReadStrict(file);
@@ -373,7 +373,7 @@ namespace MdExplorer.Services.Templates
                     : $"The update does not merge: {why}");
         }
 
-        /// <summary>Il progetto è la radice di un repository, senza unioni a metà né modifiche non committate.</summary>
+        /// <summary>Il progetto è la radice di un repository, senza unioni a metà né modifiche senza commit.</summary>
         private async Task CleanProjectAsync(string path, string doing, CancellationToken ct)
         {
             var top = await _git.RunAsync(path, new[] { "rev-parse", "--show-toplevel" }, ct);
@@ -383,7 +383,7 @@ namespace MdExplorer.Services.Templates
                 throw Problem($"Nel progetto c'è un'unione rimasta a metà: chiudila o annullala prima di {doing}.", $"The project has a merge left half done: finish or abort it before {doing}.");
             var dirty = (await Run(path, ct, "status", "--porcelain", "--untracked-files=no")).Trim();
             if (dirty.Length > 0)
-                throw Problem($"Il progetto ha modifiche non committate ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): committale o annullale prima di {doing}.",
+                throw Problem($"Il progetto ha modifiche senza commit ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): fai il commit o annullale prima di {doing}.",
                               $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them before {doing}.");
         }
 

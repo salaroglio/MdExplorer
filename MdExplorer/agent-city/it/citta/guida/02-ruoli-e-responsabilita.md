@@ -54,7 +54,7 @@ Per prendere un ruolo:
 
 1. apri il pannello «Città degli agenti»;
 2. premi «È mio» sull'agente (o «Sono tutti miei» per prenderli tutti): MdExplorer scrive la tua riga nel documento;
-3. in alternativa scrivi tu nome ed email nella riga, e committa.
+3. in alternativa scrivi tu nome ed email nella riga, e fai il commit.
 
 ## I team
 

@@ -40,7 +40,7 @@ namespace MdExplorer.Services.AgentRun
             if (commit.Code != 0 && !commit.Out.Contains("nothing to commit") && !commit.Err.Contains("nothing to commit"))
                 return "commit: " + (commit.Err.Trim().Length > 0 ? commit.Err.Trim() : commit.Out.Trim());
             var push = Run(projectPath, "push", "--quiet");
-            return push.Code != 0 ? MdExplorer.Features.Services.UiText.Say("committato ma non pubblicato: ", "committed but not pushed: ") + push.Err.Trim() : null;
+            return push.Code != 0 ? MdExplorer.Features.Services.UiText.Say("commit fatto ma non pubblicato: ", "committed but not pushed: ") + push.Err.Trim() : null;
         }
     }
 }

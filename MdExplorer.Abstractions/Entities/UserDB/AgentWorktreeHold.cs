@@ -8,7 +8,7 @@ namespace MdExplorer.Abstractions.Entities.UserDB
     /// Nasce dalla revisione del lavoro degli agenti: l'umano che non autorizza un merge apre la
     /// directory del worktree e ci mette mano. Ma quella è l'area di lavoro <b>viva</b>
     /// dell'agente, e al risveglio successivo <c>PrepareForRunAsync</c> fa <c>reset --hard</c> e
-    /// <c>clean -fd</c> — cancellando modifiche non committate, senza chiedere e senza recupero.
+    /// <c>clean -fd</c> — cancellando modifiche senza commit, senza chiedere e senza recupero.
     /// </para>
     /// <para>
     /// È la <b>seconda</b> difesa, non la prima: la prima è mettere in pausa l'agente

@@ -259,7 +259,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     RelayUrl = request.RelayUrl,
                     // Assente resta assente (null): per i worktree vuol dire «decide l'app» (attivi se c'è git),
                     // e scrivere `false` al primo salvataggio li spegneva in modo esplicito senza che
-                    // nessuno l'avesse chiesto. Così un progetto appena aperto resta a zero «da committare»
+                    // nessuno l'avesse chiesto. Così un progetto appena aperto resta a zero «in attesa di commit»
                     // per questo campo.
                     UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees,
                 });

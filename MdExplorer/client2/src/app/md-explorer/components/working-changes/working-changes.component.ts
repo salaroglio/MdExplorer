@@ -131,7 +131,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
         || repo.pointerMoved || repo.notInitialized || !!repo.mergeInProgress;
   }
 
-  /** Il submodule e' piu' indietro della versione che il progetto registra: va allineato, non committato. */
+  /** Il submodule e' piu' indietro della versione che il progetto registra: va allineato, non incluso in un commit. */
   isBehindProject(repo: RepoChanges): boolean {
     return repo.relation === 'behind' || repo.relation === 'unknown';
   }

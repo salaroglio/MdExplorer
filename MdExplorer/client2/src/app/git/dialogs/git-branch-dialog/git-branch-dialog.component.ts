@@ -230,7 +230,7 @@ export class GitBranchDialogComponent implements OnInit {
 
   private showUncommittedChangesDialog(branch: BranchInfo): void {
     const changesCount = this.currentBranch?.howManyFilesAreChanged || 0;
-    const message = `Hai ${changesCount} file${changesCount !== 1 ? 's' : ''} modificati non committati. Cambiando branch potresti perdere le modifiche.`;
+    const message = `Hai ${changesCount} file${changesCount !== 1 ? 's' : ''} modificati senza commit. Cambiando branch potresti perdere le modifiche.`;
 
     const confirmed = confirm(`${message}\n\nVuoi comunque cambiare branch?`);
     if (confirmed) {

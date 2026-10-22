@@ -24,7 +24,7 @@ namespace MdExplorer.Services.Git
         public const string Same = "same";
         /// <summary>Il submodule è più avanti: c'è una versione nuova da registrare nel progetto.</summary>
         public const string Ahead = "ahead";
-        /// <summary>Il submodule è più indietro: va allineato, non committato.</summary>
+        /// <summary>Il submodule è più indietro: va allineato, non incluso in un commit.</summary>
         public const string Behind = "behind";
         /// <summary>Né avanti né indietro: due lavori da unire, dentro il submodule.</summary>
         public const string Diverged = "diverged";
@@ -345,7 +345,7 @@ namespace MdExplorer.Services.Git
 
                 if (line.Prefix != ' ')
                 {
-                    blockers.Add(UiText.Say($"'{full}' non è alla versione che il progetto registra: prima committa il progetto o allinea '{full}'.", $"'{full}' is not at the version the project records: first commit the project or align '{full}'."));
+                    blockers.Add(UiText.Say($"'{full}' non è alla versione che il progetto registra: prima fai il commit del progetto o allinea '{full}'.", $"'{full}' is not at the version the project records: first commit the project or align '{full}'."));
                     continue;
                 }
 
@@ -353,7 +353,7 @@ namespace MdExplorer.Services.Git
                     new[] { "status", "--porcelain", "--untracked-files=no", "--ignore-submodules=all" }, ct);
                 if (dirty.Ok && !string.IsNullOrWhiteSpace(dirty.Stdout))
                 {
-                    blockers.Add(UiText.Say($"'{full}' ha modifiche non salvate: committale (o scartale) prima di cambiare ramo.", $"'{full}' has unsaved changes: commit (or discard) them before switching branch."));
+                    blockers.Add(UiText.Say($"'{full}' ha modifiche non salvate: fai il commit (o scartale) prima di cambiare ramo.", $"'{full}' has unsaved changes: commit (or discard) them before switching branch."));
                     continue;
                 }
 

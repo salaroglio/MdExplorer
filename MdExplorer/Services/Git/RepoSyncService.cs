@@ -448,7 +448,7 @@ namespace MdExplorer.Services.Git
             {
                 var push = await _transport.PushAsync(dir, "origin", status.LocalBranch, ct);
                 if (!push.Ok)
-                    warnings.Add(UiText.Say($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «da pushare».", $"The updates are in your folder, but I could not push them to 'origin': {push.Error}. Push them from the «To push» panel."));
+                    warnings.Add(UiText.Say($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «in attesa di push».", $"The updates are in your folder, but I could not push them to 'origin': {push.Error}. Push them from the «To push» panel."));
             }
 
             return await WithChangesAsync(new RepoActionResult
@@ -493,7 +493,7 @@ namespace MdExplorer.Services.Git
             if (merged == null)
                 return (false, default, UiText.Say(
                     $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
-                    "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, committa, e riprova.",
+                    "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, fai il commit e riprova.",
                     $"The updates change the entry «{conflict}» in {file}, which you changed too in another way: " +
                     "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again."));
 
@@ -655,7 +655,7 @@ namespace MdExplorer.Services.Git
             if (merging.Ok)
                 return UiText.Say(
                     $"In '{label}' il tuo lavoro e quello scaricato toccano le stesse righe: l'unione è rimasta a metà. " +
-                    "Correggi i file in conflitto e committa, oppure annulla l'unione per tornare a prima.",
+                    "Correggi i file in conflitto e fai il commit, oppure annulla l'unione per tornare a prima.",
                     $"In '{label}' your work and the pulled work touch the same lines: the merge was left half done. " +
                     "Fix the conflicting files and commit, or abort the merge to go back.");
             return UiText.Say($"'{label}' non è stato aggiornato e niente è cambiato: {error}", $"'{label}' was not updated and nothing changed: {error}");

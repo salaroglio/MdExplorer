@@ -230,7 +230,7 @@ namespace MdExplorer.Services.AgentRun
         Task<string> OriginDefaultAsync(string projectPath, CancellationToken ct = default);
 
         /// <summary>
-        /// Il posto di lavoro dell'agente ha qualcosa da passare? Vero se ci sono file non committati (anche nuovi) o
+        /// Il posto di lavoro dell'agente ha qualcosa da passare? Vero se ci sono file senza commit (anche nuovi) o
         /// commit non ancora in <c>origin/&lt;default&gt;</c>. Falso per un posto appena preparato, e anche quando
         /// l'agente non ha un posto. Serve a decidere se una catena ha senso: chi non ha scritto niente non ha niente
         /// da far ereditare al destinatario.
@@ -252,7 +252,7 @@ namespace MdExplorer.Services.AgentRun
         Task<string> MaterializeForReviewAsync(string projectPath, string agentName, string localBranch, CancellationToken ct = default);
 
         /// <summary>
-        /// I file con modifiche non committate in una copia di lavoro (righe di <c>git status --porcelain</c>).
+        /// I file con modifiche senza commit in una copia di lavoro (righe di <c>git status --porcelain</c>).
         /// Vuoto = tutto committato: la copia si può lasciare senza perdere niente.
         /// </summary>
         Task<IReadOnlyList<string>> UncommittedAsync(string worktreePath, CancellationToken ct = default);
@@ -731,7 +731,7 @@ namespace MdExplorer.Services.AgentRun
 
             var branch = await CurrentBranchAsync(worktreePath, ct);
             if (string.IsNullOrWhiteSpace(branch))
-                return $"Sul posto '{worktreePath}' ci sono modifiche non committate e nessun ramo su cui salvarle: " +
+                return $"Sul posto '{worktreePath}' ci sono modifiche senza commit e nessun ramo su cui salvarle: " +
                        "mi rifiuto di ripulirlo. Committale o scartale a mano, poi il lavoro riparte.";
 
             await GitAsync(worktreePath, new[] { "add", "-A" }, ct);
@@ -741,11 +741,11 @@ namespace MdExplorer.Services.AgentRun
                 "commit", "-m", "lavoro non concluso, salvato prima di riusare la scrivania",
             }, ct);
             if (cc != 0)
-                return $"Sul posto '{worktreePath}' ci sono modifiche non committate che non riesco a salvare sul ramo " +
+                return $"Sul posto '{worktreePath}' ci sono modifiche senza commit che non riesco a salvare sul ramo " +
                        $"'{branch}' ({Describe(cc, ce)}): mi rifiuto di ripulirlo.";
 
             _logger.LogWarning(
-                "[Worktree] lavoro non committato sul posto '{Path}' salvato sul ramo '{Branch}' prima di riusarlo.",
+                "[Worktree] lavoro senza commit sul posto '{Path}' salvato sul ramo '{Branch}' prima di riusarlo.",
                 worktreePath, branch);
             return null;
         }
@@ -866,7 +866,7 @@ namespace MdExplorer.Services.AgentRun
                 // RETE SOTTO LA RETE: con una sessione d'intervento aperta l'agente e' gia' in
                 // coda e non dovrebbe arrivare fin qui. Se ci arriva lo stesso — coda aggirata,
                 // run forzato — qui sotto ci sono 'reset --hard' e 'clean -fd', che
-                // cancellerebbero il lavoro non committato di una persona senza chiedere e senza
+                // cancellerebbero il lavoro senza commit di una persona senza chiedere e senza
                 // recupero. Meglio un run rifiutato che lavoro umano distrutto.
                 if (_hold.IsHeld(projectPath, agentName))
                 {
@@ -1014,7 +1014,7 @@ namespace MdExplorer.Services.AgentRun
                 var identity = AgentGitIdentity.EnvFor(agentName);
                 await GitAsync(worktreePath, new[] { "add", "-A" }, ct);
 
-                // Distinguo "nulla da committare" (ok, si prosegue) da un commit FALLITO (index.lock,
+                // Distinguo "nulla in attesa di commit" (ok, si prosegue) da un commit FALLITO (index.lock,
                 // hook, stato non risolto): non basta ignorare l'exit code, altrimenti pubblicheremmo
                 // un branch SENZA il lavoro dell'agente (fallback silenzioso vietato, REGOLA #2).
                 var (stc, statusOut, _) = await GitAsync(worktreePath, new[] { "status", "--porcelain" }, ct);
@@ -1036,7 +1036,7 @@ namespace MdExplorer.Services.AgentRun
                 var branch = branchOut.Trim();
                 var headSha = shaOut.Trim();
                 if (string.IsNullOrWhiteSpace(branch) || branch == "HEAD")
-                    return new DeliveryAttempt { NothingToDeliver = true, WorktreePath = worktreePath };   // detached: nessun branch d'attività da pushare
+                    return new DeliveryAttempt { NothingToDeliver = true, WorktreePath = worktreePath };   // detached: nessun branch d'attività in attesa di push
 
                 // Un agente che ha solo letto o risposto non ha prodotto commit rispetto al default:
                 // non c'è niente da pubblicare né da far rivedere. Pubblicare comunque un ramo
@@ -1222,7 +1222,7 @@ namespace MdExplorer.Services.AgentRun
                 var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", "HEAD:refs/heads/" + def }, ct);
                 if (pc != 0) { _logger.LogWarning("[Worktree] auto-merge: push di '{Def}' fallito (non-fast-forward?): {Err}", def, pe); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
 
-                _logger.LogInformation("[Worktree] deliverable di '{Agent}' auto-merge in '{Def}' e pushato.", agentName, def);
+                _logger.LogInformation("[Worktree] deliverable di '{Agent}' auto-merge in '{Def}' e push fatto.", agentName, def);
                 return new DeliverableMerge(DeliverableMergeOutcome.Merged, merged.Trim());
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

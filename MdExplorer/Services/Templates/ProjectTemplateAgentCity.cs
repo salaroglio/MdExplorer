@@ -127,7 +127,7 @@ namespace MdExplorer.Services.Templates
         /// «Accendi la città» dalle impostazioni del progetto (C6): ciò che avrebbe fatto la creazione. La parte
         /// <c>agent_city</c> di ogni template del progetto (formato 2, non staccato), poi i file della città — con la sua
         /// documentazione, se chiesta — e le skill degli agenti, in un commit. Con la città già accesa porta solo la
-        /// documentazione, se manca. Il progetto deve essere un repository git senza modifiche non committate; in errore
+        /// documentazione, se manca. Il progetto deve essere un repository git senza modifiche senza commit; in errore
         /// torna com'era. Non pubblica.
         /// </summary>
         public async Task<IReadOnlyList<string>> EnableAgentCityAsync(string projectPath, string language, bool withGuide, CancellationToken ct = default)

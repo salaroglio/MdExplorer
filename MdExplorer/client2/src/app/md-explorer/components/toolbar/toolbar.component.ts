@@ -118,7 +118,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
    */
   public reviewAgent: string | null = null;
   public changesView: WorkingChangesView | null = null;
-  /** I repository che hanno davvero qualcosa da committare: le righe del pannello. */
+  /** I repository che hanno davvero qualcosa in attesa di commit: le righe del pannello. */
   public reposToCommit: RepoChanges[] = [];
   /** Quelli che hanno qualcosa da scaricare: commit sul remoto, o un submodule da allineare. */
   public reposToPull: RepoChanges[] = [];
@@ -249,7 +249,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.reviewAgent = agent;
       this.changesView = null;
       // I contatori vanno riletti subito: senza, entrando nella copia di un agente restavano quelli del
-      // proprio progetto (e uscendo quelli della copia), e «da committare» diceva una cosa per un'altra.
+      // proprio progetto (e uscendo quelli della copia), e «in attesa di commit» diceva una cosa per un'altra.
       if (changed) this.loadChangedFiles();
     }));
 
@@ -290,7 +290,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.rootCommitsToPush = branch.howManyCommitAreToPush;
       this.applyPushCount();
       this.connectionIsActive = true;
-      // Se c'e' qualcosa da committare NON lo decide piu' questo conteggio: escludeva i
+      // Se c'e' qualcosa in attesa di commit NON lo decide piu' questo conteggio: escludeva i
       // submodule, quindi con del lavoro non salvato dentro uno di essi il pulsante restava
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
@@ -866,7 +866,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     // Prima i numeri LOCALI, poi il remoto. Se si aggiornassero solo dentro checkConnection()
     // resterebbero appesi alla rete (probe di autenticazione + fetch da origin): dopo un commit
-    // il contatore «da committare» continuerebbe a mostrare i file appena salvati finche' il
+    // il contatore «in attesa di commit» continuerebbe a mostrare i file appena salvati finche' il
     // remoto non risponde, o fino al giro di polling successivo — 60 secondi.
     this.refreshLocalGitCounters();
 
@@ -889,7 +889,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       // La sottoscrizione a currentBranch$ ricarica anche la vista per repository: una fonte
       // sola, cosi' il numero sul pulsante e le righe del pannello non si contraddicono.
       branch => this.gitservice.currentBranch$.next(branch),
-      // Stato locale non disponibile: almeno i file da committare si rileggono lo stesso.
+      // Stato locale non disponibile: almeno i file in attesa di commit si rileggono lo stesso.
       () => this.loadChangedFiles()
     );
   }
@@ -1070,7 +1070,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
 
     dialogRef.afterClosed().subscribe(() => {
-      // Un cambio di ramo — del progetto o di un submodule — cambia cosa c'e' da committare,
+      // Un cambio di ramo — del progetto o di un submodule — cambia cosa c'e' in attesa di commit,
       // da scaricare e da pubblicare: i tre pannelli si rileggono.
       this.refreshLocalGitCounters();
     });
@@ -1257,14 +1257,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.rootIsBehind = roots.some(r => (r.behind || 0) > 0);
 
     this.reposToPush = bottomUp.filter(r => (r.ahead || 0) > 0);
-    // I submodule contano per «da pushare» quanto la radice: «Pubblica tutto» porta anche loro.
+    // I submodule contano per «in attesa di push» quanto la radice: «Pubblica tutto» porta anche loro.
     this.submoduleCommitsToPush = submodules.reduce((n, r) => n + (r.ahead || 0), 0);
     if (roots.length) this.rootCommitsToPush = roots[0].ahead || 0;
     this.applyPushCount();
   }
 
   /**
-   * «Da pushare» = commit della radice + commit dei submodule. Prima contava solo la radice: dopo
+   * «In attesa di push» = commit della radice + commit dei submodule. Prima contava solo la radice: dopo
    * un commit dentro un submodule il pulsante non compariva (visto il 29/09/2026).
    */
   private applyPushCount(): void {
@@ -1274,7 +1274,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   /**
    * Cio' che e' DA COMMITTARE: solo quello che git status vede. `files` contiene anche i commit non
-   * ancora pubblicati, e dopo un commit teneva acceso «da committare» sui file appena salvati.
+   * ancora pubblicati, e dopo un commit teneva acceso «in attesa di commit» sui file appena salvati.
    */
   private toCommit(repo: RepoChanges): WorkingChange[] {
     return repo.uncommitted ?? repo.files;
@@ -1286,7 +1286,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
    *
    * Un submodule piu' avanti del registrato NON e' lavoro del submodule: e' lavoro di chi lo
    * contiene, ed e' li' che compare. Prima la riga si accendeva sul submodule, col suo
-   * «Committa» che dentro il submodule non aveva niente da committare.
+   * «Committa» che dentro il submodule non aveva niente da mettere in un commit.
    */
   repoHasWork(repo: RepoChanges): boolean {
     return this.toCommit(repo).length > 0 || (repo.pointersToRegister?.length || 0) > 0 || !!repo.mergeInProgress;
@@ -1630,7 +1630,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     this.workingChanges.pushAll(projectPath, this.reviewAgent).subscribe({
       // Dopo il push si rileggono ANCHE i contatori della radice (refreshLocalGitCounters, che ricarica
-      // pure la vista): rileggere solo la vista lasciava acceso «da pushare» con il numero di prima.
+      // pure la vista): rileggere solo la vista lasciava acceso «in attesa di push» con il numero di prima.
       next: result => {
         this.waitingDialogService.closeMessageBox();
         this.reportPush(result);

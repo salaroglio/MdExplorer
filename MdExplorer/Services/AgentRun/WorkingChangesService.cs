@@ -55,18 +55,18 @@ namespace MdExplorer.Services.AgentRun
         public string Upstream { get; init; }
         /// <summary>Ramo di partenza rispetto al quale è calcolata la differenza.</summary>
         public string BaseBranch { get; init; }
-        /// <summary>Commit avanti rispetto all'upstream: quanto c'è da pushare.</summary>
+        /// <summary>Commit avanti rispetto all'upstream: quanto c'è in attesa di push.</summary>
         public int Ahead { get; init; }
         /// <summary>Commit indietro rispetto all'upstream: quanto c'è da tirare giù.</summary>
         public int Behind { get; init; }
 
-        /// <summary>Commit locali che il ramo di riferimento non ha ancora: da pushare.</summary>
+        /// <summary>Commit locali che il ramo di riferimento non ha ancora: in attesa di push.</summary>
         public IReadOnlyList<WorkingChange> Unpushed { get; init; } = Array.Empty<WorkingChange>();
 
         /// <summary>
-        /// Solo cio' che <c>git status</c> vede: <b>da committare</b>. <see cref="Files"/> contiene anche i
+        /// Solo cio' che <c>git status</c> vede: <b>in attesa di commit</b>. <see cref="Files"/> contiene anche i
         /// commit non ancora pubblicati (il lavoro rispetto al ramo di riferimento, che serve alla
-        /// revisione): usato per «da committare» faceva restare accesi, dopo un commit, i file appena
+        /// revisione): usato per «in attesa di commit» faceva restare accesi, dopo un commit, i file appena
         /// salvati, e il push li annunciava come «rimasti indietro» (visto il 29/09/2026).
         /// </summary>
         public IReadOnlyList<WorkingChange> Uncommitted { get; init; } = Array.Empty<WorkingChange>();
@@ -326,7 +326,7 @@ namespace MdExplorer.Services.AgentRun
                         PointerMoved = moved.Contains(s.Path),
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
-                        CommitBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: non c'è niente da committare finché non viene scaricato.", "Submodule not populated: there is nothing to commit until it is pulled."),
+                        CommitBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: non c'è niente da mettere in un commit finché non viene scaricato.", "Submodule not populated: there is nothing to commit until it is pulled."),
                         PushBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: non c'è niente da pubblicare.", "Submodule not populated: there is nothing to push."),
                         PullBlocker = MdExplorer.Features.Services.UiText.Say("Submodule non popolato: prima va scaricato con «Allinea».", "Submodule not populated: first pull it with «Align»."),
                         AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
@@ -470,7 +470,7 @@ namespace MdExplorer.Services.AgentRun
             // stesso pulsante "Commit".
             //
             // Il caso reale (04/09/2026): un collega rinomina una cartella e pusha; chi non ha
-            // ancora fatto pull si vede 223 file elencati come da committare. Erano l'inverso
+            // ancora fatto pull si vede 223 file elencati come in attesa di commit. Erano l'inverso
             // del suo commit.
 
             // IL TUO LAVORO, e solo il tuo. Due pezzi:
@@ -484,7 +484,7 @@ namespace MdExplorer.Services.AgentRun
             // SCARICARE, presentato come roba tua da salvare.
             //
             // Il caso reale (04/09/2026): un collega rinomina una cartella e pusha; chi non ha
-            // ancora fatto pull si vede 223 file elencati come da committare. Erano l'inverso
+            // ancora fatto pull si vede 223 file elencati come in attesa di commit. Erano l'inverso
             // del suo commit. I tre punti partono dall'antenato comune e quel lato non lo
             // guardano nemmeno.
             var files = new List<WorkingChange>();
@@ -939,7 +939,7 @@ namespace MdExplorer.Services.AgentRun
                 }
                 else if (s.Ahead > 0)
                 {
-                    warnings.Add(MdExplorer.Features.Services.UiText.Say($"'{s.Path}' ha {s.Ahead} commit non pushati.", $"'{s.Path}' has {s.Ahead} unpushed commits."));
+                    warnings.Add(MdExplorer.Features.Services.UiText.Say($"'{s.Path}' ha {s.Ahead} commit senza push.", $"'{s.Path}' has {s.Ahead} unpushed commits."));
                 }
                 else if (!s.NotInitialized && s.Upstream == null && s.Branch != null)
                 {
@@ -953,7 +953,7 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>
         /// Legge <c>git status --porcelain</c>: cio' che differisce da HEAD, cioe' l'unica cosa
-        /// che ha senso chiamare "da committare".
+        /// che ha senso chiamare "in attesa di commit".
         /// <para>
         /// Prima di qui si leggevano solo le righe <c>??</c> e tutto il resto arrivava da un
         /// diff contro il ramo remoto: per questo comparivano file gia' committati, e perfino

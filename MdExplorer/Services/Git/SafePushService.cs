@@ -138,15 +138,15 @@ namespace MdExplorer.Services.Git
             }
 
             var steps = new List<PushStep>();
-            // Solo cio' che il push NON porta via: i file non committati e i puntatori non registrati nel
+            // Solo cio' che il push NON porta via: i file senza commit e i puntatori non registrati nel
             // progetto. Prima si contava Files, che include i commit che questo stesso push sta per
             // pubblicare: dopo un commit il messaggio diceva «resta indietro» di file appena pubblicati.
             var leftBehind = view.Repos
                 .Where(r => r.Uncommitted.Count > 0)
-                .Select(r => UiText.Say($"{r.Uncommitted.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'", $"{r.Uncommitted.Count} uncommitted files in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'"))
+                .Select(r => UiText.Say($"{r.Uncommitted.Count} file senza commit in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'", $"{r.Uncommitted.Count} uncommitted files in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'"))
                 // Solo se il submodule e' piu' AVANTI: uno rimasto indietro va allineato, non registrato.
                 .Concat(view.Repos.Where(r => r.PointerMoved && (r.Relation == null || r.Relation == SubmoduleRelation.Ahead))
-                    .Select(r => UiText.Say($"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (va committato lì)", $"the new commit of '{r.Path}' is not recorded in the project yet (it must be committed there)")))
+                    .Select(r => UiText.Say($"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (il commit va fatto lì)", $"the new commit of '{r.Path}' is not recorded in the project yet (it must be committed there)")))
                 .ToList();
 
             // ---- 2) i figli, dal più profondo: un submodule dentro un submodule va prima del suo ----

@@ -96,7 +96,7 @@ namespace MdExplorer.Services.Templates
 
         /// <summary>
         /// «Aggiungi un metodo» (P2): unisce un template <c>method</c> al progetto, applica il suo manifesto ai file comuni e
-        /// fa un commit. Il progetto deve essere un repository git senza modifiche non committate. Qualunque cosa vada storta,
+        /// fa un commit. Il progetto deve essere un repository git senza modifiche senza commit. Qualunque cosa vada storta,
         /// il progetto torna com'era e l'eccezione dice perché. Non pubblica: il commit lo si manda con la barra di git.
         /// </summary>
         Task<TemplateAddOutcome> AddMethodAsync(TemplateAddRequest request, CancellationToken ct = default);
@@ -269,7 +269,7 @@ namespace MdExplorer.Services.Templates
                               "The project has a merge left half done: finish or abort it before adding a method.");
             var dirty = (await Run(path, ct, "status", "--porcelain", "--untracked-files=no")).Trim();
             if (dirty.Length > 0)
-                throw Problem($"Il progetto ha modifiche non committate ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): committale o annullale, poi aggiungi il metodo. Il metodo arriva con un commit suo, che non deve portarsi dietro il tuo lavoro.",
+                throw Problem($"Il progetto ha modifiche senza commit ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): fai il commit o annullale, poi aggiungi il metodo. Il metodo arriva con un commit suo, che non deve portarsi dietro il tuo lavoro.",
                               $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them, then add the method. The method comes with its own commit, which must not carry your work.");
 
             var head = (await Run(path, ct, "rev-parse", "HEAD")).Trim();
@@ -775,7 +775,7 @@ namespace MdExplorer.Services.Templates
 
         /// <summary>
         /// Il segreto della stanza del progetto, nel commit della creazione: altrimenti MDE lo scrive alla prima apertura della
-        /// chat, e il progetto appena creato avrebbe subito una modifica da committare (che ferma aggiornamenti e metodi).
+        /// chat, e il progetto appena creato avrebbe subito una modifica in attesa di commit (che ferma aggiornamenti e metodi).
         /// Un template non lo porta: ogni progetto ha il suo.
         /// </summary>
         private async Task AddRoomSecretAsync(string path, CancellationToken ct)
