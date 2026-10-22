@@ -53,7 +53,9 @@
         <mat-radio-group class="describe-mode" aria-labelledby="describe-mode-label" [(ngModel)]="descriptionMode" [disabled]="saving || analyzing">
           <mat-radio-button value="all">
             <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ALL' | translate }}</span>
-            <span class="mode-hint">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT' | translate: { files: estimate.files, low: estimate.low, high: estimate.high, parallel: descriptionParallel } }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions !== null && estimate.questions > 0">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT' | translate: { questions: estimate.questions, low: estimate.low, high: estimate.high, parallel: descriptionParallel } }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions === 0">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT_NONE' | translate }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions === null">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT_FILES' | translate: { files: estimate.files } }}</span>
           </mat-radio-button>
           <mat-radio-button value="onDemand">
             <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ON_DEMAND' | translate }}</span>

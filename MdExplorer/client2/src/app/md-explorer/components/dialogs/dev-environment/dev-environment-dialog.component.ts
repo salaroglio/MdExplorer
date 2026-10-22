@@ -80,9 +80,10 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.preview = p;
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged;
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
+        this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
-      error: () => { this.preview = null; this.previewTodo = 0; this.previewReview = 0; }
+      error: () => { this.preview = null; this.previewTodo = 0; this.previewReview = 0; this.updateEstimate(); }
     });
   }
 
@@ -185,14 +186,19 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
    */
   descriptionMode: 'all' | 'onDemand' | null = null;
   descriptionParallel = 3;
-  /** I file dei linguaggi scelti e la stima per «descrivi tutto» (20-60 s a file, N insieme): calcolati al cambio, non in un getter. */
-  estimate = { files: 0, low: '', high: '' };
+  /**
+   * La stima per «descrivi tutto»: le DOMANDE all'LLM dell'anteprima (20-60 s l'una, N insieme). Dal basso (F12a) una
+   * domanda non è più un file: in PlantUML 13.429 domande per 3.545 file, e la stima per file era 4 volte troppo bassa.
+   * Prima della prima scansione le domande non si sanno: si mostrano i file e lo si dice. Calcolata al cambio, non in un getter.
+   */
+  estimate = { files: 0, questions: null as number | null, low: '', high: '' };
 
   private updateEstimate(): void {
     const files = this.detected.filter(d => this.selected.has(d.id)).reduce((n, d) => n + d.files, 0);
-    const hours = (secondsPerFile: number) => files * secondsPerFile / 3600 / Math.max(1, this.descriptionParallel);
+    const questions = this.preview ? this.preview.questions : null;
+    const hours = (secondsPerQuestion: number) => (questions ?? 0) * secondsPerQuestion / 3600 / Math.max(1, this.descriptionParallel);
     const fmt = (h: number) => h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${Math.round(h)} h`;
-    this.estimate = { files, low: fmt(hours(20)), high: fmt(hours(60)) };
+    this.estimate = { files, questions, low: fmt(hours(20)), high: fmt(hours(60)) };
   }
 
   get needsDescriptionChoice(): boolean { return this.hasReadySelection && this.descriptionMode == null; }
