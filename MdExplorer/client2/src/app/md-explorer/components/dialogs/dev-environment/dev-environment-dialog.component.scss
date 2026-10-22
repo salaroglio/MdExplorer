@@ -27,6 +27,8 @@
 .availability .download { display: inline-flex; align-items: center; gap: 6px; line-height: 28px; padding: 0 10px; }
 .availability .download mat-spinner { display: inline-block; }
 .describe .outcome-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #2e7d32; }
+.describe-running { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 8px; padding: 8px; border-radius: 4px; background: rgba(127, 127, 127, 0.08); }
+.describe-running .hint, .describe .hint { font-size: 12px; opacity: 0.75; margin-top: 2px; }
 .describe-preview { font-size: 12px; opacity: 0.85; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
 .describe-preview .warn { color: #ef6c00; }
 .describe-log { max-height: 160px; overflow: auto; font-size: 12px; opacity: 0.85; margin-top: 4px; }

@@ -3,7 +3,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DetectedLanguage } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionRun, DetectedLanguage } from '../../../services/code-graph.service';
 
 export interface DevEnvironmentDialogData {
   /** Il fullPath della cartella nell'albero. */
@@ -66,12 +66,52 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadLanguages();
     this.serverMessages.codeDocProgress$.pipe(takeUntil(this.destroy$)).subscribe(p => this.onDescribeProgress(p));
+    // una descrizione già in corso su questa cartella (lanciata prima, o da un'altra finestra): la finestra lo dice e non
+    // offre di lanciarne un'altra; si aggiorna a ogni avanzamento e si riattiva quando finisce (22/10/2026)
+    this.loadRunning();
+    this.serverMessages.codeDescriptionStatus$.pipe(takeUntil(this.destroy$)).subscribe(s => this.onRunStatus(s));
+  }
+
+  /** La descrizione in corso su QUESTA cartella, se c'è (null altrimenti). */
+  public runningRun: DescriptionRun | null = null;
+
+  /** La cartella come la chiama il servizio: relativa alla radice del progetto, con «/» (o «@alias»). */
+  private get folderRelative(): string {
+    const norm = (x: string) => (x || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    const root = norm(this.data.projectRoot), folder = norm(this.data.folderPath);
+    const rel = folder.toLowerCase().startsWith(root.toLowerCase() + '/') ? folder.substring(root.length + 1) : folder;
+    return rel.replace(/^\/+/, '');
+  }
+
+  private loadRunning(): void {
+    this.codeGraph.background(this.data.projectRoot).subscribe({
+      next: b => {
+        const live = (b.descriptions ?? []).find(d => d.state === 'running' && d.run.programFolder === this.folderRelative);
+        this.runningRun = live ? live.run : null;
+      },
+      error: () => { this.runningRun = null; }
+    });
+  }
+
+  private onRunStatus(s: any): void {
+    const run: DescriptionRun | undefined = s?.run;
+    if (!run || run.programFolder !== this.folderRelative) { return; }
+    const wasRunning = this.runningRun != null;
+    this.runningRun = run.status === 'running' ? run : null;
+    if (wasRunning && !this.runningRun) { this.loadPreview(); }
+  }
+
+  /** «Ferma» la descrizione in corso, anche se l'ha lanciata un'altra finestra. */
+  stopRunning(): void {
+    this.codeGraph.stopDescribe(this.data.projectRoot, this.folderRelative).subscribe({
+      error: (err) => { this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }
+    });
   }
 
   ngOnDestroy(): void { this.destroy$.next(); this.destroy$.complete(); }
 
   /** La cartella ha già dei linguaggi scelti: si può descrivere senza rifare l'analisi. */
-  get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing; }
+  get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing && this.runningRun == null; }
 
   /** Quante da descrivere e quante da rivedere: si chiede quando la cartella è già configurata e dopo ogni giro. */
   private loadPreview(): void {
