@@ -127,6 +127,15 @@ namespace MdExplorer.Services.CodeGraph
         /// <summary>Metodi banali la cui frase fissa manca o va rifatta: la scrive MdExplorer al giro, senza LLM.</summary>
         public int Trivial { get; set; }
         public int BodyUnknown { get; set; }
+        /// <summary>I file che hanno qualcosa da chiedere all'LLM in questo giro (22/10/2026, tabella della finestra).</summary>
+        public int Files { get; set; }
+        /// <summary>I file della cartella con uno script AST: quelli analizzati.</summary>
+        public int AnalyzedFiles { get; set; }
+        /// <summary>
+        /// Quanto pesano su disco gli script del grafo della cartella (<c>.mde-code</c>, AST + descrizioni): è quello che
+        /// si carica nel database; lo spazio di una sola cartella dentro Fuseki non si misura.
+        /// </summary>
+        public long ScriptsBytes { get; set; }
     }
 
     public sealed class CodeDescriptionEditOutcome
@@ -647,6 +656,9 @@ namespace MdExplorer.Services.CodeGraph
                 Incomplete = a.Count(CodeDocVerdict.Incomplete),
                 ReviewContext = a.Count(CodeDocVerdict.ReviewContext), ReviewPrompt = a.Count(CodeDocVerdict.ReviewPrompt), ReviewNoFingerprint = a.Count(CodeDocVerdict.ReviewNoFingerprint),
                 Fresh = a.Count(CodeDocVerdict.Fresh), Trivial = plan.Trivial, BodyUnknown = a.BodyUnknown,
+                Files = plan.Groups.SelectMany(g => g.Sources).Distinct(StringComparer.Ordinal).Count(),
+                AnalyzedFiles = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).Count(),
+                ScriptsBytes = Directory.EnumerateFiles(scriptsFolder, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length),
             };
         }
 

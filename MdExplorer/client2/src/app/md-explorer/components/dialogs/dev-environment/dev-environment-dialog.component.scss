@@ -74,3 +74,13 @@
 .model-field { width: 100%; }
 .model-field ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; }
 .step-hint.warn { color: #ef6c00; }
+
+// Lo stato della cartella in tabella (22/10/2026)
+.info-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.info-table th, .info-table td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--mde-border, rgba(127, 127, 127, 0.2)); }
+.info-table th { width: 150px; font-weight: 600; white-space: nowrap; opacity: 0.8; }
+.info-table .sub { font-size: 12px; color: var(--mde-text-secondary); margin-top: 2px; }
+.info-table .warn { color: #ef6c00; }
+.info-table .running-value { display: inline-flex; align-items: center; gap: 6px; }
+.table-note { font-size: 12px; opacity: 0.85; }
+.table-note.warn { color: #ef6c00; opacity: 1; }

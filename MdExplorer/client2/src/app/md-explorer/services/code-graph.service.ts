@@ -127,6 +127,12 @@ export interface DescribePreview {
   fresh: number;
   trivial: number;
   bodyUnknown: number;
+  /** I file con qualcosa da chiedere all'LLM in questo giro. */
+  files: number;
+  /** I file della cartella analizzati (con uno script AST). */
+  analyzedFiles: number;
+  /** Il peso su disco degli script del grafo della cartella (.mde-code). */
+  scriptsBytes: number;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -190,22 +190,50 @@
       <p class="reason" *ngIf="descriptionMode === 'all'">{{ 'DEV_ENV.DESCRIPTION_STARTED_HINT' | translate }}</p>
     </div>
 
-    <!-- Una descrizione già in corso su questa cartella: si dice, i pulsanti per lanciarne un'altra sono spenti (22/10/2026) -->
-    <div class="describe-running" *ngIf="runningRun && !describing">
-      <mat-spinner diameter="16"></mat-spinner>
-      <div>
-        <div>{{ 'DEV_ENV.RUNNING' | translate: { index: runningRun.questionsDone ?? runningRun.fileIndex, total: runningRun.fileTotal, current: runningRun.currentFile || '—', engine: runningRun.engine } }}</div>
-        <div class="hint">{{ 'DEV_ENV.RUNNING_HINT' | translate }}</div>
-      </div>
-    </div>
-
-    <!-- L'anteprima del prossimo giro di «Descrivi con Mark» (F12b): da descrivere e da rivedere, con i motivi -->
-    <div class="describe-preview" *ngIf="preview && !describing">
-      <div>{{ 'DEV_ENV.PREVIEW_TODO' | translate: { todo: previewTodo, missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0, questions: preview.questions, levels: preview.levels } }}</div>
-      <div *ngIf="previewReview > 0">{{ 'DEV_ENV.PREVIEW_REVIEW' | translate: { review: previewReview, context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
-      <div *ngIf="preview.bodyUnknown > 0" class="warn">{{ 'DEV_ENV.PREVIEW_BODY_UNKNOWN' | translate: { count: preview.bodyUnknown } }}</div>
-      <div *ngIf="storageMb !== null" [class.warn]="storageGenerations > 1">{{ (storageGenerations > 1 ? 'DEV_ENV.STORAGE_OLD' : 'DEV_ENV.STORAGE') | translate: { mb: storageMb, generations: storageGenerations } }}</div>
-    </div>
+    <!-- Lo stato della cartella in tabella (22/10/2026): da descrivere, domande, database, peso della cartella -->
+    <table class="info-table" *ngIf="preview || runningRun">
+      <tr *ngIf="preview">
+        <th>{{ 'DEV_ENV.T_TODO' | translate }}</th>
+        <td>
+          {{ 'DEV_ENV.T_TODO_VALUE' | translate: { todo: previewTodo, files: preview.files } }}
+          <div class="sub" *ngIf="previewTodo > 0">{{ 'DEV_ENV.T_TODO_DETAIL' | translate: { missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0 } }}</div>
+        </td>
+      </tr>
+      <tr *ngIf="preview && previewReview > 0">
+        <th>{{ 'DEV_ENV.T_REVIEW' | translate }}</th>
+        <td>
+          {{ previewReview }}
+          <div class="sub">{{ 'DEV_ENV.T_REVIEW_DETAIL' | translate: { context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
+        </td>
+      </tr>
+      <tr>
+        <th>{{ 'DEV_ENV.T_QUESTIONS' | translate }}</th>
+        <td *ngIf="runningRun">
+          <span class="running-value"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_QUESTIONS_RUNNING' | translate: { done: runningRun.questionsDone ?? runningRun.fileIndex, total: runningRun.fileTotal } }}</span>
+          <div class="sub">{{ 'DEV_ENV.T_QUESTIONS_CURRENT' | translate: { engine: runningRun.engine, current: runningRun.currentFile || '—' } }}</div>
+        </td>
+        <td *ngIf="!runningRun && preview">
+          {{ 'DEV_ENV.T_QUESTIONS_TODO' | translate: { questions: preview.questions } }}
+          <div class="sub" *ngIf="preview.questions > 0">{{ 'DEV_ENV.T_QUESTIONS_LEVELS' | translate: { levels: preview.levels } }}</div>
+        </td>
+      </tr>
+      <tr *ngIf="storageMb !== null">
+        <th>{{ 'DEV_ENV.T_DATABASE' | translate }}</th>
+        <td>
+          {{ 'DEV_ENV.T_DATABASE_VALUE' | translate: { mb: storageMb } }}
+          <div class="sub warn" *ngIf="storageGenerations > 1">{{ 'DEV_ENV.T_DATABASE_OLD' | translate: { generations: storageGenerations } }}</div>
+        </td>
+      </tr>
+      <tr *ngIf="preview">
+        <th>{{ 'DEV_ENV.T_FOLDER' | translate }}</th>
+        <td>
+          {{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}
+          <div class="sub">{{ 'DEV_ENV.T_FOLDER_DETAIL' | translate }}</div>
+        </td>
+      </tr>
+    </table>
+    <div class="table-note warn" *ngIf="preview && preview.bodyUnknown > 0 && !describing">{{ 'DEV_ENV.PREVIEW_BODY_UNKNOWN' | translate: { count: preview.bodyUnknown } }}</div>
+    <div class="table-note" *ngIf="runningRun && !describing">{{ 'DEV_ENV.RUNNING_HINT' | translate }}</div>
 
     <div class="describe" *ngIf="describing || describeLog.length > 0 || describeDone">
       <div class="hint" *ngIf="describing">{{ 'DEV_ENV.STARTED_IN_BACKGROUND' | translate }}</div>

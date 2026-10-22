@@ -259,6 +259,14 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Il peso degli script del grafo della cartella, già scritto per la tabella. */
+  public scriptsMb = '';
+
+  private formatMb(bytes: number): string {
+    const mb = bytes / (1024 * 1024);
+    return mb >= 10 ? mb.toFixed(0) : mb >= 0.1 ? mb.toFixed(1) : mb.toFixed(2);
+  }
+
   /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */
   public storageMb: number | null = null;
   public storageGenerations = 0;
@@ -283,6 +291,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.noStructure = false;
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
+        this.scriptsMb = this.formatMb(p.scriptsBytes ?? 0);
         this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
