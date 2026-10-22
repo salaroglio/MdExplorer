@@ -96,7 +96,7 @@
     <div class="describe-running" *ngIf="runningRun && !describing">
       <mat-spinner diameter="16"></mat-spinner>
       <div>
-        <div>{{ 'DEV_ENV.RUNNING' | translate: { index: runningRun.fileIndex, total: runningRun.fileTotal, current: runningRun.currentFile || '—', engine: runningRun.engine } }}</div>
+        <div>{{ 'DEV_ENV.RUNNING' | translate: { index: runningRun.questionsDone ?? runningRun.fileIndex, total: runningRun.fileTotal, current: runningRun.currentFile || '—', engine: runningRun.engine } }}</div>
         <div class="hint">{{ 'DEV_ENV.RUNNING_HINT' | translate }}</div>
       </div>
     </div>

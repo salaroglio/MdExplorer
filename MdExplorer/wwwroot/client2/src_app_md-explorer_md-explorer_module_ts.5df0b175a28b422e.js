@@ -21451,8 +21451,9 @@ function DevEnvironmentDialogComponent_div_21_Template(rf, ctx) {
   }
   if (rf & 2) {
     const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+    let tmp_0_0;
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind2"](5, 2, "DEV_ENV.RUNNING", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpureFunction4"](7, _c9, ctx_r5.runningRun.fileIndex, ctx_r5.runningRun.fileTotal, ctx_r5.runningRun.currentFile || "\u2014", ctx_r5.runningRun.engine)));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind2"](5, 2, "DEV_ENV.RUNNING", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpureFunction4"](7, _c9, (tmp_0_0 = ctx_r5.runningRun.questionsDone) !== null && tmp_0_0 !== undefined ? tmp_0_0 : ctx_r5.runningRun.fileIndex, ctx_r5.runningRun.fileTotal, ctx_r5.runningRun.currentFile || "\u2014", ctx_r5.runningRun.engine)));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 5, "DEV_ENV.RUNNING_HINT"));
   }
@@ -44234,7 +44235,8 @@ class BackgroundWorkService {
   }
   descriptionRow(run, state) {
     const total = run.fileTotal || 0;
-    const index = run.fileIndex || 0;
+    // le domande FINITE: dal basso finiscono fuori ordine, e la prima non finita (fileIndex) restava ferma su una lenta
+    const index = run.questionsDone ?? run.fileIndex ?? 0;
     return {
       id: 'description:' + run.programFolder,
       kind: 'description',
@@ -44255,12 +44257,13 @@ class BackgroundWorkService {
     if (!run.sessionStartedAt) {
       return null;
     }
-    const done = (run.fileIndex || 0) - (run.sessionStartIndex || 0);
+    const doneNow = run.questionsDone ?? run.fileIndex ?? 0;
+    const done = doneNow - (run.sessionStartIndex || 0);
     if (done <= 0) {
       return null;
     }
     const elapsed = Date.now() - new Date(run.sessionStartedAt).getTime();
-    return Math.max(0, elapsed / done * ((run.fileTotal || 0) - (run.fileIndex || 0)));
+    return Math.max(0, elapsed / done * ((run.fileTotal || 0) - doneNow));
   }
   indexingRow(state) {
     return {
@@ -51183,4 +51186,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.9988bcb0c81cb176.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5df0b175a28b422e.js.map

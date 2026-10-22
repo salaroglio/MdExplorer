@@ -129,7 +129,8 @@ export class BackgroundWorkService {
 
   private descriptionRow(run: DescriptionRun, state: BackgroundRow['state']): BackgroundRow {
     const total = run.fileTotal || 0;
-    const index = run.fileIndex || 0;
+    // le domande FINITE: dal basso finiscono fuori ordine, e la prima non finita (fileIndex) restava ferma su una lenta
+    const index = run.questionsDone ?? run.fileIndex ?? 0;
     return {
       id: 'description:' + run.programFolder, kind: 'description', folder: run.programFolder, state,
       percent: total > 0 ? Math.round(index * 100 / total) : null,
@@ -140,10 +141,11 @@ export class BackgroundWorkService {
 
   private eta(run: DescriptionRun): number | null {
     if (!run.sessionStartedAt) { return null; }
-    const done = (run.fileIndex || 0) - (run.sessionStartIndex || 0);
+    const doneNow = run.questionsDone ?? run.fileIndex ?? 0;
+    const done = doneNow - (run.sessionStartIndex || 0);
     if (done <= 0) { return null; }
     const elapsed = Date.now() - new Date(run.sessionStartedAt).getTime();
-    return Math.max(0, elapsed / done * ((run.fileTotal || 0) - (run.fileIndex || 0)));
+    return Math.max(0, elapsed / done * ((run.fileTotal || 0) - doneNow));
   }
 
   private indexingRow(state: IndexingProgressState): BackgroundRow {

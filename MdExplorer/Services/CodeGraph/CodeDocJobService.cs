@@ -282,7 +282,7 @@ namespace MdExplorer.Services.CodeGraph
                 run = new CodeDescriptionRun
                 {
                     ProgramFolder = folderRelative, Status = CodeDescriptionRun.Running, Engine = engineLabel, Force = force, Review = review,
-                    StartedAt = resume?.StartedAt ?? progress.StartedAt, FileIndex = start, FileTotal = groups.Count, FilesDescribed = resume?.FilesDescribed ?? 0,
+                    StartedAt = resume?.StartedAt ?? progress.StartedAt, FileIndex = start, QuestionsDone = start, FileTotal = groups.Count, FilesDescribed = resume?.FilesDescribed ?? 0,
                     SessionStartedAt = progress.StartedAt, SessionStartIndex = start,
                 };
                 progress.Run = run;
@@ -378,6 +378,7 @@ namespace MdExplorer.Services.CodeGraph
                         {
                             runningSince.Remove(group.Index);
                             doneCount++;
+                            run.QuestionsDone = doneCount;
                             finished[group.Index] = true;
                             while (low < groups.Count && finished[low]) low++;
                             run.FileIndex = low; progress.FileIndex = low;

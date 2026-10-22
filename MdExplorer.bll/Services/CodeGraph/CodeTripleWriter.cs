@@ -278,7 +278,8 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:updatedAt ").Append(Lit(run.UpdatedAt ?? DateTime.UtcNow.ToString("o")))
               .Append(" ; code:fileIndex ").Append(Int(run.FileIndex))
               .Append(" ; code:fileTotal ").Append(Int(run.FileTotal))
-              .Append(" ; code:filesDescribed ").Append(Int(run.FilesDescribed));
+              .Append(" ; code:filesDescribed ").Append(Int(run.FilesDescribed))
+              .Append(" ; code:questionsDone ").Append(Int(run.QuestionsDone));
             if (run.CurrentFile != null) sb.Append(" ; code:currentFile ").Append(Lit(run.CurrentFile));
             if (run.Error != null) sb.Append(" ; code:error ").Append(Lit(run.Error));
             sb.Append(" . } }\n");

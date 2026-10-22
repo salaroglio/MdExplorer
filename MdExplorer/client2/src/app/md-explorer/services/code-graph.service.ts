@@ -71,6 +71,8 @@ export interface DescriptionRun {
   fileTotal: number;
   currentFile?: string;
   filesDescribed: number;
+  /** Le domande finite: il numero da mostrare (fileIndex è la prima non finita, per riprendere). Assente nelle tracce di prima del 22/10/2026. */
+  questionsDone?: number;
   error?: string;
   /** Solo per un lavoro vivo: da quando e da quale file è partita questa sessione (per la stima del tempo). */
   sessionStartedAt?: string;

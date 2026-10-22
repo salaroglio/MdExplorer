@@ -85,6 +85,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int FileTotal { get; set; }
         public string CurrentFile { get; set; }
         public int FilesDescribed { get; set; }
+        /// <summary>
+        /// Le domande FINITE (riuscite o fallite): è il numero da mostrare. <see cref="FileIndex"/> è la prima non finita,
+        /// che serve per riprendere; dal basso le domande finiscono fuori ordine, e una lenta fra le prime lo teneva fermo
+        /// mentre il lavoro andava avanti (Windows, 22/10/2026: «vedo i file cambiare, ma non aumentano le domande»).
+        /// </summary>
+        public int QuestionsDone { get; set; }
         public string Error { get; set; }
         /// <summary>
         /// Solo in memoria, non nel grafo: quando e da quale file è partita QUESTA sessione (una ripresa riparte dal mezzo),
