@@ -64,6 +64,8 @@ namespace MdExplorer.Services.Git
         {
             var pretty = string.Join(" ", args);
             _logger.LogDebug("[git] -C {Dir}: git {Args}", workingDirectory, pretty);
+            var caller = GitNetworkLog.Caller(args);
+            var clock = Stopwatch.StartNew();
 
             var process = new Process
             {
@@ -120,10 +122,13 @@ namespace MdExplorer.Services.Git
             {
                 try { process.Kill(true); } catch { }
                 _logger.LogError("[git] {Args} in timeout ({Ms}ms)", pretty, timeoutMs);
+                GitNetworkLog.Done(caller, workingDirectory, args, GitTimeoutExit, "timeout", clock.Elapsed);
                 return new GitResult { ExitCode = GitTimeoutExit, Stdout = string.Empty, Stderr = "timeout" };
             }
 
-            return new GitResult { ExitCode = process.ExitCode, Stdout = await stdoutTask, Stderr = await stderrTask };
+            var result = new GitResult { ExitCode = process.ExitCode, Stdout = await stdoutTask, Stderr = await stderrTask };
+            GitNetworkLog.Done(caller, workingDirectory, args, result.ExitCode, result.Stderr, clock.Elapsed);
+            return result;
         }
     }
 }

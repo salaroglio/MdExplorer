@@ -503,6 +503,8 @@ namespace MdExplorer
             IHostApplicationLifetime lifetime,
             ILogger<Startup> logger)
         {
+            // Ogni git che va in rete lascia una riga nel log: dice chi ha fatto aprire il login del credential manager.
+            MdExplorer.Services.Git.GitNetworkLog.SetLogger(logger);
 
             if (env.IsDevelopment())
             {

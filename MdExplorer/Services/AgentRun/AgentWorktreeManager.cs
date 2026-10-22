@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Utilities;
+using MdExplorer.Services.Git;
 using MdExplorer.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -1407,6 +1408,8 @@ namespace MdExplorer.Services.AgentRun
         {
             var pretty = string.Join(" ", args);
             _logger.LogDebug("[Worktree] git -C {Dir}: git {Args}", workingDirectory, pretty);
+            var caller = GitNetworkLog.Caller(args);
+            var clock = Stopwatch.StartNew();
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
@@ -1454,10 +1457,13 @@ namespace MdExplorer.Services.AgentRun
             {
                 try { process.Kill(true); } catch { }
                 _logger.LogError("[Worktree] git {Args} in timeout ({Ms}ms)", pretty, DefaultTimeoutMs);
+                GitNetworkLog.Done(caller, workingDirectory, args, GitTimeoutExit, "timeout", clock.Elapsed);
                 return (GitTimeoutExit, string.Empty, "timeout");
             }
 
-            return (process.ExitCode, await stdoutTask, await stderrTask);
+            var (stdout, stderr) = (await stdoutTask, await stderrTask);
+            GitNetworkLog.Done(caller, workingDirectory, args, process.ExitCode, stderr, clock.Elapsed);
+            return (process.ExitCode, stdout, stderr);
         }
 
         public void Dispose()

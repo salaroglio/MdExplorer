@@ -15,10 +15,18 @@ namespace MdExplorer.Services.AgentRun
             };
             foreach (var a in args) psi.ArgumentList.Add(a);
             psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
+            var caller = MdExplorer.Services.Git.GitNetworkLog.Caller(args);
+            var clock = Stopwatch.StartNew();
             using var p = Process.Start(psi);
             var outTask = p.StandardOutput.ReadToEndAsync();
             var errTask = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(60000)) { try { p.Kill(true); } catch { } return (-1, "", MdExplorer.Features.Services.UiText.Say("git non ha risposto in 60 secondi", "git did not answer within 60 seconds")); }
+            if (!p.WaitForExit(60000))
+            {
+                try { p.Kill(true); } catch { }
+                MdExplorer.Services.Git.GitNetworkLog.Done(caller, cwd, args, -1, "timeout 60 s", clock.Elapsed);
+                return (-1, "", MdExplorer.Features.Services.UiText.Say("git non ha risposto in 60 secondi", "git did not answer within 60 seconds"));
+            }
+            MdExplorer.Services.Git.GitNetworkLog.Done(caller, cwd, args, p.ExitCode, errTask.Result, clock.Elapsed);
             return (p.ExitCode, outTask.Result, errTask.Result);
         }
 
