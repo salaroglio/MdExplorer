@@ -26,7 +26,13 @@ SOLO le righe dei simboli da descrivere (classi, metodi, funzioni, proprietà), 
 file intero. Il commento di documentazione sopra un simbolo c'è; per una classe i corpi
 dei metodi sono tolti (`// … corpo di X …: vedi members …`), perché quei metodi li hai
 già descritti e le loro sintesi sono nel campo `members`. Non chiedere e non supporre il
-resto del file: quello che ti serve sapere delle funzioni chiamate è in `calls`.
+resto del file: quello che ti serve sapere delle funzioni chiamate è in `calls`. Non hai
+strumenti per leggere file: lavora solo con quello che è nella richiesta.
+
+Completezza, obbligatoria: ogni parametro elencato ha la sua riga `parameterDoc` con il
+significato (che cosa rappresenta, che valori accetta), e ogni simbolo che restituisce un
+valore (tipo di ritorno non `void`) ha `returnsDescription`. Una descrizione a cui manca
+uno di questi pezzi viene scartata e richiesta di nuovo.
 Il tuo compito è dire **che cosa fanno**, non com'è fatta la firma: la firma è già nota.
 
 Per ogni simbolo richiesto scrivi DUE tipi di riga.

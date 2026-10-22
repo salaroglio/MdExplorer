@@ -58,7 +58,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             var hash = all.Single(c => c.Symbol.Id == "f1").SignatureHash;
             var doc = new CodeScript { Header = new CodeScriptHeader { Kind = CodeScriptKind.Doc, Source = "src/Foo.cs", WrittenBy = "t", WrittenAt = "now" } };
-            doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "f1", Summary = "x", SignatureHash = hash });
+            // completa: il significato del parametro e del valore restituito (sennò è «incompleta» e si rifà, 22/10/2026)
+            doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "f1", Summary = "x", SignatureHash = hash, ReturnsDescription = "quante" });
+            doc.ParameterDocs.Add(new ScriptParameterDoc { SymbolId = "f1", ParameterName = "path", Description = "il file" });
             doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "c1", Summary = "y", SignatureHash = "vecchio" });
             var again = CodeDocPlanner.Select(ast, doc, force: false);
             CollectionAssert.AreEquivalent(new[] { "c1" }, again.Select(c => c.Symbol.Id).ToArray(), "f1 ha la firma invariata, c1 è da rivedere");

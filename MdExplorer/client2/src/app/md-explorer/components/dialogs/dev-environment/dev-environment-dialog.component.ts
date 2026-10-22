@@ -118,7 +118,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (p) => {
         this.preview = p;
-        this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged;
+        this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
         this.updateEstimate();
       },

@@ -92,6 +92,8 @@ export interface DescribePreview {
   missing: number;
   signatureChanged: number;
   bodyChanged: number;
+  /** Descrizioni incomplete (manca il significato di un parametro o del valore restituito): si rifanno. */
+  incomplete: number;
   reviewContext: number;
   reviewPrompt: number;
   reviewNoFingerprint: number;

@@ -45,6 +45,12 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
         public bool DenyShell { get; init; } = true;
 
+        /// <summary>
+        /// Nessun file si legge: tutto quello che serve è nel prompt. Le descrizioni del codice (utente, 22/10/2026: «le domande
+        /// di livello 1 devono accedere alla sintesi creata per il livello 0, non devono andare a prendere il codice»).
+        /// </summary>
+        public bool DenyRead { get; init; }
+
         /// <summary>MCP tools refused by the permission callback, as <c>server/tool</c> or just <c>tool</c>.</summary>
         public IReadOnlyList<string> DeniedMcpTools { get; init; } = Array.Empty<string>();
 

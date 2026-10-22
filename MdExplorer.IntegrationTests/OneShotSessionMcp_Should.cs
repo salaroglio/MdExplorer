@@ -53,5 +53,17 @@ namespace MdExplorer.IntegrationTests
             }
             finally { try { Directory.Delete(project, true); } catch { } }
         }
+
+        [TestMethod]
+        public void Let_the_code_descriptions_read_no_file()
+        {
+            var args = ClaudeCodeSession.BuildArguments("sonnet", ReadOnlyEngineSessions.ClaudeOptions("code-doc", mcpConfigPath: "/tmp/x.json", noFiles: true));
+            foreach (var tool in new[] { "Read", "Glob", "Grep", "Task" }) StringAssert.Contains(args, tool, "vietato: " + tool);
+            Assert.IsFalse(ClaudeCodeSession.BuildArguments("sonnet", ReadOnlyEngineSessions.ClaudeOptions("diagram")).Contains("Glob"), "le altre sessioni leggono come prima");
+
+            var profile = ReadOnlyEngineSessions.CopilotProfile("code-doc|x", "solo la richiesta", noFiles: true);
+            var verdict = CopilotSdkPermissionPolicy.Decide(new GitHub.Copilot.PermissionRequestRead { Path = "/p/src/A.java", Intention = "test" }, "/p", profile);
+            Assert.IsFalse(verdict.Approved, "Copilot non legge il codice delle funzioni chiamate");
+        }
     }
 }

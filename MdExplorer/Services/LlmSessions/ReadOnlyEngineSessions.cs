@@ -23,10 +23,13 @@ namespace MdExplorer.Services.LlmSessions
         /// Un <c>--mcp-config</c> (con <c>--strict-mcp-config</c>): solo i server lì dentro, quelli dell'utente no; i suoi
         /// strumenti si possono usare (<see cref="ClaudeCodeMcp.ServerName"/>). Null = i server MCP dell'utente, come prima.
         /// </param>
-        public static ClaudeCodeSessionOptions ClaudeOptions(string profileKey, string resumeSessionId = null, string mcpConfigPath = null) => new()
+        /// <param name="noFiles">Nessuna lettura né ricerca di file (le descrizioni del codice: tutto è nel prompt, il codice delle funzioni chiamate no).</param>
+        public static ClaudeCodeSessionOptions ClaudeOptions(string profileKey, string resumeSessionId = null, string mcpConfigPath = null, bool noFiles = false) => new()
         {
             ToolPolicy = ClaudeCodeToolPolicy.NoExecution,
-            DisallowedTools = new[] { "Edit", "Write", "NotebookEdit", "Bash" },
+            DisallowedTools = noFiles
+                ? new[] { "Edit", "Write", "NotebookEdit", "Bash", "Read", "Glob", "Grep", "LS", "NotebookRead", "WebFetch", "WebSearch", "Task" }
+                : new[] { "Edit", "Write", "NotebookEdit", "Bash" },
             AllowedTools = Array.Empty<string>(),
             ProfileKey = profileKey,
             ResumeSessionId = resumeSessionId,
@@ -35,11 +38,12 @@ namespace MdExplorer.Services.LlmSessions
         };
 
         /// <summary>Copilot (SDK transport): no shell, no writing, with the reason the model is told.</summary>
-        public static CopilotSessionProfile CopilotProfile(string key, string reason, string resumeSessionId = null, IReadOnlyList<string> onlyMcpServers = null) => new()
+        public static CopilotSessionProfile CopilotProfile(string key, string reason, string resumeSessionId = null, IReadOnlyList<string> onlyMcpServers = null, bool noFiles = false) => new()
         {
             Key = key,
             DenyShell = true,
             DenyWrite = true,
+            DenyRead = noFiles,
             DenyReason = reason,
             ResumeSessionId = resumeSessionId,
             OnlyMcpServers = onlyMcpServers,
@@ -148,8 +152,9 @@ namespace MdExplorer.Services.LlmSessions
         }
 
         /// <summary>The text of the answer to <paramref name="prompt"/>, with the engine and model given.</summary>
+        /// <param name="noFiles">Nessun file si legge (le descrizioni del codice): il modello lavora solo con il prompt.</param>
         public async Task<string> AskAsync(string projectPath, MarkAgentEngine engine, string model, string prompt,
-            string profileKey, string denyReason, CancellationToken ct)
+            string profileKey, string denyReason, CancellationToken ct, bool noFiles = false)
         {
             var key = profileKey + "|" + Guid.NewGuid().ToString("N");
             var answer = new StringBuilder();
@@ -158,7 +163,7 @@ namespace MdExplorer.Services.LlmSessions
                 case MarkAgentEngine.Claude:
                     try
                     {
-                        var session = await _claude.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.ClaudeOptions(profileKey, mcpConfigPath: ClaudeMcpConfig(projectPath)), ct).ConfigureAwait(false);
+                        var session = await _claude.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.ClaudeOptions(profileKey, mcpConfigPath: ClaudeMcpConfig(projectPath), noFiles: noFiles), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == ClaudeCodeChunk.KindMessage) answer.Append(chunk.Text);
                     }
@@ -167,7 +172,7 @@ namespace MdExplorer.Services.LlmSessions
                 case MarkAgentEngine.Copilot:
                     try
                     {
-                        var session = await _copilot.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.CopilotProfile(profileKey, denyReason, onlyMcpServers: OnlyMdExplorer), ct).ConfigureAwait(false);
+                        var session = await _copilot.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.CopilotProfile(profileKey, denyReason, onlyMcpServers: OnlyMdExplorer, noFiles: noFiles), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == CopilotChatChunk.KindMessage) answer.Append(chunk.Text);
                     }

@@ -59,6 +59,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 if (profile.DenyWrite && request is PermissionRequestWrite anyWrite)
                     return new Verdict(false, "scrivere " + anyWrite.FileName,
                         profile.DenyReason ?? MdExplorer.Features.Services.UiText.Say("questa sessione è in sola lettura", "this session is read-only"));
+                if (profile.DenyRead && request is PermissionRequestRead anyRead)
+                    return new Verdict(false, "leggere " + anyRead.Path,
+                        profile.DenyReason ?? MdExplorer.Features.Services.UiText.Say("in questa sessione non si leggono file: quello che serve è nella richiesta", "in this session no file is read: what is needed is in the request"));
                 if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
                     return new Verdict(false, "leggere " + read.Path,
                         MdExplorer.Features.Services.UiText.Say("è un file di credenziali: durante i test e2e le usa solo il server Playwright", "it is a credentials file: during e2e tests only the Playwright server uses it"));

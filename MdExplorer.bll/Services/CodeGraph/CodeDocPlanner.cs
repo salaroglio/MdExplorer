@@ -18,6 +18,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         Missing,
         SignatureChanged,
         BodyChanged,
+        /// <summary>
+        /// Manca il significato di un parametro o del valore restituito (utente, 22/10/2026: «si deve segnare bene la firma del
+        /// metodo, i parametri, il tipo ed il suo significato»): si rifà da sola.
+        /// </summary>
+        Incomplete,
         /// <summary>Le sintesi delle funzioni che chiama (o dei membri) sono cambiate da quando è stata scritta.</summary>
         ReviewContext,
         /// <summary>Scritta con un'altra versione del prompt mde-code-doc.</summary>
@@ -131,12 +136,34 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (CodeBodyHash.HasBody(s.Kind) && s.BodyHash == null) result.BodyUnknown++;
                 docs.TryGetValue(s.Id, out var d);
                 var verdict = Verdict(s, hash, d, contextHashOf == null ? null : () => contextHashOf(s.Id), promptVersion);
+                if (verdict is CodeDocVerdict.Fresh or CodeDocVerdict.ReviewContext or CodeDocVerdict.ReviewPrompt or CodeDocVerdict.ReviewNoFingerprint
+                    && d.PromptVersion != EditedPromptVersion && WhatIsMissing(s, prms, d, existingDoc).Count > 0)
+                    verdict = CodeDocVerdict.Incomplete;
                 result.Counts[verdict] = result.Count(verdict) + 1;
-                var take = force || verdict is CodeDocVerdict.Missing or CodeDocVerdict.SignatureChanged or CodeDocVerdict.BodyChanged
+                var take = force || verdict is CodeDocVerdict.Missing or CodeDocVerdict.SignatureChanged or CodeDocVerdict.BodyChanged or CodeDocVerdict.Incomplete
                            || review && verdict is CodeDocVerdict.ReviewContext or CodeDocVerdict.ReviewPrompt or CodeDocVerdict.ReviewNoFingerprint;
                 if (take) result.Candidates.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source, Verdict = verdict });
             }
             return result;
+        }
+
+        private static readonly HashSet<string> WithReturn = new(StringComparer.Ordinal) { "method", "function", "property" };
+        private static readonly HashSet<string> NoValue = new(StringComparer.OrdinalIgnoreCase) { "void", "Void", "Unit", "None", "never", "Task", "System.Void" };
+
+        /// <summary>
+        /// Che cosa manca alla descrizione <paramref name="d"/> del simbolo: i parametri senza significato e, per chi restituisce
+        /// un valore (tipo di ritorno scritto e non void), il significato di quel valore. Vuota = completa.
+        /// </summary>
+        public static List<string> WhatIsMissing(ScriptSymbol s, IReadOnlyList<ScriptParameter> parameters, ScriptSymbolDoc d, CodeScript doc)
+        {
+            var missing = new List<string>();
+            foreach (var p in parameters)
+                if (doc == null || !doc.ParameterDocs.Any(x => x.SymbolId == s.Id && x.ParameterName == p.Name && !string.IsNullOrWhiteSpace(x.Description)))
+                    missing.Add(p.Name);
+            if (WithReturn.Contains(s.Kind) && !string.IsNullOrWhiteSpace(s.ReturnType) && !NoValue.Contains(s.ReturnType.Trim())
+                && string.IsNullOrWhiteSpace(d?.ReturnsDescription))
+                missing.Add("return");
+            return missing;
         }
 
         /// <summary>

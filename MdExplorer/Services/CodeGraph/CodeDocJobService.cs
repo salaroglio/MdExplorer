@@ -118,6 +118,8 @@ namespace MdExplorer.Services.CodeGraph
         public int Missing { get; set; }
         public int SignatureChanged { get; set; }
         public int BodyChanged { get; set; }
+        /// <summary>Descrizioni a cui manca il significato di un parametro o del valore restituito: si rifanno.</summary>
+        public int Incomplete { get; set; }
         public int ReviewContext { get; set; }
         public int ReviewPrompt { get; set; }
         public int ReviewNoFingerprint { get; set; }
@@ -641,6 +643,7 @@ namespace MdExplorer.Services.CodeGraph
             {
                 Folder = normalized, Questions = plan.Groups.Count, Levels = plan.Groups.Count == 0 ? 0 : plan.Groups.Max(g => g.Level) + 1,
                 Missing = a.Count(CodeDocVerdict.Missing), SignatureChanged = a.Count(CodeDocVerdict.SignatureChanged), BodyChanged = a.Count(CodeDocVerdict.BodyChanged),
+                Incomplete = a.Count(CodeDocVerdict.Incomplete),
                 ReviewContext = a.Count(CodeDocVerdict.ReviewContext), ReviewPrompt = a.Count(CodeDocVerdict.ReviewPrompt), ReviewNoFingerprint = a.Count(CodeDocVerdict.ReviewNoFingerprint),
                 Fresh = a.Count(CodeDocVerdict.Fresh), Trivial = plan.Trivial, BodyUnknown = a.BodyUnknown,
             };
@@ -717,7 +720,7 @@ namespace MdExplorer.Services.CodeGraph
                 try
                 {
                     answer = await _llm.AskAsync(projectPath, engine, model, prompt, "code-doc",
-                        UiText.Say("le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", "code descriptions are read-only: MdExplorer writes the scripts"), token);
+                        UiText.Say("le descrizioni del codice si scrivono solo con quello che c'è nella richiesta: righe del simbolo e sintesi delle funzioni chiamate; nessun file si legge né si scrive", "code descriptions are written only from what is in the request: the symbol's lines and the summaries of the called functions; no file is read or written"), token, noFiles: true);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -731,6 +734,18 @@ namespace MdExplorer.Services.CodeGraph
                 result.FirstRejected ??= rejected.FirstOrDefault();
                 foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", label, r);
                 freshCount += CodeDocPlanner.CountDescribed(fresh, batch);
+                // completezza (22/10/2026): ogni parametro e il valore restituito devono avere un significato; quello che manca
+                // si dice qui e la descrizione resta «incompleta», da rifare al prossimo giro
+                var incomplete = new List<string>();
+                foreach (var c in batch.Where(c => !c.ParametersOnly))
+                {
+                    var d0 = fresh.SymbolDocs.FirstOrDefault(x => x.SymbolId == c.Symbol.Id);
+                    if (d0 == null) { incomplete.Add($"{c.Symbol.QualifiedName}: non descritto"); continue; }
+                    var miss = CodeDocPlanner.WhatIsMissing(c.Symbol, c.Parameters, d0, fresh);
+                    if (miss.Count > 0) incomplete.Add($"{c.Symbol.QualifiedName}: manca {string.Join(", ", miss)}");
+                }
+                if (incomplete.Count > 0)
+                    _logger.LogWarning("[CodeDoc] {File}: risposta incompleta, {Count} simboli da rifare — {List}", label, incomplete.Count, string.Join("; ", incomplete.Take(10)));
                 // l'impronta di quello che la descrizione sapeva (F12b): corpo, contesto, prompt
                 foreach (var d in fresh.SymbolDocs)
                 {
@@ -829,7 +844,7 @@ namespace MdExplorer.Services.CodeGraph
                 try
                 {
                     answer = await _llm.AskAsync(projectPath, engine, model, prompt, "code-doc",
-                        UiText.Say("le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", "code descriptions are read-only: MdExplorer writes the scripts"), token);
+                        UiText.Say("le descrizioni del codice si scrivono solo con quello che c'è nella richiesta: righe del simbolo e sintesi delle funzioni chiamate; nessun file si legge né si scrive", "code descriptions are written only from what is in the request: the symbol's lines and the summaries of the called functions; no file is read or written"), token, noFiles: true);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)

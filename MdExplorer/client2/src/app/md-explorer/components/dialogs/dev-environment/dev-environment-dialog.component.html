@@ -103,7 +103,7 @@
 
     <!-- L'anteprima del prossimo giro di «Analizza il codice con Mark» (F12b): da descrivere e da rivedere, con i motivi -->
     <div class="describe-preview" *ngIf="preview && !describing">
-      <div>{{ 'DEV_ENV.PREVIEW_TODO' | translate: { todo: previewTodo, missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, questions: preview.questions, levels: preview.levels } }}</div>
+      <div>{{ 'DEV_ENV.PREVIEW_TODO' | translate: { todo: previewTodo, missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0, questions: preview.questions, levels: preview.levels } }}</div>
       <div *ngIf="previewReview > 0">{{ 'DEV_ENV.PREVIEW_REVIEW' | translate: { review: previewReview, context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
       <div *ngIf="preview.bodyUnknown > 0" class="warn">{{ 'DEV_ENV.PREVIEW_BODY_UNKNOWN' | translate: { count: preview.bodyUnknown } }}</div>
     </div>

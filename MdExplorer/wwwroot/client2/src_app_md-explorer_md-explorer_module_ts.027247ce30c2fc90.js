@@ -21492,14 +21492,15 @@ function DevEnvironmentDialogComponent_div_22_div_5_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind2"](2, 1, "DEV_ENV.PREVIEW_BODY_UNKNOWN", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpureFunction1"](4, _c1, ctx_r41.preview.bodyUnknown)));
   }
 }
-const _c11 = function (a0, a1, a2, a3, a4, a5) {
+const _c11 = function (a0, a1, a2, a3, a4, a5, a6) {
   return {
     todo: a0,
     missing: a1,
     signature: a2,
     body: a3,
-    questions: a4,
-    levels: a5
+    incomplete: a4,
+    questions: a5,
+    levels: a6
   };
 };
 function DevEnvironmentDialogComponent_div_22_Template(rf, ctx) {
@@ -21514,8 +21515,9 @@ function DevEnvironmentDialogComponent_div_22_Template(rf, ctx) {
   }
   if (rf & 2) {
     const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+    let tmp_0_0;
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind2"](3, 3, "DEV_ENV.PREVIEW_TODO", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpureFunction6"](6, _c11, ctx_r6.previewTodo, ctx_r6.preview.missing, ctx_r6.preview.signatureChanged, ctx_r6.preview.bodyChanged, ctx_r6.preview.questions, ctx_r6.preview.levels)));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind2"](3, 3, "DEV_ENV.PREVIEW_TODO", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpureFunction7"](6, _c11, ctx_r6.previewTodo, ctx_r6.preview.missing, ctx_r6.preview.signatureChanged, ctx_r6.preview.bodyChanged, (tmp_0_0 = ctx_r6.preview.incomplete) !== null && tmp_0_0 !== undefined ? tmp_0_0 : 0, ctx_r6.preview.questions, ctx_r6.preview.levels)));
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r6.previewReview > 0);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
@@ -22074,7 +22076,7 @@ class DevEnvironmentDialogComponent {
     this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
       next: p => {
         this.preview = p;
-        this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged;
+        this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
         this.updateEstimate();
       },
@@ -22352,7 +22354,7 @@ class DevEnvironmentDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](19, DevEnvironmentDialogComponent_div_19_Template, 5, 3, "div", 8);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](20, DevEnvironmentDialogComponent_div_20_Template, 21, 23, "div", 10);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](21, DevEnvironmentDialogComponent_div_21_Template, 9, 12, "div", 11);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](22, DevEnvironmentDialogComponent_div_22_Template, 6, 13, "div", 12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](22, DevEnvironmentDialogComponent_div_22_Template, 6, 14, "div", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](23, DevEnvironmentDialogComponent_div_23_Template, 9, 6, "div", 13);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](24, DevEnvironmentDialogComponent_div_24_Template, 5, 1, "div", 14);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
@@ -51186,4 +51188,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.92ed510411a28247.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.027247ce30c2fc90.js.map

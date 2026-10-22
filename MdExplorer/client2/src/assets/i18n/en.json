@@ -924,7 +924,7 @@
     "STARTED_IN_BACKGROUND": "It runs in the background: you can close this window and keep working with MdExplorer. Follow it, and stop it, in the «Building knowledge» panel at the bottom right.",
     "RUNNING": "Description in progress with {{engine}}: {{index}} of {{total}} questions done; in progress: {{current}}.",
     "RUNNING_HINT": "Until it finishes, another one cannot be started on this folder. Follow it also in the «Building knowledge» panel; «Stop» interrupts it, what is already described stays.",
-    "PREVIEW_TODO": "To describe: {{todo}} (new {{missing}}, signature changed {{signature}}, body changed {{body}}) — {{questions}} questions over {{levels}} levels, from the leaves up.",
+    "PREVIEW_TODO": "To describe: {{todo}} (new {{missing}}, signature changed {{signature}}, body changed {{body}}, incomplete {{incomplete}}) — {{questions}} questions over {{levels}} levels, from the leaves up.",
     "PREVIEW_REVIEW": "To review: {{review}} (called functions changed {{context}}, older prompt {{prompt}}, no fingerprint {{none}}). They are not redone on their own.",
     "PREVIEW_BODY_UNKNOWN": "{{count}} functions without a body fingerprint: a changed body is not seen until you run «Save and analyse» again.",
     "DESCRIBE_STARTED": "Engine {{provider}}: {{symbols}} symbols in {{total}} questions over {{levels}} levels, from the leaves up ({{trivial}} trivial methods described by MdExplorer)",

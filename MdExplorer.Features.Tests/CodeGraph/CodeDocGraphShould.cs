@@ -387,5 +387,32 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(header, "package p;\nimport java.util.List;");
             Assert.IsFalse(header.Contains("class A"), "solo le righe prima del primo simbolo");
         }
+
+        [TestMethod]
+        public void Redo_a_description_that_misses_the_meaning_of_a_parameter_or_of_the_return_value()
+        {
+            var s = new ScriptSymbol { Id = "m", Kind = "method", QualifiedName = "p.A.m(int,String)", ReturnType = "int", BodyHash = "b" };
+            var prms = new List<ScriptParameter> { new() { SymbolId = "m", Position = 0, Name = "x" }, new() { SymbolId = "m", Position = 1, Name = "y" } };
+            var doc = Script("prog/a.java"); doc.Header.Kind = CodeScriptKind.Doc;
+            var d = Doc("m", "h", "b", "c", "10");
+            doc.SymbolDocs.Add(d);
+            doc.ParameterDocs.Add(new ScriptParameterDoc { SymbolId = "m", ParameterName = "x", Description = "Il primo." });
+            CollectionAssert.AreEqual(new[] { "y", "return" }, CodeDocPlanner.WhatIsMissing(s, prms, d, doc));
+            d.ReturnsDescription = "La somma.";
+            doc.ParameterDocs.Add(new ScriptParameterDoc { SymbolId = "m", ParameterName = "y", Description = "Il secondo." });
+            Assert.AreEqual(0, CodeDocPlanner.WhatIsMissing(s, prms, d, doc).Count);
+            Assert.AreEqual(0, CodeDocPlanner.WhatIsMissing(new ScriptSymbol { Id = "v", Kind = "method", ReturnType = "void" }, new List<ScriptParameter>(), Doc("v", "h"), doc).Count, "void: niente da restituire");
+
+            // nel giudizio: una descrizione fresca ma incompleta si rifà
+            var (a, _) = Fixture();
+            a.Parameters.Add(new ScriptParameter { SymbolId = "mid", Position = 0, Name = "text" });
+            var sig = CodeDocPlanner.SignatureHash(a.Symbols.Single(x => x.Id == "mid"), a.Parameters.Where(p => p.SymbolId == "mid"));
+            var adoc = Script("prog/a.java"); adoc.Header.Kind = CodeScriptKind.Doc;
+            adoc.SymbolDocs.Add(Doc("mid", sig, null, "c", "10"));
+            var assessed = CodeDocPlanner.Assess(a, adoc, force: false, review: false, _ => "c", "10");
+            Assert.AreEqual(CodeDocVerdict.Incomplete, assessed.Candidates.Single(c => c.Symbol.Id == "mid").Verdict, "il parametro text non ha significato");
+            adoc.SymbolDocs[0].PromptVersion = CodeDocPlanner.EditedPromptVersion;
+            Assert.IsFalse(CodeDocPlanner.Assess(a, adoc, false, false, _ => "c", "10").Candidates.Any(c => c.Symbol.Id == "mid"), "una correzione a mano non si sovrascrive");
+        }
     }
 }
