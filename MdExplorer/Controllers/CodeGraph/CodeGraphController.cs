@@ -680,6 +680,40 @@ namespace MdExplorer.Controllers.CodeGraph
         public IActionResult Storage()
             => Ok(HttpContext.RequestServices.GetRequiredService<MdExplorer.Features.Services.Fuseki.IFusekiProcessManager>().Storage());
 
+        /// <summary>
+        /// GET /api/codegraph/folder-weight?projectPath&amp;folderPath — quanto della cartella sta nel database del grafo, stimato
+        /// dalle triple (22/10/2026): (MB del dataset del codice − spazio preallocato) × triple della cartella / triple di tutto
+        /// il dataset. Un TDB2 cresce più o meno come le triple; il testo indicizzato (jena-text) pesa a modo suo: è una stima.
+        /// ⚠️ Misurato il 22/10: TDB2 riserva 8 MB a ogni file di indice anche vuoto (24 file = 192 MB per 263 triple; su Linux
+        /// file sparsi, 2,3 MB occupati davvero): senza toglierli, 2 file C# risultavano 181 MB. Si toglie un blocco per file.
+        /// </summary>
+        [HttpGet("folder-weight")]
+        public Task<IActionResult> FolderWeight([FromQuery] string projectPath, [FromQuery] string folderPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var rel = ToRelative(projectPath, folderPath);
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
+            var (folder, total) = await _store.TripleCountsAsync(projectPath, rel, ct);
+            var code = HttpContext.RequestServices.GetRequiredService<MdExplorer.Features.Services.Fuseki.IFusekiProcessManager>().Storage()
+                .Datasets.FirstOrDefault(d => d.Name == "code");
+            long datasetMb = code == null ? 0 : code.DatabaseMb + code.TextIndexMb;
+            var preallocatedMb = PreallocatedMb(code);
+            var share = total == 0 ? 0d : (double)folder / total;
+            return Ok(new { folderTriples = folder, totalTriples = total, datasetMb, preallocatedMb, share, estimatedMb = Math.Max(0, datasetMb - preallocatedMb) * share });
+        });
+
+        /// <summary>TDB2 cresce a blocchi da 8 MB: il primo blocco di ogni file della generazione in uso c'è anche senza dati.</summary>
+        private const long Tdb2BlockBytes = 8L * 1024 * 1024;
+
+        private long PreallocatedMb(MdExplorer.Features.Services.Fuseki.FusekiDatasetStorage code)
+        {
+            if (code == null || code.Generations.Count == 0) return 0;
+            var storage = HttpContext.RequestServices.GetRequiredService<MdExplorer.Features.Services.Fuseki.IFusekiProcessManager>().Storage();
+            var dir = new DirectoryInfo(Path.Combine(storage.DataDirectory, "databases", code.Name, code.Generations.Max(StringComparer.Ordinal)));
+            if (!dir.Exists) return 0;
+            return dir.GetFiles().Count(f => f.Length >= Tdb2BlockBytes) * Tdb2BlockBytes / (1024 * 1024);
+        }
+
         /// <summary>GET /api/codegraph/status?projectPath=… — conteggi e quanti script restano da caricare.</summary>
         [HttpGet("status")]
         public Task<IActionResult> Status([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>

@@ -43,6 +43,17 @@ export interface CodeFolderAnalysisOutcome {
   error?: string;
 }
 
+/** La stima del peso di una cartella nel database: (MB del dataset del codice − preallocati) × triple della cartella / triple totali. */
+export interface FolderWeight {
+  folderTriples: number;
+  totalTriples: number;
+  datasetMb: number;
+  /** Lo spazio che TDB2 riserva comunque (8 MB per file): non si ripartisce fra le cartelle. */
+  preallocatedMb: number;
+  share: number;
+  estimatedMb: number;
+}
+
 /** Il modello di «Descrivi con Mark» (22/10/2026): l'harness è quello del progetto, il modello si sceglie a parte. */
 export interface DescriptionModelInfo {
   /** 'claude' | 'copilot' | 'opencode' | 'none'. */
@@ -163,6 +174,11 @@ export class CodeGraphService {
   /** Quanto occupa il database del grafo su disco (non avvia Fuseki). */
   storage(): Observable<GraphStorage> {
     return this.http.get<GraphStorage>('../api/codegraph/storage');
+  }
+
+  /** Quanto della cartella sta nel database del grafo, stimato dalle triple (22/10/2026). */
+  folderWeight(projectPath: string, folderPath: string): Observable<FolderWeight> {
+    return this.http.get<FolderWeight>('../api/codegraph/folder-weight', { params: { projectPath, folderPath } });
   }
 
   /** Il motore del progetto e il modello di «Descrivi con Mark» (null = come il tab MarkAgent), con quello del tab. */

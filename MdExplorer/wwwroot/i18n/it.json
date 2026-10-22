@@ -987,8 +987,13 @@
     "T_DATABASE_VALUE": "{{mb}} MB su disco, tutti i progetti",
     "T_DATABASE_OLD": "{{generations}} generazioni: lo spazio di quelle vecchie si libera alla prossima compattazione o al riavvio di MdExplorer",
     "T_FOLDER": "Questa cartella",
-    "T_FOLDER_VALUE": "{{mb}} MB di script del grafo, {{files}} file analizzati",
-    "T_FOLDER_DETAIL": "gli script in .mde-code sono quello che si carica nel database: il peso di una sola cartella dentro il database non si misura"
+    "T_FOLDER_VALUE": "{{mb}} MB di ttl in .mde-code, {{files}} file analizzati",
+    "T_FOLDER_ESTIMATE": "{{mb}} nel database · {{percent}}% delle triple",
+    "T_FOLDER_UNDER_1": "meno di 1 MB",
+    "T_FOLDER_ABOUT": "≈ {{mb}} MB",
+    "T_FOLDER_COUNTING": "Conto le triple…",
+    "T_FOLDER_TRIPLES": "{{triples}} triple della cartella su {{total}} del database (tutti i progetti). Stima: i {{preallocated}} MB che il database riserva comunque (8 MB per file, anche vuoto) non si contano; il testo indicizzato pesa a modo suo",
+    "T_FOLDER_ERROR": "Non riesco a contare le triple: {{error}}"
   },
   "LEAVE_COPY": {
     "TITLE": "Torni al tuo lavoro: salvare la copia di {{agent}}",

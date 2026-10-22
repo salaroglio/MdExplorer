@@ -987,8 +987,13 @@
     "T_DATABASE_VALUE": "{{mb}} MB on disk, all projects",
     "T_DATABASE_OLD": "{{generations}} generations: the space of the old ones is freed at the next compaction or when MdExplorer restarts",
     "T_FOLDER": "This folder",
-    "T_FOLDER_VALUE": "{{mb}} MB of graph scripts, {{files}} files analysed",
-    "T_FOLDER_DETAIL": "the scripts in .mde-code are what gets loaded into the database: the weight of a single folder inside the database cannot be measured"
+    "T_FOLDER_VALUE": "{{mb}} MB of ttl in .mde-code, {{files}} files analysed",
+    "T_FOLDER_ESTIMATE": "{{mb}} in the database · {{percent}}% of the triples",
+    "T_FOLDER_UNDER_1": "less than 1 MB",
+    "T_FOLDER_ABOUT": "≈ {{mb}} MB",
+    "T_FOLDER_COUNTING": "Counting the triples…",
+    "T_FOLDER_TRIPLES": "{{triples}} triples of the folder out of {{total}} in the database (all projects). Estimate: the {{preallocated}} MB the database reserves anyway (8 MB per file, even empty) are not counted; indexed text weighs in its own way",
+    "T_FOLDER_ERROR": "Cannot count the triples: {{error}}"
   },
   "LEAVE_COPY": {
     "TITLE": "Back to your work: saving the copy of {{agent}}",

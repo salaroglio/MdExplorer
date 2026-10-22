@@ -3,7 +3,7 @@ import { Observable, Subject, finalize, of, switchMap, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
 
 export interface DevEnvironmentDialogData {
@@ -262,6 +262,35 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   /** Il peso degli script del grafo della cartella, già scritto per la tabella. */
   public scriptsMb = '';
 
+  /** La stima del peso della cartella nel database, già scritta: a parte, il conteggio delle triple non frena la finestra. */
+  public folderWeight: { estimated: string; percent: string; preallocatedMb: number; triples: string; total: string } | null = null;
+  public folderWeightLoading = false;
+  public folderWeightError = '';
+
+  private loadFolderWeight(): void {
+    this.folderWeightLoading = true;
+    this.folderWeightError = '';
+    this.codeGraph.folderWeight(this.data.projectRoot, this.data.folderPath).subscribe({
+      next: (w: FolderWeight) => {
+        this.folderWeightLoading = false;
+        const pct = w.share * 100;
+        this.folderWeight = {
+          estimated: w.estimatedMb < 1 ? this.translate.instant('DEV_ENV.T_FOLDER_UNDER_1')
+            : this.translate.instant('DEV_ENV.T_FOLDER_ABOUT', { mb: this.formatMb(w.estimatedMb * 1024 * 1024) }),
+          percent: pct >= 10 ? pct.toFixed(0) : pct >= 0.1 ? pct.toFixed(1) : pct.toFixed(2),
+          preallocatedMb: w.preallocatedMb,
+          triples: w.folderTriples.toLocaleString(),
+          total: w.totalTriples.toLocaleString(),
+        };
+      },
+      error: (err) => {
+        this.folderWeightLoading = false;
+        this.folderWeight = null;
+        this.folderWeightError = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
+
   private formatMb(bytes: number): string {
     const mb = bytes / (1024 * 1024);
     return mb >= 10 ? mb.toFixed(0) : mb >= 0.1 ? mb.toFixed(1) : mb.toFixed(2);
@@ -292,6 +321,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
         this.scriptsMb = this.formatMb(p.scriptsBytes ?? 0);
+        this.loadFolderWeight();
         this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso

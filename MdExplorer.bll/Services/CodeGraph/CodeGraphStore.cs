@@ -37,6 +37,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Toglie dal grafo tutto ciò che uno script aveva portato.</summary>
         Task<CodeScriptResult> RemoveScriptAsync(string projectPath, string scriptAbsolutePath, CancellationToken ct = default);
         Task<CodeGraphStatus> GetStatusAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>
+        /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi
+        /// diretti) e quelle di tutto il dataset, per stimare quanto della cartella sta nel database (22/10/2026).
+        /// </summary>
+        Task<(long Folder, long Total)> TripleCountsAsync(string projectPath, string folderRelative, CancellationToken ct = default);
 
         Task<CodeScanState> GetScanStateAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task UpsertScanStateAsync(string projectPath, CodeScanState state, CancellationToken ct = default);
@@ -193,6 +198,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return outcome;
             }
             finally { gate.Release(); }
+        }
+
+        public async Task<(long Folder, long Total)> TripleCountsAsync(string projectPath, string folderRelative, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var prefix = CodeGraphIris.Lit(CodeGraphPaths.ScriptsFolderName + "/" + (folderRelative ?? string.Empty).Replace('\\', '/').Trim('/') + "/");
+            // lo stesso perimetro di RemoveFolderUpdate: i nodi dei suoi script con tutte le loro triple, più l'arco diretto di ogni nodo arco
+            var nodes = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s code:fromScript ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
+            var edges = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:fromScript ?sc . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
+            // tutto il dataset: ogni progetto, il grafo di default e gli stati
+            var total = await RowsAsync("SELECT (COUNT(*) AS ?n) WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }", ct);
+            static long N(List<Dictionary<string, string>> rows) => long.TryParse(rows.FirstOrDefault() is { } r ? SparqlResults.Str(r, "n") : null, out var v) ? v : 0;
+            return (N(nodes) + N(edges), N(total));
         }
 
         public Task CompactAsync(CancellationToken ct = default) => _fuseki.CompactAsync(CodeOntology.Dataset, ct);

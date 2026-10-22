@@ -227,8 +227,11 @@
       <tr *ngIf="preview">
         <th>{{ 'DEV_ENV.T_FOLDER' | translate }}</th>
         <td>
-          {{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}
-          <div class="sub">{{ 'DEV_ENV.T_FOLDER_DETAIL' | translate }}</div>
+          <span *ngIf="folderWeight">{{ 'DEV_ENV.T_FOLDER_ESTIMATE' | translate: { mb: folderWeight.estimated, percent: folderWeight.percent } }}</span>
+          <span class="running-value" *ngIf="folderWeightLoading"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_FOLDER_COUNTING' | translate }}</span>
+          <div class="sub">{{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}</div>
+          <div class="sub" *ngIf="folderWeight">{{ 'DEV_ENV.T_FOLDER_TRIPLES' | translate: { triples: folderWeight.triples, total: folderWeight.total, preallocated: folderWeight.preallocatedMb } }}</div>
+          <div class="sub warn" *ngIf="folderWeightError">{{ 'DEV_ENV.T_FOLDER_ERROR' | translate: { error: folderWeightError } }}</div>
         </td>
       </tr>
     </table>

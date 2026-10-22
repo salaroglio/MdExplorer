@@ -22087,6 +22087,76 @@ function DevEnvironmentDialogComponent_table_23_tr_9_Template(rf, ctx) {
 const _c21 = function (a0, a1) {
   return {
     mb: a0,
+    percent: a1
+  };
+};
+function DevEnvironmentDialogComponent_table_23_tr_10_span_5_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r92 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](2, 1, "DEV_ENV.T_FOLDER_ESTIMATE", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction2"](4, _c21, ctx_r92.folderWeight.estimated, ctx_r92.folderWeight.percent)));
+  }
+}
+function DevEnvironmentDialogComponent_table_23_tr_10_span_6_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "span", 94);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "mat-spinner", 95);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](3, 1, "DEV_ENV.T_FOLDER_COUNTING"));
+  }
+}
+const _c22 = function (a0, a1, a2) {
+  return {
+    triples: a0,
+    total: a1,
+    preallocated: a2
+  };
+};
+function DevEnvironmentDialogComponent_table_23_tr_10_div_10_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 93);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r94 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](2, 1, "DEV_ENV.T_FOLDER_TRIPLES", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction3"](4, _c22, ctx_r94.folderWeight.triples, ctx_r94.folderWeight.total, ctx_r94.folderWeight.preallocatedMb)));
+  }
+}
+const _c23 = function (a0) {
+  return {
+    error: a0
+  };
+};
+function DevEnvironmentDialogComponent_table_23_tr_10_div_11_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 97);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r95 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](2, 1, "DEV_ENV.T_FOLDER_ERROR", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction1"](4, _c23, ctx_r95.folderWeightError)));
+  }
+}
+const _c24 = function (a0, a1) {
+  return {
+    mb: a0,
     files: a1
   };
 };
@@ -22097,21 +22167,30 @@ function DevEnvironmentDialogComponent_table_23_tr_10_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](3, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "td");
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, DevEnvironmentDialogComponent_table_23_tr_10_span_5_Template, 3, 7, "span", 10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, DevEnvironmentDialogComponent_table_23_tr_10_span_6_Template, 4, 3, "span", 98);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div", 93);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](9, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, DevEnvironmentDialogComponent_table_23_tr_10_div_10_Template, 3, 8, "div", 92);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](11, DevEnvironmentDialogComponent_table_23_tr_10_div_11_Template, 3, 6, "div", 96);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
     const ctx_r88 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](3, 3, "DEV_ENV.T_FOLDER"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](3, 6, "DEV_ENV.T_FOLDER"));
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](6, 5, "DEV_ENV.T_FOLDER_VALUE", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction2"](10, _c21, ctx_r88.scriptsMb, ctx_r88.preview.analyzedFiles)), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](9, 8, "DEV_ENV.T_FOLDER_DETAIL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r88.folderWeight);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r88.folderWeightLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](9, 8, "DEV_ENV.T_FOLDER_VALUE", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction2"](11, _c24, ctx_r88.scriptsMb, ctx_r88.preview.analyzedFiles)));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r88.folderWeight);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r88.folderWeightError);
   }
 }
 function DevEnvironmentDialogComponent_table_23_Template(rf, ctx) {
@@ -22127,7 +22206,7 @@ function DevEnvironmentDialogComponent_table_23_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](8, DevEnvironmentDialogComponent_table_23_td_8_Template, 4, 7, "td", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, DevEnvironmentDialogComponent_table_23_tr_9_Template, 8, 10, "tr", 10);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, DevEnvironmentDialogComponent_table_23_tr_10_Template, 10, 13, "tr", 10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, DevEnvironmentDialogComponent_table_23_tr_10_Template, 12, 14, "tr", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -22150,7 +22229,7 @@ function DevEnvironmentDialogComponent_table_23_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_div_24_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 98);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 99);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -22163,7 +22242,7 @@ function DevEnvironmentDialogComponent_div_24_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_div_25_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 99);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 100);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -22175,7 +22254,7 @@ function DevEnvironmentDialogComponent_div_25_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_div_26_div_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 103);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 104);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
@@ -22217,9 +22296,9 @@ function DevEnvironmentDialogComponent_div_26_span_6_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r96 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+    const ctx_r100 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](2, 1, "DEV_ENV.DESCRIBE_DONE", ctx_r96.describeDone));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind2"](2, 1, "DEV_ENV.DESCRIBE_DONE", ctx_r100.describeDone));
   }
 }
 function DevEnvironmentDialogComponent_div_26_div_8_Template(rf, ctx) {
@@ -22229,22 +22308,22 @@ function DevEnvironmentDialogComponent_div_26_div_8_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const line_r98 = ctx.$implicit;
+    const line_r102 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](line_r98);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](line_r102);
   }
 }
 function DevEnvironmentDialogComponent_div_26_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 100);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, DevEnvironmentDialogComponent_div_26_div_1_Template, 3, 3, "div", 101);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 101);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, DevEnvironmentDialogComponent_div_26_div_1_Template, 3, 3, "div", 102);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "div", 87);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](3, DevEnvironmentDialogComponent_div_26_mat_spinner_3_Template, 1, 0, "mat-spinner", 26);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](4, DevEnvironmentDialogComponent_div_26_mat_icon_4_Template, 2, 0, "mat-icon", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, DevEnvironmentDialogComponent_div_26_span_5_Template, 3, 3, "span", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, DevEnvironmentDialogComponent_div_26_span_6_Template, 3, 4, "span", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div", 102);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "div", 103);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](8, DevEnvironmentDialogComponent_div_26_div_8_Template, 2, 1, "div", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
@@ -22266,7 +22345,7 @@ function DevEnvironmentDialogComponent_div_26_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_div_27_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 104)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 105)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "error_outline");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "span");
@@ -22281,12 +22360,12 @@ function DevEnvironmentDialogComponent_div_27_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_button_29_Template(rf, ctx) {
   if (rf & 1) {
-    const _r100 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    const _r104 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "button", 85);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function DevEnvironmentDialogComponent_button_29_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r100);
-      const ctx_r99 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r99.openGraph());
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r104);
+      const ctx_r103 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r103.openGraph());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "hub");
@@ -22302,12 +22381,12 @@ function DevEnvironmentDialogComponent_button_29_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_button_30_Template(rf, ctx) {
   if (rf & 1) {
-    const _r102 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    const _r106 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "button", 85);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function DevEnvironmentDialogComponent_button_30_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r102);
-      const ctx_r101 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r101.openReport());
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r106);
+      const ctx_r105 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r105.openReport());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "summarize");
@@ -22323,12 +22402,12 @@ function DevEnvironmentDialogComponent_button_30_Template(rf, ctx) {
 }
 function DevEnvironmentDialogComponent_button_31_Template(rf, ctx) {
   if (rf & 1) {
-    const _r104 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "button", 105);
+    const _r108 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "button", 106);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function DevEnvironmentDialogComponent_button_31_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r104);
-      const ctx_r103 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r103.confirm());
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r108);
+      const ctx_r107 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r107.confirm());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
@@ -22408,6 +22487,10 @@ class DevEnvironmentDialogComponent {
     this.descriptionModels = [];
     /** Il peso degli script del grafo della cartella, già scritto per la tabella. */
     this.scriptsMb = '';
+    /** La stima del peso della cartella nel database, già scritta: a parte, il conteggio delle triple non frena la finestra. */
+    this.folderWeight = null;
+    this.folderWeightLoading = false;
+    this.folderWeightError = '';
     /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */
     this.storageMb = null;
     this.storageGenerations = 0;
@@ -22628,6 +22711,30 @@ class DevEnvironmentDialogComponent {
       }
     });
   }
+  loadFolderWeight() {
+    this.folderWeightLoading = true;
+    this.folderWeightError = '';
+    this.codeGraph.folderWeight(this.data.projectRoot, this.data.folderPath).subscribe({
+      next: w => {
+        this.folderWeightLoading = false;
+        const pct = w.share * 100;
+        this.folderWeight = {
+          estimated: w.estimatedMb < 1 ? this.translate.instant('DEV_ENV.T_FOLDER_UNDER_1') : this.translate.instant('DEV_ENV.T_FOLDER_ABOUT', {
+            mb: this.formatMb(w.estimatedMb * 1024 * 1024)
+          }),
+          percent: pct >= 10 ? pct.toFixed(0) : pct >= 0.1 ? pct.toFixed(1) : pct.toFixed(2),
+          preallocatedMb: w.preallocatedMb,
+          triples: w.folderTriples.toLocaleString(),
+          total: w.totalTriples.toLocaleString()
+        };
+      },
+      error: err => {
+        this.folderWeightLoading = false;
+        this.folderWeight = null;
+        this.folderWeightError = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
   formatMb(bytes) {
     const mb = bytes / (1024 * 1024);
     return mb >= 10 ? mb.toFixed(0) : mb >= 0.1 ? mb.toFixed(1) : mb.toFixed(2);
@@ -22654,6 +22761,7 @@ class DevEnvironmentDialogComponent {
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
         this.scriptsMb = this.formatMb(p.scriptsBytes ?? 0);
+        this.loadFolderWeight();
         this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
@@ -22908,7 +23016,7 @@ class DevEnvironmentDialogComponent {
       selectors: [["app-dev-environment-dialog"]],
       decls: 35,
       vars: 24,
-      consts: [["mat-dialog-title", "", 1, "dialog-header"], [1, "dialog-icon"], [1, "dialog-container"], [1, "context-info"], [1, "context-icon"], [1, "context-text"], [1, "context-path"], ["class", "outdated", 4, "ngIf"], ["class", "intro", 4, "ngIf"], ["class", "loading", 4, "ngIf"], [4, "ngIf"], ["class", "steps", 4, "ngIf"], ["class", "outcome", 4, "ngIf"], ["class", "info-table", 4, "ngIf"], ["class", "table-note warn", 4, "ngIf"], ["class", "table-note", 4, "ngIf"], ["class", "describe", 4, "ngIf"], ["class", "error", 4, "ngIf"], ["align", "end"], ["mat-stroked-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], ["mat-button", "", 3, "disabled", "click"], [1, "outdated"], [4, "ngFor", "ngForOf"], [1, "outdated-actions"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "16", 4, "ngIf"], ["mat-button", "", 3, "click"], ["class", "outdated-files", 4, "ngIf"], ["diameter", "16"], [1, "outdated-files"], [1, "intro"], [1, "loading"], ["diameter", "24"], ["class", "empty", 4, "ngIf"], ["class", "field-label", 4, "ngIf"], ["class", "language-list", 4, "ngIf"], ["class", "scan-mode", 4, "ngIf"], [1, "empty"], [1, "field-label"], [1, "language-list"], ["class", "language-row", 4, "ngFor", "ngForOf"], [1, "language-row"], [3, "checked", "disabled", "change"], [1, "language-name"], [1, "language-files"], [1, "availability"], ["mat-stroked-button", "", "color", "primary", "class", "download", 3, "disabled", "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 1, "download", 3, "disabled", "click"], ["id", "describe-mode-label", 1, "field-label"], ["aria-labelledby", "describe-mode-label", 1, "describe-mode", 3, "ngModel", "disabled", "ngModelChange"], ["value", "all"], [1, "mode-name"], ["class", "mode-hint", 4, "ngIf"], ["value", "onDemand"], [1, "mode-hint"], [1, "scan-mode"], [1, "steps"], ["class", "step", 4, "ngIf"], [1, "step"], [1, "step-title"], [1, "step-row"], ["mat-stroked-button", "", "color", "primary", "class", "step-button", 3, "disabled", "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "warn", "class", "step-button", 3, "click", 4, "ngIf"], [1, "step-hint"], ["class", "warn", 4, "ngIf"], ["class", "step-row", 4, "ngIf"], ["class", "step-row model-row", 4, "ngIf"], ["class", "step-hint warn", 4, "ngIf"], ["class", "ask-outdated", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 1, "step-button", 3, "disabled", "title", "click"], ["mat-stroked-button", "", "color", "primary", 1, "step-button", 3, "disabled", "click"], ["mat-stroked-button", "", "color", "warn", 1, "step-button", 3, "click"], [1, "warn"], ["mat-stroked-button", "", 1, "step-button", 3, "disabled", "click"], [1, "step-row", "model-row"], ["for", "describe-model", 1, "field-label"], ["appearance", "outline", 1, "model-field"], ["id", "describe-model", 3, "ngModel", "disabled", "ngModelChange"], ["value", ""], [3, "value", 4, "ngFor", "ngForOf"], [3, "value"], [1, "step-hint", "warn"], [1, "ask-outdated"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-stroked-button", "", 3, "click"], [1, "outcome"], [1, "outcome-title"], ["class", "warn", 4, "ngFor", "ngForOf"], [1, "reason"], ["class", "reason", 4, "ngIf"], [1, "info-table"], ["class", "sub", 4, "ngIf"], [1, "sub"], [1, "running-value"], ["diameter", "14"], ["class", "sub warn", 4, "ngIf"], [1, "sub", "warn"], [1, "table-note", "warn"], [1, "table-note"], [1, "describe"], ["class", "hint", 4, "ngIf"], [1, "describe-log"], [1, "hint"], [1, "error"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"]],
+      consts: [["mat-dialog-title", "", 1, "dialog-header"], [1, "dialog-icon"], [1, "dialog-container"], [1, "context-info"], [1, "context-icon"], [1, "context-text"], [1, "context-path"], ["class", "outdated", 4, "ngIf"], ["class", "intro", 4, "ngIf"], ["class", "loading", 4, "ngIf"], [4, "ngIf"], ["class", "steps", 4, "ngIf"], ["class", "outcome", 4, "ngIf"], ["class", "info-table", 4, "ngIf"], ["class", "table-note warn", 4, "ngIf"], ["class", "table-note", 4, "ngIf"], ["class", "describe", 4, "ngIf"], ["class", "error", 4, "ngIf"], ["align", "end"], ["mat-stroked-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], ["mat-button", "", 3, "disabled", "click"], [1, "outdated"], [4, "ngFor", "ngForOf"], [1, "outdated-actions"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "16", 4, "ngIf"], ["mat-button", "", 3, "click"], ["class", "outdated-files", 4, "ngIf"], ["diameter", "16"], [1, "outdated-files"], [1, "intro"], [1, "loading"], ["diameter", "24"], ["class", "empty", 4, "ngIf"], ["class", "field-label", 4, "ngIf"], ["class", "language-list", 4, "ngIf"], ["class", "scan-mode", 4, "ngIf"], [1, "empty"], [1, "field-label"], [1, "language-list"], ["class", "language-row", 4, "ngFor", "ngForOf"], [1, "language-row"], [3, "checked", "disabled", "change"], [1, "language-name"], [1, "language-files"], [1, "availability"], ["mat-stroked-button", "", "color", "primary", "class", "download", 3, "disabled", "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 1, "download", 3, "disabled", "click"], ["id", "describe-mode-label", 1, "field-label"], ["aria-labelledby", "describe-mode-label", 1, "describe-mode", 3, "ngModel", "disabled", "ngModelChange"], ["value", "all"], [1, "mode-name"], ["class", "mode-hint", 4, "ngIf"], ["value", "onDemand"], [1, "mode-hint"], [1, "scan-mode"], [1, "steps"], ["class", "step", 4, "ngIf"], [1, "step"], [1, "step-title"], [1, "step-row"], ["mat-stroked-button", "", "color", "primary", "class", "step-button", 3, "disabled", "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "warn", "class", "step-button", 3, "click", 4, "ngIf"], [1, "step-hint"], ["class", "warn", 4, "ngIf"], ["class", "step-row", 4, "ngIf"], ["class", "step-row model-row", 4, "ngIf"], ["class", "step-hint warn", 4, "ngIf"], ["class", "ask-outdated", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 1, "step-button", 3, "disabled", "title", "click"], ["mat-stroked-button", "", "color", "primary", 1, "step-button", 3, "disabled", "click"], ["mat-stroked-button", "", "color", "warn", 1, "step-button", 3, "click"], [1, "warn"], ["mat-stroked-button", "", 1, "step-button", 3, "disabled", "click"], [1, "step-row", "model-row"], ["for", "describe-model", 1, "field-label"], ["appearance", "outline", 1, "model-field"], ["id", "describe-model", 3, "ngModel", "disabled", "ngModelChange"], ["value", ""], [3, "value", 4, "ngFor", "ngForOf"], [3, "value"], [1, "step-hint", "warn"], [1, "ask-outdated"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-stroked-button", "", 3, "click"], [1, "outcome"], [1, "outcome-title"], ["class", "warn", 4, "ngFor", "ngForOf"], [1, "reason"], ["class", "reason", 4, "ngIf"], [1, "info-table"], ["class", "sub", 4, "ngIf"], [1, "sub"], [1, "running-value"], ["diameter", "14"], ["class", "sub warn", 4, "ngIf"], [1, "sub", "warn"], ["class", "running-value", 4, "ngIf"], [1, "table-note", "warn"], [1, "table-note"], [1, "describe"], ["class", "hint", 4, "ngIf"], [1, "describe-log"], [1, "hint"], [1, "error"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"]],
       template: function DevEnvironmentDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 0)(1, "mat-icon", 1);
@@ -45412,6 +45520,15 @@ class CodeGraphService {
   storage() {
     return this.http.get('../api/codegraph/storage');
   }
+  /** Quanto della cartella sta nel database del grafo, stimato dalle triple (22/10/2026). */
+  folderWeight(projectPath, folderPath) {
+    return this.http.get('../api/codegraph/folder-weight', {
+      params: {
+        projectPath,
+        folderPath
+      }
+    });
+  }
   /** Il motore del progetto e il modello di «Descrivi con Mark» (null = come il tab MarkAgent), con quello del tab. */
   descriptionModel(projectPath) {
     return this.http.get('../api/codegraph/description-model', {
@@ -51824,4 +51941,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.f683de121d6b4705.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.503b45390962a816.js.map
