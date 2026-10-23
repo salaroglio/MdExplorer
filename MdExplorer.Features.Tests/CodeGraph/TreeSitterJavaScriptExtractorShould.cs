@@ -114,5 +114,26 @@ namespace MdExplorer.Features.Tests.CodeGraph
             foreach (var (file, script) in result.Scripts)
                 Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath).RecordCount);
         }
+
+        [TestMethod]
+        public void Record_call_sites_with_name_like_string_arguments()
+        {
+            // D42: inviaPagina('alias.metodo') nel JavaScript delle pagine porta al controller solo con una regola.
+            var source = NuGetGrammar(_store);
+            if (!File.Exists(source)) Assert.Inconclusive("grammatica javascript non trovata nel NuGet in cache: " + source);
+            _store.Install(GrammarCatalog.ById("javascript"), source, "1.3.0", "nuget");
+            File.WriteAllText(Path.Combine(_src, "page.js"),
+                "function scegli(id) {\n  form.campo.value = id;\n  inviaPagina('aliasController.metodo');\n  alert(\"Attenzione, scegli una voce\");\n  this.nav.vai(\"sezione\", id);\n}\n");
+            var script = new TreeSitterJavaScriptExtractor(_store, NullLogger<TreeSitterJavaScriptExtractor>.Instance).Extract(Request())
+                .Scripts.Single(s => s.File.LogicalPath == "src/page.js").Script;
+            var scegli = script.Symbols.Single(s => s.Name == "scegli").Id;
+
+            Assert.AreEqual(2, script.CallSites.Count, "la frase di alert no");
+            var invia = script.CallSites.Single(c => c.Callee == "inviaPagina");
+            Assert.AreEqual((scegli, 3, (string)null, "aliasController.metodo"), (invia.SourceId, invia.Line, invia.Receiver, invia.Arguments.Single().Value));
+            var vai = script.CallSites.Single(c => c.Callee == "vai");
+            Assert.AreEqual(("this.nav", 2, 0, "sezione"), (vai.Receiver, vai.ArgumentCount, vai.Arguments.Single().Position, vai.Arguments.Single().Value));
+            Assert.AreEqual("5", script.Header.ExtractorVersion);
+        }
     }
 }

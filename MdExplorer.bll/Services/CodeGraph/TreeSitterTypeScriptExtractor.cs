@@ -36,7 +36,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public abstract string LanguageId { get; }
         public abstract string ExtractorName { get; }
-        public string ExtractorVersion => "4";
+        public string ExtractorVersion => "5";   // 5: punti di chiamata con stringhe (D42)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -332,10 +332,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
             private readonly Dictionary<string, ScriptEdge> _edges = new(StringComparer.Ordinal);
             private readonly string _moduleId;
+            private readonly CodeCallSites _callSites;
 
             public FileEmitter(TreeSitterEcmaScriptExtractor owner, ParsedFile pf, PerimeterIndex index)
             {
                 _owner = owner; _pf = pf; _index = index;
+                _callSites = new CodeCallSites(_script);
                 _moduleId = StableId("module", pf.Module);
             }
 
@@ -657,6 +659,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var callee = n.NamedChildren.FirstOrDefault();
                         if (callee == null) continue;
                         var line = Line(n);
+                        RecordCallSite(n, callee, ownerId, line);
                         if (callee.Type == "identifier")
                         {
                             var fname = callee.Text;
@@ -694,6 +697,25 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                 }
             }
+
+            /// <summary>D42: <c>f('a.b')</c>, <c>obj.f('a.b')</c> con le stringhe a forma di nome; le altre forme di chiamata no.</summary>
+            private void RecordCallSite(Node call, Node callee, string ownerId, int line)
+            {
+                var args = call.NamedChildren.FirstOrDefault(c => c.Type == "arguments");
+                if (args == null) return;
+                string name, receiver = null;
+                if (callee.Type == "identifier") name = callee.Text;
+                else if (callee.Type == "member_expression")
+                {
+                    name = callee.NamedChildren.LastOrDefault(c => c.Type == "property_identifier")?.Text;
+                    receiver = callee.NamedChildren.FirstOrDefault()?.Text;
+                }
+                else return;
+                _callSites.Add(ownerId, line, name, receiver, args.NamedChildren.Where(c => c.Type != "comment").Select(StringValue).ToList());
+            }
+
+            private static string StringValue(Node n)
+                => n.Type == "string" && n.Text.Length >= 2 ? n.Text.Substring(1, n.Text.Length - 2) : null;
 
             // ---- resolution
 

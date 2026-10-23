@@ -127,6 +127,31 @@ namespace MdExplorer.Features.Services.CodeGraph
             return s;
         }
 
+        public async Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?c ?caller ?path ?line ?ord ?recv ?argc ?pos ?val WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"?c a {CodeOntology.ClassCallSite} ; code:callee {Lit(callee)} ; code:caller ?caller ; code:path ?path ; code:line ?line ; code:ordinal ?ord ; code:argumentCount ?argc . " +
+                "OPTIONAL { ?c code:receiver ?recv } ?a code:argumentOf ?c ; code:position ?pos ; code:value ?val } } ORDER BY ?path ?line ?ord ?pos", ct);
+            var sites = new List<CodeCallSiteView>();
+            var byIri = new Dictionary<string, CodeCallSiteView>(StringComparer.Ordinal);
+            foreach (var r in rows)
+            {
+                if (!byIri.TryGetValue(r["c"], out var site))
+                {
+                    byIri[r["c"]] = site = new CodeCallSiteView
+                    {
+                        CallerId = SymbolId(r["caller"]), Callee = callee, Path = Str(r, "path"), Line = Count(r, "line"),
+                        Ordinal = Count(r, "ord"), Receiver = Str(r, "recv"), ArgumentCount = Count(r, "argc"),
+                    };
+                    sites.Add(site);
+                }
+                site.Arguments[Count(r, "pos")] = Str(r, "val");
+            }
+            return sites;
+        }
+
         /// <summary>I simboli di un file, in ordine di riga: l'albero lo ricostruisce chi legge, da ParentId.</summary>
         public Task<List<CodeSymbolView>> OutlineAsync(string projectPath, string path, CancellationToken ct = default)
             => SymbolsWhereAsync(GraphsOf(projectPath), $"?s code:path {Lit(path)} .", "ORDER BY ?ls ?kind", ct);

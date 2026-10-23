@@ -41,6 +41,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string ClassCallResolution = "code:CallResolution";
         /// <summary>La certezza di un arco ambiguo scelto dall'LLM: mai confusa con quelle del parser.</summary>
         public const string LlmResolved = "llm-resolved";
+        /// <summary>
+        /// Un punto di chiamata con argomenti stringa letterali (D42, 23/10/2026): il fatto che leggono le regole di
+        /// arricchimento (<c>setX("nomeMetodo")</c>). Le stringhe stanno nei nodi <c>code:StringArgument</c>.
+        /// </summary>
+        public const string ClassCallSite = "code:CallSite";
+        public const string ClassStringArgument = "code:StringArgument";
         public const string ClassScanState = "code:ScanState";
         /// <summary>La traccia dell'ultima descrizione di una cartella program (punto 2c del 14/10): da qui si sa se si è interrotta.</summary>
         public const string ClassDescriptionRun = "code:DescriptionRun";

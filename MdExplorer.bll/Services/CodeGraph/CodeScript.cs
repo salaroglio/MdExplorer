@@ -87,6 +87,35 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int? Line { get; set; }
     }
 
+    /// <summary>
+    /// Una chiamata che passa almeno una stringa letterale «a forma di nome» (D42, 23/10/2026): il nome di un metodo, di
+    /// un template, un <c>alias.metodo</c>. Per il parser è testo, non una chiamata: le regole di arricchimento la leggono
+    /// e aggiungono gli archi. Le frasi (con spazi) non si registrano: sono messaggi di log ed eccezioni
+    /// (<see cref="CodeCallSites.IsNameLike"/>).
+    /// </summary>
+    public sealed class ScriptCallSite
+    {
+        /// <summary>Il simbolo che contiene la chiamata.</summary>
+        public string SourceId { get; set; }
+        public int Line { get; set; }
+        /// <summary>L'ordine fra le chiamate con stringhe dello stesso chiamante sulla stessa riga (0, 1…): rende l'IRI unico.</summary>
+        public int Ordinal { get; set; }
+        /// <summary>Il nome chiamato com'è scritto: <c>setTarget</c>.</summary>
+        public string Callee { get; set; }
+        /// <summary>Il ricevente com'è scritto (<c>svc</c>, <c>this.svc</c>, <c>factory.create("a")</c>); null senza ricevente o se troppo lungo.</summary>
+        public string Receiver { get; set; }
+        public int ArgumentCount { get; set; }
+        public List<ScriptStringArgument> Arguments { get; } = new();
+    }
+
+    public sealed class ScriptStringArgument
+    {
+        /// <summary>Da 0, come i parametri.</summary>
+        public int Position { get; set; }
+        /// <summary>Il contenuto, senza virgolette.</summary>
+        public string Value { get; set; }
+    }
+
     public sealed class ScriptSymbolDoc
     {
         public string SymbolId { get; set; }
@@ -148,12 +177,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptSymbol> Symbols { get; } = new();
         public List<ScriptParameter> Parameters { get; } = new();
         public List<ScriptEdge> Edges { get; } = new();
+        public List<ScriptCallSite> CallSites { get; } = new();
         public List<ScriptSymbolDoc> SymbolDocs { get; } = new();
         public List<ScriptParameterDoc> ParameterDocs { get; } = new();
         public List<ScriptCallResolution> CallResolutions { get; } = new();
         /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
         public ScriptFileDoc FileDoc { get; set; }
-        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
+        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + CallSites.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
     }
 
     /// <summary>

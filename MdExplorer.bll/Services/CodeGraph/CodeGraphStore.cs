@@ -38,6 +38,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<CodeScriptResult> RemoveScriptAsync(string projectPath, string scriptAbsolutePath, CancellationToken ct = default);
         Task<CodeGraphStatus> GetStatusAsync(string projectPath, CancellationToken ct = default);
         /// <summary>
+        /// I punti di chiamata con stringhe di un nome chiamato (D42): quello che leggono le regole di arricchimento.
+        /// In ordine di file, riga e ordine sulla riga.
+        /// </summary>
+        Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
+        /// <summary>
         /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi
         /// diretti) e quelle di tutto il dataset, per stimare quanto della cartella sta nel database (22/10/2026).
         /// </summary>

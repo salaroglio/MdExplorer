@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "4";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41)
+        public string ExtractorVersion => "5";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -612,6 +612,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 .Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Contains(modifier);
 
         private static int Line(Node n) => (int)n.StartPosition.Row + 1;
+
+        /// <summary>Il contenuto di una stringa letterale senza virgolette; null se l'argomento non lo è (o è un text block).</summary>
+        private static string StringValue(Node n)
+            => n.Type == "string_literal" && n.Text.Length >= 2 && !n.Text.StartsWith("\"\"\"", StringComparison.Ordinal) ? n.Text.Substring(1, n.Text.Length - 2) : null;
         private static int EndLine(Node n) => (int)n.EndPosition.Row + 1;
 
         /// <summary>La dichiarazione senza corpo, annotazioni comprese, su una riga.</summary>
@@ -665,10 +669,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
             private readonly Dictionary<string, ScriptEdge> _edges = new(StringComparer.Ordinal);
             private readonly FileContext _ctx;
+            private readonly CodeCallSites _callSites;
 
             public FileEmitter(TreeSitterJavaExtractor owner, ParsedFile pf, PerimeterIndex index)
             {
                 _owner = owner; _pf = pf; _index = index; _ctx = index.ContextOf(pf);
+                _callSites = new CodeCallSites(_script);
             }
 
             public CodeScript Emit()
@@ -919,8 +925,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var nameNode = n.NamedChildren.LastOrDefault(c => c.Type == "identifier");
                         if (nameNode == null) continue;
                         var obj = n.NamedChildren.FirstOrDefault();
-                        var argc = n.NamedChildren.FirstOrDefault(c => c.Type == "argument_list")?.NamedChildren.Count ?? -1;
+                        var args = n.NamedChildren.FirstOrDefault(c => c.Type == "argument_list");
+                        var argc = args?.NamedChildren.Count ?? -1;
                         ResolveCall(ownerId, ownerFqn, obj == nameNode ? null : obj, nameNode.Text, argc, locals, Line(n), n);
+                        if (args != null)
+                            _callSites.Add(ownerId, Line(n), nameNode.Text, obj == nameNode ? null : obj.Text,
+                                args.NamedChildren.Where(c => c.Type is not ("line_comment" or "block_comment")).Select(StringValue).ToList());
                     }
                     else if (n.Type == "explicit_constructor_invocation")
                     {

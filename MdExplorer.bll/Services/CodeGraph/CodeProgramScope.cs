@@ -43,6 +43,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var s in script.Symbols) { s.Id = Map(s.Id); s.ParentId = Map(s.ParentId); }
             foreach (var p in script.Parameters) p.SymbolId = Map(p.SymbolId);
             foreach (var e in script.Edges) { e.SourceId = Map(e.SourceId); e.TargetId = Map(e.TargetId); }
+            foreach (var c in script.CallSites) c.SourceId = Map(c.SourceId);
             foreach (var d in script.SymbolDocs) d.SymbolId = Map(d.SymbolId);
             foreach (var d in script.ParameterDocs) d.SymbolId = Map(d.SymbolId);
         }

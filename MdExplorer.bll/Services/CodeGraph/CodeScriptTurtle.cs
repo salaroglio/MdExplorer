@@ -102,6 +102,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
             ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line"),
+            ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver"),
+            ["StringArgument"] = Set("argumentOf", "position", "value"),
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
             ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash", "bodyHash", "contextHash", "promptVersion"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
@@ -198,6 +200,25 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Relation = n.Enum("relation", CodeScriptParser.Relations, path), Confidence = n.Enum("confidence", CodeScriptParser.Confidences, path),
                     Line = n.OptInt("line", path),
                 });
+            var sites = new Dictionary<string, ScriptCallSite>(StringComparer.Ordinal);
+            foreach (var n in nodes.Where(n => n.Class == "CallSite"))
+            {
+                var c = new ScriptCallSite
+                {
+                    SourceId = SymbolId(n.IriValue("caller", path)), Callee = n.Str("callee", path), Line = n.Int("line", path),
+                    Ordinal = n.Int("ordinal", path), ArgumentCount = n.Int("argumentCount", path), Receiver = n.OptStr("receiver"),
+                };
+                sites[n.Iri] = c;
+                script.CallSites.Add(c);
+            }
+            foreach (var n in nodes.Where(n => n.Class == "StringArgument"))
+            {
+                var of = n.IriValue("argumentOf", path);
+                if (!sites.TryGetValue(of, out var site))
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:argumentOf <{of}> non è un code:CallSite dello script", $"<{n.Iri}>: code:argumentOf <{of}> is not a code:CallSite of the script"));
+                site.Arguments.Add(new ScriptStringArgument { Position = n.Int("position", path), Value = n.Str("value", path) });
+            }
+            foreach (var c in script.CallSites) c.Arguments.Sort((a, b) => a.Position.CompareTo(b.Position));
         }
 
         private static void ReadDoc(CodeScript script, List<Node> nodes, string path)

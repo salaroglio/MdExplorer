@@ -52,6 +52,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (parts.Length != 4 || !int.TryParse(parts[3], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var line)) return null;
             return (parts[0], parts[1], parts[2], line == 0 ? null : line);
         }
+        /// <summary>Un punto di chiamata (D42): chiamante, riga e ordine fra le chiamate con stringhe di quella riga.</summary>
+        public static string CallSite(string sourceId, int line, int ordinal) => $"urn:mde:callsite:{sourceId}:{line}:{ordinal}";
+        public static string StringArgument(string callSiteIri, int position) => $"{callSiteIri}:a{position}";
         public static string FileDoc(string logicalPath) => $"urn:mde:fdoc:{Enc(logicalPath)}";
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";
         public static string Script(string projectHash, string scriptRelativePath) => $"urn:mde:script:{projectHash}:{Enc(scriptRelativePath)}";

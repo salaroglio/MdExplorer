@@ -203,6 +203,19 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Description { get; set; }
     }
 
+    /// <summary>Un punto di chiamata con stringhe letto dal grafo (D42): chiamante, dove, ricevente e stringhe per posizione.</summary>
+    public sealed class CodeCallSiteView
+    {
+        public string CallerId { get; set; }
+        public string Callee { get; set; }
+        public string Path { get; set; }
+        public int Line { get; set; }
+        public int Ordinal { get; set; }
+        public string Receiver { get; set; }
+        public int ArgumentCount { get; set; }
+        public SortedDictionary<int, string> Arguments { get; } = new();
+    }
+
     public sealed class CodeEdgeView
     {
         public string Relation { get; set; }

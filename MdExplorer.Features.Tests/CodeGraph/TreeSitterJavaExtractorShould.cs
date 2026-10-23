@@ -378,7 +378,44 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(((string)null, (string)null), T("delegate"), "un delegante lo descrive l'LLM");
             Assert.AreEqual(((string)null, (string)null), T("twice"), "due istruzioni");
             Assert.IsNull(script.Symbols.Single(x => x.Kind == "constructor" && x.Name == "Shapes").Trivial, "i costruttori no");
-            Assert.AreEqual("4", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
+            Assert.AreEqual("5", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
+        }
+
+        [TestMethod]
+        public void Record_call_sites_with_name_like_string_arguments_and_keep_them_through_turtle()
+        {
+            // D42: lo smistamento per stringa (setX("metodo")) è testo per il parser; il punto di chiamata lo conserva per le regole.
+            InstallGrammarFromNuGet();
+            File.WriteAllText(Path.Combine(_src, "app", "Dispatch.java"),
+                "package com.acme.app;\n\npublic class Dispatch {\n" +
+                "    private Svc svc;\n" +
+                "    public void go(String x) {\n" +
+                "        svc.setTarget(\"leggiDati\");\n" +
+                "        log.info(\"messaggio con spazi\");\n" +
+                "        send(x, \"alias.metodo\", 3); send(\"redirect:pagina\", x, 1);\n" +
+                "        svc.setTarget(NOME);\n" +
+                "    }\n" +
+                "    void send(String a, String b, int n) { }\n" +
+                "}\n");
+            var script = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance).Extract(Request())
+                .Scripts.Single(s => s.File.LogicalPath.EndsWith("/Dispatch.java")).Script;
+            var go = script.Symbols.Single(s => s.Name == "go").Id;
+
+            Assert.AreEqual(3, script.CallSites.Count, "le frasi (log) e le costanti non sono punti di chiamata con stringhe");
+            var target = script.CallSites.Single(c => c.Callee == "setTarget");
+            Assert.AreEqual((go, 6, "svc", 1, 0), (target.SourceId, target.Line, target.Receiver, target.ArgumentCount, target.Ordinal));
+            Assert.AreEqual((0, "leggiDati"), (target.Arguments.Single().Position, target.Arguments.Single().Value));
+            var sends = script.CallSites.Where(c => c.Callee == "send").OrderBy(c => c.Ordinal).ToList();
+            CollectionAssert.AreEqual(new[] { 0, 1 }, sends.Select(c => c.Ordinal).ToArray(), "due chiamate sulla stessa riga");
+            Assert.IsNull(sends[0].Receiver);
+            Assert.AreEqual((1, "alias.metodo"), (sends[0].Arguments.Single().Position, sends[0].Arguments.Single().Value));
+            Assert.AreEqual((0, "redirect:pagina"), (sends[1].Arguments.Single().Position, sends[1].Arguments.Single().Value));
+
+            var back = CodeScriptParser.Parse(CodeScriptTurtle.Write(script), "x.ast.ttl");
+            Assert.AreEqual(script.RecordCount, back.RecordCount);
+            var b = back.CallSites.Single(c => c.Callee == "send" && c.Ordinal == 1);
+            Assert.AreEqual((go, 8, 3, "redirect:pagina"), (b.SourceId, b.Line, b.ArgumentCount, b.Arguments.Single().Value));
+            Assert.AreEqual("svc", back.CallSites.Single(c => c.Callee == "setTarget").Receiver);
         }
     }
 }

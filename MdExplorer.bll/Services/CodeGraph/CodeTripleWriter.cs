@@ -113,6 +113,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
+
+            foreach (var c in script.CallSites)
+            {
+                var cs = CallSite(c.SourceId, c.Line, c.Ordinal);
+                sb.Append(Iri(cs)).Append(" a ").Append(CodeOntology.ClassCallSite)
+                  .Append(" ; code:caller ").Append(Iri(Symbol(c.SourceId)))
+                  .Append(" ; code:callee ").Append(Lit(c.Callee))
+                  .Append(" ; code:line ").Append(Int(c.Line))
+                  .Append(" ; code:ordinal ").Append(Int(c.Ordinal))
+                  .Append(" ; code:argumentCount ").Append(Int(c.ArgumentCount))
+                  .Append(" ; code:path ").Append(Lit(h.Source));
+                if (c.Receiver != null) sb.Append(" ; code:receiver ").Append(Lit(c.Receiver));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+                foreach (var a in c.Arguments)
+                {
+                    sb.Append(Iri(StringArgument(cs, a.Position))).Append(" a ").Append(CodeOntology.ClassStringArgument)
+                      .Append(" ; code:argumentOf ").Append(Iri(cs))
+                      .Append(" ; code:position ").Append(Int(a.Position))
+                      .Append(" ; code:value ").Append(Lit(a.Value));
+                    FromScript(sb, fromScriptLit).Append(" .\n");
+                }
+            }
         }
 
         private static StringBuilder FromScript(StringBuilder sb, string fromScriptLit)

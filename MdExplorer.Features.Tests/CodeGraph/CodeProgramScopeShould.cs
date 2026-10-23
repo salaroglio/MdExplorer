@@ -15,6 +15,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             s.Symbols.Add(new ScriptSymbol { Id = "ext", Kind = "external", Name = "println", QualifiedName = "java.io.PrintStream.println" });
             s.Parameters.Add(new ScriptParameter { SymbolId = "m", Position = 0, Name = "args" });
             s.Edges.Add(new ScriptEdge { SourceId = "m", TargetId = "ext", Relation = "calls", Confidence = "extracted" });
+            s.CallSites.Add(new ScriptCallSite { SourceId = "m", Line = 3, Callee = "setX", ArgumentCount = 1 });
             s.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "m", Summary = "x" });
             return s;
         }
@@ -37,6 +38,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(cls, s.Symbols[1].ParentId);
             Assert.AreEqual(m, s.Parameters.Single().SymbolId);
             Assert.AreEqual(m, s.Edges.Single().SourceId); Assert.AreEqual(ext, s.Edges.Single().TargetId);
+            Assert.AreEqual(m, s.CallSites.Single().SourceId, "anche il chiamante dei punti di chiamata (D42)");
             Assert.AreEqual(m, s.SymbolDocs.Single().SymbolId);
             Assert.IsNull(s.Symbols[0].ParentId);
             Assert.AreEqual(24, cls.Length);

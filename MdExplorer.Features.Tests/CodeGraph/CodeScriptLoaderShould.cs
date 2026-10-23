@@ -89,6 +89,29 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Load_call_sites_with_their_strings_and_drop_them_with_the_script()
+        {
+            // D42: i punti di chiamata con stringhe arrivano in Fuseki e se ne vanno con lo script, come gli archi.
+            var script = CodeScriptParser.Parse(AstHeader + "\n" + AstBody, "fixture.jsonl");
+            var site = new ScriptCallSite { SourceId = "s-foo-ingest", Line = 5, Ordinal = 0, Callee = "setTarget", Receiver = "svc", ArgumentCount = 2 };
+            site.Arguments.Add(new ScriptStringArgument { Position = 1, Value = "alias.leggi\"Dati" });
+            script.CallSites.Add(site);
+            File.WriteAllText(AstPath, CodeScriptWriter.Serialize(script));
+
+            var outcome = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
+            var sites = await _store.CallSitesAsync(_project, "setTarget");
+            Assert.AreEqual(1, sites.Count);
+            Assert.AreEqual(("s-foo-ingest", "src/Demo/Foo.cs", 5, "svc", 2), (sites[0].CallerId.Split(':').Last(), sites[0].Path, sites[0].Line, sites[0].Receiver, sites[0].ArgumentCount));
+            Assert.AreEqual("alias.leggi\"Dati", sites[0].Arguments[1]);
+            Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "altro")).Count);
+
+            File.Delete(AstPath);
+            await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "setTarget")).Count, "via con lo script");
+        }
+
+        [TestMethod]
         public async Task Skip_an_unchanged_script_and_reload_a_changed_one()
         {
             File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
