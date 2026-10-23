@@ -280,6 +280,17 @@ namespace MdExplorer.Utilities
                 projectPath, layout, BuiltInPrompts, kind: "prompt", fusekiEnabled, cityOn,
                 folder: layout.PromptsFolder,
                 targetPathFor: name => layout.PromptFullPath(projectPath, name));
+
+            // le skill dei pacchetti di linguaggio del progetto (.mde-languages/<id>/skills/), come mde-lang-<skill>
+            try
+            {
+                foreach (var line in LanguageSkillInstaller.Sync(projectPath, layout))
+                    Console.WriteLine($"[MdeSkillUpdater] {line} ({layout.Id})");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MdeSkillUpdater] Failed to install the language package skills ({layout.Id}): {ex.Message}");
+            }
         }
 
         /// <summary>The agent city is on in the project's <c>.development.yml</c>; a file that cannot be read counts as off.</summary>
