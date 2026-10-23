@@ -46,6 +46,10 @@
         <span>{{ 'DEV_ENV.NOTHING_DETECTED' | translate }}</span>
       </div>
 
+      <div class="language-notice" *ngFor="let n of languageNotices">
+        <mat-icon>info</mat-icon>
+        <span>{{ n }}</span>
+      </div>
       <div class="definition-problem" *ngFor="let p of definitionProblems">
         <mat-icon>error</mat-icon>
         <span>{{ 'DEV_ENV.DEFINITION_PROBLEM' | translate: { path: p.definitionPath } }} {{ p.message }}</span>

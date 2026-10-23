@@ -82,7 +82,7 @@ ENDPART 40
             Directory.CreateDirectory(src);
             var file = Path.Combine(src, "frag.toy");
             File.WriteAllText(file, Program);
-            var lang = DeclarativeLanguage.Parse(definition ?? DeclarativeLanguageExtractorShould.ToyDefinition + Fragments, Path.Combine(_root, "toy.lang.yml"));
+            var lang = DeclarativeLanguage.Parse(definition ?? DeclarativeLanguageExtractorShould.ToyDefinition + Fragments, Path.Combine(_root, "toy", "language.yml"));
             var all = new List<CodeSourceFile> { new(file, "src/frag.toy") };
             var result = new DeclarativeLanguageExtractor(lang, fragmentAbove: 150).Extract(new CodeExtractionRequest { ProjectPath = _root, AllFiles = all, FilesToEmit = all });
             Assert.AreEqual(0, result.Warnings.Count, string.Join("\n", result.Warnings));
@@ -202,11 +202,11 @@ ENDPART 40
         public void Refuse_fragments_that_name_no_block_or_branches_without_close()
         {
             var noBlock = DeclarativeLanguageExtractorShould.ToyDefinition + "fragments:\n  in: [nessuno]\n  at: '^(?<name>\\d+)'\n  jump: 'GOTO (?<target>\\d+)'\n";
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(noBlock, "toy.lang.yml")).Message, "fragments.in: 'nessuno'");
+            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(noBlock, "/p/toy/language.yml")).Message, "fragments.in: 'nessuno'");
             var noClose = DeclarativeLanguageExtractorShould.ToyDefinition + "fragments:\n  in: [part]\n  at: '^(?<name>\\d+)'\n  jump: 'GOTO (?<target>\\d+)'\n  branches:\n    open: SELECT\n    case: CASE\n";
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(noClose, "toy.lang.yml")).Message, "fragments.branches");
+            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(noClose, "/p/toy/language.yml")).Message, "fragments.branches");
             var jumpsRef = DeclarativeLanguageExtractorShould.ToyDefinition.Replace("  - relation: calls\n    pattern: '\\bCALL", "  - relation: jumps\n    pattern: '\\bCALL");
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(jumpsRef, "toy.lang.yml")).Message, "relation: 'jumps'", "jumps lo fa solo fragments");
+            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(jumpsRef, "/p/toy/language.yml")).Message, "relation: 'jumps'", "jumps lo fa solo fragments");
         }
     }
 }

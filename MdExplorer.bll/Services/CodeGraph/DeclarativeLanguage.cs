@@ -13,8 +13,8 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace MdExplorer.Features.Services.CodeGraph
 {
     /// <summary>
-    /// Un linguaggio definito nel progetto di documentazione: un file
-    /// <c>.mde-languages/&lt;id&gt;.lang.yml</c> di regole dichiarative — blocchi aperti e chiusi da parole chiave, etichette,
+    /// Un linguaggio definito nel progetto di documentazione: il file <c>language.yml</c> di un pacchetto
+    /// (<see cref="LanguagePackage"/>, <c>.mde-languages/&lt;id&gt;/</c>), di regole dichiarative — blocchi aperti e chiusi da parole chiave, etichette,
     /// parametri, riferimenti — letto da <see cref="DeclarativeLanguageExtractor"/>. Niente codice eseguibile dal repository:
     /// solo espressioni regolari, con un tempo massimo. Lettura <b>rigida</b>: una chiave che il formato non conosce, una
     /// regex che non compila, un gruppo obbligatorio che manca o un riferimento a una regola inesistente sono errori con il
@@ -23,7 +23,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class DeclarativeLanguage
     {
         public const string FolderName = ".mde-languages";
-        public const string FileSuffix = ".lang.yml";
+        /// <summary>Il formato di prima, un file piatto <c>.mde-languages/&lt;id&gt;.lang.yml</c>: si sposta nel pacchetto (<see cref="LanguagePackage.MigrateFlat"/>).</summary>
+        public const string LegacyFileSuffix = ".lang.yml";
         public const int CurrentSchema = 1;
         /// <summary>Il nome che le regole dei riferimenti usano per il file stesso (il modulo).</summary>
         public const string ModuleRule = "module";
@@ -157,20 +158,6 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static string FolderOf(string projectPath) => Path.Combine(projectPath, FolderName);
 
-        /// <summary>I file di definizione del progetto, in ordine; l'id è il nome del file (<c>toy.lang.yml</c> → <c>toy</c>).</summary>
-        public static IReadOnlyList<string> FilesOf(string projectPath)
-        {
-            var folder = FolderOf(projectPath);
-            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(folder)) return Array.Empty<string>();
-            return Directory.EnumerateFiles(folder, "*" + FileSuffix).OrderBy(f => f, StringComparer.Ordinal).ToList();
-        }
-
-        public static string IdFromPath(string path)
-        {
-            var name = Path.GetFileName(path);
-            return name.EndsWith(FileSuffix, StringComparison.OrdinalIgnoreCase) ? name[..^FileSuffix.Length] : name;
-        }
-
         // ------------------------------------------------------------------ lettura
 
         public static DeclarativeLanguage Load(string path) => Parse(File.ReadAllText(path, Encoding.UTF8), path);
@@ -211,12 +198,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_d.Schema != CurrentSchema)
                     throw Fail($"schema: {_d.Schema} non è uno schema che questo MdExplorer sa leggere (atteso {CurrentSchema})",
                                 $"schema: {_d.Schema} is not a schema this MdExplorer can read (expected {CurrentSchema})");
-                var fileId = IdFromPath(_path);
+                // l'id è il nome della cartella del pacchetto (.mde-languages/toy/language.yml → toy)
+                var folderId = Path.GetFileName(Path.GetDirectoryName(_path) ?? string.Empty);
                 if (string.IsNullOrWhiteSpace(_d.Id)) throw Fail("id: obbligatorio", "id: required");
                 if (!Regex.IsMatch(_d.Id, "^[a-z][a-z0-9-]*$"))
                     throw Fail($"id: '{_d.Id}' — solo minuscole, cifre e trattini, e comincia con una lettera", $"id: '{_d.Id}' — lowercase letters, digits and dashes only, starting with a letter");
-                if (!string.Equals(_d.Id, fileId, StringComparison.Ordinal))
-                    throw Fail($"id: '{_d.Id}' deve essere uguale al nome del file ('{fileId}{FileSuffix}')", $"id: '{_d.Id}' must match the file name ('{fileId}{FileSuffix}')");
+                if (!string.Equals(_d.Id, folderId, StringComparison.Ordinal))
+                    throw Fail($"id: '{_d.Id}' deve essere uguale al nome della cartella del pacchetto ('{folderId}')", $"id: '{_d.Id}' must match the package folder name ('{folderId}')");
                 if (_d.Version < 1) throw Fail("version: obbligatoria, intero da 1 in su", "version: required, an integer from 1 up");
                 if (_d.Extensions == null || _d.Extensions.Count == 0) throw Fail("extensions: almeno una (es. .toy)", "extensions: at least one (e.g. .toy)");
                 foreach (var e in _d.Extensions)

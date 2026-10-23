@@ -21,7 +21,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>L'id della grammatica tree-sitter (<c>tree-sitter-&lt;id&gt;</c>); null per Roslyn e PowerShell.</summary>
         public string GrammarId { get; init; }
         /// <summary>La definizione nel progetto, per i linguaggi <see cref="CodeExtractorKind.Declarative"/>; null per gli altri.</summary>
-        public DeclarativeLanguage Definition { get; init; }
+        public DeclarativeLanguage Definition => Package?.Language;
+        /// <summary>Il pacchetto del progetto (<c>.mde-languages/&lt;id&gt;/</c>) da cui viene il linguaggio; null per quelli di MdExplorer.</summary>
+        public LanguagePackage Package { get; init; }
     }
 
     /// <summary>
@@ -67,10 +69,11 @@ namespace MdExplorer.Features.Services.CodeGraph
     }
 
     /// <summary>
-    /// I linguaggi che valgono in un progetto: quelli di <see cref="CodeLanguages"/> più quelli definiti in
-    /// <c>.mde-languages/</c> del progetto di documentazione. Una definizione che non si legge, o che riusa l'id o
-    /// un'estensione di un altro linguaggio, non entra nel catalogo ma resta in <see cref="Errors"/> con il motivo: la
-    /// finestra «Ambiente di sviluppo» lo mostra, e chiedere quel linguaggio è un errore che lo ripete.
+    /// I linguaggi che valgono in un progetto: quelli di <see cref="CodeLanguages"/> più i pacchetti in
+    /// <c>.mde-languages/&lt;id&gt;/</c> del progetto di documentazione (<see cref="LanguagePackage"/>). Un pacchetto che non
+    /// si legge, o che riusa l'id o un'estensione di un altro linguaggio, non entra nel catalogo ma resta in
+    /// <see cref="Errors"/> con il motivo: la finestra «Ambiente di sviluppo» lo mostra, e chiedere quel linguaggio è un
+    /// errore che lo ripete. Un file piatto del formato di prima si sposta nel suo pacchetto, e <see cref="Notices"/> lo dice.
     /// </summary>
     public sealed class CodeLanguageCatalog
     {
@@ -80,11 +83,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyList<CodeLanguage> All { get; }
         /// <summary>Le definizioni del progetto che non si possono usare, per id (il nome del file).</summary>
         public IReadOnlyDictionary<string, LanguageDefinitionException> Errors => _errors;
+        /// <summary>Che cosa ha fatto MdExplorer leggendo il catalogo (un file piatto spostato nel pacchetto), da dire all'utente.</summary>
+        public IReadOnlyList<string> Notices { get; }
 
-        private CodeLanguageCatalog(List<CodeLanguage> all, Dictionary<string, LanguageDefinitionException> errors)
+        private CodeLanguageCatalog(List<CodeLanguage> all, Dictionary<string, LanguageDefinitionException> errors, IReadOnlyList<string> notices = null)
         {
             All = all;
             _errors = errors;
+            Notices = notices ?? Array.Empty<string>();
             _byExtension = all.SelectMany(l => l.Extensions.Select(e => (e, l))).ToDictionary(t => t.e, t => t.l, StringComparer.OrdinalIgnoreCase);
         }
 
@@ -92,16 +98,21 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static CodeLanguageCatalog ForProject(string projectPath)
         {
-            var files = DeclarativeLanguage.FilesOf(projectPath);
-            if (files.Count == 0) return BuiltIn;
-            var all = CodeLanguages.All.ToList();
             var errors = new Dictionary<string, LanguageDefinitionException>(StringComparer.OrdinalIgnoreCase);
-            foreach (var file in files)
+            var notices = LanguagePackage.MigrateFlat(projectPath, errors);
+            var folders = LanguagePackage.FoldersOf(projectPath);
+            if (folders.Count == 0 && errors.Count == 0) return BuiltIn;
+            var all = CodeLanguages.All.ToList();
+            foreach (var folder in folders)
             {
-                DeclarativeLanguage def;
-                try { def = DeclarativeLanguage.Load(file); }
-                catch (LanguageDefinitionException ex) { errors[DeclarativeLanguage.IdFromPath(file)] = ex; continue; }
-                catch (IOException ex) { errors[DeclarativeLanguage.IdFromPath(file)] = new LanguageDefinitionException(file, ex.Message, ex); continue; }
+                var id = Path.GetFileName(folder);
+                if (errors.ContainsKey(id)) continue;
+                LanguagePackage package;
+                try { package = LanguagePackage.Load(folder); }
+                catch (LanguageDefinitionException ex) { errors[id] = ex; continue; }
+                catch (IOException ex) { errors[id] = new LanguageDefinitionException(folder, ex.Message, ex); continue; }
+                var def = package.Language;
+                var file = Path.Combine(folder, LanguagePackage.DefinitionFile);
                 if (all.Any(l => string.Equals(l.Id, def.Id, StringComparison.OrdinalIgnoreCase)))
                 {
                     errors[def.Id] = new LanguageDefinitionException(file, UiText.Say($"id: '{def.Id}' è già un linguaggio di MdExplorer", $"id: '{def.Id}' is already a MdExplorer language"));
@@ -113,9 +124,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     errors[def.Id] = new LanguageDefinitionException(file, UiText.Say($"extensions: '{clash.e}' è già di {clash.other.DisplayName}", $"extensions: '{clash.e}' already belongs to {clash.other.DisplayName}"));
                     continue;
                 }
-                all.Add(new CodeLanguage { Id = def.Id, DisplayName = def.DisplayName, Extensions = def.Extensions.ToArray(), ExtractorKind = CodeExtractorKind.Declarative, Definition = def });
+                all.Add(new CodeLanguage { Id = def.Id, DisplayName = def.DisplayName, Extensions = def.Extensions.ToArray(), ExtractorKind = CodeExtractorKind.Declarative, Package = package });
             }
-            return new CodeLanguageCatalog(all, errors);
+            return new CodeLanguageCatalog(all, errors, notices);
         }
 
         public CodeLanguage ById(string id) => All.FirstOrDefault(l => string.Equals(l.Id, id, StringComparison.OrdinalIgnoreCase));
@@ -130,10 +141,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (lang != null) return lang;
             if (_errors.TryGetValue(id, out var broken))
                 throw new InvalidOperationException(UiText.Say($"Il linguaggio '{id}' non si può usare: {broken.Message}", $"The language '{id}' cannot be used: {broken.Message}"), broken);
-            var file = DeclarativeLanguage.FolderName + "/" + id + DeclarativeLanguage.FileSuffix;
+            var file = $"{DeclarativeLanguage.FolderName}/{id}/{LanguagePackage.DefinitionFile}";
             throw new InvalidOperationException(UiText.Say(
-                $"Linguaggio '{id}' sconosciuto in codeGraph.languages. Ammessi: {string.Join(", ", All.Select(l => l.Id))}; un linguaggio nuovo si definisce in {file}",
-                $"Unknown language '{id}' in codeGraph.languages. Allowed: {string.Join(", ", All.Select(l => l.Id))}; a new language is defined in {file}"));
+                $"Linguaggio '{id}' sconosciuto in codeGraph.languages. Ammessi: {string.Join(", ", All.Select(l => l.Id))}; un linguaggio nuovo è un pacchetto in {file}",
+                $"Unknown language '{id}' in codeGraph.languages. Allowed: {string.Join(", ", All.Select(l => l.Id))}; a new language is a package in {file}"));
         }
     }
 
@@ -149,7 +160,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>La grammatica tree-sitter da scaricare per renderlo pronto, se è questo il motivo; null altrimenti.</summary>
         public string GrammarId { get; set; }
         public int? GrammarSizeKb { get; set; }
-        /// <summary>Linguaggio definito nel progetto: il file della definizione, relativo al progetto (<c>.mde-languages/toy.lang.yml</c>).</summary>
+        /// <summary>Linguaggio definito nel progetto: la cartella del suo pacchetto, relativa al progetto (<c>.mde-languages/toy/</c>).</summary>
         public string DefinitionPath { get; set; }
     }
 
@@ -181,7 +192,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     Id = l.Id, DisplayName = l.DisplayName, Files = counts[l.Id], ExtractorKind = l.ExtractorKind,
                     Availability = extractors.Availability(l.Id),
-                    DefinitionPath = l.Definition != null ? DeclarativeLanguage.FolderName + "/" + l.Id + DeclarativeLanguage.FileSuffix : null,
+                    DefinitionPath = l.Package != null ? $"{DeclarativeLanguage.FolderName}/{l.Id}/" : null,
                     GrammarId = extractors.Availability(l.Id) != "ready" && l.ExtractorKind == CodeExtractorKind.TreeSitter ? Grammars.GrammarCatalog.ForLanguage(l.Id)?.Id : null,
                     GrammarSizeKb = extractors.Availability(l.Id) != "ready" && l.ExtractorKind == CodeExtractorKind.TreeSitter ? Grammars.GrammarCatalog.ForLanguage(l.Id)?.ApproxSizeKb : null,
                 })

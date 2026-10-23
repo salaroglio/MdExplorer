@@ -68,6 +68,8 @@ namespace MdExplorer.Services.CodeGraph
         public int DescriptionParallel { get; set; }
         /// <summary>Le definizioni di linguaggio del progetto (<c>.mde-languages/</c>) che non si possono usare, col motivo.</summary>
         public IReadOnlyList<LanguageDefinitionProblem> DefinitionProblems { get; set; } = Array.Empty<LanguageDefinitionProblem>();
+        /// <summary>Che cosa ha fatto MdExplorer leggendo i linguaggi del progetto (un file piatto spostato nel suo pacchetto).</summary>
+        public IReadOnlyList<string> LanguageNotices { get; set; } = Array.Empty<string>();
     }
 
     public interface ICodeAnalysisService
@@ -259,6 +261,7 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     Id = e.Key, DefinitionPath = CodeGraphPaths.ToProjectRelative(projectPath, e.Value.DefinitionPath), Message = e.Value.Reason,
                 }).ToList(),
+                LanguageNotices = catalog.Notices,
                 ScanMode = scan.Mode,
                 Describe = DescriptionModeOf(projectPath, folderRelative),
             };

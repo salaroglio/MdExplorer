@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.Features.Tests.CodeGraph
 {
     /// <summary>
-    /// I linguaggi definiti nel progetto: la definizione in <c>.mde-languages/&lt;id&gt;.lang.yml</c> letta in modo rigido, il
+    /// I linguaggi definiti nel progetto: le regole in <c>.mde-languages/&lt;id&gt;/language.yml</c> lette in modo rigido, il
     /// catalogo del progetto, e l'estrattore generico su «Toy», un linguaggio a righe inventato per i test — blocchi,
     /// etichette locali al blocco, parti chiamate per numero, include testuali, callback per nome in una stringa, commenti
     /// e stringhe che non aprono niente, continuazione di riga.
@@ -189,8 +189,8 @@ END
             _project = Path.Combine(_root, "project");
             _src = Path.Combine(_project, "src");
             Directory.CreateDirectory(_src);
-            Directory.CreateDirectory(DeclarativeLanguage.FolderOf(_project));
-            File.WriteAllText(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy.lang.yml"), ToyDefinition);
+            Directory.CreateDirectory(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy"));
+            File.WriteAllText(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy", LanguagePackage.DefinitionFile), ToyDefinition);
             File.WriteAllText(Path.Combine(_src, "demo.toy"), Demo);
             File.WriteAllText(Path.Combine(_src, "lib.toh"), "PROC LIBF%(IN X%)\nENDPROC\n");
             File.WriteAllText(Path.Combine(_src, "REC.TOR"), "VAR R_KEY$=10\n");
@@ -303,8 +303,8 @@ END
         [TestMethod]
         public void Change_version_when_a_rule_changes()
         {
-            var before = new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(ToyDefinition, "toy.lang.yml")).ExtractorVersion;
-            var after = new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(ToyDefinition.Replace("ENDPROC", "ENDPROCEDURE"), "toy.lang.yml")).ExtractorVersion;
+            var before = new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(ToyDefinition, "/p/.mde-languages/toy/language.yml")).ExtractorVersion;
+            var after = new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(ToyDefinition.Replace("ENDPROC", "ENDPROCEDURE"), "/p/.mde-languages/toy/language.yml")).ExtractorVersion;
             Assert.AreNotEqual(before, after, "una regola cambiata riscrive gli script anche senza alzare version");
             StringAssert.StartsWith(before, DeclarativeLanguageExtractor.EngineVersion + "-1.");
         }
@@ -320,24 +320,26 @@ END
         public void Refuse_a_broken_definition_saying_where(string body, string expected)
         {
             var yaml = "schema: 1\nid: toy\nversion: 1\nextensions: [.toy]\n" + body;
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/toy.lang.yml"));
+            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/toy/language.yml"));
             StringAssert.Contains(ex.Message, expected);
-            StringAssert.Contains(ex.Message, "toy.lang.yml");
+            StringAssert.Contains(ex.Message, Path.Combine("toy", "language.yml"));
         }
 
         [TestMethod]
-        public void Refuse_an_id_different_from_the_file_name()
+        public void Refuse_an_id_different_from_the_package_folder()
         {
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(ToyDefinition, "/p/.mde-languages/altro.lang.yml"));
-            StringAssert.Contains(ex.Message, "altro.lang.yml");
+            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(ToyDefinition, "/p/.mde-languages/altro/language.yml"));
+            StringAssert.Contains(ex.Message, "'altro'");
         }
 
         [TestMethod]
         public void Keep_a_broken_or_clashing_definition_out_of_the_catalog_with_its_reason()
         {
             var folder = DeclarativeLanguage.FolderOf(_project);
-            File.WriteAllText(Path.Combine(folder, "rotto.lang.yml"), "schema: 1\nid: rotto\nversion: 1\nextensions: [.rt]\nnonEsiste: 1\n");
-            File.WriteAllText(Path.Combine(folder, "doppio.lang.yml"), "schema: 1\nid: doppio\nversion: 1\nextensions: [.cs]\n");
+            Directory.CreateDirectory(Path.Combine(folder, "rotto"));
+            Directory.CreateDirectory(Path.Combine(folder, "doppio"));
+            File.WriteAllText(Path.Combine(folder, "rotto", "language.yml"), "schema: 1\nid: rotto\nversion: 1\nextensions: [.rt]\nnonEsiste: 1\n");
+            File.WriteAllText(Path.Combine(folder, "doppio", "language.yml"), "schema: 1\nid: doppio\nversion: 1\nextensions: [.cs]\n");
             var catalog = CodeLanguageCatalog.ForProject(_project);
 
             Assert.IsNotNull(catalog.ById("toy"), "le definizioni buone restano");
@@ -346,22 +348,22 @@ END
             Assert.AreEqual("csharp", catalog.ForFile("a.cs").Id, "un'estensione già presa non cambia padrone");
             StringAssert.Contains(catalog.Errors["doppio"].Message, ".cs");
             var ex = Assert.ThrowsException<InvalidOperationException>(() => catalog.Require("rotto"));
-            StringAssert.Contains(ex.Message, "rotto.lang.yml");
+            StringAssert.Contains(ex.Message, Path.Combine("rotto", "language.yml"));
 
             var registry = new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog);
             Assert.IsNotNull(registry.Get("toy"));
-            StringAssert.Contains(registry.Availability("rotto"), "rotto.lang.yml");
+            StringAssert.Contains(registry.Availability("rotto"), Path.Combine("rotto", "language.yml"));
             var detected = CodeLanguageDetector.Detect(new[] { "a.toy", "b.TOH", "c.cs" }, registry, catalog).Single(d => d.Id == "toy");
             Assert.AreEqual(2, detected.Files);
             Assert.AreEqual("ready", detected.Availability);
-            Assert.AreEqual(".mde-languages/toy.lang.yml", detected.DefinitionPath);
+            Assert.AreEqual(".mde-languages/toy/", detected.DefinitionPath);
         }
 
         /// <summary>Libreria per nome di modulo, macro, costanti e variabili come indice, parole del linguaggio ignorate, direzioni che valgono fino alla parola dopo.</summary>
         [TestMethod]
         public void Read_a_library_its_header_and_a_program()
         {
-            File.WriteAllText(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy.lang.yml"), ToyFullDefinition);
+            File.WriteAllText(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy", LanguagePackage.DefinitionFile), ToyFullDefinition);
             foreach (var f in Directory.GetFiles(_src)) File.Delete(f);
             File.WriteAllText(Path.Combine(_src, "lib.tos"), "MODULE \"LIB\"\nPROC LISTLEN$=3(X%, Y% OUT DEST, Z IN N%)\nENDPROC\n");
             File.WriteAllText(Path.Combine(_src, "lib.toh"), "LIB \"LIB\"\n#const MAXR 10\n#macro LIST(X,DEST) LISTLEN(X,1,DEST)\n");

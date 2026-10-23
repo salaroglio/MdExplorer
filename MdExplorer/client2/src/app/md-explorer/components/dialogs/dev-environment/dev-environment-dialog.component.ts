@@ -380,6 +380,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.detected = res.detected ?? [];
         this.definitionProblems = res.definitionProblems ?? [];
+        this.languageNotices = res.languageNotices ?? [];
         this.scanMode = res.scanMode;
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
@@ -413,6 +414,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
 
   /** Le definizioni di linguaggio del progetto che non si possono usare: si mostrano col motivo, non si ignorano. */
   public definitionProblems: LanguageDefinitionProblem[] = [];
+  public languageNotices: string[] = [];
 
   /** Scarica la grammatica (D8) e rilegge i linguaggi: la riga passa a «pronto» e resta selezionabile. */
   download(d: DetectedLanguage): void {
