@@ -15,11 +15,13 @@ import { MatLegacyFormFieldModule as MatFormFieldModule } from '@angular/materia
 import { MatLegacySelectModule as MatSelectModule } from '@angular/material/legacy-select';
 import { MatLegacyInputModule as MatInputModule } from '@angular/material/legacy-input';
 import { MatLegacyTooltipModule as MatTooltipModule } from '@angular/material/legacy-tooltip';
+import { MatLegacyDialogModule as MatDialogModule } from '@angular/material/legacy-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 
 // Components
 import { AiChatComponent } from './ai-chat.component';
 import { ModelManagerComponent } from './model-manager.component';
+import { CodeRuleWizardComponent } from './code-rule-wizard/code-rule-wizard.component';
 
 const routes: Routes = [
   {
@@ -35,7 +37,8 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     AiChatComponent,
-    ModelManagerComponent
+    ModelManagerComponent,
+    CodeRuleWizardComponent
   ],
   imports: [
     CommonModule,
@@ -52,6 +55,7 @@ const routes: Routes = [
     MatSelectModule,
     MatInputModule,
     MatTooltipModule,
+    MatDialogModule,
     TranslateModule
   ],
   exports: [

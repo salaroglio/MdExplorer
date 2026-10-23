@@ -1369,6 +1369,66 @@
     "PUBLISH_SUCCESS": "App published successfully!",
     "PUBLISH_ERROR": "Error during publishing."
   },
+  "CODE_RULE": {
+    "BUTTON": "Improve the graph",
+    "BANNER": "MarkAgent found a point where the code graph breaks off and proposes how to link it ({{count}} waiting).",
+    "TITLE": "Improve the code graph",
+    "STEPS_LABEL": "Steps",
+    "STEP": { "PROBLEM": "The problem", "SCOPE": "Where", "CHECKS": "Checks", "CONFIRM": "Confirm?", "DONE": "Done" },
+    "PROBLEM": {
+      "RULE_SAYS": "To link these points MarkAgent proposes this rule:",
+      "PROPOSED_BY": "Proposed by {{who}}. Nothing changes until you answer Yes."
+    },
+    "SCOPE": {
+      "INTRO": "Apply it to the whole graph or only to a part?",
+      "WHOLE": "The whole graph",
+      "PART": "Only a part",
+      "ORDER": "Folders are sorted by work: first those with the most calls to link.",
+      "CONTEXT_COUNT": "{{calls}} calls, {{resolved}} linkable",
+      "RESULT": "With this choice: {{edges}} links ({{resolved}} calls out of {{total}})"
+    },
+    "CHECKS": {
+      "MDE": "What MdExplorer checked",
+      "LINKED": "It links {{resolved}} calls out of {{total}} ({{percent}}%).",
+      "EXCLUDED": "{{n}} calls skipped on purpose (they do not name a method).",
+      "NOT_LITERAL": "{{n}} calls pass the name in a variable: the rule cannot see them.",
+      "OUT_OF_SCOPE": "{{n}} calls outside the chosen folders.",
+      "MISSES": "{{n}} calls not linked: why",
+      "MARK": "What MarkAgent verified in the code",
+      "OK": "right",
+      "KO": "wrong",
+      "UNCHECKED": "Not among the links MarkAgent verified (the scope changed)"
+    },
+    "MISS": {
+      "noSeparator": "the string does not have the expected shape",
+      "noPairedCall": "the call that picks the class is missing",
+      "aliasNotInMap": "the name is not in the map",
+      "classNotFound": "the class is not in the graph",
+      "tooManyClasses": "the name leads to too many classes",
+      "methodNotFound": "the method is not in the class",
+      "tooManyTargets": "too many possible methods"
+    },
+    "CONFIRM": {
+      "QUESTION": "Add {{edges}} links to the code graph?",
+      "EXAMPLES": "For example:",
+      "REVERSIBLE": "It can be undone at any time: the links carry the rule's name and go away with it.",
+      "YES": "Yes, add them",
+      "NO": "No, leave it"
+    },
+    "DONE": {
+      "APPLIED": "Done: {{edges}} links added to the graph.",
+      "UNDONE": "Rule undone: its links were removed.",
+      "WHERE": "The rule «{{id}}» is in the project's .mde-code/_rules folder and travels with Git, like the rest of the graph.",
+      "ANALYSES": "Other proposed analyses",
+      "ANALYSES_HINT": "They stay in the project's list: ask MarkAgent when you want one done.",
+      "UNDO": "Undo this rule"
+    },
+    "STATUS": { "proposta": "proposed", "fatta": "done", "scartata": "discarded" },
+    "LATER": "Later",
+    "BACK": "Back",
+    "NEXT": "Next",
+    "CLOSE": "Close"
+  },
   "AI_CHAT": {
     "OPENCODE_SERVER_DEFAULT": "Server default",
     "TITLE": "AI Assistant",

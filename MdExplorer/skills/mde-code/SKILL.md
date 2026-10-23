@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -56,6 +56,8 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 | Where the code is on this machine (external roots `@alias/…`) | `code_roots` |
 | Read, search or edit a REMOTE root (`remote` set in `code_roots`, a folder on an SSH server) | `remote_list`, `remote_read`, `remote_grep`, `remote_edit`, `remote_write` |
 | A description is wrong or missing | read the source, then `code_set_description` |
+| A chain stops at a STRING that names a method (`setX("method")`, `submit('alias.method')`): the graph cannot follow it | answer from the source, then `code_rule_try` → check the sample in the source → `code_rule_propose` |
+| Which enrichment rules are active, which further analyses were proposed | `code_rules` |
 
 ## Reading the answers right
 
@@ -63,7 +65,8 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
   two symbols. A call from one program to another ends on an `external` node unless the build declares the
   dependency.
 - **Confidence of an edge**: `extracted` = the parser is sure; `inferred` = deduced; `ambiguous` = more than one
-  candidate, the parser did not choose. Say which one when it matters to the answer.
+  candidate, the parser did not choose; `rule` = added by an enrichment rule the user approved (relation `dispatches`:
+  the method named by a string). Say which one when it matters to the answer.
 - **A missing description is not an error**: the description step may still be running or may have been run only on
   part of the code. `code_inventory` tells how many files and symbols are described.
 - **Paths** are logical (`program/…`, `@alias/…`), the same on every machine; open `absolutePath`, which is where the
@@ -76,3 +79,17 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
   edit through the `remote_*` tools when they are available (they keep the encoding); with your own tools (Edit, Write,
   sed, perl) write the new text in the file's encoding. Never convert it to UTF-8 and never add UTF-8 text to it: the
   file breaks for its compiler. If you are not sure, ask.
+
+## Enrichment rules: when the graph stops at a string
+
+Some programs pick the method to run from a STRING: `setDestination("readData")`, `sendPage('ordersController.list')`,
+a dispatcher with a map. The parser sees text, not a call, so the chain breaks there. Only for a concrete question of the
+user (never a systematic search):
+
+1. Answer the question anyway, reading the source; tell the user the graph stops at that point.
+2. Write the convention as a rule and dry-run it with `code_rule_try`; read `missCounts` and `missExamples`, fix and retry
+   until `accepted`.
+3. Open every call of the returned `sample` in the source and check that the target is the method really executed.
+4. `code_rule_propose` with the problem in plain words (the user may not be technical), the sample checks and, if the
+   problem suggests them, further analyses. The user decides in the MarkAgent tab («Migliora il grafo»): tell them it is
+   waiting there. Never write files under `.mde-code/` yourself.

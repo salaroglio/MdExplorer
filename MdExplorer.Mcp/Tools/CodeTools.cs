@@ -7,8 +7,9 @@ namespace MdExplorer.Mcp;
 /// <summary>
 /// Gruppo <c>code</c>: il grafo del codice (sprint 2026-10-09). I tool leggono SOLO il database di MdExplorer
 /// (D15), mai i sorgenti né gli script: rispondono in millisecondi e portano <c>path:line</c> per aprire il punto
-/// giusto quando serve davvero il codice. Unica scrittura: <c>code_set_description</c> (D34), che passa dal backend,
-/// il quale aggiorna lo script <c>.doc.ttl</c> e il grafo. Acceso di default nei progetti con una cartella «ambiente di sviluppo»
+/// giusto quando serve davvero il codice. Scritture: <c>code_set_description</c> (D34), che passa dal backend,
+/// il quale aggiorna lo script <c>.doc.ttl</c> e il grafo; <c>code_rule_propose</c> (D42), che PROPONE una regola di
+/// arricchimento all'utente (la applica il «Sì» del wizard, mai Mark). Acceso di default nei progetti con una cartella «ambiente di sviluppo»
 /// che ha dei linguaggi scelti.
 /// </summary>
 [McpServerToolType]
@@ -235,6 +236,87 @@ public sealed class CodeTools : McpToolsBase
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
+    }
+
+    private async Task<string> PostAsync(HttpClient client, string url, object payload, string toolName, string project, string request)
+    {
+        try
+        {
+            var content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(url, content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall(toolName, project, request, body);
+            return resp.IsSuccessStatusCode ? body : $"Error: MdExplorer answered {(int)resp.StatusCode}: {body}";
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    private const string RuleShape =
+        "Rule JSON: {\"id\": \"lowercase-dashes\", \"description\": \"what it does, plain words for the user\", " +
+        "\"call\": {\"callee\": \"methodName\", \"argument\": 0}, " +
+        "\"split\": {\"separator\": \".\", \"at\": \"last\"|\"first\"} (optional: the string is owner+separator+method), " +
+        "\"owner\": {\"from\": \"string\" (the part before the separator) | \"pairedCall\" (the string of another call in the same method, " +
+        "written before it or in its receiver: {\"pairedCall\": {\"callee\": \"x\", \"argument\": 0}}) | \"class\" ({\"class\": \"qualified.Name\"}), " +
+        "\"aliasMap\": \"project-relative/path.properties\" (optional: alias=qualified.ClassName)}, " +
+        "\"excludePrefixes\": [\"redirect:\"] (optional)}. Unknown fields are an error.";
+
+    [McpServerTool, Description(
+        "Dry-run an ENRICHMENT RULE for the code graph. Use it when, answering the user, a call chain stops at a STRING that names a method " +
+        "(e.g. setX(\"methodName\"), submit('alias.method'), a dispatcher that picks the method by name): the parser cannot see that link. " +
+        "A rule declares the convention; MdExplorer applies it to every recorded call with string arguments and adds `dispatches` edges. " +
+        "Nothing is written. Returns: callSites, notLiteral, excluded, resolved, unresolved, missCounts (why calls were not linked), " +
+        "missExamples, contexts (folders by number of calls), edgeCount, accepted + rejectReasons (MdExplorer rejects rules that link under 60%), " +
+        "and `sample`: up to 5 linked calls spread over the list. Fix the rule and retry until accepted; then OPEN EACH SAMPLE CALL in the source " +
+        "(path:line) and check the target is really the method executed, before code_rule_propose. " + RuleShape)]
+    public async Task<string> code_rule_try(
+        [Description("Project name.")] string project,
+        [Description("The rule, as a JSON object.")] JsonElement rule)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await PostAsync(client, "/api/codegraph/rules/try", new { projectPath = path, rule }, "code_rule_try", project, rule.GetRawText());
+    }
+
+    [McpServerTool, Description(
+        "Propose an enrichment rule (already accepted by code_rule_try) to the USER: they see «Improve the graph» in the MarkAgent tab, a wizard " +
+        "with the problem, where to apply it, the checks and a yes/no. You never apply it yourself and never write files under .mde-code. " +
+        "Refused unless every call in code_rule_try's `sample` is in `sampleChecks` with ok=true (you opened it in the source). " +
+        "`problem`: the gap in the graph and what the user could not get because of it, in plain words (the user may not be technical). " +
+        "`furtherAnalyses`: other analyses this problem suggests (e.g. page → servlet → controller, profile conditions), kept in a shared list " +
+        "for later; they do not start by themselves. Tell the user the proposal is waiting in the tab. " + RuleShape)]
+    public async Task<string> code_rule_propose(
+        [Description("Project name.")] string project,
+        [Description("The rule, as a JSON object (the same accepted by code_rule_try).")] JsonElement rule,
+        [Description("The problem the rule solves, in plain words for the user.")] string problem,
+        [Description("One per sample call: {\"path\": \"…\", \"line\": 12, \"ok\": true, \"note\": \"what you saw\"}.")] List<Dictionary<string, JsonElement>> sampleChecks,
+        [Description("Optional: [{\"title\": \"…\", \"description\": \"…\"}] further analyses suggested by this problem.")] List<Dictionary<string, string>> furtherAnalyses = null)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        var checks = (sampleChecks ?? new()).Select(c => new
+        {
+            path = c.TryGetValue("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null,
+            line = c.TryGetValue("line", out var l) && l.ValueKind == JsonValueKind.Number ? l.GetInt32() : 0,
+            ok = c.TryGetValue("ok", out var o) && o.ValueKind == JsonValueKind.True,
+            note = c.TryGetValue("note", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null,
+        }).ToList();
+        var analyses = (furtherAnalyses ?? new()).Select(a => new { title = a.GetValueOrDefault("title"), description = a.GetValueOrDefault("description") }).ToList();
+        return await PostAsync(client, "/api/codegraph/rules/propose",
+            new { projectPath = path, rule, problem, sampleChecks = checks, furtherAnalyses = analyses, proposedBy = "MarkAgent (code_rule_propose)" },
+            "code_rule_propose", project, rule.GetRawText());
+    }
+
+    [McpServerTool, Description(
+        "The project's active enrichment rules (approved by the user, shared with Git) and the list of further analyses proposed so far. " +
+        "Edges made by rules have relation `dispatches` and confidence `rule`.")]
+    public async Task<string> code_rules([Description("Project name.")] string project)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await GetAsync(client, Q(path, "rules"), "code_rules", project, "");
     }
 
     /// <summary>Un id già dato passa com'è; un nome si risolve, e se i candidati sono più d'uno si chiede di scegliere.</summary>

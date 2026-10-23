@@ -1,0 +1,121 @@
+<h2 mat-dialog-title class="wizard-title">
+  <mat-icon>auto_fix_high</mat-icon>
+  {{ 'CODE_RULE.TITLE' | translate }}
+</h2>
+
+<ol class="wizard-steps" [attr.aria-label]="'CODE_RULE.STEPS_LABEL' | translate">
+  <li *ngFor="let s of steps; let i = index" [class.current]="i === step" [class.done]="i < step">
+    {{ 'CODE_RULE.STEP.' + s | translate }}
+  </li>
+</ol>
+
+<mat-dialog-content class="wizard-body">
+
+  <!-- 1 · Il problema -->
+  <section *ngIf="step === 0">
+    <p class="lead">{{ proposal.problem }}</p>
+    <p>{{ 'CODE_RULE.PROBLEM.RULE_SAYS' | translate }}</p>
+    <blockquote>{{ proposal.rule.description }}</blockquote>
+    <p class="hint">{{ 'CODE_RULE.PROBLEM.PROPOSED_BY' | translate:{ who: proposal.proposedBy } }}</p>
+  </section>
+
+  <!-- 2 · Dove applicarla -->
+  <section *ngIf="step === 1">
+    <p>{{ 'CODE_RULE.SCOPE.INTRO' | translate }}</p>
+    <div class="scope-choice" role="radiogroup" [attr.aria-label]="'CODE_RULE.STEP.SCOPE' | translate">
+      <label><input type="radio" name="scope" [checked]="wholeGraph" (change)="setWholeGraph(true)"> {{ 'CODE_RULE.SCOPE.WHOLE' | translate }}</label>
+      <label><input type="radio" name="scope" [checked]="!wholeGraph" (change)="setWholeGraph(false)"> {{ 'CODE_RULE.SCOPE.PART' | translate }}</label>
+    </div>
+    <p class="hint">{{ 'CODE_RULE.SCOPE.ORDER' | translate }}</p>
+    <ul class="contexts" [class.disabled]="wholeGraph">
+      <li *ngFor="let c of contexts" [style.padding-left.rem]="(c.depth - 1) * 1.2">
+        <label>
+          <input type="checkbox" [disabled]="wholeGraph" [checked]="chosen.has(c.prefix)" (change)="toggleContext(c, $any($event.target).checked)">
+          <code>{{ c.prefix }}</code>
+          <span class="count">{{ 'CODE_RULE.SCOPE.CONTEXT_COUNT' | translate:{ calls: c.callSites, resolved: c.resolved } }}</span>
+        </label>
+      </li>
+    </ul>
+    <p class="numbers">
+      <mat-progress-spinner *ngIf="previewLoading" mode="indeterminate" diameter="16"></mat-progress-spinner>
+      {{ 'CODE_RULE.SCOPE.RESULT' | translate:{ edges: preview.edgeCount, resolved: preview.resolved, total: preview.resolved + preview.unresolved } }}
+    </p>
+  </section>
+
+  <!-- 3 · I controlli -->
+  <section *ngIf="step === 2">
+    <h3>{{ 'CODE_RULE.CHECKS.MDE' | translate }}</h3>
+    <ul class="facts">
+      <li>{{ 'CODE_RULE.CHECKS.LINKED' | translate:{ resolved: preview.resolved, total: preview.resolved + preview.unresolved, percent: sharePercent(preview) } }}</li>
+      <li *ngIf="preview.excluded > 0">{{ 'CODE_RULE.CHECKS.EXCLUDED' | translate:{ n: preview.excluded } }}</li>
+      <li *ngIf="preview.notLiteral > 0">{{ 'CODE_RULE.CHECKS.NOT_LITERAL' | translate:{ n: preview.notLiteral } }}</li>
+      <li *ngIf="preview.outOfScope > 0">{{ 'CODE_RULE.CHECKS.OUT_OF_SCOPE' | translate:{ n: preview.outOfScope } }}</li>
+    </ul>
+    <details *ngIf="missRows.length > 0">
+      <summary>{{ 'CODE_RULE.CHECKS.MISSES' | translate:{ n: preview.unresolved } }}</summary>
+      <ul>
+        <li *ngFor="let m of missRows">{{ 'CODE_RULE.MISS.' + m.reason | translate }}: {{ m.count }}</li>
+      </ul>
+      <ul class="examples">
+        <li *ngFor="let e of preview.missExamples"><code>{{ e.site.path }}:{{ e.site.line }}</code> «{{ e.value }}»</li>
+      </ul>
+    </details>
+
+    <h3>{{ 'CODE_RULE.CHECKS.MARK' | translate }}</h3>
+    <ul class="sample">
+      <li *ngFor="let r of sampleRows">
+        <mat-icon *ngIf="r.ok === true" class="ok" [attr.aria-label]="'CODE_RULE.CHECKS.OK' | translate">check_circle</mat-icon>
+        <mat-icon *ngIf="r.ok === false" class="ko" [attr.aria-label]="'CODE_RULE.CHECKS.KO' | translate">cancel</mat-icon>
+        <mat-icon *ngIf="r.ok === null" class="unchecked" [matTooltip]="'CODE_RULE.CHECKS.UNCHECKED' | translate">help_outline</mat-icon>
+        <span><code>{{ r.where }}</code> «{{ r.value }}» → <code>{{ r.target }}</code>
+          <span class="note" *ngIf="r.note">— {{ r.note }}</span></span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 4 · Confermi? -->
+  <section *ngIf="step === 3">
+    <p class="lead">{{ 'CODE_RULE.CONFIRM.QUESTION' | translate:{ edges: preview.edgeCount } }}</p>
+    <p>{{ 'CODE_RULE.CONFIRM.EXAMPLES' | translate }}</p>
+    <ul class="sample">
+      <li *ngFor="let r of sampleRows.slice(0, 3)"><code>{{ r.where }}</code> «{{ r.value }}» → <code>{{ r.target }}</code></li>
+    </ul>
+    <p class="hint">{{ 'CODE_RULE.CONFIRM.REVERSIBLE' | translate }}</p>
+  </section>
+
+  <!-- 5 · Fatto -->
+  <section *ngIf="step === 4">
+    <p class="lead" *ngIf="!undone">{{ 'CODE_RULE.DONE.APPLIED' | translate:{ edges: appliedEdges } }}</p>
+    <p class="lead" *ngIf="undone">{{ 'CODE_RULE.DONE.UNDONE' | translate }}</p>
+    <p class="hint" *ngIf="!undone">{{ 'CODE_RULE.DONE.WHERE' | translate:{ id: appliedRuleId } }}</p>
+    <ng-container *ngIf="analyses.length > 0">
+      <h3>{{ 'CODE_RULE.DONE.ANALYSES' | translate }}</h3>
+      <ul class="analyses">
+        <li *ngFor="let a of analyses">
+          <strong>{{ a.title }}</strong><span class="status">({{ 'CODE_RULE.STATUS.' + a.status | translate }})</span>
+          <div *ngIf="a.description">{{ a.description }}</div>
+        </li>
+      </ul>
+      <p class="hint">{{ 'CODE_RULE.DONE.ANALYSES_HINT' | translate }}</p>
+    </ng-container>
+  </section>
+
+  <p class="error" *ngIf="error" role="alert">{{ error }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <ng-container *ngIf="step < 3">
+    <button mat-button (click)="close()">{{ 'CODE_RULE.LATER' | translate }}</button>
+    <button mat-button (click)="back()" [disabled]="step === 0">{{ 'CODE_RULE.BACK' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="next()" [disabled]="!canGoOn">{{ 'CODE_RULE.NEXT' | translate }}</button>
+  </ng-container>
+  <ng-container *ngIf="step === 3">
+    <button mat-button (click)="back()" [disabled]="busy">{{ 'CODE_RULE.BACK' | translate }}</button>
+    <button mat-stroked-button (click)="discard()" [disabled]="busy">{{ 'CODE_RULE.CONFIRM.NO' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="apply()" [disabled]="busy || preview.edgeCount === 0">{{ 'CODE_RULE.CONFIRM.YES' | translate }}</button>
+  </ng-container>
+  <ng-container *ngIf="step === 4">
+    <button mat-stroked-button (click)="undo()" *ngIf="!undone" [disabled]="busy">{{ 'CODE_RULE.DONE.UNDO' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="close()">{{ 'CODE_RULE.CLOSE' | translate }}</button>
+  </ng-container>
+</mat-dialog-actions>

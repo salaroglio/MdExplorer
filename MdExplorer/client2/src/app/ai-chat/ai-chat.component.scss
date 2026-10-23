@@ -933,3 +933,20 @@
   white-space: pre-line;
   max-width: 420px !important;
 }
+
+// D42: «Migliora il grafo», acceso da una regola proposta da MarkAgent: una striscia sotto la barra, non un'icona
+// in più nella barra (stretta quando il tab sta nella colonna di sinistra).
+.improve-graph {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 12px;
+  background: var(--mde-warning-bg);
+  color: var(--mde-warning-fg);
+  border-bottom: 1px solid var(--mde-border-color);
+  font-size: 13px;
+
+  .text { flex: 1 1 140px; }
+  button { margin-left: auto; }
+}

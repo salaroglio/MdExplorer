@@ -29,6 +29,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeRuleOwner Owner { get; set; }
         /// <summary>Le stringhe con questi prefissi non nominano un metodo (<c>redirect:</c>…): si contano a parte.</summary>
         public List<string> ExcludePrefixes { get; set; } = new();
+        /// <summary>
+        /// La portata: solo le chiamate nei file sotto questi percorsi logici (<c>program/web/</c>…). Vuota = tutto il
+        /// grafo. La sceglie l'utente nel wizard, dai contesti della prova a secco.
+        /// </summary>
+        public List<string> Scope { get; set; } = new();
         public string WrittenBy { get; set; }
         public string WrittenAt { get; set; }
 
@@ -100,8 +105,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeRuleSplitAt At { get; set; } = CodeRuleSplitAt.Last;
     }
 
+    [JsonConverter(typeof(CamelCaseEnumConverter))]
     public enum CodeRuleSplitAt { Last, First }
 
+    [JsonConverter(typeof(CamelCaseEnumConverter))]
     public enum CodeRuleOwnerSource
     {
         /// <summary>La parte della stringa prima del separatore.</summary>
@@ -119,6 +126,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Class { get; set; }
         /// <summary>Un file <c>.properties</c> (relativo al progetto) che traduce l'alias in classe: <c>alias=com.x.Classe</c>.</summary>
         public string AliasMap { get; set; }
+    }
+
+    /// <summary>Gli enum delle regole in JSON come nel file: <c>pairedCall</c>, non 1 né <c>PairedCall</c> (anche nelle risposte delle API).</summary>
+    public sealed class CamelCaseEnumConverter : JsonStringEnumConverter
+    {
+        public CamelCaseEnumConverter() : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false) { }
     }
 
     public sealed class CodeRuleException : Exception

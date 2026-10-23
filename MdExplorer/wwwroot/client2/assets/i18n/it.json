@@ -1369,6 +1369,66 @@
     "PUBLISH_SUCCESS": "App pubblicata con successo!",
     "PUBLISH_ERROR": "Errore durante la pubblicazione."
   },
+  "CODE_RULE": {
+    "BUTTON": "Migliora il grafo",
+    "BANNER": "MarkAgent ha trovato un punto in cui il grafo del codice si interrompe e propone come collegarlo ({{count}} in attesa).",
+    "TITLE": "Migliora il grafo del codice",
+    "STEPS_LABEL": "Passi",
+    "STEP": { "PROBLEM": "Il problema", "SCOPE": "Dove", "CHECKS": "Controlli", "CONFIRM": "Confermi?", "DONE": "Fatto" },
+    "PROBLEM": {
+      "RULE_SAYS": "Per collegare questi punti MarkAgent propone questa regola:",
+      "PROPOSED_BY": "Proposta da {{who}}. Nulla cambia finché non rispondi Sì."
+    },
+    "SCOPE": {
+      "INTRO": "Applicarla a tutto il grafo o solo a una parte?",
+      "WHOLE": "Tutto il grafo",
+      "PART": "Solo una parte",
+      "ORDER": "Le cartelle sono in ordine di lavoro: prima quelle con più chiamate da collegare.",
+      "CONTEXT_COUNT": "{{calls}} chiamate, {{resolved}} collegabili",
+      "RESULT": "Con questa scelta: {{edges}} collegamenti ({{resolved}} chiamate su {{total}})"
+    },
+    "CHECKS": {
+      "MDE": "Che cosa ha controllato MdExplorer",
+      "LINKED": "Collega {{resolved}} chiamate su {{total}} ({{percent}}%).",
+      "EXCLUDED": "{{n}} chiamate saltate di proposito (non indicano un metodo).",
+      "NOT_LITERAL": "{{n}} chiamate passano il nome in una variabile: la regola non le vede.",
+      "OUT_OF_SCOPE": "{{n}} chiamate fuori dalle cartelle scelte.",
+      "MISSES": "{{n}} chiamate non collegate: perché",
+      "MARK": "Che cosa ha verificato MarkAgent nel codice",
+      "OK": "giusto",
+      "KO": "sbagliato",
+      "UNCHECKED": "Non fra i collegamenti verificati da MarkAgent (la portata è cambiata)"
+    },
+    "MISS": {
+      "noSeparator": "la stringa non ha la forma prevista",
+      "noPairedCall": "manca la chiamata che sceglie la classe",
+      "aliasNotInMap": "il nome non è nella mappa",
+      "classNotFound": "la classe non è nel grafo",
+      "tooManyClasses": "il nome porta a troppe classi",
+      "methodNotFound": "il metodo non è nella classe",
+      "tooManyTargets": "troppi metodi possibili"
+    },
+    "CONFIRM": {
+      "QUESTION": "Aggiungo {{edges}} collegamenti al grafo del codice?",
+      "EXAMPLES": "Per esempio:",
+      "REVERSIBLE": "Si può annullare in qualsiasi momento: i collegamenti portano il nome della regola e si tolgono insieme a lei.",
+      "YES": "Sì, aggiungi",
+      "NO": "No, lascia stare"
+    },
+    "DONE": {
+      "APPLIED": "Fatto: {{edges}} collegamenti aggiunti al grafo.",
+      "UNDONE": "Regola annullata: i suoi collegamenti sono stati tolti.",
+      "WHERE": "La regola «{{id}}» è nella cartella .mde-code/_rules del progetto e viaggia con Git, come il resto del grafo.",
+      "ANALYSES": "Altre analisi proposte",
+      "ANALYSES_HINT": "Restano nell'elenco del progetto: chiedi a MarkAgent quando vuoi farne una.",
+      "UNDO": "Annulla questa regola"
+    },
+    "STATUS": { "proposta": "proposta", "fatta": "fatta", "scartata": "scartata" },
+    "LATER": "Più tardi",
+    "BACK": "Indietro",
+    "NEXT": "Avanti",
+    "CLOSE": "Chiudi"
+  },
   "AI_CHAT": {
     "OPENCODE_SERVER_DEFAULT": "Default del server",
     "TITLE": "Assistente AI",

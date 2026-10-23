@@ -18235,6 +18235,8 @@ class MdServerMessagesService {
     this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
     this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
+    this.codeRuleProposals$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the "Ask to MarkAgent" diagram explanation stream
     // (MarkDiagramController). Phases: start | chunk | done | error.
     this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -18376,6 +18378,9 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('codeScanStatus', data => {
           this.codeScanStatus$.next(data);
+        });
+        this.hubConnection.on('codeRuleProposals', data => {
+          this.codeRuleProposals$.next(data);
         });
         // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
         this.hubConnection.on('markDiagramExplain', data => {
@@ -18869,8 +18874,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.23.6',
-  buildTime: '2026.10.23 10:49:10'
+  version: '2026.10.23.9',
+  buildTime: '2026.10.23 15:45:07'
 };
 
 /***/ }),
@@ -18904,4 +18909,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.fd91f58b07d4f2d3.js.map
+//# sourceMappingURL=main.005b1c2795efd1b1.js.map

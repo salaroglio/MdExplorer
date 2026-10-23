@@ -11,6 +11,9 @@ import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
 import { SpeechService, VoiceRecording } from '../services/speech.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { CodeGraphService, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
+import { CodeRuleWizardComponent, CodeRuleWizardData } from './code-rule-wizard/code-rule-wizard.component';
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
 type ClaudeModel = { id: string; name: string; description: string | null };
@@ -146,14 +149,55 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private projectsService: ProjectsService,
     private projectSettingsService: ProjectSettingsService,
     private speech: SpeechService,
-    private serverMessages: MdServerMessagesService
+    private serverMessages: MdServerMessagesService,
+    private codeGraph: CodeGraphService,
+    private dialog: MatDialog
   ) {}
+
+  /** Regole di arricchimento proposte da MarkAgent per il progetto aperto (D42): accendono «Migliora il grafo». */
+  ruleProposals: CodeRuleProposal[] = [];
+
+  private static samePath(a: string | null | undefined, b: string | null | undefined): boolean {
+    const n = (p: string | null | undefined) => (p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    return !!a && !!b && n(a) === n(b);
+  }
+
+  private loadRuleProposals(): void {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) { this.ruleProposals = []; return; }
+    this.codeGraph.ruleProposals(projectPath).subscribe({
+      next: list => this.ruleProposals = list ?? [],
+      error: () => this.ruleProposals = []
+    });
+  }
+
+  /** Il wizard sulla prima proposta in attesa; alla chiusura si rilegge l'elenco (le altre restano). */
+  openRuleWizard(): void {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    const proposal = this.ruleProposals[0];
+    if (!projectPath || !proposal) return;
+    this.dialog.open<CodeRuleWizardComponent, CodeRuleWizardData>(CodeRuleWizardComponent, {
+      data: { projectPath, proposal },
+      width: '760px',
+      maxWidth: '95vw',
+      disableClose: true
+    }).afterClosed().subscribe(() => this.loadRuleProposals());
+  }
 
   /** «Ragguagli» waiting for this tab (D9): how many, and their text for the tooltip. */
   briefingsCount = 0;
   briefingsTooltip = '';
 
   ngOnInit(): void {
+    this.projectsService.currentProjects$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.loadRuleProposals());
+    this.serverMessages.codeRuleProposals$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(e => {
+        if (AiChatComponent.samePath(e?.projectPath, this.projectsService.currentProjects$.getValue()?.path)) this.loadRuleProposals();
+      });
+
     this.serverMessages.markAgentBriefings$
       .pipe(takeUntil(this.destroy$))
       .subscribe(b => {

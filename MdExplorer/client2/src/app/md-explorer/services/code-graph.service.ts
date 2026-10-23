@@ -171,8 +171,82 @@ export interface DescribePreview {
   scriptsBytes: number;
 }
 
+/** Regole di arricchimento del grafo (D42): una cartella in cui la regola trova chiamate, per scegliere la portata. */
+export interface CodeRuleContext { prefix: string; depth: number; callSites: number; resolved: number; }
+
+export interface CodeRuleSiteResult {
+  site: { callerId: string; callee: string; path: string; line: number; receiver?: string | null; arguments: { [position: string]: string } };
+  value: string;
+  ownerKey?: string | null;
+  memberName?: string | null;
+  miss?: string | null;
+  targets: { ownerQualifiedName: string; memberId: string; memberName: string; memberQualifiedName?: string | null }[];
+}
+
+/** La prova a secco di una regola: i numeri, gli esempi e il verdetto di MdExplorer. */
+export interface CodeRulePreview {
+  ruleId: string;
+  callSites: number;
+  notLiteral: number;
+  excluded: number;
+  resolved: number;
+  unresolved: number;
+  outOfScope: number;
+  resolvedShare: number;
+  contexts: CodeRuleContext[];
+  missCounts: { [reason: string]: number };
+  accepted: boolean;
+  rejectReasons: string[];
+  edgeCount: number;
+  sample: CodeRuleSiteResult[];
+  missExamples: CodeRuleSiteResult[];
+}
+
+export interface CodeRuleAnalysis { title: string; description?: string | null; problem?: string | null; proposedBy?: string | null; proposedAt?: string | null; status: string; }
+
+export interface CodeEnrichmentRule { id: string; description: string; scope?: string[]; writtenBy?: string | null; writtenAt?: string | null; [key: string]: any; }
+
+/** Una regola proposta da MarkAgent che aspetta il «Sì» nel wizard «Migliora il grafo». */
+export interface CodeRuleProposal {
+  id: string;
+  projectPath: string;
+  rule: CodeEnrichmentRule;
+  problem: string;
+  sampleChecks: { path: string; line: number; ok: boolean; note?: string | null }[];
+  furtherAnalyses: CodeRuleAnalysis[];
+  preview: CodeRulePreview;
+  proposedBy: string;
+  proposedAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CodeGraphService {
+  // ---- regole di arricchimento (D42)
+
+  ruleProposals(projectPath: string): Observable<CodeRuleProposal[]> {
+    return this.http.get<CodeRuleProposal[]>('../api/codegraph/rules/proposals', { params: new HttpParams().set('projectPath', projectPath) });
+  }
+
+  previewRuleProposal(projectPath: string, proposalId: string, scope: string[]): Observable<CodeRulePreview> {
+    return this.http.post<CodeRulePreview>('../api/codegraph/rules/proposals/preview', { projectPath, proposalId, scope });
+  }
+
+  applyRuleProposal(projectPath: string, proposalId: string, scope: string[]): Observable<{ ruleId: string; preview: CodeRulePreview }> {
+    return this.http.post<{ ruleId: string; preview: CodeRulePreview }>('../api/codegraph/rules/proposals/apply', { projectPath, proposalId, scope });
+  }
+
+  discardRuleProposal(projectPath: string, proposalId: string): Observable<{ removed: boolean }> {
+    return this.http.post<{ removed: boolean }>('../api/codegraph/rules/proposals/discard', { projectPath, proposalId });
+  }
+
+  rules(projectPath: string): Observable<{ rules: CodeEnrichmentRule[]; analyses: CodeRuleAnalysis[] }> {
+    return this.http.get<{ rules: CodeEnrichmentRule[]; analyses: CodeRuleAnalysis[] }>('../api/codegraph/rules', { params: new HttpParams().set('projectPath', projectPath) });
+  }
+
+  removeRule(projectPath: string, ruleId: string): Observable<{ removed: boolean }> {
+    return this.http.post<{ removed: boolean }>('../api/codegraph/rules/remove', { projectPath, ruleId });
+  }
+
   constructor(private http: HttpClient) { }
 
   getLanguages(projectPath: string, folderPath: string): Observable<CodeFolderLanguages> {

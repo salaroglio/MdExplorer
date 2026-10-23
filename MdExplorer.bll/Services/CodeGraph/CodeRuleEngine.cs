@@ -16,6 +16,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     }
 
     /// <summary>Perché un punto di chiamata non ha trovato il metodo: il motivo che Mark legge per correggere la regola.</summary>
+    [System.Text.Json.Serialization.JsonConverter(typeof(CamelCaseEnumConverter))]
     public enum CodeRuleMiss { NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets }
 
     public sealed class CodeRuleSiteResult
@@ -27,6 +28,17 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeRuleMiss? Miss { get; set; }
         /// <summary>I metodi trovati (più di uno = overload della stessa classe, o la stessa classe in più programmi).</summary>
         public List<CodeOwnerMember> Targets { get; } = new();
+    }
+
+    /// <summary>Una cartella in cui la regola trova chiamate: per scegliere la portata, dalla più impegnativa.</summary>
+    public sealed class CodeRuleContext
+    {
+        /// <summary>Il percorso logico della cartella, con la <c>/</c> finale.</summary>
+        public string Prefix { get; set; }
+        /// <summary>1 = primo livello sotto la radice del progetto, 2 = il secondo…</summary>
+        public int Depth { get; set; }
+        public int CallSites { get; set; }
+        public int Resolved { get; set; }
     }
 
     /// <summary>La prova a secco di una regola: i numeri, gli esempi, gli archi che produrrebbe e il verdetto di MdExplorer.</summary>
@@ -41,13 +53,23 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Excluded { get; set; }
         public int Resolved { get; set; }
         public int Unresolved { get; set; }
+        /// <summary>Le chiamate fuori dalla portata scelta (<see cref="CodeEnrichmentRule.Scope"/>).</summary>
+        public int OutOfScope { get; set; }
+        /// <summary>
+        /// Le cartelle con chiamate da risolvere, su tutto il grafo (anche fuori portata), dalla più grande alla più piccola:
+        /// l'impegno di calcolo di ciascuna è il numero di chiamate (fino a 3 livelli, al più <see cref="CodeRuleEngine.MaxContexts"/>).
+        /// </summary>
+        public List<CodeRuleContext> Contexts { get; } = new();
         public Dictionary<string, int> MissCounts { get; } = new(StringComparer.Ordinal);
         /// <summary>La quota collegata fra i punti che la regola deve risolvere (né non-stringa né esclusi).</summary>
         public double ResolvedShare => Resolved + Unresolved == 0 ? 0 : (double)Resolved / (Resolved + Unresolved);
         public bool Accepted { get; set; }
         /// <summary>Perché MdExplorer la respinge (vuoto se accettata).</summary>
         public List<string> RejectReasons { get; } = new();
+        /// <summary>Tanti, e servono solo a chi scrive lo script: fuori dal JSON delle risposte (c'è <see cref="EdgeCount"/>).</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
         public List<ScriptEdge> Edges { get; } = new();
+        public int EdgeCount => Edges.Count;
         /// <summary>Fino a <see cref="CodeRuleEngine.SampleSize"/> collegamenti presi lungo tutto l'elenco: Mark li verifica nel sorgente.</summary>
         public List<CodeRuleSiteResult> Sample { get; } = new();
         /// <summary>Fino a <see cref="CodeRuleEngine.MaxMissExamples"/> punti non collegati, con il motivo.</summary>
@@ -71,6 +93,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const int MaxTargetsPerSite = 5;
         public const int SampleSize = 5;
         public const int MaxMissExamples = 20;
+        public const int MaxContexts = 20;
+        public const int MaxContextDepth = 3;
 
         /// <summary>Le chiavi da cercare fra le classi del grafo (nome semplice o qualificato), dopo la mappa degli alias.</summary>
         public static HashSet<string> OwnerKeys(CodeEnrichmentRule rule, IEnumerable<CodeCallSiteView> sites, IEnumerable<CodeCallSiteView> paired, IReadOnlyDictionary<string, string> aliasMap)
@@ -95,31 +119,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             var byName = rows.GroupBy(o => o.OwnerName, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             var resolved = new List<CodeRuleSiteResult>();
             var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+            var contexts = new Dictionary<string, CodeRuleContext>(StringComparer.Ordinal);
+            var scope = (rule.Scope ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Replace('\\', '/').TrimEnd('/') + "/").ToList();
 
             foreach (var site in sites)
             {
                 var r = Prepare(rule, site, pairedByCaller, aliasMap, out var skip);
                 if (skip == Skip.NotLiteral) { preview.NotLiteral++; continue; }
                 if (skip == Skip.Excluded) { preview.Excluded++; continue; }
-                if (r.Miss == null)
-                {
-                    // il nome qualificato vince sul nome semplice: «com.x.Foo» non deve prendere anche un altro Foo
-                    var ownerRows = byQualified.TryGetValue(r.OwnerKey, out var q) ? q : byName.TryGetValue(r.OwnerKey, out var n) ? n : null;
-                    var classes = ownerRows?.Select(o => o.OwnerId).Distinct(StringComparer.Ordinal).Count() ?? 0;
-                    if (classes == 0) r.Miss = CodeRuleMiss.ClassNotFound;
-                    else if (classes > MaxOwnerClasses) r.Miss = CodeRuleMiss.TooManyClasses;
-                    else
-                    {
-                        r.Targets.AddRange(ownerRows.Where(o => o.MemberId != null && o.MemberName == r.MemberName)
-                                                    .GroupBy(o => o.MemberId, StringComparer.Ordinal).Select(g => g.First()));
-                        if (r.Targets.Count == 0) r.Miss = CodeRuleMiss.MethodNotFound;
-                        else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
-                    }
-                }
+                Resolve(r, byQualified, byName);
+                var siteContexts = ContextsOf(site.Path, contexts);
+                foreach (var c in siteContexts) { c.CallSites++; if (r.Miss == null) c.Resolved++; }
+                if (scope.Count > 0 && !scope.Any(s => (site.Path ?? string.Empty).StartsWith(s, StringComparison.Ordinal))) { preview.OutOfScope++; continue; }
                 if (r.Miss != null)
                 {
                     preview.Unresolved++;
-                    var key = r.Miss.Value.ToString();
+                    var key = System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(r.Miss.Value.ToString());   // come nel JSON di Miss
                     preview.MissCounts[key] = preview.MissCounts.TryGetValue(key, out var c) ? c + 1 : 1;
                     if (preview.MissExamples.Count < MaxMissExamples) preview.MissExamples.Add(r);
                     continue;
@@ -137,6 +152,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
 
+            preview.Contexts.AddRange(contexts.Values.OrderByDescending(c => c.CallSites).ThenBy(c => c.Prefix, StringComparer.Ordinal).Take(MaxContexts));
+
             // il campione lungo tutto l'elenco, non i primi cinque dello stesso file
             for (var i = 0; i < Math.Min(SampleSize, resolved.Count); i++)
                 preview.Sample.Add(resolved[(int)((long)i * resolved.Count / Math.Min(SampleSize, resolved.Count))]);
@@ -147,7 +164,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             else if (preview.ResolvedShare < MinResolvedShare)
                 preview.RejectReasons.Add(UiText.Say($"Collega solo {preview.Resolved} chiamate su {preview.Resolved + preview.Unresolved} ({preview.ResolvedShare:P0}, servono almeno {MinResolvedShare:P0}): la convenzione è un'altra.",
                     $"It links only {preview.Resolved} calls out of {preview.Resolved + preview.Unresolved} ({preview.ResolvedShare:P0}, at least {MinResolvedShare:P0} needed): the convention is a different one."));
-            if (preview.MissCounts.TryGetValue(nameof(CodeRuleMiss.TooManyClasses), out var many) && many * 10 > preview.Resolved + preview.Unresolved)
+            if (preview.MissCounts.TryGetValue("tooManyClasses", out var many) && many * 10 > preview.Resolved + preview.Unresolved)
                 preview.RejectReasons.Add(UiText.Say($"In {many} chiamate il nome porta a più di {MaxOwnerClasses} classi: la regola è troppo generica.",
                     $"In {many} calls the name leads to more than {MaxOwnerClasses} classes: the rule is too generic."));
             preview.Accepted = preview.RejectReasons.Count == 0;
@@ -155,6 +172,33 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         private enum Skip { None, NotLiteral, Excluded }
+
+        private static void Resolve(CodeRuleSiteResult r, Dictionary<string, List<CodeOwnerMember>> byQualified, Dictionary<string, List<CodeOwnerMember>> byName)
+        {
+            if (r.Miss != null) return;
+            // il nome qualificato vince sul nome semplice: «com.x.Foo» non deve prendere anche un altro Foo
+            var ownerRows = byQualified.TryGetValue(r.OwnerKey, out var q) ? q : byName.TryGetValue(r.OwnerKey, out var n) ? n : null;
+            var classes = ownerRows?.Select(o => o.OwnerId).Distinct(StringComparer.Ordinal).Count() ?? 0;
+            if (classes == 0) { r.Miss = CodeRuleMiss.ClassNotFound; return; }
+            if (classes > MaxOwnerClasses) { r.Miss = CodeRuleMiss.TooManyClasses; return; }
+            r.Targets.AddRange(ownerRows.Where(o => o.MemberId != null && o.MemberName == r.MemberName)
+                                        .GroupBy(o => o.MemberId, StringComparer.Ordinal).Select(g => g.First()));
+            if (r.Targets.Count == 0) r.Miss = CodeRuleMiss.MethodNotFound;
+            else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
+        }
+
+        /// <summary>Le cartelle che contengono il file, fino a <see cref="MaxContextDepth"/> livelli: <c>a/</c>, <c>a/b/</c>, <c>a/b/c/</c>.</summary>
+        private static IEnumerable<CodeRuleContext> ContextsOf(string path, Dictionary<string, CodeRuleContext> contexts)
+        {
+            var parts = (path ?? string.Empty).Split('/');
+            var prefix = string.Empty;
+            for (var i = 0; i < Math.Min(parts.Length - 1, MaxContextDepth); i++)
+            {
+                prefix += parts[i] + "/";
+                if (!contexts.TryGetValue(prefix, out var c)) contexts[prefix] = c = new CodeRuleContext { Prefix = prefix, Depth = i + 1 };
+                yield return c;
+            }
+        }
 
         private static Dictionary<string, List<CodeCallSiteView>> PairedByCaller(IEnumerable<CodeCallSiteView> paired)
             => (paired ?? Enumerable.Empty<CodeCallSiteView>()).GroupBy(p => p.CallerId, StringComparer.Ordinal)

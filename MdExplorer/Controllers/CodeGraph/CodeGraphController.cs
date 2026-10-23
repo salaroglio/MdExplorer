@@ -251,6 +251,130 @@ namespace MdExplorer.Controllers.CodeGraph
 
         public class GenerateRequest { public string ProjectPath { get; set; } }
         // FolderPath annullabile: con <Nullable>annotations</Nullable> una string non annullabile diventa [Required] e «analizza tutto il progetto» (FolderPath assente) rispondeva 400
+        // ------------------------------------------------------------------ regole di arricchimento (D42)
+
+        public class RuleTryRequest { public string ProjectPath { get; set; } public System.Text.Json.JsonElement Rule { get; set; } }
+        public class RuleProposeRequest : RuleTryRequest
+        {
+            public string? Problem { get; set; }
+            public System.Collections.Generic.List<CodeRuleSampleCheck>? SampleChecks { get; set; }
+            public System.Collections.Generic.List<CodeRuleAnalysis>? FurtherAnalyses { get; set; }
+            public string? ProposedBy { get; set; }
+        }
+        public class RuleProposalRequest { public string ProjectPath { get; set; } public string ProposalId { get; set; } public System.Collections.Generic.List<string>? Scope { get; set; } }
+        public class RuleRemoveRequest { public string ProjectPath { get; set; } public string RuleId { get; set; } }
+
+        private CodeRuleService Rules => HttpContext.RequestServices.GetRequiredService<CodeRuleService>();
+        private MdExplorer.Services.CodeGraph.CodeRulePending Pending => HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeRulePending>();
+
+        private static CodeEnrichmentRule ParseRule(System.Text.Json.JsonElement rule)
+            => rule.ValueKind == System.Text.Json.JsonValueKind.Object ? CodeEnrichmentRule.Parse(rule.GetRawText())
+             : throw new CodeRuleException(UiText.Say("rule deve essere un oggetto JSON.", "rule must be a JSON object."));
+
+        /// <summary>Le regole rispondono 422 con il motivo: sono errori che chi propone (Mark) deve leggere e correggere.</summary>
+        private Task<IActionResult> RuleGuarded(Func<Task<IActionResult>> action) => Guarded(async () =>
+        {
+            try { return await action(); }
+            catch (CodeRuleException ex) { return StatusCode(422, new { error = ex.Message }); }
+        });
+
+        /// <summary>POST /api/codegraph/rules/try {projectPath, rule} — la prova a secco (MCP <c>code_rule_try</c>): niente scritto.</summary>
+        [HttpPost("rules/try")]
+        public Task<IActionResult> TryRule([FromBody] RuleTryRequest request, CancellationToken ct) => RuleGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(await Rules.PreviewAsync(request.ProjectPath, ParseRule(request.Rule), ct));
+        });
+
+        /// <summary>
+        /// POST /api/codegraph/rules/propose {projectPath, rule, problem, sampleChecks, furtherAnalyses, proposedBy} — MarkAgent
+        /// propone la regola all'utente (MCP <c>code_rule_propose</c>). Arriva al wizard solo se MdExplorer la accetta e se
+        /// ogni collegamento del campione è stato verificato giusto nel sorgente; le analisi proposte vanno nel file del progetto.
+        /// </summary>
+        [HttpPost("rules/propose")]
+        public Task<IActionResult> ProposeRule([FromBody] RuleProposeRequest request, CancellationToken ct) => RuleGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Problem))
+                return StatusCode(422, new { error = UiText.Say("problem è obbligatorio: il buco del grafo che la regola chiude, in parole semplici per l'utente.", "problem is required: the gap in the graph the rule closes, in plain words for the user.") });
+            var rule = ParseRule(request.Rule);
+            var preview = await Rules.PreviewAsync(request.ProjectPath, rule, ct);
+            if (!preview.Accepted) return StatusCode(422, new { error = UiText.Say("Regola respinta: ", "Rule rejected: ") + string.Join(" ", preview.RejectReasons), preview });
+            var problems = CodeRuleProposals.SampleProblems(preview, request.SampleChecks);
+            if (problems.Count > 0) return StatusCode(422, new { error = string.Join(" ", problems), sample = preview.Sample });
+            var by = string.IsNullOrWhiteSpace(request.ProposedBy) ? "MarkAgent" : request.ProposedBy;
+            var analyses = CodeRuleProposals.AddAnalyses(request.ProjectPath, request.FurtherAnalyses, request.Problem, by);
+            var proposal = Pending.Add(new CodeRuleProposal
+            {
+                ProjectPath = request.ProjectPath, Rule = rule, Problem = request.Problem.Trim(), SampleChecks = request.SampleChecks,
+                FurtherAnalyses = request.FurtherAnalyses ?? new System.Collections.Generic.List<CodeRuleAnalysis>(),
+                Preview = preview, ProposedBy = by, ProposedAt = DateTime.UtcNow.ToString("o"),
+            });
+            return Ok(new { proposalId = proposal.Id, preview.Resolved, preview.EdgeCount, analyses = analyses.Count });
+        });
+
+        /// <summary>GET /api/codegraph/rules/proposals?projectPath — le proposte che aspettano il wizard.</summary>
+        [HttpGet("rules/proposals")]
+        public IActionResult RuleProposals([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            return Ok(Pending.List(projectPath));
+        }
+
+        /// <summary>POST /api/codegraph/rules/proposals/preview {projectPath, proposalId, scope} — i numeri con la portata scelta nel wizard.</summary>
+        [HttpPost("rules/proposals/preview")]
+        public Task<IActionResult> PreviewProposal([FromBody] RuleProposalRequest request, CancellationToken ct) => RuleGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var proposal = Pending.Get(request.ProjectPath, request.ProposalId);
+            if (proposal == null) return NotFound(new { error = UiText.Say("Proposta non trovata (già decisa, o il servizio è ripartito).", "Proposal not found (already decided, or the service restarted).") });
+            var rule = CodeEnrichmentRule.Parse(proposal.Rule.ToJson());
+            rule.Scope = request.Scope ?? new System.Collections.Generic.List<string>();
+            return Ok(await Rules.PreviewAsync(request.ProjectPath, rule, ct));
+        });
+
+        /// <summary>POST /api/codegraph/rules/proposals/discard {projectPath, proposalId} — l'utente ha detto no.</summary>
+        [HttpPost("rules/proposals/discard")]
+        public IActionResult DiscardProposal([FromBody] RuleProposalRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(new { removed = Pending.Remove(request.ProjectPath, request.ProposalId) });
+        }
+
+        /// <summary>
+        /// POST /api/codegraph/rules/proposals/apply {projectPath, proposalId, scope} — il «Sì» del wizard: la regola con la
+        /// portata scelta va nel progetto e i suoi archi nel grafo.
+        /// </summary>
+        [HttpPost("rules/proposals/apply")]
+        public Task<IActionResult> ApplyProposal([FromBody] RuleProposalRequest request, CancellationToken ct) => RuleGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var proposal = Pending.Get(request.ProjectPath, request.ProposalId);
+            if (proposal == null) return NotFound(new { error = UiText.Say("Proposta non trovata (già decisa, o il servizio è ripartito).", "Proposal not found (already decided, or the service restarted).") });
+            var rule = CodeEnrichmentRule.Parse(proposal.Rule.ToJson());
+            rule.Scope = request.Scope ?? new System.Collections.Generic.List<string>();
+            var preview = await Rules.ApplyAsync(request.ProjectPath, rule, UiText.Say($"{proposal.ProposedBy}, approvata dall'utente", $"{proposal.ProposedBy}, approved by the user"), ct);
+            Pending.Remove(request.ProjectPath, proposal.Id);
+            return Ok(new { ruleId = rule.Id, preview });
+        });
+
+        /// <summary>GET /api/codegraph/rules?projectPath — le regole attive e le analisi proposte del progetto (MCP <c>code_rules</c>).</summary>
+        [HttpGet("rules")]
+        public IActionResult ListRules([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            try { return Ok(new { rules = Rules.List(projectPath), analyses = CodeRuleProposals.ReadAnalyses(projectPath) }); }
+            catch (CodeRuleException ex) { return StatusCode(422, new { error = ex.Message }); }
+        }
+
+        /// <summary>POST /api/codegraph/rules/remove {projectPath, ruleId} — «Annulla questa regola»: via la regola e i suoi archi.</summary>
+        [HttpPost("rules/remove")]
+        public Task<IActionResult> RemoveRule([FromBody] RuleRemoveRequest request, CancellationToken ct) => RuleGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(new { removed = await Rules.RemoveAsync(request.ProjectPath, request.RuleId, ct) });
+        });
+
         public class FolderRequest { public string ProjectPath { get; set; } public string? FolderPath { get; set; } }
         public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } public string? Describe { get; set; } }
 

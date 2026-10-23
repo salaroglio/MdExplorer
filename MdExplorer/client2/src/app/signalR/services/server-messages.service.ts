@@ -48,6 +48,8 @@ export class MdServerMessagesService {
   public codeDescriptionStatus$ = new Subject<any>();
   /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
   public codeScanStatus$ = new Subject<any>();
+  /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
+  public codeRuleProposals$ = new Subject<{ projectPath: string; count: number }>();
 
   // Observable for the "Ask to MarkAgent" diagram explanation stream
   // (MarkDiagramController). Phases: start | chunk | done | error.
@@ -311,6 +313,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('codeScanStatus', (data) => {
         this.codeScanStatus$.next(data);
+      });
+      this.hubConnection.on('codeRuleProposals', (data) => {
+        this.codeRuleProposals$.next(data);
       });
 
       // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk

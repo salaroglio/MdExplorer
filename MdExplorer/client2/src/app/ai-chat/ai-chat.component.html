@@ -43,6 +43,13 @@
     </button>
   </mat-toolbar>
 
+  <!-- D42: compare solo quando MarkAgent ha proposto una regola che chiude un buco del grafo -->
+  <div class="improve-graph" *ngIf="ruleProposals.length > 0" role="status">
+    <mat-icon>auto_fix_high</mat-icon>
+    <span class="text">{{ 'CODE_RULE.BANNER' | translate:{ count: ruleProposals.length } }}</span>
+    <button mat-raised-button color="accent" (click)="openRuleWizard()">{{ 'CODE_RULE.BUTTON' | translate }}</button>
+  </div>
+
   <!-- Modello Copilot: l'elenco è quello che questa installazione ha davvero (models.list),
        non una lista scritta nel codice. Una riga a sé sotto la testata, e non dentro la
        toolbar: lì un campo Material combatte con altezza e colori del tema. -->
