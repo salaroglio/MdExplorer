@@ -1,9 +1,11 @@
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { Observable, Subject, finalize, of, switchMap, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
-import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
+import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
+import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
+import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
 
 export interface DevEnvironmentDialogData {
@@ -72,7 +74,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     private codeGraph: CodeGraphService,
     private translate: TranslateService,
     private serverMessages: MdServerMessagesService,
-    private aiChat: AiChatService
+    private aiChat: AiChatService,
+    private dialog: MatDialog
   ) { }
 
   ngOnInit(): void {
@@ -415,6 +418,58 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   /** Le definizioni di linguaggio del progetto che non si possono usare: si mostrano col motivo, non si ignorano. */
   public definitionProblems: LanguageDefinitionProblem[] = [];
   public languageNotices: string[] = [];
+
+  /** «Importa linguaggio…» in corso; il pacchetto che c'è già e aspetta la conferma per essere sostituito; l'esito. */
+  public importing = false;
+  public pendingReplace: { sourcePath: string; message: string } | null = null;
+  public importDone: string | null = null;
+
+  /**
+   * «Importa linguaggio…» (B6d): si sceglie, sul file system del servizio, la cartella di un pacchetto o uno .zip; il
+   * backend lo legge tutto prima di copiarlo in `.mde-languages/<id>/`. Uno che c'è già si sostituisce solo dopo la
+   * conferma qui sotto, con le due versioni.
+   */
+  importLanguage(from: 'folder' | 'zip'): void {
+    const picker = new ShowFileMetadata();
+    picker.title = this.translate.instant(from === 'folder' ? 'DEV_ENV.IMPORT_PICK_FOLDER' : 'DEV_ENV.IMPORT_PICK_ZIP');
+    picker.typeOfSelection = from === 'folder' ? 'Folders' : 'FoldersAndFiles';
+    picker.buttonText = this.translate.instant('DEV_ENV.IMPORT_BUTTON');
+    picker.start = 'root';
+    this.dialog.open(ShowFileSystemComponent, { width: '900px', height: '700px', panelClass: 'resizable-dialog-container', data: picker })
+      .afterClosed().subscribe(result => {
+        const path = typeof result?.data === 'string' ? result.data : null;
+        if (path) { this.runImport(path, false); }
+      });
+  }
+
+  confirmReplace(): void {
+    if (this.pendingReplace) { this.runImport(this.pendingReplace.sourcePath, true); }
+  }
+
+  cancelReplace(): void { this.pendingReplace = null; }
+
+  private runImport(sourcePath: string, replace: boolean): void {
+    this.importing = true;
+    this.errorMessage = '';
+    this.importDone = null;
+    this.pendingReplace = null;
+    this.codeGraph.importLanguagePackage(this.data.projectRoot, sourcePath, replace).subscribe({
+      next: (r: LanguagePackageImported) => {
+        this.importing = false;
+        this.importDone = this.translate.instant(r.replaced ? 'DEV_ENV.IMPORT_REPLACED' : 'DEV_ENV.IMPORT_DONE',
+          { name: r.displayName, version: r.version, folder: r.folder, skills: r.skills.length });
+        this.loadLanguages();
+      },
+      error: (err) => {
+        this.importing = false;
+        if (err?.status === 409) {
+          this.pendingReplace = { sourcePath, message: err?.error?.error || '' };
+          return;
+        }
+        this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
 
   /** Scarica la grammatica (D8) e rilegge i linguaggi: la riga passa a «pronto» e resta selezionabile. */
   download(d: DetectedLanguage): void {

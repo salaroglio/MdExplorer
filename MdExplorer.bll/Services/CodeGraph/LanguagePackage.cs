@@ -51,12 +51,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string CodeDocPromptHash { get; private init; }
         public IReadOnlyList<LanguagePackageSkill> Skills { get; private init; }
 
-        /// <summary>Le cartelle dei pacchetti del progetto, in ordine; nessuna se <c>.mde-languages/</c> non c'è.</summary>
+        /// <summary>
+        /// Le cartelle dei pacchetti del progetto, in ordine; nessuna se <c>.mde-languages/</c> non c'è. Una cartella che
+        /// comincia col punto non è un pacchetto (la copia di passaggio di un import, <c>.import-…</c>).
+        /// </summary>
         public static IReadOnlyList<string> FoldersOf(string projectPath)
         {
             var root = DeclarativeLanguage.FolderOf(projectPath ?? string.Empty);
             if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(root)) return Array.Empty<string>();
-            return Directory.EnumerateDirectories(root).OrderBy(d => d, StringComparer.Ordinal).ToList();
+            return Directory.EnumerateDirectories(root).Where(d => !Path.GetFileName(d).StartsWith('.')).OrderBy(d => d, StringComparer.Ordinal).ToList();
         }
 
         /// <summary>Un pacchetto dal disco: tutti i suoi file letti, poi controllati da <see cref="FromFiles"/>.</summary>
@@ -147,35 +150,36 @@ namespace MdExplorer.Features.Services.CodeGraph
             return Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(text)), 0, 4).ToLowerInvariant();
         }
 
+        /// <summary>I file piatti del formato di prima (<c>.mde-languages/&lt;id&gt;.lang.yml</c>), per id.</summary>
+        public static IReadOnlyDictionary<string, string> FlatFilesOf(string projectPath)
+        {
+            var root = DeclarativeLanguage.FolderOf(projectPath ?? string.Empty);
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(root)) return new Dictionary<string, string>();
+            return Directory.EnumerateFiles(root, "*" + DeclarativeLanguage.LegacyFileSuffix).OrderBy(f => f, StringComparer.Ordinal)
+                .ToDictionary(f => Path.GetFileName(f)[..^DeclarativeLanguage.LegacyFileSuffix.Length], f => f, StringComparer.OrdinalIgnoreCase);
+        }
+
         /// <summary>
-        /// Il formato di prima (<c>.mde-languages/&lt;id&gt;.lang.yml</c>) diventa un pacchetto (<c>&lt;id&gt;/language.yml</c>):
-        /// una volta sola, e lo si dice (le frasi tornate). Se la cartella c'è già, il file piatto resta dov'è ed è un errore
-        /// per quell'id (tornato in <paramref name="problems"/>): due definizioni dello stesso linguaggio non si fondono a caso.
+        /// Il formato di prima (<c>.mde-languages/&lt;id&gt;.lang.yml</c>) diventa un pacchetto (<c>&lt;id&gt;/language.yml</c>). Solo
+        /// quando lo chiede la finestra «Ambiente di sviluppo», che poi lo dice (le frasi tornate): leggere il catalogo non
+        /// sposta niente, e fino ad allora il file piatto è un errore che spiega che cosa fare. Se la cartella c'è già non si
+        /// sposta niente: due definizioni dello stesso linguaggio non si fondono a caso (resta l'errore del catalogo).
         /// </summary>
-        public static List<string> MigrateFlat(string projectPath, Dictionary<string, LanguageDefinitionException> problems)
+        public static List<string> MigrateFlat(string projectPath)
         {
             var notices = new List<string>();
-            var root = DeclarativeLanguage.FolderOf(projectPath ?? string.Empty);
-            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(root)) return notices;
-            foreach (var flat in Directory.EnumerateFiles(root, "*" + DeclarativeLanguage.LegacyFileSuffix).OrderBy(f => f, StringComparer.Ordinal))
+            foreach (var (id, flat) in FlatFilesOf(projectPath))
             {
-                var name = Path.GetFileName(flat);
-                var id = name[..^DeclarativeLanguage.LegacyFileSuffix.Length];
-                var folder = Path.Combine(root, id);
-                if (Directory.Exists(folder))
-                {
-                    problems[id] = new LanguageDefinitionException(flat, UiText.Say($"c'è anche il pacchetto {DeclarativeLanguage.FolderName}/{id}/: tieni uno dei due (il formato è la cartella) e cancella l'altro",
-                        $"there is also the package {DeclarativeLanguage.FolderName}/{id}/: keep one of the two (the format is the folder) and delete the other"));
-                    continue;
-                }
+                var folder = Path.Combine(DeclarativeLanguage.FolderOf(projectPath), id);
+                if (Directory.Exists(folder)) continue;
                 try
                 {
                     Directory.CreateDirectory(folder);
                     File.Move(flat, Path.Combine(folder, DefinitionFile));
                 }
-                catch (FileNotFoundException) { continue; }   // l'ha spostato un'altra lettura del catalogo nello stesso momento
-                notices.Add(UiText.Say($"{DeclarativeLanguage.FolderName}/{name} spostato in {DeclarativeLanguage.FolderName}/{id}/{DefinitionFile}: un linguaggio ora è una cartella, con regole, prompt e skill",
-                    $"{DeclarativeLanguage.FolderName}/{name} moved to {DeclarativeLanguage.FolderName}/{id}/{DefinitionFile}: a language is now a folder, with rules, prompt and skills"));
+                catch (FileNotFoundException) { continue; }   // l'ha spostato un'altra finestra nello stesso momento
+                notices.Add(UiText.Say($"{DeclarativeLanguage.FolderName}/{Path.GetFileName(flat)} spostato in {DeclarativeLanguage.FolderName}/{id}/{DefinitionFile}: un linguaggio ora è una cartella, con regole, prompt e skill",
+                    $"{DeclarativeLanguage.FolderName}/{Path.GetFileName(flat)} moved to {DeclarativeLanguage.FolderName}/{id}/{DefinitionFile}: a language is now a folder, with rules, prompt and skills"));
             }
             return notices;
         }

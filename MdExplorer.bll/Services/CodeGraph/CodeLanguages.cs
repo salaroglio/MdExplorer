@@ -73,7 +73,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <c>.mde-languages/&lt;id&gt;/</c> del progetto di documentazione (<see cref="LanguagePackage"/>). Un pacchetto che non
     /// si legge, o che riusa l'id o un'estensione di un altro linguaggio, non entra nel catalogo ma resta in
     /// <see cref="Errors"/> con il motivo: la finestra «Ambiente di sviluppo» lo mostra, e chiedere quel linguaggio è un
-    /// errore che lo ripete. Un file piatto del formato di prima si sposta nel suo pacchetto, e <see cref="Notices"/> lo dice.
+    /// errore che lo ripete. Un file piatto del formato di prima è un errore che dice come rimediare: lo sposta
+    /// <see cref="ForProjectMovingFlatFiles"/>, che usa la finestra, e <see cref="Notices"/> lo dice.
     /// </summary>
     public sealed class CodeLanguageCatalog
     {
@@ -96,12 +97,23 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static readonly CodeLanguageCatalog BuiltIn = new(CodeLanguages.All.ToList(), new Dictionary<string, LanguageDefinitionException>());
 
-        public static CodeLanguageCatalog ForProject(string projectPath)
+        /// <summary>Come <see cref="ForProject"/>, dopo aver spostato i file piatti nei loro pacchetti: per la finestra «Ambiente di sviluppo», che lo dice.</summary>
+        public static CodeLanguageCatalog ForProjectMovingFlatFiles(string projectPath)
+            => ForProject(projectPath, LanguagePackage.MigrateFlat(projectPath));
+
+        public static CodeLanguageCatalog ForProject(string projectPath) => ForProject(projectPath, null);
+
+        private static CodeLanguageCatalog ForProject(string projectPath, IReadOnlyList<string> notices)
         {
             var errors = new Dictionary<string, LanguageDefinitionException>(StringComparer.OrdinalIgnoreCase);
-            var notices = LanguagePackage.MigrateFlat(projectPath, errors);
             var folders = LanguagePackage.FoldersOf(projectPath);
-            if (folders.Count == 0 && errors.Count == 0) return BuiltIn;
+            foreach (var (id, flat) in LanguagePackage.FlatFilesOf(projectPath))
+                errors[id] = new LanguageDefinitionException(flat, folders.Any(f => string.Equals(Path.GetFileName(f), id, StringComparison.OrdinalIgnoreCase))
+                    ? UiText.Say($"c'è anche il pacchetto {DeclarativeLanguage.FolderName}/{id}/: tieni uno dei due (il formato è la cartella) e cancella l'altro",
+                        $"there is also the package {DeclarativeLanguage.FolderName}/{id}/: keep one of the two (the format is the folder) and delete the other")
+                    : UiText.Say($"formato di prima: apri la finestra «Ambiente di sviluppo» e MdExplorer lo sposta in {DeclarativeLanguage.FolderName}/{id}/{LanguagePackage.DefinitionFile}",
+                        $"old format: open the «Development environment» window and MdExplorer moves it to {DeclarativeLanguage.FolderName}/{id}/{LanguagePackage.DefinitionFile}"));
+            if (folders.Count == 0 && errors.Count == 0 && (notices == null || notices.Count == 0)) return BuiltIn;
             var all = CodeLanguages.All.ToList();
             foreach (var folder in folders)
             {

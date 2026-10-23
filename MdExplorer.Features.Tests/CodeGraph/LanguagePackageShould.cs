@@ -109,15 +109,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public void Move_the_old_flat_file_into_its_package_once_and_say_so()
+        public void Move_the_old_flat_file_only_from_the_window_and_say_so()
         {
             Write("toy.lang.yml", DeclarativeLanguageExtractorShould.ToyDefinition);
-            var catalog = CodeLanguageCatalog.ForProject(_project);
-            Assert.IsNotNull(catalog.ById("toy"), "spostato e letto nello stesso giro");
-            StringAssert.Contains(catalog.Notices.Single(), "toy/language.yml");
+            var read = CodeLanguageCatalog.ForProject(_project);
+            Assert.IsNull(read.ById("toy"), "leggere il catalogo non sposta niente alle spalle dell'utente");
+            StringAssert.Contains(read.Errors["toy"].Reason, "toy/language.yml", "l'errore dice che cosa succede aprendo la finestra");
+            Assert.IsTrue(File.Exists(Path.Combine(_languages, "toy.lang.yml")));
+
+            var window = CodeLanguageCatalog.ForProjectMovingFlatFiles(_project);
+            Assert.IsNotNull(window.ById("toy"), "spostato e letto nello stesso giro");
+            StringAssert.Contains(window.Notices.Single(), "toy/language.yml");
             Assert.IsFalse(File.Exists(Path.Combine(_languages, "toy.lang.yml")));
             Assert.IsTrue(File.Exists(Path.Combine(_languages, "toy", "language.yml")));
-            Assert.AreEqual(0, CodeLanguageCatalog.ForProject(_project).Notices.Count, "una volta sola");
+            Assert.AreEqual(0, CodeLanguageCatalog.ForProjectMovingFlatFiles(_project).Notices.Count, "una volta sola");
         }
 
         [TestMethod]
@@ -125,9 +130,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             FullPackage();
             Write("toy.lang.yml", DeclarativeLanguageExtractorShould.ToyDefinition.Replace("version: 1", "version: 2"));
-            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var catalog = CodeLanguageCatalog.ForProjectMovingFlatFiles(_project);
             Assert.IsNull(catalog.ById("toy"), "due definizioni dello stesso linguaggio: non se ne sceglie una a caso");
             StringAssert.EndsWith(catalog.Errors["toy"].DefinitionPath, "toy.lang.yml");
+            Assert.AreEqual(0, catalog.Notices.Count);
             Assert.IsTrue(File.Exists(Path.Combine(_languages, "toy.lang.yml")), "niente si sposta né si cancella");
         }
     }

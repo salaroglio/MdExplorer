@@ -80,6 +80,29 @@
         </ng-container>
       </div>
 
+      <div class="language-import">
+        <button mat-stroked-button [matMenuTriggerFor]="importMenu" [disabled]="importing || saving || analyzing">
+          <mat-spinner diameter="16" *ngIf="importing"></mat-spinner>
+          <mat-icon *ngIf="!importing">upload_file</mat-icon>
+          {{ 'DEV_ENV.IMPORT_LANGUAGE' | translate }}
+        </button>
+        <mat-menu #importMenu="matMenu">
+          <button mat-menu-item (click)="importLanguage('folder')"><mat-icon>folder_open</mat-icon>{{ 'DEV_ENV.IMPORT_FROM_FOLDER' | translate }}</button>
+          <button mat-menu-item (click)="importLanguage('zip')"><mat-icon>folder_zip</mat-icon>{{ 'DEV_ENV.IMPORT_FROM_ZIP' | translate }}</button>
+        </mat-menu>
+        <span class="import-hint">{{ 'DEV_ENV.IMPORT_HINT' | translate }}</span>
+      </div>
+      <div class="import-confirm" *ngIf="pendingReplace">
+        <mat-icon>help</mat-icon>
+        <span>{{ pendingReplace.message }}. {{ 'DEV_ENV.IMPORT_REPLACE_QUESTION' | translate }}</span>
+        <button mat-flat-button color="primary" (click)="confirmReplace()">{{ 'DEV_ENV.IMPORT_REPLACE' | translate }}</button>
+        <button mat-button (click)="cancelReplace()">{{ 'COMMON.CANCEL' | translate }}</button>
+      </div>
+      <div class="language-notice" *ngIf="importDone">
+        <mat-icon>check_circle</mat-icon>
+        <span>{{ importDone }}</span>
+      </div>
+
       <ng-container *ngIf="hasReadySelection">
         <label class="field-label" id="describe-mode-label">{{ 'DEV_ENV.DESCRIPTION_LABEL' | translate }}</label>
         <mat-radio-group class="describe-mode" aria-labelledby="describe-mode-label" [(ngModel)]="descriptionMode" [disabled]="saving || analyzing">

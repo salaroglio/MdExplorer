@@ -18,6 +18,18 @@ export interface DetectedLanguage {
 }
 
 /** Una definizione di linguaggio del progetto che non si può usare: la finestra la mostra col motivo. */
+/** Esito di «Importa linguaggio…»: il pacchetto copiato in `.mde-languages/<id>/` e le skill installate. */
+export interface LanguagePackageImported {
+  id: string;
+  displayName: string;
+  version: number;
+  replaced: boolean;
+  folder: string;
+  skills: string[];
+  hasPrompt: boolean;
+  installed: string[];
+}
+
 export interface LanguageDefinitionProblem {
   id: string;
   definitionPath: string;
@@ -241,6 +253,11 @@ export class CodeGraphService {
 
   cancelDescribe(connectionId: string): Observable<any> {
     return this.http.post('../api/codegraph/describe/cancel', { connectionId });
+  }
+
+  /** Importa un pacchetto di linguaggio da una cartella o da uno .zip; 409 = c'è già (`existingVersion`, `importedVersion`): si rimanda con `replace`. */
+  importLanguagePackage(projectPath: string, sourcePath: string, replace: boolean): Observable<LanguagePackageImported> {
+    return this.http.post<LanguagePackageImported>('../api/codegraph/language-packages/import', { projectPath, sourcePath, replace });
   }
 
   downloadGrammar(grammarId: string): Observable<any> {

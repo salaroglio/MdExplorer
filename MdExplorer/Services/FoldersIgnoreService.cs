@@ -219,11 +219,12 @@ namespace MdExplorer.Service.Services
 
         // Defensive: MdExplorer-managed folders must always be hidden from the tree, even if the
         // user's .mdFoldersIgnore predates them (legacy projects opened with a build that introduced
-        // new managed folders like .mde-doc).
+        // new managed folders like .mde-doc). .mde-languages: i pacchetti di linguaggio li gestisce la finestra «Ambiente di
+        // sviluppo»; i loro .md (skill, prompt) non sono documentazione del progetto.
         private static FoldersIgnoreConfiguration EnsureMdeManagedFolders(FoldersIgnoreConfiguration config)
         {
             config.IgnoredFolders ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code", ".mde-languages" })
             {
                 if (!config.IgnoredFolders.Any(f => string.Equals(f, managed, StringComparison.OrdinalIgnoreCase)))
                 {

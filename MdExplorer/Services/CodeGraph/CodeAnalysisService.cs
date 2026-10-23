@@ -249,7 +249,8 @@ namespace MdExplorer.Services.CodeGraph
             if (scope.Unusable != null) throw new DirectoryNotFoundException(scope.Unusable);
             var folderAbs = scope.FolderAbs;
 
-            var catalog = CodeLanguageCatalog.ForProject(projectPath);
+            // la finestra è l'unico posto che sposta un file piatto del formato di prima nel suo pacchetto, e lo dice
+            var catalog = CodeLanguageCatalog.ForProjectMovingFlatFiles(projectPath);
             var scan = await _scanner.ScanAsync(projectPath, folderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
             return new CodeFolderLanguages
             {

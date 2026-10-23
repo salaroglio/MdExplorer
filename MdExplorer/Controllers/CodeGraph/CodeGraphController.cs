@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -252,6 +253,46 @@ namespace MdExplorer.Controllers.CodeGraph
         // FolderPath annullabile: con <Nullable>annotations</Nullable> una string non annullabile diventa [Required] e «analizza tutto il progetto» (FolderPath assente) rispondeva 400
         public class FolderRequest { public string ProjectPath { get; set; } public string? FolderPath { get; set; } }
         public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } public string? Describe { get; set; } }
+
+        public class LanguagePackageImportRequest { public string ProjectPath { get; set; } public string SourcePath { get; set; } public bool Replace { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/language-packages/import {projectPath, sourcePath, replace} — «Importa linguaggio…» (B6d): un
+        /// pacchetto da una cartella o da uno .zip in <c>.mde-languages/&lt;id&gt;/</c>, letto tutto prima di copiarlo; poi le sue
+        /// skill nelle cartelle dei motori del progetto. 400 = pacchetto non valido (file e motivo); 409 = c'è già, con le due
+        /// versioni: si rimanda con <c>replace: true</c> dopo la conferma dell'utente.
+        /// </summary>
+        [HttpPost("language-packages/import")]
+        public IActionResult ImportLanguagePackage([FromBody] LanguagePackageImportRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            MdExplorer.Features.Services.CodeGraph.LanguagePackageImport.Result result;
+            try { result = MdExplorer.Features.Services.CodeGraph.LanguagePackageImport.Import(request.ProjectPath, request.SourcePath, request.Replace); }
+            catch (MdExplorer.Features.Services.CodeGraph.LanguagePackageExistsException ex)
+            {
+                return Conflict(new { error = ex.Message, id = ex.Id, existingVersion = ex.ExistingVersion, importedVersion = ex.ImportedVersion });
+            }
+            catch (MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or InvalidDataException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+
+            // le skill del pacchetto subito, per i motori che il progetto ha (la loro cartella delle skill c'è)
+            var installed = new System.Collections.Generic.List<string>();
+            foreach (var layout in new[] { HarnessLayout.Claude, HarnessLayout.Copilot, HarnessLayout.OpenCode })
+                if (Directory.Exists(Path.Combine(request.ProjectPath, layout.SkillsFolder.Replace('/', Path.DirectorySeparatorChar))))
+                    installed.AddRange(LanguageSkillInstaller.Sync(request.ProjectPath, layout));
+            _logger.LogInformation("[CodeGraph] pacchetto di linguaggio '{Id}' v{Version} importato da {Source}{Replaced}; skill: {Skills}",
+                result.Id, result.Version, request.SourcePath, result.Replaced ? " (sostituito)" : "", installed.Count == 0 ? "nessuna" : string.Join("; ", installed));
+            return Ok(new
+            {
+                id = result.Id, displayName = result.DisplayName, version = result.Version, replaced = result.Replaced,
+                folder = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.ToProjectRelative(request.ProjectPath, result.Folder),
+                skills = result.Skills, hasPrompt = result.HasPrompt, installed,
+            });
+        }
 
         /// <summary>
         /// GET /api/codegraph/languages?projectPath=…&amp;folderPath=… — per la finestra «Ambiente di sviluppo» (D16):

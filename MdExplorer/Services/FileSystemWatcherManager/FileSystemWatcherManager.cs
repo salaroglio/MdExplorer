@@ -625,7 +625,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             return new FileChangeIgnoreConfiguration
             {
-                IgnoredDirectories = new List<string> { ".md", ".mde-doc", ".mde-code" },
+                IgnoredDirectories = new List<string> { ".md", ".mde-doc", ".mde-code", ".mde-languages" },
                 IgnoredExtensions = new List<string> { ".pptx", ".docx", ".xlsx", ".xls", ".ppt", ".xlsb", ".bmpr", ".tmp" },
                 IgnoredPatterns = new List<string> { ".md", ".0.pdnSave" },
                 GitIgnoredFiles = new List<string> { "FETCH_HEAD", "COMMIT_EDITMSG", ".git/" },
@@ -640,7 +640,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private static FileChangeIgnoreConfiguration EnsureMdeManagedIgnores(FileChangeIgnoreConfiguration config)
         {
             config.IgnoredDirectories ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code", ".mde-languages" })
             {
                 if (!config.IgnoredDirectories.Any(d => string.Equals(d, managed, StringComparison.OrdinalIgnoreCase)))
                 {
