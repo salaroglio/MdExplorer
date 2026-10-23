@@ -43,6 +43,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
         /// <summary>
+        /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
+        /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).
+        /// </summary>
+        Task<List<CodeOwnerMember>> OwnersWithMembersAsync(string projectPath, IEnumerable<string> keys, CancellationToken ct = default);
+        /// <summary>
         /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi
         /// diretti) e quelle di tutto il dataset, per stimare quanto della cartella sta nel database (22/10/2026).
         /// </summary>
@@ -160,7 +165,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 var onDisk = Directory.Exists(root)
                     ? Directory.EnumerateFiles(root, "*.ttl", SearchOption.AllDirectories)
-                        .Where(f => CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f))
+                        .Where(CodeGraphPaths.IsLoadableScript)
                         .Select(Path.GetFullPath)
                         .ToList()
                     : new List<string>();
@@ -176,11 +181,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     outcome.Results.Add(await RemoveOneAsync(g, gone, ct));
                 }
 
-                // Prima gli ast (i simboli), poi i doc (che vi si agganciano). Gli script si mandano a Fuseki in lotti:
+                // Prima gli ast (i simboli), poi i doc e le regole (che vi si agganciano). Gli script si mandano a Fuseki in lotti:
                 // una richiesta = una transazione TDB2, e TDB2 è copy-on-write: 3.000 transazioni piccole hanno fatto 11 GB
                 // di blocchi morti e un file al secondo (PlantUML, 10/10). In lotto: decine di file al secondo.
                 var ordered = onDisk.Where(CodeGraphPaths.IsAstScript).OrderBy(f => f, StringComparer.Ordinal)
-                                    .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal)).ToList();
+                                    .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal))
+                                    .Concat(onDisk.Where(CodeGraphPaths.IsRuleScript).OrderBy(f => f, StringComparer.Ordinal)).ToList();
                 var batch = new List<(CodeScriptResult Result, string Update)>();
                 foreach (var file in ordered)
                 {
@@ -272,7 +278,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Legge, controlla e traduce uno script; l'update è null se non c'è niente da mandare (invariato o rifiutato).</summary>
         private (CodeScriptResult Result, string Update) PrepareOne(ProjectGraphs g, string absolutePath, string rel, string previousHash)
         {
-            var result = new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.IsAstScript(rel) ? "ast" : "doc" };
+            var result = new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.KindName(CodeGraphPaths.KindOf(rel)) };
             try
             {
                 var content = File.ReadAllText(absolutePath, Encoding.UTF8);
@@ -284,14 +290,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
 
                 var script = CodeScriptParser.Parse(content, rel);
-                var expectedKind = CodeGraphPaths.IsAstScript(rel) ? CodeScriptKind.Ast : CodeScriptKind.Doc;
+                var expectedKind = CodeGraphPaths.KindOf(rel);
                 if (script.Header.Kind != expectedKind)
-                    throw new CodeScriptFormatException(rel, 1, UiText.Say($"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' ma il file si chiama *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}", $"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' but the file is named *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}"));
+                    throw new CodeScriptFormatException(rel, 1, UiText.Say($"kind '{CodeGraphPaths.KindName(script.Header.Kind)}' ma il file si chiama *{CodeGraphPaths.SuffixOf(expectedKind)}", $"kind '{CodeGraphPaths.KindName(script.Header.Kind)}' but the file is named *{CodeGraphPaths.SuffixOf(expectedKind)}"));
 
                 // Dati e stato nella stessa richiesta: insieme, o niente.
-                var update = script.Header.Kind == CodeScriptKind.Ast
-                    ? CodeTripleWriter.LoadAstUpdate(script, rel, g.Data)
-                    : CodeTripleWriter.LoadDocUpdate(script, rel, g.Data);
+                var update = script.Header.Kind switch
+                {
+                    CodeScriptKind.Ast => CodeTripleWriter.LoadAstUpdate(script, rel, g.Data),
+                    CodeScriptKind.Rule => CodeTripleWriter.LoadRuleUpdate(script, rel, g.Data),
+                    _ => CodeTripleWriter.LoadDocUpdate(script, rel, g.Data),
+                };
                 update += ";\n" + CodeTripleWriter.ScriptStateUpsert(g.State, CodeGraphIris.Script(g.Hash, rel), rel, result.Kind, hash,
                     script.Header.Schema, script.RecordCount, DateTime.UtcNow.ToString("o"));
                 result.RecordCount = script.RecordCount;
@@ -362,7 +371,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private async Task<CodeScriptResult> RemoveOneAsync(ProjectGraphs g, string rel, CancellationToken ct)
         {
-            var result = new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.IsAstScript(rel) ? "ast" : "doc" };
+            var result = new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.KindName(CodeGraphPaths.KindOf(rel)) };
             try
             {
                 var update = CodeTripleWriter.RemoveUpdate(rel, g.Data) +
@@ -418,7 +427,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             status.ScriptsFolderExists = Directory.Exists(root);
             if (!status.ScriptsFolderExists) return status;
             foreach (var f in Directory.EnumerateFiles(root, "*.ttl", SearchOption.AllDirectories)
-                                       .Where(f => CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f)))
+                                       .Where(CodeGraphPaths.IsLoadableScript))
             {
                 status.ScriptsOnDisk++;
                 var rel = CodeGraphPaths.ToProjectRelative(projectPath, f);
@@ -503,7 +512,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // Solo più VECCHI: uno schema più nuovo l'ha scritto un MdExplorer aggiornato (arriva con Git) e il lettore
                 // lo dice («Aggiorna MdExplorer»); un'intestazione che non si legge la segnala il caricamento.
                 var old = CodeGraphPaths.IsLegacyScript(f)
-                    || ((CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f)) && CodeScriptTurtle.ReadHeaderLine(f) is { } h && h.Schema < CodeScriptParser.CurrentSchema);
+                    || (CodeGraphPaths.IsLoadableScript(f) && CodeScriptTurtle.ReadHeaderLine(f) is { } h && h.Schema < CodeScriptParser.CurrentSchema);
                 if (!old) continue;
                 File.Delete(f);
                 retired++;

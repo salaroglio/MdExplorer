@@ -152,6 +152,31 @@ namespace MdExplorer.Features.Services.CodeGraph
             return sites;
         }
 
+        public async Task<List<CodeOwnerMember>> OwnersWithMembersAsync(string projectPath, IEnumerable<string> keys, CancellationToken ct = default)
+        {
+            var list = keys.Where(k => !string.IsNullOrWhiteSpace(k)).Distinct(StringComparer.Ordinal).ToList();
+            var result = new List<CodeOwnerMember>();
+            if (list.Count == 0) return result;
+            var g = GraphsOf(projectPath);
+            // a blocchi: una VALUES di migliaia di chiavi è una query che Fuseki fatica a leggere
+            foreach (var chunk in list.Chunk(200))
+            {
+                var values = string.Join(" ", chunk.Select(Lit));
+                var rows = await RowsAsync(
+                    $"SELECT DISTINCT ?o ?oqn ?on ?m ?mn ?mqn WHERE {{ GRAPH {g.DataIri} {{ VALUES ?key {{ {values} }} " +
+                    "{ ?o code:qualifiedName ?key } UNION { ?o code:name ?key } " +
+                    "?o a code:Symbol ; code:kind ?ok ; code:qualifiedName ?oqn ; code:name ?on . " +
+                    "FILTER(?ok NOT IN (\"external\", \"method\", \"function\", \"constructor\", \"field\", \"property\", \"module\", \"fragment\", \"namespace\")) " +
+                    "OPTIONAL { ?m code:parent ?o ; code:kind ?mk ; code:name ?mn ; code:qualifiedName ?mqn . FILTER(?mk IN (\"method\", \"function\")) } } }", ct);
+                result.AddRange(rows.Select(r => new CodeOwnerMember
+                {
+                    OwnerId = SymbolId(r["o"]), OwnerQualifiedName = Str(r, "oqn"), OwnerName = Str(r, "on"),
+                    MemberId = r.TryGetValue("m", out var m) && m != null ? SymbolId(m) : null, MemberName = Str(r, "mn"), MemberQualifiedName = Str(r, "mqn"),
+                }));
+            }
+            return result;
+        }
+
         /// <summary>I simboli di un file, in ordine di riga: l'albero lo ricostruisce chi legge, da ParentId.</summary>
         public Task<List<CodeSymbolView>> OutlineAsync(string projectPath, string path, CancellationToken ct = default)
             => SymbolsWhereAsync(GraphsOf(projectPath), $"?s code:path {Lit(path)} .", "ORDER BY ?ls ?kind", ct);

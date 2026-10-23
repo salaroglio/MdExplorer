@@ -137,6 +137,52 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
         }
 
+        /// <summary>Lo script di una regola «rel» entra nel grafo: l'insieme e i suoi archi (D42).</summary>
+        public static string LoadRuleUpdate(CodeScript script, string scriptRel, string dataGraph)
+        {
+            var g = Iri(dataGraph);
+            var sb = new StringBuilder();
+            sb.Append(CodeOntology.SparqlPrefixes);
+            AppendRemove(sb, scriptRel, g);
+            sb.Append("INSERT DATA { GRAPH ").Append(g).Append(" {\n");
+            AppendRuleTriples(sb, script, Lit(scriptRel));
+            sb.Append("} }\n");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Le triple di uno script di regola: il <c>code:RuleSet</c> e un nodo arco per ogni arco, con la certezza
+        /// <c>rule</c>, la regola che l'ha prodotto e il file del chiamante. Corpo dell'<c>INSERT DATA</c> e del <c>.rules.ttl</c>.
+        /// </summary>
+        public static void AppendRuleTriples(StringBuilder sb, CodeScript script, string fromScriptLit)
+        {
+            var h = script.Header;
+            var rule = Iri(RuleSet(h.Source));
+            sb.Append(rule).Append(" a ").Append(CodeOntology.ClassRuleSet)
+              .Append(" ; code:ruleId ").Append(Lit(h.Source))
+              .Append(" ; code:description ").Append(Lit(script.RuleDescription ?? string.Empty))
+              .Append(" ; code:writtenBy ").Append(Lit(h.WrittenBy ?? string.Empty))
+              .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty))
+              .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema));
+            FromScript(sb, fromScriptLit).Append(" .\n");
+            foreach (var e in script.Edges)
+            {
+                var src = Iri(Symbol(e.SourceId));
+                var tgt = Iri(Symbol(e.TargetId));
+                sb.Append(src).Append(' ').Append(RelationProperty(e.Relation)).Append(' ').Append(tgt).Append(" .\n");
+                sb.Append(Iri(Edge(e.SourceId, e.Relation, e.TargetId, e.Line))).Append(" a ").Append(CodeOntology.ClassEdge)
+                  .Append(" ; code:source ").Append(src)
+                  .Append(" ; code:target ").Append(tgt)
+                  .Append(" ; code:relation ").Append(Lit(e.Relation))
+                  .Append(" ; code:relationIri ").Append(Iri(RelationIri(e.Relation)))
+                  .Append(" ; code:confidence ").Append(Lit(e.Confidence))
+                  .Append(" ; code:rule ").Append(rule)
+                  .Append(" ; code:path ").Append(Lit(e.Path ?? string.Empty));
+                if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+            }
+        }
+
         private static StringBuilder FromScript(StringBuilder sb, string fromScriptLit)
             => fromScriptLit == null ? sb : sb.Append(" ; code:fromScript ").Append(fromScriptLit);
 

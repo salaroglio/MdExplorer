@@ -47,13 +47,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.Append(HeaderMarker).Append(JsonSerializer.Serialize(HeaderOf(h), HeaderJson)).Append('\n');
             sb.Append("@prefix code: <").Append(CodeOntology.Namespace).Append("> .\n\n");
             if (h.Kind == CodeScriptKind.Ast) CodeTripleWriter.AppendAstTriples(sb, script, null);
+            else if (h.Kind == CodeScriptKind.Rule) CodeTripleWriter.AppendRuleTriples(sb, script, null);
             else CodeTripleWriter.AppendDocTriples(sb, script, null);
             return sb.ToString();
         }
 
         private static object HeaderOf(CodeScriptHeader h) => h.Kind == CodeScriptKind.Ast
             ? new { schema = CodeScriptParser.CurrentSchema, kind = "ast", source = h.Source, language = h.Language, sourceHash = h.SourceHash, extractor = h.Extractor, extractorVersion = h.ExtractorVersion, generatedAt = h.GeneratedAt }
-            : new { schema = CodeScriptParser.CurrentSchema, kind = "doc", source = h.Source, writtenBy = h.WrittenBy, writtenAt = h.WrittenAt };
+            : new { schema = CodeScriptParser.CurrentSchema, kind = CodeGraphPaths.KindName(h.Kind), source = h.Source, writtenBy = h.WrittenBy, writtenAt = h.WrittenAt };
 
         // ------------------------------------------------------------------ intestazione veloce
 
@@ -82,7 +83,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return new CodeScriptHeader
                 {
                     Schema = r.TryGetProperty("schema", out var sc) && sc.ValueKind == JsonValueKind.Number ? sc.GetInt32() : 0,
-                    Kind = S("kind") == "doc" ? CodeScriptKind.Doc : CodeScriptKind.Ast,
+                    Kind = S("kind") switch { "doc" => CodeScriptKind.Doc, "rule" => CodeScriptKind.Rule, _ => CodeScriptKind.Ast },
                     Source = S("source"), Language = S("language"), SourceHash = S("sourceHash"), Extractor = S("extractor"),
                     ExtractorVersion = S("extractorVersion"), GeneratedAt = S("generatedAt"), WrittenBy = S("writtenBy"), WrittenAt = S("writtenAt"),
                 };
@@ -101,7 +102,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
-            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line"),
+            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule"),
+            ["RuleSet"] = Set("ruleId", "description", "writtenBy", "writtenAt", "schema"),
             ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver"),
             ["StringArgument"] = Set("argumentOf", "position", "value"),
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
@@ -147,6 +149,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     throw new CodeScriptFormatException(scriptPath, 0, $"<{subject}>: predicato <{predicate}> fuori dall'ontologia mde-code");
                 node.Add(predicate.Substring(Ns.Length), t.Object);
             }
+            // In uno script di regola i simboli non si dichiarano (stanno negli ast): compaiono solo come soggetto degli
+            // archi diretti (code:dispatches). Un nodo senza classe che ha SOLO relazioni è uno di loro; tutto il resto no.
+            if (headerLine.Kind == CodeScriptKind.Rule)
+                foreach (var k in nodes.Where(kv => kv.Value.Class == null && kv.Value.Values.Keys.All(p => CodeScriptParser.Relations.Contains(p))).Select(kv => kv.Key).ToList())
+                    nodes.Remove(k);
             foreach (var n in nodes.Values)
             {
                 if (n.Class == null) throw new CodeScriptFormatException(scriptPath, 0, UiText.Say($"<{n.Iri}>: nodo senza classe (manca «a code:…»)", $"<{n.Iri}>: node without a class («a code:…» missing)"));
@@ -158,6 +165,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             var script = new CodeScript();
             if (headerLine.Kind == CodeScriptKind.Ast) ReadAst(script, ordered, scriptPath);
+            else if (headerLine.Kind == CodeScriptKind.Rule) ReadRule(script, ordered, scriptPath);
             else ReadDoc(script, ordered, scriptPath);
             return script;
         }
@@ -219,6 +227,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 site.Arguments.Add(new ScriptStringArgument { Position = n.Int("position", path), Value = n.Str("value", path) });
             }
             foreach (var c in script.CallSites) c.Arguments.Sort((a, b) => a.Position.CompareTo(b.Position));
+        }
+
+        private static void ReadRule(CodeScript script, List<Node> nodes, string path)
+        {
+            var set = Single(nodes, "RuleSet", path);
+            script.Header = new CodeScriptHeader
+            {
+                Schema = set.Int("schema", path), Kind = CodeScriptKind.Rule, Source = set.Str("ruleId", path),
+                WrittenBy = set.OptStr("writtenBy"), WrittenAt = set.OptStr("writtenAt"),
+            };
+            script.RuleDescription = set.OptStr("description");
+            foreach (var n in nodes.Where(n => n.Class == "Edge"))
+            {
+                if (n.IriValue("rule", path) != set.Iri)
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:rule non è la regola dello script", $"<{n.Iri}>: code:rule is not the script's rule"));
+                script.Edges.Add(new ScriptEdge
+                {
+                    SourceId = SymbolId(n.IriValue("source", path)), TargetId = SymbolId(n.IriValue("target", path)),
+                    Relation = n.Enum("relation", CodeScriptParser.Relations, path), Confidence = n.Enum("confidence", CodeScriptParser.Confidences, path),
+                    Line = n.OptInt("line", path), Path = n.OptStr("path"),
+                });
+            }
         }
 
         private static void ReadDoc(CodeScript script, List<Node> nodes, string path)

@@ -47,6 +47,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public const string ClassCallSite = "code:CallSite";
         public const string ClassStringArgument = "code:StringArgument";
+        /// <summary>L'insieme degli archi di una regola di arricchimento (D42): id, descrizione, chi l'ha scritta.</summary>
+        public const string ClassRuleSet = "code:RuleSet";
+        /// <summary>La certezza degli archi delle regole: dedotti da una convenzione dichiarata, non letti dal parser.</summary>
+        public const string RuleConfidence = "rule";
         public const string ClassScanState = "code:ScanState";
         /// <summary>La traccia dell'ultima descrizione di una cartella program (punto 2c del 14/10): da qui si sa se si è interrotta.</summary>
         public const string ClassDescriptionRun = "code:DescriptionRun";

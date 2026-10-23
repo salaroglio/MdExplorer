@@ -15,14 +15,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Line { get; }
     }
 
-    public enum CodeScriptKind { Ast, Doc }
+    /// <summary><c>Rule</c>: gli archi prodotti da una regola di arricchimento (D42), in <c>.mde-code/_rules/</c>.</summary>
+    public enum CodeScriptKind { Ast, Doc, Rule }
 
     /// <summary>La prima riga di uno script: chi l'ha scritto, da quale sorgente, con quale schema.</summary>
     public sealed class CodeScriptHeader
     {
         public int Schema { get; set; }
         public CodeScriptKind Kind { get; set; }
-        /// <summary>Il file sorgente, relativo alla radice del progetto, con <c>/</c>.</summary>
+        /// <summary>Il file sorgente, relativo alla radice del progetto, con <c>/</c>; per uno script di regola, l'id della regola.</summary>
         public string Source { get; set; }
         public string Language { get; set; }
         // ast
@@ -85,6 +86,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Relation { get; set; }
         public string Confidence { get; set; }
         public int? Line { get; set; }
+        /// <summary>Solo negli script di regola: il file del chiamante (negli ast è il sorgente dello script).</summary>
+        public string Path { get; set; }
     }
 
     /// <summary>
@@ -181,6 +184,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptSymbolDoc> SymbolDocs { get; } = new();
         public List<ScriptParameterDoc> ParameterDocs { get; } = new();
         public List<ScriptCallResolution> CallResolutions { get; } = new();
+        /// <summary>Solo negli script di regola: che cosa fa la regola, in parole semplici (D42).</summary>
+        public string RuleDescription { get; set; }
         /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
         public ScriptFileDoc FileDoc { get; set; }
         public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + CallSites.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
@@ -228,8 +233,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly string[] Relations =
             { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates",
               // il codice passa da un frammento all'altro: GOTO, o prosegue nel pezzo che segue
-              "jumps" };
-        public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };
+              "jumps",
+              // smistamento per stringa: il nome del metodo viaggia in una stringa (D42, solo dalle regole)
+              "dispatches" };
+        /// <summary><c>rule</c>: l'arco l'ha prodotto una regola di arricchimento (D42), mai il parser.</summary>
+        public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous", "rule" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };
         public static readonly string[] TrivialShapes = { "getter", "setter", "constant", "empty" };
 
