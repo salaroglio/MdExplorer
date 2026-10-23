@@ -386,7 +386,7 @@ namespace MdExplorer.Services.CodeGraph
                         }
                         await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count });
                         askFileIn.TryGetValue(group.Index, out var askFileOf);
-                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, writeGate, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, t);
+                        var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, writeGate, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, plan.Prompts, t);
                         lock (sync) rejectedTotal += result.Rejected;
                         if (result.Error != null)
                         {
@@ -606,6 +606,8 @@ namespace MdExplorer.Services.CodeGraph
             public List<CodeDocCandidate> Candidates;
             public CodeDocAssessment Assessment;
             public int Trivial;
+            /// <summary>I prompt dei pacchetti di linguaggio del progetto (B6b): testo in coda a mde-code-doc e versione composta.</summary>
+            public CodeDocLanguagePrompts Prompts;
         }
 
         /// <summary>
@@ -617,7 +619,8 @@ namespace MdExplorer.Services.CodeGraph
         private async Task<DocPlan> BuildPlanAsync(string projectPath, string scriptsFolder, bool force, bool review, string promptVersion, bool write,
             Func<string, string, Task> onSkipped, CancellationToken token)
         {
-            var plan = new DocPlan { DocFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal), Summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal), Assessment = new CodeDocAssessment(), Candidates = new List<CodeDocCandidate>() };
+            var plan = new DocPlan { DocFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal), Summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal), Assessment = new CodeDocAssessment(), Candidates = new List<CodeDocCandidate>(),
+                Prompts = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath)) };
             foreach (var astPath in Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
             {
                 token.ThrowIfCancellationRequested();
@@ -661,7 +664,8 @@ namespace MdExplorer.Services.CodeGraph
             foreach (var f in plan.DocFiles.Values)
             {
                 var existing = existingOf[f.Ast.Header.Source];
-                var a = CodeDocPlanner.Assess(f.Ast, existing, force, review, id => plan.Graph.ContextHash(id, Summary), promptVersion);
+                // la versione con cui la descrizione si confronta è quella del SUO linguaggio (mde-code-doc + il prompt del pacchetto)
+                var a = CodeDocPlanner.Assess(f.Ast, existing, force, review, id => plan.Graph.ContextHash(id, Summary), plan.Prompts.VersionFor(promptVersion, f.Ast));
                 plan.Candidates.AddRange(a.Candidates);
                 foreach (var kv in a.Counts) plan.Assessment.Counts[kv.Key] = plan.Assessment.Count(kv.Key) + kv.Value;
                 plan.Assessment.BodyUnknown += a.BodyUnknown;
@@ -723,9 +727,12 @@ namespace MdExplorer.Services.CodeGraph
         /// </summary>
         private async Task<FileResult> DescribeGroupAsync(string projectPath, CodeRootResolver resolver, CodeDocGroup group, IReadOnlyDictionary<string, DocFile> docFiles,
             CodeDocGraph graph, ConcurrentDictionary<string, string> summaries, SemaphoreSlim writeGate, bool askFile,
-            MarkAgentEngine engine, string model, string skillBody, string writtenBy, string promptVersion, CancellationToken token)
+            MarkAgentEngine engine, string model, string skillBody, string writtenBy, string promptVersion, CodeDocLanguagePrompts prompts, CancellationToken token)
         {
             var result = new FileResult();
+            // il prompt dei linguaggi della domanda in coda a mde-code-doc, e la versione di ogni descrizione col suo linguaggio
+            skillBody = prompts.BodyFor(skillBody, group.Sources.Select(x => docFiles[x].Ast));
+            var versionOf = group.Candidates.ToDictionary(c => c.Symbol.Id, c => prompts.VersionFor(promptVersion, docFiles[c.Source].Ast), StringComparer.Ordinal);
             var sources = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var source in group.Sources)
             {
@@ -814,7 +821,7 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     d.BodyHash = symbolOf[d.SymbolId].BodyHash;
                     d.ContextHash = contextHashes[d.SymbolId];
-                    d.PromptVersion = promptVersion;
+                    d.PromptVersion = versionOf[d.SymbolId];
                 }
                 freshDocs.AddRange(fresh.SymbolDocs);
                 freshParams.AddRange(fresh.ParameterDocs);
@@ -895,6 +902,7 @@ namespace MdExplorer.Services.CodeGraph
             catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
             if (!File.Exists(sourceAbs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + sourceAbs; return result; }
             var sourceText = CodeSourceText.Read(sourceAbs, resolver.EncodingsOf(ast.Header.Source));
+            skillBody = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath)).BodyFor(skillBody, new[] { ast });
 
             var merged = existing;
             var freshCount = 0;
