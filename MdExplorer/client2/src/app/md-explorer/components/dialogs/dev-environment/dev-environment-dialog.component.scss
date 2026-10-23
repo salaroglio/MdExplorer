@@ -24,6 +24,9 @@
 .outcome .warn { color: #ef6c00; }
 .outcome .reason { font-size: 12px; opacity: 0.7; margin: 6px 0 0; }
 .error { display: flex; align-items: flex-start; gap: 6px; color: #c62828; }
+.definition-problem mat-icon { flex-shrink: 0; }
+.definition-problem { display: flex; align-items: flex-start; gap: 6px; color: #c62828; font-size: 13px; margin-bottom: 8px; white-space: pre-wrap; word-break: break-word; }
+.definition-path { font-size: 12px; color: var(--mde-text-secondary); margin-left: 6px; }
 .availability .download { display: inline-flex; align-items: center; gap: 6px; line-height: 28px; padding: 0 10px; }
 .availability .download mat-spinner { display: inline-block; }
 .describe .outcome-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #2e7d32; }
@@ -70,7 +73,8 @@
 .step-hint .warn { display: block; color: #ef6c00; margin-top: 2px; }
 
 // Il modello per descrivere (22/10/2026)
-.model-row { align-items: start; }
+// la combo prende tutta la riga, la spiegazione va sotto: a 210px «Predefinito per descrivere (haiku)» si tagliava (23/10)
+.model-row { grid-template-columns: 1fr; align-items: start; gap: 2px; }
 .model-field { width: 100%; }
 .model-field ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; }
 .step-hint.warn { color: #ef6c00; }

@@ -13,6 +13,15 @@ export interface DetectedLanguage {
   /** La grammatica tree-sitter da scaricare per renderlo pronto, se è questo il motivo. */
   grammarId?: string | null;
   grammarSizeKb?: number | null;
+  /** Linguaggio definito nel progetto: il file della definizione (`.mde-languages/<id>.lang.yml`). */
+  definitionPath?: string | null;
+}
+
+/** Una definizione di linguaggio del progetto che non si può usare: la finestra la mostra col motivo. */
+export interface LanguageDefinitionProblem {
+  id: string;
+  definitionPath: string;
+  message: string;
 }
 
 export interface CodeFolderLanguages {
@@ -26,6 +35,8 @@ export interface CodeFolderLanguages {
   describe: 'all' | 'onDemand';
   /** Quante descrizioni insieme, dalle preferenze dell'utente. */
   descriptionParallel: number;
+  /** Le definizioni in `.mde-languages/` che non si possono usare, col motivo. */
+  definitionProblems?: LanguageDefinitionProblem[];
 }
 
 export interface CodeFolderAnalysisOutcome {

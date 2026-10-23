@@ -192,9 +192,13 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static readonly string[] SymbolKinds =
             { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "type",
-              "component", "service", "directive", "pipe", "ngmodule", "external" };
+              "component", "service", "directive", "pipe", "ngmodule", "external",
+              // un pezzo di un blocco troppo lungo, dalla sua etichetta alla successiva (linguaggi dichiarativi)
+              "fragment" };
         public static readonly string[] Relations =
-            { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates" };
+            { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates",
+              // il codice passa da un frammento all'altro: GOTO, o prosegue nel pezzo che segue
+              "jumps" };
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };
         public static readonly string[] TrivialShapes = { "getter", "setter", "constant", "empty" };

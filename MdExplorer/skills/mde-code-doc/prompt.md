@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 10
+  version: 11
   updatePolicy: replace
 ---
 
@@ -71,6 +71,15 @@ dire che cosa fa il simbolo **nell'insieme**, mettendo insieme quello che fanno 
 **I membri di un tipo** — campo `members` di una classe, interfaccia, enum o record: i suoi
 metodi con la `summary` già scritta. La `summary` del tipo dice la sua responsabilità
 nell'insieme, non l'elenco dei metodi.
+
+**I frammenti di un blocco lungo** — kind `fragment`: un blocco troppo lungo per una domanda
+sola (per esempio un blocco di migliaia di righe) è spezzato a ogni etichetta, e ogni
+pezzo va dalla sua etichetta alla successiva. Il campo `jumps` di un frammento dice dove passa
+il codice: i salti (`GOTO`) con la riga, e il pezzo che segue se il codice ci arriva
+proseguendo. Descrivi che cosa fa quel pezzo e dove porta (per esempio «se l'utente preme ESC
+va all'uscita»). Il blocco che lo contiene viene dopo, come un tipo: i corpi dei frammenti
+sono tolti dal suo sorgente e le loro sintesi sono in `members`; la sua `summary` dice che
+cosa fa il blocco nell'insieme, seguendo il percorso fra i pezzi.
 
 **Lo script stesso** — un simbolo con `"onlyParameters":true` (kind `module`: il codice
 fuori dalle funzioni, per esempio il `param()` in cima a uno script PowerShell): a che cosa

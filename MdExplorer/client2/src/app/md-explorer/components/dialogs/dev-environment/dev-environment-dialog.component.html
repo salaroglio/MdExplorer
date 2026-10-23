@@ -41,14 +41,20 @@
     </div>
 
     <ng-container *ngIf="!loading && !outcome">
-      <div class="empty" *ngIf="detected.length === 0">
+      <div class="empty" *ngIf="detected.length === 0 && definitionProblems.length === 0">
         <mat-icon>info</mat-icon>
         <span>{{ 'DEV_ENV.NOTHING_DETECTED' | translate }}</span>
       </div>
 
+      <div class="definition-problem" *ngFor="let p of definitionProblems">
+        <mat-icon>error</mat-icon>
+        <span>{{ 'DEV_ENV.DEFINITION_PROBLEM' | translate: { path: p.definitionPath } }} {{ p.message }}</span>
+      </div>
+
       <label class="field-label" *ngIf="detected.length > 0">{{ 'DEV_ENV.LANGUAGES' | translate }}</label>
       <div class="language-list" *ngIf="detected.length > 0">
-        <div class="language-row" *ngFor="let d of detected">
+        <ng-container *ngFor="let d of detected">
+        <div class="language-row">
           <mat-checkbox [checked]="isSelected(d.id)" (change)="toggle(d.id, $event.checked)" [disabled]="saving || analyzing">
             <span class="language-name">{{ d.displayName }}</span>
             <span class="language-files">· {{ 'DEV_ENV.FILES' | translate: { count: d.files } }}</span>
@@ -57,6 +63,7 @@
             <ng-container *ngIf="!canDownload(d)">
               <mat-icon>{{ isReady(d) ? 'check_circle' : 'schedule' }}</mat-icon>
               {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
+              <span class="definition-path" *ngIf="isReady(d) && d.definitionPath">· {{ 'DEV_ENV.DEFINED_IN' | translate: { path: d.definitionPath } }}</span>
             </ng-container>
             <button mat-stroked-button color="primary" class="download" *ngIf="canDownload(d)"
                     (click)="download(d)" [disabled]="downloading !== null || saving || analyzing">
@@ -66,6 +73,7 @@
             </button>
           </span>
         </div>
+        </ng-container>
       </div>
 
       <ng-container *ngIf="hasReadySelection">
@@ -246,6 +254,8 @@
         <span *ngIf="describing">{{ 'DEV_ENV.DESCRIBING' | translate }}</span>
         <span *ngIf="!describing && describeDone">{{ 'DEV_ENV.DESCRIBE_DONE' | translate: describeDone }}</span>
       </div>
+      <!-- chi dipende da una domanda non riuscita non parte: si dice quante e come riprenderle (22/10/2026) -->
+      <div class="table-note warn" *ngIf="!describing && describeNotAll">{{ 'DEV_ENV.DESCRIBE_NOT_ALL' | translate: describeNotAll }}</div>
       <div class="describe-log">
         <div *ngFor="let line of describeLog">{{ line }}</div>
       </div>

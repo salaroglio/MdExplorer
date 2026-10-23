@@ -115,6 +115,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             return (root, inside);
         }
 
+        /// <summary>Le codifiche per estensione della radice di un percorso <c>@alias/…</c>; null per i file del progetto o una radice ignota.</summary>
+        public IReadOnlyDictionary<string, string> EncodingsOf(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !CodeRootPaths.IsLogical(path)) return null;
+            var (alias, _) = CodeRootPaths.Parse(path);
+            return _byAlias.TryGetValue(alias, out var root) && root.ExtensionEncodings.Count > 0 ? root.ExtensionEncodings : null;
+        }
+
         /// <summary>
         /// Gemello di <see cref="RemoteOf"/> per una radice collegata su QUESTO disco (FL): la radice e il percorso relativo
         /// (<c>/</c>) per le operazioni sui file. Null se la radice è remota; eccezione se non è utilizzabile o il percorso esce.

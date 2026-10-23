@@ -322,6 +322,13 @@ namespace MdExplorer.Services.CodeGraph
                 var readyNow = new HashSet<int>();
                 var doneCount = start;
                 var failedCount = 0;
+                // 22/10/2026 (utente): una domanda che non ha risposto, o che ha lasciato simboli senza sintesi, ferma chi
+                // dipende da lei, a cascata — descriverlo senza la sintesi di chi chiama darebbe una descrizione povera senza
+                // dirlo. Il giro finisce «fallito» e «Riprendi» rifà proprio quelle: senza force il piano contiene solo ciò che manca.
+                var notDescribed = new bool[groups.Count];
+                var partialCount = 0;
+                var blockedCount = 0;
+                string LabelOf(CodeDocGroup g) => g.IsCrossFileCycle ? string.Join(" + ", g.Sources) : g.Sources[0];
 
                 // Fuseki a lotti: ogni FlushEvery domande o FlushEveryMinutes, senza compattare; alla fine si compatta una volta.
                 var sinceFlush = 0;
@@ -354,20 +361,36 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     var t = failFast.Token;
                     var describedHere = false;
-                    var label = group.IsCrossFileCycle ? string.Join(" + ", group.Sources) : group.Sources[0];
+                    var label = LabelOf(group);
                     var sw = System.Diagnostics.Stopwatch.StartNew();
-                    lock (sync) { readyNow.Remove(group.Index); runningSince[group.Index] = DateTime.UtcNow; }
-                    _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} liv {Level} partita: {File} ({Symbols} simboli, dipende da {Deps})",
-                        group.Index + 1, groups.Count, group.Level, label, group.Candidates.Count, group.DependsOn.Count);
+                    int blocker;
+                    lock (sync)
+                    {
+                        readyNow.Remove(group.Index);
+                        blocker = group.DependsOn.FirstOrDefault(d => notDescribed[d], -1);
+                        if (blocker < 0) runningSince[group.Index] = DateTime.UtcNow;
+                    }
+                    if (blocker < 0)
+                        _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} liv {Level} partita: {File} ({Symbols} simboli, dipende da {Deps})",
+                            group.Index + 1, groups.Count, group.Level, label, group.Candidates.Count, group.DependsOn.Count);
                     try
                     {
+                        if (blocker >= 0)
+                        {
+                            lock (sync) { notDescribed[group.Index] = true; blockedCount++; progress.FilesFailed++; }
+                            var why = UiText.Say($"non partita: dipende dalla domanda {blocker + 1} ({LabelOf(groups[blocker])}), rimasta senza descrizioni; «Riprendi» le rifà tutte e due",
+                                $"not started: it depends on question {blocker + 1} ({LabelOf(groups[blocker])}), left without descriptions; «Resume» redoes both");
+                            _logger.LogWarning("[CodeDoc] domanda {Index}/{Total} NON partita: {File} — dipende dalla {Blocker} rimasta senza descrizioni", group.Index + 1, groups.Count, label, blocker + 1);
+                            await SendAsync(connectionId, new { phase = "file-blocked", file = label, detail = why });
+                            return;
+                        }
                         await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count });
                         askFileIn.TryGetValue(group.Index, out var askFileOf);
                         var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, writeGate, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, t);
                         lock (sync) rejectedTotal += result.Rejected;
                         if (result.Error != null)
                         {
-                            lock (sync) { progress.FilesFailed++; failedCount++; }
+                            lock (sync) { progress.FilesFailed++; failedCount++; notDescribed[group.Index] = true; }
                             _logger.LogWarning("[CodeDoc] domanda {Index}/{Total} FALLITA in {Seconds:0.0} s: {File} — {Error}", group.Index + 1, groups.Count, sw.Elapsed.TotalSeconds, label, result.Error);
                             await SendAsync(connectionId, new { phase = "file-failed", file = label, detail = result.Error });
                             return;
@@ -382,6 +405,17 @@ namespace MdExplorer.Services.CodeGraph
                         _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} finita in {Seconds:0.0} s: {File} ({Described} descritti, {Rejected} righe scartate)",
                             group.Index + 1, groups.Count, sw.Elapsed.TotalSeconds, label, result.Described, result.Rejected);
                         await SendAsync(connectionId, new { phase = "file-done", file = label, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
+                        if (result.Undescribed.Count > 0)
+                        {
+                            // quello che ha risposto resta scritto; chi dipende da questa domanda non parte
+                            lock (sync) { notDescribed[group.Index] = true; partialCount++; progress.FilesFailed++; }
+                            _logger.LogWarning("[CodeDoc] domanda {Index}/{Total} a metà: {File} — {Count} simboli senza sintesi: {List}",
+                                group.Index + 1, groups.Count, label, result.Undescribed.Count, string.Join(", ", result.Undescribed.Take(10)));
+                            await SendAsync(connectionId, new { phase = "file-failed", file = label, detail = UiText.Say(
+                                $"{result.Undescribed.Count} simboli senza descrizione ({string.Join(", ", result.Undescribed.Take(5))}): chi dipende da questa domanda non parte",
+                                $"{result.Undescribed.Count} symbols without a description ({string.Join(", ", result.Undescribed.Take(5))}): what depends on this question does not start")
+                                + (result.TooLong != null ? " — " + result.TooLong : string.Empty) });
+                        }
                     }
                     finally
                     {
@@ -473,9 +507,21 @@ namespace MdExplorer.Services.CodeGraph
                 token.ThrowIfCancellationRequested();
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} domande, dal basso, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
-                run.Status = CodeDescriptionRun.Done; run.CurrentFile = null;
+                if (failedCount + partialCount + blockedCount > 0)
+                {
+                    // non riuscito del tutto: il riquadro dei lavori lo segnala e offre «Riprendi», che rifà solo quello che manca;
+                    // una ripresa con force riparte dalla prima domanda rimasta indietro
+                    run.Status = CodeDescriptionRun.Failed;
+                    run.Error = UiText.Say(
+                        $"{failedCount} domande senza risposta, {partialCount} con simboli senza descrizione, {blockedCount} non partite perché dipendono da quelle: «Riprendi» le rifà",
+                        $"{failedCount} questions without an answer, {partialCount} with symbols left undescribed, {blockedCount} not started because they depend on those: «Resume» redoes them");
+                    run.FileIndex = Array.IndexOf(notDescribed, true) + 1;
+                    _logger.LogWarning("[CodeDoc] '{Folder}': {Error}", folderRelative, run.Error);
+                }
+                else run.Status = CodeDescriptionRun.Done;
+                run.CurrentFile = null;
                 await SaveRunAsync(projectPath, run, token);
-                await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal });
+                await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal, failed = failedCount, partial = partialCount, blocked = blockedCount });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Files} domande, {Described} simboli descritti, {Rejected} righe scartate", folderRelative, files, described, rejectedTotal);
             }
             catch (OperationCanceledException)
@@ -687,7 +733,7 @@ namespace MdExplorer.Services.CodeGraph
                 try { abs = resolver.Resolve(source); }
                 catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
                 if (!File.Exists(abs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + abs; return result; }
-                sources[source] = await File.ReadAllTextAsync(abs, token);
+                sources[source] = CodeSourceText.Read(abs, resolver.EncodingsOf(source));
             }
 
             // la sintesi di ogni simbolo letta UNA volta: il prompt e l'impronta del contesto (F12b) vedono la stessa (una
@@ -702,6 +748,7 @@ namespace MdExplorer.Services.CodeGraph
             {
                 Calls = graph.CallsOf(c.Symbol.Id, Summary),
                 Members = graph.MembersOf(c.Symbol.Id, Summary),
+                Jumps = graph.JumpsOf(c.Symbol.Id),
             }, StringComparer.Ordinal);
             var contextHashes = group.Candidates.ToDictionary(c => c.Symbol.Id, c => graph.ContextHash(c.Symbol.Id, Summary), StringComparer.Ordinal);
             var symbolOf = group.Candidates.ToDictionary(c => c.Symbol.Id, c => c.Symbol, StringComparer.Ordinal);
@@ -726,6 +773,9 @@ namespace MdExplorer.Services.CodeGraph
             foreach (var (batch, text) in batches)
             {
                 token.ThrowIfCancellationRequested();
+                // un simbolo più lungo di quanto una domanda porta non si manda tagliato: resta senza descrizione e lo si dice
+                var tooLong = CodeDocPlanner.TooLong(text, batch);
+                if (tooLong != null) { _logger.LogWarning("[CodeDoc] {File}: {Why}", label, tooLong); result.TooLong ??= tooLong; continue; }
                 var askThis = askFile && !fileAsked;
                 fileAsked |= askThis;
                 var prompt = CodeDocPlanner.BuildPrompt(skillBody, label, text, batch, _language.Current, askThis, context, askThis ? fileContents : null);
@@ -773,8 +823,9 @@ namespace MdExplorer.Services.CodeGraph
             }
             if (freshCount == 0)
             {
-                result.Error = failures.Count > 0 ? UiText.Say("l'AI non ha risposto: ", "the AI did not answer: ") + failures[0]
-                    : UiText.Say("nessuna descrizione valida nella risposta", "no valid description in the answer") + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
+                result.Error = result.TooLong ?? (failures.Count > 0 ? UiText.Say("l'AI non ha risposto: ", "the AI did not answer: ") + failures[0] : null)
+                    ?? UiText.Say("nessuna descrizione valida nella risposta", "no valid description in the answer") + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
+                result.Undescribed = group.Candidates.Where(c => !c.ParametersOnly).Select(c => c.Symbol.QualifiedName).ToList();
                 return result;
             }
 
@@ -809,6 +860,8 @@ namespace MdExplorer.Services.CodeGraph
                 foreach (var d in fresh.SymbolDocs) summaries[d.SymbolId] = d.Summary;
             }
             result.Described = freshCount;
+            result.Undescribed = group.Candidates.Where(c => !c.ParametersOnly && string.IsNullOrWhiteSpace(summaries.TryGetValue(c.Symbol.Id, out var sum) ? sum : null))
+                .Select(c => c.Symbol.QualifiedName).ToList();
             if (freshResolutions.Count > 0) _logger.LogInformation("[CodeDoc] {File}: {Count} chiamate ambigue risolte dall'LLM", label, freshResolutions.Count);
             if (failures.Count > 0) _logger.LogWarning("[CodeDoc] {File}: {Failed} gruppi senza risposta", label, failures.Count);
             return result;
@@ -819,6 +872,13 @@ namespace MdExplorer.Services.CodeGraph
             public int Described, Rejected;
             public bool Loaded;
             public string Error, LoadError, FirstRejected;
+            /// <summary>Il primo simbolo rimasto fuori perché più lungo di quanto una domanda porta (<see cref="CodeDocPlanner.TooLong"/>).</summary>
+            public string TooLong;
+            /// <summary>
+            /// I simboli della domanda rimasti senza sintesi (una parte della domanda non ha risposto o è stata scartata): chi li
+            /// chiama non avrebbe la loro sintesi nel prompt, quindi non parte (22/10/2026).
+            /// </summary>
+            public List<string> Undescribed = new();
         }
 
         /// <summary>
@@ -834,7 +894,7 @@ namespace MdExplorer.Services.CodeGraph
             try { sourceAbs = resolver.Resolve(ast.Header.Source); }
             catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
             if (!File.Exists(sourceAbs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + sourceAbs; return result; }
-            var sourceText = await File.ReadAllTextAsync(sourceAbs, token);
+            var sourceText = CodeSourceText.Read(sourceAbs, resolver.EncodingsOf(ast.Header.Source));
 
             var merged = existing;
             var freshCount = 0;
@@ -850,6 +910,8 @@ namespace MdExplorer.Services.CodeGraph
             {
                 token.ThrowIfCancellationRequested();
                 // la descrizione del file si chiede una volta, nella prima domanda
+                var tooLong = CodeDocPlanner.TooLong(text, batch);
+                if (tooLong != null) { _logger.LogWarning("[CodeDoc] {File}: {Why}", ast.Header.Source, tooLong); result.TooLong ??= tooLong; continue; }
                 var askThis = askFile && !fileAsked;
                 fileAsked |= askThis;
                 var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch, _language.Current, askThis, fileContents: askThis ? fileContents : null);
@@ -875,8 +937,8 @@ namespace MdExplorer.Services.CodeGraph
             }
             if (merged == null || freshCount == 0)
             {
-                result.Error = failures.Count > 0 ? UiText.Say("l'AI non ha risposto: ", "the AI did not answer: ") + failures[0]
-                    : UiText.Say("nessuna descrizione valida nella risposta", "no valid description in the answer") + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
+                result.Error = result.TooLong ?? (failures.Count > 0 ? UiText.Say("l'AI non ha risposto: ", "the AI did not answer: ") + failures[0] : null)
+                    ?? UiText.Say("nessuna descrizione valida nella risposta", "no valid description in the answer") + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
                 return result;
             }
             CodeDocPlanner.DropOrphans(merged, ast);

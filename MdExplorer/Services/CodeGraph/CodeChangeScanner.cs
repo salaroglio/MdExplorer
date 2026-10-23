@@ -29,7 +29,8 @@ namespace MdExplorer.Services.CodeGraph
     {
         /// <param name="toLogical">Dal percorso della macchina al percorso logico (relativo al progetto, o <c>@alias/…</c> per una
         /// radice esterna); null = relativo al progetto.</param>
-        Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null);
+        /// <param name="languages">I linguaggi che contano; null = quelli del progetto (<see cref="CodeLanguageCatalog.ForProject"/>).</param>
+        Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null, CodeLanguageCatalog languages = null);
     }
 
     /// <summary>
@@ -61,18 +62,19 @@ namespace MdExplorer.Services.CodeGraph
         /// <summary>Il motivo, che la finestra «Ambiente di sviluppo» mostra così com'è, nella lingua dell'interfaccia.</summary>
         private string L(string italian, string english) => _language.Current == "it" ? italian : english;
 
-        public async Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null)
+        public async Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null, CodeLanguageCatalog languages = null)
         {
             toLogical ??= abs => CodeGraphPaths.ToProjectRelative(projectPath, abs);
             var result = new CodeScanResult();
             folderAbsolute = Path.GetFullPath(folderAbsolute);
+            languages ??= CodeLanguageCatalog.ForProject(projectPath);   // anche i linguaggi definiti nel progetto
 
             var top = await _git.RunAsync(folderAbsolute, new[] { "rev-parse", "--show-toplevel" }, ct);
             if (!top.Ok)
             {
                 result.Mode = "hash";
                 result.Reason = top.ExitCode == NativeGitRunner.GitNotFoundExit ? L("git non installato", "git is not installed") : L("la cartella non sta in un repository git", "the folder is not in a git repository");
-                WalkWithoutGit(toLogical, folderAbsolute, result);
+                WalkWithoutGit(toLogical, folderAbsolute, result, languages);
                 result.Candidates.AddRange(result.AllFiles);
                 return result;
             }
@@ -89,7 +91,7 @@ namespace MdExplorer.Services.CodeGraph
             foreach (var rel in SplitZ(ls.Stdout))
             {
                 var abs = Path.GetFullPath(Path.Combine(result.RepositoryRoot, rel));
-                if (CodeLanguages.ForFile(abs) == null || !File.Exists(abs)) continue;
+                if (languages.ForFile(abs) == null || !File.Exists(abs)) continue;
                 result.AllFiles.Add(new CodeSourceFile(abs, toLogical(abs)));
             }
 
@@ -122,7 +124,7 @@ namespace MdExplorer.Services.CodeGraph
             return result;
         }
 
-        private static void WalkWithoutGit(Func<string, string> toLogical, string folder, CodeScanResult result)
+        private static void WalkWithoutGit(Func<string, string> toLogical, string folder, CodeScanResult result, CodeLanguageCatalog languages)
         {
             var stack = new Stack<string>();
             stack.Push(folder);
@@ -138,7 +140,7 @@ namespace MdExplorer.Services.CodeGraph
                     {
                         if (!IgnoredDirectories.Contains(Path.GetFileName(e))) stack.Push(e);
                     }
-                    else if (CodeLanguages.ForFile(e) != null)
+                    else if (languages.ForFile(e) != null)
                     {
                         result.AllFiles.Add(new CodeSourceFile(Path.GetFullPath(e), toLogical(Path.GetFullPath(e))));
                     }

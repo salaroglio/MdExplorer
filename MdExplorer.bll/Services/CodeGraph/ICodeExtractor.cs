@@ -21,6 +21,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string ProjectPath { get; init; }
         public IReadOnlyList<CodeSourceFile> AllFiles { get; init; }
         public IReadOnlyList<CodeSourceFile> FilesToEmit { get; init; }
+        /// <summary>Le codifiche per estensione della radice (<see cref="CodeSourceText"/>); null = riconosciute dal contenuto.</summary>
+        public IReadOnlyDictionary<string, string> ExtensionEncodings { get; init; }
     }
 
     public sealed class CodeExtractionResult
@@ -47,15 +49,31 @@ namespace MdExplorer.Features.Services.CodeGraph
         ICodeExtractor Get(string languageId);
         /// <summary><c>ready</c> oppure il motivo, in italiano, per cui oggi quel linguaggio non si analizza.</summary>
         string Availability(string languageId);
+        /// <summary>
+        /// Gli stessi estrattori più quelli dei linguaggi definiti nel progetto (<see cref="CodeLanguageCatalog.ForProject"/>):
+        /// la definizione si rilegge a ogni analisi, così una regola cambiata vale subito.
+        /// </summary>
+        ICodeExtractorRegistry ForProject(CodeLanguageCatalog catalog);
     }
 
     public sealed class CodeExtractorRegistry : ICodeExtractorRegistry
     {
         private readonly Dictionary<string, ICodeExtractor> _extractors;
+        private readonly CodeLanguageCatalog _catalog;
 
-        public CodeExtractorRegistry(IEnumerable<ICodeExtractor> extractors)
+        public CodeExtractorRegistry(IEnumerable<ICodeExtractor> extractors) : this(extractors, CodeLanguageCatalog.BuiltIn) { }
+
+        private CodeExtractorRegistry(IEnumerable<ICodeExtractor> extractors, CodeLanguageCatalog catalog)
         {
             _extractors = extractors.ToDictionary(e => e.LanguageId, StringComparer.OrdinalIgnoreCase);
+            _catalog = catalog;
+        }
+
+        public ICodeExtractorRegistry ForProject(CodeLanguageCatalog catalog)
+        {
+            var builtIn = _extractors.Values.Where(e => e is not DeclarativeLanguageExtractor);
+            var declared = catalog.All.Where(l => l.Definition != null).Select(l => (ICodeExtractor)new DeclarativeLanguageExtractor(l.Definition));
+            return new CodeExtractorRegistry(builtIn.Concat(declared), catalog);
         }
 
         /// <summary>L'estrattore pronto; null se non c'è o se oggi non può lavorare (grammatica assente).</summary>
@@ -65,7 +83,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Availability(string languageId)
         {
             if (_extractors.TryGetValue(languageId, out var e)) return e.Availability;
-            var lang = CodeLanguages.ById(languageId);
+            if (_catalog.Errors.TryGetValue(languageId, out var broken)) return broken.Message;
+            var lang = _catalog.ById(languageId);
             if (lang == null) return "linguaggio sconosciuto";
             return lang.ExtractorKind == CodeExtractorKind.TreeSitter
                 ? "estrattore tree-sitter non ancora disponibile (grammatica da scaricare, fase F3)"

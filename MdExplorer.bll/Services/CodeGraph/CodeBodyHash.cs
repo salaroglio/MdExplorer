@@ -17,7 +17,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public static class CodeBodyHash
     {
-        private static readonly HashSet<string> WithBody = new(StringComparer.Ordinal) { "method", "constructor", "function", "property" };
+        private static readonly HashSet<string> WithBody = new(StringComparer.Ordinal) { "method", "constructor", "function", "property", "fragment" };
         private static readonly Regex Spaces = new(@"\s+", RegexOptions.Compiled);
 
         public static bool HasBody(string kind) => WithBody.Contains(kind);

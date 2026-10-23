@@ -95,7 +95,7 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Neighbors of a symbol in the code graph. direction='out' = what the symbol uses (calls, instantiates, references, inherits, implements, imports, contains); " +
+        "Neighbors of a symbol in the code graph. direction='out' = what the symbol uses (calls, instantiates, references, inherits, implements, imports, contains, jumps); " +
         "direction='in' = who uses it (its callers, implementers, subclasses). Optional `relation` filters one relation. " +
         "`depth` follows the edges up to N hops (1-5). Each edge carries `confidence`: extracted (certain), inferred (resolved by name, " +
         "e.g. an interface call to its implementations), llm-resolved (several candidates, the LLM that described the code chose this one: a deduction, not the parser), " +
@@ -104,7 +104,7 @@ public sealed class CodeTools : McpToolsBase
         [Description("Project name.")] string project,
         [Description("Symbol id (or exact qualified name).")] string symbol,
         [Description("'out' (default) or 'in'.")] string direction = "out",
-        [Description("One of: contains, imports, inherits, implements, references, calls, instantiates. Empty = all.")] string relation = null,
+        [Description("One of: contains, imports, inherits, implements, references, calls, instantiates, jumps (between the fragments of a long block). Empty = all.")] string relation = null,
         [Description("Hops, 1-5 (default 1).")] int? depth = null,
         [Description("Max edges (default 50).")] int? limit = null)
     {

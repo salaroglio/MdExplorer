@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -21,7 +21,8 @@ file alone.
 
 MdExplorer reads the folders the user marked as **program** and keeps a graph of their code: files, symbols
 (classes, methods, functions, components…), their parameters, and the edges between them (`calls`, `inherits`,
-`implements`, `imports`, `instantiates`, `references`, `contains`). Two steps fill it:
+`implements`, `imports`, `instantiates`, `references`, `contains`, and `jumps` between the `fragment`s of a block too
+long to describe in one go — a GOTO, or the code running on into the next piece). Two steps fill it:
 
 - **scan** (*scansione*): a parser (Roslyn for C#, tree-sitter for the other languages) reads the source and writes
   the structure. Deterministic, no AI.

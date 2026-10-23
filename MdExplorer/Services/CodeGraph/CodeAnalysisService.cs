@@ -66,6 +66,8 @@ namespace MdExplorer.Services.CodeGraph
         public string Describe { get; set; }
         /// <summary>Quante descrizioni insieme (preferenza dell'utente): la finestra ci stima il tempo di «descrivi tutto».</summary>
         public int DescriptionParallel { get; set; }
+        /// <summary>Le definizioni di linguaggio del progetto (<c>.mde-languages/</c>) che non si possono usare, col motivo.</summary>
+        public IReadOnlyList<LanguageDefinitionProblem> DefinitionProblems { get; set; } = Array.Empty<LanguageDefinitionProblem>();
     }
 
     public interface ICodeAnalysisService
@@ -200,7 +202,8 @@ namespace MdExplorer.Services.CodeGraph
         /// 2026-10-12-Radici-Di-Codice-Esterne F2). <see cref="ToLogical"/> dà il percorso logico dei file: è la chiave
         /// degli script, uguale su ogni macchina. <see cref="Unusable"/> dice perché una radice non si analizza qui.
         /// </summary>
-        private sealed record Scope(string Key, string FolderAbs, List<string> Languages, bool IsProgram, Func<string, string> ToLogical, string Unusable);
+        private sealed record Scope(string Key, string FolderAbs, List<string> Languages, bool IsProgram, Func<string, string> ToLogical, string Unusable,
+            IReadOnlyDictionary<string, string> Encodings = null);
 
         private async Task<Scope> ScopeOfAsync(string projectPath, string key, CancellationToken ct)
         {
@@ -220,7 +223,8 @@ namespace MdExplorer.Services.CodeGraph
             return new Scope(key, rootPath, root.Languages.ToList(),
                 root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)),
                 abs => CodeRootPaths.Format(alias, PathContainment.RelativeOrNull(rootPath, abs) is { } rel && rel != "." ? rel : string.Empty),
-                Analyzable(root) ? null : $"@{alias}: {NotAnalyzableReason(root)}");
+                Analyzable(root) ? null : $"@{alias}: {NotAnalyzableReason(root)}",
+                root.ExtensionEncodings.Count > 0 ? root.ExtensionEncodings : null);
         }
 
         /// <summary>
@@ -243,13 +247,18 @@ namespace MdExplorer.Services.CodeGraph
             if (scope.Unusable != null) throw new DirectoryNotFoundException(scope.Unusable);
             var folderAbs = scope.FolderAbs;
 
-            var scan = await _scanner.ScanAsync(projectPath, folderAbs, previousCommit: null, ct, scope.ToLogical);
+            var catalog = CodeLanguageCatalog.ForProject(projectPath);
+            var scan = await _scanner.ScanAsync(projectPath, folderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
             return new CodeFolderLanguages
             {
                 Folder = folderRelative,
                 IsProgramFolder = scope.IsProgram,
                 Selected = scope.Languages,
-                Detected = CodeLanguageDetector.Detect(scan.AllFiles.Select(f => f.AbsolutePath), _extractors),
+                Detected = CodeLanguageDetector.Detect(scan.AllFiles.Select(f => f.AbsolutePath), _extractors.ForProject(catalog), catalog),
+                DefinitionProblems = catalog.Errors.Select(e => new LanguageDefinitionProblem
+                {
+                    Id = e.Key, DefinitionPath = CodeGraphPaths.ToProjectRelative(projectPath, e.Value.DefinitionPath), Message = e.Value.Reason,
+                }).ToList(),
                 ScanMode = scan.Mode,
                 Describe = DescriptionModeOf(projectPath, folderRelative),
             };
@@ -274,7 +283,8 @@ namespace MdExplorer.Services.CodeGraph
         public void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages, string descriptionMode = null)
         {
             folderRelative = NormalizeRelative(folderRelative);
-            foreach (var l in languages) CodeLanguages.Require(l);   // un id ignoto è un errore, non una riga ignorata
+            var catalog = CodeLanguageCatalog.ForProject(projectPath);
+            foreach (var l in languages) catalog.Require(l);   // un id ignoto (o una definizione rotta) è un errore, non una riga ignorata
             if (descriptionMode != null) CodeDescriptionModes.Parse(descriptionMode, $"'{folderRelative}'");
 
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
@@ -367,7 +377,7 @@ namespace MdExplorer.Services.CodeGraph
                     continue;
                 }
                 var scan = await _scanner.ScanAsync(projectPath, depScope.FolderAbs, previousCommit: null, ct, depScope.ToLogical);
-                var files = scan.AllFiles.Where(f => CodeLanguages.ForFile(f.AbsolutePath)?.Id == bridge.Language).ToList();
+                var files = scan.AllFiles.Where(f => CodeLanguageCatalog.ForProject(projectPath).ForFile(f.AbsolutePath)?.Id == bridge.Language).ToList();
                 if (!set.Files.TryGetValue(bridge.Language, out var list)) set.Files[bridge.Language] = list = new List<CodeSourceFile>();
                 list.AddRange(files);
                 foreach (var kv in foreign) set.ForeignIds[kv.Key] = kv.Value;
@@ -469,10 +479,12 @@ namespace MdExplorer.Services.CodeGraph
                 var previous = await _store.GetScanStateAsync(projectPath, folderRelative, ct);
                 var scan = await _scanner.ScanAsync(projectPath, folderAbs, previous?.AnalyzedCommit, ct, scope.ToLogical);
                 outcome.Mode = scan.Mode; outcome.Reason = scan.Reason;
+                var catalog = CodeLanguageCatalog.ForProject(projectPath);
+                var extractors = _extractors.ForProject(catalog);
                 var chosen = new HashSet<string>(languages, StringComparer.OrdinalIgnoreCase);
-                var inPerimeter = scan.AllFiles.Where(f => chosen.Contains(CodeLanguages.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
+                var inPerimeter = scan.AllFiles.Where(f => chosen.Contains(catalog.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
                 outcome.FilesInPerimeter = inPerimeter.Count;
-                var candidates = scan.Candidates.Where(f => chosen.Contains(CodeLanguages.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
+                var candidates = scan.Candidates.Where(f => chosen.Contains(catalog.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
                 outcome.Candidates = candidates.Count;
 
                 // 1b) I ponti del build (punto 3b): i programmi da cui questo dipende entrano fra i file da risolvere, e gli
@@ -486,13 +498,13 @@ namespace MdExplorer.Services.CodeGraph
                 foreach (var languageId in languages)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var lang = CodeLanguages.Require(languageId);
-                    var all = inPerimeter.Where(f => CodeLanguages.ForFile(f.AbsolutePath)?.Id == lang.Id).ToList();
-                    var extractor = _extractors.Get(lang.Id);
+                    var lang = catalog.Require(languageId);
+                    var all = inPerimeter.Where(f => catalog.ForFile(f.AbsolutePath)?.Id == lang.Id).ToList();
+                    var extractor = extractors.Get(lang.Id);
                     if (extractor == null)
                     {
                         if (all.Count > 0) outcome.FilesWithoutExtractor[lang.Id] = all.Count;
-                        outcome.Warnings.Add($"{lang.DisplayName}: {all.Count} file, {_extractors.Availability(lang.Id)}");
+                        outcome.Warnings.Add($"{lang.DisplayName}: {all.Count} file, {extractors.Availability(lang.Id)}");
                         continue;
                     }
                     // Candidati: ciò che git (o l'hash) dice cambiato, PIÙ ogni file il cui script l'ha scritto un altro
@@ -506,16 +518,19 @@ namespace MdExplorer.Services.CodeGraph
                     var toEmit = bridgesChanged
                         ? all
                         : all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f)))
-                             .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
+                             .Where(f => NeedsReparse(projectPath, f, extractor, scope.Encodings)).ToList();
                     if (toEmit.Count == 0) continue;
                     var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
-                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = toEmit }, ct);
+                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = toEmit, ExtensionEncodings = scope.Encodings }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
                     foreach (var (file, script) in extracted.Scripts)
                     {
                         CodeProgramScope.Apply(script, folderRelative, bridgeSet.ForeignIds);
-                        // l'impronta del corpo (F12b), per ogni linguaggio: dice quando una descrizione va rifatta
-                        CodeBodyHash.Apply(script, File.ReadAllText(file.AbsolutePath, System.Text.Encoding.UTF8));
+                        // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
+                        // (CodeSourceText: un CP-850 letto in UTF-8 non vedrebbe un'accentata cambiata)
+                        var sourceText = CodeSourceText.Read(file.AbsolutePath, scope.Encodings);
+                        CodeBodyHash.Apply(script, sourceText);
+                        script.Header.SourceHash = CodeSourceText.Hash(sourceText);
                         script.Header.ExtractorVersion = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
                         var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
                         if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
@@ -588,6 +603,7 @@ namespace MdExplorer.Services.CodeGraph
             var prefix = NormalizeRelative(folderPrefix ?? string.Empty);
             var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
             var resolver = await _roots.CreateResolverAsync(projectPath, ct);
+            var extractors = _extractors.ForProject(CodeLanguageCatalog.ForProject(projectPath));
 
             // le cartelle interne e le radici esterne COLLEGATE (una radice non collegata non si rianalizza qui: niente da proporre)
             var scopes = config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
@@ -607,7 +623,7 @@ namespace MdExplorer.Services.CodeGraph
                     if (source == null || language == null) continue;
                     if (prefix.Length > 0 && !(source + "/").StartsWith(prefix + "/", StringComparison.Ordinal) && !source.StartsWith(prefix + "/", StringComparison.Ordinal)) continue;
                     if (!languages.Contains(language, StringComparer.OrdinalIgnoreCase)) continue;
-                    var current = _extractors.Get(language);
+                    var current = extractors.Get(language);
                     if (current == null) continue;   // oggi non si analizza: lo dice già la finestra Ambiente di sviluppo
                     if (ext == current.ExtractorName && ver == CodeBodyHash.EmitterVersion(current.ExtractorVersion)) continue;
                     string sourceAbs;
@@ -627,11 +643,11 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>L'hash nell'intestazione dello script esistente conferma o smentisce il candidato (D14).</summary>
-        private static bool NeedsReparse(string projectPath, CodeSourceFile file, ICodeExtractor extractor)
+        private static bool NeedsReparse(string projectPath, CodeSourceFile file, ICodeExtractor extractor, IReadOnlyDictionary<string, string> encodings)
         {
             var header = CodeScriptTurtle.ReadHeaderLine(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast));
             if (header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != CodeBodyHash.EmitterVersion(extractor.ExtractorVersion)) return true;
-            return !string.Equals(header.SourceHash, CodeGraphStore.Sha256(File.ReadAllText(file.AbsolutePath)), StringComparison.OrdinalIgnoreCase);
+            return !string.Equals(header.SourceHash, CodeSourceText.Hash(CodeSourceText.Read(file.AbsolutePath, encodings)), StringComparison.OrdinalIgnoreCase);
         }
 
         private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)

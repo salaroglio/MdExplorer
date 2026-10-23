@@ -75,7 +75,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly HashSet<string> Describable = new(StringComparer.Ordinal)
         {
             "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
-            "component", "service", "directive", "pipe", "ngmodule",
+            "component", "service", "directive", "pipe", "ngmodule", "fragment",
         };
 
         /// <summary>Un kind che si descrive (non i campi, non i moduli, non gli esterni).</summary>
@@ -226,9 +226,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public static bool NeedsFileDoc(CodeScript existingDoc, bool force) => force || existingDoc?.FileDoc == null;
 
+        /// <summary>Quanto sorgente porta una domanda: oltre, i simboli si dividono in più domande; un simbolo che da solo lo supera non si chiede.</summary>
         public const int MaxSourceChars = 60_000;
-        /// <summary>Quanti simboli per domanda quando il file è troppo lungo per andare intero.</summary>
-        public const int ExcerptBatchSize = 12;
 
         /// <summary>
         /// Il sorgente di una domanda su un ciclo che attraversa più file (F12a): per ogni file, sotto la sua intestazione
@@ -248,21 +247,48 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>
         /// Che cosa mandare all'LLM per una domanda su UN file (22/10/2026): mai più il file intero, solo le righe dei simboli
         /// da descrivere (<see cref="CodeSourceExcerpt.For"/>); se non ce ne sono (la sola descrizione del file),
-        /// l'intestazione. Se gli estratti superano <see cref="MaxSourceChars"/>, a gruppi di <see cref="ExcerptBatchSize"/> simboli.
+        /// l'intestazione. Se gli estratti superano <see cref="MaxSourceChars"/>, più domande, riempite in ordine di riga
+        /// finché ci stanno (23/10/2026: prima 12 simboli fissi, che potevano superare il limite ed essere tagliati). Un
+        /// simbolo che da solo lo supera resta in una domanda sua, più lunga del limite: chi la manda la dà per non riuscita
+        /// (<see cref="TooLong"/>), mai tagliata.
         /// </summary>
         public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Pieces(string sourceText, IReadOnlyList<CodeDocCandidate> candidates, CodeScript ast, bool askFile = false)
         {
             var list = new List<(IReadOnlyList<CodeDocCandidate>, string)>();
             if (candidates.Count == 0) { if (askFile) list.Add((candidates, CodeSourceExcerpt.Header(sourceText, ast))); return list; }
-            var all = CodeSourceExcerpt.For(sourceText, candidates.Select(c => c.Symbol), ast);
+            var excerpt = CodeSourceExcerpt.Maker(sourceText, ast);
+            var all = excerpt(candidates.Select(c => c.Symbol));
             if (all.Length <= MaxSourceChars) { list.Add((candidates, all)); return list; }
-            var ordered = candidates.OrderBy(c => c.Symbol.LineStart ?? 0).ToList();
-            for (var i = 0; i < ordered.Count; i += ExcerptBatchSize)
+            // la somma degli estratti uno per uno non è mai meno dell'estratto insieme (le righe in comune si fondono)
+            var batch = new List<CodeDocCandidate>();
+            var size = 0;
+            foreach (var c in candidates.OrderBy(c => c.Symbol.LineStart ?? 0))
             {
-                var batch = ordered.Skip(i).Take(ExcerptBatchSize).ToList();
-                list.Add((batch, CodeSourceExcerpt.For(sourceText, batch.Select(c => c.Symbol), ast)));
+                var mine = excerpt(new[] { c.Symbol }).Length;
+                if (batch.Count > 0 && size + mine > MaxSourceChars)
+                {
+                    list.Add((batch, excerpt(batch.Select(x => x.Symbol))));
+                    batch = new List<CodeDocCandidate>();
+                    size = 0;
+                }
+                batch.Add(c);
+                size += mine;
             }
+            if (batch.Count > 0) list.Add((batch, excerpt(batch.Select(x => x.Symbol))));
             return list;
+        }
+
+        /// <summary>
+        /// Il sorgente di una domanda supera <see cref="MaxSourceChars"/> (un simbolo che da solo è più lungo): il messaggio per
+        /// la domanda non riuscita, con chi e quanto; null se ci sta. Un blocco di un linguaggio dichiarativo si spezza in
+        /// frammenti (<c>fragments</c> nella definizione); negli altri linguaggi la funzione va divisa nel codice.
+        /// </summary>
+        public static string TooLong(string source, IReadOnlyList<CodeDocCandidate> candidates)
+        {
+            if (source.Length <= MaxSourceChars) return null;
+            var who = string.Join(", ", candidates.Select(c => c.Symbol.QualifiedName).Take(3));
+            return UiText.Say($"{who}: {source.Length:N0} caratteri di sorgente, oltre i {MaxSourceChars:N0} che una domanda porta; non si manda tagliato. Va diviso: un linguaggio definito nel progetto con fragments nella definizione, gli altri nel codice",
+                $"{who}: {source.Length:N0} characters of source, more than the {MaxSourceChars:N0} a question carries; it is not sent truncated. It must be split: a project-defined language with fragments in its definition, the others in the code");
         }
 
         /// <summary>Quello che si sa intorno a un simbolo quando lo si descrive dal basso (F12a): chi chiama e, per un tipo, i membri.</summary>
@@ -270,6 +296,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             public IReadOnlyList<CodeDocCall> Calls { get; init; }
             public IReadOnlyList<CodeDocCall> Members { get; init; }
+            /// <summary>I frammenti dove il codice salta o prosegue.</summary>
+            public IReadOnlyList<CodeDocCall> Jumps { get; init; }
         }
 
         private static object CallJson(CodeDocCall c) => c.Candidates != null
@@ -298,7 +326,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 "en" => "inglese (English)",
                 _ => throw new ArgumentException(UiText.Say($"Lingua delle descrizioni '{language}' non prevista: it oppure en.", $"Description language '{language}' not supported: it or en."), nameof(language)),
             };
-            if (sourceText.Length > MaxSourceChars) sourceText = sourceText.Substring(0, MaxSourceChars) + "\n/* … troncato … */";
+            // tagliare voleva dire descrizioni scritte su metà del codice senza che nessuno lo sapesse: chi chiama controlla con TooLong
+            if (sourceText.Length > MaxSourceChars) throw new InvalidOperationException(TooLong(sourceText, candidates));
             var sb = new StringBuilder();
             sb.Append(skillBody.Trim()).Append("\n\n");
             sb.Append("---- FILE ----\n").Append(sourceRelativePath).Append('\n').Append(sourceText).Append("\n\n");
@@ -328,6 +357,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     parameters = c.Parameters.Select(p => new { name = p.Name, type = p.ParameterType, direction = p.Direction, defaultValue = p.DefaultValue }),
                     calls = ctx?.Calls is { Count: > 0 } calls ? calls.Select(CallJson).ToList() : null,
                     members = ctx?.Members is { Count: > 0 } members ? members.Select(CallJson).ToList() : null,
+                    jumps = ctx?.Jumps is { Count: > 0 } jumps ? jumps.Select(j => new { line = j.Line, to = j.QualifiedName }).ToList() : null,
                 }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping })).Append('\n');
             }
             sb.Append("\n---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in ").Append(languageName).Append(".\n");

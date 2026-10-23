@@ -125,7 +125,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(one[0].Source.Contains("x = 1;"), "né l'inizio del file");
 
             var batches = CodeDocPlanner.Pieces(source, cands, ast);
-            Assert.IsTrue(batches.Count > 1, "30 × 81 righe superano MaxSourceChars: a gruppi di " + CodeDocPlanner.ExcerptBatchSize);
+            Assert.IsTrue(batches.Count > 1, "30 × 81 righe superano MaxSourceChars: più domande, riempite finché ci stanno");
             Assert.AreEqual(30, batches.Sum(b => b.Candidates.Count), "nessun simbolo perso");
             StringAssert.Contains(batches[^1].Source, "function F30 {");
             Assert.IsTrue(batches.All(b => b.Source.Length < CodeDocPlanner.MaxSourceChars));

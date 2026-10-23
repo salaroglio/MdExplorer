@@ -11,13 +11,11 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// Prima ogni domanda mandava il file intero, e dal basso lo stesso file torna a ogni livello (utente: «che sia uno
     /// spreco mi sembra ovvio»). Una funzione porta con sé il commento di documentazione subito sopra; un tipo (classe,
     /// interfaccia, enum…) le sue righe SENZA i corpi dei membri, di cui resta la prima riga: i membri l'LLM li conosce
-    /// dalle sintesi già scritte (<c>members</c> nel prompt).
+    /// dalle sintesi già scritte (<c>members</c> nel prompt). Lo stesso per un blocco spezzato in frammenti: restano
+    /// le righe prima della prima etichetta e la prima riga di ogni frammento.
     /// </summary>
     public static class CodeSourceExcerpt
     {
-        private static readonly HashSet<string> TypeKinds = new(StringComparer.Ordinal)
-            { "class", "interface", "record", "struct", "enum", "type", "component", "service", "directive", "pipe", "ngmodule" };
-
         /// <summary>Quante righe di commento sopra un simbolo si portano al massimo.</summary>
         public const int MaxDocLines = 40;
 
@@ -28,11 +26,19 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <c>// ---- righe a-b ----</c>; dentro un tipo i corpi dei membri di <paramref name="ast"/> sono sostituiti da
         /// <c>// … corpo di X (righe a-b) …</c>.
         /// </summary>
-        public static string For(string sourceText, IEnumerable<ScriptSymbol> wanted, CodeScript ast)
+        public static string For(string sourceText, IEnumerable<ScriptSymbol> wanted, CodeScript ast) => Maker(sourceText, ast)(wanted);
+
+        /// <summary>Come <see cref="For"/>, con righe e figli preparati una volta: per chi chiede molti estratti dello stesso file.</summary>
+        public static Func<IEnumerable<ScriptSymbol>, string> Maker(string sourceText, CodeScript ast)
         {
             var lines = Lines(sourceText);
             var children = ast.Symbols.Where(s => s.ParentId != null && s.LineStart != null && !s.IsExternal)
                 .GroupBy(s => s.ParentId, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+            return wanted => Build(lines, children, wanted);
+        }
+
+        private static string Build(string[] lines, Dictionary<string, List<ScriptSymbol>> children, IEnumerable<ScriptSymbol> wanted)
+        {
 
             // (da, a, righe da togliere dentro) per simbolo; poi si fondono i pezzi che si toccano
             var pieces = new List<(int From, int To, List<(int From, int To, string Name)> Elided)>();
@@ -42,7 +48,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var to = Math.Clamp(s.LineEnd ?? from, from, lines.Length);
                 from = WithDocAbove(lines, from);
                 var elided = new List<(int, int, string)>();
-                if (TypeKinds.Contains(s.Kind) && children.TryGetValue(s.Id, out var members))
+                if (children.TryGetValue(s.Id, out var members) && CodeDocGraph.FromParts(s.Kind, members.Select(m => m.Kind)))
                     foreach (var m in members.Where(m => m.Kind != "field" && m.LineEnd != null && m.LineEnd > m.LineStart).OrderBy(m => m.LineStart))
                         elided.Add((m.LineStart.Value + 1, Math.Min(m.LineEnd.Value, to), m.Name));   // resta la prima riga, la firma
                 pieces.Add((from, to, elided));

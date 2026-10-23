@@ -39,17 +39,31 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// descrivere, sennò 1 + il più alto dei chiamati, rigoroso per funzione anche dentro lo stesso file (D40) — e le
     /// domande con le loro dipendenze. Una classe (interfaccia, enum, record) viene dopo i suoi membri. Una chiamata
     /// <c>ambiguous</c> fa aspettare TUTTE le sue candidate (utente, 22/10/2026: «qualunque chiamata, ambigua o meno, rende
-    /// una funzione NON foglia»); non aspettano gli esterni, i metodi banali e chi è già descritto.
+    /// una funzione NON foglia»); non aspettano gli esterni, i metodi banali e chi è già descritto. Un blocco spezzato in
+    /// frammenti si descrive come un tipo, dopo i suoi pezzi; i salti fra i pezzi (<c>jumps</c>) NON sono dipendenze:
+    /// i GOTO all'indietro farebbero un ciclo grande quanto il blocco, cioè di nuovo una domanda sola.
     /// </summary>
     public sealed class CodeDocGraph
     {
         private readonly Dictionary<string, (ScriptSymbol Symbol, string Source)> _symbols = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<ScriptEdge>> _calls = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<string>> _members = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<ScriptEdge>> _jumps = new(StringComparer.Ordinal);
         private readonly Dictionary<string, ScriptSymbol> _externals = new(StringComparer.Ordinal);
 
         private static readonly HashSet<string> TypeKinds = new(StringComparer.Ordinal)
             { "class", "interface", "record", "struct", "enum", "type", "component", "service", "directive", "pipe", "ngmodule" };
+
+        /// <summary>
+        /// Chi si descrive mettendo insieme i suoi pezzi, già descritti: un tipo (i membri) e un blocco spezzato in frammenti
+        ///. Il suo estratto toglie i corpi dei pezzi, e le loro sintesi arrivano in <c>members</c>.
+        /// </summary>
+        public static bool FromParts(string kind, IEnumerable<string> childKinds)
+            => TypeKinds.Contains(kind) || childKinds.Contains(DeclarativeLanguage.FragmentKind);
+
+        private bool FromParts(string id)
+            => _symbols.TryGetValue(id, out var me) && FromParts(me.Symbol.Kind,
+                _members.TryGetValue(id, out var ms) ? ms.Where(_symbols.ContainsKey).Select(m => _symbols[m].Symbol.Kind) : Enumerable.Empty<string>());
 
         /// <summary>Archi verso simboli che nessuno script della cartella dichiara: non dovrebbero esserci (l'estrattore li fa esterni).</summary>
         public List<string> Warnings { get; } = new();
@@ -75,6 +89,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!_members.TryGetValue(e.SourceId, out var list)) _members[e.SourceId] = list = new List<string>();
                     list.Add(e.TargetId);
                 }
+                else if (e.Relation == DeclarativeLanguage.JumpsRelation)
+                {
+                    if (!_jumps.TryGetValue(e.SourceId, out var list)) _jumps[e.SourceId] = list = new List<ScriptEdge>();
+                    list.Add(e);
+                }
             }
         }
 
@@ -98,7 +117,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         // anche le candidate di una chiamata ambigua (22/10/2026): per scegliere quella vera l'LLM deve
                         // conoscerle; prima non davano ordine e il chiamante passava prima di loro, «foglia» per sbaglio
                         if (e.TargetId != n && byId.ContainsKey(e.TargetId)) deps.Add(e.TargetId);
-                if (TypeKinds.Contains(byId[n].Symbol.Kind) && _members.TryGetValue(n, out var members))
+                if (FromParts(n) && _members.TryGetValue(n, out var members))
                     foreach (var m in members)
                         if (m != n && byId.ContainsKey(m)) deps.Add(m);
                 adj[n].AddRange(deps.OrderBy(d => d, StringComparer.Ordinal));
@@ -179,6 +198,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result.OrderBy(c => c.Line ?? 0).ToList();
         }
 
+        /// <summary>
+        /// Dove passa il codice di un frammento: i frammenti verso cui salta o prosegue, con la riga del salto. Solo i
+        /// nomi: i salti non sono dipendenze, quindi la sintesi di chi sta dall'altra parte di solito non c'è ancora.
+        /// </summary>
+        public List<CodeDocCall> JumpsOf(string symbolId)
+        {
+            var result = new List<CodeDocCall>();
+            if (!_jumps.TryGetValue(symbolId, out var jumps)) return result;
+            foreach (var e in jumps.OrderBy(e => e.Line ?? 0).ThenBy(e => e.TargetId, StringComparer.Ordinal))
+                if (_symbols.TryGetValue(e.TargetId, out var s))
+                    result.Add(new CodeDocCall { Line = e.Line, QualifiedName = s.Symbol.QualifiedName, Signature = s.Symbol.Signature });
+            return result;
+        }
+
         private Dictionary<string, int> _cycleOf;
 
         /// <summary>
@@ -198,7 +231,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (_calls.TryGetValue(symbolId, out var calls))
                 foreach (var e in calls)
                     if (e.TargetId != symbolId && !SameCycle(e.TargetId)) tokens.Add((e.Confidence == "ambiguous" ? "amb:" : "call:") + Token(e.TargetId));
-            if (_symbols.TryGetValue(symbolId, out var me) && TypeKinds.Contains(me.Symbol.Kind) && _members.TryGetValue(symbolId, out var members))
+            if (FromParts(symbolId) && _members.TryGetValue(symbolId, out var members))
                 foreach (var m in members)
                     if (_symbols.TryGetValue(m, out var ms) && CodeDocPlanner.IsDescribable(ms.Symbol.Kind)) tokens.Add("member:" + Token(m));
             tokens.Sort(StringComparer.Ordinal);

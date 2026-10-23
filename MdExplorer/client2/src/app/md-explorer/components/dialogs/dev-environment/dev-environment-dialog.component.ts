@@ -3,7 +3,7 @@ import { Observable, Subject, finalize, of, switchMap, takeUntil } from 'rxjs';
 import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
 
 export interface DevEnvironmentDialogData {
@@ -53,6 +53,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public describing = false;
   public describeLog: string[] = [];
   public describeDone: { files: number; described: number; rejected: number } | null = null;
+  /** A fine giro: domande senza risposta, a metà e non partite perché dipendono da quelle (22/10/2026). */
+  public describeNotAll: { failed: number; partial: number; blocked: number } | null = null;
   /** L'anteprima del prossimo giro (F12b): campi semplici, niente getter che allocano nel template. */
   public preview: DescribePreview | null = null;
   public previewTodo = 0;
@@ -335,6 +337,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.describing = true;
     this.describeLog = [];
     this.describeDone = null;
+    this.describeNotAll = null;
     this.errorMessage = '';
     this.codeGraph.describe(this.data.projectRoot, this.data.folderPath, connectionId, force, review).subscribe({
       error: (err) => {
@@ -358,8 +361,13 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       case 'started': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal, levels: p.levels, symbols: p.symbols, trivial: p.trivial })); break;
       case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })); break;
       case 'file-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE_DONE', { file: p.file, described: p.described, rejected: p.rejected })); break;
-      case 'file-failed': case 'file-skipped': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
-      case 'done': this.describing = false; this.describeDone = { files: p.files, described: p.described, rejected: p.rejected }; this.loadPreview(); break;
+      case 'file-failed': case 'file-skipped': case 'file-blocked': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
+      case 'done':
+        this.describing = false;
+        this.describeDone = { files: p.files, described: p.described, rejected: p.rejected };
+        this.describeNotAll = (p.failed || 0) + (p.partial || 0) + (p.blocked || 0) > 0 ? { failed: p.failed || 0, partial: p.partial || 0, blocked: p.blocked || 0 } : null;
+        this.loadPreview();
+        break;
       case 'cancelled': this.describing = false; this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_CANCELLED')); break;
       case 'error': this.describing = false; this.errorMessage = p.detail || p.message; break;
     }
@@ -371,6 +379,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.codeGraph.getLanguages(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (res) => {
         this.detected = res.detected ?? [];
+        this.definitionProblems = res.definitionProblems ?? [];
         this.scanMode = res.scanMode;
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
@@ -401,6 +410,9 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   isReady(d: DetectedLanguage): boolean { return d.availability === 'ready'; }
 
   canDownload(d: DetectedLanguage): boolean { return !this.isReady(d) && !!d.grammarId; }
+
+  /** Le definizioni di linguaggio del progetto che non si possono usare: si mostrano col motivo, non si ignorano. */
+  public definitionProblems: LanguageDefinitionProblem[] = [];
 
   /** Scarica la grammatica (D8) e rilegge i linguaggi: la riga passa a «pronto» e resta selezionabile. */
   download(d: DetectedLanguage): void {
