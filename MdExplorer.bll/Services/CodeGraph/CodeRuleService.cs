@@ -124,8 +124,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>
         /// La seconda passata delle pagine (D42 passo 2c, 24/10/2026): a grafo caricato, ogni chiamata di una pagina verso una
         /// funzione dei file JS che la pagina carica (o delle pagine che include) diventa un arco <c>calls</c>, <c>extracted</c>
-        /// se la funzione è una sola, <c>ambiguous</c> se sono di più. Nessuna approvazione: è HTML e JS standard, non una
-        /// convenzione del progetto. Gli archi stanno in <c>.mde-code/_rules/_page-scripts.rules.ttl</c>, rifatto a ogni
+        /// se la funzione è una sola, <c>ambiguous</c> se sono di più. Per Angular (D42 B) anche: componente «renders» il suo
+        /// template, chiamata del template → metodo del componente, <c>&lt;app-x&gt;</c> «instantiates» il componente. Nessuna
+        /// approvazione: sono le regole standard di HTML, JS e Angular, non una convenzione del progetto. Gli archi stanno in <c>.mde-code/_rules/_page-scripts.rules.ttl</c>, rifatto a ogni
         /// scansione; senza pagine il file non c'è. Torna quanti archi ha scritto.
         /// </summary>
         public async Task<int> ApplyPageScriptsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
@@ -140,14 +141,22 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 return 0;
             }
-            var calls = await _store.PageScriptCallsAsync(projectPath, pageLanguages, ct);
-            var edges = calls.GroupBy(c => (c.CallerId, c.Callee, c.Line))
-                .SelectMany(g => g.Select(c => c.FunctionId).Distinct(StringComparer.Ordinal).Select(fn => new ScriptEdge
+            var links = (await _store.PageScriptCallsAsync(projectPath, pageLanguages, ct))
+                .Select(c => new CodePageLink { SourceId = c.CallerId, TargetId = c.FunctionId, Relation = "calls", Name = c.Callee, Line = c.Line, Path = c.Path })
+                .Concat(await _store.AngularLinksAsync(projectPath, pageLanguages, ct));
+            // più bersagli per lo stesso nome nella stessa riga = ambiguous; un arco per (sorgente, bersaglio, relazione), come negli ast
+            var edges = links.GroupBy(l => (l.SourceId, l.Relation, l.Name, l.Line))
+                .SelectMany(g =>
                 {
-                    SourceId = g.Key.CallerId, TargetId = fn, Relation = "calls", Line = g.Key.Line, Path = g.First().Path,
-                    Confidence = g.Select(c => c.FunctionId).Distinct(StringComparer.Ordinal).Count() == 1 ? "extracted" : "ambiguous",
-                }))
-                .GroupBy(e => (e.SourceId, e.TargetId)).Select(g => g.First())   // un arco per (chiamante, funzione), come negli ast
+                    var targets = g.Select(l => l.TargetId).Distinct(StringComparer.Ordinal).ToList();
+                    return targets.Select(t => new ScriptEdge
+                    {
+                        SourceId = g.Key.SourceId, TargetId = t, Relation = g.Key.Relation, Line = g.Key.Line, Path = g.First().Path,
+                        Confidence = targets.Count == 1 ? "extracted" : "ambiguous",
+                    });
+                })
+                .GroupBy(e => (e.SourceId, e.TargetId, e.Relation)).Select(g => g.First())
+                .OrderBy(e => e.Path, StringComparer.Ordinal).ThenBy(e => e.Line).ThenBy(e => e.SourceId, StringComparer.Ordinal).ThenBy(e => e.TargetId, StringComparer.Ordinal)
                 .ToList();
             var script = new CodeScript
             {
@@ -156,7 +165,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Rule, Source = PageScriptsId,
                     WrittenBy = "MdExplorer", WrittenAt = string.Empty,
                 },
-                RuleDescription = "MdExplorer: le chiamate delle pagine verso le funzioni dei file JS che caricano, anche dalle pagine incluse (D42 passo 2c).",
+                RuleDescription = "MdExplorer: le chiamate delle pagine verso le funzioni dei file JS che caricano (anche dalle pagine incluse) e, per Angular, componente ↔ template e <app-x> → componente (D42).",
             };
             script.Edges.AddRange(edges);
             Directory.CreateDirectory(Path.GetDirectoryName(path));

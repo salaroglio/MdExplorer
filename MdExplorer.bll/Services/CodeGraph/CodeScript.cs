@@ -246,7 +246,9 @@ namespace MdExplorer.Features.Services.CodeGraph
               // smistamento per stringa: il nome del metodo viaggia in una stringa (D42, solo dalle regole)
               "dispatches",
               // una pagina ne include un'altra (pagine a direttive, D42 passo 2)
-              "includes" };
+              "includes",
+              // un componente mostra il suo template (Angular, D42 B)
+              "renders" };
         /// <summary><c>rule</c>: l'arco l'ha prodotto una regola di arricchimento (D42), mai il parser.</summary>
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous", "rule" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };

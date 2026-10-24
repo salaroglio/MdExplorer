@@ -36,7 +36,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public abstract string LanguageId { get; }
         public abstract string ExtractorName { get; }
-        public string ExtractorVersion => "5";   // 5: punti di chiamata con stringhe (D42)
+        // 5: punti di chiamata con stringhe (D42); 6: templateUrl e selector di Angular come punti di chiamata (D42 B) e un
+        // nodo solo per get/set e overload dello stesso nome (prima lo script era rifiutato al caricamento, anche in JS)
+        public string ExtractorVersion => "6";
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -359,6 +361,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 });
 
                 foreach (var node in root.NamedChildren) EmitTopLevel(node, exported: false);
+                MergeRepeatedSymbols();
                 return _script;
             }
 
@@ -438,6 +441,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var classId = Declare(decl, kind, name, qn, Signature(decl) + AngularSignature(metadata), returnType: null, visibility: exported ? "public" : "internal", parentId: _moduleId);
                 Edge(_moduleId, classId, "contains", "extracted", Line(decl));
                 if (metadata != null) EmitAngularMetadata(metadata, classId);
+                if (metadata != null && kind == "component") RecordAngularView(metadata, classId, Line(decl));
 
                 var heritage = decl.NamedChildren.FirstOrDefault(c => c.Type == "class_heritage");
                 if (heritage != null)
@@ -513,6 +517,43 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (relation == null) continue;
                     foreach (var t in ListedTypes(value)) Edge(classId, ResolveType(t), relation, ConfidenceOfType(t), Line(value));
                 }
+            }
+
+            /// <summary>
+            /// Il template e il selettore di un componente Angular come punti di chiamata della classe (D42 B, 24/10/2026):
+            /// <c>templateUrl</c> con il percorso LOGICO del file (risolto rispetto al .ts), <c>selector</c> com'è scritto.
+            /// La seconda passata dopo il caricamento li incrocia con le pagine: il componente «renders» il suo template, il
+            /// <c>(click)="salva()"</c> del template chiama il metodo <c>salva</c> della classe, <c>&lt;app-x&gt;</c> crea il
+            /// componente con quel selettore. Il dialetto delle pagine Angular lo scrive l'LLM del progetto.
+            /// </summary>
+            private void RecordAngularView(Node metadata, string classId, int line)
+            {
+                foreach (var (key, value) in Pairs(metadata))
+                {
+                    if (key is not ("templateUrl" or "selector") || value.Type != "string") continue;
+                    var text = value.NamedChildren.FirstOrDefault(c => c.Type == "string_fragment")?.Text;
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+                    if (key == "templateUrl")
+                    {
+                        var dir = Path.GetDirectoryName(_pf.File.LogicalPath)?.Replace('\\', '/') ?? string.Empty;
+                        text = NormalizeLogical(dir.Length > 0 ? dir + "/" + text : text);
+                        if (text == null) continue;
+                    }
+                    _callSites.Add(classId, Line(value), key, null, new[] { text }, always: true);
+                }
+            }
+
+            /// <summary><c>a/b/../c/./d.html</c> → <c>a/c/d.html</c>; null se esce dalla radice.</summary>
+            private static string NormalizeLogical(string path)
+            {
+                var parts = new List<string>();
+                foreach (var p in path.Split('/'))
+                {
+                    if (p.Length == 0 || p == ".") continue;
+                    if (p == "..") { if (parts.Count == 0) return null; parts.RemoveAt(parts.Count - 1); continue; }
+                    parts.Add(p);
+                }
+                return string.Join('/', parts);
             }
 
             private void EmitMethod(Node m, string classId, string className)
@@ -736,6 +777,31 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             // ---- helpers
+
+            /// <summary>
+            /// Lo stesso simbolo dichiarato più volte (<c>get data()</c> + <c>set data(v)</c>, le firme di overload prima del
+            /// corpo) è UN nodo: uno script con due nodi uguali il caricatore lo rifiuta tutto («lineStart ripetuto», visto il
+            /// 24/10/2026 sul client Angular di MdExplorer). Resta il primo, con le righe che coprono tutte le dichiarazioni;
+            /// i parametri restano quelli della prima che ne ha.
+            /// </summary>
+            private void MergeRepeatedSymbols()
+            {
+                var kept = new Dictionary<string, ScriptSymbol>(StringComparer.Ordinal);
+                var symbols = new List<ScriptSymbol>();
+                foreach (var s in _script.Symbols)
+                {
+                    if (!kept.TryGetValue(s.Id, out var first)) { kept[s.Id] = s; symbols.Add(s); continue; }
+                    first.LineStart = Math.Min(first.LineStart ?? int.MaxValue, s.LineStart ?? int.MaxValue);
+                    first.LineEnd = Math.Max(first.LineEnd ?? 0, s.LineEnd ?? 0);
+                }
+                if (symbols.Count == _script.Symbols.Count) return;
+                _script.Symbols.Clear();
+                _script.Symbols.AddRange(symbols);
+                var seen = new HashSet<(string, int)>();
+                var parameters = _script.Parameters.Where(p => seen.Add((p.SymbolId, p.Position))).ToList();
+                _script.Parameters.Clear();
+                _script.Parameters.AddRange(parameters);
+            }
 
             private string Declare(Node node, string kind, string name, string qualifiedName, string signature, string returnType, string visibility, string parentId, bool isAsync = false, bool isStatic = false)
             {

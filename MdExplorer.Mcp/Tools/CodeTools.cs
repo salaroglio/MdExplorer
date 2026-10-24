@@ -334,8 +334,12 @@ public sealed class CodeTools : McpToolsBase
         "Angular '^\\(.+\\)$'], recognizers: [ {role: include, match: '…(?<arg>page)…'}, {role: open, match: '@if\\s*\\((?<arg>.+?)\\)\\s*\\{', " +
         "close: brace, guard: true}, {role: else, match: '\\belse\\s*\\{', close: brace}, {id: endif, role: close, match: …} with " +
         "{role: open, …, close: endif}, {role: case, match: '…(?<arg>…)…'}, {role: call, match: 'asp-controller=\"(?<a0>[^\"]+)\"\\s+asp-action=\"(?<a1>[^\"]+)\"', " +
-        "callee: asp-action} ] }. close: brace = the block ends at the brace matching the first { of the match. A call recognized inside a tag " +
-        "makes that element a control; its strings (groups a0…a9) become a call site that an enrichment rule can link. " +
+        "callee: asp-action} ] }. close: brace = the block ends at the brace matching the first { of the match; close: element = the block is " +
+        "the element whose tag contains the match, up to its end tag (Angular {role: open, match: '\\*ngIf=\"(?<arg>[^\"]+)\"', close: element, guard: true}). " +
+        "A call recognized inside a tag makes that element a control; its strings (groups a0…a9) become a call site that an enrichment rule can link. " +
+        "ANGULAR: MdExplorer links by itself the component to its templateUrl page (renders), a template call like (click)=\"save()\" to the " +
+        "component's method, and a call recognizer with callee: selector (e.g. match: '<(?<a0>app-[\\w-]+)') to the component with that " +
+        "selector (instantiates). " +
         "A line-based language (blocks/labels/references instead of template) uses the same tools.";
 
     [McpServerTool, Description(

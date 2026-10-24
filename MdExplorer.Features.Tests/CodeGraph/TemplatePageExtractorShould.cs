@@ -275,6 +275,49 @@ template:
             Assert.AreEqual(1, page.Words["tag-helper"], "quante volte ogni riconoscitore ha trovato qualcosa");
         }
 
+        internal const string Angular = @"schema: 1
+id: angular
+name: Template Angular
+version: 1
+extensions: [.html]
+template:
+  dynamic: '\{\{'
+  events: ['^\(.+\)$']
+  recognizers:
+    - { role: open, match: '\*ngIf=""(?<arg>[^""]+)""', close: element, guard: true }
+    - { role: open, match: '\*ngFor=""[^""]*""', close: element }
+    - { role: open, match: '@if\s*\((?<arg>.+?)\)\s*\{', close: brace, guard: true }
+    - { role: else, match: '@else\s*\{', close: brace }
+    - { role: call, match: '<(?<a0>app-[\w-]+)', callee: selector }
+";
+
+        [TestMethod]
+        public void Read_an_angular_template_closing_ngif_at_the_end_of_the_element()
+        {
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular);
+            Write("src/app/x.component.html",
+                "<div *ngIf=\"isAdmin\" class=\"bar\">\n  <button (click)=\"salva()\">ok</button>\n  <div><span>annidato</span></div>\n</div>\n" +
+                "<button id=\"fuori\" (click)=\"annulla()\">no</button>\n<input *ngIf=\"aperto\" (keyup)=\"cerca()\">\n" +
+                "<ul><li *ngFor=\"let r of righe\" (click)=\"apri(r)\">{{r.nome}}</li></ul>\n@if (pronto) {\n<app-dettaglio [id]=\"x\"></app-dettaglio>\n} @else {\n<p>attendi</p>\n}\n");
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var extractor = (TemplatePageExtractor)new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("angular");
+            var file = new CodeSourceFile(Path.Combine(_project, "src", "app", "x.component.html"), "src/app/x.component.html");
+            var page = extractor.Read(new CodeExtractionRequest { ProjectPath = _project, AllFiles = new[] { file }, FilesToEmit = new[] { file } }).Single();
+            Assert.AreEqual(0, page.Warnings.Count, string.Join("\n", page.Warnings));
+            var s = page.Script;
+
+            Assert.AreEqual("isAdmin", s.Symbols.Single(x => x.Name == "button@2").Guard, "dentro l'elemento con *ngIf");
+            Assert.IsNull(s.Symbols.Single(x => x.Name == "fuori").Guard, "dopo la chiusura dell'elemento (con un div annidato dentro)");
+            Assert.AreEqual("aperto", s.Symbols.Single(x => x.Name == "input@6").Guard, "un elemento vuoto: la condizione vale per lui");
+            Assert.IsNull(s.Symbols.Single(x => x.Name == "li@7").Guard, "*ngFor non è una condizione");
+            var child = s.Symbols.Single(x => x.Name == "app-dettaglio@9");
+            Assert.AreEqual(("control", "pronto"), (child.Kind, child.Guard));
+            Assert.AreEqual("app-dettaglio", s.CallSites.Single(c => c.Callee == "selector").Arguments.Single().Value);
+            CollectionAssert.IsSubsetOf(new[] { "salva", "annulla", "cerca", "apri" }, s.CallSites.Select(c => c.Callee).ToArray());
+        }
+
         [TestMethod]
         public void Warn_when_a_brace_never_closes()
         {

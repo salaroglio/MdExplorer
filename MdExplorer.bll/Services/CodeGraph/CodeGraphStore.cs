@@ -54,6 +54,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         /// <summary>Le pagine dei dialetti dati (moduli), per le regole di tipo 3: id in <c>OwnerId</c>/<c>MemberId</c>, percorso logico in <c>OwnerQualifiedName</c>.</summary>
         Task<List<CodeOwnerMember>> PagesAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
+        /// <summary>
+        /// I collegamenti fra le pagine e i componenti Angular (D42 B): il componente che ha la pagina come <c>templateUrl</c>
+        /// la «renders»; una chiamata senza ricevente della pagina va al metodo con quel nome del componente; un punto di
+        /// chiamata <c>selector</c> della pagina (dal dialetto: <c>&lt;app-x&gt;</c>) «instantiates» il componente con quel selettore.
+        /// </summary>
+        Task<List<CodePageLink>> AngularLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
         Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
         /// <summary>
         /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi

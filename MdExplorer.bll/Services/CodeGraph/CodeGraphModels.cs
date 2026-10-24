@@ -270,4 +270,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Path { get; set; }
         public string FunctionId { get; set; }
     }
+
+    /// <summary>Un collegamento della seconda passata delle pagine (D42 B): chi, verso chi, come, e dove sta scritto.</summary>
+    public sealed class CodePageLink
+    {
+        public string SourceId { get; set; }
+        public string TargetId { get; set; }
+        public string Relation { get; set; }
+        /// <summary>Il nome chiamato o il selettore: due bersagli per lo stesso nome nella stessa riga = <c>ambiguous</c>.</summary>
+        public string Name { get; set; }
+        public int Line { get; set; }
+        public string Path { get; set; }
+    }
 }

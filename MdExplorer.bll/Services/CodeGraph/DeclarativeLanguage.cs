@@ -106,6 +106,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary><c>brace</c>, l'id di un riconoscitore <c>close</c>, o null.</summary>
             public string Close { get; init; }
             public bool Brace => Close == BraceClose;
+            /// <summary><c>close: element</c>: il blocco è l'elemento che contiene la corrispondenza, fino al suo tag di chiusura (Angular <c>*ngIf</c>).</summary>
+            public bool Element => Close == ElementClose;
             public bool Guard { get; init; }
             public string Callee { get; init; }
             /// <summary>Gli indici dei gruppi <c>a0</c>…<c>a9</c> presenti nell'espressione.</summary>
@@ -113,6 +115,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         public const string BraceClose = "brace";
+        public const string ElementClose = "element";
 
         /// <summary>
         /// Una parte della pagina aperta e chiusa da due parole (<c>if</c>/<c>endif</c>, <c>loop</c>/<c>endloop</c>). Con
@@ -383,12 +386,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (string.IsNullOrWhiteSpace(r.Match)) throw Fail($"{where}.match: obbligatorio", $"{where}.match: required");
                     var match = role == TemplateRole.Include ? Rx(where + ".match", r.Match, "arg") : Rx(where + ".match", r.Match);
                     if (role == TemplateRole.Close && r.Id == null) throw Fail($"{where}.id: un riconoscitore close ha un id, quello che gli open scrivono in close", $"{where}.id: a close recognizer has an id, the one open recognizers write in close");
-                    if (role == TemplateRole.Open && r.Close == null) throw Fail($"{where}.close: obbligatorio per open: brace, o l'id di un riconoscitore close", $"{where}.close: required for open: brace, or the id of a close recognizer");
+                    if (role == TemplateRole.Open && r.Close == null) throw Fail($"{where}.close: obbligatorio per open: brace, element, o l'id di un riconoscitore close", $"{where}.close: required for open: brace, element, or the id of a close recognizer");
                     if (r.Close != null)
                     {
                         if (role is not (TemplateRole.Open or TemplateRole.Else or TemplateRole.Case)) throw Fail($"{where}.close: vale solo per open, else e case", $"{where}.close: only applies to open, else and case");
-                        if (r.Close != BraceClose && (role != TemplateRole.Open || !closers.Contains(r.Close)))
-                            throw Fail($"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", o l'id di un riconoscitore close" : "")}", $"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", or the id of a close recognizer" : "")}");
+                        if (r.Close != BraceClose && (role != TemplateRole.Open || r.Close != ElementClose && !closers.Contains(r.Close)))
+                            throw Fail($"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, o l'id di un riconoscitore close" : "")}", $"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, or the id of a close recognizer" : "")}");
                     }
                     if (r.Guard && role != TemplateRole.Open) throw Fail($"{where}.guard: vale solo per open", $"{where}.guard: only applies to open");
                     var argGroups = Enumerable.Range(0, 10).Where(k => match.GetGroupNames().Contains("a" + k)).ToList();

@@ -155,6 +155,49 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Link_an_angular_template_to_its_component_methods_and_child_components()
+        {
+            var app = Path.Combine(_project, "program", "app");
+            Directory.CreateDirectory(app);
+            File.WriteAllText(Path.Combine(app, "x.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-x', templateUrl: './x.component.html' })\n" +
+                "export class XComponent {\n  salva(): void { }\n  annulla(): void { }\n}\n");
+            File.WriteAllText(Path.Combine(app, "dettaglio.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-dettaglio', template: '<p></p>' })\nexport class DettaglioComponent { }\n");
+            File.WriteAllText(Path.Combine(app, "x.component.html"),
+                "<div *ngIf=\"admin\">\n<button id=\"ok\" (click)=\"salva()\">ok</button>\n</div>\n<app-dettaglio></app-dettaglio>\n<i id=\"x\" (click)=\"nessuno()\">x</i>\n");
+            var grammars = new GrammarStore(_root);
+            Directory.CreateDirectory(grammars.Folder);
+            var ts = NuGetGrammar(grammars, "typescript");
+            if (!File.Exists(ts)) Assert.Inconclusive("grammatica typescript non trovata nel NuGet in cache: " + ts);
+            grammars.Install(GrammarCatalog.ById("typescript"), ts, "1.3.0", "nuget");
+            void Emit(ICodeExtractor extractor, string pattern)
+            {
+                var files = Directory.GetFiles(app, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, ast) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
+                }
+            }
+            Emit(new TreeSitterTypeScriptExtractor(grammars, NullLogger<TreeSitterTypeScriptExtractor>.Instance), "*.ts");
+            Emit(new TemplatePageExtractor(DeclarativeLanguage.Parse(TemplatePageExtractorShould.Angular, "/p/.mde-languages/angular/language.yml")), "*.html");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(3, await _rules.ApplyPageScriptsAsync(_project, new[] { "angular" }), File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) ? File.ReadAllText(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) : "");
+            var comp = (await _store.ResolveAsync(_project, "program/app/x.component:XComponent")).Single(x => x.Kind == "component").Id;
+            var renders = (await _store.NeighborsAsync(_project, comp, "renders", "out", 1, 10)).Single();
+            Assert.AreEqual(("module", "program/app/x.component.html"), (renders.Other.Kind, renders.Other.Path));
+            var ok = (await _store.ResolveAsync(_project, "program/app/x.component.html:ok")).Single(x => x.Kind == "control").Id;
+            var salva = (await _store.NeighborsAsync(_project, ok, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("method", "salva", "extracted"), (salva.Other.Kind, salva.Other.Name, salva.Confidence), "(click)=salva() → il metodo del componente");
+            var child = (await _store.ResolveAsync(_project, "program/app/x.component.html:app-dettaglio@4")).Single(x => x.Kind == "control").Id;
+            Assert.AreEqual("DettaglioComponent", (await _store.NeighborsAsync(_project, child, "instantiates", "out", 1, 10)).Single().Other.Name);
+        }
+
+        [TestMethod]
         public async Task Refuse_to_apply_a_rule_that_links_too_little_and_write_nothing()
         {
             Scan();

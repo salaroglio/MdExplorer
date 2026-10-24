@@ -261,9 +261,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     LineStart = 1, LineEnd = _lineStarts.Count, Signature = path, Visibility = "public",
                 });
 
-                ReadDirectives();
+                // prima i tag: un blocco «element» (Angular *ngIf) è l'elemento che lo porta
                 var tags = ReadTags();
                 _tags = tags.Select(t => t.Tag).Where(t => t.Name != "script").ToList();
+                ReadDirectives();
                 // prima le funzioni di tutti gli script: una chiamata può andare a una funzione scritta più in basso
                 var scripts = tags.Where(t => t.Tag.Name == "script").Select(t => Script(t.Tag, t.ContentEnd)).Where(s => s.Start >= 0).ToList();
                 foreach (var (start, end, functions) in scripts)
@@ -409,7 +410,23 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var argGroup = m.Groups["arg"];
                     var arg = argGroup.Success ? argGroup.Value.Trim() : null;
                     string braceKey = null;
-                    if (r.Brace)
+                    var start = m.Index;
+                    if (r.Element)
+                    {
+                        // il blocco comincia col tag che contiene la corrispondenza (l'elemento stesso è condizionato) e
+                        // finisce alla sua chiusura; un tag fuori da un elemento non si apre
+                        var tag = _tags.FirstOrDefault(t => t.Start <= m.Index && m.Index < t.End);
+                        if (tag == null)
+                        {
+                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude all'elemento ma non sta dentro un tag", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the element but is not inside a tag"));
+                            continue;
+                        }
+                        braceKey = "e:" + tag.Start;
+                        start = tag.Start;
+                        end = tag.Start;
+                        events.Add(new Event { Kind = EventKind.Close, Offset = ElementEnd(tag), End = ElementEnd(tag), Key = braceKey, Label = "</" + tag.Name + ">" });
+                    }
+                    else if (r.Brace)
                     {
                         var open = _text.IndexOf('{', m.Index);
                         if (open < 0 || open > end + 2)
@@ -434,7 +451,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             events.Add(new Event { Kind = EventKind.Include, Offset = m.Index, End = end, Arg = arg, Label = r.Id });
                             break;
                         case DeclarativeLanguage.TemplateRole.Open:
-                            events.Add(new Event { Kind = EventKind.Open, Offset = m.Index, End = end, Key = braceKey ?? "c:" + r.Close, Label = r.Id, CloseLabel = r.Brace ? "}" : r.Close, Guard = r.Guard, Arg = arg });
+                            events.Add(new Event { Kind = EventKind.Open, Offset = start, End = end, Key = braceKey ?? "c:" + r.Close, Label = r.Id, CloseLabel = r.Brace ? "}" : r.Element ? "</…>" : r.Close, Guard = r.Guard, Arg = arg });
                             break;
                         case DeclarativeLanguage.TemplateRole.Close:
                             events.Add(new Event { Kind = EventKind.Close, Offset = m.Index, End = end, Key = "c:" + r.Id, Label = r.Id });
@@ -452,6 +469,33 @@ namespace MdExplorer.Features.Services.CodeGraph
                             break;
                     }
                 }
+            }
+
+            private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
+                { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr" };
+
+            /// <summary>
+            /// Dove finisce l'elemento che comincia con <paramref name="tag"/>: dopo il suo tag di chiusura (contando gli
+            /// elementi con lo stesso nome annidati), o alla fine del tag se è vuoto o chiuso da sé; senza chiusura, la fine
+            /// della pagina.
+            /// </summary>
+            private int ElementEnd(Tag tag)
+            {
+                if (VoidElements.Contains(tag.Name) || _text[tag.End - 2] == '/') return tag.End;
+                var depth = 1;
+                var open = "<" + tag.Name;
+                var close = "</" + tag.Name;
+                for (var i = tag.End; i < _text.Length; i++)
+                {
+                    if (_text[i] != '<') continue;
+                    if (string.Compare(_text, i, close, 0, close.Length, StringComparison.OrdinalIgnoreCase) == 0 && Boundary(i + close.Length))
+                    {
+                        if (--depth == 0) { var gt = _text.IndexOf('>', i); return gt < 0 ? _text.Length : gt + 1; }
+                    }
+                    else if (string.Compare(_text, i, open, 0, open.Length, StringComparison.OrdinalIgnoreCase) == 0 && Boundary(i + open.Length)) depth++;
+                }
+                return _text.Length;
+                bool Boundary(int k) => k >= _text.Length || !(char.IsLetterOrDigit(_text[k]) || _text[k] is '-' or '_' or ':');
             }
 
             /// <summary>La graffa che chiude quella in <paramref name="open"/> nel testo della pagina; -1 se non si chiude.</summary>
@@ -493,7 +537,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // -------------------------------------------------------------- HTML
 
-            /// <summary>I tag che contano (gli script con la fine del loro contenuto, e gli elementi con attributi), fuori dai commenti.</summary>
+            /// <summary>I tag di apertura (gli script con la fine del loro contenuto), fuori dai commenti.</summary>
             private List<(Tag Tag, int ContentEnd)> ReadTags()
             {
                 var tags = new List<(Tag, int)>();
@@ -519,7 +563,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         i = gt < 0 ? n : gt + 1;
                         continue;
                     }
-                    if (tag.Attrs.Count > 0) tags.Add((tag, tag.End));
+                    tags.Add((tag, tag.End));   // anche senza attributi: <app-x></app-x> è un elemento che un riconoscitore può nominare
                     i = tag.End;
                 }
                 return tags;

@@ -166,6 +166,33 @@ namespace MdExplorer.Features.Services.CodeGraph
             }).ToList();
         }
 
+        public async Task<List<CodePageLink>> AngularLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
+        {
+            var links = new List<CodePageLink>();
+            if (pageLanguages == null || pageLanguages.Count == 0) return links;
+            var g = GraphsOf(projectPath);
+            var pages = $"VALUES ?lang {{ {string.Join(" ", pageLanguages.Select(Lit))} }} ?page code:kind \"module\" ; code:language ?lang ; code:path ?path . ";
+            var view = $"?t a {CodeOntology.ClassCallSite} ; code:caller ?cls ; code:callee \"templateUrl\" ; code:line ?tline . ?ta code:argumentOf ?t ; code:value ?path . ";
+            CodePageLink Link(Dictionary<string, string> r, string relation, string source, string target, string name, string line, string path) => new()
+            {
+                SourceId = SymbolId(r[source]), TargetId = SymbolId(r[target]), Relation = relation, Name = name == null ? null : Str(r, name),
+                Line = Count(r, line), Path = path == null ? null : Str(r, path),
+            };
+            foreach (var r in await RowsAsync($"SELECT DISTINCT ?cls ?page ?tline WHERE {{ GRAPH {g.DataIri} {{ {pages}{view}}} }}", ct))
+                links.Add(Link(r, "renders", "cls", "page", null, "tline", null));
+            foreach (var r in await RowsAsync(
+                $"SELECT DISTINCT ?caller ?callee ?line ?path ?m WHERE {{ GRAPH {g.DataIri} {{ {pages}{view}" +
+                $"?c a {CodeOntology.ClassCallSite} ; code:caller ?caller ; code:callee ?callee ; code:path ?path ; code:line ?line . " +
+                "FILTER NOT EXISTS { ?c code:receiver ?recv } ?m code:parent ?cls ; code:kind \"method\" ; code:name ?callee . } }", ct))
+                links.Add(Link(r, "calls", "caller", "m", "callee", "line", "path"));
+            foreach (var r in await RowsAsync(
+                $"SELECT DISTINCT ?caller ?sel ?line ?path ?cls WHERE {{ GRAPH {g.DataIri} {{ {pages}" +
+                $"?c a {CodeOntology.ClassCallSite} ; code:caller ?caller ; code:callee \"selector\" ; code:path ?path ; code:line ?line . ?ca code:argumentOf ?c ; code:value ?sel . " +
+                $"?s a {CodeOntology.ClassCallSite} ; code:caller ?cls ; code:callee \"selector\" . ?sa code:argumentOf ?s ; code:value ?sel . ?cls code:kind \"component\" . }} }}", ct))
+                links.Add(Link(r, "instantiates", "caller", "cls", "sel", "line", "path"));
+            return links;
+        }
+
         public async Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
         {
             var result = new List<CodePageScriptCall>();

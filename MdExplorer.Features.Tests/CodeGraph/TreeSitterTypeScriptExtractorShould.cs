@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             File.WriteAllText(Path.Combine(_src, "x.component.ts"),
                 "import { Component, OnInit } from '@angular/core';\nimport { MdFileService, Hit } from './services/md-file.service';\n" +
                 "export function helper(a: number, b?: string): boolean { return a > 0; }\n" +
-                "@Component({ selector: 'app-x' })\nexport class XComponent implements OnInit {\n  private items: Hit[] = [];\n" +
+                "@Component({ selector: 'app-x', templateUrl: './x.component.html' })\nexport class XComponent implements OnInit {\n  private items: Hit[] = [];\n" +
                 "  constructor(private svc: MdFileService, public n: number = 3) {}\n" +
                 "  ngOnInit(): void { this.load('a'); helper(1); new Date(); }\n" +
                 "  async load(path: string, ...rest: string[]): Promise<void> { await this.svc.get(path); }\n" +
@@ -67,6 +67,38 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var registry = new CodeExtractorRegistry(new ICodeExtractor[] { extractor });
             Assert.IsNull(registry.Get("typescript"), "non pronto = non si usa");
             Assert.ThrowsException<InvalidOperationException>(() => extractor.Extract(Request()));
+        }
+
+        [TestMethod]
+        public void Record_the_template_and_the_selector_of_a_component_for_the_pages()
+        {
+            var src = NuGetGrammar(_store);
+            if (!File.Exists(src)) Assert.Inconclusive("Grammatica typescript non in cache NuGet: " + src);
+            _store.Install(GrammarCatalog.ById("typescript"), src, "1.3.0", "test");
+            var extractor = new TreeSitterTypeScriptExtractor(_store, NullLogger<TreeSitterTypeScriptExtractor>.Instance);
+            Assert.AreEqual("6", extractor.ExtractorVersion);
+            var x = extractor.Extract(Request()).Scripts.Single(s => s.File.LogicalPath == "src/app/x.component.ts").Script;
+            var comp = x.Symbols.Single(s => s.Name == "XComponent").Id;
+            var view = x.CallSites.Where(c => c.SourceId == comp).ToDictionary(c => c.Callee, c => c.Arguments.Single().Value);
+            Assert.AreEqual("src/app/x.component.html", view["templateUrl"], "il percorso logico, risolto rispetto al .ts");
+            Assert.AreEqual("app-x", view["selector"]);
+        }
+
+        [TestMethod]
+        public void Keep_one_node_for_a_getter_and_setter_pair_so_the_script_loads()
+        {
+            var src = NuGetGrammar(_store);
+            if (!File.Exists(src)) Assert.Inconclusive("Grammatica typescript non in cache NuGet: " + src);
+            _store.Install(GrammarCatalog.ById("typescript"), src, "1.3.0", "test");
+            File.WriteAllText(Path.Combine(_src, "source.ts"),
+                "export class Source {\n  private _d: string[] = [];\n  get data(): string[] { return this._d; }\n  set data(v: string[]) { this._d = v; }\n}\n");
+            var script = new TreeSitterTypeScriptExtractor(_store, NullLogger<TreeSitterTypeScriptExtractor>.Instance).Extract(Request())
+                .Scripts.Single(s => s.File.LogicalPath == "src/app/source.ts").Script;
+            var data = script.Symbols.Single(s => s.Name == "data");
+            Assert.AreEqual((3, 4), (data.LineStart, data.LineEnd), "un nodo che copre get e set");
+            Assert.AreEqual(1, script.Parameters.Count(p => p.SymbolId == data.Id));
+            var back = CodeScriptTurtle.Read(CodeScriptTurtle.Write(script), "src/app/source.ts.ast.ttl");
+            Assert.AreEqual(script.Symbols.Count, back.Symbols.Count, "lo script si rilegge: niente nodi doppi");
         }
 
         [TestMethod]
