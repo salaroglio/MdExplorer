@@ -205,6 +205,100 @@ var apri = function(x) { mostra(""popup.dettaglio""); };
             Assert.AreEqual(s.CallSites.Count, back.CallSites.Count, "anche le chiamate senza stringhe");
         }
 
+        internal const string Razor = @"schema: 1
+id: razor
+name: Viste Razor
+version: 1
+extensions: [.cshtml]
+template:
+  dynamic: '@[A-Za-z(]'
+  events: ['^on.+$', '^\(.+\)$']
+  recognizers:
+    - { role: include, match: '@await\s+Html\.PartialAsync\(""(?<arg>[^""]+)""\)' }
+    - { role: open, match: '@if\s*\((?<arg>.+?)\)\s*\{', close: brace, guard: true }
+    - { role: else, match: '\belse\s*\{', close: brace }
+    - { id: tag-helper, role: call, match: 'asp-controller=""(?<a0>[^""]+)""\s+asp-action=""(?<a1>[^""]+)""', callee: asp-action }
+    - { role: call, match: 'Html\.ActionLink\(""[^""]*"",\s*""(?<a1>[^""]+)"",\s*""(?<a2>[^""]+)""\)', callee: ActionLink }
+";
+
+        private const string OrdersView = @"@model Ordini
+@await Html.PartialAsync(""_Testata"")
+@if (User.IsInRole(""Admin"")) {
+    <a asp-controller=""Ordini"" asp-action=""Cancella"" id=""cancella"">Cancella</a>
+    <button id=""vai"" onclick=""vai('@Model.Id')"">x</button>
+} else {
+    <span (click)=""apri()"">y</span>
+}
+@Html.ActionLink(""Elenco"", ""Elenco"", ""Ordini"")
+";
+
+        private TemplatePage ReadRazor(string view)
+        {
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "razor");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Razor);
+            Write("Views/Ordini/Index.cshtml", view);
+            Write("Views/Shared/_Testata.cshtml", "<header>@User.Identity.Name</header>");
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            Assert.AreEqual(0, catalog.Errors.Count, string.Join("\n", catalog.Errors.Values.Select(e => e.Message)));
+            var extractor = (TemplatePageExtractor)new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("razor");
+            var all = Directory.GetFiles(_project, "*.cshtml", SearchOption.AllDirectories).OrderBy(f => f)
+                .Select(f => new CodeSourceFile(f, Path.GetRelativePath(_project, f).Replace('\\', '/'))).ToList();
+            return extractor.Read(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all.Where(f => f.LogicalPath == "Views/Ordini/Index.cshtml").ToList() }).Single();
+        }
+
+        [TestMethod]
+        public void Read_a_razor_view_with_recognizers_closing_blocks_at_the_brace()
+        {
+            var page = ReadRazor(OrdersView);
+            Assert.AreEqual(0, page.Warnings.Count, string.Join("\n", page.Warnings));
+            var s = page.Script;
+            var admin = "User.IsInRole(\"Admin\")";
+
+            var cancella = s.Symbols.Single(x => x.Name == "cancella");
+            Assert.AreEqual(("control", admin), (cancella.Kind, cancella.Guard), "una chiamata riconosciuta dentro un tag fa dell'elemento un controllo");
+            var helper = s.CallSites.Single(c => c.Callee == "asp-action");
+            Assert.AreEqual((cancella.Id, 2), (helper.SourceId, helper.ArgumentCount));
+            CollectionAssert.AreEqual(new[] { "Ordini", "Cancella" }, helper.Arguments.Select(a => a.Value).ToArray());
+
+            Assert.AreEqual(admin, s.Symbols.Single(x => x.Name == "vai").Guard);
+            Assert.AreEqual(0, s.CallSites.Single(c => c.Callee == "vai").Arguments.Count, "'@Model.Id' la scrive il server");
+            Assert.AreEqual("!(" + admin + ")", s.Symbols.Single(x => x.Name == "span@7").Guard, "else a graffa = la negazione del blocco appena chiuso; (click) è un evento");
+            Assert.IsTrue(s.CallSites.Any(c => c.Callee == "apri"));
+
+            var link = s.CallSites.Single(c => c.Callee == "ActionLink");
+            Assert.AreEqual((s.Symbols.Single(x => x.Kind == "module").Id, 3), (link.SourceId, link.ArgumentCount), "fuori da un tag la chiama la pagina");
+            CollectionAssert.AreEqual(new[] { 1, 2 }, link.Arguments.Select(a => a.Position).ToArray());
+
+            var include = s.Edges.Single(e => e.Relation == "includes");
+            Assert.AreEqual((RoslynCSharpExtractor.StableId("razor", "module", "Views/Shared/_Testata.cshtml"), (string)null), (include.TargetId, include.Guard));
+            Assert.AreEqual(1, page.Words["tag-helper"], "quante volte ogni riconoscitore ha trovato qualcosa");
+        }
+
+        [TestMethod]
+        public void Warn_when_a_brace_never_closes()
+        {
+            var page = ReadRazor("@if (A) {\n<b onclick=\"f()\">x</b>\n");
+            StringAssert.Contains(page.Warnings.Single(), "open#1");
+            Assert.IsNull(page.Script.Symbols.Single(x => x.Kind == "control").Guard, "senza la graffa che chiude il blocco non si apre");
+        }
+
+        [TestMethod]
+        public void Refuse_recognizers_without_what_their_role_needs()
+        {
+            static string Message(string yaml)
+            {
+                try { DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/razor/language.yml"); }
+                catch (LanguageDefinitionException ex) { return ex.Message; }
+                throw new AssertFailedException("accettato:\n" + yaml);
+            }
+            StringAssert.Contains(Message(Razor.Replace(", close: brace, guard: true }", ", guard: true }")), "close");
+            StringAssert.Contains(Message(Razor.Replace("close: brace, guard: true", "close: fine, guard: true")), "fine");
+            StringAssert.Contains(Message(Razor.Replace(", callee: ActionLink }", " }")), "callee");
+            StringAssert.Contains(Message(Razor.Replace("(?<arg>[^\"]+)\"\\)' }", "[^\"]+\"\\)' }")), "arg");
+            StringAssert.Contains(Message(Razor.Replace("role: include", "role: inclusione")), "inclusione");
+        }
+
         [TestMethod]
         public void Refuse_a_dialect_that_mixes_line_rules_or_repeats_a_word()
         {

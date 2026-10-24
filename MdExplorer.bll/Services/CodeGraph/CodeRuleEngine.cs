@@ -17,7 +17,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
     /// <summary>Perché un punto di chiamata non ha trovato il metodo: il motivo che Mark legge per correggere la regola.</summary>
     [System.Text.Json.Serialization.JsonConverter(typeof(CamelCaseEnumConverter))]
-    public enum CodeRuleMiss { NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets }
+    public enum CodeRuleMiss { NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets, PageNotFound }
 
     public sealed class CodeRuleSiteResult
     {
@@ -127,7 +127,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var r = Prepare(rule, site, pairedByCaller, aliasMap, out var skip);
                 if (skip == Skip.NotLiteral) { preview.NotLiteral++; continue; }
                 if (skip == Skip.Excluded) { preview.Excluded++; continue; }
-                Resolve(r, byQualified, byName);
+                if (rule.Owner.From == CodeRuleOwnerSource.Page) ResolvePage(r, rows); else Resolve(r, byQualified, byName);
                 var siteContexts = ContextsOf(site.Path, contexts);
                 foreach (var c in siteContexts) { c.CallSites++; if (r.Miss == null) c.Resolved++; }
                 if (scope.Count > 0 && !scope.Any(s => (site.Path ?? string.Empty).StartsWith(s, StringComparison.Ordinal))) { preview.OutOfScope++; continue; }
@@ -187,6 +187,30 @@ namespace MdExplorer.Features.Services.CodeGraph
             else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
         }
 
+        /// <summary>
+        /// Tipo 3: la pagina che la stringa nomina, fra le pagine del grafo (<paramref name="pages"/>: una riga per pagina,
+        /// id e percorso logico). Il nome si confronta con il nome del file senza estensione, con il nome intero, o con la
+        /// fine del percorso (<c>ordini/elenco</c> → <c>…/ordini/elenco.template</c>).
+        /// </summary>
+        private static void ResolvePage(CodeRuleSiteResult r, List<CodeOwnerMember> pages)
+        {
+            if (r.Miss != null) return;
+            var name = (r.OwnerKey ?? r.MemberName).Replace('\\', '/').Trim('/');
+            bool Matches(CodeOwnerMember p)
+            {
+                var path = p.OwnerQualifiedName ?? string.Empty;
+                var file = path[(path.LastIndexOf('/') + 1)..];
+                var dot = file.LastIndexOf('.');
+                var stem = dot > 0 ? file[..dot] : file;
+                if (!name.Contains('/')) return string.Equals(stem, name, StringComparison.Ordinal) || string.Equals(file, name, StringComparison.Ordinal);
+                var withoutExt = dot > 0 ? path[..(path.Length - (file.Length - dot))] : path;
+                return ("/" + withoutExt).EndsWith("/" + name, StringComparison.Ordinal) || ("/" + path).EndsWith("/" + name, StringComparison.Ordinal);
+            }
+            r.Targets.AddRange(pages.Where(Matches).GroupBy(p => p.MemberId, StringComparer.Ordinal).Select(g => g.First()));
+            if (r.Targets.Count == 0) r.Miss = CodeRuleMiss.PageNotFound;
+            else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
+        }
+
         /// <summary>Le cartelle che contengono il file, fino a <see cref="MaxContextDepth"/> livelli: <c>a/</c>, <c>a/b/</c>, <c>a/b/c/</c>.</summary>
         private static IEnumerable<CodeRuleContext> ContextsOf(string path, Dictionary<string, CodeRuleContext> contexts)
         {
@@ -231,6 +255,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 case CodeRuleOwnerSource.PairedCall:
                     r.OwnerKey = PairedValue(rule.Owner.PairedCall, site, pairedByCaller);
                     if (r.OwnerKey == null) { r.Miss = CodeRuleMiss.NoPairedCall; return r; }
+                    break;
+                case CodeRuleOwnerSource.Page:
+                    // la pagina è il nome (dopo il separatore, se c'è); la mappa, se c'è, traduce quello
+                    r.OwnerKey = r.MemberName;
                     break;
             }
             if (rule.Owner.AliasMap != null)

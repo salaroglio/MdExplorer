@@ -83,6 +83,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Note_the_recognizers_that_never_match()
+        {
+            var v = Write("Views/a.cshtml", "@if (X) {\n<a asp-controller=\"O\" asp-action=\"L\">x</a>\n}");
+            var p = CodeLanguageTrial.Evaluate(_project, CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Razor), new[] { new CodeLanguageFiles("web", new[] { v }, null) }, null);
+            Assert.IsTrue(p.Accepted, string.Join(" ", p.RejectReasons));
+            Assert.AreEqual(3, p.Notes.Count, string.Join("\n", p.Notes));
+            Assert.IsTrue(p.Notes.Any(n => n.Contains("'include#0'")) && p.Notes.Any(n => n.Contains("'else#2'")) && p.Notes.Any(n => n.Contains("'call#4'")));
+        }
+
+        [TestMethod]
         public void Reject_when_there_are_no_files_and_refuse_a_broken_definition()
         {
             var p = CodeLanguageTrial.Evaluate(_project, CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Dialect), new[] { new CodeLanguageFiles("web", Array.Empty<CodeSourceFile>(), null) }, null);

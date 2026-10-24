@@ -188,6 +188,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (followable > 0 && (double)pages.IncludesResolved / followable < MinIncludeShare)
                     preview.RejectReasons.Add(UiText.Say($"Pagine incluse trovate {pages.IncludesResolved} su {followable} (sotto il {MinIncludeShare:P0}): l'argomento di include forse non è il percorso della pagina, guarda unresolvedIncludes.",
                         $"Included pages found {pages.IncludesResolved} of {followable} (below {MinIncludeShare:P0}): the include argument may not be the page path, see unresolvedIncludes."));
+                foreach (var r in lang.Template.Recognizers.Where(r => !pages.Words.ContainsKey(r.Id)))
+                    preview.Notes.Add(UiText.Say($"Il riconoscitore '{r.Id}' ({r.Role.ToString().ToLowerInvariant()}) non ha trovato niente in {preview.FilesRead} file: l'espressione è sbagliata, o non serve.",
+                        $"The recognizer '{r.Id}' ({r.Role.ToString().ToLowerInvariant()}) found nothing in {preview.FilesRead} files: the expression is wrong, or not needed."));
                 foreach (var (word, n) in pages.UnknownWords.OrderByDescending(kv => kv.Value))
                     preview.Notes.Add(UiText.Say($"'{word}' compare {n} volte con un argomento ma il dialetto non lo dichiara (es. {pages.UnknownWordExamples.GetValueOrDefault(word)}): è un include o un blocco?",
                         $"'{word}' appears {n} times with an argument but the dialect does not declare it (e.g. {pages.UnknownWordExamples.GetValueOrDefault(word)}): is it an include or a block?"));

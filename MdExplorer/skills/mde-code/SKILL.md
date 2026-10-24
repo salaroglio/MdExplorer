@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -87,7 +87,7 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 
 ## Enrichment rules: when the graph stops at a string
 
-Some programs pick the method to run from a STRING: `setDestination("readData")`, `sendPage('ordersController.list')`,
+Some programs pick the method to run from a STRING: `setTarget("readData")`, `sendPage('ordersController.list')`,
 a dispatcher with a map. The parser sees text, not a call, so the chain breaks there. Only for a concrete question of the
 user (never a systematic search):
 
@@ -105,11 +105,15 @@ MdExplorer does not know the extension of server-side templates (`.template`, `.
 stops before the user's click. Only for a concrete question of the user:
 
 1. Answer anyway from the source; tell the user the graph has no pages.
-2. Read a few pages and write the dialect: how a directive looks (a regex with `word` and `arg`), which words include
-   another page, which open and close a block, which blocks are conditions. Dry-run it with `code_language_try`; fix it
-   until `accepted`, and explain every `unknownWords` note (add the word, or say why it does not matter).
+2. Read a few pages and write the dialect. Directive pages (`$include[x]$`, `$if[X]$`): how a directive looks (a regex
+   with `word` and `arg`), which words include another page, which open and close a block, which blocks are conditions.
+   Pages that mix server code and HTML (Razor, JSP, Thymeleaf…): `recognizers`, one regex per role (include, open with
+   `close: brace` or a close recognizer, else, case, call with `a0…a9`), `events` for attributes like Angular `(click)`,
+   `dynamic` for server-written strings. Dry-run it with `code_language_try`; fix it until `accepted`, and explain every
+   note (`unknownWords`, recognizers that never match).
 3. Open every file of the returned `sample` and check the facts (controls, conditions, included pages).
 4. `code_language_propose` with the problem in plain words. The user decides in the MarkAgent tab; MdExplorer writes
    `.mde-languages/<id>/` and re-analyzes. Never write that folder yourself.
-5. After the scan, the calls of the controls are call sites: if they name a controller method in a string, go on with an
-   enrichment rule (above).
+5. After the scan MdExplorer links by itself a control to the function of a JS file the page loads (or of a page it
+   includes). The rest are call sites for enrichment rules: a string naming a controller method → a rule as above; a string
+   naming the page shown next (`nextPage("orders")`, `return View("Orders")`) → a rule with `owner.from: page`.

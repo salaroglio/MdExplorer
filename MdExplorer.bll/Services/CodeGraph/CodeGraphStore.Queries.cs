@@ -152,6 +152,44 @@ namespace MdExplorer.Features.Services.CodeGraph
             return sites;
         }
 
+        public async Task<List<CodeOwnerMember>> PagesAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
+        {
+            if (pageLanguages == null || pageLanguages.Count == 0) return new List<CodeOwnerMember>();
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?p ?path ?name WHERE {{ GRAPH {g.DataIri} {{ VALUES ?lang {{ {string.Join(" ", pageLanguages.Select(Lit))} }} " +
+                "?p a code:Symbol ; code:kind \"module\" ; code:language ?lang ; code:path ?path ; code:name ?name } } ORDER BY ?path", ct);
+            return rows.Select(r => new CodeOwnerMember
+            {
+                OwnerId = SymbolId(r["p"]), MemberId = SymbolId(r["p"]), OwnerQualifiedName = Str(r, "path"), MemberQualifiedName = Str(r, "path"),
+                OwnerName = Str(r, "name"), MemberName = Str(r, "name"),
+            }).ToList();
+        }
+
+        public async Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
+        {
+            var result = new List<CodePageScriptCall>();
+            if (pageLanguages == null || pageLanguages.Count == 0) return result;
+            var g = GraphsOf(projectPath);
+            var langs = string.Join(" ", pageLanguages.Select(Lit));
+            var rows = await RowsAsync(
+                $"SELECT DISTINCT ?caller ?callee ?line ?path ?fn WHERE {{ GRAPH {g.DataIri} {{ VALUES ?lang {{ {langs} }} " +
+                "?page code:kind \"module\" ; code:language ?lang ; code:path ?path . " +
+                $"?c a {CodeOntology.ClassCallSite} ; code:caller ?caller ; code:callee ?callee ; code:path ?path ; code:line ?line . " +
+                "FILTER NOT EXISTS { ?c code:receiver ?recv } " +
+                // i JS caricati dalla pagina o dalle pagine che include; le funzioni scritte nelle pagine incluse (+: la pagina
+                // stessa no, le sue le collega già la lettura). Niente FILTER su ?page dentro i rami: lì ?page non è legata.
+                "{ ?page code:includes* ?part . ?part code:imports ?js . ?fn code:parent ?js ; code:kind \"function\" ; code:name ?callee . } " +
+                "UNION { ?page code:includes+ ?part . ?fn code:parent ?part ; code:kind \"function\" ; code:name ?callee . } " +
+                "} } ORDER BY ?path ?line ?caller ?fn", ct);
+            foreach (var r in rows)
+                result.Add(new CodePageScriptCall
+                {
+                    CallerId = SymbolId(r["caller"]), Callee = Str(r, "callee"), Line = Count(r, "line"), Path = Str(r, "path"), FunctionId = SymbolId(r["fn"]),
+                });
+            return result;
+        }
+
         public async Task<List<CodeOwnerMember>> OwnersWithMembersAsync(string projectPath, IEnumerable<string> keys, CancellationToken ct = default)
         {
             var list = keys.Where(k => !string.IsNullOrWhiteSpace(k)).Distinct(StringComparer.Ordinal).ToList();

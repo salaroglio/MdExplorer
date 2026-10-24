@@ -60,17 +60,59 @@ namespace MdExplorer.Features.Services.CodeGraph
         public TemplateRule Template { get; private init; }
 
         /// <summary>
-        /// Un dialetto di pagine HTML con direttive lato server (<c>$include[x]$</c>, <c>$if[A==S]$…$endif$</c>): com'è fatta
-        /// una direttiva (<see cref="Directive"/>, gruppi <c>word</c> e, facoltativo, <c>arg</c>) e che cosa vogliono dire le
-        /// sue parole. L'HTML (controlli, script) lo legge MdExplorer, uguale per tutti i dialetti.
+        /// Un dialetto di pagine HTML che il server riempie (D42 passo 2). L'HTML (controlli, script) lo legge MdExplorer,
+        /// uguale per tutti; il dialetto dice come riconoscere il resto, in due forme che si possono anche unire:
+        /// <list type="bullet">
+        /// <item>la forma <b>a direttive</b> (<c>$include[x]$</c>, <c>$if[A==S]$…$endif$</c>): una sola espressione
+        /// <see cref="Directive"/> (gruppi <c>word</c> e, facoltativo, <c>arg</c>) e il significato delle parole;</item>
+        /// <item>la forma <b>a riconoscitori</b> (<see cref="Recognizers"/>), per le tecnologie dove il server mescola codice e
+        /// HTML (Razor, JSP, Thymeleaf…): ogni espressione ha un ruolo (include, condizione, ramo, chiusura, chiamata), e un
+        /// blocco può chiudersi alla graffa corrispondente (24/10/2026, utente: «il lettore lo genera l'LLM del cliente»).</item>
+        /// </list>
         /// </summary>
         public sealed class TemplateRule
         {
+            /// <summary>La forma a direttive; null se il dialetto usa solo i riconoscitori.</summary>
             public Regex Directive { get; init; }
             /// <summary>Le parole il cui argomento è un'altra pagina: arco <c>includes</c>.</summary>
             public ISet<string> Include { get; init; }
             public IReadOnlyList<TemplateBlock> Blocks { get; init; }
+            public IReadOnlyList<TemplateRecognizer> Recognizers { get; init; }
+            /// <summary>I nomi degli attributi evento di un elemento (default <c>on…</c>; Angular <c>(click)</c>, Vue <c>@click</c>).</summary>
+            public IReadOnlyList<Regex> Events { get; init; }
+            /// <summary>
+            /// Che cosa dentro una stringa la rende scritta dal server (non letterale): <c>'@Model.Id'</c>, <c>'$codice$'</c>.
+            /// Default: la <see cref="Directive"/>; null = nessuna.
+            /// </summary>
+            public Regex Dynamic { get; init; }
         }
+
+        public enum TemplateRole { Include, Open, Else, Case, Close, Call }
+
+        /// <summary>
+        /// Un riconoscitore: un'espressione con un ruolo. <c>include</c> (gruppo <c>arg</c> = la pagina), <c>open</c> (apre un
+        /// blocco; con <see cref="Guard"/> il gruppo <c>arg</c> è la condizione; si chiude alla graffa corrispondente con
+        /// <c>close: brace</c>, o con il riconoscitore <c>close</c> che ha l'id scritto in <see cref="Close"/>), <c>else</c>
+        /// (nega la condizione: dentro il blocco aperto, o con <c>close: brace</c> un blocco nuovo dopo quello appena chiuso),
+        /// <c>case</c> (<c>condizione=caso</c>), <c>close</c>, <c>call</c> (una chiamata con stringhe: il nome da
+        /// <see cref="Callee"/> o dal gruppo <c>callee</c>, gli argomenti dai gruppi <c>a0</c>…<c>a9</c>; dentro un tag fa di
+        /// quell'elemento un controllo).
+        /// </summary>
+        public sealed class TemplateRecognizer
+        {
+            public string Id { get; init; }
+            public TemplateRole Role { get; init; }
+            public Regex Match { get; init; }
+            /// <summary><c>brace</c>, l'id di un riconoscitore <c>close</c>, o null.</summary>
+            public string Close { get; init; }
+            public bool Brace => Close == BraceClose;
+            public bool Guard { get; init; }
+            public string Callee { get; init; }
+            /// <summary>Gli indici dei gruppi <c>a0</c>…<c>a9</c> presenti nell'espressione.</summary>
+            public IReadOnlyList<int> ArgGroups { get; init; }
+        }
+
+        public const string BraceClose = "brace";
 
         /// <summary>
         /// Una parte della pagina aperta e chiusa da due parole (<c>if</c>/<c>endif</c>, <c>loop</c>/<c>endloop</c>). Con
@@ -291,33 +333,93 @@ namespace MdExplorer.Features.Services.CodeGraph
                 };
                 foreach (var (name, present) in lineRules)
                     if (present) throw Fail($"{name}: con template non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with template (it is for line-based languages); remove one of the two sections");
-                if (string.IsNullOrWhiteSpace(t.Directive)) throw Fail("template.directive: obbligatorio, l'espressione di una direttiva con il gruppo (?<word>…)", "template.directive: required, the expression of a directive with the group (?<word>…)");
-                var directive = Rx("template.directive", t.Directive, "word");
                 var comparer = _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-                var meaning = new Dictionary<string, string>(comparer);
-                void Word(string where, string word)
-                {
-                    if (string.IsNullOrWhiteSpace(word)) throw Fail($"{where}: parola vuota", $"{where}: empty word");
-                    if (!meaning.TryAdd(word, where)) throw Fail($"{where}: '{word}' è già in {meaning[word]}: una parola ha un solo significato", $"{where}: '{word}' is already in {meaning[word]}: a word has one meaning only");
-                }
-                foreach (var w in t.Include ?? new List<string>()) Word("template.include", w);
+
+                // la forma a direttive
+                Regex directive = null;
                 var blocks = new List<TemplateBlock>();
-                foreach (var (b, i) in (t.Blocks ?? new List<Yaml.TemplateBlock>()).Select((b, i) => (b, i)))
+                var meaning = new Dictionary<string, string>(comparer);
+                if (string.IsNullOrWhiteSpace(t.Directive))
                 {
-                    var where = $"template.blocks[{i}]";
-                    if (string.IsNullOrWhiteSpace(b.Open) || string.IsNullOrWhiteSpace(b.Close)) throw Fail($"{where}: servono open e close", $"{where}: open and close are required");
-                    if ((b.Else != null || b.Cases != null) && !b.Guard) throw Fail($"{where}: else e cases valgono solo con guard: true", $"{where}: else and cases only apply with guard: true");
-                    Word(where + ".open", b.Open);
-                    Word(where + ".close", b.Close);
-                    foreach (var w in b.Else ?? new List<string>()) Word(where + ".else", w);
-                    foreach (var w in b.Cases ?? new List<string>()) Word(where + ".cases", w);
-                    blocks.Add(new TemplateBlock
+                    if (t.Include != null || t.Blocks != null) throw Fail("template.include e template.blocks sono della forma a direttive: serve anche template.directive", "template.include and template.blocks belong to the directive form: template.directive is needed too");
+                }
+                else
+                {
+                    directive = Rx("template.directive", t.Directive, "word");
+                    void Word(string where, string word)
                     {
-                        Open = b.Open, Close = b.Close, Else = b.Else ?? new List<string>(), Cases = b.Cases ?? new List<string>(), Guard = b.Guard,
+                        if (string.IsNullOrWhiteSpace(word)) throw Fail($"{where}: parola vuota", $"{where}: empty word");
+                        if (!meaning.TryAdd(word, where)) throw Fail($"{where}: '{word}' è già in {meaning[word]}: una parola ha un solo significato", $"{where}: '{word}' is already in {meaning[word]}: a word has one meaning only");
+                    }
+                    foreach (var w in t.Include ?? new List<string>()) Word("template.include", w);
+                    foreach (var (b, i) in (t.Blocks ?? new List<Yaml.TemplateBlock>()).Select((b, i) => (b, i)))
+                    {
+                        var where = $"template.blocks[{i}]";
+                        if (string.IsNullOrWhiteSpace(b.Open) || string.IsNullOrWhiteSpace(b.Close)) throw Fail($"{where}: servono open e close", $"{where}: open and close are required");
+                        if ((b.Else != null || b.Cases != null) && !b.Guard) throw Fail($"{where}: else e cases valgono solo con guard: true", $"{where}: else and cases only apply with guard: true");
+                        Word(where + ".open", b.Open);
+                        Word(where + ".close", b.Close);
+                        foreach (var w in b.Else ?? new List<string>()) Word(where + ".else", w);
+                        foreach (var w in b.Cases ?? new List<string>()) Word(where + ".cases", w);
+                        blocks.Add(new TemplateBlock
+                        {
+                            Open = b.Open, Close = b.Close, Else = b.Else ?? new List<string>(), Cases = b.Cases ?? new List<string>(), Guard = b.Guard,
+                        });
+                    }
+                    if (meaning.Count == 0) throw Fail("template: con directive serve almeno una parola in include o in blocks", "template: with directive at least one word in include or blocks is needed");
+                }
+
+                // la forma a riconoscitori
+                var recognizers = new List<TemplateRecognizer>();
+                var ids = new HashSet<string>(StringComparer.Ordinal);
+                var raw = t.Recognizers ?? new List<Yaml.TemplateRecognizer>();
+                foreach (var (r, i) in raw.Select((r, i) => (r, i)))
+                    if (r.Id != null && !ids.Add(r.Id)) throw Fail($"template.recognizers[{i}].id: '{r.Id}' ripetuto", $"template.recognizers[{i}].id: '{r.Id}' repeated");
+                var closers = raw.Where(r => string.Equals(r.Role, "close", StringComparison.OrdinalIgnoreCase)).Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
+                foreach (var (r, i) in raw.Select((r, i) => (r, i)))
+                {
+                    var where = r.Id == null ? $"template.recognizers[{i}]" : $"template.recognizers[{r.Id}]";
+                    var role = Enum<TemplateRole>(where + ".role", r.Role, null);
+                    if (string.IsNullOrWhiteSpace(r.Match)) throw Fail($"{where}.match: obbligatorio", $"{where}.match: required");
+                    var match = role == TemplateRole.Include ? Rx(where + ".match", r.Match, "arg") : Rx(where + ".match", r.Match);
+                    if (role == TemplateRole.Close && r.Id == null) throw Fail($"{where}.id: un riconoscitore close ha un id, quello che gli open scrivono in close", $"{where}.id: a close recognizer has an id, the one open recognizers write in close");
+                    if (role == TemplateRole.Open && r.Close == null) throw Fail($"{where}.close: obbligatorio per open: brace, o l'id di un riconoscitore close", $"{where}.close: required for open: brace, or the id of a close recognizer");
+                    if (r.Close != null)
+                    {
+                        if (role is not (TemplateRole.Open or TemplateRole.Else or TemplateRole.Case)) throw Fail($"{where}.close: vale solo per open, else e case", $"{where}.close: only applies to open, else and case");
+                        if (r.Close != BraceClose && (role != TemplateRole.Open || !closers.Contains(r.Close)))
+                            throw Fail($"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", o l'id di un riconoscitore close" : "")}", $"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", or the id of a close recognizer" : "")}");
+                    }
+                    if (r.Guard && role != TemplateRole.Open) throw Fail($"{where}.guard: vale solo per open", $"{where}.guard: only applies to open");
+                    var argGroups = Enumerable.Range(0, 10).Where(k => match.GetGroupNames().Contains("a" + k)).ToList();
+                    if (role == TemplateRole.Call)
+                    {
+                        if (string.IsNullOrWhiteSpace(r.Callee) && !match.GetGroupNames().Contains("callee"))
+                            throw Fail($"{where}: una chiamata ha un nome, in callee o nel gruppo (?<callee>…)", $"{where}: a call has a name, in callee or in the group (?<callee>…)");
+                    }
+                    else if (r.Callee != null || argGroups.Count > 0) throw Fail($"{where}: callee e i gruppi a0…a9 valgono solo per call", $"{where}: callee and the groups a0…a9 only apply to call");
+                    recognizers.Add(new TemplateRecognizer
+                    {
+                        Id = r.Id ?? $"{role.ToString().ToLowerInvariant()}#{i}", Role = role, Match = match, Close = r.Close, Guard = r.Guard,
+                        Callee = string.IsNullOrWhiteSpace(r.Callee) ? null : r.Callee.Trim(), ArgGroups = argGroups,
                     });
                 }
-                if (meaning.Count == 0) throw Fail("template: almeno una parola in include o in blocks, se no la pagina non dà niente al grafo", "template: at least one word in include or blocks, otherwise the page gives nothing to the graph");
-                return new TemplateRule { Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks };
+                if (directive == null && recognizers.Count == 0) throw Fail("template: serve directive (forma a direttive) o recognizers (forma a riconoscitori)", "template: directive (directive form) or recognizers (recognizer form) is needed");
+
+                var events = (t.Events ?? new List<string> { "^on.+$" }).Select((e, i) => RxIgnoreCase($"template.events[{i}]", e)).ToList();
+                var dynamic = t.Dynamic != null ? Rx("template.dynamic", t.Dynamic) : directive;
+                return new TemplateRule
+                {
+                    Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks,
+                    Recognizers = recognizers, Events = events, Dynamic = dynamic,
+                };
+            }
+
+            /// <summary>I nomi degli attributi HTML non badano alle maiuscole, qualunque sia ignoreCase.</summary>
+            private Regex RxIgnoreCase(string where, string pattern)
+            {
+                try { return new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeout); }
+                catch (ArgumentException ex) { throw Fail($"{where}: l'espressione regolare non compila ({ex.Message})", $"{where}: the regular expression does not compile ({ex.Message})"); }
             }
 
             /// <summary>Solo un blocco (o il modulo) contiene qualcosa: etichette e dichiarazioni no.</summary>
@@ -503,6 +605,18 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Directive { get; set; }
                 public List<string> Include { get; set; }
                 public List<TemplateBlock> Blocks { get; set; }
+                public List<TemplateRecognizer> Recognizers { get; set; }
+                public List<string> Events { get; set; }
+                public string Dynamic { get; set; }
+            }
+            public sealed class TemplateRecognizer
+            {
+                public string Id { get; set; }
+                public string Role { get; set; }
+                public string Match { get; set; }
+                public string Close { get; set; }
+                public bool Guard { get; set; }
+                public string Callee { get; set; }
             }
             public sealed class TemplateBlock
             {

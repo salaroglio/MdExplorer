@@ -174,11 +174,40 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private sealed class Frame
         {
-            public DeclarativeLanguage.TemplateBlock Block;
+            /// <summary>Che cosa la chiude: <c>w:&lt;open&gt;</c> (forma a direttive), <c>c:&lt;id&gt;</c> (un riconoscitore close), <c>b:&lt;posizione&gt;</c> (la graffa).</summary>
+            public string Key;
+            /// <summary>Come la nominano gli avvisi: la parola o l'id del riconoscitore, e che cosa la chiude.</summary>
+            public string Label;
+            public string CloseLabel;
+            public bool Guard;
             public string Arg;
             /// <summary>La condizione del ramo in corso: l'argomento, poi la sua negazione dopo un <c>else</c>, o <c>arg=caso</c>.</summary>
             public string Condition;
             public int Line;
+        }
+
+        private enum EventKind { Close, Open, Branch, Include, Call }
+
+        /// <summary>
+        /// Un fatto riconosciuto nel testo, dalla forma a direttive o da un riconoscitore: si leggono tutti, poi si
+        /// applicano in ordine di posizione (a pari posizione prima le chiusure, così <c>} else {</c> chiude e poi riapre).
+        /// </summary>
+        private sealed class Event
+        {
+            public EventKind Kind;
+            public int Offset;
+            public int End;
+            public string Key;
+            public string Label;
+            public string CloseLabel;
+            public string Arg;
+            public bool Guard;
+            /// <summary>Un ramo: <c>else</c> (true) o un caso (false). Un ramo con <see cref="Key"/> apre un blocco suo (a graffa).</summary>
+            public bool Else;
+            /// <summary>Un ramo della forma a direttive: vale per il blocco aperto con questa chiave.</summary>
+            public string BranchOf;
+            public string Callee;
+            public List<string> Args;
         }
 
         private sealed class PageReader
@@ -201,6 +230,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly List<(int Offset, string Guard)> _guards = new() { (0, null) };
             private readonly List<(int Offset, string Arg)> _includes = new();
             private readonly List<InlineFunction> _functions = new();
+            private readonly List<Event> _recognizedCalls = new();
+            private readonly Dictionary<int, string> _controls = new();
+            private List<Tag> _tags = new();
             private string _moduleId;
 
             public PageReader(TemplatePageExtractor owner, CodeSourceFile file, string text, PageIndex index, TemplatePage page)
@@ -231,11 +263,13 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 ReadDirectives();
                 var tags = ReadTags();
+                _tags = tags.Select(t => t.Tag).Where(t => t.Name != "script").ToList();
                 // prima le funzioni di tutti gli script: una chiamata può andare a una funzione scritta più in basso
                 var scripts = tags.Where(t => t.Tag.Name == "script").Select(t => Script(t.Tag, t.ContentEnd)).Where(s => s.Start >= 0).ToList();
                 foreach (var (start, end, functions) in scripts)
                     JsCalls(start, end, offset => functions.LastOrDefault(f => f.Start <= offset && offset < f.End)?.Id ?? _moduleId, always: false);
                 foreach (var (tag, _) in tags.Where(t => t.Tag.Name != "script")) Control(tag);
+                foreach (var call in _recognizedCalls) RecognizedCall(call);
                 foreach (var (offset, arg) in _includes) Include(offset, arg);
                 return _script;
             }
@@ -243,63 +277,111 @@ namespace MdExplorer.Features.Services.CodeGraph
             // -------------------------------------------------------------- direttive
 
             /// <summary>
-            /// Le direttive in ordine: gli <c>include</c> si annotano, i blocchi aprono e chiudono la condizione. Una chiusura
-            /// senza apertura, o un blocco lasciato aperto, è un avviso: la pagina si legge lo stesso.
+            /// Le direttive e i riconoscitori, in ordine: gli <c>include</c> e le chiamate si annotano, i blocchi aprono e
+            /// chiudono la condizione. Una chiusura senza apertura, o un blocco lasciato aperto, è un avviso: la pagina si
+            /// legge lo stesso.
             /// </summary>
             private void ReadDirectives()
             {
+                var events = new List<Event>();
+                if (Rule.Directive != null) DirectiveEvents(events);
+                foreach (var r in Rule.Recognizers) RecognizerEvents(r, events);
                 var stack = new List<Frame>();
+                string lastClosed = null;   // la condizione dell'ultimo blocco chiuso: un «else» a graffa la nega
+                foreach (var e in events.OrderBy(e => e.Offset).ThenBy(e => e.Kind == EventKind.Close ? 0 : 1))
+                {
+                    var line = LineOf(e.Offset);
+                    switch (e.Kind)
+                    {
+                        case EventKind.Include:
+                            _includes.Add((e.Offset, e.Arg));
+                            break;
+                        case EventKind.Call:
+                            _recognizedCalls.Add(e);
+                            break;
+                        case EventKind.Open:
+                            stack.Add(new Frame { Key = e.Key, Label = e.Label, CloseLabel = e.CloseLabel, Guard = e.Guard, Arg = e.Arg, Condition = e.Guard && !string.IsNullOrEmpty(e.Arg) ? e.Arg : null, Line = line });
+                            _guards.Add((e.End, Current(stack)));
+                            break;
+                        case EventKind.Close:
+                        {
+                            var at = stack.FindLastIndex(f => f.Key == e.Key);
+                            if (at < 0)
+                            {
+                                _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' chiude un blocco che non è aperto", $"{_file.LogicalPath}:{line}: '{e.Label}' closes a block that is not open"));
+                                break;
+                            }
+                            for (var k = stack.Count - 1; k > at; k--) Unclosed(stack[k]);
+                            var closed = stack[at];
+                            lastClosed = closed.Guard ? closed.Condition : null;
+                            stack.RemoveRange(at, stack.Count - at);
+                            _guards.Add((e.Offset, Current(stack)));
+                            break;
+                        }
+                        case EventKind.Branch when e.Key != null:
+                            // un ramo a graffa (Razor «else {»): un blocco nuovo, con la negazione del blocco appena chiuso
+                            var negated = lastClosed == null ? null : $"!({lastClosed})";
+                            var condition = e.Else
+                                ? (string.IsNullOrEmpty(e.Arg) ? negated : negated == null ? e.Arg : $"{negated} && ({e.Arg})")
+                                : e.Arg;
+                            stack.Add(new Frame { Key = e.Key, Label = e.Label, CloseLabel = "}", Guard = true, Arg = condition, Condition = condition, Line = line });
+                            _guards.Add((e.End, Current(stack)));
+                            break;
+                        case EventKind.Branch:
+                        {
+                            var frame = e.BranchOf != null ? stack.LastOrDefault(f => f.Key == e.BranchOf) : stack.LastOrDefault(f => f.Guard);
+                            if (frame == null)
+                            {
+                                _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' fuori da un blocco", $"{_file.LogicalPath}:{line}: '{e.Label}' outside a block"));
+                                break;
+                            }
+                            frame.Condition = e.Else
+                                ? (string.IsNullOrEmpty(frame.Arg) ? null : $"!({frame.Arg})")
+                                : string.IsNullOrEmpty(e.Arg) ? frame.Arg : string.IsNullOrEmpty(frame.Arg) ? e.Arg : $"{frame.Arg}={e.Arg}";
+                            _guards.Add((e.End, Current(stack)));
+                            break;
+                        }
+                    }
+                }
+                foreach (var f in stack) Unclosed(f);
+            }
+
+            /// <summary>La forma a direttive: una sola espressione, il significato lo dice la parola.</summary>
+            private void DirectiveEvents(List<Event> events)
+            {
                 foreach (Match m in Rule.Directive.Matches(_text))
                 {
                     var word = m.Groups["word"].Value;
                     var argGroup = m.Groups["arg"];
                     var arg = argGroup.Success ? argGroup.Value.Trim() : null;
                     if (word.Length == 0) continue;
-                    var line = LineOf(m.Index);
+                    var end = m.Index + m.Length;
 
                     if (Rule.Include.Contains(word))
                     {
                         Count(_page.Words, word);
-                        _includes.Add((m.Index, arg));
+                        events.Add(new Event { Kind = EventKind.Include, Offset = m.Index, End = end, Arg = arg, Label = word });
                         continue;
                     }
                     var opens = Rule.Blocks.FirstOrDefault(b => Words.Equals(b.Open, word));
                     if (opens != null)
                     {
                         Count(_page.Words, word);
-                        stack.Add(new Frame { Block = opens, Arg = arg, Condition = opens.Guard && !string.IsNullOrEmpty(arg) ? arg : null, Line = line });
-                        _guards.Add((m.Index + m.Length, Current(stack)));
+                        events.Add(new Event { Kind = EventKind.Open, Offset = m.Index, End = end, Key = "w:" + opens.Open, Label = word, CloseLabel = opens.Close, Guard = opens.Guard, Arg = arg });
                         continue;
                     }
                     var closes = Rule.Blocks.FirstOrDefault(b => Words.Equals(b.Close, word));
                     if (closes != null)
                     {
                         Count(_page.Words, word);
-                        var at = stack.FindLastIndex(f => f.Block == closes);
-                        if (at < 0)
-                        {
-                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{word}' chiude un '{closes.Open}' che non è aperto", $"{_file.LogicalPath}:{line}: '{word}' closes a '{closes.Open}' that is not open"));
-                            continue;
-                        }
-                        for (var k = stack.Count - 1; k > at; k--) Unclosed(stack[k]);
-                        stack.RemoveRange(at, stack.Count - at);
-                        _guards.Add((m.Index, Current(stack)));
+                        events.Add(new Event { Kind = EventKind.Close, Offset = m.Index, End = end, Key = "w:" + closes.Open, Label = word });
                         continue;
                     }
                     var branches = Rule.Blocks.FirstOrDefault(b => b.Else.Contains(word, Words) || b.Cases.Contains(word, Words));
                     if (branches != null)
                     {
                         Count(_page.Words, word);
-                        var frame = stack.LastOrDefault(f => f.Block == branches);
-                        if (frame == null)
-                        {
-                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{word}' fuori da un '{branches.Open}'", $"{_file.LogicalPath}:{line}: '{word}' outside a '{branches.Open}'"));
-                            continue;
-                        }
-                        frame.Condition = branches.Else.Contains(word, Words)
-                            ? (string.IsNullOrEmpty(frame.Arg) ? null : $"!({frame.Arg})")
-                            : string.IsNullOrEmpty(arg) ? frame.Arg : string.IsNullOrEmpty(frame.Arg) ? arg : $"{frame.Arg}={arg}";
-                        _guards.Add((m.Index + m.Length, Current(stack)));
+                        events.Add(new Event { Kind = EventKind.Branch, Offset = m.Index, End = end, BranchOf = "w:" + branches.Open, Else = branches.Else.Contains(word, Words), Arg = arg, Label = word });
                         continue;
                     }
                     // Una parola che il dialetto non dichiara: con argomento è quasi certamente una direttiva che manca (la
@@ -307,15 +389,85 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (arg != null)
                     {
                         Count(_page.UnknownWords, word);
-                        _page.UnknownWordExamples.TryAdd(word, $"{_file.LogicalPath}:{line}");
+                        _page.UnknownWordExamples.TryAdd(word, $"{_file.LogicalPath}:{LineOf(m.Index)}");
                     }
                     else _page.Placeholders++;
                 }
-                foreach (var f in stack) Unclosed(f);
+            }
+
+            /// <summary>
+            /// Un riconoscitore: ogni corrispondenza è un fatto con il ruolo del riconoscitore. Un blocco a graffa si chiude
+            /// alla graffa che chiude la prima <c>{</c> della corrispondenza (o subito dopo): la chiusura diventa un fatto anche lei.
+            /// </summary>
+            private void RecognizerEvents(DeclarativeLanguage.TemplateRecognizer r, List<Event> events)
+            {
+                foreach (Match m in r.Match.Matches(_text))
+                {
+                    if (m.Length == 0) continue;
+                    Count(_page.Words, r.Id);
+                    var end = m.Index + m.Length;
+                    var argGroup = m.Groups["arg"];
+                    var arg = argGroup.Success ? argGroup.Value.Trim() : null;
+                    string braceKey = null;
+                    if (r.Brace)
+                    {
+                        var open = _text.IndexOf('{', m.Index);
+                        if (open < 0 || open > end + 2)
+                        {
+                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude alla graffa ma la graffa non c'è", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the brace but there is no brace"));
+                            continue;
+                        }
+                        var close = MatchingBrace(open);
+                        braceKey = "b:" + open;
+                        end = Math.Max(end, open + 1);
+                        if (close < 0)
+                        {
+                            // senza la graffa che chiude non si sa dove il blocco finisce: meglio non aprirlo
+                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(open)}: la graffa di '{r.Id}' non si chiude", $"{_file.LogicalPath}:{LineOf(open)}: the brace of '{r.Id}' never closes"));
+                            continue;
+                        }
+                        events.Add(new Event { Kind = EventKind.Close, Offset = close, End = close + 1, Key = braceKey, Label = "}" });
+                    }
+                    switch (r.Role)
+                    {
+                        case DeclarativeLanguage.TemplateRole.Include:
+                            events.Add(new Event { Kind = EventKind.Include, Offset = m.Index, End = end, Arg = arg, Label = r.Id });
+                            break;
+                        case DeclarativeLanguage.TemplateRole.Open:
+                            events.Add(new Event { Kind = EventKind.Open, Offset = m.Index, End = end, Key = braceKey ?? "c:" + r.Close, Label = r.Id, CloseLabel = r.Brace ? "}" : r.Close, Guard = r.Guard, Arg = arg });
+                            break;
+                        case DeclarativeLanguage.TemplateRole.Close:
+                            events.Add(new Event { Kind = EventKind.Close, Offset = m.Index, End = end, Key = "c:" + r.Id, Label = r.Id });
+                            break;
+                        case DeclarativeLanguage.TemplateRole.Else:
+                        case DeclarativeLanguage.TemplateRole.Case:
+                            events.Add(new Event { Kind = EventKind.Branch, Offset = m.Index, End = end, Key = braceKey, Else = r.Role == DeclarativeLanguage.TemplateRole.Else, Arg = arg, Label = r.Id });
+                            break;
+                        case DeclarativeLanguage.TemplateRole.Call:
+                            var callee = r.Callee ?? m.Groups["callee"].Value.Trim();
+                            if (callee.Length == 0) break;
+                            var count = r.ArgGroups.Count == 0 ? 0 : r.ArgGroups.Max() + 1;
+                            var args = Enumerable.Range(0, count).Select(k => m.Groups["a" + k] is { Success: true } g && !HasDirective(g.Value) ? g.Value.Trim() : null).ToList();
+                            events.Add(new Event { Kind = EventKind.Call, Offset = m.Index, End = end, Callee = callee, Args = args, Label = r.Id });
+                            break;
+                    }
+                }
+            }
+
+            /// <summary>La graffa che chiude quella in <paramref name="open"/> nel testo della pagina; -1 se non si chiude.</summary>
+            private int MatchingBrace(int open)
+            {
+                var depth = 0;
+                for (var i = open; i < _text.Length; i++)
+                {
+                    if (_text[i] == '{') depth++;
+                    else if (_text[i] == '}' && --depth == 0) return i;
+                }
+                return -1;
             }
 
             private void Unclosed(Frame f)
-                => _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{f.Line}: '{f.Block.Open}' non si chiude ('{f.Block.Close}')", $"{_file.LogicalPath}:{f.Line}: '{f.Block.Open}' is never closed ('{f.Block.Close}')"));
+                => _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{f.Line}: '{f.Label}' non si chiude ('{f.CloseLabel}')", $"{_file.LogicalPath}:{f.Line}: '{f.Label}' is never closed ('{f.CloseLabel}')"));
 
             private static string Current(List<Frame> stack)
             {
@@ -336,7 +488,8 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private static void Count(Dictionary<string, int> map, string word) => map[word] = map.TryGetValue(word, out var n) ? n + 1 : 1;
 
-            private bool HasDirective(string s) => s != null && Rule.Directive.IsMatch(s);
+            /// <summary>Una stringa che il server scrive (dentro c'è una direttiva o un'espressione): non è letterale.</summary>
+            private bool HasDirective(string s) => s != null && Rule.Dynamic != null && Rule.Dynamic.IsMatch(s);
 
             // -------------------------------------------------------------- HTML
 
@@ -463,7 +616,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>Un elemento con un evento o un <c>href="javascript:"</c>: un simbolo <c>control</c>, con le chiamate del suo JS.</summary>
             private void Control(Tag tag)
             {
-                var handlers = tag.Attrs.Where(a => a.Value != null && a.Name.Length > 2 && a.Name.StartsWith("on", StringComparison.OrdinalIgnoreCase) && a.Value.Trim().Length > 0)
+                var handlers = tag.Attrs.Where(a => a.Value != null && a.Value.Trim().Length > 0 && Rule.Events.Any(e => e.IsMatch(a.Name)))
                     .Select(a => (a.ValueOffset, a.ValueOffset + a.Value.Length)).ToList();
                 foreach (var a in tag.Attrs.Where(a => a.Value != null && a.Name.ToLowerInvariant() is "href" or "action"))
                 {
@@ -475,7 +628,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                 }
                 if (handlers.Count == 0) return;
+                var id = EnsureControl(tag);
+                foreach (var (from, to) in handlers) JsCalls(from, to, _ => id, always: true);
+            }
 
+            /// <summary>Il simbolo <c>control</c> dell'elemento, creato la prima volta (da un evento o da una chiamata riconosciuta nel tag).</summary>
+            private string EnsureControl(Tag tag)
+            {
+                if (_controls.TryGetValue(tag.Start, out var known)) return known;
                 var line = LineOf(tag.Start);
                 var name = new[] { tag.Get("id"), tag.Get("name") }.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? $"{tag.Name}@{line}";
                 var qualified = Qualify(name, line);
@@ -490,7 +650,24 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Edge(_moduleId, id, "contains", "extracted", line);
                 _page.Controls++;
                 if (guard != null) _page.GuardedControls++;
-                foreach (var (from, to) in handlers) JsCalls(from, to, _ => id, always: true);
+                _controls[tag.Start] = id;
+                return id;
+            }
+
+            /// <summary>
+            /// Una chiamata trovata da un riconoscitore (<c>asp-action="Cancella"</c>, <c>Html.ActionLink(…)</c>): dentro un tag
+            /// la fa l'elemento, che diventa un controllo; fuori la fa la pagina. Si registra anche senza stringhe.
+            /// </summary>
+            private void RecognizedCall(Event e)
+            {
+                var tag = _tags.FirstOrDefault(t => t.Start <= e.Offset && e.Offset < t.End);
+                var caller = tag != null ? EnsureControl(tag) : _moduleId;
+                var line = LineOf(e.Offset);
+                var before = _script.CallSites.Count;
+                _calls.Add(caller, line, e.Callee, null, e.Args, always: true);
+                _page.CallSites += _script.CallSites.Count - before;
+                foreach (var f in _functions.Where(f => f.Name == e.Callee && f.Id != caller))
+                    Edge(caller, f.Id, "calls", "extracted", line);
             }
 
             /// <summary>Il nome qualificato <c>pagina:nome</c>; lo stesso nome due volte nella pagina si distingue con la riga.</summary>

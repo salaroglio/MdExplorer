@@ -259,7 +259,8 @@ public sealed class CodeTools : McpToolsBase
         "\"call\": {\"callee\": \"methodName\", \"argument\": 0}, " +
         "\"split\": {\"separator\": \".\", \"at\": \"last\"|\"first\"} (optional: the string is owner+separator+method), " +
         "\"owner\": {\"from\": \"string\" (the part before the separator) | \"pairedCall\" (the string of another call in the same method, " +
-        "written before it or in its receiver: {\"pairedCall\": {\"callee\": \"x\", \"argument\": 0}}) | \"class\" ({\"class\": \"qualified.Name\"}), " +
+        "written before it or in its receiver: {\"pairedCall\": {\"callee\": \"x\", \"argument\": 0}}) | \"class\" ({\"class\": \"qualified.Name\"}) | " +
+        "\"page\" (the string names a PAGE of the project's page dialect, not a method: e.g. the page shown after the call; matched by file name or path end), " +
         "\"aliasMap\": \"project-relative/path.properties\" (optional: alias=qualified.ClassName)}, " +
         "\"excludePrefixes\": [\"redirect:\"] (optional)}. Unknown fields are an error.";
 
@@ -328,6 +329,13 @@ public sealed class CodeTools : McpToolsBase
         "guard: true = the argument is a CONDITION on what the block contains (controls and includes get code:guard). " +
         "MdExplorer reads the HTML itself: elements with on…= or href=\"javascript:\" become `control` symbols, inline <script> functions become " +
         "`function`, their JS calls become call sites (rules can link them), <script src> becomes `imports`. Unknown fields are an error. " +
+        "RECOGNIZER FORM, for pages where server code and HTML mix (Razor .cshtml, JSP, Thymeleaf…), alone or with the directive form: " +
+        "template: { dynamic: regex that makes a string server-written (e.g. '@[A-Za-z(]'), events: [attribute-name regexes, default '^on.+$'; " +
+        "Angular '^\\(.+\\)$'], recognizers: [ {role: include, match: '…(?<arg>page)…'}, {role: open, match: '@if\\s*\\((?<arg>.+?)\\)\\s*\\{', " +
+        "close: brace, guard: true}, {role: else, match: '\\belse\\s*\\{', close: brace}, {id: endif, role: close, match: …} with " +
+        "{role: open, …, close: endif}, {role: case, match: '…(?<arg>…)…'}, {role: call, match: 'asp-controller=\"(?<a0>[^\"]+)\"\\s+asp-action=\"(?<a1>[^\"]+)\"', " +
+        "callee: asp-action} ] }. close: brace = the block ends at the brace matching the first { of the match. A call recognized inside a tag " +
+        "makes that element a control; its strings (groups a0…a9) become a call site that an enrichment rule can link. " +
         "A line-based language (blocks/labels/references instead of template) uses the same tools.";
 
     [McpServerTool, Description(

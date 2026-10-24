@@ -38,8 +38,17 @@ namespace MdExplorer.Features.Services.CodeGraph
             var paired = rule.Owner.From == CodeRuleOwnerSource.PairedCall
                 ? await _store.CallSitesAsync(projectPath, rule.Owner.PairedCall.Callee, ct)
                 : new List<CodeCallSiteView>();
-            var keys = CodeRuleEngine.OwnerKeys(rule, sites, paired, aliasMap);
-            var owners = await _store.OwnersWithMembersAsync(projectPath, keys, ct);
+            List<CodeOwnerMember> owners;
+            if (rule.Owner.From == CodeRuleOwnerSource.Page)
+            {
+                // tipo 3: le pagine dei dialetti di pagine del progetto
+                var pageLanguages = CodeLanguageCatalog.ForProject(projectPath).All.Where(l => l.Definition?.Template != null).Select(l => l.Id).ToList();
+                if (pageLanguages.Count == 0)
+                    throw new CodeRuleException(UiText.Say("owner.from = page: il progetto non ha un dialetto di pagine (.mde-languages/<id>/ con template), quindi nel grafo non ci sono pagine.",
+                        "owner.from = page: the project has no page dialect (.mde-languages/<id>/ with template), so there are no pages in the graph."));
+                owners = await _store.PagesAsync(projectPath, pageLanguages, ct);
+            }
+            else owners = await _store.OwnersWithMembersAsync(projectPath, CodeRuleEngine.OwnerKeys(rule, sites, paired, aliasMap), ct);
             return CodeRuleEngine.Evaluate(rule, sites, paired, aliasMap, owners);
         }
 
@@ -107,6 +116,57 @@ namespace MdExplorer.Features.Services.CodeGraph
                 previews.Add(preview);
             }
             return previews;
+        }
+
+        /// <summary>L'id dei collegamenti che MdExplorer fa da sé fra pagine e script: col trattino basso, nessuna regola può chiamarsi così.</summary>
+        public const string PageScriptsId = "_page-scripts";
+
+        /// <summary>
+        /// La seconda passata delle pagine (D42 passo 2c, 24/10/2026): a grafo caricato, ogni chiamata di una pagina verso una
+        /// funzione dei file JS che la pagina carica (o delle pagine che include) diventa un arco <c>calls</c>, <c>extracted</c>
+        /// se la funzione è una sola, <c>ambiguous</c> se sono di più. Nessuna approvazione: è HTML e JS standard, non una
+        /// convenzione del progetto. Gli archi stanno in <c>.mde-code/_rules/_page-scripts.rules.ttl</c>, rifatto a ogni
+        /// scansione; senza pagine il file non c'è. Torna quanti archi ha scritto.
+        /// </summary>
+        public async Task<int> ApplyPageScriptsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
+        {
+            var path = ScriptPath(projectPath, PageScriptsId);
+            if (pageLanguages == null || pageLanguages.Count == 0)
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    await _store.RemoveScriptAsync(projectPath, path, ct);
+                }
+                return 0;
+            }
+            var calls = await _store.PageScriptCallsAsync(projectPath, pageLanguages, ct);
+            var edges = calls.GroupBy(c => (c.CallerId, c.Callee, c.Line))
+                .SelectMany(g => g.Select(c => c.FunctionId).Distinct(StringComparer.Ordinal).Select(fn => new ScriptEdge
+                {
+                    SourceId = g.Key.CallerId, TargetId = fn, Relation = "calls", Line = g.Key.Line, Path = g.First().Path,
+                    Confidence = g.Select(c => c.FunctionId).Distinct(StringComparer.Ordinal).Count() == 1 ? "extracted" : "ambiguous",
+                }))
+                .GroupBy(e => (e.SourceId, e.TargetId)).Select(g => g.First())   // un arco per (chiamante, funzione), come negli ast
+                .ToList();
+            var script = new CodeScript
+            {
+                Header = new CodeScriptHeader
+                {
+                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Rule, Source = PageScriptsId,
+                    WrittenBy = "MdExplorer", WrittenAt = string.Empty,
+                },
+                RuleDescription = "MdExplorer: le chiamate delle pagine verso le funzioni dei file JS che caricano, anche dalle pagine incluse (D42 passo 2c).",
+            };
+            script.Edges.AddRange(edges);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var text = CodeScriptTurtle.Write(script);
+            // lo stesso testo non si riscrive: niente modifiche fasulle per Git a ogni scansione
+            if (!File.Exists(path) || File.ReadAllText(path, Encoding.UTF8) != text) File.WriteAllText(path, text, new UTF8Encoding(false));
+            var loaded = await _store.LoadScriptAsync(projectPath, path, ct);
+            if (loaded.Error != null) throw new CodeRuleException(loaded.Error);
+            _logger?.LogInformation("[CodeRules] '{Project}': {Count} chiamate delle pagine collegate alle funzioni JS", projectPath, edges.Count);
+            return edges.Count;
         }
 
         private async Task WriteAndLoadAsync(string projectPath, CodeEnrichmentRule rule, CodeRulePreview preview, CancellationToken ct)

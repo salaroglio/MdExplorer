@@ -1406,7 +1406,8 @@
       "classNotFound": "la classe non è nel grafo",
       "tooManyClasses": "il nome porta a troppe classi",
       "methodNotFound": "il metodo non è nella classe",
-      "tooManyTargets": "troppi metodi possibili"
+      "tooManyTargets": "troppi metodi possibili",
+      "pageNotFound": "la pagina non è nel grafo"
     },
     "CONFIRM": {
       "QUESTION": "Aggiungo {{edges}} collegamenti al grafo del codice?",

@@ -260,4 +260,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<string[]> AmbiguousList { get; set; } = new();     // source qn, relation, target qn, path, line
         public List<string[]> StaleList { get; set; } = new();         // qualifiedName, path, line
     }
+
+    /// <summary>Una chiamata di una pagina verso una funzione di un file JS che la pagina carica (D42 passo 2c).</summary>
+    public sealed class CodePageScriptCall
+    {
+        public string CallerId { get; set; }
+        public string Callee { get; set; }
+        public int Line { get; set; }
+        public string Path { get; set; }
+        public string FunctionId { get; set; }
+    }
 }

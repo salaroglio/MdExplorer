@@ -1406,7 +1406,8 @@
       "classNotFound": "the class is not in the graph",
       "tooManyClasses": "the name leads to too many classes",
       "methodNotFound": "the method is not in the class",
-      "tooManyTargets": "too many possible methods"
+      "tooManyTargets": "too many possible methods",
+      "pageNotFound": "the page is not in the graph"
     },
     "CONFIRM": {
       "QUESTION": "Add {{edges}} links to the code graph?",

@@ -113,6 +113,48 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
+        {
+            var pages = Path.Combine(_project, "program", "web", "pagine");
+            Directory.CreateDirectory(Path.Combine(pages, "parti"));
+            File.WriteAllText(Path.Combine(pages, "ordini.page"),
+                "<script src=\"../page.js\"></script>\n{%include(parti/menu)%}\n<button id=\"scegli\" onclick=\"scegli(1)\">x</button>\n<a id=\"menu\" href=\"javascript:apriMenu()\">m</a>\n<i id=\"altro\" onclick=\"nessuna()\">y</i>\n");
+            File.WriteAllText(Path.Combine(pages, "parti", "menu.page"), "<script>\nfunction apriMenu() { }\n</script>\n");
+            Scan();
+            var dialect = new TemplatePageExtractor(DeclarativeLanguage.Parse(TemplatePageExtractorShould.Dialect, "/p/.mde-languages/pagine/language.yml"));
+            var all = Directory.GetFiles(pages, "*.page", SearchOption.AllDirectories).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            foreach (var (file, ast) in dialect.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all }).Scripts)
+            {
+                var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
+            }
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(0, await _rules.ApplyPageScriptsAsync(_project, new[] { "altro-dialetto" }), "solo le pagine dei dialetti dati");
+            var linked = await _rules.ApplyPageScriptsAsync(_project, new[] { "pagine" });
+            var script = CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId);
+            Assert.AreEqual(2, linked, File.ReadAllText(script));
+            Assert.IsTrue(File.Exists(script));
+            Assert.AreEqual(0, _rules.List(_project).Count, "non è una regola dell'utente");
+
+            var scegli = (await _store.ResolveAsync(_project, "program/web/pagine/ordini.page:scegli")).Single(s => s.Kind == "control").Id;
+            var toJs = (await _store.NeighborsAsync(_project, scegli, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("extracted", "function", "program/web/page.js"), (toJs.Confidence, toJs.Other.Kind, toJs.Other.Path), "la funzione del file che la pagina carica");
+            var menu = (await _store.ResolveAsync(_project, "program/web/pagine/ordini.page:menu")).Single(s => s.Kind == "control").Id;
+            Assert.AreEqual("program/web/pagine/parti/menu.page", (await _store.NeighborsAsync(_project, menu, "calls", "out", 1, 10)).Single().Other.Path, "la funzione della pagina inclusa");
+
+            var before = File.GetLastWriteTimeUtc(script);
+            System.Threading.Thread.Sleep(20);
+            Assert.AreEqual(2, await _rules.ApplyPageScriptsAsync(_project, new[] { "pagine" }));
+            Assert.AreEqual(before, File.GetLastWriteTimeUtc(script), "lo stesso risultato non riscrive il file");
+            Assert.AreEqual(0, await _rules.ApplyPageScriptsAsync(_project, Array.Empty<string>()));
+            Assert.IsFalse(File.Exists(script), "senza dialetti di pagine il file se ne va");
+            Assert.AreEqual(0, (await _store.NeighborsAsync(_project, scegli, "calls", "out", 1, 10)).Count);
+        }
+
+        [TestMethod]
         public async Task Refuse_to_apply_a_rule_that_links_too_little_and_write_nothing()
         {
             Scan();

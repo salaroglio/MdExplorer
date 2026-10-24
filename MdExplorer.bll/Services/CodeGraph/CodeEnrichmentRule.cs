@@ -117,6 +117,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         PairedCall,
         /// <summary>Una classe fissa.</summary>
         Class,
+        /// <summary>
+        /// La stringa nomina una PAGINA, non un metodo (D42 tipo 3, 24/10/2026): <c>impostaDestinazione("ordini")</c> mostra
+        /// <c>ordini.template</c>. L'arco va alla pagina di un dialetto di pagine del progetto, cercata per nome (con o
+        /// senza estensione) o per percorso che finisce così (<c>ordini/elenco</c>).
+        /// </summary>
+        Page,
     }
 
     public sealed class CodeRuleOwner

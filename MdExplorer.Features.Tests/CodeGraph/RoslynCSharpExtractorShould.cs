@@ -88,6 +88,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Record_call_sites_with_string_literals_and_nameof()
+        {
+            File.WriteAllText(Path.Combine(_src, "OrdiniController.cs"),
+                "namespace Demo { public class OrdiniController {\n" +
+                "  object View(string n) => n; object RedirectToAction(string a, string c = null) => a; void Log(string m) { }\n" +
+                "  public object Elenco() { Log(\"frase con spazi\"); return View(\"Ordini\"); }\n" +
+                "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
+            var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
+            Assert.AreEqual("2", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+
+            var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
+            var view = s.CallSites.Single(c => c.Callee == "View");
+            Assert.AreEqual((elenco, 3, (string)null, "Ordini"), (view.SourceId, view.Line, view.Receiver, view.Arguments.Single().Value));
+            var redirect = s.CallSites.Single(c => c.Callee == "RedirectToAction");
+            Assert.AreEqual(("this", 2), (redirect.Receiver, redirect.ArgumentCount));
+            CollectionAssert.AreEqual(new[] { "Elenco", "Ordini" }, redirect.Arguments.Select(a => a.Value).ToArray(), "nameof(Elenco) è la costante 'Elenco'");
+            Assert.IsFalse(s.CallSites.Any(c => c.Callee == "Log"), "una frase o una variabile non bastano a registrare la chiamata");
+        }
+
+        [TestMethod]
         public async System.Threading.Tasks.Task Write_scripts_the_parser_reads_back_and_the_loader_puts_in_fuseki()
         {
             var extractor = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance);

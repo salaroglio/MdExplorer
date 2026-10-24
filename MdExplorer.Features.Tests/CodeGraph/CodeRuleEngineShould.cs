@@ -128,6 +128,36 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Link_a_string_that_names_a_page_to_that_page()
+        {
+            var rule = CodeEnrichmentRule.Parse(@"{
+                ""id"": ""pagina-di-ritorno"", ""description"": ""La destinazione è anche la pagina mostrata dopo."",
+                ""call"": { ""callee"": ""imposta"", ""argument"": 0 },
+                ""owner"": { ""from"": ""page"" }, ""excludePrefixes"": [ ""redirect:"" ] }");
+            var pages = new List<CodeOwnerMember>
+            {
+                new() { OwnerId = "p-ordini", MemberId = "p-ordini", OwnerQualifiedName = "web/pagine/ordini.page", OwnerName = "ordini.page", MemberName = "ordini.page" },
+                new() { OwnerId = "p-elenco", MemberId = "p-elenco", OwnerQualifiedName = "web/pagine/clienti/elenco.page", OwnerName = "elenco.page", MemberName = "elenco.page" },
+                new() { OwnerId = "p-elenco2", MemberId = "p-elenco2", OwnerQualifiedName = "web/pagine/ordini/elenco.page", OwnerName = "elenco.page", MemberName = "elenco.page" },
+            };
+            var sites = new List<CodeCallSiteView>
+            {
+                Site("m-a", 3, "imposta", 0, "ordini"),
+                Site("m-b", 4, "imposta", 0, "clienti/elenco"),
+                Site("m-c", 5, "imposta", 0, "redirect:home"),
+                Site("m-d", 6, "imposta", 0, "manca"),
+                Site("m-e", 7, "imposta", 0, "ordini.page"),
+            };
+            var p = CodeRuleEngine.Evaluate(rule, sites, null, null, pages);
+            Assert.AreEqual((1, 3, 1), (p.Excluded, p.Resolved, p.Unresolved));
+            Assert.AreEqual(1, p.MissCounts["pageNotFound"]);
+            Assert.IsTrue(p.Accepted, string.Join(" ", p.RejectReasons));
+            CollectionAssert.AreEquivalent(new[] { "m-a>p-ordini", "m-b>p-elenco", "m-e>p-ordini" }, p.Edges.Select(e => e.SourceId + ">" + e.TargetId).ToArray(),
+                "per nome senza estensione, per nome intero, per percorso che finisce così (non l'altro elenco)");
+            Assert.AreEqual("dispatches", p.Edges[0].Relation);
+        }
+
+        [TestMethod]
         public void Refuse_an_incomplete_or_unknown_rule_saying_what_is_wrong()
         {
             var ex = Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""string"" } }"));

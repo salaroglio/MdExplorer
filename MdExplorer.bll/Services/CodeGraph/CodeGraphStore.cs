@@ -48,6 +48,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         Task<List<CodeOwnerMember>> OwnersWithMembersAsync(string projectPath, IEnumerable<string> keys, CancellationToken ct = default);
         /// <summary>
+        /// Le chiamate delle pagine (linguaggi <paramref name="pageLanguages"/>, D42 passo 2c) verso una funzione con quel
+        /// nome nei file JS che la pagina carica o nelle pagine che include (anche quelle che includono a loro volta): per
+        /// ogni chiamata senza ricevente, le funzioni candidate. Le funzioni della pagina stessa le collega già la lettura.
+        /// </summary>
+        /// <summary>Le pagine dei dialetti dati (moduli), per le regole di tipo 3: id in <c>OwnerId</c>/<c>MemberId</c>, percorso logico in <c>OwnerQualifiedName</c>.</summary>
+        Task<List<CodeOwnerMember>> PagesAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
+        Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
+        /// <summary>
         /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi
         /// diretti) e quelle di tutto il dataset, per stimare quanto della cartella sta nel database (22/10/2026).
         /// </summary>

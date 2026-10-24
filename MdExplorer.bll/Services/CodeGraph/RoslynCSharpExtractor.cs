@@ -33,7 +33,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.CSharp;
         public string ExtractorName => "roslyn";
-        public string ExtractorVersion => "1";
+        /// <summary>2 = i punti di chiamata con stringhe (D42 passo 2, 24/10/2026: <c>return View("Ordini")</c>, <c>RedirectToAction(nameof(Elenco))</c>).</summary>
+        public string ExtractorVersion => "2";
         public string Availability => "ready";
 
         private readonly ILogger<RoslynCSharpExtractor> _logger;
@@ -286,10 +287,36 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly PerimeterIndex _perimeter;
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
             private readonly HashSet<string> _edges = new(StringComparer.Ordinal);
+            private readonly CodeCallSites _callSites;
 
             public FileContext(CodeScript script, SemanticModel model, PerimeterIndex perimeter)
             {
                 Script = script; _model = model; _perimeter = perimeter;
+                _callSites = new CodeCallSites(script);
+            }
+
+            /// <summary>
+            /// Il punto di chiamata con le stringhe letterali (D42): il nome del metodo, il ricevente scritto prima del punto e,
+            /// per argomento, il testo di una stringa letterale o di <c>nameof(X)</c> (una costante anche lei); null per il resto.
+            /// </summary>
+            private void CallSite(InvocationExpressionSyntax inv, string ownerId, int line)
+            {
+                var (callee, receiver) = inv.Expression switch
+                {
+                    MemberAccessExpressionSyntax ma => (ma.Name.Identifier.ValueText, ma.Expression.ToString()),
+                    SimpleNameSyntax n => (n.Identifier.ValueText, (string)null),
+                    MemberBindingExpressionSyntax mb => (mb.Name.Identifier.ValueText, (string)null),
+                    _ => (null, null),
+                };
+                if (callee == null || callee == "nameof") return;
+                var args = inv.ArgumentList.Arguments.Select(a => a.Expression switch
+                {
+                    LiteralExpressionSyntax lit when lit.IsKind(SyntaxKind.StringLiteralExpression) => lit.Token.ValueText,
+                    InvocationExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.ValueText: "nameof" } } n when n.ArgumentList.Arguments.Count == 1
+                        => n.ArgumentList.Arguments[0].Expression.ToString().Split('.').Last(),
+                    _ => null,
+                }).ToList();
+                _callSites.Add(ownerId, line, callee, receiver, args);
             }
 
             public string IdOf(ISymbol symbol)
@@ -358,6 +385,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             {
                                 var info = _model.GetSymbolInfo(inv);
                                 var line = Line(inv);
+                                CallSite(inv, ownerId, line);
                                 if (info.Symbol is IMethodSymbol m)
                                 {
                                     var target = m.ReducedFrom ?? m.OriginalDefinition ?? m;

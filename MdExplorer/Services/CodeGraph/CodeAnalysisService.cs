@@ -592,6 +592,12 @@ namespace MdExplorer.Services.CodeGraph
                     {
                         var rules = _services.GetService(typeof(CodeRuleService)) as CodeRuleService;
                         if (rules != null)
+                        {
+                            // prima la seconda passata delle pagine (D42 passo 2c): pulsante → funzione del file JS che la pagina carica
+                            var pageLanguages = catalog.All.Where(l => l.Definition?.Template != null).Select(l => l.Id).ToList();
+                            await rules.ApplyPageScriptsAsync(projectPath, pageLanguages, ct);
+                        }
+                        if (rules != null)
                             foreach (var p in await rules.ReapplyAllAsync(projectPath, ct))
                                 if (!p.Accepted) outcome.Warnings.Add(UiText.Say($"la regola '{p.RuleId}' ora collega {p.Resolved} chiamate su {p.Resolved + p.Unresolved}", $"rule '{p.RuleId}' now links {p.Resolved} calls out of {p.Resolved + p.Unresolved}"));
                     }
