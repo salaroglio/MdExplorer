@@ -22,6 +22,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { AiChatComponent } from './ai-chat.component';
 import { ModelManagerComponent } from './model-manager.component';
 import { CodeRuleWizardComponent } from './code-rule-wizard/code-rule-wizard.component';
+import { CodeLanguageWizardComponent } from './code-language-wizard/code-language-wizard.component';
 
 const routes: Routes = [
   {
@@ -38,7 +39,8 @@ const routes: Routes = [
   declarations: [
     AiChatComponent,
     ModelManagerComponent,
-    CodeRuleWizardComponent
+    CodeRuleWizardComponent,
+    CodeLanguageWizardComponent
   ],
   imports: [
     CommonModule,

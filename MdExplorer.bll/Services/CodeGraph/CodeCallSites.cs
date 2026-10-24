@@ -29,27 +29,31 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>
         /// Registra la chiamata se almeno un argomento è una stringa a forma di nome. <paramref name="arguments"/> sono le
-        /// stringhe già senza virgolette per posizione (null = l'argomento non è una stringa letterale).
+        /// stringhe già senza virgolette per posizione (null = l'argomento non è una stringa letterale). Con
+        /// <paramref name="always"/> la registra anche senza stringhe: il JS di un controllo di una pagina (D42 passo 2), dove
+        /// conta già sapere QUALE funzione chiama.
         /// </summary>
-        public void Add(string sourceId, int line, string callee, string receiver, IReadOnlyList<string> arguments)
+        public void Add(string sourceId, int line, string callee, string receiver, IReadOnlyList<string> arguments, bool always = false)
         {
             if (sourceId == null || string.IsNullOrEmpty(callee) || arguments == null) return;
             ScriptCallSite site = null;
+            ScriptCallSite New()
+            {
+                _ordinals.TryGetValue((sourceId, line), out var ordinal);
+                _ordinals[(sourceId, line)] = ordinal + 1;
+                return new ScriptCallSite
+                {
+                    SourceId = sourceId, Line = line, Ordinal = ordinal, Callee = callee, ArgumentCount = arguments.Count,
+                    Receiver = receiver != null && receiver.Length <= MaxReceiverLength ? receiver : null,
+                };
+            }
             for (var i = 0; i < arguments.Count; i++)
             {
                 if (!IsNameLike(arguments[i])) continue;
-                if (site == null)
-                {
-                    _ordinals.TryGetValue((sourceId, line), out var ordinal);
-                    _ordinals[(sourceId, line)] = ordinal + 1;
-                    site = new ScriptCallSite
-                    {
-                        SourceId = sourceId, Line = line, Ordinal = ordinal, Callee = callee, ArgumentCount = arguments.Count,
-                        Receiver = receiver != null && receiver.Length <= MaxReceiverLength ? receiver : null,
-                    };
-                }
+                site ??= New();
                 site.Arguments.Add(new ScriptStringArgument { Position = i, Value = arguments[i] });
             }
+            if (site == null && always) site = New();
             if (site != null) _script.CallSites.Add(site);
         }
     }

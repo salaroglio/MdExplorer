@@ -78,6 +78,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.Trivial != null) sb.Append(" ; code:trivial ").Append(Lit(s.Trivial));
                 if (s.TrivialOf != null) sb.Append(" ; code:trivialOf ").Append(Lit(s.TrivialOf));
                 if (s.BodyHash != null) sb.Append(" ; code:bodyHash ").Append(Lit(s.BodyHash));
+                if (s.Guard != null) sb.Append(" ; code:guard ").Append(Lit(s.Guard));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
                 FromScript(sb, fromScriptLit).Append(" .\n");
@@ -111,6 +112,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:confidence ").Append(Lit(e.Confidence))
                   .Append(" ; code:path ").Append(Lit(h.Source));
                 if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
+                if (e.Guard != null) sb.Append(" ; code:guard ").Append(Lit(e.Guard));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
 

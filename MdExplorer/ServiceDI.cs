@@ -30,6 +30,7 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore, MdExplorer.Features.Services.CodeGraph.CodeGraphStore>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeRuleService>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.CodeRulePending>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.CodeLanguageService>();
             services.AddSingleton<MdExplorer.Services.UserSettingsUiLanguage>();
             services.AddSingleton<MdExplorer.Features.Services.IUiLanguage>(sp => sp.GetRequiredService<MdExplorer.Services.UserSettingsUiLanguage>());
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphReportWriter>();

@@ -141,6 +141,26 @@ namespace MdExplorer.Features.Services.CodeGraph
             return new CodeLanguageCatalog(all, errors, notices);
         }
 
+        /// <summary>
+        /// Il catalogo con un pacchetto in più, o al posto di quello con lo stesso id: per provare un linguaggio prima di
+        /// scriverlo (D42 passo 2). Le stesse regole di <see cref="ForProject"/>: l'id di un linguaggio di MdExplorer o
+        /// un'estensione di un altro linguaggio sono errori.
+        /// </summary>
+        public CodeLanguageCatalog With(LanguagePackage package)
+        {
+            var def = package.Language;
+            var file = Path.Combine(package.FolderPath, LanguagePackage.DefinitionFile);
+            if (CodeLanguages.ById(def.Id) != null)
+                throw new LanguageDefinitionException(file, UiText.Say($"id: '{def.Id}' è già un linguaggio di MdExplorer", $"id: '{def.Id}' is already a MdExplorer language"));
+            var others = All.Where(l => !string.Equals(l.Id, def.Id, StringComparison.OrdinalIgnoreCase)).ToList();
+            var clash = def.Extensions.Select(e => (e, other: others.FirstOrDefault(l => l.Extensions.Contains(e, StringComparer.OrdinalIgnoreCase)))).FirstOrDefault(x => x.other != null);
+            if (clash.other != null)
+                throw new LanguageDefinitionException(file, UiText.Say($"extensions: '{clash.e}' è già di {clash.other.DisplayName}", $"extensions: '{clash.e}' already belongs to {clash.other.DisplayName}"));
+            others.Add(new CodeLanguage { Id = def.Id, DisplayName = def.DisplayName, Extensions = def.Extensions.ToArray(), ExtractorKind = CodeExtractorKind.Declarative, Package = package });
+            var errors = _errors.Where(e => !string.Equals(e.Key, def.Id, StringComparison.OrdinalIgnoreCase)).ToDictionary(e => e.Key, e => e.Value, StringComparer.OrdinalIgnoreCase);
+            return new CodeLanguageCatalog(others, errors, Notices);
+        }
+
         public CodeLanguage ById(string id) => All.FirstOrDefault(l => string.Equals(l.Id, id, StringComparison.OrdinalIgnoreCase));
 
         public CodeLanguage ForFile(string path)

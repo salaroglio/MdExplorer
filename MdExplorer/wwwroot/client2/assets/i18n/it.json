@@ -1429,6 +1429,39 @@
     "NEXT": "Avanti",
     "CLOSE": "Chiudi"
   },
+  "CODE_LANG": {
+    "BANNER": "MarkAgent ha trovato delle pagine che il grafo del codice non sa leggere e propone come leggerle ({{count}} in attesa).",
+    "PROBLEM": {
+      "PAGES": "MarkAgent propone di insegnare a MdExplorer a leggere le pagine «{{name}}» ({{extensions}}): i controlli con i loro eventi, le condizioni sotto cui compaiono e le pagine che includono.",
+      "LINES": "MarkAgent propone di insegnare a MdExplorer a leggere il linguaggio «{{name}}» ({{extensions}}).",
+      "REPLACES": "Nel progetto c'è già la versione {{version}} di «{{id}}»: questa la sostituisce."
+    },
+    "CHECKS": {
+      "READ": "Ha letto {{read}} file su {{files}} (cartelle: {{folders}}).",
+      "CONTROLS": "{{controls}} controlli (pulsanti, link con un'azione), di cui {{guarded}} compaiono solo a certe condizioni.",
+      "SCRIPTS": "{{functions}} funzioni negli script delle pagine, {{calls}} chiamate.",
+      "INCLUDES": "Pagine incluse trovate: {{resolved}} su {{total}}.",
+      "DYNAMIC": "{{n}} pagine incluse le sceglie il server mentre la pagina è in uso: non si possono seguire.",
+      "WARNINGS": "{{n}} avvisi in {{files}} file.",
+      "UNRESOLVED": "{{n}} pagine incluse non trovate",
+      "NOTES": "{{n}} note per MarkAgent",
+      "WARNING_LIST": "Gli avvisi",
+      "MARK": "Che cosa ha verificato MarkAgent aprendo i file",
+      "FACTS": "{{n}} cose trovate in questo file"
+    },
+    "CONFIRM": {
+      "QUESTION_PAGES": "Aggiungo al grafo del codice le {{files}} pagine «{{name}}»?",
+      "QUESTION_LINES": "Aggiungo al grafo del codice i {{files}} file «{{name}}»?",
+      "FOLDERS": "Le cartelle {{folders}} verranno analizzate di nuovo, in sfondo.",
+      "REVERSIBLE": "Si può annullare subito dopo da qui. Il linguaggio sta nella cartella .mde-languages/{{id}}/ del progetto e viaggia con Git."
+    },
+    "DONE": {
+      "APPLIED": "Fatto: MdExplorer ora legge «{{name}}». L'analisi delle cartelle è partita: le pagine compaiono nel grafo fra poco (la vedi nei lavori in sfondo).",
+      "UNDONE": "Linguaggio annullato: le sue pagine escono dal grafo con la prossima analisi, già partita.",
+      "WHERE": "Il linguaggio «{{id}}» è nella cartella .mde-languages/{{id}}/ del progetto.",
+      "UNDO": "Annulla questo linguaggio"
+    }
+  },
   "AI_CHAT": {
     "OPENCODE_SERVER_DEFAULT": "Default del server",
     "TITLE": "Assistente AI",

@@ -375,6 +375,101 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { removed = await Rules.RemoveAsync(request.ProjectPath, request.RuleId, ct) });
         });
 
+        // ------------------------------------------------------------------ linguaggi scritti da MarkAgent (D42 passo 2)
+
+        public class LanguageTryRequest { public string ProjectPath { get; set; } public string Definition { get; set; } }
+        public class LanguageProposeRequest : LanguageTryRequest
+        {
+            public string? Problem { get; set; }
+            public System.Collections.Generic.List<CodeLanguageSampleCheck>? SampleChecks { get; set; }
+            public System.Collections.Generic.List<CodeRuleAnalysis>? FurtherAnalyses { get; set; }
+            public string? ProposedBy { get; set; }
+        }
+        public class LanguageProposalRequest { public string ProjectPath { get; set; } public string ProposalId { get; set; } }
+        public class LanguageUndoRequest { public string ProjectPath { get; set; } public string LanguageId { get; set; } }
+
+        private MdExplorer.Services.CodeGraph.CodeLanguageService LanguageProposals => HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeLanguageService>();
+
+        /// <summary>Come le regole: un linguaggio sbagliato risponde 422 con il file, il campo e il motivo, per chi lo corregge.</summary>
+        private Task<IActionResult> LanguageGuarded(Func<Task<IActionResult>> action) => RuleGuarded(async () =>
+        {
+            try { return await action(); }
+            catch (LanguageDefinitionException ex) { return StatusCode(422, new { error = ex.Reason }); }
+        });
+
+        /// <summary>POST /api/codegraph/languages/try {projectPath, definition} — la prova a secco di un language.yml (MCP <c>code_language_try</c>): niente scritto.</summary>
+        [HttpPost("languages/try")]
+        public Task<IActionResult> TryLanguage([FromBody] LanguageTryRequest request, CancellationToken ct) => LanguageGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(await LanguageProposals.TryAsync(request.ProjectPath, request.Definition, ct));
+        });
+
+        /// <summary>
+        /// POST /api/codegraph/languages/propose {projectPath, definition, problem, sampleChecks, furtherAnalyses, proposedBy} —
+        /// MarkAgent propone il linguaggio all'utente (MCP <c>code_language_propose</c>): arriva al wizard solo se MdExplorer
+        /// lo accetta e se ogni file del campione è stato aperto e trovato giusto.
+        /// </summary>
+        [HttpPost("languages/propose")]
+        public Task<IActionResult> ProposeLanguage([FromBody] LanguageProposeRequest request, CancellationToken ct) => LanguageGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Problem))
+                return StatusCode(422, new { error = UiText.Say("problem è obbligatorio: che cosa il grafo non sa di queste pagine, in parole semplici per l'utente.", "problem is required: what the graph does not know about these pages, in plain words for the user.") });
+            var preview = await LanguageProposals.TryAsync(request.ProjectPath, request.Definition, ct);
+            if (!preview.Accepted) return StatusCode(422, new { error = UiText.Say("Linguaggio respinto: ", "Language rejected: ") + string.Join(" ", preview.RejectReasons), preview });
+            var problems = CodeLanguageProposals.SampleProblems(preview, request.SampleChecks);
+            if (problems.Count > 0) return StatusCode(422, new { error = string.Join(" ", problems), sample = preview.Sample });
+            var by = string.IsNullOrWhiteSpace(request.ProposedBy) ? "MarkAgent" : request.ProposedBy;
+            var analyses = CodeRuleProposals.AddAnalyses(request.ProjectPath, request.FurtherAnalyses, request.Problem, by);
+            var proposal = Pending.AddLanguage(new CodeLanguageProposal
+            {
+                ProjectPath = request.ProjectPath, Definition = request.Definition, Problem = request.Problem.Trim(),
+                SampleChecks = request.SampleChecks, FurtherAnalyses = request.FurtherAnalyses ?? new System.Collections.Generic.List<CodeRuleAnalysis>(),
+                Preview = preview, ProposedBy = by, ProposedAt = DateTime.UtcNow.ToString("o"),
+            });
+            return Ok(new { proposalId = proposal.Id, preview.LanguageId, preview.Files, analyses = analyses.Count });
+        });
+
+        /// <summary>GET /api/codegraph/languages/proposals?projectPath — i linguaggi che aspettano il wizard.</summary>
+        [HttpGet("languages/proposals")]
+        public IActionResult LanguageProposalList([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            return Ok(Pending.Languages(projectPath));
+        }
+
+        /// <summary>POST /api/codegraph/languages/proposals/discard {projectPath, proposalId} — l'utente ha detto no.</summary>
+        [HttpPost("languages/proposals/discard")]
+        public IActionResult DiscardLanguageProposal([FromBody] LanguageProposalRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(new { removed = Pending.RemoveLanguage(request.ProjectPath, request.ProposalId) });
+        }
+
+        /// <summary>
+        /// POST /api/codegraph/languages/proposals/apply {projectPath, proposalId} — il «Sì»: il pacchetto nel progetto, il
+        /// linguaggio nelle cartelle program con i suoi file, la loro analisi in sfondo.
+        /// </summary>
+        [HttpPost("languages/proposals/apply")]
+        public Task<IActionResult> ApplyLanguageProposal([FromBody] LanguageProposalRequest request, CancellationToken ct) => LanguageGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var proposal = Pending.GetLanguage(request.ProjectPath, request.ProposalId);
+            if (proposal == null) return NotFound(new { error = UiText.Say("Proposta non trovata (già decisa, o il servizio è ripartito).", "Proposal not found (already decided, or the service restarted).") });
+            var preview = await LanguageProposals.ApplyAsync(proposal, ct);
+            Pending.RemoveLanguage(request.ProjectPath, proposal.Id);
+            return Ok(new { languageId = preview.LanguageId, preview });
+        });
+
+        /// <summary>POST /api/codegraph/languages/undo {projectPath, languageId} — «Annulla»: solo per un linguaggio appena scritto dal wizard.</summary>
+        [HttpPost("languages/undo")]
+        public Task<IActionResult> UndoLanguage([FromBody] LanguageUndoRequest request, CancellationToken ct) => LanguageGuarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(new { undone = await LanguageProposals.UndoAsync(request.ProjectPath, request.LanguageId, ct) });
+        });
+
         public class FolderRequest { public string ProjectPath { get; set; } public string? FolderPath { get; set; } }
         public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } public string? Describe { get; set; } }
 
@@ -623,6 +718,8 @@ namespace MdExplorer.Controllers.CodeGraph
                 signature = s.Signature, returnType = s.ReturnType, visibility = s.Visibility, isStatic = s.IsStatic, isAsync = s.IsAsync, parentId = s.ParentId,
                 language = s.Language, summary = s.Summary, returnsDescription = s.ReturnsDescription, remarks = s.Remarks, writtenBy = s.WrittenBy,
                 descriptionStale = s.DescriptionStale,
+                // la condizione di un controllo di una pagina (D42 passo 2); null = sempre
+                guard = s.Guard,
                 parameters = s.Parameters.Count == 0 ? null : s.Parameters.Select(p => new { p.Position, p.Name, p.Type, p.Direction, p.DefaultValue, p.IsNullable, p.Description }),
             };
         }
@@ -630,7 +727,7 @@ namespace MdExplorer.Controllers.CodeGraph
         private static object View(CodeEdgeView e, Locator at)
         {
             var (abs, why) = at.Of(e.Path);
-            return new { e.Relation, e.Confidence, e.Path, absolutePath = abs, pathUnavailable = why, e.Line, e.Depth, symbol = View(e.Other, at) };
+            return new { e.Relation, e.Confidence, e.Guard, e.Path, absolutePath = abs, pathUnavailable = why, e.Line, e.Depth, symbol = View(e.Other, at) };
         }
 
         /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>

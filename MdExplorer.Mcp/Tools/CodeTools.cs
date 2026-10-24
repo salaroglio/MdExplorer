@@ -319,6 +319,62 @@ public sealed class CodeTools : McpToolsBase
         return await GetAsync(client, Q(path, "rules"), "code_rules", project, "");
     }
 
+    private const string DialectShape =
+        "A PAGE DIALECT is a language.yml (YAML) for server-side HTML pages with directives: " +
+        "schema: 1 / id: lowercase-dashes / name: … / version: 1 / extensions: [.template] / template: { " +
+        "directive: a regex for ONE directive with the named group (?<word>…) and optionally (?<arg>…), e.g. '\\$(?<word>[A-Za-z_]+)(?:\\[(?<arg>[^\\]]*)\\])?\\$'; " +
+        "include: [words whose argument is another page]; " +
+        "blocks: [{open: if, close: endif, else: [else], guard: true}, {open: switch, close: endswitch, cases: [case], guard: true}, {open: loop, close: endloop}] }. " +
+        "guard: true = the argument is a CONDITION on what the block contains (controls and includes get code:guard). " +
+        "MdExplorer reads the HTML itself: elements with on…= or href=\"javascript:\" become `control` symbols, inline <script> functions become " +
+        "`function`, their JS calls become call sites (rules can link them), <script src> becomes `imports`. Unknown fields are an error. " +
+        "A line-based language (blocks/labels/references instead of template) uses the same tools.";
+
+    [McpServerTool, Description(
+        "Dry-run a LANGUAGE for the code graph, usually a PAGE DIALECT. Use it when, answering the user, you need the pages (server-side HTML " +
+        "templates with directives like $include[x]$ or $if[X]$) and the graph has no node for them (MdExplorer skips extensions it does not know). " +
+        "Read a few pages first and write the dialect from what you see. Nothing is written. Returns: files and folders found, symbolsByKind, " +
+        "edgesByRelation, pages (controls, guardedControls, functions, callSites, includes/includesResolved/dynamicIncludes, unresolvedIncludes, " +
+        "words, unknownWords with an example place), warnings, notes, accepted + rejectReasons (MdExplorer rejects a language that finds nothing, " +
+        "resolves under 60% of includes, or warns on over 10% of files), and `sample`: up to 5 files with the facts found. Fix and retry until " +
+        "accepted and the notes are explained; then OPEN EACH SAMPLE FILE and check the facts, before code_language_propose. " + DialectShape)]
+    public async Task<string> code_language_try(
+        [Description("Project name.")] string project,
+        [Description("The full text of language.yml.")] string definition)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await PostAsync(client, "/api/codegraph/languages/try", new { projectPath = path, definition }, "code_language_try", project, definition);
+    }
+
+    [McpServerTool, Description(
+        "Propose a language (already accepted by code_language_try) to the USER: they see «Improve the graph» in the MarkAgent tab, a wizard with " +
+        "the problem, the numbers, your checks and a yes/no; on yes MdExplorer writes .mde-languages/<id>/ (shared with Git) and re-analyzes the " +
+        "folders. You never write that folder yourself. Refused unless every file in code_language_try's `sample` is in `sampleChecks` with ok=true. " +
+        "`problem`: what the graph could not tell the user about these pages, in plain words (the user may not be technical). " +
+        "`furtherAnalyses`: what this makes possible next (e.g. a rule from a page action to the controller method), kept in a shared list. " +
+        "Tell the user the proposal is waiting in the tab. " + DialectShape)]
+    public async Task<string> code_language_propose(
+        [Description("Project name.")] string project,
+        [Description("The full text of language.yml (the same accepted by code_language_try).")] string definition,
+        [Description("The problem the language solves, in plain words for the user.")] string problem,
+        [Description("One per sample file: {\"path\": \"…\", \"ok\": true, \"note\": \"what you saw\"}.")] List<Dictionary<string, JsonElement>> sampleChecks,
+        [Description("Optional: [{\"title\": \"…\", \"description\": \"…\"}] further analyses suggested by this problem.")] List<Dictionary<string, string>> furtherAnalyses = null)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        var checks = (sampleChecks ?? new()).Select(c => new
+        {
+            path = c.TryGetValue("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null,
+            ok = c.TryGetValue("ok", out var o) && o.ValueKind == JsonValueKind.True,
+            note = c.TryGetValue("note", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null,
+        }).ToList();
+        var analyses = (furtherAnalyses ?? new()).Select(a => new { title = a.GetValueOrDefault("title"), description = a.GetValueOrDefault("description") }).ToList();
+        return await PostAsync(client, "/api/codegraph/languages/propose",
+            new { projectPath = path, definition, problem, sampleChecks = checks, furtherAnalyses = analyses, proposedBy = "MarkAgent (code_language_propose)" },
+            "code_language_propose", project, definition);
+    }
+
     /// <summary>Un id già dato passa com'è; un nome si risolve, e se i candidati sono più d'uno si chiede di scegliere.</summary>
     private async Task<(string Id, string Error)> ResolveSingleIdAsync(HttpClient client, string projectPath, string symbol)
     {

@@ -1429,6 +1429,39 @@
     "NEXT": "Next",
     "CLOSE": "Close"
   },
+  "CODE_LANG": {
+    "BANNER": "MarkAgent found pages the code graph cannot read and proposes how to read them ({{count}} waiting).",
+    "PROBLEM": {
+      "PAGES": "MarkAgent proposes to teach MdExplorer to read the «{{name}}» pages ({{extensions}}): the controls with their events, the conditions under which they appear and the pages they include.",
+      "LINES": "MarkAgent proposes to teach MdExplorer to read the «{{name}}» language ({{extensions}}).",
+      "REPLACES": "The project already has version {{version}} of «{{id}}»: this one replaces it."
+    },
+    "CHECKS": {
+      "READ": "Read {{read}} files of {{files}} (folders: {{folders}}).",
+      "CONTROLS": "{{controls}} controls (buttons, links with an action), {{guarded}} of them appear only under some conditions.",
+      "SCRIPTS": "{{functions}} functions in the page scripts, {{calls}} calls.",
+      "INCLUDES": "Included pages found: {{resolved}} of {{total}}.",
+      "DYNAMIC": "{{n}} included pages are chosen by the server while the page is in use: they cannot be followed.",
+      "WARNINGS": "{{n}} warnings in {{files}} files.",
+      "UNRESOLVED": "{{n}} included pages not found",
+      "NOTES": "{{n}} notes for MarkAgent",
+      "WARNING_LIST": "The warnings",
+      "MARK": "What MarkAgent checked by opening the files",
+      "FACTS": "{{n}} things found in this file"
+    },
+    "CONFIRM": {
+      "QUESTION_PAGES": "Add the {{files}} «{{name}}» pages to the code graph?",
+      "QUESTION_LINES": "Add the {{files}} «{{name}}» files to the code graph?",
+      "FOLDERS": "The folders {{folders}} will be analyzed again, in the background.",
+      "REVERSIBLE": "It can be undone right after, from here. The language lives in the project folder .mde-languages/{{id}}/ and travels with Git."
+    },
+    "DONE": {
+      "APPLIED": "Done: MdExplorer now reads «{{name}}». The analysis of the folders has started: the pages appear in the graph shortly (see the background jobs).",
+      "UNDONE": "Language undone: its pages leave the graph with the next analysis, already started.",
+      "WHERE": "The language «{{id}}» is in the project folder .mde-languages/{{id}}/.",
+      "UNDO": "Undo this language"
+    }
+  },
   "AI_CHAT": {
     "OPENCODE_SERVER_DEFAULT": "Server default",
     "TITLE": "AI Assistant",

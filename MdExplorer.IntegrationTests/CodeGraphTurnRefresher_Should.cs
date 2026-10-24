@@ -34,6 +34,7 @@ namespace MdExplorer.IntegrationTests
             public Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string p, string f, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeProgramFolder>> ListProgramsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
             public IReadOnlyList<CodeScanInProgress> Scanning(string p) => throw new NotImplementedException();
+            public Task<List<MdExplorer.Features.Services.CodeGraph.CodeLanguageFiles>> FilesOfLanguageAsync(string p, MdExplorer.Features.Services.CodeGraph.CodeLanguageCatalog c, string l, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<(List<MdExplorer.Features.Services.CodeGraph.CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         }
 

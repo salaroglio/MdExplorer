@@ -56,6 +56,35 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyDictionary<string, string> Types { get; private init; }
         public IReadOnlyList<ReferenceRule> References { get; private init; }
         public FragmentRule Fragments { get; private init; }
+        /// <summary>Le pagine a direttive (D42 passo 2): con questa sezione il linguaggio è un dialetto di pagine, letto da <see cref="TemplatePageExtractor"/>; null per i linguaggi a righe.</summary>
+        public TemplateRule Template { get; private init; }
+
+        /// <summary>
+        /// Un dialetto di pagine HTML con direttive lato server (<c>$include[x]$</c>, <c>$if[A==S]$…$endif$</c>): com'è fatta
+        /// una direttiva (<see cref="Directive"/>, gruppi <c>word</c> e, facoltativo, <c>arg</c>) e che cosa vogliono dire le
+        /// sue parole. L'HTML (controlli, script) lo legge MdExplorer, uguale per tutti i dialetti.
+        /// </summary>
+        public sealed class TemplateRule
+        {
+            public Regex Directive { get; init; }
+            /// <summary>Le parole il cui argomento è un'altra pagina: arco <c>includes</c>.</summary>
+            public ISet<string> Include { get; init; }
+            public IReadOnlyList<TemplateBlock> Blocks { get; init; }
+        }
+
+        /// <summary>
+        /// Una parte della pagina aperta e chiusa da due parole (<c>if</c>/<c>endif</c>, <c>loop</c>/<c>endloop</c>). Con
+        /// <see cref="Guard"/> l'argomento dell'apertura è la condizione di quello che contiene; <see cref="Else"/> la nega,
+        /// <see cref="Cases"/> la sostituisce con <c>argomento=caso</c> (un <c>switch</c>).
+        /// </summary>
+        public sealed class TemplateBlock
+        {
+            public string Open { get; init; }
+            public string Close { get; init; }
+            public IReadOnlyList<string> Else { get; init; }
+            public IReadOnlyList<string> Cases { get; init; }
+            public bool Guard { get; init; }
+        }
 
         public sealed class BlockRule
         {
@@ -227,6 +256,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var l in labels) CheckIn($"labels[{l.Id}].in", l.In, containers);
                 foreach (var x in declarations) CheckIn($"declarations[{x.Id}].in", x.In, containers);
                 var fragments = BuildFragments(blocks);
+                var template = BuildTemplate();
 
                 return new DeclarativeLanguage
                 {
@@ -241,8 +271,53 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Parameters = BuildParameters(),
                     Types = new Dictionary<string, string>(_d.Types ?? new Dictionary<string, string>(), StringComparer.Ordinal),
                     References = (_d.References ?? new List<Yaml.Reference>()).Select((r, i) => BuildReference(r, i, ruleIds, declarations)).ToList(),
-                    Fragments = fragments,
+                    Fragments = fragments, Template = template,
                 };
+            }
+
+            /// <summary>
+            /// La sezione <c>template</c>: esclude le regole dei linguaggi a righe (una pagina non ha blocchi né etichette), e
+            /// ogni parola ha un solo significato.
+            /// </summary>
+            private TemplateRule BuildTemplate()
+            {
+                var t = _d.Template;
+                if (t == null) return null;
+                var lineRules = new (string Name, bool Present)[]
+                {
+                    ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
+                    ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                };
+                foreach (var (name, present) in lineRules)
+                    if (present) throw Fail($"{name}: con template non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with template (it is for line-based languages); remove one of the two sections");
+                if (string.IsNullOrWhiteSpace(t.Directive)) throw Fail("template.directive: obbligatorio, l'espressione di una direttiva con il gruppo (?<word>…)", "template.directive: required, the expression of a directive with the group (?<word>…)");
+                var directive = Rx("template.directive", t.Directive, "word");
+                var comparer = _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                var meaning = new Dictionary<string, string>(comparer);
+                void Word(string where, string word)
+                {
+                    if (string.IsNullOrWhiteSpace(word)) throw Fail($"{where}: parola vuota", $"{where}: empty word");
+                    if (!meaning.TryAdd(word, where)) throw Fail($"{where}: '{word}' è già in {meaning[word]}: una parola ha un solo significato", $"{where}: '{word}' is already in {meaning[word]}: a word has one meaning only");
+                }
+                foreach (var w in t.Include ?? new List<string>()) Word("template.include", w);
+                var blocks = new List<TemplateBlock>();
+                foreach (var (b, i) in (t.Blocks ?? new List<Yaml.TemplateBlock>()).Select((b, i) => (b, i)))
+                {
+                    var where = $"template.blocks[{i}]";
+                    if (string.IsNullOrWhiteSpace(b.Open) || string.IsNullOrWhiteSpace(b.Close)) throw Fail($"{where}: servono open e close", $"{where}: open and close are required");
+                    if ((b.Else != null || b.Cases != null) && !b.Guard) throw Fail($"{where}: else e cases valgono solo con guard: true", $"{where}: else and cases only apply with guard: true");
+                    Word(where + ".open", b.Open);
+                    Word(where + ".close", b.Close);
+                    foreach (var w in b.Else ?? new List<string>()) Word(where + ".else", w);
+                    foreach (var w in b.Cases ?? new List<string>()) Word(where + ".cases", w);
+                    blocks.Add(new TemplateBlock
+                    {
+                        Open = b.Open, Close = b.Close, Else = b.Else ?? new List<string>(), Cases = b.Cases ?? new List<string>(), Guard = b.Guard,
+                    });
+                }
+                if (meaning.Count == 0) throw Fail("template: almeno una parola in include o in blocks, se no la pagina non dà niente al grafo", "template: at least one word in include or blocks, otherwise the page gives nothing to the graph");
+                return new TemplateRule { Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks };
             }
 
             /// <summary>Solo un blocco (o il modulo) contiene qualcosa: etichette e dichiarazioni no.</summary>
@@ -421,6 +496,21 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public Dictionary<string, string> Types { get; set; }
                 public List<Reference> References { get; set; }
                 public Fragments Fragments { get; set; }
+                public Template Template { get; set; }
+            }
+            public sealed class Template
+            {
+                public string Directive { get; set; }
+                public List<string> Include { get; set; }
+                public List<TemplateBlock> Blocks { get; set; }
+            }
+            public sealed class TemplateBlock
+            {
+                public string Open { get; set; }
+                public string Close { get; set; }
+                public List<string> Else { get; set; }
+                public List<string> Cases { get; set; }
+                public bool Guard { get; set; }
             }
             public sealed class Fragments
             {

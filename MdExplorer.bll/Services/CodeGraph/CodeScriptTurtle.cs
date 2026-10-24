@@ -99,10 +99,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
             ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount"),
-            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash" }
+            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
-            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule"),
+            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard"),
             ["RuleSet"] = Set("ruleId", "description", "writtenBy", "writtenAt", "schema"),
             ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver"),
             ["StringArgument"] = Set("argumentOf", "position", "value"),
@@ -192,6 +192,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Trivial = n.OptStr("trivial") != null ? n.Enum("trivial", CodeScriptParser.TrivialShapes, path) : null,
                     TrivialOf = n.OptStr("trivialOf"),
                     BodyHash = n.OptStr("bodyHash"),
+                    Guard = n.OptStr("guard"),
                 });
             }
             foreach (var n in nodes.Where(n => n.Class == "Parameter"))
@@ -206,7 +207,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     SourceId = SymbolId(n.IriValue("source", path)), TargetId = SymbolId(n.IriValue("target", path)),
                     Relation = n.Enum("relation", CodeScriptParser.Relations, path), Confidence = n.Enum("confidence", CodeScriptParser.Confidences, path),
-                    Line = n.OptInt("line", path),
+                    Line = n.OptInt("line", path), Guard = n.OptStr("guard"),
                 });
             var sites = new Dictionary<string, ScriptCallSite>(StringComparer.Ordinal);
             foreach (var n in nodes.Where(n => n.Class == "CallSite"))

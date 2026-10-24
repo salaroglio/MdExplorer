@@ -32,11 +32,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             "?s a code:Symbol ; code:kind ?kind ; code:name ?name ; code:qualifiedName ?qn . " +
             "OPTIONAL { ?s code:language ?lang } OPTIONAL { ?s code:path ?path } OPTIONAL { ?s code:lineStart ?ls } OPTIONAL { ?s code:lineEnd ?le } " +
             "OPTIONAL { ?s code:signature ?sig } OPTIONAL { ?s code:returnType ?ret } OPTIONAL { ?s code:visibility ?vis } " +
-            "OPTIONAL { ?s code:isStatic ?st } OPTIONAL { ?s code:isAsync ?as } OPTIONAL { ?s code:parent ?parent } OPTIONAL { ?s code:signatureHash ?sh } OPTIONAL { ?s code:bodyHash ?bh } " +
+            "OPTIONAL { ?s code:isStatic ?st } OPTIONAL { ?s code:isAsync ?as } OPTIONAL { ?s code:parent ?parent } OPTIONAL { ?s code:signatureHash ?sh } OPTIONAL { ?s code:bodyHash ?bh } OPTIONAL { ?s code:guard ?guard } " +
             "OPTIONAL { ?d a code:Description ; code:describes ?s . OPTIONAL { ?d code:summary ?summary } OPTIONAL { ?d code:returnsDescription ?retd } " +
             "OPTIONAL { ?d code:remarks ?rem } OPTIONAL { ?d code:writtenBy ?by } OPTIONAL { ?d code:signatureHash ?dsh } OPTIONAL { ?d code:bodyHash ?dbh } } ";
 
-        private const string SymbolVars = "?s ?kind ?name ?qn ?lang ?path ?ls ?le ?sig ?ret ?vis ?st ?as ?parent ?sh ?summary ?retd ?rem ?by ?dsh ?bh ?dbh";
+        private const string SymbolVars = "?s ?kind ?name ?qn ?lang ?path ?ls ?le ?sig ?ret ?vis ?st ?as ?parent ?sh ?summary ?retd ?rem ?by ?dsh ?bh ?dbh ?guard";
 
         private static CodeSymbolView ReadSymbol(Dictionary<string, string> r)
         {
@@ -46,7 +46,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Id = SymbolId(Str(r, "s")), Kind = Str(r, "kind"), Name = Str(r, "name"), QualifiedName = Str(r, "qn"), Language = Str(r, "lang"),
                 Path = Str(r, "path"), LineStart = Int(r, "ls"), LineEnd = Int(r, "le"), Signature = Str(r, "sig"), ReturnType = Str(r, "ret"),
                 Visibility = Str(r, "vis"), IsStatic = Bool(r, "st"), IsAsync = Bool(r, "as"), ParentId = SymbolId(Str(r, "parent")),
-                Summary = Str(r, "summary"), ReturnsDescription = Str(r, "retd"), Remarks = Str(r, "rem"), WrittenBy = Str(r, "by"),
+                Summary = Str(r, "summary"), ReturnsDescription = Str(r, "retd"), Remarks = Str(r, "rem"), WrittenBy = Str(r, "by"), Guard = Str(r, "guard"),
                 // «da rivedere»: la descrizione fu scritta per un'altra firma o per un altro corpo (F12b; un'impronta che manca
                 // da una delle due parti non si confronta); senza descrizione non c'è niente da confrontare
                 DescriptionStale = dsh == null ? null : !string.Equals(dsh, sh, StringComparison.OrdinalIgnoreCase) || bh != null && dbh != null && bh != dbh,
@@ -200,7 +200,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private sealed class EdgeRow
         {
-            public string From, To, Relation, Confidence, Path;
+            public string From, To, Relation, Confidence, Path, Guard;
             public int? Line;
         }
 
@@ -215,12 +215,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var values = string.Join(" ", ids.Skip(i).Take(200).Select(id => Iri(Symbol(id))));
                 var rows = await RowsAsync(
-                    $"SELECT ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES ?from {{ {values} }} " +
-                    $"?e a code:Edge ; {fromProp} ?from ; {toProp} ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} {EffectiveConfidence}" +
+                    $"SELECT ?from ?to ?rel ?conf ?path ?line ?guard WHERE {{ GRAPH {g.DataIri} {{ VALUES ?from {{ {values} }} " +
+                    $"?e a code:Edge ; {fromProp} ?from ; {toProp} ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} OPTIONAL {{ ?e code:guard ?guard }} {EffectiveConfidence}" +
                     (relation != null ? $"FILTER(?rel = {Lit(relation)}) " : string.Empty) + "} }", ct);
                 list.AddRange(rows.Select(r => new EdgeRow
                 {
-                    From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line"),
+                    From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line"), Guard = Str(r, "guard"),
                 }));
             }
             return list;
@@ -251,7 +251,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             return found
                 .Select(f => new CodeEdgeView
                 {
-                    Relation = f.Edge.Relation, Confidence = f.Edge.Confidence, Path = f.Edge.Path, Line = f.Edge.Line, Depth = f.Depth,
+                    Relation = f.Edge.Relation, Confidence = f.Edge.Confidence, Path = f.Edge.Path, Line = f.Edge.Line, Guard = f.Edge.Guard, Depth = f.Depth,
                     Other = symbols.TryGetValue(f.Edge.To, out var s) ? s : new CodeSymbolView { Id = f.Edge.To, Kind = "unknown", Name = f.Edge.To, QualifiedName = f.Edge.To },
                 })
                 .GroupBy(v => (v.Other.Id, v.Relation, v.Depth)).Select(grp => grp.First())

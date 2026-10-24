@@ -219,8 +219,72 @@ export interface CodeRuleProposal {
   proposedAt: string;
 }
 
+/** La prova a secco di un linguaggio scritto da MarkAgent (D42 passo 2): di solito il dialetto delle pagine a direttive. */
+export interface CodeLanguagePreview {
+  languageId: string;
+  displayName: string;
+  kind: 'pages' | 'lines';
+  version: number;
+  extensions: string[];
+  replacesVersion?: number | null;
+  folders: { folder: string; files: number }[];
+  files: number;
+  filesRead: number;
+  truncated: boolean;
+  symbolsByKind: { [kind: string]: number };
+  edgesByRelation: { [relation: string]: number };
+  externalTargets: number;
+  pages?: {
+    controls: number; guardedControls: number; functions: number; callSites: number;
+    includes: number; includesResolved: number; dynamicIncludes: number;
+    unresolvedIncludes: { [target: string]: number };
+    words: { [word: string]: number };
+    unknownWords: { [word: string]: number };
+    unknownWordExamples: { [word: string]: string };
+    placeholders: number;
+  } | null;
+  warningCount: number;
+  filesWithWarnings: number;
+  warnings: string[];
+  sample: { path: string; facts: string[] }[];
+  notes: string[];
+  accepted: boolean;
+  rejectReasons: string[];
+}
+
+/** Un linguaggio proposto da MarkAgent che aspetta il «Sì» nel wizard. */
+export interface CodeLanguageProposal {
+  id: string;
+  projectPath: string;
+  definition: string;
+  problem: string;
+  sampleChecks: { path: string; ok: boolean; note?: string | null }[];
+  furtherAnalyses: CodeRuleAnalysis[];
+  preview: CodeLanguagePreview;
+  proposedBy: string;
+  proposedAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CodeGraphService {
+  // ---- linguaggi scritti da MarkAgent (D42 passo 2)
+
+  languageProposals(projectPath: string): Observable<CodeLanguageProposal[]> {
+    return this.http.get<CodeLanguageProposal[]>('../api/codegraph/languages/proposals', { params: new HttpParams().set('projectPath', projectPath) });
+  }
+
+  applyLanguageProposal(projectPath: string, proposalId: string): Observable<{ languageId: string; preview: CodeLanguagePreview }> {
+    return this.http.post<{ languageId: string; preview: CodeLanguagePreview }>('../api/codegraph/languages/proposals/apply', { projectPath, proposalId });
+  }
+
+  discardLanguageProposal(projectPath: string, proposalId: string): Observable<{ removed: boolean }> {
+    return this.http.post<{ removed: boolean }>('../api/codegraph/languages/proposals/discard', { projectPath, proposalId });
+  }
+
+  undoLanguage(projectPath: string, languageId: string): Observable<{ undone: boolean }> {
+    return this.http.post<{ undone: boolean }>('../api/codegraph/languages/undo', { projectPath, languageId });
+  }
+
   // ---- regole di arricchimento (D42)
 
   ruleProposals(projectPath: string): Observable<CodeRuleProposal[]> {

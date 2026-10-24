@@ -62,6 +62,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// costruttori, proprietà). Null = non calcolata (script di prima del 21/10/2026, o un tipo).
         /// </summary>
         public string BodyHash { get; set; }
+        /// <summary>
+        /// La condizione sotto cui il simbolo esiste (D42 passo 2): un controllo dentro <c>$if[X==S]$</c> di una pagina a
+        /// direttive ha <c>X==S</c>; più condizioni annidate si uniscono con <c>&amp;&amp;</c>. Null = sempre.
+        /// </summary>
+        public string Guard { get; set; }
         /// <summary>Il campo letto o scritto, o la costante restituita (com'è scritta nel codice); null per <c>empty</c>.</summary>
         public string TrivialOf { get; set; }
         /// <summary><c>external</c> = fuori perimetro: nessun file, nessuna riga, condiviso fra gli script.</summary>
@@ -88,6 +93,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int? Line { get; set; }
         /// <summary>Solo negli script di regola: il file del chiamante (negli ast è il sorgente dello script).</summary>
         public string Path { get; set; }
+        /// <summary>La condizione sotto cui l'arco vale (una pagina inclusa dentro <c>$if[…]$</c>, D42 passo 2); null = sempre.</summary>
+        public string Guard { get; set; }
     }
 
     /// <summary>
@@ -229,13 +236,17 @@ namespace MdExplorer.Features.Services.CodeGraph
             { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "type",
               "component", "service", "directive", "pipe", "ngmodule", "external",
               // un pezzo di un blocco troppo lungo, dalla sua etichetta alla successiva (linguaggi dichiarativi)
-              "fragment" };
+              "fragment",
+              // un elemento di una pagina con un evento (onclick…) o un href javascript: (pagine a direttive, D42 passo 2)
+              "control" };
         public static readonly string[] Relations =
             { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates",
               // il codice passa da un frammento all'altro: GOTO, o prosegue nel pezzo che segue
               "jumps",
               // smistamento per stringa: il nome del metodo viaggia in una stringa (D42, solo dalle regole)
-              "dispatches" };
+              "dispatches",
+              // una pagina ne include un'altra (pagine a direttive, D42 passo 2)
+              "includes" };
         /// <summary><c>rule</c>: l'arco l'ha prodotto una regola di arricchimento (D42), mai il parser.</summary>
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous", "rule" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };

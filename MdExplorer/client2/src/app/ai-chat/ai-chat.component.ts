@@ -12,8 +12,9 @@ import { ProjectSettingsService } from '../projects/services/project-settings.se
 import { SpeechService, VoiceRecording } from '../services/speech.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
-import { CodeGraphService, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
+import { CodeGraphService, CodeLanguageProposal, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
 import { CodeRuleWizardComponent, CodeRuleWizardData } from './code-rule-wizard/code-rule-wizard.component';
+import { CodeLanguageWizardComponent, CodeLanguageWizardData } from './code-language-wizard/code-language-wizard.component';
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
 type ClaudeModel = { id: string; name: string; description: string | null };
@@ -156,6 +157,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   /** Regole di arricchimento proposte da MarkAgent per il progetto aperto (D42): accendono «Migliora il grafo». */
   ruleProposals: CodeRuleProposal[] = [];
+  /** Linguaggi (dialetti delle pagine) proposti da MarkAgent (D42 passo 2): accendono la stessa striscia. */
+  languageProposals: CodeLanguageProposal[] = [];
+
+  get proposalCount(): number {
+    return this.ruleProposals.length + this.languageProposals.length;
+  }
 
   private static samePath(a: string | null | undefined, b: string | null | undefined): boolean {
     const n = (p: string | null | undefined) => (p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
@@ -164,18 +171,36 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private loadRuleProposals(): void {
     const projectPath = this.projectsService.currentProjects$.getValue()?.path;
-    if (!projectPath) { this.ruleProposals = []; return; }
+    if (!projectPath) { this.ruleProposals = []; this.languageProposals = []; return; }
     this.codeGraph.ruleProposals(projectPath).subscribe({
       next: list => this.ruleProposals = list ?? [],
       error: () => this.ruleProposals = []
     });
+    this.codeGraph.languageProposals(projectPath).subscribe({
+      next: list => this.languageProposals = list ?? [],
+      error: () => this.languageProposals = []
+    });
   }
 
-  /** Il wizard sulla prima proposta in attesa; alla chiusura si rilegge l'elenco (le altre restano). */
+  /**
+   * Il wizard sulla prima proposta in attesa; alla chiusura si rilegge l'elenco (le altre restano). Prima i linguaggi: le
+   * regole che collegano le pagine hanno bisogno delle pagine nel grafo.
+   */
   openRuleWizard(): void {
     const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) return;
+    const language = this.languageProposals[0];
+    if (language) {
+      this.dialog.open<CodeLanguageWizardComponent, CodeLanguageWizardData>(CodeLanguageWizardComponent, {
+        data: { projectPath, proposal: language },
+        width: '760px',
+        maxWidth: '95vw',
+        disableClose: true
+      }).afterClosed().subscribe(() => this.loadRuleProposals());
+      return;
+    }
     const proposal = this.ruleProposals[0];
-    if (!projectPath || !proposal) return;
+    if (!proposal) return;
     this.dialog.open<CodeRuleWizardComponent, CodeRuleWizardData>(CodeRuleWizardComponent, {
       data: { projectPath, proposal },
       width: '760px',

@@ -106,6 +106,11 @@ namespace MdExplorer.Services.CodeGraph
         Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Le scansioni in corso nel progetto (pannello dei lavori in sfondo, punto 2d del 14/10).</summary>
         IReadOnlyList<CodeScanInProgress> Scanning(string projectPath);
+        /// <summary>
+        /// I file di un linguaggio in ogni cartella <c>program</c> del progetto (e radice collegata), secondo il catalogo dato:
+        /// la prova a secco di un linguaggio non ancora scritto (D42 passo 2). Niente scritto, niente analizzato.
+        /// </summary>
+        Task<List<CodeLanguageFiles>> FilesOfLanguageAsync(string projectPath, CodeLanguageCatalog catalog, string languageId, CancellationToken ct = default);
     }
 
     public sealed class CodeScanInProgress
@@ -319,6 +324,22 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         // ------------------------------------------------------------------ analisi
+
+        public async Task<List<CodeLanguageFiles>> FilesOfLanguageAsync(string projectPath, CodeLanguageCatalog catalog, string languageId, CancellationToken ct = default)
+        {
+            var list = new List<CodeLanguageFiles>();
+            foreach (var program in (await ListProgramsAsync(projectPath, ct)).Where(p => p.Linked))
+            {
+                ct.ThrowIfCancellationRequested();
+                var scope = await ScopeOfAsync(projectPath, program.Folder, ct);
+                if (scope.Unusable != null) continue;
+                var scan = await _scanner.ScanAsync(projectPath, scope.FolderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
+                var files = scan.AllFiles.Where(f => string.Equals(catalog.ForFile(f.AbsolutePath)?.Id, languageId, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f.LogicalPath, StringComparer.Ordinal).ToList();
+                list.Add(new CodeLanguageFiles(program.Folder, files, scope.Encodings));
+            }
+            return list;
+        }
 
         public async Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default)
         {

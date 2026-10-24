@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -58,6 +58,7 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 | A description is wrong or missing | read the source, then `code_set_description` |
 | A chain stops at a STRING that names a method (`setX("method")`, `submit('alias.method')`): the graph cannot follow it | answer from the source, then `code_rule_try` → check the sample in the source → `code_rule_propose` |
 | Which enrichment rules are active, which further analyses were proposed | `code_rules` |
+| The answer needs the PAGES (server-side HTML templates with directives, e.g. `.template`) and the graph has no node for them | read a few pages, then `code_language_try` → check the sample files → `code_language_propose` |
 
 ## Reading the answers right
 
@@ -67,6 +68,10 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 - **Confidence of an edge**: `extracted` = the parser is sure; `inferred` = deduced; `ambiguous` = more than one
   candidate, the parser did not choose; `rule` = added by an enrichment rule the user approved (relation `dispatches`:
   the method named by a string). Say which one when it matters to the answer.
+- **Pages** (when the project has a page dialect): a page is a `module`; its `control` symbols are the elements with an
+  event (`onclick`…); `includes` links a page to the pages it includes; `guard` on a control or an `includes` edge is the
+  condition in the page (`$if[ROLE==S]$`): the control exists only then. Visibility in the page is not authorisation on the
+  server: say so when it matters.
 - **A missing description is not an error**: the description step may still be running or may have been run only on
   part of the code. `code_inventory` tells how many files and symbols are described.
 - **Paths** are logical (`program/…`, `@alias/…`), the same on every machine; open `absolutePath`, which is where the
@@ -93,3 +98,18 @@ user (never a systematic search):
 4. `code_rule_propose` with the problem in plain words (the user may not be technical), the sample checks and, if the
    problem suggests them, further analyses. The user decides in the MarkAgent tab («Migliora il grafo»): tell them it is
    waiting there. Never write files under `.mde-code/` yourself.
+
+## Page dialects: when the graph has no pages
+
+MdExplorer does not know the extension of server-side templates (`.template`, `.tpl`…): it skips them, so the graph
+stops before the user's click. Only for a concrete question of the user:
+
+1. Answer anyway from the source; tell the user the graph has no pages.
+2. Read a few pages and write the dialect: how a directive looks (a regex with `word` and `arg`), which words include
+   another page, which open and close a block, which blocks are conditions. Dry-run it with `code_language_try`; fix it
+   until `accepted`, and explain every `unknownWords` note (add the word, or say why it does not matter).
+3. Open every file of the returned `sample` and check the facts (controls, conditions, included pages).
+4. `code_language_propose` with the problem in plain words. The user decides in the MarkAgent tab; MdExplorer writes
+   `.mde-languages/<id>/` and re-analyzes. Never write that folder yourself.
+5. After the scan, the calls of the controls are call sites: if they name a controller method in a string, go on with an
+   enrichment rule (above).

@@ -44,9 +44,9 @@
   </mat-toolbar>
 
   <!-- D42: compare solo quando MarkAgent ha proposto una regola che chiude un buco del grafo -->
-  <div class="improve-graph" *ngIf="ruleProposals.length > 0" role="status">
+  <div class="improve-graph" *ngIf="proposalCount > 0" role="status">
     <mat-icon>auto_fix_high</mat-icon>
-    <span class="text">{{ 'CODE_RULE.BANNER' | translate:{ count: ruleProposals.length } }}</span>
+    <span class="text">{{ (languageProposals.length > 0 ? 'CODE_LANG.BANNER' : 'CODE_RULE.BANNER') | translate:{ count: proposalCount } }}</span>
     <button mat-raised-button color="accent" (click)="openRuleWizard()">{{ 'CODE_RULE.BUTTON' | translate }}</button>
   </div>
 

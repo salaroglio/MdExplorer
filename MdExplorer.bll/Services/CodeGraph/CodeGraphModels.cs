@@ -183,6 +183,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public bool IsAsync { get; set; }
         public string ParentId { get; set; }
         public string Language { get; set; }
+        /// <summary>La condizione sotto cui il simbolo esiste (un controllo dentro <c>$if[…]$</c> di una pagina, D42 passo 2); null = sempre.</summary>
+        public string Guard { get; set; }
         public string Summary { get; set; }
         public string ReturnsDescription { get; set; }
         public string Remarks { get; set; }
@@ -222,6 +224,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Confidence { get; set; }
         public string Path { get; set; }
         public int? Line { get; set; }
+        /// <summary>La condizione sotto cui l'arco vale (una pagina inclusa dentro <c>$if[…]$</c>); null = sempre.</summary>
+        public string Guard { get; set; }
         /// <summary>L'altro capo dell'arco (chi chiama, o chi è chiamato, a seconda della direzione chiesta).</summary>
         public CodeSymbolView Other { get; set; }
         public int Depth { get; set; }
