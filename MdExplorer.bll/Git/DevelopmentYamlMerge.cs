@@ -19,12 +19,23 @@ namespace MdExplorer.Features.Git
         /// <param name="conflict">La voce (per esempio <c>agentCity.ownershipDoc</c>) cambiata in modo diverso dai due lati.</param>
         /// <returns>Il file unito; null se c'è un conflitto.</returns>
         public static string Merge(string baseText, string ours, string theirs, out string conflict)
+            => Merge(baseText, ours, theirs, Array.Empty<string>(), out _, out conflict);
+
+        /// <summary>Il segreto della stanza: cambiato in modo diverso dai due lati vale quello della sorgente, già pubblicato e in uso dai colleghi.</summary>
+        public const string RoomSecret = "agentCity.roomSecret";
+
+        /// <param name="sourceWins">Le voci per cui due valori diversi non sono un conflitto: vale la sorgente (per esempio <see cref="RoomSecret"/>).</param>
+        /// <param name="tookSource">Le voci di <paramref name="sourceWins"/> in cui il valore di questo lato è stato scartato.</param>
+        public static string Merge(string baseText, string ours, string theirs, IReadOnlyCollection<string> sourceWins,
+            out IReadOnlyList<string> tookSource, out string conflict)
         {
             conflict = null;
+            var took = new List<string>();
+            tookSource = took;
             var b = Load(baseText);
             var o = Load(ours) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La tua versione di .development.yml non è un documento YAML con delle voci.", "Your version of .development.yml is not a YAML document with entries."));
             var t = Load(theirs) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La versione della sorgente di .development.yml non è un documento YAML con delle voci.", "The source version of .development.yml is not a YAML document with entries."));
-            var merged = MergeMapping(b, o, t, "", ref conflict);
+            var merged = MergeMapping(b, o, t, "", sourceWins ?? Array.Empty<string>(), took, ref conflict);
             if (conflict != null) return null;
 
             var stream = new YamlStream(new YamlDocument(merged));
@@ -45,7 +56,8 @@ namespace MdExplorer.Features.Git
             return stream.Documents[0].RootNode as YamlMappingNode;
         }
 
-        private static YamlMappingNode MergeMapping(YamlMappingNode b, YamlMappingNode o, YamlMappingNode t, string path, ref string conflict)
+        private static YamlMappingNode MergeMapping(YamlMappingNode b, YamlMappingNode o, YamlMappingNode t, string path,
+            IReadOnlyCollection<string> sourceWins, List<string> took, ref string conflict)
         {
             var result = new YamlMappingNode();
             var keys = o.Children.Keys.Select(Key)
@@ -63,8 +75,13 @@ namespace MdExplorer.Features.Git
                 else if (Same(bv, tv)) chosen = ov;          // dalla sorgente non è cambiata: vale la tua
                 else if (ov is YamlMappingNode om && tv is YamlMappingNode tm)
                 {
-                    chosen = MergeMapping(bv as YamlMappingNode, om, tm, where, ref conflict);
+                    chosen = MergeMapping(bv as YamlMappingNode, om, tm, where, sourceWins, took, ref conflict);
                     if (conflict != null) return result;
+                }
+                else if (sourceWins.Contains(where))
+                {
+                    chosen = tv;
+                    took.Add(where);
                 }
                 else
                 {

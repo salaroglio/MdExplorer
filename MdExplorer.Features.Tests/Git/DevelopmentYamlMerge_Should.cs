@@ -1,3 +1,4 @@
+using System.Linq;
 using MdExplorer.Features.Git;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -34,6 +35,32 @@ namespace MdExplorer.Features.Tests.Git
 
             Assert.IsNull(merged);
             Assert.AreEqual("harness.target", conflict);
+        }
+
+        [TestMethod]
+        public void Keep_the_published_room_secret_when_this_computer_created_another_one()
+        {
+            // Il caso del 23/10: una copia senza segreto ne ha creato uno suo, mentre l'origin ne aveva già uno in uso.
+            const string common = "agentCity:\n  enabled: false\nharness:\n  target: copilot\n";
+            var merged = DevelopmentYamlMerge.Merge(common,
+                common.Replace("enabled: false\n", "enabled: false\n  roomSecret: CREATO-QUI\n"),
+                common.Replace("enabled: false\n", "enabled: false\n  roomSecret: PUBBLICATO\n"),
+                new[] { DevelopmentYamlMerge.RoomSecret }, out var tookSource, out var conflict);
+
+            Assert.IsNull(conflict);
+            StringAssert.Contains(merged, "roomSecret: PUBBLICATO");
+            Assert.IsFalse(merged.Contains("CREATO-QUI"), "la chiave creata qui si scarta: i colleghi sono nella stanza di quella pubblicata");
+            CollectionAssert.AreEqual(new[] { DevelopmentYamlMerge.RoomSecret }, tookSource.ToArray(), "chi chiama deve poterlo dire");
+        }
+
+        [TestMethod]
+        public void Still_stop_on_two_room_secrets_when_the_caller_did_not_ask_for_the_source()
+        {
+            const string common = "agentCity:\n  enabled: false\n";
+            var merged = DevelopmentYamlMerge.Merge(common, common + "  roomSecret: A\n", common + "  roomSecret: B\n", out var conflict);
+
+            Assert.IsNull(merged);
+            Assert.AreEqual(DevelopmentYamlMerge.RoomSecret, conflict);
         }
 
         [TestMethod]

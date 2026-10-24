@@ -26,6 +26,16 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   connectionState: ChatConnectionState = 'disconnected';
   roomInfo: RoomInfo | null = null;
 
+  /** Il testo dell'avviso sulla chiave della stanza, per lo stato che ha detto room-info. */
+  get keyNoticeKey(): string {
+    switch (this.roomInfo?.keyState) {
+      case 'notPushed': return 'GIT_CHAT.KEY_NOT_PUSHED';
+      case 'notPulled': return 'GIT_CHAT.KEY_NOT_PULLED';
+      case 'differs': return 'GIT_CHAT.KEY_DIFFERS';
+      default: return 'GIT_CHAT.KEY_NOT_COMMITTED';
+    }
+  }
+
   /** Il motivo del rifiuto del relay, come chiave di traduzione; null se non c'è un codice. */
   get relayErrorKey(): string | null {
     switch (this.roomInfo?.relayCode) {

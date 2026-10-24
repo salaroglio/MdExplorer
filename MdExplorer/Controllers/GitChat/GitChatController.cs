@@ -26,14 +26,17 @@ namespace MdExplorer.Controllers.GitChat
         private readonly IHubContext<TeamChatHub> _hubContext;
         private readonly MdExplorer.Services.IProjectMetadataService _metadata;
         private readonly IChatRoomKeys _roomKeys;
+        private readonly MdExplorer.Services.Git.INativeGitTransport _transport;
 
         public GitChatController(
             ILogger<GitChatController> logger,
             ITeamChatService chatService,
             IHubContext<TeamChatHub> hubContext,
             MdExplorer.Services.IProjectMetadataService metadata,
-            IChatRoomKeys roomKeys)
+            IChatRoomKeys roomKeys,
+            MdExplorer.Services.Git.INativeGitTransport transport)
         {
+            _transport = transport;
             _logger = logger;
             _chatService = chatService;
             _hubContext = hubContext;
@@ -66,14 +69,30 @@ namespace MdExplorer.Controllers.GitChat
                     return Ok(new { hasRemote = false, error = "Not a Git repository" });
                 }
 
+                // La chiave della stanza è il segreto del PROGETTO, in git: si distribuisce, non si ricrea. Se questa copia
+                // non ce l'ha, prima si chiede all'origin; se nemmeno lì c'è, si crea qui e servono commit e push.
+                // Un .development.yml che non si legge è un errore detto, mai «nessun segreto».
+                using (var probe = new Repository(repositoryPath))
+                {
+                    if (probe.Network.Remotes["origin"] == null)
+                        return Ok(new { hasRemote = false, error = "No remote 'origin' configured" });
+                }
+                var local = _metadata.ReadRoomSecret(repositoryPath);
+                if (local == null)
+                {
+                    var fetch = await _transport.FetchAsync(repositoryPath, "origin");
+                    if (!fetch.Ok)
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                            $"Questa copia non ha ancora il segreto della chat e non riesco a chiedere all'origin se c'è già ({fetch.Error}): " +
+                            "non ne creo uno nuovo, chiuderebbe fuori i colleghi. Riprova quando l'origin risponde.",
+                            $"This copy does not have the chat secret yet and I cannot ask the origin whether it already exists ({fetch.Error}): " +
+                            "I do not create a new one, it would lock your colleagues out. Try again when the origin answers."));
+                }
+
                 using (var repo = new Repository(repositoryPath))
                 {
                     // Get remote URL
                     var origin = repo.Network.Remotes["origin"];
-                    if (origin == null)
-                    {
-                        return Ok(new { hasRemote = false, error = "No remote 'origin' configured" });
-                    }
 
                     var remoteUrl = origin.Url;
                     var normalizedUrl = NormalizeGitUrl(remoteUrl);
@@ -85,11 +104,21 @@ namespace MdExplorer.Controllers.GitChat
                     var userEmail = repo.Config.Get<string>("user.email")?.Value ?? "anonymous@unknown";
                     var userId = ComputeUserId(userEmail);
 
-                    // La chiave della stanza è il segreto del PROGETTO, in git. Se manca si crea qui, al
-                    // primo ingresso nella chat: servono commit e push perché i colleghi entrino.
-                    var (secret, created) = _metadata.EnsureRoomSecret(repositoryPath);
+                    var published = PublishedRoomSecret(repo, repositoryPath);
+                    string secret, keyState;
+                    var created = false;
+                    if (local == null && published != null)
+                        (secret, keyState) = (published, "notPulled");     // c'è già: si usa quella, arriva con lo scaricamento
+                    else if (local == null)
+                    {
+                        (secret, created) = _metadata.EnsureRoomSecret(repositoryPath);
+                        keyState = KeyState(repo, repositoryPath, secret);
+                    }
+                    else if (published != null && published != local)
+                        (secret, keyState) = (published, "differs");       // i colleghi sono nella stanza di quella pubblicata
+                    else
+                        (secret, keyState) = (local, KeyState(repo, repositoryPath, local));
                     _roomKeys.Register(roomId, repositoryPath, secret);
-                    var keyState = KeyState(repo, repositoryPath, secret);
                     var relay = await _chatService.CheckRoomAsync(roomId);
 
                     _logger.LogInformation("Chat room info requested for {RepositoryPath}, roomId: {RoomId}, key: {KeyState}{Created}, relay: {Relay}",
@@ -293,6 +322,20 @@ namespace MdExplorer.Controllers.GitChat
         /// Dove sta il segreto del progetto rispetto ai colleghi: <c>shared</c> (nel ramo remoto),
         /// <c>notPushed</c> (committato, non ancora pushato), <c>notCommitted</c> (solo nel file).
         /// </summary>
+        /// <summary>
+        /// Il segreto della stanza nella versione pubblicata di <c>.development.yml</c>: il ramo remoto che questo segue,
+        /// oppure il ramo principale dell'origin se questo non ne segue nessuno. Null se lì non c'è.
+        /// </summary>
+        private static string PublishedRoomSecret(Repository repo, string repositoryPath)
+        {
+            var file = Path.GetRelativePath(repo.Info.WorkingDirectory, Path.Combine(repositoryPath, ".development.yml"))
+                .Replace('\\', '/');
+            var tip = repo.Head?.TrackedBranch?.Tip
+                      ?? (repo.Refs["refs/remotes/origin/HEAD"]?.ResolveToDirectReference()?.Target as Commit);
+            if (tip?[file]?.Target is not Blob blob) return null;
+            return MdExplorer.Services.ProjectMetadataService.RoomSecretIn(blob.GetContentText(), "origin");
+        }
+
         private static string KeyState(Repository repo, string repositoryPath, string secret)
         {
             var file = Path.GetRelativePath(repo.Info.WorkingDirectory, Path.Combine(repositoryPath, ".development.yml"))

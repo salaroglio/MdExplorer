@@ -38,8 +38,11 @@ export interface RoomInfo {
   roomId?: string;
   repositoryName?: string;
   remoteUrl?: string;
-  /** Dove sta il segreto del progetto che apre la stanza: shared = pushato, i colleghi lo hanno. */
-  keyState?: 'shared' | 'notPushed' | 'notCommitted';
+  /**
+   * Dove sta il segreto del progetto che apre la stanza: shared = pushato, i colleghi lo hanno; notPulled = c'è
+   * sull'origin ma non ancora qui; differs = qui ce n'è un altro, vale quello pubblicato.
+   */
+  keyState?: 'shared' | 'notPushed' | 'notCommitted' | 'notPulled' | 'differs';
   /** Il relay fa entrare nella stanza? relayCode dice perché no (room-not-registered, bad-token, …). */
   relayOk?: boolean;
   relayCode?: string;
@@ -48,6 +51,7 @@ export interface RoomInfo {
     userName: string;
     userEmail: string;
   };
+  /** Perché la stanza non si apre (per esempio .development.yml che non si legge). */
   error?: string;
 }
 

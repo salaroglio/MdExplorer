@@ -37,6 +37,23 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public void Refuse_to_create_a_secret_when_the_file_cannot_be_read()
+        {
+            // Il caso del 23/10: segni di un conflitto git nel file. «Non si legge» non è «non c'è»: un segreto nuovo
+            // chiuderebbe fuori i colleghi, e riscrivere il file butterebbe il conflitto da risolvere.
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("segreto-conflitto");
+            var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
+            var file = System.IO.Path.Combine(path, ".development.yml");
+            const string conflicted = "agentCity:\n  enabled: false\n<<<<<<< HEAD\n  roomSecret: A\n=======\n  roomSecret: B\n>>>>>>> 20def39\n";
+            System.IO.File.WriteAllText(file, conflicted);
+
+            Assert.ThrowsException<System.InvalidOperationException>(() => meta.ReadRoomSecret(path));
+            Assert.ThrowsException<System.InvalidOperationException>(() => meta.EnsureRoomSecret(path));
+            Assert.AreEqual(conflicted, System.IO.File.ReadAllText(file), "il file resta com'era");
+        }
+
+        [TestMethod]
         public void Reuse_the_secret_of_an_active_city()
         {
             using var ctx = new AgentCityContext();

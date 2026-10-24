@@ -412,6 +412,12 @@ namespace MdExplorer.Services.Git
                         "tenendo le tue voci e aggiungendo quelle nuove.",
                         "The source and this computer had both changed .development.yml: I merged them entry by entry, " +
                         "keeping your entries and adding the new ones."));
+                    if (resolved.TookSource.Contains(MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret))
+                        notes.Add(UiText.Say(
+                            "Questo computer aveva creato un suo segreto della chat, diverso da quello pubblicato: vale quello pubblicato, " +
+                            "che i colleghi usano già, e il tuo è stato scartato.",
+                            "This computer had created its own chat secret, different from the published one: the published one, which " +
+                            "your colleagues already use, is kept and yours was discarded."));
                 }
                 else if (resolved.Problem != null)
                 {
@@ -468,42 +474,45 @@ namespace MdExplorer.Services.Git
         /// merge is committed. Not done when other files conflict too, or when the same entry was changed differently on both
         /// sides: then <c>Problem</c> says which one.
         /// </summary>
-        private async Task<(bool Done, GitResult? Commit, string Problem)> ResolveDevelopmentYamlAsync(string dir, CancellationToken ct)
+        private async Task<(bool Done, GitResult? Commit, string Problem, IReadOnlyList<string> TookSource)> ResolveDevelopmentYamlAsync(string dir, CancellationToken ct)
         {
             const string file = ".development.yml";
             var conflicts = await _runner.RunAsync(dir, new[] { "diff", "--name-only", "--diff-filter=U" }, ct);
             var files = (conflicts.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
-            if (files.Count != 1 || files[0] != file) return (false, default, null);
+            if (files.Count != 1 || files[0] != file) return (false, default, null, Array.Empty<string>());
 
             var baseText = await _runner.RunAsync(dir, new[] { "show", ":1:" + file }, ct);
             var ours = await _runner.RunAsync(dir, new[] { "show", ":2:" + file }, ct);
             var theirs = await _runner.RunAsync(dir, new[] { "show", ":3:" + file }, ct);
-            if (!ours.Ok || !theirs.Ok) return (false, default, null);
+            if (!ours.Ok || !theirs.Ok) return (false, default, null, Array.Empty<string>());
 
             string merged, conflict;
-            try { merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout, out conflict); }
+            IReadOnlyList<string> tookSource;
+            // Il segreto della stanza creato anche qui non è un conflitto: vale quello pubblicato, che i colleghi usano già.
+            try { merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout,
+                      new[] { MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret }, out tookSource, out conflict); }
             catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
             {
                 return (false, default, UiText.Say(
                     $"Gli aggiornamenti toccano {file}, che hai cambiato anche tu, e non l'ho potuto unire voce per voce ({ex.Message}): " +
                     "non ho scaricato niente e il progetto è com'era.",
                     $"The updates touch {file}, which you changed too, and I could not merge it entry by entry ({ex.Message}): " +
-                    "I downloaded nothing and the project is as it was."));
+                    "I downloaded nothing and the project is as it was."), Array.Empty<string>());
             }
             if (merged == null)
                 return (false, default, UiText.Say(
                     $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
                     "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, fai il commit e riprova.",
                     $"The updates change the entry «{conflict}» in {file}, which you changed too in another way: " +
-                    "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again."));
+                    "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again."), Array.Empty<string>());
 
             await File.WriteAllTextAsync(Path.Combine(dir, file), merged, ct);
             var add = await _runner.RunAsync(dir, new[] { "add", "--", file }, ct);
-            if (!add.Ok) return (false, default, UiText.Say($"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}", $"{file} merged, but I cannot add it to the merge: {add.Describe()}"));
+            if (!add.Ok) return (false, default, UiText.Say($"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}", $"{file} merged, but I cannot add it to the merge: {add.Describe()}"), Array.Empty<string>());
             var commit = await _runner.RunAsync(dir, new[] { "commit", "--no-edit" }, ct);
-            if (!commit.Ok) return (false, default, UiText.Say($"{file} unito, ma l'unione non si chiude: {commit.Describe()}", $"{file} merged, but the merge does not close: {commit.Describe()}"));
+            if (!commit.Ok) return (false, default, UiText.Say($"{file} unito, ma l'unione non si chiude: {commit.Describe()}", $"{file} merged, but the merge does not close: {commit.Describe()}"), Array.Empty<string>());
             _logger.LogInformation("[Flusso] {File} unito voce per voce con gli aggiornamenti della sorgente in {Dir}", file, dir);
-            return (true, commit, null);
+            return (true, commit, null, tookSource);
         }
 
         /// <summary>The branch HEAD is on; null when detached.</summary>

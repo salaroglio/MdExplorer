@@ -6626,10 +6626,11 @@ function GitChatComponent_div_17_div_2_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
+    const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](5, 2, "GIT_CHAT.NO_REMOTE"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](5, 2, (ctx_r19.roomInfo == null ? null : ctx_r19.roomInfo.error) ? "GIT_CHAT.ROOM_ERROR" : "GIT_CHAT.NO_REMOTE"));
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](8, 4, "GIT_CHAT.NO_REMOTE_HINT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"]((ctx_r19.roomInfo == null ? null : ctx_r19.roomInfo.error) || _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](8, 4, "GIT_CHAT.NO_REMOTE_HINT"));
   }
 }
 const _c2 = function (a0) {
@@ -6690,7 +6691,7 @@ function GitChatComponent_div_18_Template(rf, ctx) {
   if (rf & 2) {
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](5, 1, (ctx_r4.roomInfo == null ? null : ctx_r4.roomInfo.keyState) === "notPushed" ? "GIT_CHAT.KEY_NOT_PUSHED" : "GIT_CHAT.KEY_NOT_COMMITTED"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](5, 1, ctx_r4.keyNoticeKey));
   }
 }
 function GitChatComponent_div_19_div_2_Template(rf, ctx) {
@@ -6830,6 +6831,19 @@ class GitChatComponent {
   // Filtra i messaggi di join/leave ma mantiene gli altri messaggi di sistema
   get filteredMessages() {
     return this.messages.filter(m => !(m.type === 'system' && (m.content.includes('joined the chat') || m.content.includes('left the chat'))));
+  }
+  /** Il testo dell'avviso sulla chiave della stanza, per lo stato che ha detto room-info. */
+  get keyNoticeKey() {
+    switch (this.roomInfo?.keyState) {
+      case 'notPushed':
+        return 'GIT_CHAT.KEY_NOT_PUSHED';
+      case 'notPulled':
+        return 'GIT_CHAT.KEY_NOT_PULLED';
+      case 'differs':
+        return 'GIT_CHAT.KEY_DIFFERS';
+      default:
+        return 'GIT_CHAT.KEY_NOT_COMMITTED';
+    }
   }
   /** Il motivo del rifiuto del relay, come chiave di traduzione; null se non c'è un codice. */
   get relayErrorKey() {
@@ -53328,4 +53342,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.b99ea1ef4b7615d5.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.74464c79498a43ab.js.map

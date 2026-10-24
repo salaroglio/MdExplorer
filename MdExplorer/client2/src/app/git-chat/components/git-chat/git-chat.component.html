@@ -79,8 +79,8 @@
     </div>
     <div *ngIf="connectionState === 'disconnected'" class="status-disconnected">
       <mat-icon>cloud_off</mat-icon>
-      <span>{{ 'GIT_CHAT.NO_REMOTE' | translate }}</span>
-      <p class="status-hint">{{ 'GIT_CHAT.NO_REMOTE_HINT' | translate }}</p>
+      <span>{{ (roomInfo?.error ? 'GIT_CHAT.ROOM_ERROR' : 'GIT_CHAT.NO_REMOTE') | translate }}</span>
+      <p class="status-hint">{{ roomInfo?.error || ('GIT_CHAT.NO_REMOTE_HINT' | translate) }}</p>
     </div>
     <div *ngIf="connectionState === 'error'" class="status-error">
       <mat-icon>error</mat-icon>
@@ -92,7 +92,7 @@
   <!-- Il segreto del progetto non è ancora dei colleghi: finché non lo hanno, non entrano nella stanza -->
   <div class="key-notice" *ngIf="connectionState === 'connected' && roomInfo?.keyState && roomInfo?.keyState !== 'shared'">
     <mat-icon>key</mat-icon>
-    <span>{{ (roomInfo?.keyState === 'notPushed' ? 'GIT_CHAT.KEY_NOT_PUSHED' : 'GIT_CHAT.KEY_NOT_COMMITTED') | translate }}</span>
+    <span>{{ keyNoticeKey | translate }}</span>
   </div>
 
   <!-- Messages container -->

@@ -30,6 +30,13 @@ namespace MdExplorer.Services
         /// città: <c>Created</c> = true vuol dire che servono commit e push perché i colleghi lo abbiano.
         /// </summary>
         (string Secret, bool Created) EnsureRoomSecret(string projectPath);
+
+        /// <summary>
+        /// Il segreto della stanza scritto in <c>.development.yml</c>, letto <b>senza indulgenza</b>: null solo se il
+        /// file o la voce non ci sono. Un file che non si legge (YAML rotto, segni di un conflitto git) è un errore che
+        /// lo dice, mai «nessun segreto»: chi riceve null ne crea uno nuovo e chiude fuori i colleghi.
+        /// </summary>
+        string ReadRoomSecret(string projectPath);
         ProjectIconConfig GetIcon(string projectPath);
         string GetIconAbsolutePath(string projectPath);
         void SetIcon(string projectPath, byte[] pngBytes);
@@ -407,19 +414,12 @@ namespace MdExplorer.Services
             if (!Directory.Exists(projectPath))
                 throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
 
-            var existing = GetAgentCity(projectPath)?.RoomSecret;
-            if (!string.IsNullOrWhiteSpace(existing))
-                return (existing, false);
-
+            // Lettura rigorosa: un file che non si legge non vuol dire «nessun segreto» (GetAgentCity lo direbbe null).
             var filePath = Path.Combine(projectPath, FileName);
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .IgnoreUnmatchedProperties()
-                .Build();
-            var yaml = File.Exists(filePath) ? ReadConfigText(filePath) : null;
-            var root = string.IsNullOrWhiteSpace(yaml)
-                ? new DevelopmentConfig()
-                : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+            var root = File.Exists(filePath) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(filePath) : new DevelopmentConfig();
+            var existing = root.AgentCity?.RoomSecret;
+            if (!string.IsNullOrWhiteSpace(existing))
+                return (existing.Trim(), false);
 
             // Solo il segreto: la città resta com'è (spenta se non c'era).
             root.AgentCity ??= new AgentCityConfig { Enabled = false };
@@ -432,6 +432,42 @@ namespace MdExplorer.Services
             File.WriteAllText(filePath, serializer.Serialize(root));
             _logger.LogInformation("Room secret del progetto creato in {FilePath}: servono commit e push", filePath);
             return (root.AgentCity.RoomSecret, true);
+        }
+
+        public string ReadRoomSecret(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath)) return null;
+            var secret = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(filePath).AgentCity?.RoomSecret;
+            return string.IsNullOrWhiteSpace(secret) ? null : secret.Trim();
+        }
+
+        /// <summary>
+        /// Il segreto della stanza in un testo di <c>.development.yml</c> che non è sul disco (la versione pubblicata
+        /// sull'origin). Le voci che questa versione non conosce si ignorano: può venire da un MdExplorer più nuovo.
+        /// Null se la voce non c'è; un testo che non è YAML è un errore che dice da dove viene.
+        /// </summary>
+        public static string RoomSecretIn(string yaml, string where)
+        {
+            if (string.IsNullOrWhiteSpace(yaml)) return null;
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+            try
+            {
+                var secret = deserializer.Deserialize<DevelopmentConfig>(
+                    MdExplorer.Features.Configuration.RetiredConfigKeys.Remove(yaml, out _))?.AgentCity?.RoomSecret;
+                return string.IsNullOrWhiteSpace(secret) ? null : secret.Trim();
+            }
+            catch (YamlDotNet.Core.YamlException ex)
+            {
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    $"{FileName} in {where} non si legge (riga {ex.Start.Line}: {ex.InnerException?.Message ?? ex.Message}).",
+                    $"{FileName} in {where} cannot be read (line {ex.Start.Line}: {ex.InnerException?.Message ?? ex.Message})."), ex);
+            }
         }
 
         // Lista manutenzione normalizzata: trim, niente vuoti/duplicati (case-insensitive),
