@@ -136,6 +136,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     errors[def.Id] = new LanguageDefinitionException(file, UiText.Say($"extensions: '{clash.e}' è già di {clash.other.DisplayName}", $"extensions: '{clash.e}' already belongs to {clash.other.DisplayName}"));
                     continue;
                 }
+                var inlineClash = InlineClash(def, all);
+                if (inlineClash != null) { errors[def.Id] = new LanguageDefinitionException(file, inlineClash); continue; }
                 all.Add(new CodeLanguage { Id = def.Id, DisplayName = def.DisplayName, Extensions = def.Extensions.ToArray(), ExtractorKind = CodeExtractorKind.Declarative, Package = package });
             }
             return new CodeLanguageCatalog(all, errors, notices);
@@ -156,10 +158,37 @@ namespace MdExplorer.Features.Services.CodeGraph
             var clash = def.Extensions.Select(e => (e, other: others.FirstOrDefault(l => l.Extensions.Contains(e, StringComparer.OrdinalIgnoreCase)))).FirstOrDefault(x => x.other != null);
             if (clash.other != null)
                 throw new LanguageDefinitionException(file, UiText.Say($"extensions: '{clash.e}' è già di {clash.other.DisplayName}", $"extensions: '{clash.e}' already belongs to {clash.other.DisplayName}"));
+            var inlineClash = InlineClash(def, others);
+            if (inlineClash != null) throw new LanguageDefinitionException(file, inlineClash);
             others.Add(new CodeLanguage { Id = def.Id, DisplayName = def.DisplayName, Extensions = def.Extensions.ToArray(), ExtractorKind = CodeExtractorKind.Declarative, Package = package });
             var errors = _errors.Where(e => !string.Equals(e.Key, def.Id, StringComparison.OrdinalIgnoreCase)).ToDictionary(e => e.Key, e => e.Value, StringComparer.OrdinalIgnoreCase);
             return new CodeLanguageCatalog(others, errors, Notices);
         }
+
+        /// <summary>Le pagine dentro i file di un'estensione le legge un dialetto solo: due che le reclamano sono un errore.</summary>
+        private static string InlineClash(DeclarativeLanguage def, IEnumerable<CodeLanguage> others)
+        {
+            var mine = def.Template?.Inline?.Extensions;
+            if (mine == null) return null;
+            foreach (var other in others)
+            {
+                var theirs = other.Definition?.Template?.Inline?.Extensions;
+                var shared = theirs?.FirstOrDefault(e => mine.Contains(e, StringComparer.OrdinalIgnoreCase));
+                if (shared != null)
+                    return UiText.Say($"template.inline.extensions: le pagine dentro i file '{shared}' le legge già {other.DisplayName}", $"template.inline.extensions: the pages inside '{shared}' files are already read by {other.DisplayName}");
+            }
+            return null;
+        }
+
+        /// <summary>Il dialetto che legge le pagine scritte dentro i file con questa estensione; null se nessuno.</summary>
+        public CodeLanguage InlineFor(string extension)
+            => All.FirstOrDefault(l => l.Definition?.Template?.Inline?.Extensions.Contains(extension ?? string.Empty, StringComparer.OrdinalIgnoreCase) == true);
+
+        /// <summary>Il linguaggio di un file: una pagina dentro un altro file (<see cref="CodeInlinePages"/>) è del dialetto che la legge.</summary>
+        public string LanguageOf(CodeSourceFile file)
+            => CodeInlinePages.IsInline(file.LogicalPath)
+                ? InlineFor(Path.GetExtension(CodeInlinePages.HostOf(file.LogicalPath)))?.Id
+                : ForFile(file.AbsolutePath)?.Id;
 
         public CodeLanguage ById(string id) => All.FirstOrDefault(l => string.Equals(l.Id, id, StringComparison.OrdinalIgnoreCase));
 

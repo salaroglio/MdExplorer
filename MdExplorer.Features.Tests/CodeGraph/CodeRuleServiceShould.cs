@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -194,6 +195,53 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var salva = (await _store.NeighborsAsync(_project, ok, "calls", "out", 1, 10)).Single();
             Assert.AreEqual(("method", "salva", "extracted"), (salva.Other.Kind, salva.Other.Name, salva.Confidence), "(click)=salva() → il metodo del componente");
             var child = (await _store.ResolveAsync(_project, "program/app/x.component.html:app-dettaglio@4")).Single(x => x.Kind == "control").Id;
+            Assert.AreEqual("DettaglioComponent", (await _store.NeighborsAsync(_project, child, "instantiates", "out", 1, 10)).Single().Other.Name);
+        }
+
+        [TestMethod]
+        public async Task Link_an_inline_angular_template_to_its_component()
+        {
+            var app = Path.Combine(_project, "program", "app");
+            Directory.CreateDirectory(app);
+            File.WriteAllText(Path.Combine(app, "x.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-x', template: `\n<div *ngIf=\"admin\">\n<button id=\"ok\" (click)=\"salva()\">ok</button>\n</div>\n<app-dettaglio></app-dettaglio>\n` })\n" +
+                "export class XComponent {\n  salva(): void { }\n}\n");
+            File.WriteAllText(Path.Combine(app, "dettaglio.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-dettaglio', templateUrl: './dettaglio.component.html' })\nexport class DettaglioComponent { }\n");
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), TemplatePageExtractorShould.Angular);
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var grammars = new GrammarStore(_root);
+            Directory.CreateDirectory(grammars.Folder);
+            var ts = NuGetGrammar(grammars, "typescript");
+            if (!File.Exists(ts)) Assert.Inconclusive("grammatica typescript non trovata nel NuGet in cache: " + ts);
+            grammars.Install(GrammarCatalog.ById("typescript"), ts, "1.3.0", "nuget");
+            var sources = Directory.GetFiles(app, "*.ts").OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            void Emit(ICodeExtractor extractor, List<CodeSourceFile> files)
+            {
+                foreach (var (file, ast) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
+                }
+            }
+            Emit(new TreeSitterTypeScriptExtractor(grammars, NullLogger<TreeSitterTypeScriptExtractor>.Instance), sources);
+            Emit(new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("angular"),
+                CodeInlinePages.Expand(catalog, sources).Where(f => CodeInlinePages.IsInline(f.LogicalPath)).ToList());
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(3, await _rules.ApplyPageScriptsAsync(_project, new[] { "angular" }), File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) ? File.ReadAllText(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) : "");
+            var comp = (await _store.ResolveAsync(_project, "program/app/x.component:XComponent")).Single(x => x.Kind == "component").Id;
+            var renders = (await _store.NeighborsAsync(_project, comp, "renders", "out", 1, 10)).Single();
+            Assert.AreEqual(("module", "program/app/x.component.ts#template"), (renders.Other.Kind, renders.Other.Path));
+            var ok = (await _store.ResolveAsync(_project, "program/app/x.component.ts#template:ok")).Single(x => x.Kind == "control");
+            Assert.AreEqual(("admin", 4), (ok.Guard, ok.LineStart), "condizione e riga del .ts");
+            var salva = (await _store.NeighborsAsync(_project, ok.Id, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("method", "salva", "extracted"), (salva.Other.Kind, salva.Other.Name, salva.Confidence));
+            var child = (await _store.ResolveAsync(_project, "program/app/x.component.ts#template:app-dettaglio@6")).Single(x => x.Kind == "control").Id;
             Assert.AreEqual("DettaglioComponent", (await _store.NeighborsAsync(_project, child, "instantiates", "out", 1, 10)).Single().Other.Name);
         }
 

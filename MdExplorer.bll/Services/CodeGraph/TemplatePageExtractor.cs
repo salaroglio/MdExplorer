@@ -74,6 +74,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 string text;
                 try { text = CodeSourceText.Read(f.AbsolutePath, request.ExtensionEncodings); }
                 catch (Exception ex) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                if (CodeInlinePages.IsInline(f.LogicalPath))
+                {
+                    // una pagina dentro un altro file: solo i suoi pezzi, con le righe del file
+                    if (_lang.Template.Inline == null) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: {_lang.DefinitionPath} non ha template.inline", $"{f.LogicalPath}: {_lang.DefinitionPath} has no template.inline")); continue; }
+                    text = CodeInlinePages.Blank(text, _lang.Template.Inline.Match);
+                }
                 try { page.Script = new PageReader(this, f, text, index, page).Read(); }
                 catch (RegexMatchTimeoutException ex)
                 {
@@ -99,7 +105,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 _lang = lang;
                 foreach (var f in files)
                 {
-                    if (!_paths.Add(f.LogicalPath)) continue;
+                    // una pagina dentro un .ts non si include per nome
+                    if (CodeInlinePages.IsInline(f.LogicalPath) || !_paths.Add(f.LogicalPath)) continue;
                     var name = Path.GetFileName(f.LogicalPath);
                     Add(name, f.LogicalPath);
                     var stem = Path.GetFileNameWithoutExtension(name);

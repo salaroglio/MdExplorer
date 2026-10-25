@@ -37,8 +37,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public abstract string LanguageId { get; }
         public abstract string ExtractorName { get; }
         // 5: punti di chiamata con stringhe (D42); 6: templateUrl e selector di Angular come punti di chiamata (D42 B) e un
-        // nodo solo per get/set e overload dello stesso nome (prima lo script era rifiutato al caricamento, anche in JS)
-        public string ExtractorVersion => "6";
+        // nodo solo per get/set e overload dello stesso nome (prima lo script era rifiutato al caricamento, anche in JS);
+        // 7: il template inline (template: `…`) come templateUrl verso la pagina dentro il file (CodeInlinePages)
+        public string ExtractorVersion => "7";
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -524,12 +525,19 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <c>templateUrl</c> con il percorso LOGICO del file (risolto rispetto al .ts), <c>selector</c> com'è scritto.
             /// La seconda passata dopo il caricamento li incrocia con le pagine: il componente «renders» il suo template, il
             /// <c>(click)="salva()"</c> del template chiama il metodo <c>salva</c> della classe, <c>&lt;app-x&gt;</c> crea il
-            /// componente con quel selettore. Il dialetto delle pagine Angular lo scrive l'LLM del progetto.
+            /// componente con quel selettore. Il dialetto delle pagine Angular lo scrive l'LLM del progetto. Un template
+            /// inline (<c>template: `…`</c>) è una pagina dentro il .ts: <c>templateUrl</c> col percorso di quella pagina,
+            /// che esiste se il dialetto ha <c>template.inline</c>.
             /// </summary>
             private void RecordAngularView(Node metadata, string classId, int line)
             {
                 foreach (var (key, value) in Pairs(metadata))
                 {
+                    if (key == "template" && value.Type is "string" or "template_string")
+                    {
+                        _callSites.Add(classId, Line(value), "templateUrl", null, new[] { CodeInlinePages.PathOf(_pf.File.LogicalPath) }, always: true);
+                        continue;
+                    }
                     if (key is not ("templateUrl" or "selector") || value.Type != "string") continue;
                     var text = value.NamedChildren.FirstOrDefault(c => c.Type == "string_fragment")?.Text;
                     if (string.IsNullOrWhiteSpace(text)) continue;

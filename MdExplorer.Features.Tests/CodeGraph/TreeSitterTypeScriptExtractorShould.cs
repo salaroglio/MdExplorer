@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             if (!File.Exists(src)) Assert.Inconclusive("Grammatica typescript non in cache NuGet: " + src);
             _store.Install(GrammarCatalog.ById("typescript"), src, "1.3.0", "test");
             var extractor = new TreeSitterTypeScriptExtractor(_store, NullLogger<TreeSitterTypeScriptExtractor>.Instance);
-            Assert.AreEqual("6", extractor.ExtractorVersion);
+            Assert.AreEqual("7", extractor.ExtractorVersion);
             var x = extractor.Extract(Request()).Scripts.Single(s => s.File.LogicalPath == "src/app/x.component.ts").Script;
             var comp = x.Symbols.Single(s => s.Name == "XComponent").Id;
             var view = x.CallSites.Where(c => c.SourceId == comp).ToDictionary(c => c.Callee, c => c.Arguments.Single().Value);

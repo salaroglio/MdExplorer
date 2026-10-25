@@ -133,7 +133,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual((scegli, 3, (string)null, "aliasController.metodo"), (invia.SourceId, invia.Line, invia.Receiver, invia.Arguments.Single().Value));
             var vai = script.CallSites.Single(c => c.Callee == "vai");
             Assert.AreEqual(("this.nav", 2, 0, "sezione"), (vai.Receiver, vai.ArgumentCount, vai.Arguments.Single().Position, vai.Arguments.Single().Value));
-            Assert.AreEqual("6", script.Header.ExtractorVersion);
+            Assert.AreEqual("7", script.Header.ExtractorVersion);
         }
     }
 }

@@ -85,6 +85,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// Default: la <see cref="Directive"/>; null = nessuna.
             /// </summary>
             public Regex Dynamic { get; init; }
+            /// <summary>Le pagine scritte dentro file di un altro linguaggio (Angular <c>template: `…`</c> nel .ts); null = nessuna.</summary>
+            public TemplateInline Inline { get; init; }
+        }
+
+        /// <summary>
+        /// Le pagine dentro altri file (25/10/2026, utente: «gestisci anche i template inline»): nei file con queste
+        /// <see cref="Extensions"/> (che restano del loro linguaggio) il gruppo <c>body</c> di <see cref="Match"/> è una pagina
+        /// di questo dialetto. Si legge con le righe del file che la contiene; il suo percorso è quello del file più
+        /// <see cref="CodeInlinePages.Suffix"/>.
+        /// </summary>
+        public sealed class TemplateInline
+        {
+            public IReadOnlyList<string> Extensions { get; init; }
+            public Regex Match { get; init; }
         }
 
         public enum TemplateRole { Include, Open, Else, Case, Close, Call, Named }
@@ -429,10 +443,23 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 var events = (t.Events ?? new List<string> { "^on.+$" }).Select((e, i) => RxIgnoreCase($"template.events[{i}]", e)).ToList();
                 var dynamic = t.Dynamic != null ? Rx("template.dynamic", t.Dynamic) : directive;
+                TemplateInline inline = null;
+                if (t.Inline != null)
+                {
+                    var hosts = (t.Inline.Extensions ?? new List<string>()).Select(e => (e ?? string.Empty).Trim().ToLowerInvariant()).Distinct().ToList();
+                    if (hosts.Count == 0) throw Fail("template.inline.extensions: almeno una (es. .ts): i file che contengono le pagine", "template.inline.extensions: at least one (e.g. .ts): the files that contain the pages");
+                    foreach (var e in hosts)
+                    {
+                        if (!e.StartsWith('.') || e.Length < 2) throw Fail($"template.inline.extensions: '{e}' non è un'estensione (es. .ts)", $"template.inline.extensions: '{e}' is not an extension (e.g. .ts)");
+                        if (_d.Extensions.Any(x => string.Equals(x, e, StringComparison.OrdinalIgnoreCase)))
+                            throw Fail($"template.inline.extensions: '{e}' è già fra le extensions del dialetto: i suoi file sono pagine intere", $"template.inline.extensions: '{e}' is already among the dialect's extensions: its files are whole pages");
+                    }
+                    inline = new TemplateInline { Extensions = hosts, Match = Rx("template.inline.match", t.Inline.Match ?? string.Empty, "body") };
+                }
                 return new TemplateRule
                 {
                     Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks,
-                    Recognizers = recognizers, Events = events, Dynamic = dynamic,
+                    Recognizers = recognizers, Events = events, Dynamic = dynamic, Inline = inline,
                 };
             }
 
@@ -629,6 +656,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<TemplateRecognizer> Recognizers { get; set; }
                 public List<string> Events { get; set; }
                 public string Dynamic { get; set; }
+                public TemplateInline Inline { get; set; }
+            }
+            public sealed class TemplateInline
+            {
+                public List<string> Extensions { get; set; }
+                public string Match { get; set; }
             }
             public sealed class TemplateRecognizer
             {

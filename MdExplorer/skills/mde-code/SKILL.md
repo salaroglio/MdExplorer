@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
 mde:
   origin: mdexplorer
-  version: 9
+  version: 10
   updatePolicy: replace
 ---
 
@@ -111,7 +111,9 @@ stops before the user's click. Only for a concrete question of the user:
    `close: brace`, `close: element` or a close recognizer, else, case, call with `a0…a9`), `events` for attributes like
    Angular `(click)`, `dynamic` for server-written strings. Angular templates (`.html`): `*ngIf` → open with
    `close: element, guard: true`, with the groups `then`/`else` for `*ngIf="x; else other"`, and
-   `<ng-template #other>` → a recognizer with `role: named` (group `name`, `close: element`); child components → a call recognizer with `callee: selector`. Dry-run it with `code_language_try`; fix it until `accepted`, and explain every
+   `<ng-template #other>` → a recognizer with `role: named` (group `name`, `close: element`); templates written in the
+   `.ts` (`` template: `…` ``) → `inline: { extensions: [.ts], match: … (?<body>…) … }`, read as the page
+   `<file>.ts#template` with the lines of the `.ts`; child components → a call recognizer with `callee: selector`. Dry-run it with `code_language_try`; fix it until `accepted`, and explain every
    note (`unknownWords`, recognizers that never match).
 3. Open every file of the returned `sample` and check the facts (controls, conditions, included pages).
 4. `code_language_propose` with the problem in plain words. The user decides in the MarkAgent tab; MdExplorer writes

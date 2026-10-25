@@ -290,6 +290,7 @@ template:
     - { role: open, match: '@if\s*\((?<arg>.+?)\)\s*\{', close: brace, guard: true }
     - { role: else, match: '@else\s*\{', close: brace }
     - { role: call, match: '<(?<a0>app-[\w-]+)', callee: selector }
+  inline: { extensions: [.ts], match: 'template\s*:\s*`(?<body>[^`]*)`' }
 ";
 
         [TestMethod]
@@ -347,6 +348,55 @@ template:
             Assert.AreEqual("!(x)", Guard("b2"), "else dopo then");
             Assert.IsNull(Guard("b3"), "un ng-template che nessuno nomina");
             Assert.AreEqual("utente && !(pronto)", Guard("b4"), "nominato più in basso, con la condizione che il nome ha intorno");
+        }
+
+        [TestMethod]
+        public void Read_an_inline_template_as_a_page_inside_the_ts_file_with_its_lines()
+        {
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular);
+            Write("src/app/z.component.ts",
+                "import { Component } from '@angular/core';\n" +
+                "const finto = '<b id=\"fuori\" (click)=\"no()\">';\n" +
+                "@Component({ selector: 'app-z', template: `\n<div *ngIf=\"admin\">\n  <button id=\"ok\" (click)=\"salva()\">ok</button>\n</div>\n<app-dettaglio></app-dettaglio>\n` })\n" +
+                "export class ZComponent { salva(): void { } }\n");
+            Write("src/app/w.component.ts", "@Component({ selector: 'app-w', templateUrl: './w.component.html' })\nexport class WComponent { }\n");
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var ts = new[] { "z", "w" }.Select(n => new CodeSourceFile(Path.Combine(_project, "src", "app", n + ".component.ts"), $"src/app/{n}.component.ts")).ToList();
+
+            var files = CodeInlinePages.Expand(catalog, ts);
+            var inline = files.Single(f => CodeInlinePages.IsInline(f.LogicalPath));
+            Assert.AreEqual(("src/app/z.component.ts#template", "angular", "typescript"), (inline.LogicalPath, catalog.LanguageOf(inline), catalog.LanguageOf(ts[0])), "solo il .ts che ha un template inline");
+
+            var extractor = (TemplatePageExtractor)new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("angular");
+            var page = extractor.Read(new CodeExtractionRequest { ProjectPath = _project, AllFiles = new[] { inline }, FilesToEmit = new[] { inline } }).Single();
+            Assert.AreEqual(0, page.Warnings.Count, string.Join("\n", page.Warnings));
+            var s = page.Script;
+            Assert.AreEqual("src/app/z.component.ts#template", s.Header.Source);
+            var ok = s.Symbols.Single(x => x.Name == "ok");
+            Assert.AreEqual(("admin", 5), (ok.Guard, ok.LineStart), "la riga è quella del .ts");
+            Assert.IsFalse(s.Symbols.Any(x => x.Name == "fuori"), "il codice TypeScript fuori dal template non è pagina");
+            Assert.AreEqual("app-dettaglio", s.CallSites.Single(c => c.Callee == "selector").Arguments.Single().Value);
+            Assert.AreEqual(Path.Combine(_project, "src", "app", "z.component.ts"), new CodeRootResolver(_project, null).Resolve(inline.LogicalPath), "il sorgente di una pagina inline è il .ts");
+        }
+
+        [TestMethod]
+        public void Refuse_an_inline_extension_already_read_by_another_dialect()
+        {
+            foreach (var id in new[] { "angular", "angular2" })
+            {
+                var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), id);
+                Directory.CreateDirectory(package);
+                File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular.Replace("id: angular", "id: " + id).Replace("[.html]", id == "angular" ? "[.html]" : "[.htm]"));
+            }
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            Assert.IsNotNull(catalog.ById("angular"));
+            StringAssert.Contains(catalog.Errors["angular2"].Message, ".ts");
+
+            var own = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular2");
+            File.WriteAllText(Path.Combine(own, LanguagePackage.DefinitionFile), Angular.Replace("id: angular", "id: angular2").Replace("[.html]", "[.htm]").Replace("extensions: [.ts]", "extensions: [.htm]"));
+            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackage.Load(own)).Message, "template.inline");
         }
 
         [TestMethod]

@@ -342,6 +342,8 @@ public sealed class CodeTools : McpToolsBase
         "ANGULAR: MdExplorer links by itself the component to its templateUrl page (renders), a template call like (click)=\"save()\" to the " +
         "component's method, and a call recognizer with callee: selector (e.g. match: '<(?<a0>app-[\\w-]+)') to the component with that " +
         "selector (instantiates). " +
+        "Inline templates (Angular template: `…` in the .ts): template.inline = {extensions: [.ts], match: 'template\\s*:\\s*`(?<body>[^`]*)`'}: " +
+        "the group body is a page of the dialect, path '<file>.ts#template', with the lines of the .ts; the .ts stays TypeScript. " +
         "A line-based language (blocks/labels/references instead of template) uses the same tools.";
 
     [McpServerTool, Description(

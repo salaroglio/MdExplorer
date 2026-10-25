@@ -79,6 +79,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Resolve(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("percorso vuoto");
+            path = CodeInlinePages.HostOf(path);   // una pagina dentro un .ts sta nel .ts
             if (!CodeRootPaths.IsLogical(path))
             {
                 var inProject = Path.GetFullPath(Path.Combine(ProjectPath, path.Replace('/', Path.DirectorySeparatorChar)));
@@ -107,6 +108,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public (CodeRootState Root, string Relative)? RemoteOf(string path)
         {
             if (string.IsNullOrWhiteSpace(path) || !CodeRootPaths.IsLogical(path)) return null;
+            path = CodeInlinePages.HostOf(path);
             var (alias, rest) = CodeRootPaths.Parse(path);
             if (!_byAlias.TryGetValue(alias, out var root) || !root.IsRemote) return null;
             if (root.Status != CodeRootStatus.Linked)

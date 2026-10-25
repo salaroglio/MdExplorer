@@ -334,7 +334,9 @@ namespace MdExplorer.Services.CodeGraph
                 var scope = await ScopeOfAsync(projectPath, program.Folder, ct);
                 if (scope.Unusable != null) continue;
                 var scan = await _scanner.ScanAsync(projectPath, scope.FolderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
-                var files = scan.AllFiles.Where(f => string.Equals(catalog.ForFile(f.AbsolutePath)?.Id, languageId, StringComparison.OrdinalIgnoreCase))
+                // con le pagine scritte dentro altri file (template inline), se il linguaggio le legge
+                var all = catalog.ById(languageId)?.Definition?.Template?.Inline != null ? CodeInlinePages.Expand(catalog, scan.AllFiles, scope.Encodings) : scan.AllFiles.ToList();
+                var files = all.Where(f => string.Equals(catalog.LanguageOf(f), languageId, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(f => f.LogicalPath, StringComparer.Ordinal).ToList();
                 list.Add(new CodeLanguageFiles(program.Folder, files, scope.Encodings));
             }
@@ -507,9 +509,15 @@ namespace MdExplorer.Services.CodeGraph
                 var catalog = CodeLanguageCatalog.ForProject(projectPath);
                 var extractors = _extractors.ForProject(catalog);
                 var chosen = new HashSet<string>(languages, StringComparer.OrdinalIgnoreCase);
-                var inPerimeter = scan.AllFiles.Where(f => chosen.Contains(catalog.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
+                // le pagine scritte dentro altri file (template inline) sono file in più, del dialetto che le legge: cambiano
+                // quando cambia il file che le contiene
+                var allFiles = languages.Any(id => catalog.ById(id)?.Definition?.Template?.Inline != null)
+                    ? CodeInlinePages.Expand(catalog, scan.AllFiles, scope.Encodings) : scan.AllFiles.ToList();
+                var inPerimeter = allFiles.Where(f => chosen.Contains(catalog.LanguageOf(f) ?? string.Empty)).ToList();
                 outcome.FilesInPerimeter = inPerimeter.Count;
-                var candidates = scan.Candidates.Where(f => chosen.Contains(catalog.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
+                var changed = new HashSet<string>(scan.Candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
+                var candidates = scan.Candidates.Where(f => chosen.Contains(catalog.LanguageOf(f) ?? string.Empty))
+                    .Concat(inPerimeter.Where(f => CodeInlinePages.IsInline(f.LogicalPath) && changed.Contains(f.AbsolutePath))).ToList();
                 outcome.Candidates = candidates.Count;
 
                 // 1b) I ponti del build (punto 3b): i programmi da cui questo dipende entrano fra i file da risolvere, e gli
@@ -524,7 +532,7 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     ct.ThrowIfCancellationRequested();
                     var lang = catalog.Require(languageId);
-                    var all = inPerimeter.Where(f => catalog.ForFile(f.AbsolutePath)?.Id == lang.Id).ToList();
+                    var all = inPerimeter.Where(f => catalog.LanguageOf(f) == lang.Id).ToList();
                     var extractor = extractors.Get(lang.Id);
                     if (extractor == null)
                     {
