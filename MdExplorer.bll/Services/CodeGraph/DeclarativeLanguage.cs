@@ -87,7 +87,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Regex Dynamic { get; init; }
         }
 
-        public enum TemplateRole { Include, Open, Else, Case, Close, Call }
+        public enum TemplateRole { Include, Open, Else, Case, Close, Call, Named }
 
         /// <summary>
         /// Un riconoscitore: un'espressione con un ruolo. <c>include</c> (gruppo <c>arg</c> = la pagina), <c>open</c> (apre un
@@ -96,7 +96,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// (nega la condizione: dentro il blocco aperto, o con <c>close: brace</c> un blocco nuovo dopo quello appena chiuso),
         /// <c>case</c> (<c>condizione=caso</c>), <c>close</c>, <c>call</c> (una chiamata con stringhe: il nome da
         /// <see cref="Callee"/> o dal gruppo <c>callee</c>, gli argomenti dai gruppi <c>a0</c>…<c>a9</c>; dentro un tag fa di
-        /// quell'elemento un controllo).
+        /// quell'elemento un controllo), <c>named</c> (un blocco con un nome, gruppo <c>name</c>, che non vale da sé ma per chi
+        /// lo nomina: un <c>open</c> con condizione che ha il gruppo <c>else</c> gli dà la negazione, con il gruppo <c>then</c> la
+        /// condizione stessa; Angular <c>*ngIf="x; else altro"</c> e <c>&lt;ng-template #altro&gt;</c>, 25/10/2026).
         /// </summary>
         public sealed class TemplateRecognizer
         {
@@ -112,6 +114,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Callee { get; init; }
             /// <summary>Gli indici dei gruppi <c>a0</c>…<c>a9</c> presenti nell'espressione.</summary>
             public IReadOnlyList<int> ArgGroups { get; init; }
+            /// <summary>Un <c>open</c> con condizione che nomina blocchi <c>named</c>: i gruppi <c>then</c> e <c>else</c>.</summary>
+            public bool NamesBlocks { get; init; }
         }
 
         public const string BraceClose = "brace";
@@ -379,21 +383,35 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var (r, i) in raw.Select((r, i) => (r, i)))
                     if (r.Id != null && !ids.Add(r.Id)) throw Fail($"template.recognizers[{i}].id: '{r.Id}' ripetuto", $"template.recognizers[{i}].id: '{r.Id}' repeated");
                 var closers = raw.Where(r => string.Equals(r.Role, "close", StringComparison.OrdinalIgnoreCase)).Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
+                var hasNamed = raw.Any(r => string.Equals(r.Role, "named", StringComparison.OrdinalIgnoreCase));
                 foreach (var (r, i) in raw.Select((r, i) => (r, i)))
                 {
                     var where = r.Id == null ? $"template.recognizers[{i}]" : $"template.recognizers[{r.Id}]";
                     var role = Enum<TemplateRole>(where + ".role", r.Role, null);
                     if (string.IsNullOrWhiteSpace(r.Match)) throw Fail($"{where}.match: obbligatorio", $"{where}.match: required");
-                    var match = role == TemplateRole.Include ? Rx(where + ".match", r.Match, "arg") : Rx(where + ".match", r.Match);
+                    var match = role switch
+                    {
+                        TemplateRole.Include => Rx(where + ".match", r.Match, "arg"),
+                        TemplateRole.Named => Rx(where + ".match", r.Match, "name"),
+                        _ => Rx(where + ".match", r.Match),
+                    };
                     if (role == TemplateRole.Close && r.Id == null) throw Fail($"{where}.id: un riconoscitore close ha un id, quello che gli open scrivono in close", $"{where}.id: a close recognizer has an id, the one open recognizers write in close");
                     if (role == TemplateRole.Open && r.Close == null) throw Fail($"{where}.close: obbligatorio per open: brace, element, o l'id di un riconoscitore close", $"{where}.close: required for open: brace, element, or the id of a close recognizer");
-                    if (r.Close != null)
+                    if (role == TemplateRole.Named && r.Close is not (BraceClose or ElementClose))
+                        throw Fail($"{where}.close: obbligatorio per named: brace o element (dove il blocco finisce)", $"{where}.close: required for named: brace or element (where the block ends)");
+                    if (r.Close != null && role != TemplateRole.Named)
                     {
                         if (role is not (TemplateRole.Open or TemplateRole.Else or TemplateRole.Case)) throw Fail($"{where}.close: vale solo per open, else e case", $"{where}.close: only applies to open, else and case");
                         if (r.Close != BraceClose && (role != TemplateRole.Open || r.Close != ElementClose && !closers.Contains(r.Close)))
                             throw Fail($"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, o l'id di un riconoscitore close" : "")}", $"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, or the id of a close recognizer" : "")}");
                     }
                     if (r.Guard && role != TemplateRole.Open) throw Fail($"{where}.guard: vale solo per open", $"{where}.guard: only applies to open");
+                    var namesBlocks = match.GetGroupNames().Any(g => g is "then" or "else");
+                    if (namesBlocks)
+                    {
+                        if (role != TemplateRole.Open || !r.Guard) throw Fail($"{where}: i gruppi then ed else valgono solo per open con guard: true", $"{where}: the groups then and else only apply to open with guard: true");
+                        if (!hasNamed) throw Fail($"{where}: i gruppi then ed else nominano un blocco, ma nessun riconoscitore ha role: named", $"{where}: the groups then and else name a block, but no recognizer has role: named");
+                    }
                     var argGroups = Enumerable.Range(0, 10).Where(k => match.GetGroupNames().Contains("a" + k)).ToList();
                     if (role == TemplateRole.Call)
                     {
@@ -404,7 +422,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     recognizers.Add(new TemplateRecognizer
                     {
                         Id = r.Id ?? $"{role.ToString().ToLowerInvariant()}#{i}", Role = role, Match = match, Close = r.Close, Guard = r.Guard,
-                        Callee = string.IsNullOrWhiteSpace(r.Callee) ? null : r.Callee.Trim(), ArgGroups = argGroups,
+                        Callee = string.IsNullOrWhiteSpace(r.Callee) ? null : r.Callee.Trim(), ArgGroups = argGroups, NamesBlocks = namesBlocks,
                     });
                 }
                 if (directive == null && recognizers.Count == 0) throw Fail("template: serve directive (forma a direttive) o recognizers (forma a riconoscitori)", "template: directive (directive form) or recognizers (recognizer form) is needed");

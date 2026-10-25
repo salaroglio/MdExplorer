@@ -284,7 +284,8 @@ template:
   dynamic: '\{\{'
   events: ['^\(.+\)$']
   recognizers:
-    - { role: open, match: '\*ngIf=""(?<arg>[^""]+)""', close: element, guard: true }
+    - { role: open, match: '\*ngIf=""(?<arg>[^"";]+)(?:;\s*then\s+(?<then>\w+))?(?:;?\s*else\s+(?<else>\w+))?\s*""', close: element, guard: true }
+    - { role: named, match: '<ng-template\b[^>]*?\#(?<name>\w+)', close: element }
     - { role: open, match: '\*ngFor=""[^""]*""', close: element }
     - { role: open, match: '@if\s*\((?<arg>.+?)\)\s*\{', close: brace, guard: true }
     - { role: else, match: '@else\s*\{', close: brace }
@@ -316,6 +317,46 @@ template:
             Assert.AreEqual(("control", "pronto"), (child.Kind, child.Guard));
             Assert.AreEqual("app-dettaglio", s.CallSites.Single(c => c.Callee == "selector").Arguments.Single().Value);
             CollectionAssert.IsSubsetOf(new[] { "salva", "annulla", "cerca", "apri" }, s.CallSites.Select(c => c.Callee).ToArray());
+        }
+
+        [TestMethod]
+        public void Give_an_ng_template_the_condition_of_the_ngif_that_names_it()
+        {
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular);
+            Write("src/app/y.component.html",
+                "<div *ngIf=\"caricato; else attesa\">\n  <button id=\"salva\" (click)=\"salva()\">ok</button>\n</div>\n" +
+                "<section *ngIf=\"admin\">\n<ng-template #attesa>\n  <button id=\"ricarica\" (click)=\"ricarica()\">r</button>\n</ng-template>\n</section>\n" +
+                "<p *ngIf=\"x; then si else no\"></p>\n" +
+                "<ng-template #si><button id=\"b1\" (click)=\"a()\"></button></ng-template>\n" +
+                "<ng-template #no><button id=\"b2\" (click)=\"b()\"></button></ng-template>\n" +
+                "<ng-template #mai><button id=\"b3\" (click)=\"c()\"></button></ng-template>\n" +
+                "<ng-template #dopo><button id=\"b4\" (click)=\"d()\"></button></ng-template>\n" +
+                "<div *ngIf=\"utente\"><span *ngIf=\"pronto; else dopo\"></span></div>\n");
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var extractor = (TemplatePageExtractor)new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("angular");
+            var file = new CodeSourceFile(Path.Combine(_project, "src", "app", "y.component.html"), "src/app/y.component.html");
+            var page = extractor.Read(new CodeExtractionRequest { ProjectPath = _project, AllFiles = new[] { file }, FilesToEmit = new[] { file } }).Single();
+            Assert.AreEqual(0, page.Warnings.Count, string.Join("\n", page.Warnings));
+            string Guard(string name) => page.Script.Symbols.Single(x => x.Name == name).Guard;
+
+            Assert.AreEqual("caricato", Guard("salva"));
+            Assert.AreEqual("admin && !(caricato)", Guard("ricarica"), "il ramo else nominato più in alto, dentro un'altra condizione");
+            Assert.AreEqual("x", Guard("b1"), "then");
+            Assert.AreEqual("!(x)", Guard("b2"), "else dopo then");
+            Assert.IsNull(Guard("b3"), "un ng-template che nessuno nomina");
+            Assert.AreEqual("utente && !(pronto)", Guard("b4"), "nominato più in basso, con la condizione che il nome ha intorno");
+        }
+
+        [TestMethod]
+        public void Refuse_then_and_else_groups_without_a_named_block()
+        {
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular.Replace("    - { role: named,", "    #"));
+            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackage.Load(package));
+            StringAssert.Contains(ex.Message, "named");
         }
 
         [TestMethod]

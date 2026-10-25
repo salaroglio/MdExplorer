@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class TemplatePageExtractor : ICodeExtractor
     {
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le pagine, non il dialetto.</summary>
-        public const string EngineVersion = "1";
+        public const string EngineVersion = "2";
         public const int MaxSignatureLength = 200;
 
         private readonly DeclarativeLanguage _lang;
@@ -208,6 +208,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string BranchOf;
             public string Callee;
             public List<string> Args;
+            /// <summary>Un <c>open</c> con condizione che nomina blocchi <c>named</c> (gruppi <c>then</c> ed <c>else</c>).</summary>
+            public string Then;
+            public string ElseName;
+            /// <summary>L'apertura di un blocco <c>named</c>: il suo nome.</summary>
+            public string Name;
         }
 
         private sealed class PageReader
@@ -287,20 +292,49 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var events = new List<Event>();
                 if (Rule.Directive != null) DirectiveEvents(events);
                 foreach (var r in Rule.Recognizers) RecognizerEvents(r, events);
+                events = events.OrderBy(e => e.Offset).ThenBy(e => e.Kind == EventKind.Close ? 0 : 1).ToList();
+                // Un blocco «named» vale per chi lo nomina, che di solito sta PIÙ IN ALTO o più in basso nella pagina: una
+                // prima passata raccoglie i nomi con le loro condizioni (senza fatti né avvisi), la seconda le applica.
+                var named = new Dictionary<string, List<List<string>>>(StringComparer.Ordinal);
+                if (events.Any(e => e.Then != null || e.ElseName != null))
+                {
+                    var warnings = _page.Warnings.Count;
+                    ApplyEvents(events, null, named);
+                    _page.Warnings.RemoveRange(warnings, _page.Warnings.Count - warnings);
+                    _guards.RemoveRange(1, _guards.Count - 1);
+                }
+                ApplyEvents(events, named, null);
+            }
+
+            /// <param name="named">I blocchi nominati e le condizioni di chi li nomina; null nella prima passata (solo raccolta).</param>
+            /// <param name="collect">Dove raccogliere i nomi; null nella seconda passata.</param>
+            private void ApplyEvents(List<Event> events, Dictionary<string, List<List<string>>> named, Dictionary<string, List<List<string>>> collect)
+            {
                 var stack = new List<Frame>();
                 string lastClosed = null;   // la condizione dell'ultimo blocco chiuso: un «else» a graffa la nega
-                foreach (var e in events.OrderBy(e => e.Offset).ThenBy(e => e.Kind == EventKind.Close ? 0 : 1))
+                foreach (var e in events)
                 {
                     var line = LineOf(e.Offset);
                     switch (e.Kind)
                     {
                         case EventKind.Include:
-                            _includes.Add((e.Offset, e.Arg));
+                            if (collect == null) _includes.Add((e.Offset, e.Arg));
                             break;
                         case EventKind.Call:
-                            _recognizedCalls.Add(e);
+                            if (collect == null) _recognizedCalls.Add(e);
+                            break;
+                        case EventKind.Open when e.Name != null:
+                            stack.Add(new Frame { Key = e.Key, Label = e.Label, CloseLabel = e.CloseLabel, Condition = NamedCondition(named, e.Name, stack), Line = line });
+                            _guards.Add((e.End, Current(stack)));
                             break;
                         case EventKind.Open:
+                            if (collect != null && !string.IsNullOrEmpty(e.Arg))
+                            {
+                                // chi nomina il blocco ci arriva con le condizioni che ha intorno, più la sua (o la sua negazione)
+                                var outer = stack.Where(f => f.Condition != null).Select(f => f.Condition).ToList();
+                                if (e.Then != null) Collect(collect, e.Then, outer.Append(e.Arg));
+                                if (e.ElseName != null) Collect(collect, e.ElseName, outer.Append($"!({e.Arg})"));
+                            }
                             stack.Add(new Frame { Key = e.Key, Label = e.Label, CloseLabel = e.CloseLabel, Guard = e.Guard, Arg = e.Arg, Condition = e.Guard && !string.IsNullOrEmpty(e.Arg) ? e.Arg : null, Line = line });
                             _guards.Add((e.End, Current(stack)));
                             break;
@@ -345,6 +379,26 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                 }
                 foreach (var f in stack) Unclosed(f);
+            }
+
+            private static void Collect(Dictionary<string, List<List<string>>> collect, string name, IEnumerable<string> conditions)
+            {
+                if (!collect.TryGetValue(name, out var list)) collect[name] = list = new List<List<string>>();
+                list.Add(conditions.ToList());
+            }
+
+            /// <summary>
+            /// La condizione di un blocco nominato: quella di chi lo nomina, senza le condizioni che il blocco ha già intorno;
+            /// nominato da più punti, una o l'altra (<c>||</c>); mai nominato (o nella prima passata), nessuna.
+            /// </summary>
+            private static string NamedCondition(Dictionary<string, List<List<string>>> named, string name, List<Frame> stack)
+            {
+                if (named == null || !named.TryGetValue(name, out var refs)) return null;
+                var around = stack.Where(f => f.Condition != null).Select(f => f.Condition).ToHashSet(StringComparer.Ordinal);
+                var options = refs.Select(r => r.Where(c => !around.Contains(c)).ToList())
+                    .Select(r => r.Count == 0 ? null : string.Join(" && ", r)).Distinct().ToList();
+                if (options.Contains(null)) return null;   // da un punto vale sempre: nessuna condizione in più
+                return options.Count == 1 ? options[0] : string.Join(" || ", options.Select(o => $"({o})"));
             }
 
             /// <summary>La forma a direttive: una sola espressione, il significato lo dice la parola.</summary>
@@ -451,7 +505,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                             events.Add(new Event { Kind = EventKind.Include, Offset = m.Index, End = end, Arg = arg, Label = r.Id });
                             break;
                         case DeclarativeLanguage.TemplateRole.Open:
-                            events.Add(new Event { Kind = EventKind.Open, Offset = start, End = end, Key = braceKey ?? "c:" + r.Close, Label = r.Id, CloseLabel = r.Brace ? "}" : r.Element ? "</…>" : r.Close, Guard = r.Guard, Arg = arg });
+                            events.Add(new Event
+                            {
+                                Kind = EventKind.Open, Offset = start, End = end, Key = braceKey ?? "c:" + r.Close, Label = r.Id, CloseLabel = r.Brace ? "}" : r.Element ? "</…>" : r.Close, Guard = r.Guard, Arg = arg,
+                                Then = Named(m, "then"), ElseName = Named(m, "else"),
+                            });
+                            break;
+                        case DeclarativeLanguage.TemplateRole.Named:
+                            var name = Named(m, "name");
+                            if (name != null) events.Add(new Event { Kind = EventKind.Open, Offset = start, End = end, Key = braceKey, Label = r.Id, CloseLabel = r.Brace ? "}" : "</…>", Name = name });
                             break;
                         case DeclarativeLanguage.TemplateRole.Close:
                             events.Add(new Event { Kind = EventKind.Close, Offset = m.Index, End = end, Key = "c:" + r.Id, Label = r.Id });
@@ -470,6 +532,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                 }
             }
+
+            private static string Named(Match m, string group) => m.Groups[group] is { Success: true } g && g.Value.Trim().Length > 0 ? g.Value.Trim() : null;
 
             private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
                 { "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr" };
