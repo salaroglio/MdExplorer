@@ -198,19 +198,24 @@ namespace MdExplorer.Utilities
                 groups.Add("agents");
             }
 
+            // Le radici di codice collegate su QUESTA macchina (UserDB, non .development.yml).
+            // ⚠️ `.ToList()` prima del confronto per percorso (vedi sopra).
+            var bindings = db.GetDal<CodeRootBinding>().GetList().ToList()
+                .Where(b => string.Equals((b.ProjectPath ?? string.Empty).TrimEnd('/', '\\'), projectPath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
             // Il grafo del codice (sprint 2026-10-09, D6): acceso di default quando una cartella `program`
-            // ha dei linguaggi scelti nella finestra «Ambiente di sviluppo» (codeGraph.languages).
-            if (CodeGraphConfigured(project.Path))
+            // ha dei linguaggi scelti nella finestra «Ambiente di sviluppo» (codeGraph.languages), o quando il progetto ha
+            // una radice esterna collegata (26/10, come «remote» per le ssh://): senza, MarkAgent riceve la cartella ma non
+            // code_roots, e non sa a quale @alias corrisponde.
+            if (CodeGraphConfigured(project.Path) || bindings.Count > 0)
             {
                 groups.Add("code");
             }
 
             // Le radici remote (sprint 2026-10-21-Cartella-Remota-Via-SSH, F4): la posizione ssh:// sta nello UserDB di
             // QUESTA macchina, non nel .development.yml — un collega con il codice in locale non riceve i remote_*.
-            // ⚠️ `.ToList()` prima del confronto per percorso (vedi sopra).
-            if (db.GetDal<CodeRootBinding>().GetList().ToList().Any(b =>
-                    (b.LocalPath ?? string.Empty).StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)
-                    && string.Equals((b.ProjectPath ?? string.Empty).TrimEnd('/', '\\'), projectPath, StringComparison.OrdinalIgnoreCase)))
+            if (bindings.Any(b => (b.LocalPath ?? string.Empty).StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)))
             {
                 groups.Add("remote");
             }

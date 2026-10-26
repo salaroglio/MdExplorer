@@ -236,6 +236,9 @@ namespace MdExplorer.IntegrationTests
             Ad.Tools.Dal.Extensions.SessionExtensions.Commit(db);
             CollectionAssert.Contains(remote.ToList(), "remote");
             CollectionAssert.DoesNotContain(local.ToList(), "remote");
+            // 26/10: una radice collegata, locale o ssh://, accende il grafo del codice (code_roots dice a MarkAgent dove sta @alias).
+            CollectionAssert.Contains(local.ToList(), "code", "una radice locale collegata accende code, come una ssh:// accende remote");
+            CollectionAssert.Contains(remote.ToList(), "code");
         }
 
         [TestMethod]
