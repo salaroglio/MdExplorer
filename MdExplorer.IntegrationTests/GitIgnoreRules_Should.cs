@@ -80,6 +80,41 @@ namespace MdExplorer.IntegrationTests
             Assert.IsFalse(rules.IsIgnored(Path.Combine(_base, "altro", "x.md"), repo), "fuori dal progetto");
         }
 
+        /// <summary>
+        /// 26/10: le skill mde-* che MDE installa per i motori sono escluse da git (nel .gitignore per il motore del progetto,
+        /// in .git/info/exclude per quello personale) ma devono vedersi nell'albero; il resto di ciò che git ignora no.
+        /// </summary>
+        [TestMethod]
+        public void Show_the_mde_skills_of_the_engines_although_git_ignores_them()
+        {
+            var repo = Repo("skills");
+            Write(Path.Combine(repo, ".gitignore"), ".github/**/mde-*\nnode_modules/\n");
+            Write(Path.Combine(repo, ".git", "info", "exclude"), ".claude/**/mde-*\n");
+            Write(Path.Combine(repo, ".github", "skills", "mde-doc", "SKILL.md"));
+            Write(Path.Combine(repo, ".github", "agents", "mde-skillcreator.agent.md"));
+            Write(Path.Combine(repo, ".claude", "skills", "mde-plantuml", "SKILL.md"));
+            Write(Path.Combine(repo, "node_modules", "mde-x", "README.md"));
+
+            var gitIgnore = new GitIgnoreRules();
+            var mdIgnore = new MdExplorer.Features.Services.MdIgnoreService(Microsoft.Extensions.Logging.Abstractions.NullLogger<MdExplorer.Features.Services.MdIgnoreService>.Instance, gitIgnore);
+            var folders = new MdExplorer.Service.Services.FoldersIgnoreService(Microsoft.Extensions.Logging.Abstractions.NullLogger<MdExplorer.Service.Services.FoldersIgnoreService>.Instance, null, gitIgnore);
+
+            foreach (var dir in new[] { Path.Combine(repo, ".github", "skills", "mde-doc"), Path.Combine(repo, ".claude", "skills", "mde-plantuml") })
+            {
+                Assert.IsTrue(gitIgnore.IsIgnored(dir, repo), $"git ignora {dir}: il test parte da lì");
+                Assert.IsFalse(folders.ShouldIgnoreFolderForProject(dir, repo), $"{dir} deve comparire nell'albero");
+            }
+            Assert.IsFalse(mdIgnore.ShouldIgnorePath(Path.Combine(repo, ".github", "agents", "mde-skillcreator.agent.md"), repo), "l'agente mde-* deve comparire");
+            Assert.IsTrue(folders.ShouldIgnoreFolderForProject(Path.Combine(repo, "node_modules"), repo), "il resto di ciò che git ignora resta nascosto");
+            Assert.IsTrue(folders.ShouldIgnoreFolderForProject(Path.Combine(repo, "node_modules", "mde-x"), repo), "mde- fuori dalle cartelle dei motori non conta");
+        }
+
+        /// <summary>Le radici dell'eccezione sono quelle dei layout dei motori: un motore nuovo senza la sua radice qui resterebbe nascosto.</summary>
+        [TestMethod]
+        public void Know_the_root_of_every_engine_layout()
+            => CollectionAssert.AreEquivalent(
+                MdExplorer.Utilities.HarnessLayout.All.Select(l => l.RootFolder).ToArray(), MdeHarnessAssets.HarnessRoots);
+
         [TestMethod]
         public void Apply_the_own_rules_of_each_submodule()
         {

@@ -175,8 +175,10 @@ namespace MdExplorer.Service.Services
             }
 
             // Ciò che git ignora non è documentazione (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore, W2): vale anche
-            // senza .mdFoldersIgnore, che può solo aggiungere cartelle.
-            if (Path.IsPathRooted(folderPath) && _gitIgnore.IsIgnored(folderPath, projectPath))
+            // senza .mdFoldersIgnore, che può solo aggiungere cartelle. Tranne le skill mde-* dei motori, che MDE esclude da
+            // git ma devono vedersi (26/10).
+            if (Path.IsPathRooted(folderPath) && _gitIgnore.IsIgnored(folderPath, projectPath)
+                && !MdExplorer.Features.Services.GitIgnore.MdeHarnessAssets.IsInside(folderPath, projectPath))
             {
                 return true;
             }

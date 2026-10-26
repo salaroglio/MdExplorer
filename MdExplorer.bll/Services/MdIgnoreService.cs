@@ -77,8 +77,9 @@ namespace MdExplorer.Features.Services
         public bool ShouldIgnorePath(string fullPath, string projectPath)
         {
             // Ciò che git ignora non è documentazione: non si mostra e non si indicizza (sprint
-            // 2026-10-21-Watcher-Selettivo-E-Gitignore, W2). Prima del .mdignore, che può solo aggiungere.
-            if (_gitIgnore.IsIgnored(fullPath, projectPath))
+            // 2026-10-21-Watcher-Selettivo-E-Gitignore, W2). Prima del .mdignore, che può solo aggiungere. Tranne le skill
+            // mde-* dei motori, che MDE esclude da git ma devono vedersi (26/10).
+            if (_gitIgnore.IsIgnored(fullPath, projectPath) && !MdExplorer.Features.Services.GitIgnore.MdeHarnessAssets.IsInside(fullPath, projectPath))
                 return true;
 
             // Ensure patterns are loaded

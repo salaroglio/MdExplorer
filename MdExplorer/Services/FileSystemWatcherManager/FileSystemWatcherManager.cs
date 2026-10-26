@@ -86,7 +86,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             var name = Path.GetFileName(dir);
             if (string.Equals(name, ".git", StringComparison.OrdinalIgnoreCase)) return false;
             if (FoldersIgnoreService.IsInsideAgentWorktrees(dir, projectPath)) return false;
-            if (_gitIgnore.IsIgnored(dir, projectPath)) return false;
+            if (_gitIgnore.IsIgnored(dir, projectPath) && !MdExplorer.Features.Services.GitIgnore.MdeHarnessAssets.IsInside(dir, projectPath)) return false;
             if (IsInsideManagedEventFolder(dir, projectPath)) return true;
             if (GetFoldersIgnoreService().ShouldIgnoreFolderForProject(dir, projectPath)) return false;
             if (_mdIgnoreService.ShouldIgnorePath(dir, projectPath)) return false;
