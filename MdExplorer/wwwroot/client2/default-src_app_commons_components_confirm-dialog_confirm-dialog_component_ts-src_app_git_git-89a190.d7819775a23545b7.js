@@ -4356,6 +4356,19 @@ class ProjectSettingsService {
   testAtlassianConnection(body) {
     return this.http.post('../api/atlassian/test-connection', body);
   }
+  // ============================================================
+  //   Redmine (sprint 2026-10-27-Redmine)
+  //   Indirizzo, progetti e formato del testo -> .development.yml; chiave API -> UserDB cifrata.
+  // ============================================================
+  getRedmineSettings(projectId) {
+    return this.http.get(`../api/redmine/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveRedmineSettings(projectId, body) {
+    return this.http.put(`../api/redmine/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testRedmineConnection(body) {
+    return this.http.post('../api/redmine/test-connection', body);
+  }
   static {
     this.ɵfac = function ProjectSettingsService_Factory(t) {
       return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient));
@@ -8770,4 +8783,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.6b8e740a90dd151d.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.d7819775a23545b7.js.map

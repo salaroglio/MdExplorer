@@ -472,4 +472,30 @@ export class ProjectSettingsService {
   }): Observable<{ success: boolean; error?: string; displayName?: string; latencyMs: number }> {
     return this.http.post<any>('../api/atlassian/test-connection', body);
   }
+
+  // ============================================================
+  //   Redmine (sprint 2026-10-27-Redmine)
+  //   Indirizzo, progetti e formato del testo -> .development.yml; chiave API -> UserDB cifrata.
+  // ============================================================
+  getRedmineSettings(projectId: string): Observable<any> {
+    return this.http.get<any>(`../api/redmine/settings/${encodeURIComponent(projectId)}`);
+  }
+
+  saveRedmineSettings(projectId: string, body: {
+    enabled: boolean;
+    baseUrl: string;
+    projects: string[];
+    textFormatting: string;
+    apiKey: string;
+  }): Observable<any> {
+    return this.http.put<any>(`../api/redmine/settings/${encodeURIComponent(projectId)}`, body);
+  }
+
+  testRedmineConnection(body: {
+    projectId?: string;
+    baseUrl: string;
+    apiKey: string;
+  }): Observable<{ success: boolean; error?: string; user?: { name: string; login: string }; latencyMs: number }> {
+    return this.http.post<any>('../api/redmine/test-connection', body);
+  }
 }

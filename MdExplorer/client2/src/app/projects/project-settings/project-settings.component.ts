@@ -180,6 +180,20 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   atlTestMessage: string = '';
   atlTestSuccess: boolean = false;
 
+  // Redmine: indirizzo, progetti e formato del testo -> .development.yml; chiave API -> UserDB cifrata.
+  rmLoading: boolean = false;
+  rmSaving: boolean = false;
+  rmEnabled: boolean = false;
+  rmBaseUrl: string = '';
+  rmProjects: string = '';          // separati da virgola nella UI
+  rmTextFormatting: string = '';    // '' | 'markdown' | 'textile'
+  rmApiKey: string = '';
+  rmHasKey: boolean = false;
+  rmTesting: boolean = false;
+  rmTestMessage: string = '';
+  rmTestSuccess: boolean = false;
+  rmSaveError: string = '';
+
   // RAG settings
   ragEnabled: boolean = false;
   ragModelInstalled: boolean = false;
@@ -222,6 +236,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadKgSettings();
     this.loadFusekiSettings();
     this.loadAtlassianSettings();
+    this.loadRedmineSettings();
     this.loadAgentCity();
     this.loadTemplates();
     this.loadHarness();
@@ -1737,6 +1752,92 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.atlSaving = false;
         console.error('Error saving Atlassian settings:', err);
+      }
+    });
+  }
+
+  // ============================================================
+  //   Redmine — tab logic
+  // ============================================================
+  loadRedmineSettings(): void {
+    if (!this.projectId) return;
+    this.rmLoading = true;
+    this.projectSettingsService.getRedmineSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.rmEnabled = !!r.enabled;
+        this.rmBaseUrl = r.baseUrl || '';
+        this.rmProjects = (r.projects || []).join(', ');
+        this.rmTextFormatting = r.textFormatting || '';
+        this.rmHasKey = !!r.hasKey;
+        this.rmApiKey = '';
+        if (r.lastTestSuccess === true) {
+          this.rmTestMessage = this.translate.instant('PROJECT_SETTINGS.REDMINE_TEST_OK_PREVIOUS');
+          this.rmTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.rmTestMessage = this.translate.instant('PROJECT_SETTINGS.REDMINE_TEST_FAIL_PREVIOUS');
+          this.rmTestSuccess = false;
+        }
+        this.rmLoading = false;
+      },
+      error: (err) => {
+        this.rmLoading = false;
+        this.rmSaveError = err?.error?.error || err?.message || 'http error';
+      }
+    });
+  }
+
+  onRedmineEnabledChange(): void {
+    // Spegnere si salva subito; accendere aspetta «Salva», così chiave e configurazione viaggiano insieme.
+    if (!this.rmEnabled) {
+      this.onSaveRedmineSettings();
+    }
+  }
+
+  onTestRedmineConnection(): void {
+    this.rmTesting = true;
+    this.rmTestMessage = '';
+    this.projectSettingsService.testRedmineConnection({
+      projectId: this.projectId,
+      baseUrl: this.rmBaseUrl,
+      apiKey: this.rmApiKey || (this.rmHasKey ? '********' : '')
+    }).subscribe({
+      next: (r) => {
+        this.rmTesting = false;
+        this.rmTestSuccess = !!r.success;
+        this.rmTestMessage = r.success
+          ? this.translate.instant('PROJECT_SETTINGS.REDMINE_TEST_OK', { name: r.user?.name || r.user?.login || '', ms: r.latencyMs })
+          : this.translate.instant('PROJECT_SETTINGS.REDMINE_TEST_FAIL', { error: r.error || 'unknown' });
+      },
+      error: (err) => {
+        this.rmTesting = false;
+        this.rmTestSuccess = false;
+        this.rmTestMessage = this.translate.instant('PROJECT_SETTINGS.REDMINE_TEST_FAIL', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onSaveRedmineSettings(): void {
+    this.rmSaving = true;
+    this.rmSaveError = '';
+    this.projectSettingsService.saveRedmineSettings(this.projectId, {
+      enabled: this.rmEnabled,
+      baseUrl: this.rmBaseUrl,
+      projects: (this.rmProjects || '').split(',').map(p => p.trim()).filter(p => p.length > 0),
+      textFormatting: this.rmTextFormatting,
+      apiKey: this.rmApiKey || ''
+    }).subscribe({
+      next: () => {
+        this.rmSaving = false;
+        if (this.rmApiKey) {
+          this.rmHasKey = true;
+          this.rmApiKey = '';
+        }
+      },
+      error: (err) => {
+        this.rmSaving = false;
+        this.rmSaveError = err?.error?.error || err?.message || 'http error';
       }
     });
   }

@@ -1131,7 +1131,7 @@
       </div>
     </mat-tab>
 
-    <!-- Tab 7: Atlassian (Jira/Confluence) -->
+    <!-- Tab 7: issue tracker e wiki — Atlassian (Jira/Confluence) e Redmine -->
     <mat-tab [label]="'PROJECT_SETTINGS.ATLASSIAN_TAB' | translate">
       <div class="tab-content">
 
@@ -1239,6 +1239,92 @@
               <span class="kg-status-ok" *ngIf="atlTestMessage && atlTestSuccess">{{ atlTestMessage }}</span>
               <span class="kg-status-fail" *ngIf="atlTestMessage && !atlTestSuccess">{{ atlTestMessage }}</span>
             </div>
+          </mat-card-content>
+        </mat-card>
+
+
+        <!-- Redmine (sprint 2026-10-27-Redmine): sezione a sé nella stessa scheda, non dentro Atlassian. -->
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.REDMINE_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!rmLoading">
+              <mat-checkbox
+                [(ngModel)]="rmEnabled"
+                (change)="onRedmineEnabledChange()"
+                [disabled]="rmSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.REDMINE_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.REDMINE_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="rmLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!rmLoading && rmEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.REDMINE_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.REDMINE_BASE_URL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="rmBaseUrl" placeholder="https://redmine.example.com" [disabled]="rmSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.REDMINE_BASE_URL_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.REDMINE_PROJECTS' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="rmProjects" placeholder="sviluppo, assistenza" [disabled]="rmSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.REDMINE_PROJECTS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.REDMINE_TEXT_FORMATTING' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <mat-select [(ngModel)]="rmTextFormatting" [disabled]="rmSaving">
+                  <mat-option value="">{{ 'PROJECT_SETTINGS.REDMINE_TEXT_FORMATTING_NONE' | translate }}</mat-option>
+                  <mat-option value="markdown">Markdown</mat-option>
+                  <mat-option value="textile">Textile</mat-option>
+                </mat-select>
+                <mat-hint>{{ 'PROJECT_SETTINGS.REDMINE_TEXT_FORMATTING_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.REDMINE_API_KEY' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="rmApiKey"
+                  [placeholder]="rmHasKey ? ('PROJECT_SETTINGS.REDMINE_API_KEY_KEEP' | translate) : ''"
+                  [disabled]="rmSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.REDMINE_API_KEY_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestRedmineConnection()" [disabled]="rmSaving || rmTesting">
+                <mat-icon *ngIf="!rmTesting">cable</mat-icon>
+                <mat-spinner *ngIf="rmTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ rmTesting ? ('PROJECT_SETTINGS.REDMINE_TESTING' | translate) : ('PROJECT_SETTINGS.REDMINE_TEST' | translate) }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveRedmineSettings()" [disabled]="rmSaving || rmTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="rmSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="rmTestMessage && rmTestSuccess">{{ rmTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="rmTestMessage && !rmTestSuccess">{{ rmTestMessage }}</span>
+            </div>
+            <p class="kg-status-fail" *ngIf="rmSaveError">{{ rmSaveError }}</p>
           </mat-card-content>
         </mat-card>
 
