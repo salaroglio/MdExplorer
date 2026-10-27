@@ -140,14 +140,16 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public async Task Send_the_key_in_the_redmine_header()
         {
-            string header = null;
+            string header = null, agent = null;
             var client = Client(new Fake(r =>
             {
                 header = r.Headers.TryGetValues("X-Redmine-API-Key", out var v) ? v.Single() : null;
+                agent = r.Headers.UserAgent.ToString();
                 return new HttpResponseMessage(HttpStatusCode.Unauthorized) { Content = new StringContent("") };
             }));
             var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() => client.VerifyAsync(new RedmineConnection { BaseUrl = "https://redmine.example.test/", ApiKey = "abc" }));
             Assert.AreEqual("abc", header);
+            StringAssert.StartsWith(agent, "MdExplorer", "MDE si presenta: gli amministratori lo riconoscono nei log");
             Assert.IsTrue(ex.IsAuthFailure);
         }
 

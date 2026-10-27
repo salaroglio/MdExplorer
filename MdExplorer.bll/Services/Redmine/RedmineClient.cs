@@ -35,6 +35,14 @@ namespace MdExplorer.Features.Services.Redmine
     public class RedmineClient : IRedmineClient
     {
         private const string ApiKeyHeader = "X-Redmine-API-Key";
+
+        /// <summary>
+        /// Come MDE si presenta a Redmine e a ciò che gli sta davanti (27/10/2026): un nome che gli amministratori riconoscono
+        /// nei log e possono usare in una regola del firewall. È un'etichetta, non una credenziale — la credenziale è la
+        /// chiave personale. Senza, HttpClient non manda nessun User-Agent. Niente versione: il servizio non ne conosce una
+        /// affidabile, e un numero inventato sarebbe peggio di nessuno.
+        /// </summary>
+        public const string UserAgent = "MdExplorer (Redmine integration; +https://github.com/salaroglio/MdExplorer)";
         private readonly IHttpClientFactory _httpClientFactory;
 
         public RedmineClient(IHttpClientFactory httpClientFactory) => _httpClientFactory = httpClientFactory;
@@ -345,6 +353,7 @@ namespace MdExplorer.Features.Services.Redmine
             var url = BaseUrl(conn) + pathAndQuery;
             using var req = new HttpRequestMessage(method, url);
             req.Headers.Add(ApiKeyHeader, conn.ApiKey);
+            req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (body != null) req.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
 
