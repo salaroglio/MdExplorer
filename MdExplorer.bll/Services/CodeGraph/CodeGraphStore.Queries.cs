@@ -427,15 +427,6 @@ namespace MdExplorer.Features.Services.CodeGraph
             };
         }
 
-        public async Task<List<(string Id, string Kind, string QualifiedName, string Language)>> DeclaredSymbolsAsync(string projectPath, string programFolder, CancellationToken ct = default)
-        {
-            var g = GraphsOf(projectPath);
-            var rows = await RowsAsync(
-                $"SELECT ?s ?k ?qn ?lang WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:qualifiedName ?qn ; code:language ?lang ; code:path ?p . " +
-                $"FILTER(?k != \"external\" && STRSTARTS(?p, {CodeGraphIris.Lit(programFolder.TrimEnd('/') + "/")})) }} }}", ct);
-            return rows.Select(r => (SymbolId(r["s"]), Str(r, "k"), Str(r, "qn"), Str(r, "lang"))).ToList();
-        }
-
         // ------------------------------------------------------------------ ricerca a testo pieno
 
         /// <summary>Un termine per Lucene: via i caratteri speciali della sua sintassi.</summary>

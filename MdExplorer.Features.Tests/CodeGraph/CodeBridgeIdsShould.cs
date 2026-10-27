@@ -10,9 +10,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.Features.Tests.CodeGraph
 {
     /// <summary>
-    /// Punto 3b del 14/10/2026, sonda con gli estrattori VERI: il programma A dipende da B (ponte del build). Si estrae A con
-    /// i file di B fra quelli da risolvere; gli id dei simboli di B si ricavano dai loro nomi qualificati (ForeignIds, senza
-    /// discordanze) e l'arco di A va all'id che B ha nel grafo, non a un nodo di A che non esiste.
+    /// Punto 3b del 14/10/2026, sonda con gli estrattori VERI: il programma A dipende da B (ponte del build). Dal 27/10 (G4)
+    /// l'id di un simbolo viene dal file che lo dichiara: A si estrae emettendo anche i file di B, per sapere chi dichiara
+    /// che cosa, e l'arco di A va all'id che B si è dato da solo nel suo programma, non a un nodo di A che non esiste.
     /// </summary>
     [TestClass]
     public class CodeBridgeIdsShould
@@ -43,23 +43,23 @@ namespace MdExplorer.Features.Tests.CodeGraph
             return list;
         }
 
-        /// <summary>B estratto e messo nel suo programma, come sarebbe nel grafo; poi A con i file di B per risolvere.</summary>
-        private (CodeScript A, Dictionary<string, string> Foreign, List<ScriptSymbol> B, int Mismatches) Bridge(ICodeExtractor extractor, string language,
-            List<CodeSourceFile> aFiles, List<CodeSourceFile> bFiles)
+        /// <summary>B estratto nel suo programma, come sarebbe nel grafo; poi A, con i file di B emessi per le dichiarazioni.</summary>
+        private (CodeScript A, List<ScriptSymbol> B) Bridge(ICodeExtractor extractor, List<CodeSourceFile> aFiles, List<CodeSourceFile> bFiles)
         {
             var b = extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = bFiles, FilesToEmit = bFiles });
             Assert.AreEqual(0, b.Warnings.Count, string.Join("; ", b.Warnings));
+            var bDeclarations = new CodeDeclarations();
+            foreach (var (file, script) in b.Scripts) bDeclarations.Add(file.LogicalPath, script);
             var bSymbols = new List<ScriptSymbol>();
-            foreach (var (_, script) in b.Scripts) { CodeProgramScope.Apply(script, "programB"); bSymbols.AddRange(script.Symbols); }
+            foreach (var (_, script) in b.Scripts) { CodeFileScope.Apply(script, bDeclarations); bSymbols.AddRange(script.Symbols); }
 
-            var declared = bSymbols.Select(s => (s.Id, s.Kind, s.QualifiedName, language));
-            var foreign = CodeProgramScope.ForeignIds(declared, "programB", language, out var mismatches);
-
-            var a = extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = aFiles.Concat(bFiles).ToList(), FilesToEmit = aFiles });
-            Assert.AreEqual(aFiles.Count, a.Scripts.Count, "si scrivono solo gli script di A");
-            var aScript = a.Scripts.Single().Script;
-            CodeProgramScope.Apply(aScript, "programA", foreign);
-            return (aScript, foreign, bSymbols, mismatches);
+            var all = aFiles.Concat(bFiles).ToList();
+            var a = extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all });
+            var declarations = new CodeDeclarations();
+            foreach (var (file, script) in a.Scripts) declarations.Add(file.LogicalPath, script);
+            var aScript = a.Scripts.Single(s => s.File.LogicalPath == aFiles.Single().LogicalPath).Script;
+            Assert.AreEqual(0, CodeFileScope.Apply(aScript, declarations), "ogni destinazione è dichiarata in un file o è esterna");
+            return (aScript, bSymbols);
         }
 
         [TestMethod]
@@ -79,9 +79,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var aFiles = Write("programA",
                 ("src/main/java/com/acme/a/App.java", "package com.acme.a;\n\nimport com.acme.b.Greeter;\nimport com.acme.b.Shape;\n\npublic class App implements Shape {\n    private final Greeter greeter = new Greeter();\n    public double area() { return 0; }\n    public String run() { return greeter.hello(\"x\"); }\n}\n"));
 
-            var (a, foreign, b, mismatches) = Bridge(extractor, CodeLanguages.Java, aFiles, bFiles);
+            var (a, b) = Bridge(extractor, aFiles, bFiles);
 
-            Assert.AreEqual(0, mismatches, "ogni simbolo di B ha l'id ricavabile dal nome qualificato");
             var hello = b.Single(s => s.QualifiedName == "com.acme.b.Greeter.hello(String)");
             var greeter = b.Single(s => s.QualifiedName == "com.acme.b.Greeter");
             var shape = b.Single(s => s.QualifiedName == "com.acme.b.Shape");
@@ -101,9 +100,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var aFiles = Write("programA",
                 ("Web/Controller.cs", "using Acme.Core;\nnamespace Acme.Web\n{\n    public class Controller : IRepo\n    {\n        public void Put() { }\n        public int Go() { var s = new OrderService(); return s.Save(\"x\"); }\n    }\n}\n"));
 
-            var (a, _, b, mismatches) = Bridge(extractor, CodeLanguages.CSharp, aFiles, bFiles);
+            var (a, b) = Bridge(extractor, aFiles, bFiles);
 
-            Assert.AreEqual(0, mismatches, "ogni simbolo di B ha l'id ricavabile dal nome qualificato");
             var save = b.Single(s => s.Kind == "method" && s.Name == "Save");
             var service = b.Single(s => s.Kind == "class" && s.Name == "OrderService");
             var repo = b.Single(s => s.Kind == "interface" && s.Name == "IRepo");

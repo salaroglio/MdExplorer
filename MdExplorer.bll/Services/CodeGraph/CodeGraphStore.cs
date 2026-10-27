@@ -100,8 +100,6 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// (<paramref name="programs"/>), altrimenti le sottocartelle della cartella con le frecce sommate.
         /// </summary>
         Task<CodeGraphMap> MapAsync(string projectPath, string folder, IReadOnlyList<string> programs, CancellationToken ct = default);
-        /// <summary>I simboli dichiarati (non external) da una cartella program: id, tipo, nome qualificato, linguaggio (ponti, 3b).</summary>
-        Task<List<(string Id, string Kind, string QualifiedName, string Language)>> DeclaredSymbolsAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, IReadOnlyCollection<string> hiddenSymbols, string focusSymbolId, CancellationToken ct = default);
         Task<CodeReportData> GetReportDataAsync(string projectPath, CancellationToken ct = default);
     }
@@ -511,7 +509,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
-        /// Schema 3 (14/10/2026): il programma è nell'id di ogni simbolo (<see cref="CodeProgramScope"/>). Gli script di
+        /// Schema 3 (14/10/2026): il programma era nell'id di ogni simbolo (dal 27/10 è il file, <see cref="CodeFileScope"/>). Gli script di
         /// prima hanno gli id vecchi e non si convertono: gli AST si rifanno dal sorgente, le descrizioni si rifanno con
         /// l'LLM (deciso dall'utente: niente migrazione). Lo stato dello scanner va via con loro, sennò il commit ricordato
         /// direbbe «niente di cambiato».

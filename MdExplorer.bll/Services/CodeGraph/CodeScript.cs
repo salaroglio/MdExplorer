@@ -208,7 +208,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>
         /// Lo schema che questo MdExplorer scrive: 3 = Turtle con il programma nell'id di ogni simbolo
-        /// (<see cref="CodeProgramScope"/>, 14/10/2026). Il 2 (Turtle, 12/10) e l'1 (JSON Lines) sono ritirati: gli script
+        /// (14/10/2026; dal 27/10 il file, <see cref="CodeFileScope"/>, segnalato dalla versione dell'emettitore e non dallo schema). Il 2 (Turtle, 12/10) e l'1 (JSON Lines) sono ritirati: gli script
         /// si cancellano e si rifanno (<see cref="ICodeGraphStore.RetireOldScriptsAsync"/>). Il JSON Lines resta solo
         /// come formato delle risposte dell'LLM (<see cref="CodeDocPlanner"/>).
         /// </summary>

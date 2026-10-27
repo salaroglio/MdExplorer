@@ -26,6 +26,19 @@ namespace MdExplorer.Services.CodeGraph
         public int FilesInPerimeter { get; set; }
         public int Candidates { get; set; }
         public int Reparsed { get; set; }
+        /// <summary>
+        /// Script di file NON cambiati riscritti perché è cambiato il file che dichiara una loro destinazione (G4: l'id viene
+        /// dal file): una classe spostata, un nome che compare o sparisce in un altro file.
+        /// </summary>
+        public int Relinked { get; set; }
+        /// <summary>Nomi dichiarati in più file (partial, duplicati): restano un nodo solo per nome, e l'esito lo dice.</summary>
+        public int SharedNames { get; set; }
+        /// <summary>Destinazioni né dichiarate in un file né esterne: archi verso nodi che non esistono, contati.</summary>
+        public int UnresolvedTargets { get; set; }
+        /// <summary>Script di descrizioni riscritti con gli id per file (migrazione esatta del 27/10/2026).</summary>
+        public int DocsMigrated { get; set; }
+        /// <summary>Descrizioni rimaste negli script doc di file spariti: il simbolo non si è ritrovato (rinominato, cancellato).</summary>
+        public int OrphanDescriptions { get; set; }
         public int ScriptsRemoved { get; set; }
         /// <summary>Script di uno schema ritirato cancellati prima di questa analisi (descrizioni comprese: si rifanno).</summary>
         public int ScriptsRetired { get; set; }
@@ -362,7 +375,6 @@ namespace MdExplorer.Services.CodeGraph
             /// <summary>«dipendenza@linguaggio» ordinati: nello stato dello scanner, per sapere quando cambiano.</summary>
             public string Signature = string.Empty;
             public Dictionary<string, List<CodeSourceFile>> Files = new();
-            public Dictionary<string, string> ForeignIds = new(StringComparer.Ordinal);
         }
 
         /// <summary>Tutti i ponti del progetto, dai file di build delle cartelle program (e radici collegate).</summary>
@@ -376,9 +388,9 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>
-        /// I ponti di una cartella per i linguaggi scelti: per ogni dipendenza i suoi file (da risolvere, non da scrivere) e
-        /// gli id dei suoi simboli nel grafo. Una dipendenza mai scansionata, non collegata o con id non ricavabili NON fa
-        /// ponte, e l'esito lo dice: niente archi verso nodi che non esistono.
+        /// I ponti di una cartella per i linguaggi scelti: per ogni dipendenza i suoi file (da risolvere, non da scrivere).
+        /// Gli id dei suoi simboli vengono dai file che li dichiarano (G4, <see cref="CodeFileScope"/>), come nel suo programma.
+        /// Una dipendenza mai scansionata o non collegata NON fa ponte, e l'esito lo dice: niente archi verso nodi che non esistono.
         /// </summary>
         private async Task<BridgeSet> BridgesForAsync(string projectPath, string folder, List<string> languages, CodeFolderAnalysisOutcome outcome, CancellationToken ct)
         {
@@ -396,18 +408,10 @@ namespace MdExplorer.Services.CodeGraph
                 }
                 var depScope = await ScopeOfAsync(projectPath, bridge.To, ct);
                 if (depScope.Unusable != null) { outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} non fatto: {depScope.Unusable}", $"bridge to {bridge.To} not made: {depScope.Unusable}")); continue; }
-                var declared = await _store.DeclaredSymbolsAsync(projectPath, bridge.To, ct);
-                var foreign = CodeProgramScope.ForeignIds(declared, bridge.To, bridge.Language, out var mismatches);
-                if (mismatches > 0)
-                {
-                    outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} non fatto: {mismatches} simboli {bridge.Language} con un id che non si ricava dal nome qualificato", $"bridge to {bridge.To} not made: {mismatches} {bridge.Language} symbols with an id that cannot be derived from the qualified name"));
-                    continue;
-                }
                 var scan = await _scanner.ScanAsync(projectPath, depScope.FolderAbs, previousCommit: null, ct, depScope.ToLogical);
                 var files = scan.AllFiles.Where(f => CodeLanguageCatalog.ForProject(projectPath).ForFile(f.AbsolutePath)?.Id == bridge.Language).ToList();
                 if (!set.Files.TryGetValue(bridge.Language, out var list)) set.Files[bridge.Language] = list = new List<CodeSourceFile>();
                 list.AddRange(files);
-                foreach (var kv in foreign) set.ForeignIds[kv.Key] = kv.Value;
                 outcome.Bridges.Add(bridge);
                 active.Add(label);
             }
@@ -528,6 +532,8 @@ namespace MdExplorer.Services.CodeGraph
 
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
                 var written = new List<string>();
+                var renames = new Dictionary<string, string>(StringComparer.Ordinal);
+                var declared = new List<CodeDeclarations>();
                 foreach (var languageId in languages)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -554,26 +560,81 @@ namespace MdExplorer.Services.CodeGraph
                              .Where(f => NeedsReparse(projectPath, f, extractor, scope.Encodings)).ToList();
                     if (toEmit.Count == 0) continue;
                     var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
-                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = toEmit, ExtensionEncodings = scope.Encodings }, ct);
+                    // G4 (27/10/2026): l'id di un simbolo viene dal file che lo dichiara, quindi l'estrattore emette TUTTI i file
+                    // (del programma e dei ponti) per sapere chi dichiara che cosa; su disco va solo ciò che è cambiato.
+                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
+                    var declarations = new CodeDeclarations();
+                    foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
+                    declared.Add(declarations);
+                    var shared = declarations.Shared;
+                    if (shared.Count > 0)
+                    {
+                        outcome.SharedNames += shared.Count;
+                        var first = shared[0];
+                        outcome.Warnings.Add(UiText.Say($"{lang.DisplayName}: {shared.Count} nomi dichiarati in più file (classi partial o duplicati), un nodo solo per nome; es. {string.Join(", ", first.Files.Take(3))}",
+                            $"{lang.DisplayName}: {shared.Count} names declared in several files (partial classes or duplicates), one node per name; e.g. {string.Join(", ", first.Files.Take(3))}"));
+                    }
+                    var own = new HashSet<string>(all.Select(f => f.LogicalPath), StringComparer.Ordinal);
+                    var reemit = new HashSet<string>(toEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
+                    var emitter = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
                     foreach (var (file, script) in extracted.Scripts)
                     {
-                        CodeProgramScope.Apply(script, folderRelative, bridgeSet.ForeignIds);
+                        if (!own.Contains(file.LogicalPath)) continue; // file di un ponte: serviva a risolvere, lo scrive il suo programma
+                        var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
+                        var onDisk = CodeScriptTurtle.ReadHeaderLine(scriptPath);
+                        var fromSource = reemit.Contains(file.LogicalPath);
+                        // non cambiato e di un'altra versione, fuori da questa analisi (all'apertura): resta com'è, è già contato
+                        if (!fromSource && (onDisk == null || onDisk.Extractor != extractor.ExtractorName || onDisk.ExtractorVersion != emitter)) continue;
+                        var legacy = onDisk != null && onDisk.Schema == CodeScriptParser.CurrentSchema && CodeFileScope.IsLegacy(onDisk.ExtractorVersion) ? folderRelative : null;
+                        outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
                         // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
                         // (CodeSourceText: un CP-850 letto in UTF-8 non vedrebbe un'accentata cambiata)
                         var sourceText = CodeSourceText.Read(file.AbsolutePath, scope.Encodings);
                         CodeBodyHash.Apply(script, sourceText);
                         script.Header.SourceHash = CodeSourceText.Hash(sourceText);
-                        script.Header.ExtractorVersion = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
-                        var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
-                        if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
-                        outcome.Reparsed++;
+                        script.Header.ExtractorVersion = emitter;
+                        // sorgente fermo: lo script cambia solo se è cambiato il file che dichiara una sua destinazione
+                        if (!fromSource) script.Header.GeneratedAt = onDisk.GeneratedAt;
+                        if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script)))
+                        {
+                            written.Add(scriptPath);
+                            if (!fromSource) outcome.Relinked++;
+                        }
+                        if (fromSource) outcome.Reparsed++;
                     }
+                }
+
+                if (outcome.UnresolvedTargets > 0)
+                    outcome.Warnings.Add(UiText.Say($"{outcome.UnresolvedTargets} riferimenti verso nomi che nessun file analizzato dichiara: archi verso nodi che non esistono",
+                        $"{outcome.UnresolvedTargets} references to names no analysed file declares: edges to nodes that do not exist"));
+
+                // 2b) Le descrizioni seguono i simboli che hanno cambiato id (G4): migrazione esatta, vecchio → nuovo.
+                if (renames.Count > 0)
+                {
+                    var docs = CodeDocMigration.Rewrite(projectPath, renames);
+                    outcome.DocsMigrated = docs.Count;
+                    written.AddRange(docs);
+                    if (docs.Count > 0) _logger.LogInformation("[CodeGraph] '{Folder}': {Count} script di descrizioni portati agli id per file", folderRelative, docs.Count);
                 }
 
                 // 3) Script AST di sorgenti spariti (o usciti dai linguaggi scelti): via.
                 var removed = RemoveOrphanScripts(projectPath, folderRelative, inPerimeter);
                 outcome.ScriptsRemoved = removed.Count;
+
+                // 3b) File spostati o rinominati: le loro descrizioni passano al file nuovo (stesso nome qualificato = stessa chiave).
+                if (declared.Count > 0)
+                {
+                    var alive = new HashSet<string>(inPerimeter.Select(f => f.LogicalPath), StringComparer.Ordinal);
+                    var (moved, emptied) = CodeDocMigration.Relocate(projectPath, folderRelative, alive, declared, out var left);
+                    outcome.DocsMigrated += moved.Count;
+                    outcome.OrphanDescriptions = left;
+                    written.AddRange(moved);
+                    removed.AddRange(emptied);
+                    if (left > 0)
+                        outcome.Warnings.Add(UiText.Say($"{left} descrizioni di file spariti non ritrovate (simbolo rinominato o cancellato): restano negli script doc orfani",
+                            $"{left} descriptions of vanished files not found again (symbol renamed or deleted): they stay in the orphan doc scripts"));
+                }
 
                 // 4) Script → Fuseki, e lo stato dello scanner. Dopo un turno (targeted) solo ciò che è cambiato qui.
                 if (targeted)
