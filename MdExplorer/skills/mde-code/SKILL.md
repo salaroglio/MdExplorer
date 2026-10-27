@@ -1,9 +1,9 @@
 ---
 name: mde-code
-description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice".
+description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "@alias".
 mde:
   origin: mdexplorer
-  version: 10
+  version: 11
   updatePolicy: replace
 ---
 
@@ -39,7 +39,12 @@ A Fuseki server on `localhost:3030` and the skills `mde-tbox` / `mde-abox` / `md
 domain ontologies written from the project's documents. They are not the code graph — do not use them for code.
 
 If no `code_*` tool is available, the code graph is off for this project: say so, and tell the user to choose the
-languages of a program folder in «Ambiente di sviluppo» (Development environment). Do not look for another way in.
+languages of a program folder in «Ambiente di sviluppo» (Development environment), or of an external root from its menu
+in the tree. Do not look for another way in.
+
+A root that `code_roots` lists with no `languages` has no graph: its files are reachable (open `absolutePath`), but the
+graph tools find nothing there. Say so before searching the files with your own tools, and tell the user that choosing the
+root's languages from its menu in the tree gives you callers and impact.
 
 ## Which tool
 
@@ -48,6 +53,7 @@ languages of a program folder in «Ambiente di sviluppo» (Development environme
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
+| Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |
 | Signature, parameters and description of one symbol | `code_describe` |
 | What a file is for and what it contains | `code_outline` |
 | What X calls / what calls X (one or a few hops) | `code_neighbors` |

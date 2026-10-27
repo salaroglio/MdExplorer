@@ -59,9 +59,11 @@ var mcp = builder.Services
         // Le istruzioni del server arrivano al client all'avvio e Claude Code le mette nel prompt di sistema: SEMPRE, non
         // come uno strumento o una resource che il modello deve decidere di aprire. Qui la regola delle codifiche delle
         // radici di codice (sprint 2026-10-21-Cartella-Remota-Via-SSH): un LLM che riscrive un file CP-850 in UTF-8, o ci
-        // aggiunge testo UTF-8, lo rovina per il compilatore. Solo dove ci sono radici (gruppi code / remote).
-        if (groups.Any(g => g.Id == ToolGroups.Code || g.Id == ToolGroups.Remote))
-            options.ServerInstructions = ServerInstructions.CodeRootEncodings;
+        // aggiunge testo UTF-8, lo rovina per il compilatore. Solo dove ci sono radici (gruppi code / remote). Con code anche
+        // il grafo prima della ricerca a mano (26/10).
+        var instructions = ServerInstructions.For(groups.Any(g => g.Id == ToolGroups.Code), groups.Any(g => g.Id == ToolGroups.Remote));
+        if (instructions != null)
+            options.ServerInstructions = instructions;
     })
     .WithStdioServerTransport();
 

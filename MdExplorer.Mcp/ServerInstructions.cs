@@ -18,4 +18,21 @@ public static class ServerInstructions
         "file that is not UTF-8. When the remote_* tools are available, edit through them: they keep the file's encoding. " +
         "With your own tools (Edit, Write, sed, perl...), write the new text in the file's own encoding. Never insert " +
         "UTF-8 text into a non-UTF-8 file: it breaks the file for its compiler. If unsure, ask the user.";
+
+    /// <summary>
+    /// Solo con il gruppo <c>code</c>, DOPO le codifiche (la cui prima frase deve restare la prima, vedi sopra): il grafo
+    /// prima della ricerca a mano (26/10/2026). Il caso: MarkAgent aveva scritto l'analisi di una modifica su una radice
+    /// <c>@alias</c> cercando nei file, senza il grafo, perché nulla nella richiesta faceva scattare la skill mde-code.
+    /// </summary>
+    public const string CodeGraphFirst =
+        "Before searching source code by hand to answer, plan or analyse a change (which files and methods to touch, " +
+        "what depends on them), ask the code graph: code_find_symbol to locate, code_impact and code_neighbors for what " +
+        "depends on it, code_roots for where @alias/... is on this machine; the mde-code skill has the details. If the " +
+        "graph has nothing for that code, say so before searching the files.";
+
+    /// <summary>Le istruzioni per i gruppi accesi, o null se nessuno ne ha.</summary>
+    public static string? For(bool code, bool remote)
+        => code ? CodeRootEncodings + " " + CodeGraphFirst
+         : remote ? CodeRootEncodings
+         : null;
 }
