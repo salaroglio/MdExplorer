@@ -448,7 +448,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     bookmarkDal.Delete(bookmark);
                 }
-                
+
+                // La chiave API di Redmine del progetto (cifrata): un segreto non resta orfano nello UserDB.
+                var redmineDal = _userSettingsDB.GetDal<ProjectRedmineSettings>();
+                foreach (var redmine in redmineDal.GetList().Where(r => r.Project.Id == request.Id).ToList())
+                    redmineDal.Delete(redmine);
+
                 // Cancella anche le entry di TocDescriptionCache associate (ProjectId è int, non Guid)
                 // Nota: ProjectId in TocDescriptionCache è int, ma Project.Id è Guid
                 // Questo potrebbe essere un problema di design, ma per ora gestiamo entrambi i casi

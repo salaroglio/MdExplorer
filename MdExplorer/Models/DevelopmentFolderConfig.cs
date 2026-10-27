@@ -45,6 +45,14 @@ namespace MdExplorer.Service.Models
         public AtlassianConfig Atlassian { get; set; }
 
         /// <summary>
+        /// La configurazione condivisa di Redmine (docs-internal/Sprints/2026-10-27-Redmine.md, RM2): indirizzo, progetti e
+        /// formato del testo, su Git per tutto il gruppo; la chiave API personale sta cifrata nello UserDB, mai qui.
+        /// Null = Redmine non configurato. DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al
+        /// primo salvataggio.
+        /// </summary>
+        public RedmineConfig Redmine { get; set; }
+
+        /// <summary>
         /// Federation activation of the agent city (§12.4 Agent-Harness-A2A). Null/absent
         /// or <c>Enabled=false</c> → the city and federation stay OFF (full retrocompat).
         /// Travels with the repo via git so the whole team shares the same activation and
@@ -229,6 +237,25 @@ namespace MdExplorer.Service.Models
         /// che permette di avere un default sensato senza impedire di spegnerlo a mano.
         /// </summary>
         public bool? UseAgentWorktrees { get; set; }
+    }
+
+    /// <summary>La sezione <c>redmine:</c> di .development.yml (sprint 2026-10-27-Redmine).</summary>
+    public class RedmineConfig
+    {
+        /// <summary>La radice di Redmine, es. https://redmine.example.com (senza /projects).</summary>
+        public string BaseUrl { get; set; }
+
+        /// <summary>
+        /// Gli identificativi dei progetti di questo progetto MDE, es. ["banca-esempio"]: le ricerche partono da qui, e si
+        /// crea e si aggiorna SOLO in questi (una issue di un altro progetto si legge, non si tocca). Vuoto = nessuna scrittura.
+        /// </summary>
+        public List<string> Projects { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Il formato del testo del server, <c>markdown</c> o <c>textile</c> (RM6): l'API non lo dice, MarkAgent scrive in
+        /// questo. Null = non scelto, e allora non si scrivono descrizioni né note.
+        /// </summary>
+        public string TextFormatting { get; set; }
     }
 
     /// <summary>

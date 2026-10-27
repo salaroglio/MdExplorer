@@ -415,6 +415,8 @@ namespace MdExplorer
 
             // Atlassian (Jira/Confluence) integration — read-only triage MVP.
             services.AddSingleton<Features.Services.Atlassian.IJiraClient, Features.Services.Atlassian.JiraClient>();
+            // Redmine (sprint 2026-10-27-Redmine): senza stato, come i client Atlassian.
+            services.AddSingleton<Features.Services.Redmine.IRedmineClient, Features.Services.Redmine.RedmineClient>();
             services.AddSingleton<Features.Services.Atlassian.IConfluenceClient, Features.Services.Atlassian.ConfluenceClient>();
             services.AddSingleton<Services.IAtlassianConfigService, Services.AtlassianConfigService>();
 

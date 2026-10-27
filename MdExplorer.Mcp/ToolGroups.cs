@@ -47,6 +47,7 @@ public static class ToolGroups
     public const string Agents = "agents";
     public const string Code = "code";
     public const string Remote = "remote";
+    public const string Redmine = "redmine";
 
     /// <summary>Il nome dell'argomento di riga di comando, e quindi anche la chiave di configurazione.</summary>
     public const string Argument = "groups";
@@ -74,6 +75,9 @@ public static class ToolGroups
         new Group(Code, typeof(CodeTools), false,
             "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica, e dove sta il codice su questa macchina (radici).",
             b => b.WithTools<CodeTools>()),
+        new Group(Redmine, typeof(RedmineTools), false,
+            "Leggere e scrivere le issue di Redmine: le mie, cerca, una con le note, crea, aggiorna e aggiungi note.",
+            b => b.WithTools<RedmineTools>()),
         new Group(Remote, typeof(RemoteTools), false,
             "Le radici di codice remote (cartelle su un server via SSH): elencare, leggere, cercare sul server, modificare, creare, spostare e cancellare i file.",
             b => b.WithTools<RemoteTools>()),

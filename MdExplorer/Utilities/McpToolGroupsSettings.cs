@@ -169,6 +169,14 @@ namespace MdExplorer.Utilities
                 groups.Add("confluence");
             }
 
+            // Redmine (sprint 2026-10-27-Redmine, RM3): acceso quando la persona l'ha abilitato per il progetto.
+            var redmine = db.GetDal<ProjectRedmineSettings>().GetList()
+                .FirstOrDefault(s => s.Project != null && s.Project.Id == project.Id);
+            if (redmine?.Enabled == true)
+            {
+                groups.Add("redmine");
+            }
+
             var neo4j = db.GetDal<ProjectNeo4jSettings>().GetList()
                 .FirstOrDefault(s => s.Project != null && s.Project.Id == project.Id);
             if (neo4j?.Enabled == true)
