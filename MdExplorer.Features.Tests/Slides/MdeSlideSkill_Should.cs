@@ -161,9 +161,11 @@ namespace MdExplorer.Features.Tests.Slides
 
         private static Dictionary<string, string> Examples()
         {
-            var path = Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", "mde-slide", "SKILL.md");
-            var document = Markdown.Parse(File.ReadAllText(path), new MarkdownPipelineBuilder().UseYamlFrontMatter().Build());
-            return document.Descendants<FencedCodeBlock>()
+            // SKILL.md and the recipe files next to it (28/10/2026)
+            var folder = Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", "mde-slide");
+            return Directory.GetFiles(folder, "*.md").OrderBy(f => f, StringComparer.Ordinal)
+                .SelectMany(f => Markdown.Parse(File.ReadAllText(f), new MarkdownPipelineBuilder().UseYamlFrontMatter().Build())
+                    .Descendants<FencedCodeBlock>())
                 .Where(b => b.Info == "markdown" && (b.Arguments ?? "").StartsWith("esempio="))
                 .ToDictionary(b => b.Arguments.Substring("esempio=".Length).Trim(), b => b.Lines.ToString());
         }

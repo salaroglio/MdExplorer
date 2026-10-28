@@ -181,8 +181,19 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-ownership", Shared("MdExplorer.Service.skills.mde_ownership.SKILL.md"), requiresAgentCity: true),
             // Per chi scrive un template di progetto (metodo o base): sempre, il repository di un template si apre come un progetto.
             new CatalogEntry("mde-template", Shared("MdExplorer.Service.skills.mde_template.SKILL.md")),
-            new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md")),
-            new CatalogEntry("mde-slide", Shared("MdExplorer.Service.skills.mde_slide.SKILL.md")),
+            new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md"), companions: new[]
+            {
+                ("workflow.md", "MdExplorer.Service.skills.mde_plantuml.workflow.md"),
+                ("sequence.md", "MdExplorer.Service.skills.mde_plantuml.sequence.md"),
+                ("class-ed-er.md", "MdExplorer.Service.skills.mde_plantuml.class-ed-er.md"),
+                ("mindmap.md", "MdExplorer.Service.skills.mde_plantuml.mindmap.md"),
+            }),
+            new CatalogEntry("mde-slide", Shared("MdExplorer.Service.skills.mde_slide.SKILL.md"), companions: new[]
+            {
+                ("contenuto.md", "MdExplorer.Service.skills.mde_slide.contenuto.md"),
+                ("aspetto.md", "MdExplorer.Service.skills.mde_slide.aspetto.md"),
+                ("struttura-ed-esportazione.md", "MdExplorer.Service.skills.mde_slide.struttura-ed-esportazione.md"),
+            }),
             new CatalogEntry("mde-e2e", Shared("MdExplorer.Service.skills.mde_e2e.SKILL.md"), companions: new[]
             {
                 ("preparare.md", "MdExplorer.Service.skills.mde_e2e.preparare.md"),

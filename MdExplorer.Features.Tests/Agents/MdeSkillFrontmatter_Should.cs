@@ -56,5 +56,37 @@ namespace MdExplorer.Features.Tests.Agents
             }
             Assert.AreEqual(0, problems.Count, string.Join("\n", problems));
         }
+
+        /// <summary>
+        /// Una skill lunga si divide in file accanto a SKILL.md (28/10/2026): SKILL.md dice quale leggere. Un file nominato
+        /// che non c'è, uno che SKILL.md non nomina (nessuno lo legge) o uno non incorporato (non arriva ai progetti) sono
+        /// errori che si vedono solo quando l'agente lavora.
+        /// </summary>
+        [TestMethod]
+        public void Name_in_SKILL_md_every_file_next_to_it_and_ship_them_all()
+        {
+            var root = RepoRoot();
+            var csproj = File.ReadAllText(Path.Combine(root, "MdExplorer", "MdExplorer.Service.csproj"));
+            var problems = new List<string>();
+            foreach (var skill in Directory.GetFiles(Path.Combine(root, "MdExplorer", "skills"), "SKILL.md", SearchOption.AllDirectories))
+            {
+                var folder = Path.GetDirectoryName(skill);
+                var name = Path.GetFileName(folder);
+                var text = File.ReadAllText(skill);
+                if (text.Split('\n').Length > 500) problems.Add($"{name}/SKILL.md: più di 500 righe, dividila per fase o per argomento");
+                var companions = Directory.GetFiles(folder, "*.md").Select(Path.GetFileName).Where(f => f != "SKILL.md").ToList();
+                // una skill di un file solo nomina file del progetto (`workflow.md`…): il controllo vale per quelle divise
+                if (companions.Count > 0)
+                    foreach (Match m in Regex.Matches(text, @"`([a-z][a-z-]*\.md)`"))
+                        if (!File.Exists(Path.Combine(folder, m.Groups[1].Value))) problems.Add($"{name}/SKILL.md nomina {m.Groups[1].Value}, che non c'è");
+                foreach (var file in companions)
+                {
+                    if (!csproj.Contains($@"skills\{name}\{file}")) problems.Add($"{name}/{file}: manca l'EmbeddedResource nel csproj");
+                    // file-di-supporto.md di mde-e2e lo legge MdExplorer, non l'agente
+                    if (file != "file-di-supporto.md" && !text.Contains($"`{file}`")) problems.Add($"{name}/SKILL.md non nomina {file}: nessuno lo leggerebbe");
+                }
+            }
+            Assert.AreEqual(0, problems.Count, string.Join("\n", problems));
+        }
     }
 }

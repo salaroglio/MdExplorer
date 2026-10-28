@@ -65,9 +65,16 @@ namespace MdExplorer.IntegrationTests
                     ".github/skills/mde-features/SKILL.md",
                     ".github/skills/mde-ownership/SKILL.md",
                     ".github/skills/mde-plantuml/SKILL.md",
+                    ".github/skills/mde-plantuml/class-ed-er.md",
+                    ".github/skills/mde-plantuml/mindmap.md",
+                    ".github/skills/mde-plantuml/sequence.md",
+                    ".github/skills/mde-plantuml/workflow.md",
                     ".github/skills/mde-prompt-for-agents/SKILL.md",
                     ".github/skills/mde-readme/SKILL.md",
                     ".github/skills/mde-slide/SKILL.md",
+                    ".github/skills/mde-slide/aspetto.md",
+                    ".github/skills/mde-slide/contenuto.md",
+                    ".github/skills/mde-slide/struttura-ed-esportazione.md",
                     ".github/skills/mde-template/SKILL.md",
                     ".github/skills/mde-workflow/SKILL.md",
                 },
@@ -86,7 +93,7 @@ namespace MdExplorer.IntegrationTests
                 CollectionAssert.Contains(produced, $".github/skills/{name}/SKILL.md",
                     $"la skill Fuseki '{name}' deve comparire quando Fuseki è configurato");
             }
-            Assert.AreEqual(25, produced.Length, "16 skill (mde-template dal 18/10, mde-ownership dal 20/10 con la città) + 4 file delle fasi di mde-e2e (28/10) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
+            Assert.AreEqual(32, produced.Length, "16 skill (mde-template dal 18/10, mde-ownership dal 20/10 con la città) + i file accanto a SKILL.md (28/10: 4 di mde-e2e, 3 di mde-slide, 4 di mde-plantuml) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
         }
 
         [TestMethod]
@@ -144,9 +151,16 @@ namespace MdExplorer.IntegrationTests
                     ".opencode/skills/mde-features/SKILL.md",
                     ".opencode/skills/mde-ownership/SKILL.md",
                     ".opencode/skills/mde-plantuml/SKILL.md",
+                    ".opencode/skills/mde-plantuml/class-ed-er.md",
+                    ".opencode/skills/mde-plantuml/mindmap.md",
+                    ".opencode/skills/mde-plantuml/sequence.md",
+                    ".opencode/skills/mde-plantuml/workflow.md",
                     ".opencode/skills/mde-prompt-for-agents/SKILL.md",
                     ".opencode/skills/mde-readme/SKILL.md",
                     ".opencode/skills/mde-slide/SKILL.md",
+                    ".opencode/skills/mde-slide/aspetto.md",
+                    ".opencode/skills/mde-slide/contenuto.md",
+                    ".opencode/skills/mde-slide/struttura-ed-esportazione.md",
                     ".opencode/skills/mde-template/SKILL.md",
                     ".opencode/skills/mde-workflow/SKILL.md",
                 },
