@@ -25,6 +25,8 @@ import { UnifiedSettingsDialogComponent } from '../components/unified-settings-d
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
 import { versionInfo } from '../../environments/version'; // Importa la versione
 import { TranslateService } from '@ngx-translate/core';
+import { ProjectCreateConfigOptions, TemplateShowcaseChoice } from './dialogs/project-create-config/project-create-config.model';
+import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
 
 @Component({
   selector: 'app-projects',
@@ -74,7 +76,33 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public dataSource: Observable<MdProject[]>
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
+  /** Avvisi di avvio del servizio (Java e simili): api/Diagnostics/StartupNotices, chiusi uno per uno. */
+  startupNotices: any[] = [];
+
+  loadStartupNotices(): void {
+    this.http.get<any[]>('../api/Diagnostics/StartupNotices').subscribe({
+      next: n => this.startupNotices = n || [],
+      error: () => this.startupNotices = []
+    });
+  }
+
+  dismissNotice(n: any): void {
+    this.http.post(`../api/Diagnostics/StartupNotices/${n.id}/dismiss`, {}).subscribe({
+      next: () => this.startupNotices = this.startupNotices.filter(x => x.id !== n.id),
+      error: () => this.startupNotices = this.startupNotices.filter(x => x.id !== n.id)
+    });
+  }
+
+  noticeText(n: any): string {
+    const params = { ...(n.params || {}) };
+    if (params.problemKind) {
+      params.problem = this.translate.instant('PROJECTS.NOTICE_PROBLEM_' + String(params.problemKind).toUpperCase(), params);
+    }
+    return this.translate.instant('PROJECTS.NOTICE_' + String(n.kind || '').toUpperCase().replace(/-/g, '_'), params);
+  }
+
   ngOnInit(): void {
+    this.loadStartupNotices();
     // Check P2P availability
     this.p2pService.isAvailable$.subscribe(available => {
       this.isP2PAvailable = available;
@@ -297,7 +325,36 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Le card delle azioni aperte sopra la lista, quando la finestra è stretta e sono una colonnina di icone. */
+  actionsExpanded = false;
+  /** La stessa larghezza della regola CSS che riduce le azioni a una colonnina (projects.component.scss). */
+  private readonly compactQuery = window.matchMedia('(max-width: 1024px)');
+
+  isCompact(): boolean { return this.compactQuery.matches; }
+
+  /**
+   * Un clic su una card delle azioni. Con la colonnina chiusa apre le card, così si legge che cosa fa ognuna; con le
+   * card aperte (o con la finestra larga) esegue l'azione.
+   */
+  act(action: 'prepareToClone' | 'openNewFolder' | 'openSettings' | 'openP2PManager'): void {
+    if (this.isCompact() && !this.actionsExpanded) { this.actionsExpanded = true; return; }
+    this.actionsExpanded = false;
+    this[action]();
+  }
+
+  /**
+   * «Crea nuovo progetto»: prima la vetrina dei template (sprint 2026-10-19-Vetrina-Dei-Template.md, VD1), poi la
+   * cartella, poi la configurazione di ciò che resta.
+   */
   openNewFolder(): void {
+    this.dialog.open(TemplateShowcaseDialogComponent, {
+      width: '90vw', height: '90vh', maxWidth: '90vw', disableClose: true,
+    }).afterClosed().subscribe((choice: TemplateShowcaseChoice | null) => {
+      if (choice) this.chooseFolder(choice);
+    });
+  }
+
+  private chooseFolder(choice: TemplateShowcaseChoice): void {
     let data = new ShowFileMetadata();
     data.start = null;
     data.title = this.translate.instant('PROJECTS.SELECT_FOLDER');
@@ -317,18 +374,48 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         const configDialogRef = this.dialog.open(ProjectCreateConfigDialogComponent, {
           width: '500px',
           disableClose: true,
-          data: { projectPath: result.data }
+          data: { projectPath: result.data, choice }
         });
 
         configDialogRef.afterClosed().subscribe(config => {
-          if (config) {
-            // Create project with configuration options
-            this.projectService.createProjectWithConfig(config);
-          }
+          if (!config) return;
+          if (config.template) { this.createFromTemplates(config); return; }
+          // Create project with configuration options
+          this.projectService.createProjectWithConfig(config);
         });
       }
     });
 
+  }
+
+  /**
+   * Il progetto da template (P4): nella cartella nuova dentro quella scelta, dalla base (o dal primo metodo) più gli altri
+   * metodi; poi si apre. Il servizio dice perché, se non si può, e in quel caso non lascia niente.
+   */
+  private async createFromTemplates(config: ProjectCreateConfigOptions): Promise<void> {
+    const t = config.template!;
+    const separator = config.projectPath.includes('\\') && !config.projectPath.includes('/') ? '\\' : '/';
+    const path = config.projectPath.replace(/[\\/]+$/, '') + separator + t.folderName;
+    const urls = [...(t.baseUrl ? [t.baseUrl] : []), ...t.methodUrls];
+    const waiting = this.snackBar.open(this.translate.instant('PROJECT_CONFIG.TEMPLATE_CREATING', { path }), undefined, { verticalPosition: 'top' });
+    try {
+      const created = await this.projectService.createFromTemplate({
+        path, templateUrl: urls[0], methods: urls.slice(1), theory: t.theoryUrls, language: t.language, example: t.example,
+        agentCity: t.agentCity, agentCityGuide: t.agentCityGuide,
+        originUrl: t.originUrl || undefined,
+        // Il motore lo sceglie chi crea; la demo porta il suo.
+        harness: t.asksEngine ? config.harness : undefined,
+      });
+      waiting.dismiss();
+      this.projectService.setNewFolderProject(created.path);
+      // Le note (ruoli aperti, workflow fermi…) restano finché non si chiudono: dicono che cosa resta da fare.
+      if (created.notes?.length)
+        this.snackBar.open(created.notes.join(' '), 'OK', { verticalPosition: 'top' });
+    } catch (err: any) {
+      waiting.dismiss();
+      this.snackBar.open(this.translate.instant('PROJECT_CONFIG.TEMPLATE_FAILED', { error: err?.message || String(err) }), 'OK',
+        { verticalPosition: 'top', panelClass: ['error-snackbar'] });
+    }
   }
 
   openSettings(): void {

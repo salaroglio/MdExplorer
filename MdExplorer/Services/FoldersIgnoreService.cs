@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -15,16 +15,19 @@ namespace MdExplorer.Service.Services
     {
         private readonly ILogger<FoldersIgnoreService> _logger;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
+        private readonly MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules _gitIgnore;
 
         // Cache configurations per project path to avoid re-reading file on every call
         private readonly ConcurrentDictionary<string, FoldersIgnoreConfiguration> _configurationCache = new();
 
         public FoldersIgnoreService(
             ILogger<FoldersIgnoreService> logger,
-            IFileSystemWatcherManager fileSystemWatcherManager)
+            IFileSystemWatcherManager fileSystemWatcherManager,
+            MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules gitIgnore)
         {
             _logger = logger;
             _fileSystemWatcherManager = fileSystemWatcherManager;
+            _gitIgnore = gitIgnore;
         }
 
         /// <summary>
@@ -116,8 +119,70 @@ namespace MdExplorer.Service.Services
         /// <param name="folderPath">Full path to the folder to check</param>
         /// <param name="projectPath">Project root path</param>
         /// <returns>True if folder should be ignored</returns>
+        /// <summary>
+        /// Cartelle escluse SEMPRE, senza bisogno che qualcuno le configuri. Oggi ce n'è una:
+        /// i posti di lavoro degli agenti. Vivono dentro il progetto (scelta del 2026-08-02) e
+        /// ognuno contiene una <b>copia intera della documentazione</b>: senza questa esclusione
+        /// l'indice conterrebbe lo stesso documento tante volte quanti sono i worktree, la
+        /// ricerca sarebbe piena di doppioni e l'albero mostrerebbe
+        /// <c>.worktrees/…/llm-wiki/log.md</c> come se fosse un tuo file.
+        /// </summary>
+        public const string AgentWorktreesFolder = ".worktrees";
+
+        /// <summary>
+        /// True quando <paramref name="fullPath"/> sta dentro i posti di lavoro degli agenti.
+        /// <para>
+        /// Serve dove il controllo per cartella non arriva: un file markdown non attraversa la
+        /// catena delle cartelle ignorate, quindi senza questo un <c>.agent.md</c> copiato dentro
+        /// un worktree verrebbe registrato come un agente in più — un gemello dell'originale, con
+        /// lo stesso nome, che risponderebbe alle stesse convocazioni.
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// Il file sta nella cartella dei template del progetto (<c>.mde-template/</c>): una scheda d'agente lì è di un
+        /// template, e conta solo con la città degli agenti accesa (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C3).
+        /// </summary>
+        public static bool IsInsideTemplateZones(string fullPath, string projectPath)
+        {
+            if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(projectPath)) return false;
+            var root = Path.Combine(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), ".mde-template");
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || fullPath.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsInsideAgentWorktrees(string fullPath, string projectPath)
+        {
+            if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(projectPath))
+            {
+                return false;
+            }
+
+            var root = Path.Combine(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                AgentWorktreesFolder);
+
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || fullPath.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase);
+        }
+
         public bool ShouldIgnoreFolderForProject(string folderPath, string projectPath)
         {
+            // Regola incorporata: vale anche quando il progetto non ha (ancora) una
+            // configurazione, che è precisamente il caso di un progetto appena aperto.
+            if (string.Equals(Path.GetFileName(folderPath), AgentWorktreesFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // Ciò che git ignora non è documentazione (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore, W2): vale anche
+            // senza .mdFoldersIgnore, che può solo aggiungere cartelle. Tranne le skill mde-* dei motori, che MDE esclude da
+            // git ma devono vedersi (26/10).
+            if (Path.IsPathRooted(folderPath) && _gitIgnore.IsIgnored(folderPath, projectPath)
+                && !MdExplorer.Features.Services.GitIgnore.MdeHarnessAssets.IsInside(folderPath, projectPath))
+            {
+                return true;
+            }
+
             var configuration = GetConfiguration(projectPath);
 
             if (configuration == null)
@@ -156,11 +221,12 @@ namespace MdExplorer.Service.Services
 
         // Defensive: MdExplorer-managed folders must always be hidden from the tree, even if the
         // user's .mdFoldersIgnore predates them (legacy projects opened with a build that introduced
-        // new managed folders like .mde-doc).
+        // new managed folders like .mde-doc). .mde-languages: i pacchetti di linguaggio li gestisce la finestra «Ambiente di
+        // sviluppo»; i loro .md (skill, prompt) non sono documentazione del progetto.
         private static FoldersIgnoreConfiguration EnsureMdeManagedFolders(FoldersIgnoreConfiguration config)
         {
             config.IgnoredFolders ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code", ".mde-languages" })
             {
                 if (!config.IgnoredFolders.Any(f => string.Equals(f, managed, StringComparison.OrdinalIgnoreCase)))
                 {

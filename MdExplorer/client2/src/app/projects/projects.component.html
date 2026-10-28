@@ -7,6 +7,21 @@
 
       <!-- Left Column: Recent Projects -->
       <div class="left-column">
+      <!-- Avvisi di avvio (Java e simili): restano finché non si chiudono -->
+      <div class="startup-notices" *ngIf="startupNotices.length > 0">
+        <div class="startup-notice" *ngFor="let n of startupNotices"
+             [class.level-warning]="n.level === 'warning'" [class.level-error]="n.level === 'error'">
+          <mat-icon>{{ n.level === 'error' ? 'error' : (n.level === 'warning' ? 'warning' : 'info') }}</mat-icon>
+          <span class="notice-text">{{ noticeText(n) }}</span>
+          <button mat-stroked-button color="primary" *ngIf="(n.kind || '').startsWith('java')" (click)="openSettings()">
+            {{ 'PROJECTS.NOTICE_OPEN_SETTINGS' | translate }}
+          </button>
+          <button mat-icon-button (click)="dismissNotice(n)" [matTooltip]="'PROJECTS.NOTICE_DISMISS' | translate">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
         <!-- Section visible whenever there is at least one registered project,
              regardless of the current search filter result. This keeps the
              search-field reachable even when the user types a query that
@@ -132,8 +147,11 @@
         </div>
       </div>
 
+      <!-- Finestra stretta: le azioni sono una colonnina di icone; premendola si aprono le card, sopra la lista. -->
+      <div class="actions-backdrop" *ngIf="actionsExpanded" (click)="actionsExpanded = false"></div>
+
       <!-- Right Column: Quick Actions -->
-      <div class="right-column">
+      <div class="right-column" [class.expanded]="actionsExpanded">
         <h2 class="section-title">
           <mat-icon class="section-icon">flash_on</mat-icon>
           {{ 'PROJECTS.QUICK_ACTIONS' | translate }}
@@ -143,7 +161,8 @@
         <div class="actions-grid">
 
       <!-- Clone Repository Card -->
-      <mat-card class="action-card clone-card" data-test="clone-button" (click)="prepareToClone()">
+      <mat-card class="action-card clone-card" data-test="clone-button" (click)="act('prepareToClone')"
+                [matTooltip]="'PROJECTS.CLONE_REPO' | translate" [matTooltipDisabled]="!isCompact() || actionsExpanded" matTooltipPosition="left">
         <mat-card-content class="card-content">
           <div class="icon-wrapper clone-icon">
             <mat-icon>cloud_download</mat-icon>
@@ -159,7 +178,8 @@
       </mat-card>
 
       <!-- Create Project Card -->
-      <mat-card class="action-card create-card" data-test="new-folder-button" (click)="openNewFolder()">
+      <mat-card class="action-card create-card" data-test="new-folder-button" (click)="act('openNewFolder')"
+                [matTooltip]="'PROJECTS.CREATE_NEW' | translate" [matTooltipDisabled]="!isCompact() || actionsExpanded" matTooltipPosition="left">
         <mat-card-content class="card-content">
           <div class="icon-wrapper create-icon">
             <mat-icon>create_new_folder</mat-icon>
@@ -175,7 +195,8 @@
       </mat-card>
 
       <!-- Settings Card -->
-      <mat-card class="action-card settings-card" data-test="settings-button" (click)="openSettings()">
+      <mat-card class="action-card settings-card" data-test="settings-button" (click)="act('openSettings')"
+                [matTooltip]="'SETTINGS.TITLE' | translate" [matTooltipDisabled]="!isCompact() || actionsExpanded" matTooltipPosition="left">
         <mat-card-content class="card-content">
           <div class="icon-wrapper settings-icon">
             <mat-icon>settings</mat-icon>
@@ -191,7 +212,8 @@
       </mat-card>
 
       <!-- P2P Sharing Card -->
-      <mat-card class="action-card p2p-card" *ngIf="isP2PAvailable" data-test="p2p-button" (click)="openP2PManager()">
+      <mat-card class="action-card p2p-card" *ngIf="isP2PAvailable" data-test="p2p-button" (click)="act('openP2PManager')"
+                [matTooltip]="'PROJECTS.P2P_SHARING' | translate" [matTooltipDisabled]="!isCompact() || actionsExpanded" matTooltipPosition="left">
         <mat-card-content class="card-content">
           <div class="icon-wrapper p2p-icon">
             <mat-icon>share</mat-icon>

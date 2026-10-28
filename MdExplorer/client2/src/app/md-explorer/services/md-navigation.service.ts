@@ -45,7 +45,9 @@ export class MdNavigationService {
     }
     if (
       (this.navigationGhost.length - 1) >= 0 //check its not at beginning of navigation
-      && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath) {
+      && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath
+      // The same deck shown with other pages is another entry.
+      && (currentMdFile.slidePages || '') == (this.navigationGhost[this.navigationGhost.length - 1].slidePages || '')) {
       // Same file as current, skipping
       return; //DO NOTHING
     }
@@ -54,6 +56,24 @@ export class MdNavigationService {
     this.navigation = this.deepCopyArray(this.navigationGhost);
     this.currentIndex = this.navigationGhost.length - 1;// index i 0 based, length is 1 based
     // Navigation updated, length: " + this.navigation.length
+  }
+
+  /**
+   * The slide deck on screen is on this slide (reveal.js's '#/h/v'): the current history entry
+   * keeps it, so the title-bar arrows reopen the deck there. Only when the entry is that file —
+   * a late message from a deck already left must not land on another entry.
+   */
+  public rememberSlide(relativePath: string, slideHash: string): void {
+    const same = (file: MdFile) => !!file && MdNavigationService.normalize(file.relativePath) === MdNavigationService.normalize(relativePath);
+    const current = this.navigationGhost[this.navigationGhost.length - 1];
+    if (same(current)) current.slideHash = slideHash;
+    // navigation is a copy of navigationGhost: the same entry lives in both.
+    const entry = this.navigation[this.currentIndex];
+    if (same(entry)) entry.slideHash = slideHash;
+  }
+
+  private static normalize(path: string | undefined): string {
+    return (path || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
   }
 
   public deepCopyArray<T>(array: T[]): T[] {

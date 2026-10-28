@@ -15,6 +15,12 @@ namespace MdExplorer.Features.Execution
         /// Allowed values: <c>"file"</c> (single file), <c>"dir"</c> (folder). Null = plain text input.
         /// </summary>
         public string Picker { get; set; }
+        /// <summary>
+        /// Closed set of admissible values, declared in the <c>@param</c> description as an
+        /// alternation (<c>cobol | pli</c>). When present the UI renders a dropdown instead of a
+        /// free-text input. Null = free text.
+        /// </summary>
+        public List<string> Options { get; set; }
     }
 
     /// <summary>
@@ -78,6 +84,24 @@ namespace MdExplorer.Features.Execution
             @"\btype[\t ]*[:=][\t ]*(out-file|output-file|save-file|savefile|file|dir|folder|directory|text|string)\b",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // An alternation of admissible values — `cobol | pli`, `dev|staging|prod`.
+        // A value is a single word: spaces would make the list indistinguishable from prose
+        // that merely happens to contain a pipe.
+        private const string OptionListPattern =
+            @"[A-Za-z0-9][A-Za-z0-9._+/-]*(?:[\t ]*\|[\t ]*[A-Za-z0-9][A-Za-z0-9._+/-]*)+";
+
+        // Explicit form: `options: a|b|c` (also values/choices/one of). Stripped out of the
+        // description, whatever else surrounds it.
+        private static readonly Regex OptionsLabeledRegex = new(
+            @"\b(?:options|values|choices|one[\t ]+of)[\t ]*[:=][\t ]*(?<list>" + OptionListPattern + @")",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        // Bare form: the description IS the list, optionally bracketed — `— cobol | pli`.
+        // Anchored on the whole (already cleaned) description so a pipe inside prose is ignored.
+        private static readonly Regex OptionsBareRegex = new(
+            @"^[\[\(]?[\t ]*(?<list>" + OptionListPattern + @")[\t ]*[\]\)]?$",
+            RegexOptions.Compiled);
+
         public static List<ExecutionParameter> Extract(string code, string language)
         {
             var parameters = new List<ExecutionParameter>();
@@ -92,6 +116,7 @@ namespace MdExplorer.Features.Execution
 
                 string defaultValue = null;
                 string picker = null;
+                List<string> options = null;
                 var hasSecretKeyword = false;
                 if (!string.IsNullOrEmpty(description))
                 {
@@ -114,10 +139,36 @@ namespace MdExplorer.Features.Execution
                         hasSecretKeyword = true;
                         description = SecretKeywordRegex.Replace(description, string.Empty);
                     }
+                    var labeledOptions = OptionsLabeledRegex.Match(description);
+                    if (labeledOptions.Success)
+                    {
+                        options = SplitOptions(labeledOptions.Groups["list"].Value);
+                        description = OptionsLabeledRegex.Replace(description, string.Empty);
+                    }
                     // Clean up artefacts left by stripping `default: x` / `secret` / `type: x` out
                     // of structures like "target env (default: staging)" → "target env ()".
                     description = Regex.Replace(description, @"\(\s*\)|\[\s*\]", string.Empty);
                     description = Regex.Replace(description, @"\s+", " ").Trim(' ', '\t', ',', ';');
+
+                    // Bare form — checked last, on the cleaned description, because the whole of
+                    // it must be the list: `# @param DIALECT — cobol | pli (default: pli)`.
+                    if (options == null)
+                    {
+                        var bareOptions = OptionsBareRegex.Match(description);
+                        if (bareOptions.Success)
+                        {
+                            options = SplitOptions(bareOptions.Groups["list"].Value);
+                            description = string.Empty; // the dropdown already shows the values
+                        }
+                    }
+                }
+
+                // Align the declared default with the option it names, so a casing slip
+                // (`default: PLI` against `cobol | pli`) still preselects the dropdown entry.
+                if (options != null && !string.IsNullOrEmpty(defaultValue))
+                {
+                    var declaredOption = options.Find(o => string.Equals(o, defaultValue, System.StringComparison.OrdinalIgnoreCase));
+                    if (declaredOption != null) defaultValue = declaredOption;
                 }
 
                 AddOrEnrich(parameters, byNormalizedName, new ExecutionParameter
@@ -128,6 +179,7 @@ namespace MdExplorer.Features.Execution
                     Description = string.IsNullOrWhiteSpace(description) ? null : description,
                     Kind = "doc",
                     Picker = picker,
+                    Options = options,
                 });
             }
 
@@ -227,6 +279,8 @@ namespace MdExplorer.Features.Execution
                     existing.DefaultValue = incoming.DefaultValue;
                 if (string.IsNullOrEmpty(existing.Picker) && !string.IsNullOrEmpty(incoming.Picker))
                     existing.Picker = incoming.Picker;
+                if ((existing.Options == null || existing.Options.Count == 0) && incoming.Options != null)
+                    existing.Options = incoming.Options;
                 existing.IsSecret = existing.IsSecret || incoming.IsSecret;
                 if (existing.Kind == "doc" && incoming.Kind != "doc")
                     existing.Kind = incoming.Kind;
@@ -234,6 +288,23 @@ namespace MdExplorer.Features.Execution
             }
             bucket.Add(incoming);
             index[key] = incoming;
+        }
+
+        /// <summary>
+        /// Turns <c>"cobol | pli"</c> into <c>["cobol", "pli"]</c>, dropping duplicates
+        /// (case-insensitive) while keeping the order the author wrote.
+        /// </summary>
+        private static List<string> SplitOptions(string list)
+        {
+            var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            var values = new List<string>();
+            foreach (var raw in list.Split('|'))
+            {
+                var value = raw.Trim();
+                if (value.Length == 0) continue;
+                if (seen.Add(value)) values.Add(value);
+            }
+            return values.Count > 1 ? values : null;
         }
 
         private static string NormalizePicker(string raw)
@@ -253,7 +324,7 @@ namespace MdExplorer.Features.Execution
             };
         }
 
-        private static string NormalizeKey(string raw)
+        internal static string NormalizeKey(string raw)
         {
             var buffer = new System.Text.StringBuilder(raw.Length);
             foreach (var ch in raw)

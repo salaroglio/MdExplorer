@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { GitChatService } from '../../services/git-chat.service';
-import { ChatMessage, PresenceInfo, ChatSettings, ChatConnectionState } from '../../models/chat.models';
+import { ChatMessage, PresenceInfo, ChatSettings, ChatConnectionState, RoomInfo } from '../../models/chat.models';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
 
 @Component({
@@ -24,6 +24,29 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
   settings: ChatSettings = { notificationsEnabled: true, soundEnabled: true };
   connectionState: ChatConnectionState = 'disconnected';
+  roomInfo: RoomInfo | null = null;
+
+  /** Il testo dell'avviso sulla chiave della stanza, per lo stato che ha detto room-info. */
+  get keyNoticeKey(): string {
+    switch (this.roomInfo?.keyState) {
+      case 'notPushed': return 'GIT_CHAT.KEY_NOT_PUSHED';
+      case 'notPulled': return 'GIT_CHAT.KEY_NOT_PULLED';
+      case 'differs': return 'GIT_CHAT.KEY_DIFFERS';
+      default: return 'GIT_CHAT.KEY_NOT_COMMITTED';
+    }
+  }
+
+  /** Il motivo del rifiuto del relay, come chiave di traduzione; null se non c'è un codice. */
+  get relayErrorKey(): string | null {
+    switch (this.roomInfo?.relayCode) {
+      case undefined: case null: return null;
+      case 'room-not-registered': return 'GIT_CHAT.RELAY_ROOM_NOT_REGISTERED';
+      case 'bad-token': return 'GIT_CHAT.RELAY_BAD_TOKEN';
+      case 'bad-master-key': return 'GIT_CHAT.RELAY_BAD_MASTER_KEY';
+      case 'unreachable': return 'GIT_CHAT.RELAY_UNREACHABLE';
+      default: return 'GIT_CHAT.RELAY_REFUSED';
+    }
+  }
 
   inputMessage = '';
   showSettings = false;
@@ -61,6 +84,10 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.chatService.settings$.subscribe(settings => {
         this.settings = settings;
       })
+    );
+
+    this.subscriptions.push(
+      this.chatService.roomInfo$.subscribe(info => this.roomInfo = info)
     );
 
     // Subscribe to connection state

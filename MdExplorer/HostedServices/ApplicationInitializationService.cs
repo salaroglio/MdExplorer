@@ -39,6 +39,21 @@ namespace MdExplorer.Service.HostedServices
                 // Create a scope to resolve scoped services
                 using (var scope = _serviceProvider.CreateScope())
                 {
+                    // Il trasloco delle credenziali git dal DB al credential helper di git: una volta,
+                    // idempotente, mai fatale per l'avvio. Ciò che non si sposta resta e lo dice nel log.
+                    try
+                    {
+                        var moved = await scope.ServiceProvider
+                            .GetRequiredService<MdExplorer.Services.Git.IGitCredentialMoveService>()
+                            .RunAsync(cancellationToken);
+                        if (!moved.NothingLeft)
+                            _logger.LogInformation("[trasloco] credenziali git: {Moved} spostate, {Failed} da sistemare", moved.Moved, moved.Failed);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[trasloco] credenziali git: fallito, si riprova al prossimo avvio");
+                    }
+
                     var session = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                     
                     // Check and auto-discover IDEs (VS Code and IntelliJ IDEA)
@@ -144,92 +159,9 @@ namespace MdExplorer.Service.HostedServices
                         _logger.LogWarning($"Configured IntelliJ IDEA path does not exist: {intellijSetting.ValueString}. Consider re-running auto-discovery.");
                     }
 
-                    // Check and auto-discover Java if needed
-                    _logger.LogInformation("Checking Java configuration...");
-                    
-                    var javaSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "JavaPath");
-                    
-                    if (javaSetting == null || string.IsNullOrWhiteSpace(javaSetting.ValueString))
-                    {
-                        _logger.LogInformation("JavaPath is empty or not found. Starting Java auto-discovery...");
-                        
-                        var discoveredJavaPath = JavaDiscovery.DiscoverJavaPath();
-                        
-                        if (!string.IsNullOrEmpty(discoveredJavaPath))
-                        {
-                            _logger.LogInformation($"Java discovered at: {discoveredJavaPath}");
-                            
-                            // Verify Java is working
-                            var javaInfo = JavaDiscovery.GetJavaInfo(discoveredJavaPath);
-                            if (javaInfo.IsValid)
-                            {
-                                _logger.LogInformation($"Java version: {javaInfo.Version}");
-                                
-                                // Save to database
-                                session.BeginTransaction();
-                                
-                                if (javaSetting == null)
-                                {
-                                    javaSetting = new Setting
-                                    {
-                                        Id = Guid.NewGuid(),
-                                        Name = "JavaPath",
-                                        ValueString = discoveredJavaPath
-                                    };
-                                }
-                                else
-                                {
-                                    javaSetting.ValueString = discoveredJavaPath;
-                                }
-                                
-                                settingsDal.Save(javaSetting);
-                                session.Commit();
-                                
-                                _logger.LogInformation($"Java path saved to database: {discoveredJavaPath}");
-                            }
-                            else
-                            {
-                                _logger.LogWarning($"Java found at {discoveredJavaPath} but validation failed");
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Java auto-discovery failed. No Java installation found. PlantUML features will not be available.");
-                        }
-                    }
-                    else if (File.Exists(javaSetting.ValueString))
-                    {
-                        _logger.LogInformation($"Java already configured at: {javaSetting.ValueString}");
-                        
-                        // Verify it's still working
-                        var javaInfo = JavaDiscovery.GetJavaInfo(javaSetting.ValueString);
-                        if (javaInfo.IsValid)
-                        {
-                            _logger.LogInformation($"Java version: {javaInfo.Version}");
-                        }
-                        else
-                        {
-                            _logger.LogWarning($"Configured Java path exists but is not valid. Consider re-running auto-discovery.");
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"Configured Java path does not exist: {javaSetting.ValueString}. Starting auto-discovery...");
-                        
-                        // Try auto-discovery
-                        var discoveredJavaPath = JavaDiscovery.DiscoverJavaPath();
-                        if (!string.IsNullOrEmpty(discoveredJavaPath))
-                        {
-                            _logger.LogInformation($"Java discovered at: {discoveredJavaPath}");
-                            
-                            session.BeginTransaction();
-                            javaSetting.ValueString = discoveredJavaPath;
-                            settingsDal.Save(javaSetting);
-                            session.Commit();
-                            
-                            _logger.LogInformation($"Java path updated in database: {discoveredJavaPath}");
-                        }
-                    }
+                    // Java: il controllo di salute è in Services.Java.JavaHealthService (12/10/2026): parte in sfondo
+                    // dopo che il server è in ascolto e sostituisce un JavaPath vecchio scritto dalla scoperta automatica.
+                    _logger.LogInformation("Java: controllo di salute rimandato a JavaHealthService (dopo l'avvio del server)");
                 }
             }
             catch (Exception ex)

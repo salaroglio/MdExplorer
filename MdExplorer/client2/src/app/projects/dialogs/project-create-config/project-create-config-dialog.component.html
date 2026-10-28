@@ -10,17 +10,61 @@
 
     <mat-divider></mat-divider>
 
-    <div class="config-options">
-      <div class="option-item">
-        <mat-checkbox [(ngModel)]="config.addCopilotInstructions" color="primary">
-          <strong>{{ 'PROJECT_CONFIG.ADD_COPILOT' | translate }}</strong>
-          <div class="option-description">
-            {{ 'PROJECT_CONFIG.ADD_COPILOT_DESC' | translate }}
-          </div>
+    <!-- Da template: base e metodi li ha scelti la vetrina; qui la cartella nuova, il repository del gruppo, l'esempio. -->
+    <div class="option-item template-choice" *ngIf="fromTemplate">
+      <div class="template-fields">
+        <p class="chosen"><mat-icon>dashboard_customize</mat-icon> {{ 'TEMPLATE_SHOWCASE.CHOSEN' | translate:{ titles: chosenTitles } }}</p>
+
+        <mat-checkbox [(ngModel)]="templateExample" color="primary">
+          {{ 'PROJECT_CONFIG.TEMPLATE_EXAMPLE' | translate }}
         </mat-checkbox>
+
+        <label class="group-label" for="template-folder"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_FOLDER' | translate }}</strong></label>
+        <mat-form-field appearance="outline" class="full-width">
+          <input matInput id="template-folder" [(ngModel)]="folderName" placeholder="gara-2027">
+        </mat-form-field>
+        <div class="option-description">{{ 'PROJECT_CONFIG.TEMPLATE_FOLDER_DESC' | translate:{ path: config.projectPath } }}</div>
+
+        <label class="group-label" for="template-origin"><strong>{{ 'PROJECT_CONFIG.TEMPLATE_ORIGIN' | translate }}</strong></label>
+        <mat-form-field appearance="outline" class="full-width">
+          <input matInput id="template-origin" [(ngModel)]="originUrl" placeholder="https://github.com/…/gara-2027.git">
+        </mat-form-field>
+        <div class="option-description">{{ 'PROJECT_CONFIG.TEMPLATE_ORIGIN_DESC' | translate }}</div>
+
+        <p class="option-description error-text" *ngIf="templateError">{{ templateError }}</p>
+      </div>
+    </div>
+
+    <!-- Il motore: sempre, tranne con la demo che porta il suo. -->
+    <div class="config-options" *ngIf="!fromTemplate || data.choice.asksEngine">
+      <div class="option-item">
+        <label class="group-label" id="harness-label">
+          <strong>{{ 'PROJECT_CONFIG.HARNESS' | translate }}</strong>
+        </label>
+        <div class="option-description group-description">
+          {{ 'PROJECT_CONFIG.HARNESS_DESC' | translate }}
+        </div>
+
+        <mat-radio-group
+          class="harness-group"
+          aria-labelledby="harness-label"
+          [(ngModel)]="config.harness">
+          <mat-radio-button
+            *ngFor="let option of harnessOptions"
+            [value]="option.value"
+            class="harness-radio">
+            <span class="harness-label">
+              <mat-icon class="harness-icon">{{ option.icon }}</mat-icon>
+              <strong>{{ option.labelKey | translate }}</strong>
+            </span>
+            <div class="option-description">
+              {{ option.descKey | translate }}
+            </div>
+          </mat-radio-button>
+        </mat-radio-group>
       </div>
 
-      <div class="option-item">
+      <div class="option-item" *ngIf="!fromTemplate">
         <mat-checkbox [(ngModel)]="config.initializeGit" color="primary">
           <strong>{{ 'PROJECT_CONFIG.INIT_GIT' | translate }}</strong>
           <div class="option-description">

@@ -1,4 +1,4 @@
-using MdExplorer.Abstractions.DB;
+﻿using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Abstractions.Services;
@@ -41,6 +41,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private readonly IServiceProvider _serviceProvider;
         private readonly IMarkdownFtsService _markdownFtsService;
         private FoldersIgnoreService _foldersIgnoreService; // lazy - circular dependency on IFileSystemWatcherManager
+        private IndexingPipeline.ITextIndexingService _textIndexingService; // lazy - avoids DI cycle via FoldersIgnoreService
+        // Per-connection debounce timers coalescing text-file FS bursts into a single
+        // incremental text reindex (isolated session → never contends with the md path).
+        private readonly ConcurrentDictionary<string, System.Threading.Timer> _textReindexTimers = new();
+        // Per-folder debounce of "folderContentChanged": a test run writes screenshots and scripts in bursts,
+        // and the tree needs one update per folder, not one per file.
+        private readonly ConcurrentDictionary<string, System.Threading.Timer> _folderContentTimers = new();
+        private static readonly TimeSpan FolderContentDebounce = TimeSpan.FromMilliseconds(400);
 
         public FileSystemWatcherManager(
             IHubContext<MonitorMDHub> hubContext,
@@ -51,8 +59,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             IHelper helper,
             IMdIgnoreService mdIgnoreService,
             IServiceProvider serviceProvider,
-            IMarkdownFtsService markdownFtsService)
+            IMarkdownFtsService markdownFtsService,
+            MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules gitIgnore)
         {
+            _gitIgnore = gitIgnore;
             _hubContext = hubContext;
             _logger = logger;
             _databaseManager = databaseManager;
@@ -64,10 +74,129 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             _markdownFtsService = markdownFtsService;
         }
 
+        private readonly MdExplorer.Features.Services.GitIgnore.IGitIgnoreRules _gitIgnore;
+
+        /// <summary>
+        /// Quali cartelle sorvegliare (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore, W1/W5): non .git, non i posti di lavoro
+        /// degli agenti, non ciò che git ignora, non ciò che .mdFoldersIgnore e .mdignore nascondono — tranne .mde-doc e
+        /// .mde-code, nascoste dall'albero ma con eventi che servono (.kg.cypher, script del grafo).
+        /// </summary>
+        private bool ShouldWatchDirectory(string projectPath, string dir)
+        {
+            var name = Path.GetFileName(dir);
+            if (string.Equals(name, ".git", StringComparison.OrdinalIgnoreCase)) return false;
+            if (FoldersIgnoreService.IsInsideAgentWorktrees(dir, projectPath)) return false;
+            if (_gitIgnore.IsIgnored(dir, projectPath) && !MdExplorer.Features.Services.GitIgnore.MdeHarnessAssets.IsInside(dir, projectPath)) return false;
+            if (IsInsideManagedEventFolder(dir, projectPath)) return true;
+            if (GetFoldersIgnoreService().ShouldIgnoreFolderForProject(dir, projectPath)) return false;
+            if (_mdIgnoreService.ShouldIgnorePath(dir, projectPath)) return false;
+            return true;
+        }
+
+        private static bool IsInsideManagedEventFolder(string dir, string projectPath)
+        {
+            var rel = Path.GetRelativePath(projectPath, dir).Replace('\\', '/');
+            var first = rel.Split('/')[0];
+            return first == ".mde-doc" || first == ".mde-code";
+        }
+
+        /// <summary>I file che cambiano le regole: .gitignore (ovunque), .mdFoldersIgnore, .mdignore.</summary>
+        private static bool IsIgnoreRulesFile(string fullPath)
+        {
+            var name = Path.GetFileName(fullPath);
+            return name == ".gitignore" || name == ".mdFoldersIgnore" || name == ".mdignore";
+        }
+
+        /// <summary>
+        /// Le regole sono cambiate (W6): nuova fotografia di git, cartelle sorvegliate rifatte, e l'albero si ricarica perché
+        /// ciò che si vede è cambiato.
+        /// </summary>
+        private void OnIgnoreRulesChanged(WatcherContext context, string fullPath)
+        {
+            try
+            {
+                _gitIgnore.Invalidate(context.ProjectPath);
+                GetFoldersIgnoreService().InvalidateCache(context.ProjectPath);
+                _mdIgnoreService.ReloadPatterns(context.ProjectPath);
+                context.Watcher?.Resync();
+                _logger.LogInformation("[{ConnectionId}] regole d'ignoranza cambiate ({File}): {Count} cartelle sorvegliate",
+                    context.ConnectionId, Path.GetFileName(fullPath), context.Watcher?.WatchedDirectories);
+                _hubContext.Clients.Client(context.ConnectionId).SendAsync("ignoreRulesChanged", new { file = Path.GetFileName(fullPath) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[{ConnectionId}] ricalcolo delle regole d'ignoranza fallito ({File})", context.ConnectionId, fullPath);
+            }
+        }
+
         private FoldersIgnoreService GetFoldersIgnoreService()
         {
             _foldersIgnoreService ??= _serviceProvider.GetRequiredService<FoldersIgnoreService>();
             return _foldersIgnoreService;
+        }
+
+        // Resolved lazily (not constructor-injected) because TextIndexingService pulls in
+        // FoldersIgnoreService, which itself depends on IFileSystemWatcherManager → DI cycle.
+        private IndexingPipeline.ITextIndexingService GetTextIndexingService()
+        {
+            _textIndexingService ??= _serviceProvider.GetService<IndexingPipeline.ITextIndexingService>();
+            return _textIndexingService;
+        }
+
+        /// <summary>
+        /// True when a filesystem event on <paramref name="fullPath"/> should refresh the
+        /// SEPARATE text index for this project (opt-in flag ON + extension in the allow-list
+        /// + not in an ignored folder). Markdown files are excluded by the classifier.
+        /// </summary>
+        private bool IsEligibleTextForLiveUpdate(WatcherContext context, string fullPath)
+        {
+            return context.IndexAllTextFiles
+                && context.TextFileExtensions != null
+                && MdExplorer.Abstractions.Services.TextFileClassifier.IsEligibleTextFile(fullPath, context.TextFileExtensions)
+                && !IsInIgnoredFolderChain(fullPath, context.ProjectPath)
+                && !_mdIgnoreService.ShouldIgnorePath(fullPath, context.ProjectPath);
+        }
+
+        /// <summary>
+        /// Coalesces text-file FS events into a single debounced incremental text reindex.
+        /// The reindex runs on TextIndexingService's OWN isolated session, so a burst of
+        /// text changes never contends with the markdown per-connection session/semaphore.
+        /// </summary>
+        private void ScheduleTextReindex(WatcherContext context)
+        {
+            if (!context.IndexAllTextFiles || GetTextIndexingService() == null)
+            {
+                return;
+            }
+            var connId = context.ConnectionId;
+            var timer = _textReindexTimers.GetOrAdd(connId,
+                _ => new System.Threading.Timer(OnTextReindexTimer, connId,
+                    System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite));
+            // Reset the debounce window (1.5s): rapid successive events collapse into one run.
+            timer.Change(1500, System.Threading.Timeout.Infinite);
+        }
+
+        private void OnTextReindexTimer(object state)
+        {
+            var connId = (string)state;
+            try
+            {
+                if (!_watchers.TryGetValue(connId, out var ctx) || !ctx.IndexAllTextFiles || ctx.TextFileExtensions == null)
+                {
+                    return;
+                }
+                var textIndexer = GetTextIndexingService();
+                if (textIndexer == null)
+                {
+                    return;
+                }
+                _logger.LogInformation($"[{connId}] Text index: debounced live reindex triggered");
+                _ = textIndexer.RunAsync(connId, ctx.ProjectPath, ctx.TextFileExtensions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{connId}] Text index: debounced reindex failed to start");
+            }
         }
 
         public void RegisterWatcher(string connectionId, string projectPath)
@@ -87,19 +216,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Load ignore configuration for this project
                 var ignoreConfig = LoadIgnoreConfiguration(normalizedPath);
 
-                // Create FileSystemWatcher
-                var watcher = new System.IO.FileSystemWatcher(normalizedPath)
-                {
-                    NotifyFilter = NotifyFilters.FileName
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.LastWrite,
-                    IncludeSubdirectories = true,
-                    EnableRaisingEvents = true,
-                    // Default is 8KB ≈ ~160 events: a git checkout/agent burst overflows
-                    // it and .NET silently STOPS delivering events (only the Error event
-                    // fires). 64KB is the documented maximum useful size.
-                    InternalBufferSize = 64 * 1024
-                };
+                // Solo le cartelle utili (sprint 2026-10-21-Watcher-Selettivo-E-Gitignore): su Linux un watch per cartella
+                // utile invece che per OGNI cartella (.git, node_modules…). Parte con Start(), dopo gli handler.
+                var watcher = ProjectWatchers.Create(normalizedPath, dir => ShouldWatchDirectory(normalizedPath, dir));
 
                 // Create context
                 var context = new WatcherContext
@@ -135,6 +254,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // until the user reopened the project. Recovery is explicit: tell
                 // the client to do a full reload.
                 watcher.Error += (sender, e) => OnWatcherError(context, e);
+                // le regole d'ignoranza cambiano: nuove cartelle da sorvegliare o da lasciare (W6)
+                FileSystemEventHandler rulesHandler = (sender, e) => { if (IsIgnoreRulesFile(e.FullPath)) OnIgnoreRulesChanged(context, e.FullPath); };
+                watcher.Changed += rulesHandler;
+                watcher.Created += rulesHandler;
+                watcher.Deleted += rulesHandler;
+                watcher.Renamed += (sender, e) => { if (IsIgnoreRulesFile(e.FullPath) || IsIgnoreRulesFile(e.OldFullPath)) OnIgnoreRulesChanged(context, e.FullPath); };
+                watcher.Start();
+                _logger.LogInformation("📁 [{ConnectionId}] watcher su {Path}: {Count} cartelle sorvegliate", connectionId, normalizedPath, watcher.WatchedDirectories);
 
                 // Cache LinkIndexingEnabled setting from UserDB (Project table)
                 // Use IServiceScopeFactory because FileSystemWatcherManager is Singleton
@@ -161,12 +288,27 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     context.LinkIndexingEnabled = project?.LinkIndexingEnabled ?? true;
                     _logger.LogInformation($"[{connectionId}] LinkIndexingEnabled = {context.LinkIndexingEnabled}");
+
+                    // Cache the separate text-index opt-in + effective allow-list (only when ON).
+                    context.IndexAllTextFiles = project?.IndexAllTextFiles ?? false;
+                    context.TextFileExtensions = context.IndexAllTextFiles
+                        ? MdExplorer.Abstractions.Services.TextFileClassifier.GetEffectiveExtensions(project?.TextFileExtensions)
+                        : null;
+                    _logger.LogInformation($"[{connectionId}] IndexAllTextFiles = {context.IndexAllTextFiles}");
                 }
                 catch (Exception settingEx)
                 {
                     _logger.LogWarning(settingEx, $"[{connectionId}] Could not read LinkIndexingEnabled, defaulting to true");
                     context.LinkIndexingEnabled = true;
+                    context.IndexAllTextFiles = false;
+                    context.TextFileExtensions = null;
                 }
+
+                // Commit hook for *.agent.md schedules: a dedicated watcher on
+                // .git/logs/HEAD (the reflog is appended on EVERY commit, whether it
+                // comes from MdExplorer or from an external terminal). Kept separate
+                // from the main watcher so the storm/debounce pipeline stays untouched.
+                TryRegisterCommitWatcher(context);
 
                 _watchers[connectionId] = context;
 
@@ -176,6 +318,54 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogError(ex, $"❌ Failed to register FileSystemWatcher for connection {connectionId}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Watches <c>.git/logs/HEAD</c> and fires the agent-schedule "commit" hook with a
+        /// 500ms debounce (git touches the reflog more than once per commit). No-op when
+        /// the project is not a git repository. The event service is resolved lazily from
+        /// the provider to keep this manager free of new constructor dependencies.
+        /// </summary>
+        private void TryRegisterCommitWatcher(WatcherContext context)
+        {
+            try
+            {
+                var gitLogsPath = Path.Combine(context.ProjectPath, ".git", "logs");
+                if (!File.Exists(Path.Combine(gitLogsPath, "HEAD")))
+                {
+                    return; // not a git repo (or no commit yet) — nothing to watch
+                }
+
+                context.CommitDebounceTimer = new System.Threading.Timer(_ =>
+                {
+                    try
+                    {
+                        var eventService = _serviceProvider.GetService<AgentRun.IAgentScheduleEventService>();
+                        eventService?.OnCommitDetected(context.ProjectPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[{context.ConnectionId}] Commit hook dispatch failed");
+                    }
+                }, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+
+                var commitWatcher = new System.IO.FileSystemWatcher(gitLogsPath)
+                {
+                    Filter = "HEAD",
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
+                    EnableRaisingEvents = true
+                };
+                commitWatcher.Changed += (sender, e) =>
+                    context.CommitDebounceTimer?.Change(500, System.Threading.Timeout.Infinite);
+                context.CommitWatcher = commitWatcher;
+
+                _logger.LogInformation($"[{context.ConnectionId}] Commit watcher active on {gitLogsPath}/HEAD");
+            }
+            catch (Exception ex)
+            {
+                // The commit hook is an extra: its failure must never break watcher registration.
+                _logger.LogWarning(ex, $"[{context.ConnectionId}] Could not register commit watcher");
             }
         }
 
@@ -216,6 +406,21 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     // Dispose storm cooldown timer
                     context.StormCooldownTimer?.Dispose();
+                    context.ErrorTrailingTimer?.Dispose();
+
+                    // Dispose the commit hook watcher + its debounce timer
+                    if (context.CommitWatcher != null)
+                    {
+                        context.CommitWatcher.EnableRaisingEvents = false;
+                        context.CommitWatcher.Dispose();
+                    }
+                    context.CommitDebounceTimer?.Dispose();
+
+                    // Dispose the debounced text-reindex timer for this connection
+                    if (_textReindexTimers.TryRemove(connectionId, out var textTimer))
+                    {
+                        textTimer.Dispose();
+                    }
 
                     // Dispose DB semaphore
                     context.DbSemaphore?.Dispose();
@@ -329,18 +534,41 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private void OnWatcherError(WatcherContext context, ErrorEventArgs e)
         {
             var ex = e.GetException();
-            _logger.LogError(ex,
-                "⚠️ [{ConnectionId}] FileSystemWatcher ERROR (events lost, buffer overflow likely) — asking client for a full reload",
-                context.ConnectionId);
+            var reason = ex is InternalBufferOverflowException ? "buffer-overflow"
+                : ex?.Message?.Contains("watch limit", StringComparison.Ordinal) == true ? "watch-limit" : "watcher-error";
 
+            // Al più un avviso (= una ricarica completa dell'albero) per finestra: un errore che si ripete era un ciclo di
+            // migliaia di ricariche. Gli errori della finestra si contano e si dicono alla sua fine.
+            switch (context.ErrorThrottle.OnError(DateTime.UtcNow))
+            {
+                case WatcherErrorThrottle.Decision.SendNow:
+                    _logger.LogError(ex, "⚠️ [{ConnectionId}] watcher ERROR ({Kind}) — asking client for a full reload",
+                        context.ConnectionId, ex is InternalBufferOverflowException ? "events lost: buffer overflow" : ex?.Message);
+                    NotifyWatcherError(context, reason, ex?.Message, suppressed: 0);
+                    break;
+                case WatcherErrorThrottle.Decision.ScheduleTrailing:
+                    var delay = context.ErrorThrottle.DelayUntilTrailing(DateTime.UtcNow);
+                    context.ErrorTrailingTimer?.Dispose();
+                    context.ErrorTrailingTimer = new System.Threading.Timer(_ =>
+                    {
+                        var n = context.ErrorThrottle.TakeSuppressed(DateTime.UtcNow);
+                        if (n == 0) return;
+                        _logger.LogError("⚠️ [{ConnectionId}] {Count} altri errori del watcher negli ultimi {Seconds} s (l'ultimo: {Kind}) — una sola ricarica",
+                            context.ConnectionId, n, (int)WatcherErrorThrottle.Window.TotalSeconds, ex?.Message);
+                        NotifyWatcherError(context, reason, ex?.Message, suppressed: n);
+                    }, null, delay, System.Threading.Timeout.InfiniteTimeSpan);
+                    break;
+                case WatcherErrorThrottle.Decision.Suppressed:
+                    break;
+            }
+        }
+
+        private void NotifyWatcherError(WatcherContext context, string reason, string message, int suppressed)
+        {
             try
             {
                 _hubContext.Clients.Client(context.ConnectionId)
-                    .SendAsync("fileSystemWatcherError", new
-                    {
-                        reason = ex is InternalBufferOverflowException ? "buffer-overflow" : "watcher-error",
-                        message = ex?.Message
-                    });
+                    .SendAsync("fileSystemWatcherError", new { reason, message, suppressed });
             }
             catch (Exception sendEx)
             {
@@ -397,7 +625,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             return new FileChangeIgnoreConfiguration
             {
-                IgnoredDirectories = new List<string> { ".md", ".mde-doc" },
+                IgnoredDirectories = new List<string> { ".md", ".mde-doc", ".mde-code", ".mde-languages" },
                 IgnoredExtensions = new List<string> { ".pptx", ".docx", ".xlsx", ".xls", ".ppt", ".xlsb", ".bmpr", ".tmp" },
                 IgnoredPatterns = new List<string> { ".md", ".0.pdnSave" },
                 GitIgnoredFiles = new List<string> { "FETCH_HEAD", "COMMIT_EDITMSG", ".git/" },
@@ -412,7 +640,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private static FileChangeIgnoreConfiguration EnsureMdeManagedIgnores(FileChangeIgnoreConfiguration config)
         {
             config.IgnoredDirectories ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code", ".mde-languages" })
             {
                 if (!config.IgnoredDirectories.Any(d => string.Equals(d, managed, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -573,10 +801,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 context.DbSemaphore.Release();
             }
 
-            // Filter out ignored folders before sending to frontend
+            // Filter out ignored folders/files before sending to frontend
             var filteredEvents = deduplicated.Where(evt =>
             {
-                if (!evt.IsDirectory) return true;
+                if (!evt.IsDirectory)
+                {
+                    // Parity with the non-storm path (OnFileCreated/OnFileChanged):
+                    // markdown files under ignored folders must not reach the tree.
+                    return !evt.IsMarkdown || !ShouldIgnoreMarkdownFile(context, evt.FullPath);
+                }
 
                 if (evt.Action == StormEvent.ActionType.Deleted)
                 {
@@ -588,15 +821,30 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 return !ShouldIgnoreFolder(context, evt.FullPath);
             }).ToList();
 
-            // Build the payload for the frontend: list of changes
-            var bulkPayload = filteredEvents.Select(evt => new
+            // Build the payload for the frontend: list of changes.
+            // Each change carries the SAME node shape as the single-event payloads
+            // (markdownFileCreated/folderCreated): the tree handlers build nodes from
+            // path/type/level, and the flat-tree transformer reads relativePath from
+            // node.path — without these fields the inserted node has no relativePath
+            // and the document can never be loaded by clicking it.
+            var bulkPayload = filteredEvents.Select(evt =>
             {
-                action = evt.Action.ToString().ToLowerInvariant(),
-                fullPath = evt.FullPath,
-                oldFullPath = evt.OldFullPath,
-                isDirectory = evt.IsDirectory,
-                name = Path.GetFileName(evt.FullPath),
-                relativePath = GetRelativePath(context, evt.FullPath)
+                var relativePath = GetRelativePath(context, evt.FullPath);
+                return new
+                {
+                    action = evt.Action.ToString().ToLowerInvariant(),
+                    fullPath = evt.FullPath,
+                    oldFullPath = evt.OldFullPath,
+                    isDirectory = evt.IsDirectory,
+                    name = Path.GetFileName(evt.FullPath),
+                    relativePath,
+                    path = relativePath,
+                    type = evt.IsDirectory ? "folder" : "mdFile",
+                    level = CalculateFileLevel(relativePath),
+                    expandable = evt.IsDirectory,
+                    isIndexed = true,
+                    indexingStatus = "completed"
+                };
             }).ToList();
 
             try
@@ -717,10 +965,114 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
         #region Event Handlers
 
+        /// <summary>
+        /// A file that is not markdown, or a folder, appeared, disappeared or was renamed at
+        /// <paramref name="path"/>: the folder holding it may now have — or no longer have — content for the
+        /// tree's eye, and an eye already open must show the new files (bug reported on 28/09/2026: files
+        /// written by an e2e run never showed up). Sends <c>folderContentChanged</c> for that folder, once per
+        /// burst, with the flag recomputed by the same rule as the folder load. Markdown files have their own
+        /// events; ignored folders and <c>.git</c> never reach the tree.
+        /// </summary>
+        private void NotifyFolderContentChanged(WatcherContext context, string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || Path.GetExtension(path).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                    return;
+                var folder = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(folder) || !folder.StartsWith(context.ProjectPath, StringComparison.OrdinalIgnoreCase))
+                    return;
+                var relative = GetRelativePath(context, path).Replace(Path.DirectorySeparatorChar, '/');
+                if (relative.Split('/').Any(segment => segment.Equals(".git", StringComparison.OrdinalIgnoreCase)))
+                    return;
+                if (folder.Length > context.ProjectPath.TrimEnd(Path.DirectorySeparatorChar).Length &&
+                    (IsFolderIgnored(context, GetRelativePath(context, folder))
+                     || IsInIgnoredFolderChain(folder, context.ProjectPath)
+                     || _mdIgnoreService.ShouldIgnorePath(folder, context.ProjectPath)))
+                    return;
+
+                ScheduleFolderContentChanged(context, folder);
+                // A folder just created: its own content too. The files written right after it can be
+                // missed by the watcher (on Linux the watch on a new subfolder starts late: verified on
+                // 28/09/2026, a screenshot written at once in a new run folder never raised an event);
+                // computed after the debounce, the folder is read as it is then.
+                if (Directory.Exists(path)
+                    && !IsInIgnoredFolderChain(path, context.ProjectPath)
+                    && !_mdIgnoreService.ShouldIgnorePath(path, context.ProjectPath))
+                    ScheduleFolderContentChanged(context, path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[{ConnectionId}] folderContentChanged not scheduled for {Path}", context.ConnectionId, path);
+            }
+        }
+
+        private void ScheduleFolderContentChanged(WatcherContext context, string folder)
+        {
+            var key = context.ConnectionId + "|" + folder.ToLowerInvariant();
+            var connectionId = context.ConnectionId;
+            var projectPath = context.ProjectPath;
+            _folderContentTimers.AddOrUpdate(key,
+                _ => new System.Threading.Timer(_ => SendFolderContentChanged(key, connectionId, projectPath, folder), null, FolderContentDebounce, System.Threading.Timeout.InfiniteTimeSpan),
+                (_, timer) => { timer.Change(FolderContentDebounce, System.Threading.Timeout.InfiniteTimeSpan); return timer; });
+        }
+
+        private async void SendFolderContentChanged(string key, string connectionId, string projectPath, string folder)
+        {
+            if (_folderContentTimers.TryRemove(key, out var timer)) timer.Dispose();
+            try
+            {
+                // Two flags, as the load has two rules: a folder of the tree hides only what is not markdown
+                // (and folders without markdown); a revealed (green) folder shows everything. The client
+                // knows which kind the folder is, the server does not.
+                var exists = Directory.Exists(folder);
+                var foldersIgnore = GetFoldersIgnoreService();
+                // Una cartella program con dei file si vede anche senza markdown: non è nascosta (ProgramFolders).
+                var programs = exists ? ProgramFolders.Load(projectPath) : null;
+                await _hubContext.Clients.Client(connectionId).SendAsync("folderContentChanged", new
+                {
+                    FolderFullPath = folder,
+                    HasExtraContent = exists && FolderRevealableContent.HasHidden(folder, projectPath, _mdIgnoreService, foldersIgnore, programs),
+                    HasRevealableContent = exists && FolderRevealableContent.Has(folder, projectPath, _mdIgnoreService, foldersIgnore),
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[{ConnectionId}] folderContentChanged not sent for {Folder}", connectionId, folder);
+            }
+        }
+
+        /// <summary>
+        /// Città degli agenti (§6): se il path è un <c>.agent.md</c>, notifica il
+        /// registry perché rilegga le "Pagine Gialle" del progetto (cache event-driven).
+        /// Risoluzione lazy via provider — come il CommitWatcher — per non aggiungere
+        /// dipendenze al costruttore. Best-effort: non deve mai rompere l'evento FSW.
+        /// </summary>
+        private void NotifyAgentRegistryIfAgentFile(WatcherContext context, string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) ||
+                    !path.EndsWith(".agent.md", StringComparison.OrdinalIgnoreCase))
+                    return;
+                // La copia di un agente dentro un worktree non e' un agente: registrarla
+                // significherebbe avere due volte lo stesso nome nella citta'.
+                if (FoldersIgnoreService.IsInsideAgentWorktrees(path, context.ProjectPath))
+                    return;
+                var registry = _serviceProvider.GetService<AgentRegistry.IAgentRegistryService>();
+                registry?.OnAgentFileChanged(context.ProjectPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Notifica al registry agenti fallita per {Path}", path);
+            }
+        }
+
         private async void OnFileChanged(WatcherContext context, FileSystemEventArgs e)
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 // Double-check: skip if user explicitly disabled the watcher
                 // (catches .NET FileSystemWatcher buffered events that fire after EnableRaisingEvents=false)
                 if (context.UserDisabledWatcher)
@@ -756,10 +1108,24 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // Script del grafo del codice (.mde-code/**/*.ast.jsonl | *.doc.jsonl): solo il caricatore, niente
+                // indice markdown né SignalR per l'albero. Sono la verità, il DB dedicato è l'indice.
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script changed: {e.FullPath}");
+                    QueueCodeScriptReload(context);
+                    return;
+                }
+
                 // Only process markdown files — skip non-md files BEFORE storm detection
                 // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
                 {
+                    // Separate text index (opt-in): coalesced live reindex, isolated from md.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown");
                     return;
                 }
@@ -972,6 +1338,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileCreated skipped - user disabled watcher");
@@ -984,6 +1351,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileCreated skipped - watcher temporarily disabled");
                     return;
                 }
+
+                NotifyFolderContentChanged(context, e.FullPath);
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
@@ -998,10 +1367,22 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script created: {e.FullPath}");
+                    QueueCodeScriptReload(context);
+                    return;
+                }
+
                 // Skip non-markdown, non-directory files BEFORE storm detection
                 // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
                 if (!isMarkdown && !isDirectory)
                 {
+                    // Separate text index (opt-in): coalesced live reindex, isolated from md.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown and not a directory, skipping");
                     return;
                 }
@@ -1093,6 +1474,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                // Il rename può aggiungere O togliere un .agent.md: controlla entrambi i lati.
+                NotifyAgentRegistryIfAgentFile(context, e.OldFullPath);
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - user disabled watcher");
@@ -1106,11 +1490,31 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                NotifyFolderContentChanged(context, e.OldFullPath);
+                NotifyFolderContentChanged(context, e.FullPath);
+
+                // Script del grafo del codice rinominato: via il vecchio, dentro il nuovo.
+                var oldIsCodeScript = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.OldFullPath);
+                var newIsCodeScript = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath);
+                if (oldIsCodeScript || newIsCodeScript)
+                {
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script renamed: {e.OldFullPath} -> {e.FullPath}");
+                    QueueCodeScriptReload(context);
+                    return;
+                }
+
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool oldHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.OldFullPath));
                 bool newHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.FullPath));
                 bool isRelevant = oldIsMarkdown || newIsMarkdown || (oldHasNoExt && newHasNoExt);
+
+                // Separate text index (opt-in): any rename touching an eligible text file
+                // (old or new side). Reconcile+diff on reindex handles remove-old/add-new.
+                if (IsEligibleTextForLiveUpdate(context, e.OldFullPath) || IsEligibleTextForLiveUpdate(context, e.FullPath))
+                {
+                    ScheduleTextReindex(context);
+                }
 
                 // Skip irrelevant renames BEFORE storm detection
                 if (!isRelevant)
@@ -1278,6 +1682,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - user disabled watcher");
@@ -1291,6 +1696,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                NotifyFolderContentChanged(context, e.FullPath);
+
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogDebug($"🧩 [{context.ConnectionId}] code script deleted: {e.FullPath}");
+                    QueueCodeScriptReload(context);
+                    return;
+                }
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
                 var isDirectory = string.IsNullOrEmpty(fileExtension) && !IsKnownExtensionlessGitFile(e.FullPath);
@@ -1298,6 +1712,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Skip non-markdown, non-directory files (e.g., .git/FETCH_HEAD) BEFORE storm detection
                 if (!isMarkdown && !isDirectory)
                 {
+                    // Separate text index (opt-in): a deleted text file is reconciled out on reindex.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
                     return;
                 }
@@ -1491,6 +1910,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
         private bool ShouldIgnoreMarkdownFile(WatcherContext context, string fullPath)
         {
+            // I posti di lavoro degli agenti contengono una copia intera del progetto: senza
+            // questo, ogni file che un agente scrive comparirebbe nell'albero dell'utente.
+            if (FoldersIgnoreService.IsInsideAgentWorktrees(fullPath, context.ProjectPath))
+            {
+                return true;
+            }
+
             var relativePath = fullPath.Substring(context.ProjectPath.Length).TrimStart(Path.DirectorySeparatorChar);
             relativePath = relativePath.Replace(Path.DirectorySeparatorChar, '/');
 
@@ -1740,6 +2166,82 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             if (!fullPath.EndsWith(".kg.cypher", StringComparison.OrdinalIgnoreCase)) return false;
             var parent = Path.GetFileName(Path.GetDirectoryName(fullPath));
             return string.Equals(parent, ".mde-doc", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ============================================================
+        //   Code graph: script → DB dedicato (sprint 2026-10-09, F1)
+        // ============================================================
+
+        /// <summary>Quanto silenzio sul disco prima di caricare gli script raccolti, e quanto al massimo si aspetta dal primo evento.</summary>
+        private static readonly TimeSpan CodeScriptQuiet = TimeSpan.FromSeconds(10);   // durante una descrizione gli script cambiano ogni pochi secondi: così un lotto al minuto, non uno per domanda
+        private static readonly TimeSpan CodeScriptMaxWait = TimeSpan.FromMinutes(1);
+
+        private sealed class CodeScriptBatch
+        {
+            public DateTime First, Last;
+            public int Events;
+            public bool Scheduled;
+        }
+
+        private readonly ConcurrentDictionary<string, CodeScriptBatch> _codeScriptBatches = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Uno script di <c>.mde-code/</c> è cambiato (creato, modificato, rinominato, cancellato): si RACCOGLIE e si carica nel
+        /// grafo del codice a lotti (<see cref="MdExplorer.Features.Services.CodeGraph.ICodeGraphStore.LoadProjectAsync"/>, che
+        /// confronta gli hash e toglie quelli spariti), quando il disco tace da <see cref="CodeScriptQuiet"/> o comunque entro
+        /// <see cref="CodeScriptMaxWait"/> dal primo evento. Prima ogni evento era una transazione TDB2 a sé, due per file
+        /// (created + changed): un «Salva e analizza» di 1.414 file ne faceva ~2.800 e su Windows il database del grafo è
+        /// arrivato a 35 GB (22/10/2026).
+        /// </summary>
+        private void QueueCodeScriptReload(WatcherContext context)
+        {
+            var batch = _codeScriptBatches.GetOrAdd(context.ProjectPath, _ => new CodeScriptBatch());
+            bool start;
+            lock (batch)
+            {
+                var now = DateTime.UtcNow;
+                if (batch.Events == 0) batch.First = now;
+                batch.Last = now;
+                batch.Events++;
+                start = !batch.Scheduled;
+                batch.Scheduled = true;
+            }
+            if (start) _ = LoadCodeScriptsWhenQuietAsync(context, batch);
+        }
+
+        private async Task LoadCodeScriptsWhenQuietAsync(WatcherContext context, CodeScriptBatch batch)
+        {
+            try
+            {
+                while (true)
+                {
+                    await Task.Delay(500);
+                    lock (batch)
+                    {
+                        var now = DateTime.UtcNow;
+                        if (now - batch.Last >= CodeScriptQuiet || now - batch.First >= CodeScriptMaxWait) break;
+                    }
+                }
+                int events;
+                lock (batch) { events = batch.Events; batch.Events = 0; }
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                using var scope = _serviceScopeFactory.CreateScope();
+                var store = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
+                var outcome = await store.LoadProjectAsync(context.ProjectPath);
+                _logger.LogInformation($"🧩 [{context.ConnectionId}] code scripts: {events} eventi raccolti → {outcome.Loaded} caricati, {outcome.Removed} tolti, {outcome.Failed} falliti in {sw.Elapsed.TotalSeconds:0.0} s");
+                if (outcome.Failed > 0) _logger.LogWarning($"🧩 [{context.ConnectionId}] code scripts NOT loaded: {outcome.FirstError}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"🧩 [{context.ConnectionId}] code scripts: caricamento a lotti fallito per {context.ProjectPath}");
+            }
+            finally
+            {
+                // eventi arrivati mentre si caricava: un altro giro
+                bool again;
+                lock (batch) { again = batch.Events > 0; batch.Scheduled = again; if (again) batch.First = DateTime.UtcNow; }
+                if (again) _ = LoadCodeScriptsWhenQuietAsync(context, batch);
+            }
         }
 
         private async Task SyncKgFileBestEffortAsync(string fullPath, string connectionId)

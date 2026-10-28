@@ -6,7 +6,6 @@ import { ShowFileSystemComponent } from '../../../commons/components/show-file-s
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
-import { GitTokenDialogComponent } from '../../../git/dialogs/git-token-dialog/git-token-dialog.component';
 import { GITService } from '../../../git/services/gitservice.service';
 import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
@@ -44,12 +43,6 @@ export class ModernCloneProjectComponent implements OnInit {
     useSSH: false
   };
 
-  public hasGitHubToken = false;
-  public tokenStatus = '';
-  public tokenUsername = '';
-  public tokenValid = false;
-  public useSavedToken = true;
-  public isDeleting = false;
   public isGitHubRepo = false;
   public authMethod: 'automatic' | 'manual' = 'automatic';
 
@@ -63,11 +56,6 @@ export class ModernCloneProjectComponent implements OnInit {
     username: '',
     password: ''
   };
-
-  // Account selector for multi-account support
-  public availableAccounts: Array<{ id: string; username: string; accountName: string }> = [];
-  public filteredAccounts: Array<{ id: string; username: string; accountName: string }> = [];
-  public isLoadingAccounts = false;
 
   // For Share Project feature: when basePath is provided, the path is auto-computed
   public isPrefilledFromShare = false;
@@ -125,62 +113,11 @@ export class ModernCloneProjectComponent implements OnInit {
       });
     }
 
-    // Check GitHub token status
-    this.checkGitHubToken();
-
     // When the project changes, navigate to the main environment
     this.projectService.currentProjects$.subscribe(project => {
       if (project != null && project != undefined) {
         this.router.navigate(['/main/navigation/document']);
         this.dialogRef.close();
-      }
-    });
-  }
-
-  checkGitHubToken(): void {
-    this.gitService.getGitHubToken().subscribe(response => {
-      this.hasGitHubToken = response.hasToken;
-      this.tokenUsername = response.username || '';
-      this.tokenValid = response.tokenValid;
-
-      if (response.hasToken) {
-        if (this.tokenUsername) {
-          this.tokenStatus = `${response.maskedToken}`;
-        } else {
-          this.tokenStatus = `Token: ${response.maskedToken}`;
-        }
-      } else {
-        this.tokenStatus = this.translate.instant('CLONE.NO_GITHUB_TOKEN');
-      }
-
-      // Default to using saved token only if valid
-      this.useSavedToken = response.hasToken && response.tokenValid;
-    });
-  }
-
-  deleteToken(): void {
-    const message = this.tokenUsername
-      ? this.translate.instant('CLONE.DELETE_TOKEN_CONFIRM', { username: this.tokenUsername })
-      : this.translate.instant('CLONE.DELETE_TOKEN_CONFIRM_GENERIC');
-
-    const confirmed = confirm(message);
-    if (!confirmed) return;
-
-    this.isDeleting = true;
-    this.gitService.deleteGitHubToken().subscribe({
-      next: () => {
-        this.showMessage(this.translate.instant('CLONE.TOKEN_DELETED'));
-        this.hasGitHubToken = false;
-        this.tokenStatus = this.translate.instant('CLONE.NO_GITHUB_TOKEN');
-        this.tokenUsername = '';
-        this.tokenValid = false;
-        this.useSavedToken = false;
-        this.isDeleting = false;
-      },
-      error: (err) => {
-        console.error('Error deleting token:', err);
-        this.showMessage(this.translate.instant('CLONE.TOKEN_DELETE_ERROR'));
-        this.isDeleting = false;
       }
     });
   }
@@ -229,115 +166,11 @@ export class ModernCloneProjectComponent implements OnInit {
     }
 
     console.log(`[ModernClone] Detected provider: ${this.detectedProvider}, authType: ${this.authType}, showForm: ${this.showCredentialForm}`);
-
-    // Load available accounts for this provider
-    this.loadAccountsForProvider();
   }
 
   // Keep old method name for backward compatibility
   checkIfGitHubRepo(): void {
     this.detectProviderFromUrl();
-  }
-
-  /**
-   * Loads available accounts for the detected provider
-   */
-  loadAccountsForProvider(): void {
-    if (!this.detectedProvider || this.detectedProvider === 'generic') {
-      this.availableAccounts = [];
-      this.filteredAccounts = [];
-      return;
-    }
-
-    // Map provider to account type
-    const accountTypeMap: Record<GitProvider, string> = {
-      'github': 'GitHub',
-      'gitlab': 'GitLab',
-      'azure': 'Azure',
-      'bitbucket': 'Bitbucket',
-      'scm-manager': 'Generic',  // SCM-Manager uses Generic type
-      'gitea': 'Generic',
-      'generic': 'Generic'
-    };
-
-    const accountType = accountTypeMap[this.detectedProvider];
-    this.isLoadingAccounts = true;
-
-    this.gitService.getUsernamesByType(accountType).subscribe({
-      next: (accounts) => {
-        this.availableAccounts = accounts;
-        this.filteredAccounts = [...accounts];
-        this.isLoadingAccounts = false;
-        console.log(`[ModernClone] Loaded ${accounts.length} accounts for ${accountType}`);
-      },
-      error: (err) => {
-        console.error('[ModernClone] Error loading accounts:', err);
-        this.availableAccounts = [];
-        this.filteredAccounts = [];
-        this.isLoadingAccounts = false;
-      }
-    });
-  }
-
-  /**
-   * Filters accounts based on user input
-   */
-  filterAccounts(value: string): void {
-    if (!value) {
-      this.filteredAccounts = [...this.availableAccounts];
-      return;
-    }
-    const filterValue = value.toLowerCase();
-    this.filteredAccounts = this.availableAccounts.filter(
-      account => account.username.toLowerCase().includes(filterValue)
-    );
-  }
-
-  /**
-   * Selects an account from the dropdown
-   */
-  selectAccount(username: string): void {
-    this.manualCredentials.username = username;
-  }
-
-  /**
-   * Display function for autocomplete
-   */
-  displayAccountFn(value: string): string {
-    return value || '';
-  }
-
-  /**
-   * Deletes an account from the list
-   */
-  deleteAccount(account: { id: string; username: string; accountName: string }, event: Event): void {
-    event.stopPropagation();  // Prevent dropdown from selecting the item
-
-    const confirmed = confirm(this.translate.instant('CLONE.DELETE_ACCOUNT_CONFIRM', { username: account.username }));
-    if (!confirmed) return;
-
-    this.gitService.deleteGitAccount(account.id).subscribe({
-      next: (response) => {
-        if (response.success) {
-          // Remove from local lists
-          this.availableAccounts = this.availableAccounts.filter(a => a.id !== account.id);
-          this.filteredAccounts = this.filteredAccounts.filter(a => a.id !== account.id);
-
-          // Clear username if it was the deleted one
-          if (this.manualCredentials.username === account.username) {
-            this.manualCredentials.username = '';
-          }
-
-          this.showMessage(this.translate.instant('CLONE.ACCOUNT_DELETED'));
-        } else {
-          this.showMessage(response.message || this.translate.instant('CLONE.ACCOUNT_DELETE_ERROR'));
-        }
-      },
-      error: (err) => {
-        console.error('[ModernClone] Error deleting account:', err);
-        this.showMessage(this.translate.instant('CLONE.ACCOUNT_DELETE_ERROR'));
-      }
-    });
   }
 
   openFileSystem(): void {
@@ -471,7 +304,7 @@ export class ModernCloneProjectComponent implements OnInit {
         localPath: this.cloneRequest.localPath,
         branchName: this.cloneRequest.branchName || null,
         // For OAuth providers without manual override, let GCM handle authentication
-        useSavedToken: useAutomaticAuth || (this.isGitHubRepo && this.useSavedToken),
+        useSavedToken: useAutomaticAuth,
         // Pass credentials if manual auth is required
         username: needsManualCredentials ? this.manualCredentials.username : null,
         password: needsManualCredentials ? this.manualCredentials.password : null
@@ -512,20 +345,6 @@ export class ModernCloneProjectComponent implements OnInit {
     const dialogRef = this.dialog.open(GitMessagesComponent, {
       width: '400px',
       data: { message: message }
-    });
-  }
-
-  openTokenSettings(): void {
-    const dialogRef = this.dialog.open(GitTokenDialogComponent, {
-      width: '500px',
-      disableClose: false
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        // Token was saved successfully, refresh token status
-        this.checkGitHubToken();
-      }
     });
   }
 

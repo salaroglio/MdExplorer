@@ -4,6 +4,21 @@
 </h2>
 
 <mat-dialog-content class="branch-dialog-content">
+  <!-- Il progetto e i submodule hanno ognuno i suoi rami: qui si sceglie di chi si parla. -->
+  <app-git-repo-picker [repos]="repos" [selected]="activeRepo" [disabled]="isLoading || isSwitching"
+                       (selectedChange)="selectRepo($event)"></app-git-repo-picker>
+
+  <!-- Cosa comporta cambiare ramo QUI: si legge prima di farlo. -->
+  <div class="switch-note" *ngIf="repos.length > 1">
+    <mat-icon>info</mat-icon>
+    <span>{{ (onRoot ? 'GITFLOW.ROOT_SWITCH_NOTE' : 'GITFLOW.CHILD_SWITCH_NOTE') | translate }}</span>
+  </div>
+
+  <!-- Il cambio è stato rifiutato: il motivo dice cosa fare prima, e resta finché non si riprova. -->
+  <div class="switch-refusal" *ngIf="switchRefusal">
+    <mat-icon>block</mat-icon>
+    <span>{{ switchRefusal }}</span>
+  </div>
   <!-- Current Branch Summary -->
   <mat-card class="current-branch-card" *ngIf="currentBranch && !isLoading">
     <mat-card-content>

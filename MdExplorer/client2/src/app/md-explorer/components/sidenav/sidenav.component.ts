@@ -10,11 +10,13 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MdFile } from '../../models/md-file';
 import { ProjectsService } from '../../services/projects.service';
+import { ReviewContextService } from '../../services/review-context.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { LayoutService } from '../../services/layout.service';
 import { ClipboardPasteService } from '../../services/clipboard-paste.service';
 import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
 import { TranslateService } from '@ngx-translate/core';
+import { AiChatService } from '../../../services/ai-chat.service';
 
 
 
@@ -36,8 +38,24 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public titleProject: string;
   public currentBranch: string = null;
   public hasRemote: boolean = false;
+  // Team Chat archiviata: mai stabilizzata (vedi PLAN-CHAT-FIX.md). Codice intatto, riabilitare qui.
+  public readonly teamChatEnabled: boolean = false;
   public fileSystemWatcherEnabled: boolean = true;
   public selectedTabIndex: number = 0;
+
+  /**
+   * Posizione del tab delle differenze: secondo, subito dopo i documenti.
+   * E' un numero posizionale, e resta tale — ma sta qui, accanto al template che dichiara
+   * i tab, cosi' chi ne aggiunge uno ha la riga da correggere sotto gli occhi.
+   */
+  private changesTabIndex(): number {
+    return 1;
+  }
+
+  /** The MarkAgent tab follows the changes tab, and exists only in a git repository (see the template). */
+  private markAgentTabIndex(): number {
+    return this.currentBranch != null ? 2 : -1;
+  }
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
 
   // Embedded app persistence
@@ -65,13 +83,15 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private currentFolder: AppCurrentMetadataService,
     private gitService: GITService,
     private projectService: ProjectsService,
+    private reviewContext: ReviewContextService,
     public navService:MdNavigationService,
     private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
     private layoutService: LayoutService,
     private http: HttpClient,
     private clipboardPasteService: ClipboardPasteService,
     private embeddedAppState: EmbeddedAppStateService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private aiChat: AiChatService
   ) {
     this.setupResizeListeners();
 
@@ -135,6 +155,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.aiChat.showTabHandler = null;
     // Remove event listeners to prevent memory leaks
     if (this.mouseMoveListener) {
       document.removeEventListener("mousemove", this.mouseMoveListener);
@@ -194,12 +215,29 @@ export class SidenavComponent implements OnInit, OnDestroy {
         this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
         this.router.navigate(['/projects']);
         this.projectService.currentProjects$.next(null);
+        // Nessun progetto aperto: il polling git non deve continuare sul path del progetto chiuso.
+        this.gitService.setProjectPath('');
       }
     });
   }
 
 
   ngOnInit(): void {
+
+    // «Vedi le differenze» dalla finestrella del commit, che sta in un altro angolo
+    // dell'applicazione e non deve conoscere l'ordine dei tab.
+    this.reviewContext.showChanges$.subscribe(() => {
+      const index = this.changesTabIndex();
+      if (index >= 0) this.selectedTabIndex = index;
+    });
+
+    // «Analizza con MarkAgent» from the e2e dialog: the analysis is a conversation in the MarkAgent tab.
+    this.aiChat.showTabHandler = () => {
+      const index = this.markAgentTabIndex();
+      if (index < 0) return false;
+      this.selectedTabIndex = index;
+      return true;
+    };
 
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {

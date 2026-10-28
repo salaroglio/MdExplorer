@@ -1,4 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
+import { PasteAnchor } from '../models/paste-anchor';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { Subscription } from 'rxjs';
@@ -175,7 +176,8 @@ export class ClipboardPasteService {
     mimeType?: string,
     documentPath?: string,
     errorMessage?: string,
-    platformHint?: string
+    platformHint?: string,
+    anchor?: PasteAnchor | null
   }): void {
     // Check if there was an error
     if (!data.success) {
@@ -222,6 +224,9 @@ export class ClipboardPasteService {
 
     console.log('[ClipboardPasteService] Opening wizard from SignalR event');
     console.log('[ClipboardPasteService] Document path:', documentPath);
+    console.log('[ClipboardPasteService] Anchor:', data.anchor
+      ? `${data.anchor.position} lines ${data.anchor.startLine}-${data.anchor.endLine}`
+      : 'none (end of document)');
     console.log('[ClipboardPasteService] Image size:', imageBlob.size, 'bytes');
 
     // Get SignalR connection ID
@@ -232,7 +237,8 @@ export class ClipboardPasteService {
       const dialogData: WizardDialogData = {
         imageBlob: imageBlob,
         documentPath: documentPath,
-        connectionId: connectionId
+        connectionId: connectionId,
+        anchor: data.anchor ?? null
       };
 
       this.dialog.open(ScreenshotAnnotationWizardDialogComponent, {

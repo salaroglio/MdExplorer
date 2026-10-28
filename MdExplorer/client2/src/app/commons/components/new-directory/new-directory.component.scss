@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #2196f3;
+  color: var(--mde-accent-primary);
 }
 
 .dialog-icon {
@@ -24,13 +24,13 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: #e3f2fd;
-  border-left: 4px solid #2196f3;
+  background: var(--mde-accent-light);
+  border-left: 4px solid var(--mde-accent-primary);
   border-radius: 4px;
 }
 
 .context-icon {
-  color: #2196f3;
+  color: var(--mde-icon-accent-blue);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -40,14 +40,14 @@
   font-size: 0.9rem;
 
   strong {
-    color: #1976d2;
+    color: var(--mde-accent-primary);
   }
 }
 
 .context-path {
   font-family: 'Courier New', monospace;
   font-size: 0.8rem;
-  color: #666;
+  color: var(--mde-text-secondary);
   margin-top: 4px;
   word-break: break-all;
 }
@@ -61,9 +61,9 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: #f5f5f5;
+  background: var(--mde-bg-tertiary);
   border-radius: 4px;
-  border: 1px dashed #ccc;
+  border: 1px dashed var(--mde-border-strong);
   animation: fadeIn 0.3s ease-in;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .preview-icon {
-  color: #4caf50;
+  color: var(--mde-icon-accent-green);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -90,14 +90,14 @@
 
 .preview-label {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--mde-text-secondary);
   margin-bottom: 4px;
 }
 
 .preview-path {
   font-family: 'Courier New', monospace;
   font-size: 0.85rem;
-  color: #333;
+  color: var(--mde-text-primary);
   font-weight: 600;
   word-break: break-all;
 }
@@ -111,7 +111,7 @@
 
 .suggestions-label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--mde-text-secondary);
   font-weight: 500;
 }
 
@@ -126,9 +126,9 @@
   transition: all 0.2s ease;
 
   &:hover {
-    background: #e3f2fd;
+    background: var(--mde-accent-light);
     transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--mde-shadow-color);
   }
 
   &:active {
@@ -147,7 +147,7 @@
   margin-right: 8px;
 
   ::ng-deep circle {
-    stroke: white;
+    stroke: var(--mde-text-on-primary); // spinner su bottone accento
   }
 }
 

@@ -116,6 +116,10 @@ namespace MdExplorer.Features.Commands
                         {
                             paramsTo.Add(_serverCache);
                         }
+                        if (param.Name == "ownership")
+                        {
+                            paramsTo.Add(_serviceProvider.GetService<MdExplorer.Features.Agents.IOwnershipSource>());
+                        }
                         if (param.Name == "extensionConfiguration")
                         {
                             var extensionConfig = _serviceProvider.GetService<IApplicationExtensionConfiguration>();

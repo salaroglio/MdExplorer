@@ -31,6 +31,7 @@ using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -52,6 +53,8 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Services.SourceMapping;
+using MdExplorer.Features.Slides;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -101,6 +104,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IIndexingPipelineService _indexingPipelineService;
+        private readonly ITextIndexingService _textIndexingService;
 
 
         public MdFilesController(
@@ -130,7 +134,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
         IVectorSearchService vectorSearchService = null,
-        IIndexingPipelineService indexingPipelineService = null
+        IIndexingPipelineService indexingPipelineService = null,
+        ITextIndexingService textIndexingService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
@@ -150,6 +155,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _chunkingService = chunkingService;
             _vectorSearchService = vectorSearchService;
             _indexingPipelineService = indexingPipelineService;
+            _textIndexingService = textIndexingService;
         }
 
         [HttpGet]
@@ -687,6 +693,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     });
                 }
 
+                // What is written is markdown (image + list of annotations). Since a text file can
+                // be the document shown in the panel, a paste there would have appended markdown
+                // to a .json or a .cs.
+                if (!request.DocumentPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                    && !request.DocumentPath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("SaveAnnotatedScreenshot: not a markdown document: {DocumentPath}", request.DocumentPath);
+                    return BadRequest(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = false,
+                        ErrorMessage = MdExplorer.Features.Services.UiText.Say("Lo screenshot si incolla solo in un documento markdown (.md): il file aperto non lo è.", "A screenshot can only be pasted into a markdown document (.md): the open file is not one.")
+                    });
+                }
+
                 // Parse marker descriptions
                 var descriptions = new List<MarkerDescriptionDto>();
                 if (!string.IsNullOrEmpty(request.DescriptionsJson))
@@ -714,30 +734,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var sanitizedName = ruleReg.Replace(baseName, "-").Replace(" ", "-");
                     var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
-                    // Create assets directory next to the document
+                    // Paths first, writes later: the markdown block needs the image path, and the
+                    // document edit must be decided (and possibly refused) BEFORE anything is
+                    // written — a conflict found after the images are saved would leave them
+                    // orphaned in assets/.
                     var assetsDirectory = Path.Combine(
                         Path.GetDirectoryName(request.DocumentPath),
                         "assets"
                     );
-                    Directory.CreateDirectory(assetsDirectory);
-
-                    // Save original image (for rollback)
                     var originalFileName = $"{sanitizedName}_original_{timestamp}.png";
                     var originalImagePath = Path.Combine(assetsDirectory, originalFileName);
-                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
-                    {
-                        await request.OriginalImage.CopyToAsync(stream);
-                    }
-
-                    // Save annotated image
                     var annotatedFileName = $"{sanitizedName}_annotated_{timestamp}.png";
                     var annotatedImagePath = Path.Combine(assetsDirectory, annotatedFileName);
-                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
-                    {
-                        await request.AnnotatedImage.CopyToAsync(stream);
-                    }
-
-                    _logger.LogInformation("SaveAnnotatedScreenshot: Saved images to {AssetsDir}", assetsDirectory);
 
                     // Calculate path relative to project root (with leading slash for absolute reference)
                     var projectPath = GetProjectPath();
@@ -763,12 +771,63 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     var insertedMarkdown = markdownBuilder.ToString();
 
-                    // Append markdown to document
-                    var currentContent = await System.IO.File.ReadAllTextAsync(request.DocumentPath);
-                    var newContent = currentContent + insertedMarkdown;
-                    await System.IO.File.WriteAllTextAsync(request.DocumentPath, newContent);
+                    // Where the block goes. With an anchor (right-click, or Ctrl+V with the pointer on
+                    // a block) it goes before or after that block, refused if the block changed while
+                    // the wizard was open; without one it goes at the end. Both through
+                    // MarkdownFileEditor: the file keeps its line ending and its BOM — the old
+                    // append lost the BOM and wrote the machine's newline into any file.
+                    var currentContent = MarkdownFileEditor.ReadText(request.DocumentPath);
+                    MarkdownEdit edit;
+                    if (request.AnchorStartLine.HasValue)
+                    {
+                        if (!request.AnchorEndLine.HasValue || request.AnchorExpectedText == null
+                            || !TryParseBlockPosition(request.AnchorPosition, out var anchorPosition))
+                        {
+                            return BadRequest(new SaveAnnotatedScreenshotResponse
+                            {
+                                Success = false,
+                                ErrorMessage = "Ancora incompleta: servono AnchorStartLine, AnchorEndLine, AnchorPosition (before|after) e AnchorExpectedText"
+                            });
+                        }
+                        edit = MarkdownFileEditor.InsertBlock(currentContent, request.AnchorStartLine.Value, request.AnchorEndLine.Value,
+                            anchorPosition, request.AnchorExpectedText, insertedMarkdown);
+                    }
+                    else
+                    {
+                        edit = MarkdownFileEditor.AppendBlock(currentContent, insertedMarkdown);
+                    }
 
-                    _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document");
+                    if (edit.Status == MarkdownEditStatus.Conflict)
+                    {
+                        _logger.LogWarning("SaveAnnotatedScreenshot: anchor {Start}-{End} of {Doc} changed while the wizard was open — nothing written",
+                            request.AnchorStartLine, request.AnchorEndLine, request.DocumentPath);
+                        return Conflict(new SaveAnnotatedScreenshotResponse
+                        {
+                            Success = false,
+                            ErrorMessage = MdExplorer.Features.Services.UiText.Say("Il punto scelto nel documento è cambiato mentre annotavi: l'immagine non è stata inserita. Ricarica il documento e riprova.", "The chosen point in the document changed while you were annotating: the image was not inserted. Reload the document and try again.")
+                        });
+                    }
+                    if (edit.Status == MarkdownEditStatus.InvalidRange)
+                    {
+                        return BadRequest(new SaveAnnotatedScreenshotResponse { Success = false, ErrorMessage = edit.Error });
+                    }
+
+                    // The edit is decided: now the writes.
+                    Directory.CreateDirectory(assetsDirectory);
+                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
+                    {
+                        await request.OriginalImage.CopyToAsync(stream);
+                    }
+                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
+                    {
+                        await request.AnnotatedImage.CopyToAsync(stream);
+                    }
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Saved images to {AssetsDir}", assetsDirectory);
+
+                    var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(request.DocumentPath);
+                    await MarkdownFileEditor.WriteAsync(request.DocumentPath, edit.NewContent, hasUtf8Bom);
+
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document, block at lines {First}-{Last}", edit.FirstLine, edit.LastLine);
 
                     // Send SignalR notification to refresh the document (only the requesting client)
                     try
@@ -1098,11 +1157,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 DevelopmentConfig config;
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    config = deserializer.Deserialize<DevelopmentConfig>(yamlContent) ?? new DevelopmentConfig();
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
                 }
                 else
                 {
@@ -1672,6 +1728,74 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Reads the per-project text-indexing settings (IndexAllTextFiles flag +
+        /// effective extension allow-list) for the current project. Defaults to OFF
+        /// when the project cannot be resolved: the separate text index is strictly opt-in.
+        /// </summary>
+        private (bool enabled, System.Collections.Generic.HashSet<string> extensions) GetTextIndexingSettings()
+        {
+            try
+            {
+                var currentPath = GetProjectPath();
+                if (string.IsNullOrEmpty(currentPath))
+                {
+                    return (false, null);
+                }
+
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == currentPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, currentPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null || !project.IndexAllTextFiles)
+                {
+                    return (false, null);
+                }
+
+                var extensions = MdExplorer.Abstractions.Services.TextFileClassifier
+                    .GetEffectiveExtensions(project.TextFileExtensions);
+                return (true, extensions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetTextIndexingSettings] Could not read text-indexing settings, defaulting to OFF");
+                return (false, null);
+            }
+        }
+
+        /// <summary>
+        /// Chains the SEPARATE text-file indexing after the markdown pipeline finishes,
+        /// only when the project opted in. Runs after markdown so it never steals I/O
+        /// from the (fast) markdown indexing. Never throws into the caller.
+        /// </summary>
+        private void ChainTextIndexingAfter(System.Threading.Tasks.Task markdownRun, string connectionId, string currentPath, bool force)
+        {
+            if (_textIndexingService == null || markdownRun == null)
+            {
+                return;
+            }
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return;
+            }
+
+            _ = markdownRun.ContinueWith(_ =>
+            {
+                try
+                {
+                    return _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: force);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[ChainTextIndexingAfter] Text indexing failed to start for '{Path}'", currentPath);
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }, System.Threading.Tasks.TaskScheduler.Default);
+        }
+
 
         /// <summary>
         /// Forza una reindicizzazione COMPLETA del progetto (ignora i fingerprint
@@ -1684,16 +1808,46 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentPath = GetProjectPath();
             if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
-                return BadRequest(new { error = "Nessun progetto aperto per questa connessione" });
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione", "No project open for this connection") });
             }
             if (_indexingPipelineService == null)
             {
-                return StatusCode(503, new { error = "Indexing pipeline non disponibile" });
+                return StatusCode(503, new { error = MdExplorer.Features.Services.UiText.Say("Indexing pipeline non disponibile", "Indexing pipeline not available") });
             }
 
             _logger.LogInformation("[ReindexProject] Forced full reindex requested for '{Path}'", currentPath);
             SetFileSystemWatcherEnabled(false); // la pipeline lo riabilita nel suo finally
-            _ = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            var reindexRun = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            ChainTextIndexingAfter(reindexRun, connectionId, currentPath, force: true);
+            return Ok(new { started = true });
+        }
+
+        /// <summary>
+        /// Forces a full rebuild of the SEPARATE text-file index only (leaves the
+        /// markdown index untouched). Useful after changing the allow-list. No-op
+        /// with 409 when the project has IndexAllTextFiles OFF.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ReindexTextFiles(string connectionId)
+        {
+            var currentPath = GetProjectPath();
+            if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
+            {
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto per questa connessione", "No project open for this connection") });
+            }
+            if (_textIndexingService == null)
+            {
+                return StatusCode(503, new { error = MdExplorer.Features.Services.UiText.Say("Text indexing non disponibile", "Text indexing not available") });
+            }
+
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return Conflict(new { error = MdExplorer.Features.Services.UiText.Say("L'indicizzazione dei file di testo è disattivata per questo progetto (IndexAllTextFiles OFF).", "Text file indexing is turned off for this project (IndexAllTextFiles OFF).") });
+            }
+
+            _logger.LogInformation("[ReindexTextFiles] Forced text reindex requested for '{Path}'", currentPath);
+            _ = _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: true);
             return Ok(new { started = true });
         }
 
@@ -1743,9 +1897,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var perRootStats = new List<(string Name, ScanStats Stats, long ElapsedMs)>();
             var ignoredRootFolders = new List<string>();
             var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
+            // L'occhio della radice: qualcosa che l'albero non mostra al primo livello.
+            var rootHasHidden = false;
 
             // Carica solo primo livello di cartelle che contengono file markdown
-            // Ordina: .github primo, poi folder "program", poi alfabetico
+            // Ordina: cartella harness (.github/.opencode/.claude) prima, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
                 isRootLevel: true,
@@ -1769,7 +1925,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 var node = result.Item1;
                 var isEmpty = result.Item2;
-                if (!isEmpty)
+                // Una cartella program con dei file si vede anche senza markdown (ProgramFolders);
+                // le altre senza markdown restano fuori e accendono l'occhio della radice.
+                var shownProgram = isEmpty && ProgramFoldersOf(currentPath).ShowsWithoutMarkdown(itemFolder, currentPath, _foldersIgnoreService);
+                if (isEmpty && !shownProgram)
+                    rootHasHidden = true;
+                if (!isEmpty || shownProgram)
                 {
                     // Imposta le proprietà per il caricamento incrementale
                     node.Level = 0;
@@ -1793,7 +1954,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             
             // File nella root
-            foreach (var itemFile in Directory.GetFiles(currentPath).Where(_ => Path.GetExtension(_) == ".md"))
+            var rootFiles = Directory.GetFiles(currentPath);
+            if (rootFiles.Any(IsRevealableExtraFile))
+                rootHasHidden = true;
+            foreach (var itemFile in rootFiles.Where(_ => Path.GetExtension(_) == ".md"))
             {
                 if (_mdIgnoreService.ShouldIgnorePath(itemFile, GetProjectPath()))
                 {
@@ -1827,7 +1991,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 Path = currentPath,
                 Type = "emptyroot",
                 Expandable = false,
-                IsIndexed = true
+                IsIndexed = true,
+                HasExtraContent = rootHasHidden,
+                TreeNotices = ProgramFolderNotices(currentPath)
             };
             list.Add(nodeempty);
             
@@ -1999,12 +2165,63 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Fire-and-forget — la pipeline gira sotto IsolatedEngineDB e re-abilita FSW alla fine.
             if (_indexingPipelineService != null)
             {
-                _ = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                var markdownRun = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                ChainTextIndexingAfter(markdownRun, connectionId, currentPath, force: false);
                 pipelineStarted = true;
             }
             else
             {
                 _logger.LogWarning("[GetShallowStructure] IIndexingPipelineService not available, indexing skipped");
+            }
+
+            // Grafo del codice (sprint 2026-10-09, F1): «generazione della conoscenza» all'apertura — gli script di
+            // .mde-code/ cambiati dall'ultima volta entrano in Fuseki (D19). Fire-and-forget, nessuna
+            // contesa con l'engine DB. Niente cartella .mde-code = esito vuoto, non un errore.
+            // ⚠️ L'albero deve aprirsi anche se il grafo non parte: risolvere i servizi del grafo (Fuseki, estrattori)
+            // qui dentro non può far fallire la richiesta. Un errore si scrive per intero nel log, non si nasconde.
+            MdExplorer.Features.Services.CodeGraph.ICodeGraphStore codeScriptLoader = null;
+            MdExplorer.Services.CodeGraph.ICodeAnalysisService codeAnalysis = null;
+            try
+            {
+                codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
+                codeAnalysis = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeAnalysisService>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "🧩 [CodeGraph] i servizi del grafo del codice non si sono potuti creare: il progetto si apre senza grafo");
+            }
+            if (codeScriptLoader != null)
+            {
+                var codeGraphProjectPath = currentPath;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    try
+                    {
+                        var outcome = await codeScriptLoader.LoadProjectAsync(codeGraphProjectPath);
+                        if (!outcome.ScriptsFolderMissing)
+                        {
+                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
+                                codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
+                                outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                        }
+                        // Poi il codice: le cartelle program con dei linguaggi scelti (D16) — git dice che cosa è cambiato (D14).
+                        if (codeAnalysis != null)
+                        {
+                            // All'apertura NON si rifanno gli script di un estrattore cambiato: si contano, e la pagina del grafo avvisa (D25).
+                            var analyzed = await codeAnalysis.AnalyzeProjectAsync(codeGraphProjectPath, includeExtractorChanges: false);
+                            foreach (var a in analyzed)
+                            {
+                                if (a.Error != null) _logger.LogWarning("🧩 [CodeGraph] '{Folder}': {Error}", a.Folder, a.Error);
+                                else _logger.LogInformation("🧩 [CodeGraph] '{Folder}' ({Mode}): {Files} file, {Reparsed} riparsati, {Removed} script tolti, {Outdated} di un estrattore cambiato lasciati da aggiornare", a.Folder, a.Mode, a.FilesInPerimeter, a.Reparsed, a.ScriptsRemoved, a.OutdatedScripts);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "🧩 [CodeGraph] caricamento all'apertura fallito per '{Project}'", codeGraphProjectPath);
+                    }
+                });
             }
 
             // ============================ Scan statistics ============================
@@ -2124,6 +2341,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         Path = relative,
                         RelativePath = relative,
                         Type = "genericFile",
+                        IsTextFile = IsReadableTextFile(itemFile),
                         Expandable = false
                     });
                 }
@@ -2137,36 +2355,26 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// non-ignored markdown file, any non-markdown file (excluding the TOC sidecar), or any
         /// non-ignored direct subfolder. Keeps a revealed subfolder's eye truthful.
         /// </summary>
-        private bool FolderHasRevealableContent(string folder, string projectPath)
+        /// <summary>
+        /// Whether a revealed file can be shown as text (<see cref="TextFileView.IsText(string)"/>).
+        /// A file that cannot be read now (locked, gone) is not offered: the click would only
+        /// fail. It is logged, not hidden.
+        /// </summary>
+        private bool IsReadableTextFile(string path)
         {
             try
             {
-                foreach (var f in Directory.GetFiles(folder))
-                {
-                    if (f.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (Path.GetExtension(f) == ".md")
-                    {
-                        if (!_mdIgnoreService.ShouldIgnorePath(f, projectPath))
-                            return true;
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }
-                foreach (var d in Directory.GetDirectories(folder).Where(_ => !_.Contains(".md")))
-                {
-                    if (!_foldersIgnoreService.ShouldIgnoreFolderForProject(d, projectPath))
-                        return true;
-                }
+                return TextFileView.IsText(path);
             }
-            catch
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
-                // Unreadable folder → no eye rather than a lie.
+                _logger.LogWarning(ex, "[GetFolderExtraContent] Cannot read {Path} to tell whether it is text", path);
+                return false;
             }
-            return false;
         }
+
+        private bool FolderHasRevealableContent(string folder, string projectPath) =>
+            FolderRevealableContent.Has(folder, projectPath, _mdIgnoreService, _foldersIgnoreService);
 
         /// <summary>
         /// Resolves a client-supplied path (relative to the project root, or an absolute path
@@ -2507,7 +2715,69 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 ).ToList();
             _userSettingsDB.Commit();
 
-            return Ok(bookmarkList);
+            // Labels are resolved live (title → file name) so they never go stale;
+            // duplicates get the parent folder appended, VS Code tab style.
+            var resolved = bookmarkList
+                .Select(_ => new
+                {
+                    _.Id,
+                    _.Name,
+                    _.FullPath,
+                    _.SortOrder,
+                    _.ProjectId,
+                    DisplayName = ResolveBookmarkTitle(_.FullPath) ?? _.Name
+                }).ToList();
+
+            var duplicatedLabels = resolved
+                .GroupBy(_ => _.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var response = resolved.Select(_ => new
+            {
+                _.Id,
+                _.Name,
+                _.FullPath,
+                _.SortOrder,
+                _.ProjectId,
+                DisplayName = duplicatedLabels.Contains(_.DisplayName)
+                    ? $"{_.DisplayName} — {GetBookmarkParentFolderName(_.FullPath)}"
+                    : _.DisplayName
+            }).ToList();
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Reads the head of the bookmarked file and extracts its document title
+        /// (front matter "title:" or first H1). Null when the file is missing,
+        /// unreadable or has no title — the caller falls back to the stored name.
+        /// </summary>
+        private static string ResolveBookmarkTitle(string fullPath)
+        {
+            const int headChars = 8 * 1024;
+            try
+            {
+                if (string.IsNullOrEmpty(fullPath) || !System.IO.File.Exists(fullPath)) return null;
+                using var reader = new StreamReader(fullPath);
+                var buffer = new char[headChars];
+                var read = reader.Read(buffer, 0, headChars);
+                return MarkdownTitleExtractor.ExtractTitle(new string(buffer, 0, read));
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+        }
+
+        // Last directory segment of the path, tolerant of both separators
+        // (bookmarks created on Windows may carry '\' even when read elsewhere).
+        private static string GetBookmarkParentFolderName(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return string.Empty;
+            var segments = fullPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length >= 2 ? segments[segments.Length - 2] : string.Empty;
         }
 
         [HttpPost]
@@ -2731,12 +3001,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// <c>GetFolderExtraContent</c> use this predicate so the eye never promises content the
         /// reveal call would not return.</para>
         /// </summary>
-        private static bool IsRevealableExtraFile(string filePath)
-        {
-            if (Path.GetExtension(filePath) == ".md") return false;
-            if (filePath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase)) return false;
-            return true;
-        }
+        private static bool IsRevealableExtraFile(string filePath) => FolderRevealableContent.IsExtraFile(filePath);
 
         /// <summary>
         /// True when the folder owns its generated TOC file (<c>&lt;dirname&gt;.md.directory</c>).
@@ -2870,6 +3135,44 @@ namespace MdExplorer.Service.Controllers.MdFiles
         // The controller is registered scoped → this dictionary lives only for one HTTP request,
         // so there is no stale-cache risk across edits to .development.yml.
         private Dictionary<string, List<DevelopmentFolder>> _devTagsByProjectRoot;
+        private ProgramFolders _programFolders;
+
+        /// <summary>The program folders of <c>.development.yml</c>, read once per request (one project).</summary>
+        private ProgramFolders ProgramFoldersOf(string projectRoot) =>
+            _programFolders ??= ProgramFolders.From(projectRoot, GetOrLoadDevelopmentFolders(projectRoot));
+
+        /// <summary>
+        /// The program folders the tree cannot show, said instead of left out in silence: the folder is gone
+        /// from the disk (the row in <c>.development.yml</c> stays, the user decides), or it is ignored by
+        /// <c>.mdFoldersIgnore</c> (the ignore wins).
+        /// </summary>
+        private List<string> ProgramFolderNotices(string projectRoot)
+        {
+            var notices = new List<string>();
+            foreach (var folder in ProgramFoldersOf(projectRoot).Paths.OrderBy(_ => _, StringComparer.OrdinalIgnoreCase))
+            {
+                var relative = Path.GetRelativePath(projectRoot, folder);
+                if (!Directory.Exists(folder))
+                    notices.Add(MdExplorer.Features.Services.UiText.Say(
+                        $"La cartella program «{relative}» del .development.yml non esiste sul disco.",
+                        $"The program folder «{relative}» in .development.yml does not exist on disk."));
+                else if (IsFolderOrAncestorIgnored(folder, projectRoot))
+                    notices.Add(MdExplorer.Features.Services.UiText.Say(
+                        $"La cartella program «{relative}» non si vede: è esclusa da .mdFoldersIgnore.",
+                        $"The program folder «{relative}» is not shown: .mdFoldersIgnore excludes it."));
+            }
+            return notices.Count > 0 ? notices : null;
+        }
+
+        /// <summary>The folder or one of the folders above it, up to the project root, is ignored.</summary>
+        private bool IsFolderOrAncestorIgnored(string folder, string projectRoot)
+        {
+            var root = Path.GetFullPath(projectRoot).TrimEnd(Path.DirectorySeparatorChar);
+            for (var d = new DirectoryInfo(folder); d != null && !d.FullName.TrimEnd(Path.DirectorySeparatorChar).Equals(root, StringComparison.OrdinalIgnoreCase); d = d.Parent)
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(d.FullName, projectRoot))
+                    return true;
+            return false;
+        }
 
         /// <summary>
         /// Loads development tags from .development.yml file in the specified folder.
@@ -2930,11 +3233,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var devConfigPath = Path.Combine(projectRoot, ".development.yml");
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    var config = deserializer.Deserialize<DevelopmentConfig>(yamlContent);
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
                     if (config?.Folders != null)
                     {
                         folders = config.Folders;
@@ -2951,7 +3251,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
-        /// Ordina i folder: .github primo (solo root), poi folder "program", poi alfabetico
+        /// Ordina i folder: la cartella dell'harness (.github / .opencode / .claude) prima (solo root),
+        /// poi folder "program", poi alfabetico
         /// </summary>
         private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel, string projectRoot)
         {
@@ -2964,8 +3265,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var folderName = Path.GetFileName(folderPath);
 
-            // .github sempre primo (solo a livello root)
-            if (isRootLevel && folderName.Equals(".github", StringComparison.OrdinalIgnoreCase))
+            // Cartella di un harness (.github, .opencode, .claude) sempre prima, solo a livello root.
+            // L'elenco arriva da HarnessLayout.All: aggiungere un harness non deve
+            // richiedere un altro literal qui dentro.
+            if (isRootLevel && HarnessLayout.All.Any(_ => folderName.Equals(_.RootFolder, StringComparison.OrdinalIgnoreCase)))
                 return 0;
 
             // Folder con tag "program"
@@ -3131,6 +3434,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     fileInfoNode.Childrens.Add(node);
                 }
+                else if (ProgramFoldersOf(projectPath).ShowsWithoutMarkdown(itemFolder, projectPath, _foldersIgnoreService))
+                {
+                    // A program folder with files shows even without markdown, but only itself:
+                    // the parent stays "empty" and follows the markdown rule (ProgramFolders).
+                    fileInfoNode.Childrens.Add(node);
+                }
                 else
                 {
                     // A non-ignored subfolder with no .md descendant is dropped from the tree,
@@ -3201,6 +3510,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     // Small delay to make progress visible
                     await Task.Delay(50);
+                }
+                else if (ProgramFoldersOf(projectPath).ShowsWithoutMarkdown(itemFolder, projectPath, _foldersIgnoreService))
+                {
+                    // A program folder with files shows even without markdown, only itself (ProgramFolders).
+                    fileInfoNode.Childrens.Add(node);
                 }
                 else
                 {
@@ -3356,6 +3670,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return BadRequest(new { error = "ConnectionId is required" });
             }
 
+            // L'ancora si verifica PRIMA della clipboard: se la pagina è vecchia non ha senso aprire
+            // il wizard, e l'utente annoterebbe un'immagine destinata a un punto che non esiste più.
+            PasteAnchorDto anchor = null;
+            if (request.AnchorStartLine.HasValue)
+            {
+                var anchorError = ResolvePasteAnchor(request, out anchor);
+                if (anchorError != null)
+                {
+                    return anchorError;
+                }
+            }
+
             try
             {
                 // Read image from system clipboard using CrossPlatformClipboard
@@ -3381,6 +3707,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var imageBase64 = Convert.ToBase64String(clipboardResult.ImageData);
                 _logger.LogInformation($"[TriggerPasteWizard] Image found - Size: {clipboardResult.ImageData.Length} bytes, sending via SignalR");
 
+                // The anchor with its property names spelled out, like the rest of this payload:
+                // the client must not depend on the hub's JSON naming policy to find startLine
+                // rather than StartLine — a wrong guess there would silently drop the anchor and
+                // put the image at the end.
+                var anchorPayload = anchor == null ? null : new
+                {
+                    startLine = anchor.StartLine,
+                    endLine = anchor.EndLine,
+                    position = anchor.Position,
+                    expectedText = anchor.ExpectedText,
+                    label = anchor.Label
+                };
+
                 // Send to Angular via SignalR
                 await _hubContext.Clients.Client(request.ConnectionId)
                     .SendAsync("openScreenshotAnnotationWizard", new
@@ -3388,16 +3727,507 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         success = true,
                         imageBase64 = imageBase64,
                         mimeType = "image/png",
-                        documentPath = request.DocumentPath
+                        documentPath = request.DocumentPath,
+                        // null = in fondo al documento (Ctrl+V fuori da un blocco): il wizard lo dice
+                        anchor = anchorPayload
                     });
 
-                return Ok(new { success = true, message = "Image sent via SignalR" });
+                return Ok(new { success = true, message = "Image sent via SignalR", anchor = anchorPayload });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[TriggerPasteWizard] Error processing clipboard");
                 return StatusCode(500, new { error = "Error processing clipboard", details = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Una correzione del testo fatta sulla pagina (tasto destro → "Modifica testo"): la pagina
+        /// manda i run del blocco prima e dopo, il file cambia solo nei caratteri toccati
+        /// (<see cref="RenderedTextEditor"/>).
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita;
+        /// 422 <c>refused</c>, con il motivo, quando la correzione non si può fare in modo sicuro. In
+        /// entrambi i casi non si scrive nulla.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> EditRenderedText([FromBody] EditRenderedTextRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            if (request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the block (1 or more)" });
+            }
+            if (request.Row.HasValue != request.Column.HasValue)
+            {
+                return BadRequest(new { error = "A cell needs both Row and Column" });
+            }
+            if (request.Before == null || request.After == null)
+            {
+                return BadRequest(new { error = "Before and After are required" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            if (!string.Equals(MarkdownFileEditor.SourceHash(text), request.SourceHash, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("[EditRenderedText] Rifiutata per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                return Conflict(new
+                {
+                    error = "document-changed",
+                    message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
+                });
+            }
+
+            var edit = RenderedTextEditor.Apply(
+                text,
+                BuildDocumentViewPipeline(),
+                new RenderedTextTarget { Line = request.Line, Row = request.Row, Column = request.Column },
+                ToRenderedRuns(request.Before),
+                ToRenderedRuns(request.After));
+
+            if (edit.Status == RenderedTextEditStatus.NoChange)
+            {
+                return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+            }
+            if (edit.Status == RenderedTextEditStatus.Refused)
+            {
+                _logger.LogWarning("[EditRenderedText] Rifiutata per {File}, riga {Line}: {Refusal} — {Detail}", fullPath, request.Line, edit.Refusal, edit.Detail);
+                return UnprocessableEntity(new
+                {
+                    error = "refused",
+                    refusal = edit.Refusal.ToString(),
+                    detail = edit.Detail,
+                    message = RenderedTextRefusalMessage(edit.Refusal)
+                });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, edit.NewContent, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation(edit.BlockDeleted
+                ? "[EditRenderedText] Tolto il blocco alla riga {Line} di {File} (testo cancellato tutto)"
+                : "[EditRenderedText] Corretto il blocco alla riga {Line} di {File}", request.Line, fullPath);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[EditRenderedText] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = edit.BlockDeleted ? "deleted" : "applied", sourceHash = MarkdownFileEditor.SourceHash(edit.NewContent) });
+        }
+
+        /// <summary>
+        /// Sposta una voce di un elenco tra le sue sorelle (trascinamento sulla slide,
+        /// <see cref="ListItemReorderer"/>): il file cambia solo nell'ordine delle voci, i marcatori
+        /// restano ai loro posti (un elenco numerato resta numerato).
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita;
+        /// 422 <c>refused</c>, con il motivo, quando non si può fare in modo sicuro. In entrambi i casi
+        /// non si scrive nulla. La risposta porta l'impronta nuova: le righe sotto la voce non cambiano,
+        /// ma la pagina non deve rimanere con quella vecchia.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> MoveListItem([FromBody] MoveListItemRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            if (request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the list item (1 or more)" });
+            }
+            if (request.ToIndex < 0)
+            {
+                return BadRequest(new { error = "ToIndex is the 0-based position among the siblings" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            var plan = ListItemMovePlanner.Plan(text, request.SourceHash, request.Line, request.ToIndex, BuildDocumentViewPipeline());
+
+            switch (plan.Status)
+            {
+                case ListItemMovePlanStatus.DocumentChanged:
+                    _logger.LogWarning("[MoveListItem] Rifiutato per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                    return Conflict(new
+                    {
+                        error = "document-changed",
+                        message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
+                    });
+                case ListItemMovePlanStatus.NoChange:
+                    return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+                case ListItemMovePlanStatus.Refused:
+                    _logger.LogWarning("[MoveListItem] Rifiutato per {File}, riga {Line}: {Refusal} — {Detail}", fullPath, request.Line, plan.Refusal, plan.Detail);
+                    return UnprocessableEntity(new
+                    {
+                        error = "refused",
+                        refusal = plan.Refusal.ToString(),
+                        detail = plan.Detail,
+                        message = ListItemMoveRefusalMessage(plan.Refusal.Value)
+                    });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, plan.NewText, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation("[MoveListItem] Spostata la voce alla riga {Line} di {File} in posizione {To}", request.Line, fullPath, request.ToIndex);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[MoveListItem] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = "applied", sourceHash = plan.NewSourceHash });
+        }
+
+        /// <summary>Perché la voce non è stata spostata, detto a chi l'ha trascinata: la pagina la lascia dov'era.</summary>
+        private static string ListItemMoveRefusalMessage(ListItemMoveRefusal refusal) => refusal switch
+        {
+            ListItemMoveRefusal.NotAListItem =>
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questa voce nel file: ricarica la pagina e riprova.", "This item is no longer in the file: reload the page and try again."),
+            ListItemMoveRefusal.SingleItem =>
+                MdExplorer.Features.Services.UiText.Say("L'elenco ha una voce sola: non c'è dove spostarla.", "The list has one item only: there is nowhere to move it."),
+            ListItemMoveRefusal.PositionOutOfRange =>
+                MdExplorer.Features.Services.UiText.Say("Quella posizione non esiste nell'elenco: ricarica la pagina e riprova.", "That position does not exist in the list: reload the page and try again."),
+            ListItemMoveRefusal.MarkerWidthDiffers =>
+                MdExplorer.Features.Services.UiText.Say("In questo elenco numerato lo spostamento cambierebbe la larghezza del numero (da 9 a 10 o viceversa) e le righe della voce non sarebbero più allineate: spostala nel file.", "In this numbered list the move would change the width of the number (9 to 10 or back) and the item's lines would no longer line up: move it in the file."),
+            ListItemMoveRefusal.EmptyFirstLine =>
+                MdExplorer.Features.Services.UiText.Say("Questa voce inizia con la riga vuota: spostala nel file.", "This item starts with an empty line: move it in the file."),
+            ListItemMoveRefusal.ChangesOtherBlocks =>
+                MdExplorer.Features.Services.UiText.Say("Spostare questa voce cambierebbe altro nel file (un elenco impaginato diversamente, un altro blocco): spostala nel file.", "Moving this item would change something else in the file (a list laid out differently, another block): move it in the file."),
+            ListItemMoveRefusal.FragmentOrderFixed =>
+                MdExplorer.Features.Services.UiText.Say("Le voci di questo elenco hanno un data-fragment-index scritto a mano: spostarle non cambierebbe l'ordine in cui compaiono. Cambia gli indici nel file.", "The items of this list have a hand-written data-fragment-index: moving them would not change the order they appear in. Change the indexes in the file."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
+        };
+
+        /// <summary>
+        /// Cambia la transizione di una slide (<c>&lt;!-- .slide: data-transition="zoom" --&gt;</c> nelle sue righe) o di tutta
+        /// la presentazione (<c>reveal.config.transition</c> nel front matter): il file cambia solo lì
+        /// (<see cref="SlideTransitionEditor"/>). Con <c>Scope</c> = "slide" serve <c>Line</c>, il
+        /// <c>data-mde-line-start</c> della <c>&lt;section&gt;</c>; <c>Transition</c> null toglie quella della slide.
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita; 422
+        /// <c>refused</c>, con il motivo, quando non si può fare in modo sicuro. In entrambi i casi non si
+        /// scrive nulla.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> SetSlideTransition([FromBody] SetSlideTransitionRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            var scope = (request.Scope ?? "slide").ToLowerInvariant();
+            if (scope != "slide" && scope != "deck")
+            {
+                return BadRequest(new { error = "Scope is 'slide' or 'deck'" });
+            }
+            if (scope == "slide" && request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the slide's section (1 or more)" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            var plan = SlideTransitionPlanner.Plan(text, request.SourceHash, scope, request.Line, request.Transition, BuildDocumentViewPipeline());
+
+            switch (plan.Status)
+            {
+                case SlideTransitionPlanStatus.DocumentChanged:
+                    _logger.LogWarning("[SetSlideTransition] Rifiutato per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                    return Conflict(new
+                    {
+                        error = "document-changed",
+                        message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
+                    });
+                case SlideTransitionPlanStatus.NoChange:
+                    return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+                case SlideTransitionPlanStatus.Refused:
+                    _logger.LogWarning("[SetSlideTransition] Rifiutato per {File}, {Scope} riga {Line}: {Refusal} — {Detail}", fullPath, scope, request.Line, plan.Refusal, plan.Detail);
+                    return UnprocessableEntity(new
+                    {
+                        error = "refused",
+                        refusal = plan.Refusal.ToString(),
+                        detail = plan.Detail,
+                        message = SlideTransitionRefusalMessage(plan.Refusal.Value)
+                    });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, plan.NewText, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation("[SetSlideTransition] Transizione {Transition} ({Scope}, riga {Line}) scritta in {File}", request.Transition ?? "(quella del deck)", scope, request.Line, fullPath);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[SetSlideTransition] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = "applied", sourceHash = plan.NewSourceHash });
+        }
+
+        /// <summary>Perché la transizione non è stata scritta, detto a chi l'ha scelta: la presentazione resta com'era.</summary>
+        private static string SlideTransitionRefusalMessage(SlideTransitionRefusal refusal) => refusal switch
+        {
+            SlideTransitionRefusal.UnknownTransition =>
+                MdExplorer.Features.Services.UiText.Say("Questa transizione non esiste: scegline una dell'elenco.", "That transition does not exist: choose one from the list."),
+            SlideTransitionRefusal.NotADeck =>
+                MdExplorer.Features.Services.UiText.Say("Questo file non è una presentazione (manca il front matter con document_type: slides).", "This file is not a slide deck (no front matter with document_type: slides)."),
+            SlideTransitionRefusal.NotASlide =>
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questa slide nel file (forse è stata scritta da un comando): ricarica la pagina e riprova.", "This slide is no longer in the file (maybe a command wrote it): reload the page and try again."),
+            SlideTransitionRefusal.UnsupportedLayout =>
+                MdExplorer.Features.Services.UiText.Say("Il file è scritto in una forma che da qui non si modifica in modo sicuro (un commento .slide: su più righe, o il front matter su una riga): cambia la transizione nel file.", "The file is written in a form that cannot be safely edited from here (a .slide: comment on several lines, or a one-line front matter): change the transition in the file."),
+            SlideTransitionRefusal.ChangesOtherContent =>
+                MdExplorer.Features.Services.UiText.Say("Scrivere la transizione cambierebbe altro nella presentazione: cambiala nel file.", "Writing the transition would change something else in the deck: change it in the file."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
+        };
+
+        private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
+            => runs.Select(run => new RenderedRun { Text = run.Text, Object = run.Object, Path = run.Path }).ToList();
+
+        /// <summary>
+        /// Perché la correzione non è stata salvata, detto a chi l'ha scritta. La pagina lascia il
+        /// blocco in modifica con il suo testo: il messaggio dice che cosa cambiare.
+        /// </summary>
+        private static string RenderedTextRefusalMessage(RenderedTextRefusal refusal) => refusal switch
+        {
+            RenderedTextRefusal.BlockNotFound =>
+                MdExplorer.Features.Services.UiText.Say("Non trovo più questo blocco nel file: ricarica la pagina e riprova.", "This block is no longer in the file: reload the page and try again."),
+            RenderedTextRefusal.UnsupportedContent =>
+                MdExplorer.Features.Services.UiText.Say("Questo blocco contiene elementi che non si correggono dalla pagina (formule, note…): correggilo nel file.", "This block contains elements that cannot be corrected from the page (formulas, notes…): correct it in the file."),
+            RenderedTextRefusal.RenderedTextMismatch =>
+                MdExplorer.Features.Services.UiText.Say("La pagina mostra questo blocco diversamente da com'è scritto nel file (per esempio con emoji interattive): correggilo nel file.", "The page shows this block differently from how it is written in the file (for example with interactive emoji): correct it in the file."),
+            RenderedTextRefusal.LineBreakNotAllowed =>
+                MdExplorer.Features.Services.UiText.Say("Dalla pagina si corregge solo il testo: gli a capo non si aggiungono né si tolgono.", "From the page only the text is corrected: line breaks are not added or removed."),
+            RenderedTextRefusal.ProtectedContentTouched =>
+                MdExplorer.Features.Services.UiText.Say("Emoji, immagini, caselle e indirizzi dei link non si cambiano dalla pagina: correggi solo il testo intorno.", "Emoji, images, checkboxes and link addresses cannot be changed from the page: correct only the text around them."),
+            RenderedTextRefusal.FormattingNotAllowed =>
+                MdExplorer.Features.Services.UiText.Say("Il testo scritto ha una formattazione (grassetto, corsivo, link) che lì non c'è: dalla pagina non si aggiunge formattazione.", "The text you typed has formatting (bold, italic, link) that is not there: formatting cannot be added from the page."),
+            RenderedTextRefusal.EditTooLarge =>
+                MdExplorer.Features.Services.UiText.Say("La correzione cambia troppo testo in una volta: falla in più passi.", "The correction changes too much text at once: do it in several steps."),
+            RenderedTextRefusal.BlockDeletionNotAllowed =>
+                MdExplorer.Features.Services.UiText.Say("Qui cancellare tutto il testo non toglie il blocco in modo sicuro (una voce con sotto-voci, un titolo sottolineato, un blocco in una citazione): toglilo nel file.", "Deleting all the text here does not safely remove the block (an item with sub-items, an underlined title, a block inside a quote): remove it in the file."),
+                        RenderedTextRefusal.VerificationFailed =>
+                MdExplorer.Features.Services.UiText.Say("Quello che hai scritto verrebbe letto come Markdown (un link, un'emoji, un simbolo) e la pagina non lo mostrerebbe così: cambialo e riprova.", "What you typed would be read as Markdown (a link, an emoji, a symbol) and the page would not show it like that: change it and try again."),
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, MdExplorer.Features.Services.UiText.Say("Motivo di rifiuto senza messaggio", "Refusal reason without a message"))
+        };
+
+        /// <summary>
+        /// Verifica l'ancora di un incolla e ne cattura le righe. Restituisce l'errore da mandare al
+        /// client, o null se l'ancora è buona.
+        /// <para>
+        /// 409 <c>document-changed</c> quando il file non è più quello da cui la pagina è stata
+        /// costruita: le righe della pagina punterebbero nel posto sbagliato, e inserire lì sarebbe
+        /// esattamente il guasto che questa funzionalità non deve avere. Si rifiuta, non si indovina.
+        /// </para>
+        /// </summary>
+        private IActionResult ResolvePasteAnchor(TriggerPasteWizardRequest request, out PasteAnchorDto anchor)
+        {
+            anchor = null;
+
+            if (!request.AnchorEndLine.HasValue || string.IsNullOrWhiteSpace(request.AnchorPosition)
+                || string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "Ancora incompleta: servono AnchorStartLine, AnchorEndLine, AnchorPosition e SourceHash" });
+            }
+            if (!TryParseBlockPosition(request.AnchorPosition, out var position))
+            {
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say($"AnchorPosition '{request.AnchorPosition}' non valida: 'before' oppure 'after'", $"AnchorPosition '{request.AnchorPosition}' is not valid: 'before' or 'after'") });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            if (!string.Equals(MarkdownFileEditor.SourceHash(text), request.SourceHash, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("[TriggerPasteWizard] Ancora rifiutata per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                return Conflict(new
+                {
+                    error = "document-changed",
+                    message = MdExplorer.Features.Services.UiText.Say("Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova.", "The document changed after the page was loaded: reload it and try again.")
+                });
+            }
+
+            var lines = MarkdownFileEditor.SplitLines(text);
+            var start = request.AnchorStartLine.Value;
+            var end = request.AnchorEndLine.Value;
+            if (!MarkdownFileEditor.IsValidRange(lines, start, end))
+            {
+                return BadRequest(new { error = MarkdownFileEditor.InvalidRangeMessage(start, end, lines.Length) });
+            }
+
+            anchor = new PasteAnchorDto
+            {
+                StartLine = start,
+                EndLine = end,
+                Position = position == BlockPosition.Before ? "before" : "after",
+                ExpectedText = MarkdownFileEditor.Fragment(lines, start, end),
+                Label = AnchorLabel(lines[start - 1])
+            };
+            return null;
+        }
+
+        private static bool TryParseBlockPosition(string value, out BlockPosition position)
+        {
+            switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "before": position = BlockPosition.Before; return true;
+                case "after": position = BlockPosition.After; return true;
+                default: position = BlockPosition.After; return false;
+            }
+        }
+
+        /// <summary>La prima riga del blocco, con gli spazi compattati e al massimo 60 caratteri.</summary>
+        private static string AnchorLabel(string firstLine)
+        {
+            var label = Regex.Replace(firstLine ?? string.Empty, @"\s+", " ").Trim();
+            return label.Length <= 60 ? label : label.Substring(0, 60) + "…";
+        }
+
+        /// <summary>
+        /// Un .md esistente DENTRO il progetto aperto. Serve dove il percorso arriva dal client e il
+        /// file viene letto e rimandato indietro: senza, si leggerebbe qualunque file del disco.
+        /// <para>
+        /// Il progetto si risolve dal <paramref name="connectionId"/> della RICHIESTA, non dalla query
+        /// string: la pagina (clipboard-paste.js) manda il connectionId nel corpo JSON, e
+        /// <c>GetProjectPath()</c> senza argomenti lo cerca solo nella query — ogni incolla con
+        /// l'ancora avrebbe risposto "nessun progetto aperto". Trovato provando sull'app vera.
+        /// </para>
+        /// </summary>
+        private IActionResult ValidateProjectMarkdownPath(string path, string connectionId, out string fullPath)
+        {
+            fullPath = null;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("DocumentPath è obbligatorio con un'ancora", "DocumentPath is required with an anchor") });
+            }
+            var projectPath = GetProjectPath(connectionId);
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Nessun progetto aperto", "No project open") });
+            }
+
+            var candidate = Path.GetFullPath(path);
+            var projectRoot = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase)
+                || !candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                || !System.IO.File.Exists(candidate))
+            {
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("Il documento deve essere un .md esistente dentro il progetto aperto", "The document must be an existing .md inside the open project") });
+            }
+            fullPath = candidate;
+            return null;
         }
 
         /// <summary>
@@ -3435,6 +4265,118 @@ public class TriggerPasteWizardRequest
 {
     public string ConnectionId { get; set; }
     public string? DocumentPath { get; set; }
+
+    // L'ancora: il blocco di primo livello su cui si è fatto tasto destro (o sotto il puntatore al
+    // Ctrl+V), con le righe della source map, e l'impronta del file da cui la pagina è stata
+    // costruita. Tutti facoltativi e tutti nullable: il Ctrl+V fuori da un blocco non li manda, e
+    // un campo non nullable in un progetto con Nullable annotations è un [Required] implicito —
+    // ogni incolla di sempre tornerebbe 400 prima di entrare nel metodo.
+    public int? AnchorStartLine { get; set; }
+    public int? AnchorEndLine { get; set; }
+
+    /// <summary><c>before</c> | <c>after</c>.</summary>
+    public string? AnchorPosition { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+}
+
+/// <summary>
+/// Il punto del documento in cui va il blocco immagine, come lo capiscono il wizard e il salvataggio.
+/// </summary>
+public class PasteAnchorDto
+{
+    public int StartLine { get; set; }
+    public int EndLine { get; set; }
+
+    /// <summary><c>before</c> | <c>after</c>.</summary>
+    public string Position { get; set; }
+
+    /// <summary>
+    /// Le righe del blocco com'erano al tasto destro: riconfrontate al salvataggio, perché il wizard
+    /// può restare aperto per minuti mentre il file cambia altrove.
+    /// </summary>
+    public string ExpectedText { get; set; }
+
+    /// <summary>La prima riga del blocco, accorciata: per dire all'utente dove andrà l'immagine.</summary>
+    public string Label { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/EditRenderedText</c>: una correzione del testo fatta sulla pagina. Tutto
+/// nullable: un campo non nullable in un progetto con Nullable annotations è un [Required]
+/// implicito, e un run di testo non ha <c>Object</c> (né un oggetto ha <c>Text</c>).
+/// </summary>
+public class EditRenderedTextRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>Il <c>data-mde-line-start</c> del blocco; per una cella, quello della tabella.</summary>
+    public int Line { get; set; }
+
+    /// <summary>Per una cella: riga (intestazione = 0) e colonna, contate da 0.</summary>
+    public int? Row { get; set; }
+    public int? Column { get; set; }
+
+    public List<RenderedRunDto>? Before { get; set; }
+    public List<RenderedRunDto>? After { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/MoveListItem</c>: una voce di elenco trascinata sulla pagina. Tutto nullable
+/// dove è una stringa (un campo non nullable in un progetto con Nullable annotations è un [Required]
+/// implicito).
+/// </summary>
+public class MoveListItemRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>Il <c>data-mde-line-start</c> della voce (1-based).</summary>
+    public int Line { get; set; }
+
+    /// <summary>La posizione tra le voci sorelle a cui va, da 0.</summary>
+    public int ToIndex { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/SetSlideTransition</c>: la transizione scelta dalla barra delle slide. Le stringhe sono
+/// nullable (un campo non nullable in un progetto con Nullable annotations è un [Required] implicito, e
+/// <c>Transition</c> null è una scelta: «quella del deck»).
+/// </summary>
+public class SetSlideTransitionRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>"slide" (default) o "deck".</summary>
+    public string? Scope { get; set; }
+
+    /// <summary>Per "slide": il <c>data-mde-line-start</c> della sua <c>&lt;section&gt;</c> (1-based).</summary>
+    public int Line { get; set; }
+
+    /// <summary>none, fade, slide, convex, concave, zoom; null per una slide = quella del deck.</summary>
+    public string? Transition { get; set; }
+}
+
+/// <summary>Un nodo di testo del blocco o un elemento senza testo (<c>img</c>, <c>br</c>, <c>input</c>).</summary>
+public class RenderedRunDto
+{
+    public string? Text { get; set; }
+    public string? Object { get; set; }
+
+    /// <summary>I tag fra il blocco e il nodo, dal più esterno.</summary>
+    public string[]? Path { get; set; }
 }
 
 

@@ -54,6 +54,13 @@ iframe.app-iframe {
         font-size: 13px;
       }
 
+      // Document titles can be long: cap the label, full path stays in the tooltip
+      span.bookmark-label {
+        max-width: 320px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
       mat-icon {
         font-size: 16px;
         width: 16px;

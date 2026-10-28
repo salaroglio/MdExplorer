@@ -1,0 +1,11 @@
+.host-row { display: flex; align-items: center; gap: 8px; }
+.host-field { flex: 1; }
+.consent { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--mde-accent, #1976d2); }
+.consent p { margin: 4px 0; }
+.consent-head { display: flex; align-items: center; gap: 6px; color: var(--mde-accent, #1976d2); }
+.server-settings { display: flex; flex-direction: column; gap: 6px; }
+.browser { display: flex; flex-direction: column; gap: 6px; }
+.folders { display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; border-radius: 8px; background: var(--mde-surface-2, rgba(0,0,0,0.04)); padding: 4px; }
+.folder { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: none; background: transparent; color: inherit; text-align: left; cursor: pointer; border-radius: 6px; font: inherit; }
+.folder:hover { background: rgba(100,116,139,0.15); }
+.folder mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--mde-accent, #1976d2); }

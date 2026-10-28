@@ -21,6 +21,13 @@ namespace MdExplorer.Features.Commands
         /// </summary>
         List<CompatibilityMode> SupportedModes { get; }
 
+        /// <summary>
+        /// Whether the command runs on a slide deck (<see cref="RequestInfo.SlideDeck"/>): its output
+        /// must work in a reveal.js page, without the document view's scripts. Off unless a command
+        /// says otherwise, so a new command does not reach the slides untried.
+        /// </summary>
+        bool WorksInSlides => false;
+
         string TransformInNewMDFromMD(string markdown,RequestInfo requestInfo);
         string TransformAfterConversion(string html, RequestInfo requestInfo);
         string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo);

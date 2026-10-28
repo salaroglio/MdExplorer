@@ -1,0 +1,38 @@
+{
+  "mde_templates": 1,
+  "templates": [
+    {
+      "id": "demo",
+      "kind": "project",
+      "url": "https://github.com/salaroglio/mdexplorer-demo.git",
+      "languages": ["it", "en"],
+      "title": { "it": "La demo di MdExplorer", "en": "The MdExplorer demo" },
+      "description": {
+        "it": "Un progetto da esplorare: caso studio, grafo del codice, wiki e la città degli agenti che prepara una gara.",
+        "en": "A project to explore: case study, code graph, wiki and the agent city preparing a tender."
+      }
+    },
+    {
+      "id": "documenti",
+      "kind": "foundation",
+      "url": "https://github.com/salaroglio/mdexplorer-template-documenti.git",
+      "languages": ["it", "en"],
+      "title": { "it": "Document Driven Development", "en": "Document Driven Development" },
+      "description": {
+        "it": "Il wiki del progetto, scritto e tenuto in ordine con gli agenti: le fonti restano intatte, le pagine crescono, l'indice e il registro dicono che cosa c'è e che cosa è cambiato.",
+        "en": "The project's wiki, written and kept in order with the agents: the sources stay untouched, the pages grow, the index and the log say what is there and what changed."
+      }
+    },
+    {
+      "id": "ontologie",
+      "kind": "method",
+      "url": "https://github.com/salaroglio/mdexplorer-template-ontologie.git",
+      "languages": ["it", "en"],
+      "title": { "it": "Ontologie", "en": "Ontologies" },
+      "description": {
+        "it": "Disegnare un'ontologia partendo dalle domande a cui deve rispondere: schema, regole ed esempi, verificati prima di accettarla.",
+        "en": "Design an ontology starting from the questions it must answer: schema, rules and examples, checked before accepting it."
+      }
+    }
+  ]
+}

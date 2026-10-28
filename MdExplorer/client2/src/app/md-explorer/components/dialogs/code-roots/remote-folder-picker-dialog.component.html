@@ -1,0 +1,94 @@
+<div mat-dialog-title class="dialog-header">
+  <mat-icon class="dialog-icon">dns</mat-icon>
+  <span>{{ 'REMOTE_PICKER.TITLE' | translate: { alias: data.alias } }}</span>
+</div>
+
+<mat-dialog-content>
+  <div class="dialog-container">
+    <p class="intro">{{ 'REMOTE_PICKER.INTRO' | translate }}</p>
+
+    <label class="field-label" for="remote-host">{{ 'REMOTE_PICKER.HOST' | translate }}</label>
+    <div class="host-row">
+      <mat-form-field appearance="outline" class="host-field">
+        <input matInput id="remote-host" [(ngModel)]="host" [matAutocomplete]="hostList" placeholder="build-server, dev@10.0.0.5, dev@host:2222"
+               autocomplete="off" (keydown.enter)="connect()">
+        <mat-autocomplete #hostList="matAutocomplete">
+          <mat-option *ngFor="let h of filteredHosts" [value]="h">{{ h }}</mat-option>
+        </mat-autocomplete>
+        <mat-hint>{{ 'REMOTE_PICKER.HOST_HINT' | translate }}</mat-hint>
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="connect()" [disabled]="!host.trim() || busy">
+        <mat-icon>login</mat-icon> {{ 'REMOTE_PICKER.CONNECT' | translate }}
+      </button>
+      <button mat-icon-button (click)="toggleServerSettings()" [disabled]="!host.trim() || busy" [matTooltip]="'REMOTE_PICKER.AGENT_FOLDER' | translate">
+        <mat-icon>settings</mat-icon>
+      </button>
+    </div>
+
+    <div class="loading" *ngIf="busy">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>{{ 'REMOTE_PICKER.CONNECTING' | translate }}</span>
+    </div>
+
+    <!-- P13: che cosa si carica e dove, prima di caricarlo -->
+    <div class="consent" *ngIf="consent && !busy">
+      <div class="consent-head"><mat-icon>upload_file</mat-icon><strong>{{ 'REMOTE_PICKER.CONSENT_TITLE' | translate }}</strong></div>
+      <p>{{ consentMessage }}</p>
+      <div class="detail">{{ 'REMOTE_PICKER.CONSENT_SERVER' | translate }}: <code>{{ consent.destination }}</code></div>
+      <div class="detail">{{ 'REMOTE_PICKER.CONSENT_WHERE' | translate }}: <code>{{ consent.folder }}</code></div>
+      <div class="detail">{{ 'REMOTE_PICKER.CONSENT_SIZE' | translate }}: {{ sizeMb }} MB</div>
+      <p class="note">{{ 'REMOTE_PICKER.CONSENT_NOTE' | translate }}</p>
+      <div class="actions">
+        <button mat-flat-button color="primary" (click)="allowAndRetry()">
+          <mat-icon>check</mat-icon> {{ 'REMOTE_PICKER.CONSENT_YES' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <div class="error" *ngIf="errorMessage && !busy">
+      <mat-icon>error</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <!-- P11: la cartella di MDE Remote per questo server (home noexec, policy) -->
+    <div class="server-settings" *ngIf="showServerSettings && host.trim() && !busy">
+      <label class="field-label" for="agent-folder">{{ 'REMOTE_PICKER.AGENT_FOLDER' | translate }}</label>
+      <mat-form-field appearance="outline" class="host-field">
+        <input matInput id="agent-folder" [(ngModel)]="agentFolder" [placeholder]="defaultAgentFolder" autocomplete="off">
+        <mat-hint>{{ 'REMOTE_PICKER.AGENT_FOLDER_HINT' | translate }}</mat-hint>
+      </mat-form-field>
+      <div class="actions" *ngIf="!consent">
+        <button mat-stroked-button (click)="saveFolderAndRetry()">
+          <mat-icon>refresh</mat-icon> {{ 'REMOTE_PICKER.SAVE_AND_RETRY' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <div class="browser" *ngIf="browse && !busy && !consent">
+      <label class="field-label" for="remote-path">{{ 'REMOTE_PICKER.FOLDER' | translate }}</label>
+      <div class="host-row">
+        <button mat-icon-button (click)="goUp()" [disabled]="!browse.parent" [matTooltip]="'REMOTE_PICKER.UP' | translate">
+          <mat-icon>arrow_upward</mat-icon>
+        </button>
+        <mat-form-field appearance="outline" class="host-field">
+          <input matInput id="remote-path" [(ngModel)]="pathInput" (keydown.enter)="goTo()" autocomplete="off">
+        </mat-form-field>
+        <button mat-icon-button (click)="open(browse.home)" [matTooltip]="'REMOTE_PICKER.HOME' | translate"><mat-icon>home</mat-icon></button>
+      </div>
+      <div class="folders">
+        <div class="empty" *ngIf="browse.folders.length === 0">{{ 'REMOTE_PICKER.NO_FOLDERS' | translate }}</div>
+        <button class="folder" *ngFor="let f of browse.folders" (click)="open(f.path)">
+          <mat-icon>folder</mat-icon><span>{{ f.name }}</span>
+        </button>
+      </div>
+      <div class="detail">{{ 'REMOTE_PICKER.WILL_LINK' | translate }}: <code>{{ browse.location }}</code></div>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{ 'CODE_ROOTS.CLOSE' | translate }}</button>
+  <button mat-flat-button color="primary" (click)="link()" [disabled]="!browse || busy || !!consent">
+    <mat-icon>link</mat-icon> {{ 'REMOTE_PICKER.LINK_THIS' | translate }}
+  </button>
+</mat-dialog-actions>

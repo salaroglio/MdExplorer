@@ -1,0 +1,136 @@
+<div class="showcase">
+  <h2 mat-dialog-title class="showcase-title">{{ 'TEMPLATE_SHOWCASE.TITLE' | translate }}</h2>
+
+  <div class="showcase-body">
+    <!-- A sinistra: guardare = clic sulla riga; scegliere = pallino o casella (VD1). -->
+    <div class="column">
+      <div class="column-scroll">
+        <!-- Tre modi di far nascere il progetto (M4): comporlo, la demo, la cartella così com'è. -->
+        <mat-radio-group aria-label="mode" [(ngModel)]="mode" class="rows">
+          <div class="mode">
+            <mat-radio-button value="compose">{{ 'TEMPLATE_SHOWCASE.COMPOSE' | translate }}</mat-radio-button>
+          </div>
+          <div class="compose" [class.off]="!composing">
+            <ng-container *ngIf="foundation as f">
+              <label class="group-label">{{ 'TEMPLATE_SHOWCASE.COMMON_LAYER' | translate }}</label>
+              <div class="row" [class.viewed]="viewed === f" [class.mute]="!speaks(f)" (click)="show(f)">
+                <mat-checkbox color="primary" [ngModel]="isIn(f)" disabled (click)="$event.stopPropagation()"
+                              [matTooltip]="'TEMPLATE_SHOWCASE.COMMON_LAYER_ALWAYS' | translate"></mat-checkbox>
+                <div class="row-text">
+                  <div class="row-title">{{ f.title }}</div>
+                  <div class="row-desc" *ngIf="!speaks(f)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(f) } }}</div>
+                  <div class="row-desc row-url" *ngIf="f.byAddress">{{ f.url }}</div>
+                  <ng-container *ngTemplateOutlet="theoryBox; context: { $implicit: f }"></ng-container>
+                </div>
+              </div>
+            </ng-container>
+
+            <label class="group-label">{{ 'TEMPLATE_SHOWCASE.METHODS' | translate }}</label>
+            <p class="row-desc" *ngIf="catalogError">{{ catalogError }}</p>
+            <p class="row-desc" *ngIf="catalogLoaded && !catalogError && !methods.length">{{ 'PROJECT_CONFIG.TEMPLATE_NO_METHODS' | translate }}</p>
+            <div class="rows">
+              <div class="row" *ngFor="let m of methods" [class.viewed]="viewed === m" [class.mute]="!speaks(m)" (click)="show(m)">
+                <mat-checkbox color="primary" [(ngModel)]="chosen[m.url!]" [disabled]="!speaks(m) || !composing" (click)="$event.stopPropagation()"></mat-checkbox>
+                <div class="row-text">
+                  <div class="row-title">{{ m.title }}</div>
+                  <div class="row-desc" *ngIf="!speaks(m)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(m) } }}</div>
+                  <div class="row-desc row-url" *ngIf="m.byAddress">{{ m.url }}</div>
+                  <ng-container *ngTemplateOutlet="theoryBox; context: { $implicit: m }"></ng-container>
+                </div>
+              </div>
+            </div>
+
+            <!-- Le funzioni (C5): la città degli agenti, con il suo deck e la sua documentazione. -->
+            <label class="group-label">{{ 'TEMPLATE_SHOWCASE.FUNCTIONS' | translate }}</label>
+            <div class="row" [class.viewed]="viewed === city" (click)="show(city)">
+              <mat-checkbox color="primary" [(ngModel)]="agentCity" [disabled]="!composing" (click)="$event.stopPropagation()"></mat-checkbox>
+              <div class="row-text">
+                <div class="row-title">{{ city.title }}</div>
+                <div class="row-desc">{{ city.description }}</div>
+                <mat-checkbox class="theory" color="primary" [(ngModel)]="agentCityGuide" [disabled]="!composing || !agentCity"
+                              (click)="$event.stopPropagation()" [matTooltip]="'TEMPLATE_SHOWCASE.AGENT_CITY_GUIDE_TIP' | translate">
+                  {{ 'TEMPLATE_SHOWCASE.AGENT_CITY_GUIDE' | translate }}
+                </mat-checkbox>
+              </div>
+            </div>
+          </div>
+
+          <label class="group-label">{{ 'TEMPLATE_SHOWCASE.OR' | translate }}</label>
+          <div class="row" *ngFor="let b of bases" [class.viewed]="viewed === b" [class.mute]="!speaks(b)" (click)="show(b)">
+            <mat-radio-button [value]="b.url" [disabled]="!speaks(b)" (click)="$event.stopPropagation()"></mat-radio-button>
+            <div class="row-text">
+              <div class="row-title">{{ b.title }}</div>
+              <div class="row-desc">{{ 'TEMPLATE_SHOWCASE.DEMO_ALONE' | translate }}</div>
+              <div class="row-desc" *ngIf="!speaks(b)">{{ 'PROJECT_CONFIG.TEMPLATE_ONLY_IN' | translate:{ languages: languageNames(b) } }}</div>
+              <div class="row-desc row-url" *ngIf="b.byAddress">{{ b.url }}</div>
+            </div>
+          </div>
+          <div class="row" [class.viewed]="viewed === empty" (click)="show(empty)">
+            <mat-radio-button value="" (click)="$event.stopPropagation()"></mat-radio-button>
+            <div class="row-text">
+              <div class="row-title">{{ empty.title }}</div>
+              <div class="row-desc">{{ empty.description }}</div>
+            </div>
+          </div>
+        </mat-radio-group>
+
+        <!-- La teoria di una riga (MC5): si offre solo se il template ce l'ha nella lingua, e conta solo se la riga entra. -->
+        <ng-template #theoryBox let-item>
+          <mat-checkbox class="theory" color="primary" *ngIf="hasTheory(item)" [(ngModel)]="theory[item.url]"
+                        [disabled]="!isIn(item)" (click)="$event.stopPropagation()"
+                        [matTooltip]="'TEMPLATE_SHOWCASE.THEORY_TIP' | translate">
+            {{ 'TEMPLATE_SHOWCASE.THEORY' | translate }}
+          </mat-checkbox>
+        </ng-template>
+
+        <label class="group-label" for="showcase-other">{{ 'TEMPLATE_SHOWCASE.OTHER' | translate }}</label>
+        <div class="other">
+          <mat-form-field appearance="outline" class="other-field">
+            <input matInput id="showcase-other" [(ngModel)]="otherUrl" (keyup.enter)="addOther()" placeholder="https://github.com/…/mdexplorer-template-….git">
+          </mat-form-field>
+          <button mat-icon-button color="primary" (click)="addOther()" [disabled]="otherLoading || !otherUrl.trim()"
+                  [matTooltip]="'TEMPLATE_SHOWCASE.OTHER_ADD' | translate">
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+        <p #otherErrorText class="row-desc error-text" *ngIf="otherError">{{ otherError }}</p>
+      </div>
+
+      <!-- La lingua in fondo (VD5): decide che cosa si spunta e in che lingua sono le slide. -->
+      <div class="language">
+        <label class="group-label" id="showcase-language-label">{{ 'TEMPLATE_SHOWCASE.LANGUAGE' | translate }}</label>
+        <mat-form-field appearance="outline" class="language-field">
+          <mat-select aria-labelledby="showcase-language-label" [(ngModel)]="language" (selectionChange)="onLanguageChange()">
+            <mat-option *ngFor="let l of languages" [value]="l.code">{{ l.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- A destra: le slide della riga guardata. -->
+    <div class="deck">
+      <div class="deck-head">
+        <span class="deck-title">{{ viewed.title }}</span>
+        <span class="deck-only-in" *ngIf="deckOnlyIn">{{ deckOnlyIn }}</span>
+      </div>
+      <div class="deck-frame">
+        <mat-spinner *ngIf="deckLoading" diameter="40"></mat-spinner>
+        <div class="deck-error" *ngIf="deckError">
+          <mat-icon>cloud_off</mat-icon>
+          <p>{{ 'TEMPLATE_SHOWCASE.UNREACHABLE' | translate }}</p>
+          <p class="row-desc">{{ deckError }}</p>
+        </div>
+        <iframe *ngIf="deckUrl && !deckLoading && !deckError" [src]="deckUrl" title="slides"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()">{{ 'COMMON.CANCEL' | translate }}</button>
+    <span class="row-desc" *ngIf="!canGoOn">{{ 'TEMPLATE_SHOWCASE.CHOOSE_A_METHOD' | translate }}</span>
+    <button mat-raised-button color="primary" (click)="onNext()" [disabled]="!canGoOn">
+      {{ 'TEMPLATE_SHOWCASE.NEXT' | translate }}
+      <mat-icon>arrow_forward</mat-icon>
+    </button>
+  </mat-dialog-actions>
+</div>

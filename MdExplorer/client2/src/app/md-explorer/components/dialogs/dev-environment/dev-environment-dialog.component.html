@@ -1,0 +1,329 @@
+<div mat-dialog-title class="dialog-header">
+  <mat-icon class="dialog-icon">code</mat-icon>
+  <span>{{ 'DEV_ENV.TITLE' | translate }}</span>
+</div>
+
+<mat-dialog-content>
+  <div class="dialog-container">
+    <div class="context-info">
+      <mat-icon class="context-icon">folder</mat-icon>
+      <div class="context-text">
+        <strong>{{ data.folderName }}</strong>
+        <div class="context-path">{{ data.folderPath }}</div>
+      </div>
+    </div>
+
+    <!-- Script di un estrattore precedente (D25): lo stesso avviso della pagina del grafo (22/10/2026) -->
+    <div class="outdated" *ngIf="outdated && !loading">
+      <div>
+        <strong>⚠ {{ (outdated.count === 1 ? 'DEV_ENV.OUTDATED_ONE' : 'DEV_ENV.OUTDATED_MANY') | translate: { n: outdated.count } }}</strong>
+        <span *ngFor="let c of outdated.changes"> — {{ c.language }}: {{ c.from }} → {{ c.to }} ({{ 'DEV_ENV.FILES' | translate: { count: c.files } }})</span>.
+        {{ 'DEV_ENV.OUTDATED_OLD' | translate }}
+      </div>
+      <div class="outdated-actions">
+        <button mat-stroked-button color="primary" (click)="upgradeStructure()" [disabled]="upgrading || analyzing || describing">
+          <mat-spinner diameter="16" *ngIf="upgrading"></mat-spinner>
+          <mat-icon *ngIf="!upgrading">account_tree</mat-icon>
+          {{ (upgrading ? 'DEV_ENV.UPGRADING' : 'DEV_ENV.UPGRADE') | translate }}
+        </button>
+        <button mat-button (click)="showOutdatedFiles = !showOutdatedFiles">{{ 'DEV_ENV.WHICH_FILES' | translate }}</button>
+      </div>
+      <div class="outdated-files" *ngIf="showOutdatedFiles">
+        <code *ngFor="let f of outdated.scripts">{{ f.source }}</code>
+      </div>
+    </div>
+
+    <p class="intro" *ngIf="!outcome">{{ 'DEV_ENV.INTRO' | translate }}</p>
+
+    <div class="loading" *ngIf="loading">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>{{ 'DEV_ENV.DETECTING' | translate }}</span>
+    </div>
+
+    <ng-container *ngIf="!loading && !outcome">
+      <div class="empty" *ngIf="detected.length === 0 && definitionProblems.length === 0">
+        <mat-icon>info</mat-icon>
+        <span>{{ 'DEV_ENV.NOTHING_DETECTED' | translate }}</span>
+      </div>
+
+      <div class="language-notice" *ngFor="let n of languageNotices">
+        <mat-icon>info</mat-icon>
+        <span>{{ n }}</span>
+      </div>
+      <div class="definition-problem" *ngFor="let p of definitionProblems">
+        <mat-icon>error</mat-icon>
+        <span>{{ 'DEV_ENV.DEFINITION_PROBLEM' | translate: { path: p.definitionPath } }} {{ p.message }}</span>
+      </div>
+
+      <label class="field-label" *ngIf="detected.length > 0">{{ 'DEV_ENV.LANGUAGES' | translate }}</label>
+      <div class="language-list" *ngIf="detected.length > 0">
+        <ng-container *ngFor="let d of detected">
+        <div class="language-row">
+          <mat-checkbox [checked]="isSelected(d.id)" (change)="toggle(d.id, $event.checked)" [disabled]="saving || analyzing">
+            <span class="language-name">{{ d.displayName }}</span>
+            <span class="language-files">· {{ 'DEV_ENV.FILES' | translate: { count: d.files } }}</span>
+          </mat-checkbox>
+          <span class="availability" [class.ready]="isReady(d)" [class.pending]="!isReady(d)">
+            <ng-container *ngIf="!canDownload(d)">
+              <mat-icon>{{ isReady(d) ? 'check_circle' : 'schedule' }}</mat-icon>
+              {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
+              <span class="definition-path" *ngIf="isReady(d) && d.definitionPath">· {{ 'DEV_ENV.DEFINED_IN' | translate: { path: d.definitionPath } }}</span>
+            </ng-container>
+            <button mat-stroked-button color="primary" class="download" *ngIf="canDownload(d)"
+                    (click)="download(d)" [disabled]="downloading !== null || saving || analyzing">
+              <mat-spinner diameter="16" *ngIf="downloading === d.grammarId"></mat-spinner>
+              <mat-icon *ngIf="downloading !== d.grammarId">download</mat-icon>
+              {{ 'DEV_ENV.DOWNLOAD_GRAMMAR' | translate: { size: ((d.grammarSizeKb || 0) / 1024).toFixed(1) } }}
+            </button>
+          </span>
+        </div>
+        </ng-container>
+      </div>
+
+      <div class="language-import">
+        <button mat-stroked-button [matMenuTriggerFor]="importMenu" [disabled]="importing || saving || analyzing">
+          <mat-spinner diameter="16" *ngIf="importing"></mat-spinner>
+          <mat-icon *ngIf="!importing">upload_file</mat-icon>
+          {{ 'DEV_ENV.IMPORT_LANGUAGE' | translate }}
+        </button>
+        <mat-menu #importMenu="matMenu">
+          <button mat-menu-item (click)="importLanguage('folder')"><mat-icon>folder_open</mat-icon>{{ 'DEV_ENV.IMPORT_FROM_FOLDER' | translate }}</button>
+          <button mat-menu-item (click)="importLanguage('zip')"><mat-icon>folder_zip</mat-icon>{{ 'DEV_ENV.IMPORT_FROM_ZIP' | translate }}</button>
+        </mat-menu>
+        <span class="import-hint">{{ 'DEV_ENV.IMPORT_HINT' | translate }}</span>
+      </div>
+      <div class="import-confirm" *ngIf="pendingReplace">
+        <mat-icon>help</mat-icon>
+        <span>{{ pendingReplace.message }}. {{ 'DEV_ENV.IMPORT_REPLACE_QUESTION' | translate }}</span>
+        <button mat-flat-button color="primary" (click)="confirmReplace()">{{ 'DEV_ENV.IMPORT_REPLACE' | translate }}</button>
+        <button mat-button (click)="cancelReplace()">{{ 'COMMON.CANCEL' | translate }}</button>
+      </div>
+      <div class="language-notice" *ngIf="importDone">
+        <mat-icon>check_circle</mat-icon>
+        <span>{{ importDone }}</span>
+      </div>
+
+      <ng-container *ngIf="hasReadySelection">
+        <label class="field-label" id="describe-mode-label">{{ 'DEV_ENV.DESCRIPTION_LABEL' | translate }}</label>
+        <mat-radio-group class="describe-mode" aria-labelledby="describe-mode-label" [(ngModel)]="descriptionMode" [disabled]="saving || analyzing">
+          <mat-radio-button value="all">
+            <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ALL' | translate }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions !== null && estimate.questions > 0">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT' | translate: { questions: estimate.questions, low: estimate.low, high: estimate.high, parallel: descriptionParallel } }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions === 0">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT_NONE' | translate }}</span>
+            <span class="mode-hint" *ngIf="estimate.questions === null">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT_FILES' | translate: { files: estimate.files } }}</span>
+          </mat-radio-button>
+          <mat-radio-button value="onDemand">
+            <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ON_DEMAND' | translate }}</span>
+            <span class="mode-hint">{{ 'DEV_ENV.DESCRIPTION_ON_DEMAND_HINT' | translate }}</span>
+          </mat-radio-button>
+        </mat-radio-group>
+      </ng-container>
+
+      <div class="scan-mode" *ngIf="scanMode">
+        <mat-icon>{{ scanMode === 'git' ? 'account_tree' : 'fingerprint' }}</mat-icon>
+        <span>{{ (scanMode === 'git' ? 'DEV_ENV.SCAN_GIT' : 'DEV_ENV.SCAN_HASH') | translate }}</span>
+      </div>
+    </ng-container>
+
+    <!-- I due passi, uno sotto l'altro con la spiegazione a fianco (22/10/2026): prima il parser, poi l'LLM -->
+    <div class="steps" *ngIf="!loading && (hasReadySelection || configured || outcome)">
+      <div class="step" *ngIf="hasReadySelection">
+        <div class="step-title">{{ 'DEV_ENV.STEP_STRUCTURE' | translate }}</div>
+        <div class="step-row">
+          <button mat-raised-button color="primary" class="step-button" (click)="confirm()"
+                  [disabled]="saving || analyzing || upgrading || describing || needsDescriptionChoice"
+                  [title]="needsDescriptionChoice ? ('DEV_ENV.DESCRIPTION_REQUIRED' | translate) : ''">
+            <mat-icon>account_tree</mat-icon>
+            {{ 'DEV_ENV.EXTRACT_STRUCTURE' | translate }}
+          </button>
+          <span class="step-hint">{{ 'DEV_ENV.EXTRACT_STRUCTURE_HINT' | translate }}</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-title">{{ 'DEV_ENV.STEP_MEANING' | translate }}</div>
+        <div class="step-row">
+          <button mat-stroked-button color="primary" class="step-button" *ngIf="!describing" (click)="requestDescribe(false)" [disabled]="!canDescribe">
+            <mat-icon>auto_awesome</mat-icon>
+            {{ 'DEV_ENV.DESCRIBE' | translate }}
+          </button>
+          <button mat-stroked-button color="warn" class="step-button" *ngIf="describing" (click)="cancelDescribe()">
+            <mat-icon>stop</mat-icon>
+            {{ 'DEV_ENV.STOP' | translate }}
+          </button>
+          <span class="step-hint">
+            {{ 'DEV_ENV.DESCRIBE_HINT' | translate }}
+            <span class="warn" *ngIf="!structureReady">{{ 'DEV_ENV.DESCRIBE_NEEDS_STRUCTURE' | translate }}</span>
+          </span>
+        </div>
+        <div class="step-row" *ngIf="!describing && previewReview > 0">
+          <button mat-stroked-button class="step-button" (click)="requestDescribe(true)" [disabled]="!canDescribe">
+            <mat-icon>rate_review</mat-icon>
+            {{ 'DEV_ENV.DESCRIBE_REVIEW' | translate: { count: previewReview } }}
+          </button>
+        </div>
+        <div class="step-row" *ngIf="!describing && runningRun">
+          <button mat-stroked-button color="warn" class="step-button" (click)="stopRunning()">
+            <mat-icon>stop</mat-icon>
+            {{ 'DEV_ENV.STOP' | translate }}
+          </button>
+        </div>
+
+        <!-- Il modello per descrivere (22/10/2026): l'harness è quello del progetto, il modello si sceglie a parte -->
+        <div class="step-row model-row" *ngIf="descriptionModelInfo && descriptionModelInfo.engine !== 'none'">
+          <div>
+            <label class="field-label" for="describe-model">{{ 'DEV_ENV.DESCRIBE_MODEL' | translate }}</label>
+            <mat-form-field appearance="outline" class="model-field">
+              <mat-select id="describe-model" [ngModel]="descriptionModel" (ngModelChange)="saveDescriptionModel($event)"
+                          [disabled]="descriptionModelsLoading || savingDescriptionModel || describing || runningRun != null">
+                <mat-option value="">{{ descriptionDefaultLabel }}</mat-option>
+                <mat-option *ngFor="let m of descriptionModelChoices" [value]="m.id">
+                  {{ m.notListed ? ('DEV_ENV.MODEL_NOT_LISTED' | translate: { model: m.id }) : m.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+          <span class="step-hint">
+            {{ (descriptionModelsLoading ? 'DEV_ENV.MODELS_LOADING' : 'DEV_ENV.DESCRIBE_MODEL_HINT') | translate: { engine: descriptionModelInfo.engineName } }}
+            <span class="warn" *ngIf="descriptionModelsError">{{ descriptionModelsError }}</span>
+            <span class="warn" *ngIf="descriptionDefaultNotListed">{{ 'DEV_ENV.DEFAULT_NOT_LISTED' | translate: { model: descriptionModelInfo.defaultModel || descriptionModelInfo.tabModel } }}</span>
+          </span>
+        </div>
+        <div class="step-hint warn" *ngIf="descriptionModelInfo?.engine === 'none'">{{ 'DEV_ENV.NO_ENGINE' | translate }}</div>
+
+        <!-- «Descrivi con Mark» con la struttura vecchia: si chiede, le domande all'LLM costano -->
+        <div class="ask-outdated" *ngIf="askBeforeDescribe && outdated">
+          <div>{{ (outdated.count === 1 ? 'DEV_ENV.ASK_OUTDATED_ONE' : 'DEV_ENV.ASK_OUTDATED') | translate: { n: outdated.count } }}</div>
+          <div class="outdated-actions">
+            <button mat-raised-button color="primary" (click)="upgradeThenDescribe()">{{ 'DEV_ENV.UPGRADE_THEN_DESCRIBE' | translate }}</button>
+            <button mat-stroked-button (click)="describeAnyway()">{{ 'DEV_ENV.DESCRIBE_ANYWAY' | translate }}</button>
+            <button mat-button (click)="askBeforeDescribe = null">{{ 'COMMON.CANCEL' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="loading" *ngIf="analyzing">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>{{ 'DEV_ENV.ANALYZING' | translate }}</span>
+    </div>
+
+    <div class="outcome" *ngIf="outcome && !outcome.error">
+      <div class="outcome-title">
+        <mat-icon>done_all</mat-icon>
+        <span>{{ 'DEV_ENV.DONE' | translate }}</span>
+      </div>
+      <ul>
+        <li>{{ 'DEV_ENV.OUTCOME_FILES' | translate: { files: outcome.filesInPerimeter, mode: outcome.mode } }}</li>
+        <li>{{ 'DEV_ENV.OUTCOME_REPARSED' | translate: { candidates: outcome.candidates, reparsed: outcome.reparsed } }}</li>
+        <li *ngIf="outcome.scriptsRemoved > 0">{{ 'DEV_ENV.OUTCOME_REMOVED' | translate: { removed: outcome.scriptsRemoved } }}</li>
+        <li *ngIf="outcome.load">{{ 'DEV_ENV.OUTCOME_LOADED' | translate: { loaded: outcome.load.loaded, failed: outcome.load.failed } }}</li>
+        <li class="warn" *ngFor="let w of withoutExtractor">{{ 'DEV_ENV.OUTCOME_NO_EXTRACTOR' | translate: { language: w.language, files: w.files } }}</li>
+        <li class="warn" *ngIf="outcome.load?.firstError">{{ outcome.load?.firstError }}</li>
+      </ul>
+      <p class="reason">{{ outcome.reason }}</p>
+      <p class="reason" *ngIf="descriptionMode === 'all'">{{ 'DEV_ENV.DESCRIPTION_STARTED_HINT' | translate }}</p>
+    </div>
+
+    <!-- Lo stato della cartella in tabella (22/10/2026): da descrivere, domande, database, peso della cartella.
+         Tutta subito (28/10/2026): i valori arrivano da tre chiamate; uno che manca dice «calcolo…», uno di prima resta in grigio -->
+    <ng-template #calculating><span class="running-value pending"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_CALCULATING' | translate }}</span></ng-template>
+    <div class="recalculating" *ngIf="recalculating && (preview || storageMb !== null)">
+      <mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_RECALCULATING' | translate }}
+    </div>
+    <table class="info-table" *ngIf="(configured && (preview || previewLoading)) || runningRun">
+      <tr>
+        <th>{{ 'DEV_ENV.T_TODO' | translate }}</th>
+        <td [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ 'DEV_ENV.T_TODO_VALUE' | translate: { todo: previewTodo, files: preview.files } }}
+            <div class="sub" *ngIf="previewTodo > 0">{{ 'DEV_ENV.T_TODO_DETAIL' | translate: { missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0 } }}</div>
+          </ng-container>
+        </td>
+      </tr>
+      <tr>
+        <th>{{ 'DEV_ENV.T_REVIEW' | translate }}</th>
+        <td [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ previewReview }}
+            <div class="sub" *ngIf="previewReview > 0">{{ 'DEV_ENV.T_REVIEW_DETAIL' | translate: { context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
+          </ng-container>
+        </td>
+      </tr>
+      <tr>
+        <th>{{ 'DEV_ENV.T_QUESTIONS' | translate }}</th>
+        <td *ngIf="runningRun">
+          <span class="running-value"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_QUESTIONS_RUNNING' | translate: { done: runningRun.questionsDone ?? runningRun.fileIndex, total: runningRun.fileTotal } }}</span>
+          <div class="sub">{{ 'DEV_ENV.T_QUESTIONS_CURRENT' | translate: { engine: runningRun.engine, current: runningRun.currentFile || '—' } }}</div>
+        </td>
+        <td *ngIf="!runningRun" [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ 'DEV_ENV.T_QUESTIONS_TODO' | translate: { questions: preview.questions } }}
+            <div class="sub" *ngIf="preview.questions > 0">{{ 'DEV_ENV.T_QUESTIONS_LEVELS' | translate: { levels: preview.levels } }}</div>
+          </ng-container>
+        </td>
+      </tr>
+      <tr>
+        <th>{{ 'DEV_ENV.T_DATABASE' | translate }}</th>
+        <td [class.stale]="storageLoading">
+          <ng-container *ngIf="storageMb !== null; else calculating">
+            {{ 'DEV_ENV.T_DATABASE_VALUE' | translate: { mb: storageMb } }}
+            <div class="sub warn" *ngIf="storageGenerations > 1">{{ 'DEV_ENV.T_DATABASE_OLD' | translate: { generations: storageGenerations } }}</div>
+          </ng-container>
+        </td>
+      </tr>
+      <tr>
+        <th>{{ 'DEV_ENV.T_FOLDER' | translate }}</th>
+        <!-- il peso si conta dopo l'anteprima: finché l'anteprima gira, anche lui è da ricalcolare -->
+        <td [class.stale]="folderWeightLoading || previewLoading">
+          <ng-container *ngIf="folderWeight; else calculating">
+            {{ 'DEV_ENV.T_FOLDER_ESTIMATE' | translate: { mb: folderWeight.estimated, percent: folderWeight.percent } }}
+            <div class="sub">{{ 'DEV_ENV.T_FOLDER_TRIPLES' | translate: { triples: folderWeight.triples, total: folderWeight.total, preallocated: folderWeight.preallocatedMb } }}</div>
+          </ng-container>
+          <div class="sub" *ngIf="preview">{{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}</div>
+          <div class="sub warn" *ngIf="folderWeightError">{{ 'DEV_ENV.T_FOLDER_ERROR' | translate: { error: folderWeightError } }}</div>
+        </td>
+      </tr>
+    </table>
+    <div class="table-note warn" *ngIf="preview && preview.bodyUnknown > 0 && !describing">{{ 'DEV_ENV.PREVIEW_BODY_UNKNOWN' | translate: { count: preview.bodyUnknown } }}</div>
+    <div class="table-note" *ngIf="runningRun && !describing">{{ 'DEV_ENV.RUNNING_HINT' | translate }}</div>
+
+    <div class="describe" *ngIf="describing || describeLog.length > 0 || describeDone">
+      <div class="hint" *ngIf="describing">{{ 'DEV_ENV.STARTED_IN_BACKGROUND' | translate }}</div>
+      <div class="outcome-title">
+        <mat-spinner diameter="16" *ngIf="describing"></mat-spinner>
+        <mat-icon *ngIf="!describing && describeDone">done_all</mat-icon>
+        <span *ngIf="describing">{{ 'DEV_ENV.DESCRIBING' | translate }}</span>
+        <span *ngIf="!describing && describeDone">{{ 'DEV_ENV.DESCRIBE_DONE' | translate: describeDone }}</span>
+      </div>
+      <!-- chi dipende da una domanda non riuscita non parte: si dice quante e come riprenderle (22/10/2026) -->
+      <div class="table-note warn" *ngIf="!describing && describeNotAll">{{ 'DEV_ENV.DESCRIBE_NOT_ALL' | translate: describeNotAll }}</div>
+      <div class="describe-log">
+        <div *ngFor="let line of describeLog">{{ line }}</div>
+      </div>
+    </div>
+
+    <div class="error" *ngIf="errorMessage">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <!-- I passi stanno nella finestra; qui solo dove andare e chiudere (22/10/2026) -->
+  <button mat-stroked-button *ngIf="(configured || outcome) && !describing" (click)="openGraph()">
+    <mat-icon>hub</mat-icon>
+    {{ 'DEV_ENV.OPEN_GRAPH' | translate }}
+  </button>
+  <button mat-stroked-button *ngIf="(configured || outcome) && !describing" (click)="openReport()">
+    <mat-icon>summarize</mat-icon>
+    {{ 'DEV_ENV.OPEN_REPORT' | translate }}
+  </button>
+  <!-- Nessun linguaggio pronto scelto: si salva soltanto la scelta (anche «nessuno») -->
+  <button mat-raised-button color="primary" *ngIf="!outcome && !loading && !hasReadySelection" (click)="confirm()" [disabled]="saving || analyzing">
+    {{ 'DEV_ENV.SAVE' | translate }}
+  </button>
+  <!-- si chiude anche mentre descrive: il lavoro è del servizio, non della finestra -->
+  <button mat-button (click)="close()" [disabled]="!outcome && (saving || analyzing)">{{ (outcome ? 'COMMON.CLOSE' : 'COMMON.CANCEL') | translate }}</button>
+</mat-dialog-actions>

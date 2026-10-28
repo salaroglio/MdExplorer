@@ -1,0 +1,15 @@
+{
+  "mde_workflow": 3,
+  "title": "Hello world",
+  "description": "The smallest round of the city: an agent writes «hello world» in a file and delivers it; whoever answers for it approves.",
+  "steps": [
+    {
+      "id": "hello",
+      "agent": "city-hello",
+      "skill": "greet",
+      "title": "Write «hello world»",
+      "trigger": { "launch": true },
+      "start": "manual"
+    }
+  ]
+}

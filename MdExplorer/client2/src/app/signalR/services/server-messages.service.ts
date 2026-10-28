@@ -1,4 +1,5 @@
 import { Injectable, Injector } from '@angular/core';
+import { PasteAnchor } from '../../md-explorer/models/paste-anchor';
 import * as signalR from "@microsoft/signalr";
 import { GITService } from '../../git/services/gitservice.service';
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
@@ -6,7 +7,7 @@ import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/pa
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
 import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
-import { Subject, ReplaySubject } from 'rxjs';
+import { Subject, BehaviorSubject, ReplaySubject } from 'rxjs';
 
 interface linkSignalREvent_Component {
   key: string
@@ -41,6 +42,116 @@ export class MdServerMessagesService {
 
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
+  /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
+  public codeDocProgress$ = new Subject<any>();
+  /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
+  public codeDescriptionStatus$ = new Subject<any>();
+  /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
+  public codeScanStatus$ = new Subject<any>();
+  /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
+  public codeRuleProposals$ = new Subject<{ projectPath: string; count: number }>();
+
+  // Observable for the "Ask to MarkAgent" diagram explanation stream
+  // (MarkDiagramController). Phases: start | chunk | done | error.
+  public markDiagramExplain$ = new Subject<{
+    phase: 'start' | 'status' | 'chunk' | 'proposal' | 'done' | 'error',
+    box?: string,
+    text?: string,
+    sentences?: number,
+    message?: string,
+    followUp?: boolean,
+    // fase 'proposal': cosa MarkAgent propone di cambiare, in attesa di conferma
+    summary?: string,
+    changesDiagram?: boolean,
+    textEdits?: number,
+    otherDocuments?: string[],
+  }>();
+
+  /**
+   * «Ragguagli» waiting for the MarkAgent tab (sprint 2026-09-29-Motore-LLM-Unico, D9): what was done in parallel
+   * (a change confirmed from «spiega il diagramma»), given to the tab's LLM with the user's next message.
+   */
+  public markAgentBriefings$ = new BehaviorSubject<{ count: number; items: string[] }>({ count: 0, items: [] });
+
+  // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
+  public agentJobProgress$ = new Subject<{
+    runId: string,
+    scheduleId?: string,
+    agentName: string,
+    agentFilePath: string,
+    triggerSource: string,
+    phase: 'started' | 'completed' | 'failed' | 'cancelled',
+    error?: string,
+    outputTail?: string
+  }>();
+
+  // Who is working right now in a project (AgentActivityBroadcaster): the whole list at every start and end
+  public agentActivity$ = new Subject<{
+    projectPath: string,
+    running: { id: string, agentName: string, engine: string, startedAt: string }[]
+  }>();
+
+  // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
+  // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
+  // + the unread badge on the toolbar bell.
+  public agentMessageReceived$ = new Subject<{
+    conversationId: string,
+    messageId: string,
+    fromAgent: string,
+    projectPath: string,
+    bodyPreview: string,
+    topics?: string[],
+    createdAt: string
+  }>();
+
+  // Un incarico aspetta che il responsabile dell'agente lo avvii (workflow, start: ask-owner): badge, avviso, posta.
+  public agentStartRequested$ = new Subject<{
+    messageId: string,
+    fromAgent: string,
+    toAgent: string,
+    step?: string,
+    projectPath: string
+  }>();
+
+  // Observable for federated intervention requests (§12.6): another city asks an agent
+  // of THIS one to act — needs the human gate (approve/reject) before any run.
+  public federationRequestReceived$ = new Subject<{
+    id: string,
+    federationId: string,
+    projectPath: string,
+    fromOwner: string,
+    fromAgent: string,
+    targetAgent: string,
+    scope: string,
+    createdAt: string
+  }>();
+
+  // Delega interna: un agente ha instradato lavoro su un ambito il cui responsabile e'
+  // l'umano locale. Non e' un permesso da concedere (il gate custodisce la fiducia fra umani
+  // diversi): e' consapevolezza che la mappa di ownership e' stata esercitata.
+  public agentDelegationRouted$ = new Subject<{
+    projectPath: string,
+    scope: string,
+    fromAgent: string,
+    toAgent: string,
+    conversationId: string
+  }>();
+
+  // Un agente ha consegnato e CHIEDE di fondere: il tab di revisione si accende.
+  public agentMergeRequested$ = new Subject<{
+    projectPath: string,
+    agentName: string,
+    branch: string,
+    files: number
+  }>();
+
+  // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
+  public submoduleTouchedByAgent$ = new Subject<{
+    projectPath: string,
+    submodule: string,
+    agent: string,
+    at: string
+  }>();
 
   // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
   // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
@@ -52,6 +163,16 @@ export class MdServerMessagesService {
     reason: 'header-missing' | 'hash-mismatch'
   }>();
 
+  // I submodule del progetto: popolati all'apertura, non solo su clone e pull.
+  // Il fallimento arriva qui perché prima finiva appeso al messaggio di successo del clone —
+  // il clone risultava riuscito, la cartella del codice restava vuota e nessuno lo leggeva.
+  public submoduleInit$ = new Subject<{
+    phase: 'started' | 'completed' | 'failed',
+    projectPath: string,
+    submodules: string[],
+    error?: string
+  }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -59,7 +180,9 @@ export class MdServerMessagesService {
     mimeType?: string,
     documentPath?: string,
     errorMessage?: string,
-    platformHint?: string
+    platformHint?: string,
+    // Where the image goes; null/absent = at the end of the document.
+    anchor?: PasteAnchor | null
   }>();
 
   // Observable streams for runnable fenced code blocks (MdExecutionController)
@@ -85,6 +208,7 @@ export class MdServerMessagesService {
   public folderCreated$ = new Subject<any>();                // 'folderCreated'
   public folderDeleted$ = new Subject<any>();                // 'folderDeleted'
   public folderRenamed$ = new Subject<any>();                // 'folderRenamed'
+  public folderContentChanged$ = new Subject<any>();         // 'folderContentChanged' (non-.md content of a folder changed)
   public fileSystemStorm$ = new Subject<any[]>();            // 'fileSystemStorm'
   public fileIndexed$ = new Subject<any>();                  // 'fileIndexed'
   public folderIndexingStart$ = new Subject<any>();          // 'folderIndexingStart'
@@ -95,6 +219,8 @@ export class MdServerMessagesService {
   // FSW buffer overflow / internal error: events were LOST server-side.
   // Consumers must do a full reload — incremental state can no longer be trusted.
   public fileSystemWatcherError$ = new Subject<{ reason: string, message?: string }>();
+  /** Un .gitignore, .mdFoldersIgnore o .mdignore è cambiato: ciò che si vede è cambiato (sprint 2026-10-21, W6). */
+  public ignoreRulesChanged$ = new Subject<{ file: string }>();
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
@@ -132,9 +258,8 @@ export class MdServerMessagesService {
       // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
       // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
       // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
-      // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
-      // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
-      // addParsingProjectStartListener (sotto).
+      // IndexingPipelineService.RunAsync) e il progresso è una riga del pannello dei lavori in sfondo
+      // (BackgroundWorkService + BackgroundWorkPanelComponent, punto 2d del 14/10/2026).
       this.hubConnection.on('openingApplication', (data) => {
         this.openingApplicationProvider.show(data);
       });
@@ -180,11 +305,90 @@ export class MdServerMessagesService {
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
       });
+      this.hubConnection.on('codeDocProgress', (data) => {
+        this.codeDocProgress$.next(data);
+      });
+      this.hubConnection.on('codeDescriptionStatus', (data) => {
+        this.codeDescriptionStatus$.next(data);
+      });
+      this.hubConnection.on('codeScanStatus', (data) => {
+        this.codeScanStatus$.next(data);
+      });
+      this.hubConnection.on('codeRuleProposals', (data) => {
+        this.codeRuleProposals$.next(data);
+      });
+
+      // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
+      this.hubConnection.on('markDiagramExplain', (data) => {
+        this.markDiagramExplain$.next(data);
+      });
+
+      // Briefings waiting for the MarkAgent tab (D9)
+      this.hubConnection.on('markAgentBriefings', (data) => {
+        this.markAgentBriefings$.next({ count: data?.count ?? 0, items: data?.items ?? [] });
+      });
+
+      // *.agent.md headless run progress (manual launch, schedule, hook)
+      this.hubConnection.on('agentJobProgress', (data) => {
+        this.agentJobProgress$.next(data);
+      });
+
+      // Agents at work in a project: the whole list, at every start and end of a turn
+      this.hubConnection.on('agentActivityChanged', (data) => {
+        this.agentActivity$.next(data);
+      });
+
+      // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human
+      this.hubConnection.on('agentMessageReceived', (data) => {
+        console.log('🔔 SignalR event received: agentMessageReceived', data);
+        this.agentMessageReceived$.next(data);
+      });
+
+      // Un incarico da avviare: il responsabile lo deve sapere subito
+      this.hubConnection.on('agentStartRequested', (data) => {
+        this.agentStartRequested$.next(data);
+      });
+
+      // Federated intervention request (§12.6): needs the human gate
+      this.hubConnection.on('federationRequestReceived', (data) => {
+        console.log('🌐 SignalR event received: federationRequestReceived', data);
+        this.federationRequestReceived$.next(data);
+      });
+
+      // Delega interna instradata dalla mappa di ownership, rimasta in locale.
+      this.hubConnection.on('agentDelegationRouted', (data) => {
+        console.log('🔀 SignalR event received: agentDelegationRouted', data);
+        this.agentDelegationRouted$.next(data);
+      });
+
+      // Richiesta di merge aperta da un agente: la revisione ha qualcosa da mostrare.
+      this.hubConnection.on('agentMergeRequested', (data) => {
+        console.log('🔀 SignalR event received: agentMergeRequested', data);
+        this.agentMergeRequested$.next(data);
+      });
+
+      // Fase 7e — awareness del tocco submodule da parte di un agente (gate del push umano).
+      this.hubConnection.on('submoduleTouchedByAgent', (data) => {
+        console.log('🧩 SignalR event received: submoduleTouchedByAgent', data);
+        this.submoduleTouchedByAgent$.next(data);
+      });
 
       // KG drift detection — .md edited but .kg.cypher is out of sync
       this.hubConnection.on('kgStale', (data) => {
         console.warn('⚠️ SignalR event received: kgStale', data);
         this.kgStale$.next(data);
+      });
+
+      // Submodule del progetto (apertura, clone, pull)
+      this.hubConnection.on('submoduleInitStarted', (d) => {
+        this.submoduleInit$.next({ phase: 'started', projectPath: d?.projectPath, submodules: d?.submodules || [] });
+      });
+      this.hubConnection.on('submoduleInitCompleted', (d) => {
+        this.submoduleInit$.next({ phase: 'completed', projectPath: d?.projectPath, submodules: d?.submodules || [] });
+      });
+      this.hubConnection.on('submoduleInitFailed', (d) => {
+        console.error('❌ SignalR: submoduleInitFailed', d);
+        this.submoduleInit$.next({ phase: 'failed', projectPath: d?.projectPath, submodules: d?.submodules || [], error: d?.error });
       });
 
       // Runnable fenced code blocks — streaming output from MdExecutionController
@@ -226,6 +430,9 @@ export class MdServerMessagesService {
         console.log('📁 [SignalR] folderCreated:', data?.fullPath || data?.FullPath);
         this.folderCreated$.next(data);
       });
+      this.hubConnection.on('folderContentChanged', (data) => {
+        this.folderContentChanged$.next(data);
+      });
       this.hubConnection.on('folderDeleted', (data) => {
         console.log('🗑️ [SignalR] folderDeleted:', data?.fullPath || data?.FullPath);
         this.folderDeleted$.next(data);
@@ -255,6 +462,10 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('knowledgeProgress', (data) => {
         this.knowledgeProgress$.next(data);
+      });
+      this.hubConnection.on('ignoreRulesChanged', (data) => {
+        console.log('🙈 [SignalR] ignoreRulesChanged:', data);
+        this.ignoreRulesChanged$.next(data);
       });
       this.hubConnection.on('fileSystemWatcherError', (data) => {
         console.error('⚠️ [SignalR] fileSystemWatcherError — events were lost server-side:', data);

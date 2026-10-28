@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MdExplorer.Features.Configuration.Models;
 
@@ -43,6 +43,233 @@ namespace MdExplorer.Service.Models
         /// per-user API token is NEVER stored here — it lives encrypted in UserDB.
         /// </summary>
         public AtlassianConfig Atlassian { get; set; }
+
+        /// <summary>
+        /// La configurazione condivisa di Redmine (docs-internal/Sprints/2026-10-27-Redmine.md, RM2): indirizzo, progetti e
+        /// formato del testo, su Git per tutto il gruppo; la chiave API personale sta cifrata nello UserDB, mai qui.
+        /// Null = Redmine non configurato. DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al
+        /// primo salvataggio.
+        /// </summary>
+        public RedmineConfig Redmine { get; set; }
+
+        /// <summary>
+        /// Federation activation of the agent city (§12.4 Agent-Harness-A2A). Null/absent
+        /// or <c>Enabled=false</c> → the city and federation stay OFF (full retrocompat).
+        /// Travels with the repo via git so the whole team shares the same activation and
+        /// the same room secret. MUST live in this typed model: a section not modelled here
+        /// would be WIPED on the next participants/description write (they go through the
+        /// typed round-trip).
+        /// </summary>
+        public AgentCityConfig AgentCity { get; set; }
+
+        /// <summary>
+        /// Harness agentico per cui MdExplorer installa skill, agent e prompt
+        /// (vedi docs-internal/Sprints/2026-08-31-Opencode-Harness-Support.md).
+        /// Null/assente = progetto creato prima che la scelta esistesse: la prima apertura la
+        /// deduce dal disco una volta sola e la scrive qui. Da lì in poi questa è l'unica fonte
+        /// di verità.
+        /// <para>DEVE stare in questo modello tipizzato: una sezione non modellata qui viene
+        /// CANCELLATA al primo salvataggio che passa dal round-trip (vedi la nota su
+        /// <see cref="AgentCity"/>).</para>
+        /// </summary>
+        public HarnessConfig Harness { get; set; }
+
+        /// <summary>
+        /// Le radici di codice ESTERNE alla radice del progetto (sprint 2026-10-12-Radici-Di-Codice-Esterne, R1): qui solo
+        /// l'IDENTITÀ (alias, repository, sottocartella), su Git e uguale per il team; dove sta la cartella su ogni
+        /// macchina lo dice lo UserDB (<c>CodeRootBinding</c>), mai questo file. Null/assente = nessuna radice esterna.
+        /// <para>DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al primo salvataggio.</para>
+        /// </summary>
+        public List<CodeRootConfig> CodeRoots { get; set; }
+
+        /// <summary>
+        /// I template da cui viene il progetto (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md): in git, così tutto il
+        /// gruppo sa da dove arriva il metodo di lavoro; i remoti <c>template-&lt;id&gt;</c> invece MDE li ricrea su ogni computer
+        /// da qui. Null/assente = un progetto che non viene da un template.
+        /// <para>DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al primo salvataggio.</para>
+        /// </summary>
+        public List<ProjectTemplateConfig> Templates { get; set; }
+    }
+
+    /// <summary>Una riga di <c>templates:</c> in <c>.development.yml</c>.</summary>
+    public class ProjectTemplateConfig
+    {
+        /// <summary>L'id del manifesto: nome della zona e del remoto <c>template-&lt;id&gt;</c>.</summary>
+        public string Id { get; set; }
+        public string Url { get; set; }
+        /// <summary><c>project</c> per la demo, <c>foundation</c> per lo strato comune; assente per un metodo.</summary>
+        public string Kind { get; set; }
+        /// <summary>La lingua scelta: col manifesto dice da quale ramo arrivano gli aggiornamenti.</summary>
+        public string Language { get; set; }
+        /// <summary>Vero se si è preso l'esempio compilato invece della sola struttura.</summary>
+        public bool? Example { get; set; }
+        /// <summary>Vero se la teoria del template è nel progetto (MC5): gli aggiornamenti portano anche la sua.</summary>
+        public bool? Theory { get; set; }
+        /// <summary>L'ultima versione del template unita nel progetto.</summary>
+        public string Version { get; set; }
+        /// <summary>La data (aaaa-mm-gg) in cui il gruppo si è staccato: niente più aggiornamenti, la riga resta come storia.</summary>
+        public string Detached { get; set; }
+    }
+
+    /// <summary>
+    /// Una radice di codice esterna in <c>.development.yml</c>. Il percorso logico dei suoi file è <c>@alias/…</c>,
+    /// relativo alla sottocartella <see cref="Subpath"/> del repository: lo stesso su ogni macchina.
+    /// </summary>
+    public class CodeRootConfig
+    {
+        /// <summary>Il nome della radice nei percorsi logici (<c>@backend/…</c>): minuscole, cifre, «.», «_», «-».</summary>
+        public string Alias { get; set; }
+
+        /// <summary>
+        /// Il <c>remote</c> del repository, così come l'ha dato chi ha collegato per primo: è l'identità che fa
+        /// riconoscere la cartella giusta sulle altre macchine (R7). Null per una cartella fuori da git.
+        /// </summary>
+        public string Repository { get; set; }
+
+        /// <summary>La sottocartella del repository che si analizza, con «/»; vuota = tutto il repository.</summary>
+        public string Subpath { get; set; }
+
+        public string Description { get; set; }
+
+        /// <summary>Come per le cartelle interne: <c>program</c> = perimetro del grafo del codice.</summary>
+        public List<string> Tags { get; set; } = new List<string>();
+
+        /// <summary>I linguaggi da analizzare, come per le cartelle interne.</summary>
+        public FolderCodeGraphConfig CodeGraph { get; set; }
+
+        /// <summary>
+        /// I contesti (P2 di 2026-10-27-Grafo-Di-Progetti-Enormi, G3): sottocartelle della radice marcate <c>program</c>
+        /// dall'utente, ognuna con i suoi linguaggi, per analizzare a pezzi una radice enorme. Solo quando la radice intera NON
+        /// è un programma, e mai uno dentro l'altro (<c>CodeRootContexts</c>). Null = nessuno.
+        /// </summary>
+        public List<CodeRootProgramConfig> Programs { get; set; }
+
+        /// <summary>
+        /// Le codifiche dei file per estensione (sprint 2026-10-21-Cartella-Remota-Via-SSH: «.cbl, .cpy → CP-850»), dal menu
+        /// della radice. Su Git: la codifica è del codice, uguale per tutti. Un'estensione non elencata: UTF-8, e se il file
+        /// non lo è la stima.
+        /// </summary>
+        public List<CodeRootEncodingRule> Encodings { get; set; }
+    }
+
+    /// <summary>Un contesto di una radice: la sottocartella, relativa alla radice con «/», e i suoi linguaggi.</summary>
+    public class CodeRootProgramConfig
+    {
+        public string Path { get; set; }
+        public FolderCodeGraphConfig CodeGraph { get; set; }
+    }
+
+    public class CodeRootEncodingRule
+    {
+        /// <summary>Con il punto, minuscole: <c>.cbl</c>.</summary>
+        public List<string> Extensions { get; set; } = new List<string>();
+        /// <summary><c>ibm850</c>, <c>windows-1252</c>, <c>utf-8</c>, <c>utf-16</c>, <c>utf-16BE</c>.</summary>
+        public string Encoding { get; set; }
+    }
+
+    /// <summary>
+    /// Sezione <c>harness:</c> di <c>.development.yml</c>. Committata col repository: la scelta
+    /// dell'harness è una caratteristica del progetto condivisa dal team, non una preferenza
+    /// della singola macchina.
+    /// </summary>
+    public class HarnessConfig
+    {
+        /// <summary>
+        /// <c>copilot</c>, <c>opencode</c> oppure <c>none</c>. Resta uno scalare: la scelta è
+        /// esclusiva, e modellarla come lista prima che serva davvero sarebbe prematuro.
+        /// </summary>
+        public string Target { get; set; }
+
+        /// <summary>
+        /// Il modello predefinito del progetto per il motore di <see cref="Target"/> (es. <c>sonnet</c>,
+        /// <c>gpt-5</c>). Vuoto = il default del motore. Come <c>Target</c> è del team; ogni macchina può
+        /// scegliere altro nella sua scelta personale (UserDB), e la scheda di un agente altro ancora.
+        /// </summary>
+        public string Model { get; set; }
+    }
+
+    /// <summary>
+    /// Per-project federation activation, committed in <c>.development.yml</c> (§12.4).
+    /// Shared across the team via git; the room secret is a shared credential (room key +
+    /// payload-encryption key), NOT the common MdChat API key.
+    /// </summary>
+    public class AgentCityConfig
+    {
+        /// <summary>Master switch: when false/absent, the city and federation are OFF.</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// Relative path (from project root) of the ownership markdown doc
+        /// (<c>mde_type: ownership</c>) — routing hint "who owns which scope, with which
+        /// agents". Optional: absent → no ownership table injected.
+        /// </summary>
+        public string OwnershipDoc { get; set; }
+
+        /// <summary>
+        /// I documenti dei workflow degli agenti (<c>mde_type: workflow</c>), dalla radice del progetto: ognuno nomina nel
+        /// front matter il suo <c>*.workflow.json</c> (<c>workflow:</c>). Un progetto può averne più d'uno (PW, 18/10/2026:
+        /// la gara e il DDD, due processi dello stesso gruppo); ogni giro sa di quale workflow è. Quando ce n'è almeno uno,
+        /// MdExplorer li applica: per esempio un incarico con <c>start: ask-owner</c> aspetta che il responsabile lo avvii.
+        /// Assente o vuoto → nessun workflow: gli incarichi partono come sempre. Prima era <c>workflowDoc</c>, un valore solo:
+        /// la riga vecchia diventa questo elenco (<see cref="MdExplorer.Features.Configuration.RetiredConfigKeys.BecameList"/>).
+        /// </summary>
+        public List<string> WorkflowDocs { get; set; }
+
+        /// <summary>
+        /// Per-project room secret, generated on first activation. Doubles as the relay
+        /// room credential and the seed of the payload-encryption key (HKDF, §12.6/6b).
+        /// Shared via git so every city on the same repo derives the same key.
+        /// </summary>
+        public string RoomSecret { get; set; }
+
+        /// <summary>
+        /// Optional override of the federation relay URL. Null → the built-in default
+        /// (errantia.net) is used. Kept here so a team can point at a self-hosted relay.
+        /// </summary>
+        public string RelayUrl { get; set; }
+
+        /// <summary>
+        /// Agenti in <b>manutenzione (WIP)</b>, per <c>a2a.name</c> (§12.5 coda differita). È
+        /// una condizione da segnalare a TUTTO il team, quindi vive qui (git) e NON nel blocco
+        /// <c>a2a:</c> del file agente — modificarlo lì cambierebbe l'A2ABlockHash e farebbe
+        /// decadere il trust (R3). Un agente in questa lista → le richieste per lui sono
+        /// <c>deferred:maintenance</c> (parcheggiate, non fallite) finché non esce dalla lista.
+        /// </summary>
+        public List<string> Maintenance { get; set; }
+
+        /// <summary>
+        /// Isolamento d'esecuzione per-agente (Fase 7c): quando <c>true</c>, ogni risveglio LLM
+        /// gira in un <b>worktree git persistente</b> fuori dal progetto (branch fresco per
+        /// attività, reset "prepara-prima-di-eseguire"), invece che nella working tree dell'umano.
+        /// <b>Opt-in, default false</b>: assente/false → comportamento storico (cwd = progetto).
+        /// Richiede che il progetto sia un repo git con remote <c>origin</c>.
+        /// </summary>
+        /// <summary>
+        /// <c>null</c> = <b>non deciso</b>: si applica il default, che è <c>true</c> quando il
+        /// progetto è un repo git (l'isolamento serve, e può funzionare) e <c>false</c> quando
+        /// non lo è (senza git non esistono worktree). Distinguere "assente" da "false" è ciò
+        /// che permette di avere un default sensato senza impedire di spegnerlo a mano.
+        /// </summary>
+        public bool? UseAgentWorktrees { get; set; }
+    }
+
+    /// <summary>La sezione <c>redmine:</c> di .development.yml (sprint 2026-10-27-Redmine).</summary>
+    public class RedmineConfig
+    {
+        /// <summary>La radice di Redmine, es. https://redmine.example.com (senza /projects).</summary>
+        public string BaseUrl { get; set; }
+
+        /// <summary>
+        /// Gli identificativi dei progetti di questo progetto MDE, es. ["banca-esempio"]: le ricerche partono da qui, e si
+        /// crea e si aggiorna SOLO in questi (una issue di un altro progetto si legge, non si tocca). Vuoto = nessuna scrittura.
+        /// </summary>
+        public List<string> Projects { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Il formato del testo del server, <c>markdown</c> o <c>textile</c> (RM6): l'API non lo dice, MarkAgent scrive in
+        /// questo. Null = non scelto, e allora non si scrivono descrizioni né note.
+        /// </summary>
+        public string TextFormatting { get; set; }
     }
 
     /// <summary>
@@ -179,6 +406,40 @@ namespace MdExplorer.Service.Models
         /// (description, participants, icon) do not strip the KG namespace.
         /// </summary>
         public FolderKnowledgeGraphConfig KnowledgeGraph { get; set; }
+
+        /// <summary>
+        /// Il grafo del codice (sprint 2026-10-09, D16): i linguaggi scelti nella finestra «Ambiente di sviluppo».
+        /// Null = la cartella è <c>program</c> ma nessun linguaggio è stato scelto: niente analisi.
+        /// </summary>
+        public FolderCodeGraphConfig CodeGraph { get; set; }
+    }
+
+    /// <summary>Per-folder code graph settings stored in .development.yml.</summary>
+    public class FolderCodeGraphConfig
+    {
+        /// <summary>Gli id del catalogo (<c>csharp</c>, <c>typescript</c>, …): solo questi linguaggi si analizzano.</summary>
+        public List<string> Languages { get; set; } = new List<string>();
+
+        /// <summary>
+        /// La descrizione del codice (punto 2b del 14/10/2026): `codeGraph.describe`: <c>all</c> = parte da sola dopo una scansione che ha riletto
+        /// dei file, o finché la cartella non è descritta tutta; <c>onDemand</c> = solo quando la chiede l'utente. Assente =
+        /// <c>onDemand</c>, il comportamento di prima. Vedi <see cref="CodeDescriptionModes"/>.
+        /// </summary>
+        public string Describe { get; set; }
+    }
+
+    public static class CodeDescriptionModes
+    {
+        public const string All = "all";
+        public const string OnDemand = "onDemand";
+
+        /// <summary>Il modo scritto nel .development.yml; un valore sconosciuto è un errore che dice che cosa scrivere.</summary>
+        public static string Parse(string value, string where)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return OnDemand;
+            if (value == All || value == OnDemand) return value;
+            throw new System.InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"{where}: codeGraph.describe vale «{value}», ma può essere solo «{All}» o «{OnDemand}». Correggilo nel .development.yml o dalla finestra «Ambiente di sviluppo».", $"{where}: codeGraph.describe is «{value}», but it can only be «{All}» or «{OnDemand}». Fix it in .development.yml or from the «Development environment» window."));
+        }
     }
 
     /// <summary>

@@ -1,0 +1,160 @@
+.title-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.e2e-content {
+  min-width: 560px;
+  max-width: 820px;
+  color: var(--mde-text-primary);
+}
+
+.e2e-section {
+  margin-bottom: 18px;
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+.e2e-note,
+.e2e-hint {
+  color: var(--mde-text-secondary);
+  font-size: 12px;
+}
+
+.e2e-note {
+  margin: 0 0 8px;
+}
+
+.e2e-setting {
+  margin-bottom: 10px;
+}
+
+.e2e-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.e2e-setting-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.e2e-effective {
+  font-size: 13px;
+  color: var(--mde-text-secondary);
+}
+
+.e2e-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 13px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex: none;
+  }
+}
+
+.e2e-error {
+  color: var(--mde-error-fg);
+  background: var(--mde-error-bg);
+}
+
+.e2e-warning {
+  color: var(--mde-warning-fg);
+  background: var(--mde-warning-bg);
+}
+
+.e2e-success {
+  color: var(--mde-success-fg);
+  background: var(--mde-success-bg);
+}
+
+.e2e-item,
+.e2e-requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.e2e-requirement-text {
+  flex: 1;
+}
+
+.e2e-ok {
+  color: var(--mde-success-fg);
+}
+
+.e2e-ko {
+  color: var(--mde-error-fg);
+}
+
+.e2e-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.e2e-progress {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--mde-text-secondary);
+}
+
+.e2e-log {
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+  border: 1px solid var(--mde-border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  color: var(--mde-text-secondary);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.e2e-log-step {
+  color: var(--mde-text-primary);
+  font-weight: 600;
+}
+
+.inline-spinner {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.e2e-analyze {
+  margin: 4px 0 8px;
+}
+
+.e2e-model {
+  width: 100%;
+  max-width: 360px;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--mde-border, #9aa0a6);
+  border-radius: 4px;
+}
