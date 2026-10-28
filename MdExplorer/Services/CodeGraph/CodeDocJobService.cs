@@ -280,7 +280,7 @@ namespace MdExplorer.Services.CodeGraph
                 var progress = _progress[connectionId];
                 progress.Engine = engineLabel;
 
-                var plan = await BuildPlanAsync(projectPath, scriptsFolder, force, review, promptVersion, write: true,
+                var plan = await BuildPlanAsync(projectPath, resolver, scriptsFolder, force, review, promptVersion, write: true,
                     (file, detail) => SendAsync(connectionId, new { phase = "file-skipped", file, detail }), token);
                 var docFiles = plan.DocFiles; var summaries = plan.Summaries; var graph = plan.Graph; var groups = plan.Groups; var askFileIn = plan.AskFileIn;
                 var candidates = plan.Candidates; var trivialWritten = plan.Trivial;
@@ -606,6 +606,8 @@ namespace MdExplorer.Services.CodeGraph
             public List<CodeDocCandidate> Candidates;
             public CodeDocAssessment Assessment;
             public int Trivial;
+            /// <summary>Descrizioni la cui impronta del corpo veniva da una lettura in UTF-8 di un file che non lo è, riallineate.</summary>
+            public int Realigned;
             /// <summary>I prompt dei pacchetti di linguaggio del progetto (B6b): testo in coda a mde-code-doc e versione composta.</summary>
             public CodeDocLanguagePrompts Prompts;
         }
@@ -616,7 +618,7 @@ namespace MdExplorer.Services.CodeGraph
         /// adesso, il giudizio di ogni descrizione (F12b) e le domande. Due passate: il giudizio «contesto cambiato» ha
         /// bisogno di TUTTE le sintesi.
         /// </summary>
-        private async Task<DocPlan> BuildPlanAsync(string projectPath, string scriptsFolder, bool force, bool review, string promptVersion, bool write,
+        private async Task<DocPlan> BuildPlanAsync(string projectPath, CodeRootResolver resolver, string scriptsFolder, bool force, bool review, string promptVersion, bool write,
             Func<string, string, Task> onSkipped, CancellationToken token)
         {
             var plan = new DocPlan { DocFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal), Summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal), Assessment = new CodeDocAssessment(), Candidates = new List<CodeDocCandidate>(),
@@ -640,8 +642,11 @@ namespace MdExplorer.Services.CodeGraph
                 CodeScript existing = null;
                 try { existing = CodeDocPlanner.ReadScriptOrNull(f.DocPath, f.DocRel); }
                 catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
+                var realigned = existing == null ? 0 : CodeDocPlanner.RealignBodyHashes(f.Ast, existing, () => LegacyUtf8Text(resolver, f.Ast.Header.Source));
+                plan.Realigned += realigned;
                 var trivial = CodeDocPlanner.TrivialDocs(f.Ast, existing, _language.Current, force);
                 var orphans = existing != null && CodeDocPlanner.DropOrphans(existing, f.Ast) > 0;
+                if (trivial.Count == 0 && !orphans && realigned > 0 && write) CodeScriptWriter.WriteIfChanged(f.DocPath, CodeScriptWriter.Serialize(existing));
                 if (trivial.Count > 0 || orphans)
                 {
                     var fresh = new CodeScript { Header = new CodeScriptHeader { Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Doc, Source = f.Ast.Header.Source,
@@ -688,8 +693,28 @@ namespace MdExplorer.Services.CodeGraph
                 if (last != null) plan.AskFileIn[last.Index] = source;
             }
             foreach (var w in plan.Graph.Warnings.Take(20)) _logger.LogWarning("[CodeDoc] {Warning}", w);
+            if (plan.Realigned > 0)
+                _logger.LogInformation("[CodeDoc] {Count} descrizioni con l'impronta del corpo letta in UTF-8 da un file che non lo è: riallineate, il corpo è lo stesso{Where}",
+                    plan.Realigned, write ? "" : " (solo nel conto: si scrivono al prossimo giro)");
             return plan;
         }
+
+        /// <summary>
+        /// Il sorgente letto come prima del 23/10/2026 (sempre UTF-8), per <see cref="CodeDocPlanner.RealignBodyHashes"/>; null se
+        /// il file è UTF-8 valido (le due letture coincidono, un'impronta diversa è un corpo cambiato davvero) o non si trova.
+        /// </summary>
+        private static string LegacyUtf8Text(CodeRootResolver resolver, string source)
+        {
+            string abs;
+            try { abs = resolver.Resolve(source); }
+            catch (InvalidOperationException) { return null; }
+            if (!File.Exists(abs)) return null;
+            try { _ = StrictUtf8.GetString(File.ReadAllBytes(abs)); return null; }
+            catch (DecoderFallbackException) { }
+            return File.ReadAllText(abs, Encoding.UTF8);
+        }
+
+        private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
         public async Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default)
         {
@@ -697,7 +722,7 @@ namespace MdExplorer.Services.CodeGraph
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(scriptsFolder))
                 throw new InvalidOperationException(UiText.Say($"Nessuno script AST in {scriptsFolder}: prima «Estrai la struttura».", $"No AST script in {scriptsFolder}: first «Extract the structure»."));
-            var plan = await BuildPlanAsync(projectPath, scriptsFolder, force: false, review, PromptVersion(projectPath, "mde-code-doc"), write: false, null, ct);
+            var plan = await BuildPlanAsync(projectPath, await _roots.CreateResolverAsync(projectPath, ct), scriptsFolder, force: false, review, PromptVersion(projectPath, "mde-code-doc"), write: false, null, ct);
             var a = plan.Assessment;
             return new CodeDocPreview
             {

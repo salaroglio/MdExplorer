@@ -227,9 +227,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var prefix = CodeGraphIris.Lit(CodeGraphPaths.ScriptsFolderName + "/" + (folderRelative ?? string.Empty).Replace('\\', '/').Trim('/') + "/");
-            // lo stesso perimetro della ricarica da capo (RemoveScriptsUpdate): i nodi dei suoi script con tutte le loro triple, più l'arco diretto di ogni nodo arco
+            // lo stesso perimetro della ricarica da capo (RemoveScriptsUpdate): i nodi dei suoi script con tutte le loro triple, più
+            // l'arco diretto di ogni nodo arco. L'arco diretto ha per soggetto il simbolo di partenza, quasi sempre un nodo della
+            // cartella e quindi già contato: si aggiungono solo quelli che partono da fuori, una volta (prima: 102% del database)
             var nodes = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s code:fromScript ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
-            var edges = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:fromScript ?sc . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
+            var edges = await RowsAsync($"SELECT (COUNT(DISTINCT ?k) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:fromScript ?sc ; code:source ?a ; code:target ?b ; code:relationIri ?p . " +
+                $"FILTER(STRSTARTS(?sc, {prefix})) FILTER NOT EXISTS {{ ?a code:fromScript ?sa . FILTER(STRSTARTS(?sa, {prefix})) }} BIND(CONCAT(STR(?a), \" \", STR(?p), \" \", STR(?b)) AS ?k) }} }}", ct);
             // tutto il dataset: ogni progetto, il grafo di default e gli stati
             var total = await RowsAsync("SELECT (COUNT(*) AS ?n) WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }", ct);
             static long N(List<Dictionary<string, string>> rows) => long.TryParse(rows.FirstOrDefault() is { } r ? SparqlResults.Str(r, "n") : null, out var v) ? v : 0;

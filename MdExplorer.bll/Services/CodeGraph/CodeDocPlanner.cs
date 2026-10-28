@@ -451,6 +451,36 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
+        /// Le impronte dei corpi scritte prima del 23/10/2026 venivano da un sorgente letto sempre in UTF-8: in un file CP-1252
+        /// o CP-850 ogni accentata diventava lo stesso U+FFFD. Ora il sorgente si legge con la sua codifica (<see cref="CodeSourceText"/>)
+        /// e l'impronta di un corpo con un'accentata cambia senza che il corpo sia cambiato: dopo l'upgrade degli AST un progetto
+        /// Java legacy contava 406 «corpo cambiato» su 250 file non UTF-8 (Windows 28/10/2026), descrizioni da rifare per niente.
+        /// Il riallineamento è esatto: se l'impronta della descrizione è quella del corpo di ADESSO letto alla vecchia maniera
+        /// (<paramref name="utf8Text"/>, null quando il file è UTF-8 valido e le due letture coincidono), il corpo è quello di
+        /// allora e la descrizione prende l'impronta nuova. Torna quante ne ha riallineate.
+        /// </summary>
+        public static int RealignBodyHashes(CodeScript ast, CodeScript doc, Func<string> utf8Text)
+        {
+            var symbolOf = ast.Symbols.GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            string[] lines = null;
+            var n = 0;
+            foreach (var d in doc.SymbolDocs)
+            {
+                if (!symbolOf.TryGetValue(d.SymbolId, out var s) || s.BodyHash == null || d.BodyHash == null || s.BodyHash == d.BodyHash) continue;
+                if (lines == null)
+                {
+                    var text = utf8Text();
+                    if (text == null) return n;
+                    lines = CodeBodyHash.Lines(text);
+                }
+                if (CodeBodyHash.Of(s, lines) != d.BodyHash) continue;
+                d.BodyHash = s.BodyHash;
+                n++;
+            }
+            return n;
+        }
+
+        /// <summary>
         /// Toglie le descrizioni di simboli che l'AST non ha più (metodi cancellati) e di parametri che il simbolo non ha
         /// più (rinominati, tolti): si segnalano, non si tengono per sempre.
         /// </summary>

@@ -32,15 +32,23 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static void Apply(CodeScript script, string sourceText)
         {
-            var lines = sourceText.Replace("\r\n", "\n").Split('\n');
+            var lines = Lines(sourceText);
             foreach (var s in script.Symbols)
             {
-                if (!WithBody.Contains(s.Kind) || s.LineStart == null) continue;
-                var from = Math.Max(1, s.LineStart.Value);
-                var to = Math.Min(lines.Length, Math.Max(from, s.LineEnd ?? from));
-                var text = Spaces.Replace(string.Join("\n", lines.Skip(from - 1).Take(to - from + 1)), " ").Trim();
-                s.BodyHash = Hash(text);
+                var hash = Of(s, lines);
+                if (hash != null) s.BodyHash = hash;
             }
+        }
+
+        public static string[] Lines(string sourceText) => sourceText.Replace("\r\n", "\n").Split('\n');
+
+        /// <summary>L'impronta del corpo di <paramref name="s"/> nelle righe <paramref name="lines"/>; null se non ha un corpo.</summary>
+        public static string Of(ScriptSymbol s, string[] lines)
+        {
+            if (!WithBody.Contains(s.Kind) || s.LineStart == null) return null;
+            var from = Math.Max(1, s.LineStart.Value);
+            var to = Math.Min(lines.Length, Math.Max(from, s.LineEnd ?? from));
+            return Hash(Spaces.Replace(string.Join("\n", lines.Skip(from - 1).Take(to - from + 1)), " ").Trim());
         }
 
         public static string Hash(string text)

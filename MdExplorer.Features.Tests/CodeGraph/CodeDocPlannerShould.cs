@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using MdExplorer.Features.Services.CodeGraph;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -130,5 +131,35 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(batches[^1].Source, "function F30 {");
             Assert.IsTrue(batches.All(b => b.Source.Length < CodeDocPlanner.MaxSourceChars));
         }
-}
+
+        [TestMethod]
+        public void Realign_body_hashes_written_from_a_utf8_reading_of_a_cp1252_source()
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            var bytes = Encoding.GetEncoding(1252).GetBytes("class Conto {\n  int saldo() {\n    // è il saldo di oggi\n    return 0;\n  }\n}\n");
+            var asRead = Encoding.UTF8.GetString(bytes); // come prima del 23/10: l'accentata diventa U+FFFD
+            var symbol = new ScriptSymbol { Id = "m1", Kind = "method", Name = "saldo", LineStart = 2, LineEnd = 5 };
+            var ast = new CodeScript { Header = new CodeScriptHeader { Schema = 1, Kind = CodeScriptKind.Ast, Source = "src/Conto.java" } };
+            ast.Symbols.Add(symbol);
+            CodeBodyHash.Apply(ast, Encoding.GetEncoding(1252).GetString(bytes));
+            var before = CodeBodyHash.Of(symbol, CodeBodyHash.Lines(asRead));
+            Assert.AreNotEqual(before, symbol.BodyHash, "la lettura giusta cambia l'impronta");
+
+            CodeScript Doc(string bodyHash)
+            {
+                var d = new CodeScript { Header = new CodeScriptHeader { Schema = 1, Kind = CodeScriptKind.Doc, Source = "src/Conto.java" } };
+                d.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "m1", Summary = "Il saldo.", BodyHash = bodyHash });
+                return d;
+            }
+
+            var doc = Doc(before);
+            Assert.AreEqual(1, CodeDocPlanner.RealignBodyHashes(ast, doc, () => asRead));
+            Assert.AreEqual(symbol.BodyHash, doc.SymbolDocs[0].BodyHash, "stesso corpo: la descrizione prende l'impronta nuova");
+            Assert.AreEqual(0, CodeDocPlanner.RealignBodyHashes(ast, doc, () => throw new InvalidOperationException("già allineata: il sorgente non si rilegge")));
+
+            var changed = Doc(CodeBodyHash.Hash("un corpo di allora diverso"));
+            Assert.AreEqual(0, CodeDocPlanner.RealignBodyHashes(ast, changed, () => asRead), "corpo cambiato davvero: resta da rifare");
+            Assert.AreEqual(0, CodeDocPlanner.RealignBodyHashes(ast, Doc(before), () => null), "file UTF-8 valido: niente da riallineare");
+        }
+    }
 }

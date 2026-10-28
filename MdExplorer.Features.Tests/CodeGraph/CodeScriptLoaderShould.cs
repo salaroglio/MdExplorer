@@ -364,6 +364,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
             File.WriteAllText(Path.Combine(otherDir, "Bar.cs.ast.ttl"), Ttl(otherHeader + "\n" + otherBody));
             Assert.AreEqual(2, (await _store.LoadProjectAsync(_project)).Loaded);
             Assert.AreEqual(4, (await _store.GetStatusAsync(_project)).Symbols);
+            var (src, total) = await _store.TripleCountsAsync(_project, "src");
+            var (other, _) = await _store.TripleCountsAsync(_project, "other");
+            Assert.IsTrue(src > 0 && src + other <= total, $"le cartelle non contano due volte gli archi diretti: {src} + {other} su {total}");
 
             var outcome = await _store.ReloadFolderAsync(_project, "src");
             Assert.AreEqual(1, outcome.Loaded, "solo lo script della cartella: quello di «other» resta caricato");
