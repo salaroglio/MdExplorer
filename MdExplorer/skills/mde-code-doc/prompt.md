@@ -2,8 +2,11 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 11
+  version: 12
   updatePolicy: replace
+promptVersions:
+  base: 10
+  fragments: 11
 ---
 
 <!--
@@ -18,6 +21,13 @@ USO: il backend di MdExplorer accoda, dopo questo testo, il sorgente del file
 `---- RISPOSTA ----`. La risposta entra negli script `.mde-code/**/*.doc.ttl`
 e da lì nel database del grafo del codice: gli agenti la leggono quando chiedono
 «che cosa fa X, che cosa gli passo, che cosa torna».
+
+VERSIONI: `mde: version` è quella del file (si alza a ogni modifica, perché
+arrivi ai progetti); `promptVersions` dice quando è cambiato il testo che
+l'LLM legge: `base` per tutto il resto, una voce per ogni sezione
+`mde-section`, che va all'LLM solo se la domanda la riguarda. Una descrizione
+risulta «prompt più vecchio» solo se è cambiata una parte che il suo file usa:
+cambiando la base alza `base`, cambiando una sezione alza la sua voce.
 -->
 
 Sei un programmatore esperto che documenta il codice di un collega. Ti vengono date
@@ -72,6 +82,7 @@ dire che cosa fa il simbolo **nell'insieme**, mettendo insieme quello che fanno 
 metodi con la `summary` già scritta. La `summary` del tipo dice la sua responsabilità
 nell'insieme, non l'elenco dei metodi.
 
+<!-- mde-section: fragments -->
 **I frammenti di un blocco lungo** — kind `fragment`: un blocco troppo lungo per una domanda
 sola (per esempio un blocco di migliaia di righe) è spezzato a ogni etichetta, e ogni
 pezzo va dalla sua etichetta alla successiva. Il campo `jumps` di un frammento dice dove passa
@@ -80,6 +91,7 @@ proseguendo. Descrivi che cosa fa quel pezzo e dove porta (per esempio «se l'ut
 va all'uscita»). Il blocco che lo contiene viene dopo, come un tipo: i corpi dei frammenti
 sono tolti dal suo sorgente e le loro sintesi sono in `members`; la sua `summary` dice che
 cosa fa il blocco nell'insieme, seguendo il percorso fra i pezzi.
+<!-- /mde-section -->
 
 **Lo script stesso** — un simbolo con `"onlyParameters":true` (kind `module`: il codice
 fuori dalle funzioni, per esempio il `param()` in cima a uno script PowerShell): a che cosa

@@ -622,7 +622,7 @@ namespace MdExplorer.Services.CodeGraph
             Func<string, string, Task> onSkipped, CancellationToken token)
         {
             var plan = new DocPlan { DocFiles = new Dictionary<string, DocFile>(StringComparer.Ordinal), Summaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal), Assessment = new CodeDocAssessment(), Candidates = new List<CodeDocCandidate>(),
-                Prompts = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath)) };
+                Prompts = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath), PromptSections(projectPath, "mde-code-doc")) };
             foreach (var astPath in Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
             {
                 token.ThrowIfCancellationRequested();
@@ -927,7 +927,7 @@ namespace MdExplorer.Services.CodeGraph
             catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
             if (!File.Exists(sourceAbs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + sourceAbs; return result; }
             var sourceText = CodeSourceText.Read(sourceAbs, resolver.EncodingsOf(ast.Header.Source));
-            skillBody = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath)).BodyFor(skillBody, new[] { ast });
+            skillBody = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath), PromptSections(projectPath, "mde-code-doc")).BodyFor(skillBody, new[] { ast });
 
             var merged = existing;
             var freshCount = 0;
@@ -1104,8 +1104,18 @@ namespace MdExplorer.Services.CodeGraph
             var text = File.ReadAllText(MdExplorer.Utilities.MdeAssetResolver.PromptFullPath(projectPath, name));
             var fm = Regex.Match(text, @"^---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n", RegexOptions.Singleline);
             if (fm.Success && fm.Index == 0) text = text.Substring(fm.Length);
-            text = Regex.Replace(text, @"<!--.*?-->", string.Empty, RegexOptions.Singleline);
+            // i marcatori delle sezioni restano: li toglie CodeDocPromptSections.Keep, con o senza la sezione
+            text = Regex.Replace(text, @"<!--(?!\s*/?mde-section\b).*?-->", string.Empty, RegexOptions.Singleline);
             return text.Trim();
+        }
+
+        /// <summary>Le versioni delle sezioni del prompt; un prompt che non si legge non ne ha (resta la versione sola).</summary>
+        private static CodeDocPromptSections PromptSections(string projectPath, string name)
+        {
+            string text;
+            try { text = File.ReadAllText(MdExplorer.Utilities.MdeAssetResolver.PromptFullPath(projectPath, name)); }
+            catch (IOException) { return CodeDocPromptSections.None; }
+            return CodeDocPromptSections.FromPromptText(text);
         }
 
         private static string PromptVersion(string projectPath, string name)

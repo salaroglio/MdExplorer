@@ -108,5 +108,45 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(CodeDocVerdict.Fresh, VerdictOf(csAst, before.VersionFor("11", csAst), after.VersionFor("11", csAst)), "C#: niente da rivedere");
             Assert.AreEqual(CodeDocVerdict.Fresh, VerdictOf(toyAst, toyThen, before.VersionFor("11", toyAst)));
         }
+
+        private static string RealPrompt()
+        {
+            // il prompt distribuito con MdExplorer, dal sorgente del repository
+            for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+            {
+                var path = Path.Combine(dir.FullName, "MdExplorer", "skills", "mde-code-doc", "prompt.md");
+                if (File.Exists(path)) return File.ReadAllText(path);
+            }
+            throw new FileNotFoundException("MdExplorer/skills/mde-code-doc/prompt.md non trovato risalendo da " + AppContext.BaseDirectory);
+        }
+
+        private static CodeScript WithFragment(CodeScript ast)
+        {
+            ast.Symbols.Add(new ScriptSymbol { Id = ast.Header.Source + "#p1", Kind = "fragment", Name = "P1", QualifiedName = ast.Header.Source + ":P1", LineStart = 2, LineEnd = 3 });
+            return ast;
+        }
+
+        [TestMethod]
+        public void Judge_and_ask_each_source_only_with_the_prompt_sections_it_uses()
+        {
+            var text = RealPrompt();
+            var sections = CodeDocPromptSections.FromPromptText(text);
+            Assert.AreEqual(10, sections.Versions[CodeDocPromptSections.Base]);
+            var prompts = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(_project), sections);
+
+            var java = Ast("java", "a.java");
+            var toy = WithFragment(Ast("toy", "b.toy"));
+            Assert.AreEqual("10", prompts.VersionFor("12", java), "i frammenti non cambiano il prompt di un sorgente che non ne ha");
+            StringAssert.StartsWith(prompts.VersionFor("12", toy), "11+toy.", "con i frammenti: la versione della loro sezione, più il pacchetto");
+            Assert.IsNull(prompts.VersionFor(null, java), "versione che non si guarda: resta null");
+
+            var body = "prima\n\n<!-- mde-section: fragments -->\n**I frammenti** — kind `fragment`\n<!-- /mde-section -->\n\ndopo";
+            Assert.AreEqual("prima\n\ndopo", prompts.BodyFor(body, new[] { java }), "senza frammenti la sezione non va all'LLM");
+            StringAssert.StartsWith(prompts.BodyFor(body, new[] { java, toy }), "prima\n\n**I frammenti** — kind `fragment`\n\ndopo", "basta un file con frammenti nella domanda");
+            Assert.IsFalse(prompts.BodyFor(body, new[] { toy }).Contains("mde-section"), "i marcatori non arrivano mai all'LLM");
+
+            Assert.AreEqual("11", CodeDocPromptSections.None.VersionFor("11", toy), "prompt senza promptVersions (personalizzato): la versione sola, come prima");
+            Assert.ThrowsException<FormatException>(() => CodeDocPromptSections.FromPromptText("---\npromptVersions:\n  fragments: 11\n---\n"), "senza base non si indovina");
+        }
     }
 }

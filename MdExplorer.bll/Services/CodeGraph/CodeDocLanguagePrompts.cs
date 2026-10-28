@@ -13,14 +13,20 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <para>
     /// La versione del prompt di una descrizione è quella di <c>mde-code-doc</c> più l'impronta del prompt del pacchetto
     /// (<c>11+toy.1a2b3c4d</c>): cambiare il prompt di un linguaggio rende «da rivedere» solo le descrizioni dei suoi sorgenti,
-    /// anche se nessuno alza una versione.
+    /// anche se nessuno alza una versione. La parte di <c>mde-code-doc</c> è quella delle sezioni che il sorgente usa
+    /// (<see cref="CodeDocPromptSections"/>): i frammenti del BAL non fanno rivedere le descrizioni Java.
     /// </para>
     /// </summary>
     public sealed class CodeDocLanguagePrompts
     {
         private readonly CodeLanguageCatalog _catalog;
+        private readonly CodeDocPromptSections _sections;
 
-        public CodeDocLanguagePrompts(CodeLanguageCatalog catalog) { _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog)); }
+        public CodeDocLanguagePrompts(CodeLanguageCatalog catalog, CodeDocPromptSections sections = null)
+        {
+            _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+            _sections = sections ?? CodeDocPromptSections.None;
+        }
 
         /// <summary>Il pacchetto del linguaggio di uno script AST, se ne ha uno con un prompt; null altrimenti.</summary>
         public LanguagePackage PackageOf(CodeScript ast)
@@ -29,14 +35,17 @@ namespace MdExplorer.Features.Services.CodeGraph
             return package?.CodeDocPrompt == null ? null : package;
         }
 
-        public string VersionFor(string baseVersion, CodeScript ast) => Version(baseVersion, PackageOf(ast));
+        public string VersionFor(string baseVersion, CodeScript ast) => Version(_sections.VersionFor(baseVersion, ast), PackageOf(ast));
 
         /// <summary><paramref name="baseVersion"/> null = la versione non si guarda: resta null.</summary>
         public static string Version(string baseVersion, LanguagePackage package)
             => baseVersion == null || package?.CodeDocPromptHash == null ? baseVersion : $"{baseVersion}+{package.Id}.{package.CodeDocPromptHash}";
 
         public string BodyFor(string skillBody, IEnumerable<CodeScript> asts)
-            => WithLanguages(skillBody, asts.Select(PackageOf).Where(p => p != null));
+        {
+            var list = asts.ToList();
+            return WithLanguages(CodeDocPromptSections.Keep(skillBody, list), list.Select(PackageOf).Where(p => p != null));
+        }
 
         public static string WithLanguages(string skillBody, IEnumerable<LanguagePackage> packages)
         {
