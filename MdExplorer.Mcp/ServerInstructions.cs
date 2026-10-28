@@ -22,12 +22,15 @@ public static class ServerInstructions
     /// <summary>
     /// Solo con il gruppo <c>code</c>, DOPO le codifiche (la cui prima frase deve restare la prima, vedi sopra): il grafo
     /// prima della ricerca a mano (26/10/2026). Il caso: MarkAgent aveva scritto l'analisi di una modifica su una radice
-    /// <c>@alias</c> cercando nei file, senza il grafo, perché nulla nella richiesta faceva scattare la skill mde-code.
+    /// <c>@alias</c> cercando nei file, senza il grafo, perché nulla nella richiesta faceva scattare la skill mde-code. Il 28/10
+    /// verificando un documento scritto a mano non sapeva a che cosa serve il grafo: lo cercava come una cosa da completare.
     /// </summary>
     public const string CodeGraphFirst =
         "Before searching source code by hand to answer, plan or analyse a change (which files and methods to touch, " +
-        "what depends on them), ask the code graph: code_find_symbol to locate, code_impact and code_neighbors for what " +
-        "depends on it, code_roots for where @alias/... is on this machine; the mde-code skill has the details. If the " +
+        "what depends on them) or check a document against the code, ask the code graph: it is the map of the code, " +
+        "built so that you do not read the files, every answer with path:line. code_find_symbol to locate, code_describe " +
+        "for what it does, code_impact and code_neighbors for what depends on it, code_roots for where @alias/... is on " +
+        "this machine; the mde-code skill has the details. It is a tool to read, not something to complete: if the " +
         "graph has nothing for that code, say so before searching the files.";
 
     /// <summary>Le istruzioni per i gruppi accesi, o null se nessuno ne ha.</summary>

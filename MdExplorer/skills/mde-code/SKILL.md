@@ -1,9 +1,9 @@
 ---
 name: mde-code
-description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "@alias".
+description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 11
+  version: 12
   updatePolicy: replace
 ---
 
@@ -27,6 +27,19 @@ long to describe in one go — a GOTO, or the code running on into the next piec
 - **scan** (*scansione*): a parser (Roslyn for C#, tree-sitter for the other languages) reads the source and writes
   the structure. Deterministic, no AI.
 - **description** (*descrizione*): an LLM writes what each file and symbol is for. Slow; it may be partial.
+
+## Why the graph exists
+
+It is the map of the code, built once so that nobody has to read the code again to answer: thousands of files, legacy
+encodings, languages you may not know. Every answer comes with `path:line`, so you can check it. The descriptions are
+written from the bottom up: a caller's description already says what its callees do, so `code_describe` on a high-level
+symbol tells what the whole chain does. Use it to answer questions about the code, to plan or analyse a change, and to
+**check a document against the code** (a design, an analysis or a specification written by hand: does what it says
+exist, is it really called, does it do that?).
+
+The graph is a tool you read, not a deliverable to complete. What it does not have — files of a language with no parser
+(configuration, generated classes, templates), calls made through a string — is a limit of the scan, not a gap to fill:
+say so, and read the source for that part.
 
 ## The one rule: ask the `code_*` tools
 
@@ -53,6 +66,7 @@ root's languages from its menu in the tree gives you callers and impact.
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
+| Does this document (design, analysis, specification) match the code? | see «Checking a document against the code» |
 | Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |
 | Signature, parameters and description of one symbol | `code_describe` |
 | What a file is for and what it contains | `code_outline` |
@@ -90,6 +104,20 @@ root's languages from its menu in the tree gives you callers and impact.
   edit through the `remote_*` tools when they are available (they keep the encoding); with your own tools (Edit, Write,
   sed, perl) write the new text in the file's encoding. Never convert it to UTF-8 and never add UTF-8 text to it: the
   file breaks for its compiler. If you are not sure, ask.
+
+## Checking a document against the code
+
+When the user asks whether a document is true to the code (document-driven development), the code is the reference
+and the document is under review:
+
+1. List the document's concrete claims: classes, methods, fields, flows («A calls B», «the page saves through X»).
+2. For each one: `code_find_symbol`, then `code_describe` for what it does, `code_neighbors` / `code_path` for the flows.
+3. Answer claim by claim: **confirmed** (with `path:line`), **different** (what the code really does), **not in the graph**
+   (then search the files: it may be generated code or a file with no parser — say which).
+4. Then what the code does and the document does not say: `code_outline` of the files involved, `code_impact` of the
+   main symbols.
+
+Do not propose changes to the graph or to its rules unless the user asks: the question is about the document.
 
 ## Enrichment rules: when the graph stops at a string
 
