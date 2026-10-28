@@ -56,6 +56,12 @@ namespace MdExplorer.Services.CodeGraph
         Task<CodeRootState> SetEncodingsAsync(string projectPath, string alias, IReadOnlyList<CodeRootEncodingRule> rules, CancellationToken ct = default);
 
         /// <summary>
+        /// Marca o smarca <c>program</c> la radice intera (<c>@alias</c>) o un suo contesto (<c>@alias/cartella</c>), con le
+        /// regole di <see cref="CodeRootContexts"/>. Smarcare un contesto toglie la sua voce, linguaggi compresi.
+        /// </summary>
+        Task<CodeRootState> SetProgramAsync(string projectPath, string logicalFolder, bool marked, CancellationToken ct = default);
+
+        /// <summary>
         /// Ramo e file modificati del repository di una radice collegata (radici esterne F5, R6): per vedere che cosa ha
         /// toccato MarkAgent prima di committare con i propri strumenti. Solo lettura.
         /// </summary>
@@ -120,6 +126,8 @@ namespace MdExplorer.Services.CodeGraph
             {
                 Alias = root.Alias, Repository = root.Repository, Subpath = root.Subpath ?? string.Empty,
                 Tags = root.Tags ?? new List<string>(), Languages = root.CodeGraph?.Languages ?? new List<string>(),
+                Programs = (root.Programs ?? new List<CodeRootProgramConfig>())
+                    .Select(p => new CodeRootContext { Path = CodeRootContexts.Normalize(p.Path), Languages = p.CodeGraph?.Languages ?? new List<string>() }).ToList(),
                 LocalPath = local, RootPath = rootPath, Status = status, Reason = reason, ActualRemotes = remotes ?? Array.Empty<string>(),
                 Remote = remote, ExtensionEncodings = EncodingMap(root),
             };
@@ -288,6 +296,51 @@ namespace MdExplorer.Services.CodeGraph
                 return await StateOfAsync(projectPath, root, ct);
             }
             finally { _configGate.Release(); }
+        }
+
+        public async Task<CodeRootState> SetProgramAsync(string projectPath, string logicalFolder, bool marked, CancellationToken ct = default)
+        {
+            var (alias, rest) = CodeRootPaths.Parse(logicalFolder);
+            var path = CodeRootContexts.Normalize(rest);
+            await _configGate.WaitAsync(ct);
+            CodeRootConfig root;
+            try
+            {
+                var config = ReadConfig(projectPath);
+                root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)
+                    ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata nel .development.yml.", $"The root «@{alias}» is not declared in .development.yml."));
+                root.Tags ??= new List<string>();
+                var rootIsProgram = root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase));
+                var contexts = root.Programs ?? new List<CodeRootProgramConfig>();
+                if (marked)
+                {
+                    var problem = CodeRootContexts.MarkProblem(alias, rootIsProgram, contexts.Select(c => c.Path), path);
+                    if (problem != null) throw new InvalidOperationException(problem);
+                    if (path.Length > 0)
+                    {
+                        var state = await StateOfAsync(projectPath, root, ct);
+                        if (state.Status != CodeRootStatus.Linked || state.IsRemote)
+                            throw new InvalidOperationException(UiText.Say($"@{alias}: si marcano solo le cartelle di una radice collegata su questo disco.", $"@{alias}: only the folders of a root linked on this disk can be marked."));
+                        var abs = Path.Combine(state.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
+                        if (!Directory.Exists(abs)) throw new DirectoryNotFoundException(UiText.Say($"La cartella non esiste: {abs}", $"The folder does not exist: {abs}"));
+                    }
+                }
+                if (path.Length == 0)
+                {
+                    root.Tags.RemoveAll(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase));
+                    if (marked) root.Tags.Add("program");
+                }
+                else
+                {
+                    contexts.RemoveAll(c => string.Equals(CodeRootContexts.Normalize(c.Path), path, StringComparison.Ordinal));
+                    if (marked) contexts.Add(new CodeRootProgramConfig { Path = path });
+                    root.Programs = contexts.Count == 0 ? null : contexts.OrderBy(c => c.Path, StringComparer.Ordinal).ToList();
+                }
+                WriteConfig(projectPath, config);
+            }
+            finally { _configGate.Release(); }
+            _logger.LogInformation("[CodeRoots] '{Project}': {Folder} {Action} program", projectPath, logicalFolder, marked ? "marcata" : "smarcata");
+            return await StateOfAsync(projectPath, root, ct);
         }
 
         public async Task<CodeRootState> SetEncodingsAsync(string projectPath, string alias, IReadOnlyList<CodeRootEncodingRule> rules, CancellationToken ct = default)

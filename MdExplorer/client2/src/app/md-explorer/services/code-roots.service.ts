@@ -20,6 +20,8 @@ export interface CodeRoot {
   remote: string | null;
   /** Le codifiche dei file per estensione (nel .development.yml): un'estensione non elencata è UTF-8, e se non lo è si stima. */
   encodings: CodeRootEncodingRule[];
+  /** I contesti: sottocartelle marcate program, relative alla radice, quando la radice intera non lo è (P2, 28/10/2026). */
+  programs: { path: string; languages: string[] }[];
 }
 
 export interface CodeRootEncodingRule { encoding: string; extensions: string[]; }
@@ -101,6 +103,11 @@ export class CodeRootsService {
 
   link(projectPath: string, alias: string, localPath: string): Observable<CodeRoot> {
     return this.http.post<CodeRoot>(`${this.api}/link`, { projectPath, alias, localPath });
+  }
+
+  /** Marca o smarca come programma la radice intera («@alias») o un suo contesto («@alias/cartella»). */
+  setProgram(projectPath: string, folder: string, marked: boolean): Observable<CodeRoot> {
+    return this.http.post<CodeRoot>(`${this.api}/program`, { projectPath, folder, marked });
   }
 
   unlink(projectPath: string, alias: string): Observable<{ alias: string; linked: boolean }> {

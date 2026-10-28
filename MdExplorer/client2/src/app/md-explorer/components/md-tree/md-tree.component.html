@@ -156,6 +156,21 @@
       <span>{{ 'CODE_ROOT_ENCODINGS.MENU' | translate }}</span>
     </button>
 
+    <!-- Radice esterna e sue cartelle come ambiente di sviluppo (P2 di 2026-10-27-Grafo-Di-Progetti-Enormi): la radice
+         intera o dei contesti dentro, le regole le dice il backend -->
+    <button *ngIf="canMarkCodeRootFolder(item)" mat-menu-item (click)="toggleCodeRootProgram(item)">
+      <mat-icon>{{ isCodeRootProgram(item) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+      <span>{{ 'MD_TREE.MARK_DEV_ENV' | translate }}</span>
+    </button>
+    <button *ngIf="isCodeRootProgram(item)" mat-menu-item (click)="openCodeRootDevEnvironment(item)">
+      <mat-icon>code</mat-icon>
+      <span>{{ 'MD_TREE.DEV_ENV_SETTINGS' | translate }}</span>
+    </button>
+    <button *ngIf="isCodeRootProgram(item)" mat-menu-item (click)="openCodeRootGraph(item)">
+      <mat-icon>hub</mat-icon>
+      <span>{{ 'MD_TREE.CODE_GRAPH' | translate }}</span>
+    </button>
+
     <!-- Radici di codice esterne: il codice FUORI dal progetto (sprint 2026-10-12, F5) -->
     <button *ngIf="item.name==='root' || isCodeRootItem(item)"
             mat-menu-item

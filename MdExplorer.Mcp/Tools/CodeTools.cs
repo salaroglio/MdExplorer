@@ -184,7 +184,9 @@ public sealed class CodeTools : McpToolsBase
         "and why one is not available (not linked here, folder moved, different repository, server unreachable). A root with `remote` " +
         "set (ssh://host/path) lives on an SSH server: it has no absolute path here, use the remote_* tools for its files. " +
         "`encodings` lists the file encoding of each extension (e.g. ibm850 = CP-850 for .cbl): files with those extensions " +
-        "are NOT UTF-8 — keep their encoding when you change them; an extension not listed is UTF-8.")]
+        "are NOT UTF-8 — keep their encoding when you change them; an extension not listed is UTF-8. A huge root may be analysed " +
+        "in parts: then it is not a program as a whole (no 'program' in `tags`) and `programs` lists its analysed subfolders " +
+        "('@alias/<path>'), each with its `languages`; the graph has only the code inside them.")]
     public async Task<string> code_roots(
         [Description("Project name.")] string project)
     {

@@ -28,6 +28,7 @@
       <div class="detail" *ngIf="r.rootPath">{{ 'CODE_ROOTS.HERE' | translate }}: <code>{{ r.rootPath }}</code></div>
       <div class="detail" *ngIf="r.remote || (r.localPath && r.localPath.startsWith('ssh://'))">{{ 'CODE_ROOTS.ON_SERVER' | translate }}: <code>{{ r.remote || r.localPath }}</code></div>
       <div class="detail" *ngIf="r.languages.length">{{ 'CODE_ROOTS.LANGUAGES' | translate }}: {{ r.languages.join(', ') }}</div>
+      <div class="detail" *ngIf="r.programs?.length">{{ 'CODE_ROOTS.CONTEXTS' | translate }}: <span *ngFor="let p of r.programs; let last = last"><code>{{ p.path }}</code><span *ngIf="p.languages.length"> ({{ p.languages.join(', ') }})</span><span *ngIf="!last">, </span></span></div>
       <div class="reason" *ngIf="r.reason">{{ r.reason }}</div>
 
       <div class="actions">
@@ -40,7 +41,8 @@
         <button mat-stroked-button *ngIf="r.localPath" (click)="unlink(r)" [disabled]="!!busy">
           <mat-icon>link_off</mat-icon> {{ 'CODE_ROOTS.UNLINK' | translate }}
         </button>
-        <button mat-stroked-button *ngIf="r.status === 'Linked' && !r.remote" (click)="openLanguages(r)" [disabled]="!!busy">
+        <!-- con i contesti (P2) i linguaggi si scelgono sul contesto, dal menu della sua cartella nell'albero -->
+        <button mat-stroked-button *ngIf="r.status === 'Linked' && !r.remote && (r.tags || []).includes('program')" (click)="openLanguages(r)" [disabled]="!!busy">
           <mat-icon>code</mat-icon> {{ 'CODE_ROOTS.LANGUAGES_AND_ANALYSIS' | translate }}
         </button>
         <button mat-stroked-button (click)="openGraph(r)" [disabled]="!!busy">

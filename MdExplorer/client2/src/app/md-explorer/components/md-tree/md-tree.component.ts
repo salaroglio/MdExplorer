@@ -2587,12 +2587,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // aggiornati); fullPath = percorso assoluto, unico e stabile per l'espansione, path = percorso logico @alias/….
   private codeRootNodes: MdFile[] = [];
   private codeRootNodesByFullPath = new Map<string, MdFile>();
+  /** Le radici come le ha date il backend, per alias: dicono che cosa è marcato program (la radice o i suoi contesti). */
+  private codeRootsByAlias = new Map<string, CodeRoot>();
 
   private loadCodeRootNodes(projectRoot: string): void {
     this.codeRootsService.list(projectRoot).subscribe({
       next: roots => {
         if (this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
         this.codeRootNodesByFullPath.clear();
+        this.codeRootsByAlias = new Map(roots.map(r => [r.alias, r] as [string, CodeRoot]));
         this.codeRootNodes = roots.map(r => this.codeRootNode(r));
         this.renderCodeRootNodes();
       },
@@ -2817,6 +2820,62 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   codeRootStatusLabel(node: MdFile): string {
     return this.translate.instant('CODE_ROOTS.STATUS_' + (node.codeRootStatus || '').toUpperCase());
+  }
+
+  // ------------------------------------------------------------------ radici esterne: contesti program (P2, 28/10/2026)
+
+  /** La radice e la sottocartella di @alias o di una sua cartella; null per un file o una radice non usabile qui. */
+  private codeRootFolderOf(item: MdFile): { root: CodeRoot, path: string } | null {
+    if (item?.type !== 'codeRoot' && item?.type !== 'codeRootFolder') { return null; }
+    const logical = (item.path || '').replace(/\\/g, '/');
+    const m = /^@([^/]+)\/?(.*)$/.exec(logical);
+    const root = m ? this.codeRootsByAlias.get(m[1]) : undefined;
+    // il grafo si fa sui file di questo disco: una radice remota o non collegata non si analizza (lo dice la finestra delle radici)
+    if (!root || root.status !== 'Linked' || root.remote) { return null; }
+    return { root, path: m![2].replace(/\/+$/, '') };
+  }
+
+  /** La voce «Marca come ambiente di sviluppo» su @alias e sulle sue cartelle. */
+  canMarkCodeRootFolder(item: MdFile): boolean { return this.codeRootFolderOf(item) !== null; }
+
+  /** @alias marcata tutta, o la cartella è un suo contesto. */
+  isCodeRootProgram(item: MdFile): boolean {
+    const f = this.codeRootFolderOf(item);
+    if (!f) { return false; }
+    return f.path === '' ? (f.root.tags || []).includes('program') : (f.root.programs || []).some(p => p.path === f.path);
+  }
+
+  /** Marca o smarca; marcando si apre «Ambiente di sviluppo», come per le cartelle del progetto. Le regole le dice il backend. */
+  toggleCodeRootProgram(item: MdFile): void {
+    const root = this.getProjectRoot();
+    if (!root || !this.codeRootFolderOf(item)) { return; }
+    const marked = !this.isCodeRootProgram(item);
+    this.codeRootsService.setProgram(root, item.path, marked).subscribe({
+      next: state => {
+        this.codeRootsByAlias.set(state.alias, state);
+        this.changeDetectorRef.markForCheck();
+        if (marked) { this.openCodeRootDevEnvironment(item, true); }
+      },
+      error: err => this.snackBar.open(err?.error?.error || err?.message || String(err), 'OK', { duration: 8000 }),
+    });
+  }
+
+  /** «Ambiente di sviluppo» di @alias o di un suo contesto: la stessa finestra delle cartelle, con il percorso logico. */
+  openCodeRootDevEnvironment(item: MdFile, justMarked = false): void {
+    const root = this.getProjectRoot();
+    if (!root) { return; }
+    const data: DevEnvironmentDialogData = { folderPath: item.path, folderName: item.path, projectRoot: root, justMarked };
+    this.dialog.open(DevEnvironmentDialogComponent, { width: '560px', data, disableClose: false })
+      .afterClosed().subscribe((result?: DevEnvironmentDialogResult) => {
+        if (result?.open === 'graph') { this.openCodeRootGraph(item); }
+        // i linguaggi scelti cambiano la radice (anche quelli di un contesto): la si rilegge
+        this.codeRootsService.list(root).subscribe({ next: roots => roots.forEach(r => this.codeRootsByAlias.set(r.alias, r)) });
+      });
+  }
+
+  openCodeRootGraph(item: MdFile): void {
+    const root = this.getProjectRoot();
+    if (root) { this.openCodeGraphFolder(root, item.path, item.path); }
   }
 
   isCodeRootItem(item: MdFile): boolean {

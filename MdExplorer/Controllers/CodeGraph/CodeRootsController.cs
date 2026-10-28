@@ -37,6 +37,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public class DismissRequest { public string ProjectPath { get; set; } public List<string> Aliases { get; set; } }
         // string? = facoltativo: un string non nullabile diventa [Required] implicito e il binding rifiuta il vuoto
         public class EncodingsRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public List<MdExplorer.Service.Models.CodeRootEncodingRule> Rules { get; set; } }
+        public class ProgramRequest { public string ProjectPath { get; set; } public string Folder { get; set; } public bool Marked { get; set; } }
         public class ServerSettingsRequest { public string Host { get; set; } public string? AgentFolder { get; set; } public bool AllowUpload { get; set; } }
         public class FileRequest
         {
@@ -151,6 +152,17 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> SetEncodings([FromBody] EncodingsRequest request, CancellationToken ct) => Guarded(async () =>
             Ok(View(await _roots.SetEncodingsAsync(request.ProjectPath, request.Alias, request.Rules ?? new List<MdExplorer.Service.Models.CodeRootEncodingRule>(), ct))), request?.ProjectPath);
 
+        /// <summary>
+        /// POST /api/coderoots/program {projectPath, folder: "@alias" o "@alias/cartella", marked} — marca o smarca come
+        /// programma la radice intera o un suo contesto (P2 di 2026-10-27-Grafo-Di-Progetti-Enormi).
+        /// </summary>
+        [HttpPost("program")]
+        public Task<IActionResult> SetProgram([FromBody] ProgramRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            try { return Ok(View(await _roots.SetProgramAsync(request.ProjectPath, request.Folder, request.Marked, ct))); }
+            catch (DirectoryNotFoundException ex) { return BadRequest(new { error = ex.Message }); }
+        }, request?.ProjectPath);
+
         // ------------------------------------------------------------------ cartelle remote (sprint 2026-10-21, F3)
 
         /// <summary>GET /api/coderoots/ssh-hosts — gli alias di ~/.ssh/config, da proporre (si può scrivere qualunque host).</summary>
@@ -262,6 +274,7 @@ namespace MdExplorer.Controllers.CodeGraph
         private static object View(CodeRootState s) => new
         {
             s.Alias, s.Repository, s.Subpath, s.Tags, s.Languages, s.LocalPath, s.RootPath,
+            programs = s.Programs.Select(p => new { p.Path, p.Languages }),
             status = s.Status.ToString(), s.Reason, s.ActualRemotes,
             remote = s.Remote?.ToString(),
             encodings = s.ExtensionEncodings.GroupBy(p => p.Value).Select(g => new { encoding = g.Key, extensions = g.Select(p => p.Key).OrderBy(e => e).ToList() }),

@@ -168,6 +168,34 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNull(state.Repository);
             Assert.AreEqual(plain, state.RootPath);
         }
+
+        [TestMethod]
+        public async Task Mark_the_folders_of_a_root_as_contexts_only_once_the_root_is_unmarked()
+        {
+            // P2 di 2026-10-27-Grafo-Di-Progetti-Enormi, regole A e B del 28/10
+            var clone = await CloneOf("io/globo", "https://github.com/acme/globo.git");
+            Directory.CreateDirectory(Path.Combine(clone, "web"));
+            var service = Service(new MemoryStore());
+            await service.LinkAsync(_project, "globo", clone);
+
+            var refused = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo/src", true));
+            StringAssert.Contains(refused.Message, "@globo", "A: una radice collegata è un programma intero, com'era");
+
+            var state = await service.SetProgramAsync(_project, "@globo", false);
+            Assert.IsFalse(state.Tags.Contains("program"));
+            state = await service.SetProgramAsync(_project, "@globo/src", true);
+            await service.SetProgramAsync(_project, "@globo/web/", true);
+            state = (await service.ListAsync(_project)).Single();
+            CollectionAssert.AreEqual(new[] { "src", "web" }, state.Programs.Select(p => p.Path).ToArray());
+
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo/src/Api", true))).Message, "@globo/src.", "B");
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo", true))).Message, "(src, web)", "A, dall'altra parte");
+            await Assert.ThrowsExceptionAsync<DirectoryNotFoundException>(() => service.SetProgramAsync(_project, "@globo/non-c-e", true));
+
+            await service.SetProgramAsync(_project, "@globo/src", false);
+            CollectionAssert.AreEqual(new[] { "web" }, (await service.ListAsync(_project)).Single().Programs.Select(p => p.Path).ToArray());
+            StringAssert.Contains(File.ReadAllText(Path.Combine(_project, ".development.yml")), "programs:", "i contesti stanno nel .development.yml, su Git");
+        }
     }
 }
 namespace MdExplorer.IntegrationTests

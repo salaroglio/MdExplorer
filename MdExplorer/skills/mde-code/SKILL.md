@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 12
+  version: 13
   updatePolicy: replace
 ---
 
@@ -52,12 +52,17 @@ A Fuseki server on `localhost:3030` and the skills `mde-tbox` / `mde-abox` / `md
 domain ontologies written from the project's documents. They are not the code graph — do not use them for code.
 
 If no `code_*` tool is available, the code graph is off for this project: say so, and tell the user to choose the
-languages of a program folder in «Ambiente di sviluppo» (Development environment), or of an external root from its menu
-in the tree. Do not look for another way in.
+languages of a program folder in «Ambiente di sviluppo» (Development environment). Do not look for another way in.
 
-A root that `code_roots` lists with no `languages` has no graph: its files are reachable (open `absolutePath`), but the
-graph tools find nothing there. Say so before searching the files with your own tools, and tell the user that choosing the
-root's languages from its menu in the tree gives you callers and impact.
+How the user turns the graph on, from the tree (right click): on a folder of the project, or on an external root `@alias`
+or one of its folders, «Marca come ambiente di sviluppo» (Mark as development environment), then the languages in
+«Ambiente di sviluppo…». A huge root is analysed in parts: either the whole root is a program (`program` in its `tags`) or
+some of its subfolders are, listed in `programs` by `code_roots`, never one inside another.
+
+A root that `code_roots` lists with no `languages` and no `programs` has no graph: its files are reachable (open
+`absolutePath`), but the graph tools find nothing there. With `programs`, only the code inside them is in the graph. Say so
+before searching the files with your own tools, and tell the user that marking the folder they need (as above) gives you
+callers and impact.
 
 ## Which tool
 

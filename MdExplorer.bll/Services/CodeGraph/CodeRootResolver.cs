@@ -25,6 +25,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         ConsentRequired,
     }
 
+    /// <summary>Un contesto di una radice: la sottocartella relativa alla radice e i suoi linguaggi.</summary>
+    public sealed class CodeRootContext
+    {
+        public string Path { get; init; }
+        public IReadOnlyList<string> Languages { get; init; } = Array.Empty<string>();
+    }
+
     public sealed class CodeRootState
     {
         public string Alias { get; init; }
@@ -32,6 +39,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Subpath { get; init; }
         public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
         public IReadOnlyList<string> Languages { get; init; } = Array.Empty<string>();
+        /// <summary>I contesti marcati dentro la radice (<see cref="CodeRootContexts"/>): vuoto se nessuno.</summary>
+        public IReadOnlyList<CodeRootContext> Programs { get; init; } = Array.Empty<CodeRootContext>();
         /// <summary>La cartella collegata su questa macchina (radice del repository, o la cartella se non è git); null se non collegata.</summary>
         public string LocalPath { get; init; }
         /// <summary>La cartella che si analizza: <see cref="LocalPath"/> più <see cref="Subpath"/>. Null se non collegata.</summary>

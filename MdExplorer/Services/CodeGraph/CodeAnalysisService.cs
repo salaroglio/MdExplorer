@@ -135,7 +135,7 @@ namespace MdExplorer.Services.CodeGraph
 
     public sealed class CodeProgramFolder
     {
-        /// <summary>Il percorso logico: <c>program/x</c> o <c>@alias</c>. È anche il prefisso dei percorsi dei suoi file.</summary>
+        /// <summary>Il percorso logico: <c>program/x</c>, <c>@alias</c> o un contesto <c>@alias/cartella</c>. È anche il prefisso dei percorsi dei suoi file.</summary>
         public string Folder { get; set; }
         public List<string> Languages { get; set; } = new();
         public bool Linked { get; set; } = true;
@@ -236,14 +236,22 @@ namespace MdExplorer.Services.CodeGraph
                     abs => CodeGraphPaths.ToProjectRelative(projectPath, abs),
                     Directory.Exists(folderAbs) ? null : UiText.Say($"La cartella non esiste: {folderAbs}", $"The folder does not exist: {folderAbs}"));
             }
-            var (alias, _) = CodeRootPaths.Parse(key);
+            var (alias, rest) = CodeRootPaths.Parse(key);
             var root = (await _roots.ListAsync(projectPath, ct)).FirstOrDefault(r => r.Alias == alias);
             if (root == null) return new Scope(key, null, new List<string>(), false, null, UiText.Say($"la radice «@{alias}» non è dichiarata nel .development.yml", $"the root «@{alias}» is not declared in .development.yml"));
             var rootPath = root.RootPath;
-            return new Scope(key, rootPath, root.Languages.ToList(),
-                root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)),
+            // un contesto (P2): una sottocartella della radice, con i suoi linguaggi; i percorsi logici restano quelli della radice
+            var sub = CodeRootContexts.Normalize(rest);
+            var context = sub.Length == 0 ? null : root.Programs.FirstOrDefault(p => p.Path == sub);
+            var scopeAbs = rootPath == null || sub.Length == 0 ? rootPath : Path.Combine(rootPath, sub.Replace('/', Path.DirectorySeparatorChar));
+            var unusable = !Analyzable(root) ? $"@{alias}: {NotAnalyzableReason(root)}"
+                : !Directory.Exists(scopeAbs) ? UiText.Say($"La cartella non esiste: {scopeAbs}", $"The folder does not exist: {scopeAbs}")
+                : null;
+            return new Scope(key, scopeAbs,
+                (sub.Length == 0 ? root.Languages : context?.Languages ?? Array.Empty<string>()).ToList(),
+                sub.Length == 0 ? root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) : context != null,
                 abs => CodeRootPaths.Format(alias, PathContainment.RelativeOrNull(rootPath, abs) is { } rel && rel != "." ? rel : string.Empty),
-                Analyzable(root) ? null : $"@{alias}: {NotAnalyzableReason(root)}",
+                unusable,
                 root.ExtensionEncodings.Count > 0 ? root.ExtensionEncodings : null);
         }
 
@@ -295,8 +303,10 @@ namespace MdExplorer.Services.CodeGraph
             FolderCodeGraphConfig cg;
             if (CodeRootPaths.IsLogical(folderRelative))
             {
-                var (alias, _) = CodeRootPaths.Parse(folderRelative);
-                cg = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)?.CodeGraph;
+                var (alias, rest) = CodeRootPaths.Parse(folderRelative);
+                var root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias);
+                var sub = CodeRootContexts.Normalize(rest);
+                cg = sub.Length == 0 ? root?.CodeGraph : root?.Programs?.FirstOrDefault(p => CodeRootContexts.Normalize(p.Path) == sub)?.CodeGraph;
             }
             else cg = config.Folders.FirstOrDefault(f => string.Equals(NormalizeRelative(f.Path), folderRelative, StringComparison.OrdinalIgnoreCase))?.CodeGraph;
             return CodeDescriptionModes.Parse(cg?.Describe, $"'{folderRelative}'");
@@ -314,10 +324,19 @@ namespace MdExplorer.Services.CodeGraph
             if (CodeRootPaths.IsLogical(folderRelative))
             {
                 // radice esterna: i linguaggi stanno nella sua voce di codeRoots (la voce la crea il collegamento, non questa)
-                var (alias, _) = CodeRootPaths.Parse(folderRelative);
+                var (alias, rest) = CodeRootPaths.Parse(folderRelative);
                 var root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)
                     ?? throw new InvalidOperationException(UiText.Say($"La radice «@{alias}» non è dichiarata: collegala prima di scegliere i linguaggi.", $"The root «@{alias}» is not declared: link it before choosing the languages."));
-                root.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? root.CodeGraph?.Describe };
+                var sub = CodeRootContexts.Normalize(rest);
+                if (sub.Length == 0)
+                    root.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? root.CodeGraph?.Describe };
+                else
+                {
+                    // il contesto lo crea la marcatura (con le sue regole), non la scelta dei linguaggi
+                    var context = root.Programs?.FirstOrDefault(p => CodeRootContexts.Normalize(p.Path) == sub)
+                        ?? throw new InvalidOperationException(UiText.Say($"@{alias}/{sub} non è marcata come programma: marcala prima di scegliere i linguaggi.", $"@{alias}/{sub} is not marked as a program: mark it before choosing the languages."));
+                    context.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? context.CodeGraph?.Describe };
+                }
                 File.WriteAllText(path, new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build().Serialize(config));
                 _logger.LogInformation("[CodeGraph] '@{Alias}': linguaggi = {Langs}", alias, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
                 return;
@@ -367,6 +386,10 @@ namespace MdExplorer.Services.CodeGraph
             list.AddRange((await _roots.ListAsync(projectPath, ct))
                 .Where(r => r.Languages.Count > 0 && r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
                 .Select(r => new CodeProgramFolder { Folder = "@" + r.Alias, Languages = r.Languages.ToList(), Linked = Analyzable(r), Reason = NotAnalyzableReason(r) }));
+            // i contesti delle radici (P2): ognuno un programma, con i suoi linguaggi
+            list.AddRange((await _roots.ListAsync(projectPath, ct))
+                .SelectMany(r => r.Programs.Where(p => p.Languages.Count > 0)
+                    .Select(p => new CodeProgramFolder { Folder = CodeRootPaths.Format(r.Alias, p.Path), Languages = p.Languages.ToList(), Linked = Analyzable(r), Reason = NotAnalyzableReason(r) })));
             return list;
         }
 
@@ -460,15 +483,7 @@ namespace MdExplorer.Services.CodeGraph
         public async Task<List<CodeFolderAnalysisOutcome>> RefreshAfterTurnAsync(string projectPath, CancellationToken ct = default)
         {
             var outcomes = new List<CodeFolderAnalysisOutcome>();
-            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            if (!File.Exists(path)) return outcomes;
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
-            var keys = config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
-                .Select(f => NormalizeRelative(f.Path))
-                .Concat((await _roots.ListAsync(projectPath, ct)).Where(r => Analyzable(r) && r.Languages.Count > 0 &&
-                                                                            r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
-                    .Select(r => "@" + r.Alias))
-                .ToList();
+            var keys = (await ListProgramsAsync(projectPath, ct)).Where(p => p.Linked).Select(p => p.Folder).ToList();
             foreach (var key in keys)
             {
                 ct.ThrowIfCancellationRequested();
@@ -711,16 +726,13 @@ namespace MdExplorer.Services.CodeGraph
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             if (!File.Exists(path)) return list;
             var prefix = NormalizeRelative(folderPrefix ?? string.Empty);
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
             var resolver = await _roots.CreateResolverAsync(projectPath, ct);
             var extractors = _extractors.ForProject(CodeLanguageCatalog.ForProject(projectPath));
 
-            // le cartelle interne e le radici esterne COLLEGATE (una radice non collegata non si rianalizza qui: niente da proporre)
-            var scopes = config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
-                .Select(f => (Key: NormalizeRelative(f.Path), Languages: (IReadOnlyList<string>)f.CodeGraph.Languages))
-                .Concat(resolver.Linked.Where(r => r.Languages.Count > 0 && r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
-                    .Select(r => (Key: "@" + r.Alias, Languages: r.Languages)))
-                .ToList();
+            // le cartelle interne, le radici esterne e i loro contesti COLLEGATI (una radice non collegata non si rianalizza
+            // qui: niente da proporre)
+            var scopes = (await ListProgramsAsync(projectPath, ct)).Where(p => p.Linked)
+                .Select(p => (Key: p.Folder, Languages: (IReadOnlyList<string>)p.Languages)).ToList();
             foreach (var (key, languages) in scopes)
             {
                 var scriptsDir = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), key.Replace('/', Path.DirectorySeparatorChar));

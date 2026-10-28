@@ -138,11 +138,25 @@ namespace MdExplorer.Service.Models
         public FolderCodeGraphConfig CodeGraph { get; set; }
 
         /// <summary>
+        /// I contesti (P2 di 2026-10-27-Grafo-Di-Progetti-Enormi, G3): sottocartelle della radice marcate <c>program</c>
+        /// dall'utente, ognuna con i suoi linguaggi, per analizzare a pezzi una radice enorme. Solo quando la radice intera NON
+        /// è un programma, e mai uno dentro l'altro (<c>CodeRootContexts</c>). Null = nessuno.
+        /// </summary>
+        public List<CodeRootProgramConfig> Programs { get; set; }
+
+        /// <summary>
         /// Le codifiche dei file per estensione (sprint 2026-10-21-Cartella-Remota-Via-SSH: «.cbl, .cpy → CP-850»), dal menu
         /// della radice. Su Git: la codifica è del codice, uguale per tutti. Un'estensione non elencata: UTF-8, e se il file
         /// non lo è la stima.
         /// </summary>
         public List<CodeRootEncodingRule> Encodings { get; set; }
+    }
+
+    /// <summary>Un contesto di una radice: la sottocartella, relativa alla radice con «/», e i suoi linguaggi.</summary>
+    public class CodeRootProgramConfig
+    {
+        public string Path { get; set; }
+        public FolderCodeGraphConfig CodeGraph { get; set; }
     }
 
     public class CodeRootEncodingRule
