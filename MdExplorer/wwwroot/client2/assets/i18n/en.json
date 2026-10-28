@@ -1025,7 +1025,8 @@
     "T_FOLDER_ESTIMATE": "{{mb}} in the database · {{percent}}% of the triples",
     "T_FOLDER_UNDER_1": "less than 1 MB",
     "T_FOLDER_ABOUT": "≈ {{mb}} MB",
-    "T_FOLDER_COUNTING": "Counting the triples…",
+    "T_CALCULATING": "calculating…",
+    "T_RECALCULATING": "Recalculating: the greyed-out values are the previous ones",
     "T_FOLDER_TRIPLES": "{{triples}} triples of the folder out of {{total}} in the database (all projects). Estimate: the {{preallocated}} MB the database reserves anyway (8 MB per file, even empty) are not counted; indexed text weighs in its own way",
     "T_FOLDER_ERROR": "Cannot count the triples: {{error}}"
   },

@@ -96,3 +96,7 @@
 .info-table .running-value { display: inline-flex; align-items: center; gap: 6px; }
 .table-note { font-size: 12px; opacity: 0.85; }
 .table-note.warn { color: #ef6c00; opacity: 1; }
+/* conteggi che arrivano dopo (28/10/2026): il valore di prima resta, in grigio, finché arriva il nuovo */
+.info-table td.stale { opacity: 0.45; transition: opacity 0.2s; }
+.info-table .pending { color: var(--mde-text-secondary); font-style: italic; }
+.recalculating { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mde-text-secondary); margin: 4px 0 6px; }

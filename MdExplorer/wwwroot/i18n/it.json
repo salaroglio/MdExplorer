@@ -1025,7 +1025,8 @@
     "T_FOLDER_ESTIMATE": "{{mb}} nel database · {{percent}}% delle triple",
     "T_FOLDER_UNDER_1": "meno di 1 MB",
     "T_FOLDER_ABOUT": "≈ {{mb}} MB",
-    "T_FOLDER_COUNTING": "Conto le triple…",
+    "T_CALCULATING": "calcolo…",
+    "T_RECALCULATING": "Ricalcolo in corso: i valori in grigio sono quelli di prima",
     "T_FOLDER_TRIPLES": "{{triples}} triple della cartella su {{total}} del database (tutti i progetti). Stima: i {{preallocated}} MB che il database riserva comunque (8 MB per file, anche vuoto) non si contano; il testo indicizzato pesa a modo suo",
     "T_FOLDER_ERROR": "Non riesco a contare le triple: {{error}}"
   },

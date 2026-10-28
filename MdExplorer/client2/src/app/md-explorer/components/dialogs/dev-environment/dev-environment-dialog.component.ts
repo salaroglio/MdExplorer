@@ -304,23 +304,35 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   /** Il database del grafo su disco (tutti i progetti): dimensione e generazioni del dataset del codice, testo pronto. */
   public storageMb: number | null = null;
   public storageGenerations = 0;
+  public storageLoading = false;
+
+  /**
+   * I conteggi della tabella arrivano da tre chiamate, la più lenta dopo le altre (28/10/2026): la tabella si mostra subito
+   * intera, un valore che non c'è ancora dice «calcolo…» e uno di prima resta in grigio finché arriva il nuovo.
+   */
+  public previewLoading = false;
+  get recalculating(): boolean { return this.previewLoading || this.storageLoading || this.folderWeightLoading; }
 
   private loadStorage(): void {
+    this.storageLoading = true;
     this.codeGraph.storage().subscribe({
       next: st => {
         const code = (st.datasets ?? []).find(d => d.name === 'code');
         this.storageMb = st.totalMb;
         this.storageGenerations = code ? code.generations.length : 0;
+        this.storageLoading = false;
       },
-      error: () => { this.storageMb = null; }
+      error: () => { this.storageMb = null; this.storageLoading = false; }
     });
   }
 
   /** Quante da descrivere e quante da rivedere: si chiede quando la cartella è già configurata e dopo ogni giro. */
   private loadPreview(): void {
     this.loadStorage();
+    this.previewLoading = true;
     this.codeGraph.describePreview(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (p) => {
+        this.previewLoading = false;
         this.preview = p;
         this.noStructure = false;
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
@@ -330,7 +342,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.updateEstimate();
       },
       // niente script ancora (mai analizzata): l'anteprima non c'è, la finestra funziona lo stesso
-      error: (err) => { this.noStructure = err?.status === 409; this.preview = null; this.previewTodo = 0; this.previewReview = 0; this.updateEstimate(); }
+      error: (err) => { this.previewLoading = false; this.noStructure = err?.status === 409; this.preview = null; this.previewTodo = 0; this.previewReview = 0; this.updateEstimate(); }
     });
   }
 

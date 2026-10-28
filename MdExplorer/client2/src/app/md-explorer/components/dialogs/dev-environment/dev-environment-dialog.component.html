@@ -225,20 +225,29 @@
       <p class="reason" *ngIf="descriptionMode === 'all'">{{ 'DEV_ENV.DESCRIPTION_STARTED_HINT' | translate }}</p>
     </div>
 
-    <!-- Lo stato della cartella in tabella (22/10/2026): da descrivere, domande, database, peso della cartella -->
-    <table class="info-table" *ngIf="preview || runningRun">
-      <tr *ngIf="preview">
+    <!-- Lo stato della cartella in tabella (22/10/2026): da descrivere, domande, database, peso della cartella.
+         Tutta subito (28/10/2026): i valori arrivano da tre chiamate; uno che manca dice «calcolo…», uno di prima resta in grigio -->
+    <ng-template #calculating><span class="running-value pending"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_CALCULATING' | translate }}</span></ng-template>
+    <div class="recalculating" *ngIf="recalculating && (preview || storageMb !== null)">
+      <mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_RECALCULATING' | translate }}
+    </div>
+    <table class="info-table" *ngIf="(configured && (preview || previewLoading)) || runningRun">
+      <tr>
         <th>{{ 'DEV_ENV.T_TODO' | translate }}</th>
-        <td>
-          {{ 'DEV_ENV.T_TODO_VALUE' | translate: { todo: previewTodo, files: preview.files } }}
-          <div class="sub" *ngIf="previewTodo > 0">{{ 'DEV_ENV.T_TODO_DETAIL' | translate: { missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0 } }}</div>
+        <td [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ 'DEV_ENV.T_TODO_VALUE' | translate: { todo: previewTodo, files: preview.files } }}
+            <div class="sub" *ngIf="previewTodo > 0">{{ 'DEV_ENV.T_TODO_DETAIL' | translate: { missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0 } }}</div>
+          </ng-container>
         </td>
       </tr>
-      <tr *ngIf="preview && previewReview > 0">
+      <tr>
         <th>{{ 'DEV_ENV.T_REVIEW' | translate }}</th>
-        <td>
-          {{ previewReview }}
-          <div class="sub">{{ 'DEV_ENV.T_REVIEW_DETAIL' | translate: { context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
+        <td [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ previewReview }}
+            <div class="sub" *ngIf="previewReview > 0">{{ 'DEV_ENV.T_REVIEW_DETAIL' | translate: { context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
+          </ng-container>
         </td>
       </tr>
       <tr>
@@ -247,25 +256,31 @@
           <span class="running-value"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_QUESTIONS_RUNNING' | translate: { done: runningRun.questionsDone ?? runningRun.fileIndex, total: runningRun.fileTotal } }}</span>
           <div class="sub">{{ 'DEV_ENV.T_QUESTIONS_CURRENT' | translate: { engine: runningRun.engine, current: runningRun.currentFile || '—' } }}</div>
         </td>
-        <td *ngIf="!runningRun && preview">
-          {{ 'DEV_ENV.T_QUESTIONS_TODO' | translate: { questions: preview.questions } }}
-          <div class="sub" *ngIf="preview.questions > 0">{{ 'DEV_ENV.T_QUESTIONS_LEVELS' | translate: { levels: preview.levels } }}</div>
+        <td *ngIf="!runningRun" [class.stale]="previewLoading">
+          <ng-container *ngIf="preview; else calculating">
+            {{ 'DEV_ENV.T_QUESTIONS_TODO' | translate: { questions: preview.questions } }}
+            <div class="sub" *ngIf="preview.questions > 0">{{ 'DEV_ENV.T_QUESTIONS_LEVELS' | translate: { levels: preview.levels } }}</div>
+          </ng-container>
         </td>
       </tr>
-      <tr *ngIf="storageMb !== null">
+      <tr>
         <th>{{ 'DEV_ENV.T_DATABASE' | translate }}</th>
-        <td>
-          {{ 'DEV_ENV.T_DATABASE_VALUE' | translate: { mb: storageMb } }}
-          <div class="sub warn" *ngIf="storageGenerations > 1">{{ 'DEV_ENV.T_DATABASE_OLD' | translate: { generations: storageGenerations } }}</div>
+        <td [class.stale]="storageLoading">
+          <ng-container *ngIf="storageMb !== null; else calculating">
+            {{ 'DEV_ENV.T_DATABASE_VALUE' | translate: { mb: storageMb } }}
+            <div class="sub warn" *ngIf="storageGenerations > 1">{{ 'DEV_ENV.T_DATABASE_OLD' | translate: { generations: storageGenerations } }}</div>
+          </ng-container>
         </td>
       </tr>
-      <tr *ngIf="preview">
+      <tr>
         <th>{{ 'DEV_ENV.T_FOLDER' | translate }}</th>
-        <td>
-          <span *ngIf="folderWeight">{{ 'DEV_ENV.T_FOLDER_ESTIMATE' | translate: { mb: folderWeight.estimated, percent: folderWeight.percent } }}</span>
-          <span class="running-value" *ngIf="folderWeightLoading"><mat-spinner diameter="14"></mat-spinner>{{ 'DEV_ENV.T_FOLDER_COUNTING' | translate }}</span>
-          <div class="sub">{{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}</div>
-          <div class="sub" *ngIf="folderWeight">{{ 'DEV_ENV.T_FOLDER_TRIPLES' | translate: { triples: folderWeight.triples, total: folderWeight.total, preallocated: folderWeight.preallocatedMb } }}</div>
+        <!-- il peso si conta dopo l'anteprima: finché l'anteprima gira, anche lui è da ricalcolare -->
+        <td [class.stale]="folderWeightLoading || previewLoading">
+          <ng-container *ngIf="folderWeight; else calculating">
+            {{ 'DEV_ENV.T_FOLDER_ESTIMATE' | translate: { mb: folderWeight.estimated, percent: folderWeight.percent } }}
+            <div class="sub">{{ 'DEV_ENV.T_FOLDER_TRIPLES' | translate: { triples: folderWeight.triples, total: folderWeight.total, preallocated: folderWeight.preallocatedMb } }}</div>
+          </ng-container>
+          <div class="sub" *ngIf="preview">{{ 'DEV_ENV.T_FOLDER_VALUE' | translate: { mb: scriptsMb, files: preview.analyzedFiles } }}</div>
           <div class="sub warn" *ngIf="folderWeightError">{{ 'DEV_ENV.T_FOLDER_ERROR' | translate: { error: folderWeightError } }}</div>
         </td>
       </tr>
