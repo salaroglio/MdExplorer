@@ -265,24 +265,24 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
-        /// Via in UNA transazione tutto ciò che gli script sotto <paramref name="scriptsPrefix"/> (<c>.mde-code/&lt;cartella&gt;/</c>)
-        /// avevano portato, archi diretti e stato dei caricamenti compresi: la ricarica da capo di una cartella (22/10/2026).
-        /// Le altre cartelle e gli altri progetti non si toccano.
+        /// Via tutto ciò che gli script <paramref name="scriptRels"/> avevano portato, archi diretti compresi, in una richiesta:
+        /// un lotto della ricarica da capo di una cartella. Una DELETE per prefisso su tutta la cartella raccoglieva in memoria
+        /// ogni tripla prima di cancellarla: 1.414 file Java hanno finito i 512 MB di Fuseki (Windows 28/10/2026,
+        /// «Parse error: Java heap space»). Script per script la memoria resta quella di un file.
         /// </summary>
-        public static string RemoveFolderUpdate(string scriptsPrefix, string dataGraph, string stateGraph)
+        public static string RemoveScriptsUpdate(IEnumerable<string> scriptRels, string dataGraph)
         {
             var g = Iri(dataGraph);
-            var p = Lit(scriptsPrefix);
             var sb = new StringBuilder();
             sb.Append(CodeOntology.SparqlPrefixes);
-            sb.Append("DELETE { GRAPH ").Append(g).Append(" { ?a ?p ?b } } WHERE { GRAPH ").Append(g)
-              .Append(" { ?e a code:Edge ; code:fromScript ?sc ; code:source ?a ; code:target ?b ; code:relationIri ?p . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } } ;\n");
-            sb.Append("DELETE { GRAPH ").Append(g).Append(" { ?s ?p ?o } } WHERE { GRAPH ").Append(g)
-              .Append(" { ?s code:fromScript ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } } ;\n");
-            sb.Append("DELETE { GRAPH ").Append(Iri(stateGraph)).Append(" { ?s ?p ?o } } WHERE { GRAPH ").Append(Iri(stateGraph))
-              .Append(" { ?s a ").Append(CodeOntology.ClassScript).Append(" ; code:scriptPath ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, ").Append(p).Append(")) } }\n");
+            foreach (var rel in scriptRels) AppendRemove(sb, rel, g);
             return sb.ToString();
         }
+
+        /// <summary>Via lo stato dei caricamenti degli script sotto <paramref name="scriptsPrefix"/>: le altre cartelle non si toccano.</summary>
+        public static string RemoveFolderStateUpdate(string scriptsPrefix, string stateGraph)
+            => CodeOntology.SparqlPrefixes + "DELETE { GRAPH " + Iri(stateGraph) + " { ?s ?p ?o } } WHERE { GRAPH " + Iri(stateGraph) +
+               " { ?s a " + CodeOntology.ClassScript + " ; code:scriptPath ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, " + Lit(scriptsPrefix) + ")) } }\n";
 
         private static void AppendRemove(StringBuilder sb, string scriptRel, string g)
         {

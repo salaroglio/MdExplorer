@@ -227,7 +227,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var prefix = CodeGraphIris.Lit(CodeGraphPaths.ScriptsFolderName + "/" + (folderRelative ?? string.Empty).Replace('\\', '/').Trim('/') + "/");
-            // lo stesso perimetro di RemoveFolderUpdate: i nodi dei suoi script con tutte le loro triple, più l'arco diretto di ogni nodo arco
+            // lo stesso perimetro della ricarica da capo (RemoveScriptsUpdate): i nodi dei suoi script con tutte le loro triple, più l'arco diretto di ogni nodo arco
             var nodes = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s code:fromScript ?sc ; ?p ?o . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
             var edges = await RowsAsync($"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:fromScript ?sc . FILTER(STRSTARTS(?sc, {prefix})) }} }}", ct);
             // tutto il dataset: ogni progetto, il grafo di default e gli stati
@@ -247,9 +247,25 @@ namespace MdExplorer.Features.Services.CodeGraph
             var gate = GateFor(projectPath);
             var started = DateTime.UtcNow;
             await gate.WaitAsync(ct);
-            try { await UpdateAsync(CodeTripleWriter.RemoveFolderUpdate(prefix, g.Data, g.State), ct); }
+            var scripts = 0;
+            try
+            {
+                // gli script della cartella: quelli con uno stato, più quelli che hanno lasciato nodi senza stato
+                var lit = CodeGraphIris.Lit(prefix);
+                var rels = new SortedSet<string>(StringComparer.Ordinal);
+                foreach (var r in await RowsAsync($"SELECT ?sc WHERE {{ GRAPH {g.StateIri} {{ ?s a code:Script ; code:scriptPath ?sc . FILTER(STRSTARTS(?sc, {lit})) }} }}", ct)) rels.Add(r["sc"]);
+                foreach (var r in await RowsAsync($"SELECT DISTINCT ?sc WHERE {{ GRAPH {g.DataIri} {{ ?s code:fromScript ?sc . FILTER(STRSTARTS(?sc, {lit})) }} }}", ct)) rels.Add(r["sc"]);
+                scripts = rels.Count;
+                foreach (var chunk in rels.Chunk(BatchScripts))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct);
+                }
+                await UpdateAsync(CodeTripleWriter.RemoveFolderStateUpdate(prefix, g.State), ct);
+            }
             finally { gate.Release(); }
-            _logger?.LogInformation("[CodeGraph] '{Project}': cartella '{Folder}' tolta dal grafo in {Seconds:0.0} s, si ricarica da capo", projectPath, folderRelative, (DateTime.UtcNow - started).TotalSeconds);
+            _logger?.LogInformation("[CodeGraph] '{Project}': cartella '{Folder}' tolta dal grafo ({Scripts} script, lotti da {Batch}) in {Seconds:0.0} s, si ricarica da capo",
+                projectPath, folderRelative, scripts, BatchScripts, (DateTime.UtcNow - started).TotalSeconds);
             // senza stato, gli script della cartella risultano tutti da caricare: lotti e compattazione come all'apertura
             return await LoadProjectAsync(projectPath, ct);
         }
