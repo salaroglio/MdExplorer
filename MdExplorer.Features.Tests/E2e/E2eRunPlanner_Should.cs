@@ -50,7 +50,7 @@ namespace MdExplorer.Features.Tests.E2e
             var item = plan.Items.Single();
             Assert.AreEqual("test-e2e/login.e2e.md", item.RelativeTestFile);
             Assert.AreEqual("test-e2e/login.e2e/esecuzioni/2026-09-27_10-30", item.RelativeRunFolder);
-            Assert.AreEqual("Esegui i test di test-e2e/login.e2e.md.\nCartella dell'esecuzione: test-e2e/login.e2e/esecuzioni/2026-09-27_10-30/\n", item.Prompt);
+            Assert.AreEqual("Esegui i test di test-e2e/login.e2e.md.\nCartella dell'esecuzione: test-e2e/login.e2e/esecuzioni/2026-09-27_10-30/\nSegui la skill mde-e2e: prima leggi i suoi esecuzione.md e mappa.md.\n", item.Prompt);
             Assert.AreEqual("segreta", plan.Secrets["x.password"]);
             CollectionAssert.AreEqual(new[] { Path.Combine(_root, "test-e2e", "credenziali-x.txt") }, plan.DeniedPaths.ToArray());
         }

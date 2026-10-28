@@ -101,15 +101,25 @@ namespace MdExplorer.Utilities
                 string name,
                 IReadOnlyDictionary<HarnessTarget, AssetSource> sources,
                 bool requiresFuseki = false,
-                bool requiresAgentCity = false)
+                bool requiresAgentCity = false,
+                IReadOnlyList<(string File, string Resource)> companions = null)
             {
                 Name = name;
                 _sources = sources;
                 RequiresFuseki = requiresFuseki;
                 RequiresAgentCity = requiresAgentCity;
+                Companions = companions ?? Array.Empty<(string, string)>();
             }
 
             public string Name { get; }
+
+            /// <summary>
+            /// The files that sit next to a skill's <c>SKILL.md</c> and that the skill tells the agent to read for one phase
+            /// of the work (28/10/2026: a SKILL.md of 700 lines dilutes the rules that matter, so the details of each phase
+            /// went into a file of their own). They carry no <c>mde:</c> block: they follow the SKILL.md, its version and
+            /// its owner.
+            /// </summary>
+            public IReadOnlyList<(string File, string Resource)> Companions { get; }
 
             /// <summary>
             /// True for the semantic-web / Apache Jena Fuseki assets (TBox/ABox/SHACL): they are
@@ -173,7 +183,13 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-template", Shared("MdExplorer.Service.skills.mde_template.SKILL.md")),
             new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md")),
             new CatalogEntry("mde-slide", Shared("MdExplorer.Service.skills.mde_slide.SKILL.md")),
-            new CatalogEntry("mde-e2e", Shared("MdExplorer.Service.skills.mde_e2e.SKILL.md")),
+            new CatalogEntry("mde-e2e", Shared("MdExplorer.Service.skills.mde_e2e.SKILL.md"), companions: new[]
+            {
+                ("preparare.md", "MdExplorer.Service.skills.mde_e2e.preparare.md"),
+                ("mappa.md", "MdExplorer.Service.skills.mde_e2e.mappa.md"),
+                ("esecuzione.md", "MdExplorer.Service.skills.mde_e2e.esecuzione.md"),
+                ("rigioco-fallito.md", "MdExplorer.Service.skills.mde_e2e.rigioco-fallito.md"),
+            }),
             new CatalogEntry("mde-e2e-signals", Shared("MdExplorer.Service.skills.mde_e2e_signals.SKILL.md")),
             // Sempre installata, anche senza cartelle program: il gruppo `code` si accende a caldo quando si scelgono i
             // linguaggi (D28) e la skill dice che cosa fare quando i tool code_* non ci sono (punto 4a del 14/10).
@@ -337,7 +353,8 @@ namespace MdExplorer.Utilities
                 {
                     var targetPath = targetPathFor(entry.Name);
                     Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
-                    EnsureFileInstalled(targetPath, entry.Name, entry.SourceFor(layout.Target), kind, layout);
+                    var outcome = EnsureFileInstalled(targetPath, entry.Name, entry.SourceFor(layout.Target), kind, layout);
+                    EnsureCompanionsInstalled(Path.GetDirectoryName(targetPath), entry, outcome);
                 }
                 catch (Exception ex)
                 {
@@ -350,10 +367,10 @@ namespace MdExplorer.Utilities
         /// Installs or updates an MdE-managed file at the given absolute path. Uses the
         /// <c>mde:</c> frontmatter marker to detect user ownership and version.
         /// </summary>
-        private static void EnsureFileInstalled(string targetPath, string name, AssetSource source, string kind, HarnessLayout layout)
+        private static InstallOutcome EnsureFileInstalled(string targetPath, string name, AssetSource source, string kind, HarnessLayout layout)
         {
             var embeddedContent = source.Read();
-            if (embeddedContent == null) return;
+            if (embeddedContent == null) return InstallOutcome.Missing;
             var embeddedMarker = ExtractMdeMarker(embeddedContent);
             var embeddedVersion = embeddedMarker.Version ?? 0;
 
@@ -361,7 +378,7 @@ namespace MdExplorer.Utilities
             {
                 File.WriteAllText(targetPath, embeddedContent);
                 Console.WriteLine($"[MdeSkillUpdater] Installed {kind} '{name}' v{embeddedVersion} ({layout.Id}): {targetPath}");
-                return;
+                return InstallOutcome.Written;
             }
 
             string existingContent;
@@ -369,7 +386,7 @@ namespace MdExplorer.Utilities
             catch (Exception ex)
             {
                 Console.WriteLine($"[MdeSkillUpdater] Cannot read existing {kind} '{name}': {ex.Message}");
-                return;
+                return InstallOutcome.Missing;
             }
 
             var existingMarker = ExtractMdeMarker(existingContent);
@@ -379,19 +396,40 @@ namespace MdExplorer.Utilities
             {
                 Console.WriteLine(
                     $"[MdeSkillUpdater] {kind} '{name}' is user-owned (origin='{existingMarker.Origin ?? "<missing>"}') — skipped.");
-                return;
+                return InstallOutcome.UserOwned;
             }
 
             var existingVersion = existingMarker.Version ?? 0;
             if (existingVersion >= embeddedVersion)
             {
                 // Up to date or newer than what we ship — nothing to do.
-                return;
+                return InstallOutcome.UpToDate;
             }
 
             File.WriteAllText(targetPath, embeddedContent);
             Console.WriteLine(
                 $"[MdeSkillUpdater] Updated {kind} '{name}' v{existingVersion} → v{embeddedVersion} ({layout.Id}): {targetPath}");
+            return InstallOutcome.Written;
+        }
+
+        private enum InstallOutcome { Written, UpToDate, UserOwned, Missing }
+
+        /// <summary>
+        /// The companions follow their SKILL.md: rewritten with it, left alone when the user owns it (the companions are
+        /// then theirs too), and only the missing ones written when it is up to date (a companion deleted by hand, or a
+        /// project that had the skill before it had companions at the same version).
+        /// </summary>
+        private static void EnsureCompanionsInstalled(string folder, CatalogEntry entry, InstallOutcome outcome)
+        {
+            if (outcome is InstallOutcome.UserOwned or InstallOutcome.Missing) return;
+            foreach (var (file, resource) in entry.Companions)
+            {
+                var path = Path.Combine(folder, file);
+                if (outcome == InstallOutcome.UpToDate && File.Exists(path)) continue;
+                var content = ReadEmbeddedText(resource)
+                    ?? throw new InvalidOperationException($"Embedded resource not found: {resource} (companion '{file}' of '{entry.Name}').");
+                File.WriteAllText(path, content);
+            }
         }
 
         private static string ReadEmbeddedText(string resourceName)

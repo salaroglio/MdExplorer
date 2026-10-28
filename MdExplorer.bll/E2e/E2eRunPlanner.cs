@@ -23,7 +23,7 @@ namespace MdExplorer.Features.E2e
 
         public string RelativeRunFolder { get; init; }
 
-        /// <summary>The two lines MdExplorer sends to the agent (the skill does the rest).</summary>
+        /// <summary>The three lines MdExplorer sends to the agent (the skill does the rest).</summary>
         public string Prompt { get; init; }
 
         /// <summary>The credentials file of this test, when it has one: the agent must not read it.</summary>
@@ -224,7 +224,7 @@ namespace MdExplorer.Features.E2e
                     RelativeRunFolder = relativeRun,
                     CredentialsFile = credentials,
                     Errors = itemErrors,
-                    Prompt = relativeRun == null ? null : $"Esegui i test di {relative}.\nCartella dell'esecuzione: {relativeRun}/\n",
+                    Prompt = relativeRun == null ? null : $"Esegui i test di {relative}.\nCartella dell'esecuzione: {relativeRun}/\nSegui la skill mde-e2e: prima leggi i suoi esecuzione.md e mappa.md.\n",
                 });
             }
 

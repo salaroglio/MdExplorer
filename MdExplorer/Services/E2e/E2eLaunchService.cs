@@ -561,7 +561,7 @@ namespace MdExplorer.Services.E2e
         /// <summary>The generator of the scripts the installed skill teaches ("mde-e2e v&lt;n&gt;", the skeleton's line): scripts written by another one are stale.</summary>
         public static string CurrentGenerator()
         {
-            var skill = EmbeddedSkill();
+            var skill = EmbeddedSkill("esecuzione.md");
             if (skill == null) return null;
             // The emitter's version is the `// generatore:` line of the script skeleton the agent copies, not the
             // skill's `mde: version`: that one rises for any change of text (so projects get the new skill), and
@@ -569,15 +569,18 @@ namespace MdExplorer.Services.E2e
             var m = System.Text.RegularExpressions.Regex.Match(skill, @"^// generatore: (.+?)\s*$",
                 System.Text.RegularExpressions.RegexOptions.Multiline);
             if (!m.Success)
-                throw new InvalidOperationException(UiText.Say("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script.",
-                    "The built-in mde-e2e skill has no '// generatore:' line in the script skeleton."));
+                throw new InvalidOperationException(UiText.Say("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script (esecuzione.md).",
+                    "The built-in mde-e2e skill has no '// generatore:' line in the script skeleton (esecuzione.md)."));
             return m.Groups[1].Value;
         }
 
-        /// <summary>The mde-e2e skill MdExplorer carries (the one it installs in the projects); null if missing.</summary>
-        private static string EmbeddedSkill()
+        /// <summary>
+        /// A file of the mde-e2e skill MdExplorer carries; null if missing. The script skeleton is in <c>esecuzione.md</c>
+        /// (installed with the skill), the support files in <c>file-di-supporto.md</c> (read only here, never installed).
+        /// </summary>
+        private static string EmbeddedSkill(string file)
         {
-            using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e.SKILL.md");
+            using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e." + file);
             if (stream == null) return null;
             using var reader = new StreamReader(stream);
             return reader.ReadToEnd();
@@ -590,7 +593,7 @@ namespace MdExplorer.Services.E2e
         /// </summary>
         public static E2eSupportUpdate EnsureSupportFiles(IEnumerable<string> testFiles, string projectRoot, bool create)
         {
-            var skill = EmbeddedSkill()
+            var skill = EmbeddedSkill("file-di-supporto.md")
                 ?? throw new InvalidOperationException(UiText.Say("La skill mde-e2e incorporata non c'è: non posso scrivere i file di supporto degli script.",
                     "The built-in mde-e2e skill is missing: I cannot write the scripts' support files."));
             return E2eSupportFiles.Ensure(testFiles, projectRoot, E2eSupportFiles.FromSkill(skill), create);

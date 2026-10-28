@@ -17,8 +17,10 @@ namespace MdExplorer.Features.Tests.E2e
     [TestClass]
     public class MdeE2eSignalsSkill_Should
     {
+        /// <summary>A skill with the files of its phases (mde-e2e has them since 28/10/2026).</summary>
         private static string Skill(string name) =>
-            File.ReadAllText(Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", name, "SKILL.md"));
+            string.Join("\n", Directory.GetFiles(Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", name), "*.md")
+                .OrderBy(f => f, System.StringComparer.Ordinal).Select(File.ReadAllText));
 
         private static string Example(string skill, string id)
         {

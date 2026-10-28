@@ -23,12 +23,18 @@ namespace MdExplorer.Features.Tests.E2e
         private static readonly string[] ExpectedExamples =
             { "credenziali", "csproj", "esiti", "mappa", "report", "runsettings", "scheda", "script", "supporto", "test" };
 
-        private static string SkillPath() =>
-            Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", "mde-e2e", "SKILL.md");
+        private static string SkillFolder() =>
+            Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "skills", "mde-e2e");
+
+        private static string SkillFile(string name) => File.ReadAllText(Path.Combine(SkillFolder(), name));
+
+        /// <summary>The whole skill: SKILL.md and the files of each phase next to it (28/10/2026).</summary>
+        private static string AllSkill() =>
+            string.Join("\n", Directory.GetFiles(SkillFolder(), "*.md").OrderBy(f => f, StringComparer.Ordinal).Select(File.ReadAllText));
 
         private static Dictionary<string, string> Examples()
         {
-            var document = Markdown.Parse(File.ReadAllText(SkillPath()), new MarkdownPipelineBuilder().UseYamlFrontMatter().Build());
+            var document = Markdown.Parse(AllSkill(), new MarkdownPipelineBuilder().UseYamlFrontMatter().Build());
             return document.Descendants<FencedCodeBlock>()
                 .Where(b => (b.Arguments ?? "").StartsWith("esempio="))
                 .ToDictionary(b => b.Arguments.Substring("esempio=".Length).Trim(), b => b.Lines.ToString());
@@ -112,7 +118,7 @@ namespace MdExplorer.Features.Tests.E2e
 
             // The generator version (what makes old scripts stale) is the skeleton's own line, apart from the skill's
             // `mde: version`, which rises with any change of text so that projects receive the new skill.
-            Assert.AreEqual(1, Regex.Matches(File.ReadAllText(SkillPath()), @"^// generatore: mde-e2e v\d+$", RegexOptions.Multiline).Count,
+            Assert.AreEqual(1, Regex.Matches(AllSkill(), @"^// generatore: mde-e2e v\d+$", RegexOptions.Multiline).Count,
                 "exactly one generator line, in the script skeleton");
         }
 
@@ -150,9 +156,9 @@ namespace MdExplorer.Features.Tests.E2e
         public void Give_MdExplorer_the_support_files_it_writes()
         {
             // P4: MdExplorer writes E2eTests.csproj, E2eSupport.cs and e2e.runsettings from these very examples.
-            var files = MdExplorer.Features.E2e.E2eSupportFiles.FromSkill(File.ReadAllText(SkillPath()));
+            var files = MdExplorer.Features.E2e.E2eSupportFiles.FromSkill(SkillFile("file-di-supporto.md"));
             CollectionAssert.AreEquivalent(new[] { "E2eTests.csproj", "E2eSupport.cs", "e2e.runsettings" }, files.Keys.ToArray());
-            StringAssert.Contains(File.ReadAllText(SkillPath()), "li **scrive MdExplorer**");
+            StringAssert.Contains(SkillFile("SKILL.md"), "li **scrive MdExplorer**");
         }
 
         [TestMethod]
@@ -191,12 +197,25 @@ namespace MdExplorer.Features.Tests.E2e
         public void Name_the_section_the_analysis_message_of_the_dialog_points_to()
         {
             // e2e-dialog.component.ts builds «… (skill mde-e2e, «Analizzare un rigioco fallito»)».
-            var skill = File.ReadAllText(SkillPath());
+            var skill = SkillFile("rigioco-fallito.md");
             Assert.IsTrue(Regex.IsMatch(skill, "^## Analizzare un rigioco fallito$", RegexOptions.Multiline));
             var dialog = File.ReadAllText(Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "client2", "src", "app",
                 "md-explorer", "components", "e2e-dialog", "e2e-dialog.component.ts"));
             StringAssert.Contains(dialog, "«Analizzare un rigioco fallito»");
+            StringAssert.Contains(SkillFile("SKILL.md"), "| `rigioco-fallito.md`", "SKILL.md sends the analysis to its file");
             StringAssert.Contains(skill, "registro.T<n>.md");
+        }
+
+        [TestMethod]
+        public void Keep_SKILL_md_short_and_send_each_phase_to_a_file_that_exists()
+        {
+            // 28/10/2026: a 725-line SKILL.md diluted the rules that matter; each phase now has its own file.
+            var skill = SkillFile("SKILL.md");
+            Assert.IsTrue(skill.Split('\n').Length < 300, "SKILL.md holds only what is valid in every phase");
+            foreach (Match m in Regex.Matches(skill, @"`([a-z-]+\.md)`"))
+                Assert.IsTrue(File.Exists(Path.Combine(SkillFolder(), m.Groups[1].Value)), $"SKILL.md names {m.Groups[1].Value}, which is not in the skill");
+            Assert.IsFalse(AllSkill().Replace(SkillFile("file-di-supporto.md"), "").Contains("«I file di supporto»"),
+                "the support files are MdExplorer's: no agent file sends there");
         }
     }
 }

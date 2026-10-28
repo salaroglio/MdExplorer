@@ -58,6 +58,10 @@ namespace MdExplorer.IntegrationTests
                     ".github/skills/mde-doc/SKILL.md",
                     ".github/skills/mde-e2e-signals/SKILL.md",
                     ".github/skills/mde-e2e/SKILL.md",
+                    ".github/skills/mde-e2e/esecuzione.md",
+                    ".github/skills/mde-e2e/mappa.md",
+                    ".github/skills/mde-e2e/preparare.md",
+                    ".github/skills/mde-e2e/rigioco-fallito.md",
                     ".github/skills/mde-features/SKILL.md",
                     ".github/skills/mde-ownership/SKILL.md",
                     ".github/skills/mde-plantuml/SKILL.md",
@@ -82,7 +86,7 @@ namespace MdExplorer.IntegrationTests
                 CollectionAssert.Contains(produced, $".github/skills/{name}/SKILL.md",
                     $"la skill Fuseki '{name}' deve comparire quando Fuseki è configurato");
             }
-            Assert.AreEqual(21, produced.Length, "16 skill (mde-template dal 18/10, mde-ownership dal 20/10 con la città) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
+            Assert.AreEqual(25, produced.Length, "16 skill (mde-template dal 18/10, mde-ownership dal 20/10 con la città) + 4 file delle fasi di mde-e2e (28/10) + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
         }
 
         [TestMethod]
@@ -90,7 +94,8 @@ namespace MdExplorer.IntegrationTests
         {
             MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: true, agentCityEnabled: true);
 
-            foreach (var relative in ProducedFiles())
+            // i file accanto a uno SKILL.md seguono il suo marker, non ne hanno uno loro
+            foreach (var relative in ProducedFiles().Where(f => !f.Contains("/skills/") || f.EndsWith("/SKILL.md")))
             {
                 var marker = MdeSkillUpdater.ExtractMdeMarker(
                     File.ReadAllText(Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar))));
@@ -132,6 +137,10 @@ namespace MdExplorer.IntegrationTests
                     ".opencode/skills/mde-doc/SKILL.md",
                     ".opencode/skills/mde-e2e-signals/SKILL.md",
                     ".opencode/skills/mde-e2e/SKILL.md",
+                    ".opencode/skills/mde-e2e/esecuzione.md",
+                    ".opencode/skills/mde-e2e/mappa.md",
+                    ".opencode/skills/mde-e2e/preparare.md",
+                    ".opencode/skills/mde-e2e/rigioco-fallito.md",
                     ".opencode/skills/mde-features/SKILL.md",
                     ".opencode/skills/mde-ownership/SKILL.md",
                     ".opencode/skills/mde-plantuml/SKILL.md",
@@ -254,6 +263,34 @@ namespace MdExplorer.IntegrationTests
             var withCity = ProducedFiles();
             foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
                 CollectionAssert.Contains(withCity, $".github/skills/{name}/SKILL.md", $"'{name}' arriva con la città");
+        }
+
+        [TestMethod]
+        public void Keep_the_files_of_a_skill_with_their_SKILL_md()
+        {
+            var folder = Path.Combine(_root, ".github", "skills", "mde-e2e");
+            var skill = Path.Combine(folder, "SKILL.md");
+            var phase = Path.Combine(folder, "esecuzione.md");
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
+            var shipped = File.ReadAllText(phase);
+
+            File.Delete(phase);
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
+            Assert.AreEqual(shipped, File.ReadAllText(phase), "un file mancante torna anche con lo SKILL.md aggiornato");
+
+            File.WriteAllText(phase, "vecchio");
+            File.WriteAllText(skill, File.ReadAllText(skill).Replace("  version: ", "  version: 0"));
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
+            Assert.AreEqual("vecchio", File.ReadAllText(phase), "SKILL.md più nuovo di quello distribuito: niente si tocca");
+
+            File.WriteAllText(skill, "---\nname: mde-e2e\nmde:\n  origin: mdexplorer\n  version: 1\n---\n");
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
+            Assert.AreEqual(shipped, File.ReadAllText(phase), "lo SKILL.md aggiornato riscrive i suoi file");
+
+            File.WriteAllText(skill, "---\nname: mde-e2e\n---\nmia\n");
+            File.WriteAllText(phase, "mio");
+            MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false, agentCityEnabled: true);
+            Assert.AreEqual("mio", File.ReadAllText(phase), "la skill dell'utente: anche i suoi file sono dell'utente");
         }
     }
 }
