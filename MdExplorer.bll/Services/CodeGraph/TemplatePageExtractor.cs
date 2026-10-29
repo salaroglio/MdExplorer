@@ -72,7 +72,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var page = new TemplatePage { File = f };
                 pages.Add(page);
                 string text;
-                try { text = CodeSourceText.Read(f.AbsolutePath, request.ExtensionEncodings); }
+                try { text = request.ReadText(f); }
                 catch (Exception ex) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 if (CodeInlinePages.IsInline(f.LogicalPath))
                 {
@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (_lang.Template.Inline == null) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: {_lang.DefinitionPath} non ha template.inline", $"{f.LogicalPath}: {_lang.DefinitionPath} has no template.inline")); continue; }
                     text = CodeInlinePages.Blank(text, _lang.Template.Inline.Match);
                 }
-                try { page.Script = new PageReader(this, f, text, index, page).Read(); }
+                try { page.Script = new PageReader(this, f, text, index, page, request).Read(); }
                 catch (RegexMatchTimeoutException ex)
                 {
                     page.Warnings.Add(UiText.Say($"{f.LogicalPath}: template.directive di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); pagina saltata", $"{f.LogicalPath}: template.directive of {_lang.DefinitionPath} takes too long ({ex.Pattern}); page skipped"));
@@ -232,6 +232,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly string _text;
             private readonly PageIndex _index;
             private readonly TemplatePage _page;
+            private readonly CodeExtractionRequest _request;
             private readonly List<int> _lineStarts = new() { 0 };
             private readonly CodeScript _script = new();
             private readonly CodeCallSites _calls;
@@ -247,9 +248,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             private List<Tag> _tags = new();
             private string _moduleId;
 
-            public PageReader(TemplatePageExtractor owner, CodeSourceFile file, string text, PageIndex index, TemplatePage page)
+            public PageReader(TemplatePageExtractor owner, CodeSourceFile file, string text, PageIndex index, TemplatePage page, CodeExtractionRequest request)
             {
-                _owner = owner; _file = file; _text = text; _index = index; _page = page;
+                _owner = owner; _file = file; _text = text; _index = index; _page = page; _request = request;
                 for (var i = 0; i < text.Length; i++) if (text[i] == '\n') _lineStarts.Add(i + 1);
                 _calls = new CodeCallSites(_script);
             }
@@ -986,7 +987,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var logical = PageIndex.Normalize(dir.Length > 0 ? dir + "/" + clean : clean);
                     var absolute = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(_file.AbsolutePath) ?? string.Empty, clean));
                     var lang = logical == null ? null : CodeLanguages.ForFile(logical);
-                    if (lang != null && lang.ExtractorKind == CodeExtractorKind.TreeSitter && File.Exists(absolute))
+                    if (lang != null && lang.ExtractorKind == CodeExtractorKind.TreeSitter && _request.Exists(new CodeSourceFile(absolute, logical)))
                     {
                         var ext = lang.Extensions.FirstOrDefault(e => logical.EndsWith(e, StringComparison.OrdinalIgnoreCase));
                         target = RoslynCSharpExtractor.StableId(lang.Id, "module", ext == null ? logical : logical[..^ext.Length]);

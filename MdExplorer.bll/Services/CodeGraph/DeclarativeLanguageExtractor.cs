@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 ct.ThrowIfCancellationRequested();
                 string text;
-                try { text = CodeSourceText.Read(f.AbsolutePath, request.ExtensionEncodings); }
+                try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 try { models.Add(new StructureReader(_lang, f, text, _fragmentAbove).Read()); }
                 catch (RegexMatchTimeoutException ex)

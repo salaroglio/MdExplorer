@@ -157,15 +157,16 @@ namespace MdExplorer.Services.CodeGraph
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeAnalysisService> _logger;
         private readonly ICodeRootService _roots;
+        private readonly RemoteCodeScanner _remote;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly IServiceProvider _services;
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CodeScanInProgress> _scanning = new();
 
         public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeGraphStore store,
-            CodeGraphReportWriter report, ICodeRootService roots, IHubContext<MonitorMDHub> hub, IServiceProvider services, ILogger<CodeAnalysisService> logger)
+            CodeGraphReportWriter report, ICodeRootService roots, RemoteCodeScanner remote, IHubContext<MonitorMDHub> hub, IServiceProvider services, ILogger<CodeAnalysisService> logger)
         {
-            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _hub = hub; _services = services; _logger = logger;
+            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _remote = remote; _hub = hub; _services = services; _logger = logger;
         }
 
         /// <summary>
@@ -221,9 +222,34 @@ namespace MdExplorer.Services.CodeGraph
         /// Che cosa si analizza: una cartella interna (<c>program/…</c>) o una radice esterna (<c>@backend</c>, sprint
         /// 2026-10-12-Radici-Di-Codice-Esterne F2). <see cref="ToLogical"/> dà il percorso logico dei file: è la chiave
         /// degli script, uguale su ogni macchina. <see cref="Unusable"/> dice perché una radice non si analizza qui.
+        /// Una radice remota (G) ha <see cref="Remote"/> e la sottocartella <see cref="RemoteSub"/> al posto di
+        /// <see cref="FolderAbs"/>: i file stanno sul server, e i testi arrivano già decodificati (niente <see cref="Encodings"/>).
         /// </summary>
         private sealed record Scope(string Key, string FolderAbs, List<string> Languages, bool IsProgram, Func<string, string> ToLogical, string Unusable,
-            IReadOnlyDictionary<string, string> Encodings = null);
+            IReadOnlyDictionary<string, string> Encodings = null, CodeRootState Remote = null, string RemoteSub = null);
+
+        /// <summary>
+        /// I file della cartella: dallo scanner locale (git o hash) o, per una radice remota, da MDE Remote con le impronte
+        /// (<paramref name="previousStamps"/>; null = tutti candidati). <c>Remote</c> è null per le cartelle locali.
+        /// </summary>
+        private async Task<(CodeScanResult Scan, RemoteCodeScan Remote)> ScanScopeAsync(string projectPath, Scope scope, string previousCommit, string previousStamps, CodeLanguageCatalog catalog, CancellationToken ct)
+        {
+            if (scope.Remote == null) return (await _scanner.ScanAsync(projectPath, scope.FolderAbs, previousCommit, ct, scope.ToLogical, catalog), null);
+            var remote = await _remote.ScanAsync(scope.Remote, scope.RemoteSub, previousStamps, catalog, ct);
+            return (remote.Scan, remote);
+        }
+
+        /// <summary>
+        /// I file più le pagine scritte dentro altri file (template inline), se un linguaggio scelto le legge. Per una radice
+        /// remota i testi dei file che possono contenerle si leggono prima dal server.
+        /// </summary>
+        private static async Task<List<CodeSourceFile>> WithInlinePagesAsync(CodeLanguageCatalog catalog, IEnumerable<string> languages, CodeScanResult scan, Scope scope, RemoteCodeScan remote, CancellationToken ct)
+        {
+            if (!languages.Any(id => catalog.ById(id)?.Definition?.Template?.Inline != null)) return scan.AllFiles.ToList();
+            if (remote == null) return CodeInlinePages.Expand(catalog, scan.AllFiles, scope.Encodings);
+            await remote.LoadAsync(scan.AllFiles.Where(f => catalog.InlineFor(Path.GetExtension(f.LogicalPath)) != null), ct);
+            return CodeInlinePages.Expand(catalog, scan.AllFiles, remote.Sources);
+        }
 
         private async Task<Scope> ScopeOfAsync(string projectPath, string key, CancellationToken ct)
         {
@@ -245,6 +271,7 @@ namespace MdExplorer.Services.CodeGraph
             var context = sub.Length == 0 ? null : root.Programs.FirstOrDefault(p => p.Path == sub);
             var scopeAbs = rootPath == null || sub.Length == 0 ? rootPath : Path.Combine(rootPath, sub.Replace('/', Path.DirectorySeparatorChar));
             var unusable = !Analyzable(root) ? $"@{alias}: {NotAnalyzableReason(root)}"
+                : root.IsRemote ? null   // se la sottocartella c'è lo dice MDE Remote, alla scansione
                 : !Directory.Exists(scopeAbs) ? UiText.Say($"La cartella non esiste: {scopeAbs}", $"The folder does not exist: {scopeAbs}")
                 : null;
             return new Scope(key, scopeAbs,
@@ -252,19 +279,17 @@ namespace MdExplorer.Services.CodeGraph
                 sub.Length == 0 ? root.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) : context != null,
                 abs => CodeRootPaths.Format(alias, PathContainment.RelativeOrNull(rootPath, abs) is { } rel && rel != "." ? rel : string.Empty),
                 unusable,
-                root.ExtensionEncodings.Count > 0 ? root.ExtensionEncodings : null);
+                root.ExtensionEncodings.Count > 0 && !root.IsRemote ? root.ExtensionEncodings : null,
+                root.IsRemote ? root : null, sub);
         }
 
         /// <summary>
-        /// Una radice esterna si analizza se è collegata su questo disco. Una remota no, per ora (sprint
-        /// 2026-10-21-Cartella-Remota-Via-SSH, P9): tree-sitter legge i file qui, e i suoi file stanno sul server.
+        /// Una radice esterna si analizza se è collegata: su questo disco, o via SSH (sprint
+        /// 2026-10-21-Cartella-Remota-Via-SSH, G: i testi si leggono dal server, gli script restano qui).
         /// </summary>
-        private static bool Analyzable(CodeRootState root) => root.Status == CodeRootStatus.Linked && !root.IsRemote;
+        private static bool Analyzable(CodeRootState root) => root.Status == CodeRootStatus.Linked;
 
-        private static string NotAnalyzableReason(CodeRootState root) =>
-            root.Status != CodeRootStatus.Linked ? root.Reason
-            : root.IsRemote ? UiText.Say($"è una radice remota ({root.Remote}): il grafo del codice sulle radici remote non c'è ancora.", $"it is a remote root ({root.Remote}): the code graph on remote roots is not available yet.")
-            : null;
+        private static string NotAnalyzableReason(CodeRootState root) => root.Status != CodeRootStatus.Linked ? root.Reason : null;
 
         // ------------------------------------------------------------------ .development.yml
 
@@ -273,17 +298,16 @@ namespace MdExplorer.Services.CodeGraph
             folderRelative = NormalizeRelative(folderRelative);
             var scope = await ScopeOfAsync(projectPath, folderRelative, ct);
             if (scope.Unusable != null) throw new DirectoryNotFoundException(scope.Unusable);
-            var folderAbs = scope.FolderAbs;
 
             // la finestra è l'unico posto che sposta un file piatto del formato di prima nel suo pacchetto, e lo dice
             var catalog = CodeLanguageCatalog.ForProjectMovingFlatFiles(projectPath);
-            var scan = await _scanner.ScanAsync(projectPath, folderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
+            var (scan, _) = await ScanScopeAsync(projectPath, scope, previousCommit: null, previousStamps: null, catalog, ct);
             return new CodeFolderLanguages
             {
                 Folder = folderRelative,
                 IsProgramFolder = scope.IsProgram,
                 Selected = scope.Languages,
-                Detected = CodeLanguageDetector.Detect(scan.AllFiles.Select(f => f.AbsolutePath), _extractors.ForProject(catalog), catalog),
+                Detected = CodeLanguageDetector.Detect(scan.AllFiles.Select(f => scope.Remote == null ? f.AbsolutePath : f.LogicalPath), _extractors.ForProject(catalog), catalog),
                 DefinitionProblems = catalog.Errors.Select(e => new LanguageDefinitionProblem
                 {
                     Id = e.Key, DefinitionPath = CodeGraphPaths.ToProjectRelative(projectPath, e.Value.DefinitionPath), Message = e.Value.Reason,
@@ -365,12 +389,13 @@ namespace MdExplorer.Services.CodeGraph
                 ct.ThrowIfCancellationRequested();
                 var scope = await ScopeOfAsync(projectPath, program.Folder, ct);
                 if (scope.Unusable != null) continue;
-                var scan = await _scanner.ScanAsync(projectPath, scope.FolderAbs, previousCommit: null, ct, scope.ToLogical, catalog);
+                var (scan, remote) = await ScanScopeAsync(projectPath, scope, previousCommit: null, previousStamps: null, catalog, ct);
                 // con le pagine scritte dentro altri file (template inline), se il linguaggio le legge
-                var all = catalog.ById(languageId)?.Definition?.Template?.Inline != null ? CodeInlinePages.Expand(catalog, scan.AllFiles, scope.Encodings) : scan.AllFiles.ToList();
+                var all = await WithInlinePagesAsync(catalog, new[] { languageId }, scan, scope, remote, ct);
                 var files = all.Where(f => string.Equals(catalog.LanguageOf(f), languageId, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(f => f.LogicalPath, StringComparer.Ordinal).ToList();
-                list.Add(new CodeLanguageFiles(program.Folder, files, scope.Encodings));
+                if (remote != null) await remote.LoadAsync(files, ct);   // la prova legge i testi: dal server, in memoria
+                list.Add(new CodeLanguageFiles(program.Folder, files, scope.Encodings, remote?.Sources));
             }
             return list;
         }
@@ -404,9 +429,15 @@ namespace MdExplorer.Services.CodeGraph
         public async Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default)
         {
             var locations = new List<CodeProgramLocation>();
-            foreach (var p in await ListProgramsAsync(projectPath, ct))
-                if (p.Linked) locations.Add(new CodeProgramLocation(p.Folder, (await ScopeOfAsync(projectPath, p.Folder, ct)).FolderAbs));
             var warnings = new List<string>();
+            foreach (var p in await ListProgramsAsync(projectPath, ct))
+            {
+                if (!p.Linked) continue;
+                var scope = await ScopeOfAsync(projectPath, p.Folder, ct);
+                // G-D6: i file di build di una radice remota stanno sul server, e i ponti non li leggono ancora
+                if (scope.Remote != null) { warnings.Add(UiText.Say($"{p.Folder}: radice remota, i ponti del build non si leggono ancora", $"{p.Folder}: remote root, build bridges are not read yet")); continue; }
+                locations.Add(new CodeProgramLocation(p.Folder, scope.FolderAbs));
+            }
             return (CodeBuildBridges.Find(locations, warnings), warnings);
         }
 
@@ -519,19 +550,19 @@ namespace MdExplorer.Services.CodeGraph
                     return outcome;
                 }
                 if (scope.Unusable != null) { outcome.Error = scope.Unusable; return outcome; }
-                var folderAbs = scope.FolderAbs;
-
-                // 1) Scanner: che cosa guardare.
+    
+                // 1) Scanner: che cosa guardare. Una radice remota: le impronte dei file sul server al posto del commit (G-D3).
                 var previous = await _store.GetScanStateAsync(projectPath, folderRelative, ct);
-                var scan = await _scanner.ScanAsync(projectPath, folderAbs, previous?.AnalyzedCommit, ct, scope.ToLogical);
-                outcome.Mode = scan.Mode; outcome.Reason = scan.Reason;
                 var catalog = CodeLanguageCatalog.ForProject(projectPath);
+                var (scan, remote) = await ScanScopeAsync(projectPath, scope, previous?.AnalyzedCommit, previous?.RemoteStamps, catalog, ct);
+                // i testi: dal disco, o dalla memoria per una radice remota (letti dal server prima di ogni passo che li usa)
+                var sources = (ICodeSources)remote?.Sources ?? new LocalCodeSources(scope.Encodings);
+                outcome.Mode = scan.Mode; outcome.Reason = scan.Reason;
                 var extractors = _extractors.ForProject(catalog);
                 var chosen = new HashSet<string>(languages, StringComparer.OrdinalIgnoreCase);
                 // le pagine scritte dentro altri file (template inline) sono file in più, del dialetto che le legge: cambiano
                 // quando cambia il file che le contiene
-                var allFiles = languages.Any(id => catalog.ById(id)?.Definition?.Template?.Inline != null)
-                    ? CodeInlinePages.Expand(catalog, scan.AllFiles, scope.Encodings) : scan.AllFiles.ToList();
+                var allFiles = await WithInlinePagesAsync(catalog, languages, scan, scope, remote, ct);
                 var inPerimeter = allFiles.Where(f => chosen.Contains(catalog.LanguageOf(f) ?? string.Empty)).ToList();
                 outcome.FilesInPerimeter = inPerimeter.Count;
                 var changed = new HashSet<string>(scan.Candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
@@ -569,15 +600,18 @@ namespace MdExplorer.Services.CodeGraph
                     var candidatePaths = new HashSet<string>(candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
                     var outdated = all.Where(f => !candidatePaths.Contains(f.AbsolutePath) && ScriptFromOtherExtractor(projectPath, f, extractor)).ToList();
                     if (!includeExtractorChanges) outcome.OutdatedScripts += outdated.Count;
+                    var toCheck = all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f))).ToList();
+                    if (remote != null && !bridgesChanged) await remote.LoadAsync(toCheck, ct);   // l'hash conferma: serve il testo
                     var toEmit = bridgesChanged
                         ? all
-                        : all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f)))
-                             .Where(f => NeedsReparse(projectPath, f, extractor, scope.Encodings)).ToList();
+                        : toCheck.Where(f => NeedsReparse(projectPath, f, extractor, sources)).ToList();
                     if (toEmit.Count == 0) continue;
                     var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
+                    // G4: l'estrattore legge tutti i file del programma; per una radice remota arrivano ora dal server
+                    if (remote != null) await remote.LoadAsync(all, ct);
                     // G4 (27/10/2026): l'id di un simbolo viene dal file che lo dichiara, quindi l'estrattore emette TUTTI i file
                     // (del programma e dei ponti) per sapere chi dichiara che cosa; su disco va solo ciò che è cambiato.
-                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings }, ct);
+                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings, Sources = remote?.Sources }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
                     var declarations = new CodeDeclarations();
                     foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
@@ -605,7 +639,7 @@ namespace MdExplorer.Services.CodeGraph
                         outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
                         // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
                         // (CodeSourceText: un CP-850 letto in UTF-8 non vedrebbe un'accentata cambiata)
-                        var sourceText = CodeSourceText.Read(file.AbsolutePath, scope.Encodings);
+                        var sourceText = sources.Read(file);
                         CodeBodyHash.Apply(script, sourceText);
                         script.Header.SourceHash = CodeSourceText.Hash(sourceText);
                         script.Header.ExtractorVersion = emitter;
@@ -667,7 +701,7 @@ namespace MdExplorer.Services.CodeGraph
                 await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {
                     Bridges = bridgeSet.Signature,
-                    ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode,
+                    ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode, RemoteStamps = remote?.Stamps,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
                 }, ct);
                 // Le regole di arricchimento (D42) rifanno i loro archi sulle chiamate di adesso: un'altra scansione, altri punti.
@@ -748,9 +782,12 @@ namespace MdExplorer.Services.CodeGraph
                     var current = extractors.Get(language);
                     if (current == null) continue;   // oggi non si analizza: lo dice già la finestra Ambiente di sviluppo
                     if (ext == current.ExtractorName && ver == CodeBodyHash.EmitterVersion(current.ExtractorVersion)) continue;
-                    string sourceAbs;
-                    try { sourceAbs = resolver.Resolve(source); } catch (InvalidOperationException) { continue; }
-                    if (!File.Exists(sourceAbs)) continue;   // sorgente sparito: lo toglie l'analisi
+                    try
+                    {
+                        // su una radice remota non si chiede al server file per file: un sorgente sparito lo toglie l'analisi
+                        if (resolver.RemoteOf(source) == null && !File.Exists(resolver.Resolve(source))) continue;   // sorgente sparito: lo toglie l'analisi
+                    }
+                    catch (InvalidOperationException) { continue; }
                     list.Add(new CodeOutdatedScript { Folder = key, Source = source, Language = language, Extractor = ext, Version = ver, CurrentExtractor = current.ExtractorName, CurrentVersion = CodeBodyHash.EmitterVersion(current.ExtractorVersion) });
                 }
             }
@@ -765,11 +802,11 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>L'hash nell'intestazione dello script esistente conferma o smentisce il candidato (D14).</summary>
-        private static bool NeedsReparse(string projectPath, CodeSourceFile file, ICodeExtractor extractor, IReadOnlyDictionary<string, string> encodings)
+        private static bool NeedsReparse(string projectPath, CodeSourceFile file, ICodeExtractor extractor, ICodeSources sources)
         {
             var header = CodeScriptTurtle.ReadHeaderLine(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast));
             if (header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != CodeBodyHash.EmitterVersion(extractor.ExtractorVersion)) return true;
-            return !string.Equals(header.SourceHash, CodeSourceText.Hash(CodeSourceText.Read(file.AbsolutePath, encodings)), StringComparison.OrdinalIgnoreCase);
+            return !string.Equals(header.SourceHash, CodeSourceText.Hash(sources.Read(file)), StringComparison.OrdinalIgnoreCase);
         }
 
         private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)

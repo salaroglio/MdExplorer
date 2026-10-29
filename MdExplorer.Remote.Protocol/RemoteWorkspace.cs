@@ -52,6 +52,26 @@ namespace MdExplorer.RemoteProtocol
                 .ToList();
         }
 
+        /// <summary>
+        /// Tutti i file sotto <paramref name="path"/>, con dimensione, impronta e «è testo», in ordine (grafo del codice
+        /// sulle radici remote, G-D4): il backend vede che cosa è cambiato senza una richiesta per cartella né per file.
+        /// Le cartelle in <paramref name="exclude"/> (per nome, maiuscole indifferenti, come lo scanner) e <c>.git</c> si
+        /// saltano; i link non si seguono.
+        /// </summary>
+        public List<RemoteEntry> Tree(string? path, IEnumerable<string>? exclude)
+        {
+            var full = Resolve(path);
+            if (!Directory.Exists(full)) throw NotFoundOrNotFolder(full, path);
+            var skip = new HashSet<string>(exclude ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase) { ".git" };
+            return FilesUnder(full, skip).Select(f =>
+            {
+                var file = new FileInfo(f);
+                var entry = ToEntry(file);
+                entry.Stamp = StampOf(file);
+                return entry;
+            }).ToList();
+        }
+
         public RemoteEntry Stat(string? path)
         {
             var full = Resolve(path);

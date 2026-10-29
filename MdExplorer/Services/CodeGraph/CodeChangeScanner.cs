@@ -48,6 +48,9 @@ namespace MdExplorer.Services.CodeGraph
             "packages", "TestResults", ".worktrees", "__pycache__", "target", "build", ".gradle", "vendor"
         };
 
+        /// <summary>Le cartelle che fuori da git non si guardano: le stesse le salta MDE Remote su una radice remota.</summary>
+        public static IReadOnlyCollection<string> IgnoredDirectoryNames => IgnoredDirectories;
+
         private readonly INativeGitRunner _git;
         private readonly ILogger<CodeChangeScanner> _logger;
         private readonly MdExplorer.Features.Services.IUiLanguage _language;

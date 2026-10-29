@@ -165,6 +165,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Reparsed { get; set; }
         /// <summary>I ponti attivi all'ultima analisi («dipendenza@linguaggio;…», punto 3b): se cambiano, il programma si riscrive.</summary>
         public string Bridges { get; set; }
+        /// <summary>
+        /// Modo <c>remote</c> (radice via SSH, G-D3): le impronte dei file analizzati, una riga «percorso logico TAB
+        /// impronta» per file. Fanno per il server quello che il commit fa per git: dicono che cosa è cambiato.
+        /// </summary>
+        public string RemoteStamps { get; set; }
     }
 
     public sealed class CodeSymbolView

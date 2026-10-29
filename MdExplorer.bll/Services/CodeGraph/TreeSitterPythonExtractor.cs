@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 ct.ThrowIfCancellationRequested();
                 string text;
-                try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
+                try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var tree = parser.Parse(text);
                 if (tree == null) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: tree-sitter non ha prodotto un albero", $"{f.LogicalPath}: tree-sitter produced no tree")); continue; }

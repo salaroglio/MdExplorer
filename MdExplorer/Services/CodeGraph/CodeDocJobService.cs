@@ -164,6 +164,7 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ILogger<CodeDocJobService> _logger;
         private readonly MdExplorer.Features.Services.IUiLanguage _language;
         private readonly ICodeRootService _roots;
+        private readonly MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles _remoteFiles;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
         private readonly ConcurrentDictionary<string, CodeDocJobProgress> _progress = new();
         private readonly SemaphoreSlim _saveGate = new(1, 1);
@@ -178,9 +179,10 @@ namespace MdExplorer.Services.CodeGraph
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
             MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
-            MdExplorer.Features.Services.IUiLanguage language, ILogger<CodeDocJobService> logger)
+            MdExplorer.Features.Services.IUiLanguage language, MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles remoteFiles, ILogger<CodeDocJobService> logger)
         {
             _roots = roots;
+            _remoteFiles = remoteFiles;
             _language = language;
             _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
         }
@@ -716,6 +718,24 @@ namespace MdExplorer.Services.CodeGraph
 
         private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
+        /// <summary>
+        /// Il testo di un sorgente per la domanda all'LLM: dal disco, o via MDE Remote per una radice remota (sprint
+        /// Cartella-Remota-Via-SSH, G-D2: si legge, si usa e si butta, niente copia locale). Una radice non collegata, un
+        /// file sparito o un server che non risponde: l'errore con il motivo.
+        /// </summary>
+        private async Task<(string Text, string Error)> SourceTextAsync(CodeRootResolver resolver, string source, CancellationToken ct)
+        {
+            try
+            {
+                if (resolver.RemoteOf(source) is { } remote)
+                    return ((await _remoteFiles.ReadAsync(remote.Root, remote.Relative, ct)).Text ?? string.Empty, null);
+                var abs = resolver.Resolve(source);
+                if (!File.Exists(abs)) return (null, UiText.Say("sorgente non trovato: ", "source not found: ") + abs);
+                return (CodeSourceText.Read(abs, resolver.EncodingsOf(source)), null);
+            }
+            catch (InvalidOperationException ex) { return (null, ex.Message); }   // anche MDE Remote: rifiuto o canale caduto
+        }
+
         public async Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default)
         {
             var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
@@ -761,11 +781,9 @@ namespace MdExplorer.Services.CodeGraph
             var sources = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var source in group.Sources)
             {
-                string abs;
-                try { abs = resolver.Resolve(source); }
-                catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
-                if (!File.Exists(abs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + abs; return result; }
-                sources[source] = CodeSourceText.Read(abs, resolver.EncodingsOf(source));
+                var (text, error) = await SourceTextAsync(resolver, source, token);
+                if (error != null) { result.Error = error; return result; }
+                sources[source] = text;
             }
 
             // la sintesi di ogni simbolo letta UNA volta: il prompt e l'impronta del contesto (F12b) vedono la stessa (una
@@ -922,11 +940,8 @@ namespace MdExplorer.Services.CodeGraph
         {
             var result = new FileResult();
             // il percorso logico (program/x.ps1 o @backend/…) diventa quello di questa macchina; una radice non collegata lo dice
-            string sourceAbs;
-            try { sourceAbs = resolver.Resolve(ast.Header.Source); }
-            catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
-            if (!File.Exists(sourceAbs)) { result.Error = UiText.Say("sorgente non trovato: ", "source not found: ") + sourceAbs; return result; }
-            var sourceText = CodeSourceText.Read(sourceAbs, resolver.EncodingsOf(ast.Header.Source));
+            var (sourceText, sourceError) = await SourceTextAsync(resolver, ast.Header.Source, token);
+            if (sourceError != null) { result.Error = sourceError; return result; }
             skillBody = new CodeDocLanguagePrompts(CodeLanguageCatalog.ForProject(projectPath), PromptSections(projectPath, "mde-code-doc")).BodyFor(skillBody, new[] { ast });
 
             var merged = existing;

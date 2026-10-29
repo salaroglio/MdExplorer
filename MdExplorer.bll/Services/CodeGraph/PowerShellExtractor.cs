@@ -68,7 +68,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 ct.ThrowIfCancellationRequested();
                 string text;
-                try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
+                try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var ast = Parser.ParseInput(text, f.AbsolutePath, out _, out var errors);
                 parsed.Add(new ParsedFile(f, text, ast, errors));

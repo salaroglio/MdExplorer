@@ -75,6 +75,8 @@ namespace MdExplorer.RemoteProtocol
                 case RemoteOps.Grep:
                     var (hits, truncated) = ws.Grep(r.Path, r.Pattern, r.IgnoreCase, r.MaxHits, r.Exclude);
                     return new RemoteResponse { Hits = hits, Truncated = truncated };
+                case RemoteOps.Tree:
+                    return new RemoteResponse { Entries = ws.Tree(r.Path, r.Exclude) };
                 case RemoteOps.GitInfo:
                     return new RemoteResponse { Git = ws.GitInfo() };
                 default:

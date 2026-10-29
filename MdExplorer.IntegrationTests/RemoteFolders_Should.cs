@@ -106,6 +106,47 @@ namespace MdExplorer.IntegrationTests
 
         private CodeRootService Roots(ICodeRootBindingStore store) => new(store, _git, _sessions, NullLogger<CodeRootService>.Instance);
 
+        /// <summary>
+        /// Grafo del codice sulle radici remote (G): <c>tree</c> dà i file con le impronte, le impronte dell'ultima analisi
+        /// dicono che cosa è cambiato, i testi si leggono dal server solo quando servono e stanno in memoria (G-D2).
+        /// </summary>
+        [TestMethod]
+        public async Task Scan_a_remote_root_by_stamps_and_read_the_texts_only_when_asked()
+        {
+            var clone = await CloneOf("server-legacy", "https://github.com/acme/legacy.git");
+            File.WriteAllText(Path.Combine(clone, "src", "Api", "Bar.cs"), "class Bar {}");
+            File.WriteAllText(Path.Combine(clone, "README.txt"), "non è codice");
+            Directory.CreateDirectory(Path.Combine(clone, "src", "obj"));
+            File.WriteAllText(Path.Combine(clone, "src", "obj", "Generated.cs"), "class Generated {}");
+            var roots = Roots(new MemoryStore());
+            Assert.AreEqual(CodeRootStatus.Linked, (await roots.LinkAsync(_project, "legacy", "ssh://server" + clone)).Status);
+            var root = (await roots.CreateResolverAsync(_project)).LinkedRemote.Single();
+            var scanner = new RemoteCodeScanner(new RemoteCodeRootFiles(_sessions));
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+
+            var first = await scanner.ScanAsync(root, "", null, catalog, default);
+            Assert.AreEqual("remote", first.Scan.Mode);
+            CollectionAssert.AreEqual(new[] { "@legacy/src/Api/Bar.cs", "@legacy/src/Api/Foo.cs" }, first.Scan.AllFiles.Select(f => f.LogicalPath).ToArray(),
+                "solo i file di un linguaggio, senza le cartelle che lo scanner salta (obj)");
+            Assert.AreEqual(2, first.Scan.Candidates.Count, "prima analisi: tutti candidati");
+            Assert.AreEqual("ssh://server" + Path.Combine(clone, "src", "Api", "Foo.cs"), first.Scan.AllFiles[1].AbsolutePath);
+            var foo = first.Scan.AllFiles[1];
+            Assert.ThrowsException<InvalidOperationException>(() => first.Sources.Read(foo), "un testo mai chiesto al server è un errore, non un testo vuoto");
+            await first.LoadAsync(new[] { foo }, default);
+            Assert.AreEqual("class Foo {}", first.Sources.Read(foo));
+            Assert.IsTrue(first.Sources.Exists(new CodeSourceFile("x", "@legacy/README.txt")), "esistono anche i file fuori dal perimetro");
+            Assert.AreEqual(0, Directory.GetFiles(_project, "*.cs", SearchOption.AllDirectories).Length, "niente sorgenti copiati nel progetto");
+
+            var same = await scanner.ScanAsync(root, "", first.Stamps, catalog, default);
+            Assert.AreEqual(0, same.Scan.Candidates.Count, "impronte uguali: niente da rileggere");
+
+            File.WriteAllText(Path.Combine(clone, "src", "Api", "Foo.cs"), "class Foo { int X; }");
+            var changed = await scanner.ScanAsync(root, "", first.Stamps, catalog, default);
+            Assert.AreEqual("@legacy/src/Api/Foo.cs", changed.Scan.Candidates.Single().LogicalPath);
+            CollectionAssert.AreEqual(new[] { "@legacy/src/Api/Foo.cs" }, (await scanner.ScanAsync(root, "src/Api", null, catalog, default)).Scan.AllFiles.Select(f => f.LogicalPath).Where(p => p.EndsWith("Foo.cs")).ToArray(),
+                "un contesto: la sottocartella, con i percorsi logici della radice");
+        }
+
         [TestMethod]
         public async Task Upload_the_agent_once_into_the_home_and_reuse_the_open_channel()
         {

@@ -11,7 +11,8 @@ using YamlDotNet.Serialization;
 namespace MdExplorer.Features.Services.CodeGraph
 {
     /// <summary>I file di un linguaggio in una cartella <c>program</c> (o radice <c>@alias</c>), con le codifiche della radice.</summary>
-    public sealed record CodeLanguageFiles(string Folder, IReadOnlyList<CodeSourceFile> Files, IReadOnlyDictionary<string, string> Encodings);
+    /// <param name="Sources">I testi già letti (una radice remota li ha in memoria); null = dal disco.</param>
+    public sealed record CodeLanguageFiles(string Folder, IReadOnlyList<CodeSourceFile> Files, IReadOnlyDictionary<string, string> Encodings, ICodeSources Sources = null);
 
     public sealed class CodeLanguageFolder
     {
@@ -138,7 +139,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var toRead = Spread(group.Files, Math.Min(share, Math.Max(1, budget)));
                 budget -= toRead.Count;
                 if (toRead.Count < group.Files.Count) preview.Truncated = true;
-                var request = new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = group.Files, FilesToEmit = toRead, ExtensionEncodings = group.Encodings };
+                var request = new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = group.Files, FilesToEmit = toRead, ExtensionEncodings = group.Encodings, Sources = group.Sources };
                 if (lang.Template != null)
                 {
                     foreach (var page in new TemplatePageExtractor(lang).Read(request, ct))

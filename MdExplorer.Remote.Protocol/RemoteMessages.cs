@@ -34,7 +34,7 @@ namespace MdExplorer.RemoteProtocol
         public bool IgnoreCase { get; set; }
         /// <summary><c>grep</c>: al più tante righe; 0 = il default di MDE Remote.</summary>
         public int MaxHits { get; set; }
-        /// <summary><c>grep</c>: nomi di cartelle da saltare (il backend manda <c>.git</c>).</summary>
+        /// <summary><c>grep</c>, <c>tree</c>: nomi di cartelle da saltare (il backend manda <c>.git</c>; <c>tree</c> lo salta sempre).</summary>
         public List<string>? Exclude { get; set; }
     }
 
@@ -84,7 +84,7 @@ namespace MdExplorer.RemoteProtocol
         public bool IsText { get; set; }
         /// <summary>Perché non si è potuto leggere (il file resta nell'elenco, non sparisce).</summary>
         public string? Unreadable { get; set; }
-        /// <summary>Solo nei file di <c>stat</c>.</summary>
+        /// <summary>Solo nei file di <c>stat</c> e <c>tree</c>.</summary>
         public string? Stamp { get; set; }
     }
 

@@ -30,6 +30,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// testo il dialetto trova almeno una pagina, un file virtuale in più. Senza dialetti inline, gli stessi file.
         /// </summary>
         public static List<CodeSourceFile> Expand(CodeLanguageCatalog catalog, IEnumerable<CodeSourceFile> files, IReadOnlyDictionary<string, string> encodings = null)
+            => Expand(catalog, files, new LocalCodeSources(encodings));
+
+        /// <summary>Lo stesso, con i testi da <paramref name="sources"/> (una radice remota li ha in memoria).</summary>
+        public static List<CodeSourceFile> Expand(CodeLanguageCatalog catalog, IEnumerable<CodeSourceFile> files, ICodeSources sources)
         {
             var list = files.ToList();
             if (!catalog.All.Any(l => l.Definition?.Template?.Inline != null)) return list;
@@ -40,7 +44,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var dialect = catalog.InlineFor(Path.GetExtension(f.AbsolutePath));
                 if (dialect == null) continue;
                 string text;
-                try { text = CodeSourceText.Read(f.AbsolutePath, encodings); }
+                try { text = sources.Read(f); }
                 catch (IOException) { continue; }   // non leggibile: lo dice il suo estrattore
                 if (dialect.Definition.Template.Inline.Match.Matches(text).Any(m => m.Groups["body"].Success && m.Groups["body"].Length > 0))
                     result.Add(new CodeSourceFile(f.AbsolutePath, PathOf(f.LogicalPath)));

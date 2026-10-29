@@ -7,7 +7,7 @@ namespace MdExplorer.RemoteProtocol
     public static class AgentProtocol
     {
         /// <summary>Si alza quando cambia la forma dei messaggi: il backend rifiuta MDE Remote con un altro numero.</summary>
-        public const int Version = 1;
+        public const int Version = 2;
 
         /// <summary>Exit code di MDE Remote quando la radice non esiste o non è una cartella: niente saluto.</summary>
         public const int ExitRootNotFound = 3;
@@ -29,6 +29,8 @@ namespace MdExplorer.RemoteProtocol
         public const string Move = "move";
         public const string Grep = "grep";
         public const string GitInfo = "gitInfo";
+        /// <summary>Tutti i file sotto un percorso con dimensione e impronta, in una risposta (grafo del codice, G-D4).</summary>
+        public const string Tree = "tree";
     }
 
     /// <summary>I codici d'errore (<see cref="RemoteError.Code"/>): il backend li traduce in messaggi per l'utente.</summary>

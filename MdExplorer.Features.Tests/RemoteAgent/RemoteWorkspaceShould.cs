@@ -56,6 +56,26 @@ namespace MdExplorer.Features.Tests.RemoteAgent
         }
 
         [TestMethod]
+        public void Tree_lists_every_file_below_with_stamp_skipping_git_and_excluded_folders()
+        {
+            Directory.CreateDirectory(Path.Combine(_root, "src", "BIN"));
+            File.WriteAllText(Path.Combine(_root, "src", "BIN", "out.txt"), "x");
+            File.WriteAllText(Path.Combine(_root, ".git", "config"), "[core]");
+
+            var entries = _ws.Tree("", new[] { "bin" });
+
+            CollectionAssert.AreEqual(new[] { "b.txt", "logo.png", "src/api/Order.cs", "src/caller.js" }, entries.Select(e => e.Path).ToArray(),
+                ".git e le cartelle escluse (maiuscole indifferenti) non ci sono, solo file");
+            var order = entries.Single(e => e.Path == "src/api/Order.cs");
+            Assert.AreEqual(_ws.Stat("src/api/Order.cs").Stamp, order.Stamp, "la stessa impronta di stat");
+            Assert.IsTrue(order.IsText);
+            Assert.IsFalse(entries.Single(e => e.Path == "logo.png").IsText);
+            CollectionAssert.AreEqual(new[] { "src/BIN/out.txt", "src/api/Order.cs", "src/caller.js" }, _ws.Tree("src", null).Select(e => e.Path).ToArray(), "sotto un percorso, senza esclusioni");
+            Assert.AreEqual(RemoteErrorCodes.BadRequest, Code(() => _ws.Tree("b.txt", null)), "un file non è una cartella");
+            Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Code(() => _ws.Tree("../proj2", null)));
+        }
+
+        [TestMethod]
         public void Refuse_paths_outside_the_root_and_absolute_paths()
         {
             Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Code(() => _ws.Read("../fuori.txt")));
