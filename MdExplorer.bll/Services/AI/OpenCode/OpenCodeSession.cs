@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -54,6 +55,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private HttpClient _client;
         private readonly string _existingSessionId;
         private readonly bool _rejectPermissions;
+        private volatile IReadOnlyList<string> _extraRoots = Array.Empty<string>();
         private CancellationTokenSource _streamCts;
         private Task _streamTask;
         private volatile bool _disposed;
@@ -135,6 +137,32 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// <see cref="OpenCodeServer"/>.
         /// </summary>
         public bool IsAlive => !_disposed;
+
+        /// <summary>
+        /// Le radici di codice esterne collegate del progetto (radici esterne F3, R3): MarkAgent le legge E ci scrive, come con
+        /// Claude Code (<c>--add-dir</c>) e Copilot (<c>extraRoots</c>). opencode per un file fuori dal progetto chiede il
+        /// permesso <c>external_directory</c>, e una domanda a cui nessuno risponde tiene fermo il turno per sempre
+        /// (misurato il 29/10/2026 su opencode 1.18.30): dentro queste radici si risponde «once», fuori «reject».
+        /// </summary>
+        public void SetExtraRoots(IReadOnlyList<string> roots) => _extraRoots = roots ?? Array.Empty<string>();
+
+        /// <summary>
+        /// Vero se ogni percorso chiesto con <c>external_directory</c> sta dentro una delle radici. I <c>patterns</c> arrivano
+        /// come <c>&lt;cartella&gt;/*</c>: il carattere jolly finale si toglie. Nessun percorso, o nessuna radice: falso.
+        /// </summary>
+        public static bool InsideRoots(IEnumerable<string> paths, IReadOnlyList<string> roots)
+        {
+            var any = false;
+            foreach (var raw in paths)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                var path = raw.TrimEnd('*').TrimEnd('/', '\\');
+                if (path.Length == 0) path = raw.Substring(0, 1);
+                if (roots == null || !roots.Any(r => MdExplorer.Features.Utilities.PathContainment.IsInside(r, path))) return false;
+                any = true;
+            }
+            return any;
+        }
 
         /// <summary>Consuntivo dell'ultimo turno finito.</summary>
         public OpenCodeTurnUsage LastTurnUsage { get; private set; }
@@ -468,28 +496,31 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         }
 
         private async Task RejectPermissionAsync(string sessionId, string permissionId, string what)
+            => await ReplyPermissionAsync(sessionId, permissionId, what, "reject").ConfigureAwait(false);
+
+        private async Task ReplyPermissionAsync(string sessionId, string permissionId, string what, string response)
         {
             var url = $"/session/{sessionId}/permissions/{permissionId}?directory={Uri.EscapeDataString(WorkingDirectory)}";
             for (var attempt = 1; attempt <= 3; attempt++)
             {
                 try
                 {
-                    using var res = await _client.PostAsJsonAsync(url, new { response = "reject" }).ConfigureAwait(false);
+                    using var res = await _client.PostAsJsonAsync(url, new { response }).ConfigureAwait(false);
                     if (res.IsSuccessStatusCode)
                     {
-                        _logger.LogInformation("[opencode] permesso {What} negato", what);
+                        _logger.LogInformation("[opencode] permesso {What}: {Response}", what, response);
                         return;
                     }
-                    _logger.LogWarning("[opencode] negare il permesso {What}: risposta {Status}", what, (int)res.StatusCode);
+                    _logger.LogWarning("[opencode] permesso {What} → {Response}: risposta {Status}", what, response, (int)res.StatusCode);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "[opencode] negare il permesso {What}: tentativo {Attempt} fallito", what, attempt);
+                    _logger.LogWarning(ex, "[opencode] permesso {What} → {Response}: tentativo {Attempt} fallito", what, response, attempt);
                 }
                 await Task.Delay(300 * attempt).ConfigureAwait(false);
             }
             // A permission left pending would hang the turn for ever: stop it instead.
-            _logger.LogError("[opencode] permesso {What} non negato dopo 3 tentativi: interrompo il turno", what);
+            _logger.LogError("[opencode] permesso {What} senza risposta dopo 3 tentativi: interrompo il turno", what);
             try { await AbortAsync().ConfigureAwait(false); } catch (Exception ex) { _logger.LogWarning(ex, "[opencode] interruzione fallita"); }
         }
 
@@ -520,6 +551,23 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             var turn = _turn;
             switch (typeEl.GetString())
             {
+                case "permission.asked":
+                    if (props.TryGetProperty("permission", out var asked) && asked.GetString() == "external_directory"
+                        && props.TryGetProperty("id", out var askedId) && askedId.GetString() is { } askId)
+                    {
+                        var paths = new List<string>();
+                        if (props.TryGetProperty("patterns", out var patterns) && patterns.ValueKind == JsonValueKind.Array)
+                            foreach (var pattern in patterns.EnumerateArray()) paths.Add(pattern.GetString());
+                        if (props.TryGetProperty("metadata", out var meta) && meta.TryGetProperty("filepath", out var file)) paths.Add(file.GetString());
+                        var allowed = InsideRoots(paths, _extraRoots);
+                        _ = ReplyPermissionAsync(SessionId, askId, "external_directory", allowed ? "once" : "reject");
+                        if (!allowed)
+                            turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, MdExplorer.Features.Services.UiText.Say(
+                                "external_directory · fuori dal progetto e dalle radici collegate: negato",
+                                "external_directory · outside the project and the linked roots: denied")));
+                    }
+                    return;
+
 
                 case "message.part.delta":
                     if (turn == null) return;

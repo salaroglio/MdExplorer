@@ -1175,7 +1175,7 @@ namespace MdExplorer.Hubs
                     + $"{whyNoProject}. Reopen the project."));
             }
 
-            var session = await _openCodePool.GetOrCreateAsync(Context.ConnectionId, projectPath, modelId);
+            var session = await _openCodePool.GetOrCreateAsync(Context.ConnectionId, projectPath, modelId, await LinkedCodeRootsAsync(projectPath));
 
             await Clients.Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "opencode", modelId = modelId, transport = "serve-sse" }, channelId);

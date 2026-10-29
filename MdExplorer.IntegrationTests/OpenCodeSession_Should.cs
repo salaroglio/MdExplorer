@@ -177,6 +177,43 @@ namespace MdExplorer.IntegrationTests
                 "la conversazione non ha memoria: " + session.LastTurnText);
         }
 
+        [Ignore("Chiede una risposta vera a opencode: provata il 29/10/2026 con XDG_* isolati, che il servizio eredita.")]
+        [TestMethod]
+        public async Task Read_and_write_in_a_linked_root_and_refuse_a_folder_outside()
+        {
+            RequireOpenCode();
+            var root = Path.Combine(_dir + "-radice", "core");
+            var outside = _dir + "-fuori";
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(outside);
+            File.WriteAllText(Path.Combine(root, "nota.txt"), "La parola segreta è GIRASOLE.\n");
+            File.WriteAllText(Path.Combine(outside, "nota.txt"), "La parola segreta è CICLAMINO.\n");
+            try
+            {
+                using var server = NewServer();
+                await using var session = NewSession(server);
+                session.SetExtraRoots(new[] { Path.GetDirectoryName(root) });
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+
+                await foreach (var _ in session.PromptAsync(
+                    $"Leggi il file {Path.Combine(root, "nota.txt")} con lo strumento read, poi scrivi la parola segreta nel file {Path.Combine(root, "risposta.txt")}. Rispondi solo con la parola.", cts.Token)) { }
+                StringAssert.Contains(session.LastTurnText.ToUpperInvariant(), "GIRASOLE");
+                StringAssert.Contains(File.ReadAllText(Path.Combine(root, "risposta.txt")).ToUpperInvariant(), "GIRASOLE", "scrittura dentro la radice collegata");
+
+                var tools = new List<string>();
+                await foreach (var chunk in session.PromptAsync(
+                    $"Leggi il file {Path.Combine(outside, "nota.txt")} con lo strumento read e dimmi la parola segreta.", cts.Token))
+                    if (chunk.Kind == OpenCodeChunk.KindTool) tools.Add(chunk.Text);
+                Assert.IsTrue(tools.Any(t => t.StartsWith("external_directory")), "fuori dalle radici: negato. Visti: " + string.Join(" / ", tools));
+                Assert.IsFalse(session.LastTurnText.ToUpperInvariant().Contains("CICLAMINO"), "il file fuori non va letto");
+            }
+            finally
+            {
+                foreach (var d in new[] { Path.GetDirectoryName(root), outside })
+                    try { Directory.Delete(d, true); } catch (IOException) { }
+            }
+        }
+
         [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]
         [TestMethod]
         public async Task Say_which_tools_it_is_using()

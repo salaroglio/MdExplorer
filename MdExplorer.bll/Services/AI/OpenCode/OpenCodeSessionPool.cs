@@ -50,10 +50,13 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// sessione, anche se il modello cambia: il nuovo modello vale dal messaggio successivo
         /// e la conversazione resta (misurato).
         /// </summary>
+        /// <param name="extraRoots">Le radici di codice esterne collegate: valgono anche sulla sessione viva, perché servono
+        /// solo a rispondere ai permessi <c>external_directory</c> (<see cref="OpenCodeSession.SetExtraRoots"/>).</param>
         public async Task<OpenCodeSession> GetOrCreateAsync(
             string connectionId,
             string workingDirectory,
             string model,
+            IReadOnlyList<string> extraRoots = null,
             CancellationToken ct = default)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(OpenCodeSessionPool));
@@ -63,6 +66,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (_sessions.TryGetValue(connectionId, out var fast) && SameProject(fast, workingDirectory))
             {
                 if (fast.Model != model) fast.SetModel(model);
+                fast.SetExtraRoots(extraRoots);
                 return fast;
             }
 
@@ -81,6 +85,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                                 "[OpenCodeSessionPool] Modello cambiato sulla sessione viva di {ConnectionId}: conversazione conservata",
                                 connectionId);
                         }
+                        existing.SetExtraRoots(extraRoots);
                         return existing;
                     }
                     _logger.LogInformation("[OpenCodeSessionPool] Cambio progetto: sostituisco la sessione di {ConnectionId}", connectionId);
@@ -91,6 +96,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
 
                 var session = new OpenCodeSession(
                     _loggerFactory.CreateLogger<OpenCodeSession>(), _server, workingDirectory, model);
+                session.SetExtraRoots(extraRoots);
 
                 if (!_sessions.TryAdd(connectionId, session))
                 {
