@@ -56,6 +56,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private readonly string _existingSessionId;
         private readonly bool _rejectPermissions;
         private volatile IReadOnlyList<string> _extraRoots = Array.Empty<string>();
+        private readonly HashSet<string> _children = new(StringComparer.Ordinal);
         private CancellationTokenSource _streamCts;
         private Task _streamTask;
         private volatile bool _disposed;
@@ -162,6 +163,39 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 any = true;
             }
             return any;
+        }
+
+        /// <summary>
+        /// La risposta della chat a una domanda di permesso di opencode (29/10/2026): <c>external_directory</c> dentro le radici
+        /// collegate «once», tutto il resto «reject», con la nota da mostrare in chat. Con la configurazione di default opencode
+        /// chiede solo <c>external_directory</c> e <c>doom_loop</c> (la stessa chiamata ripetuta); le altre domande vengono da un
+        /// «ask» che l'utente ha scritto nella sua configurazione. La chat non ha una finestra per chiederglielo, e approvarle
+        /// da soli scavalcherebbe la sua scelta: si negano dicendo dove cambiarla. Lasciarle senza risposta fermava il turno.
+        /// </summary>
+        public static (string Response, string Note) ChatReply(string permission, IEnumerable<string> paths, IReadOnlyList<string> roots)
+        {
+            var say = MdExplorer.Features.Services.UiText.Say;
+            switch (permission)
+            {
+                case "external_directory":
+                    return InsideRoots(paths, roots)
+                        ? ("once", null)
+                        : ("reject", say("external_directory · fuori dal progetto e dalle radici collegate: negato",
+                            "external_directory · outside the project and the linked roots: denied"));
+                case "doom_loop":
+                    return ("reject", say("doom_loop · la stessa chiamata ripetuta più volte di fila: negato",
+                        "doom_loop · the same call repeated several times in a row: denied"));
+                default:
+                    return ("reject", say($"{permission} · la tua configurazione di opencode dice «ask», ma la chat non può chiedertelo: negato. Per consentirlo metti «allow» in opencode.json",
+                        $"{permission} · your opencode configuration says \"ask\", but the chat cannot ask you: denied. To allow it, set \"allow\" in opencode.json"));
+            }
+        }
+
+        private bool IsOurs(string sessionId)
+        {
+            if (sessionId == null) return false;
+            if (sessionId == SessionId) return true;
+            lock (_children) return _children.Contains(sessionId);
         }
 
         /// <summary>Consuntivo dell'ultimo turno finito.</summary>
@@ -544,6 +578,31 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 return;
             }
 
+            // Un sottoagente (strumento task) lavora in una sessione figlia della nostra, e da lì chiede i suoi permessi.
+            if (typeEl.GetString() == "session.created" && props.TryGetProperty("info", out var info)
+                && info.TryGetProperty("parentID", out var parent) && IsOurs(parent.GetString())
+                && info.TryGetProperty("id", out var childId) && childId.GetString() is { } child)
+            {
+                lock (_children) _children.Add(child);
+                return;
+            }
+
+            if (typeEl.GetString() == "permission.asked")
+            {
+                var askingSession = props.TryGetProperty("sessionID", out var askSid) ? askSid.GetString() : null;
+                if (!IsOurs(askingSession) || !props.TryGetProperty("id", out var askedId) || askedId.GetString() is not { } askId) return;
+                var permission = props.TryGetProperty("permission", out var asked) ? asked.GetString() : "?";
+                var paths = new List<string>();
+                if (props.TryGetProperty("patterns", out var patterns) && patterns.ValueKind == JsonValueKind.Array)
+                    foreach (var pattern in patterns.EnumerateArray()) paths.Add(pattern.GetString());
+                if (props.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object
+                    && meta.TryGetProperty("filepath", out var file)) paths.Add(file.GetString());
+                var (response, note) = ChatReply(permission, paths, _extraRoots);
+                _ = ReplyPermissionAsync(askingSession, askId, permission, response);
+                if (note != null) _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, note));
+                return;
+            }
+
             // Il server parla di TUTTE le sessioni che ospita, comprese quelle di altri
             // progetti: quello che non è nostro non ci riguarda.
             if (props.TryGetProperty("sessionID", out var sid) && sid.GetString() != SessionId) return;
@@ -551,23 +610,6 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             var turn = _turn;
             switch (typeEl.GetString())
             {
-                case "permission.asked":
-                    if (props.TryGetProperty("permission", out var asked) && asked.GetString() == "external_directory"
-                        && props.TryGetProperty("id", out var askedId) && askedId.GetString() is { } askId)
-                    {
-                        var paths = new List<string>();
-                        if (props.TryGetProperty("patterns", out var patterns) && patterns.ValueKind == JsonValueKind.Array)
-                            foreach (var pattern in patterns.EnumerateArray()) paths.Add(pattern.GetString());
-                        if (props.TryGetProperty("metadata", out var meta) && meta.TryGetProperty("filepath", out var file)) paths.Add(file.GetString());
-                        var allowed = InsideRoots(paths, _extraRoots);
-                        _ = ReplyPermissionAsync(SessionId, askId, "external_directory", allowed ? "once" : "reject");
-                        if (!allowed)
-                            turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, MdExplorer.Features.Services.UiText.Say(
-                                "external_directory · fuori dal progetto e dalle radici collegate: negato",
-                                "external_directory · outside the project and the linked roots: denied")));
-                    }
-                    return;
-
 
                 case "message.part.delta":
                     if (turn == null) return;

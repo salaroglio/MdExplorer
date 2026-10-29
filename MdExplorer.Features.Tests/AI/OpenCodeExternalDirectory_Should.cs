@@ -24,5 +24,18 @@ namespace MdExplorer.Features.Tests.AI
             Assert.IsFalse(OpenCodeSession.InsideRoots(new[] { Path.Combine(Root, "core") + "/*" }, new string[0]), "nessuna radice collegata");
             Assert.IsFalse(OpenCodeSession.InsideRoots(new string[0], roots), "nessun percorso chiesto");
         }
+
+        [TestMethod]
+        public void Answer_every_other_ask_with_a_refusal_that_says_why()
+        {
+            var roots = new[] { Root };
+            Assert.AreEqual(("once", (string)null), OpenCodeSession.ChatReply("external_directory", new[] { Root + "/*" }, roots));
+            foreach (var permission in new[] { "external_directory", "doom_loop", "bash", "webfetch", "edit" })
+            {
+                var (response, note) = OpenCodeSession.ChatReply(permission, new[] { "/altrove/*" }, roots);
+                Assert.AreEqual("reject", response, permission + ": mai senza risposta, che fermerebbe il turno");
+                StringAssert.StartsWith(note, permission + " · ", "la chat dice che cosa ha negato");
+            }
+        }
     }
 }

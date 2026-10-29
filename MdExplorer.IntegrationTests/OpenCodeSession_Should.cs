@@ -177,6 +177,23 @@ namespace MdExplorer.IntegrationTests
                 "la conversazione non ha memoria: " + session.LastTurnText);
         }
 
+        [Ignore("Chiede una risposta vera a opencode, con «bash: ask» nell'opencode.json di XDG_CONFIG_HOME: provata il 29/10/2026.")]
+        [TestMethod]
+        public async Task Refuse_an_ask_of_a_sub_agent_instead_of_hanging()
+        {
+            RequireOpenCode();
+            using var server = NewServer();
+            await using var session = NewSession(server);
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+
+            var tools = new List<string>();
+            await foreach (var chunk in session.PromptAsync(
+                "Usa lo strumento task per lanciare un sottoagente general che esegua il comando shell `date` e ti dica il risultato. Poi riferiscimelo.", cts.Token))
+                if (chunk.Kind == OpenCodeChunk.KindTool) tools.Add(chunk.Text);
+            Assert.IsTrue(tools.Any(t => t.StartsWith("bash · ")), "la domanda del sottoagente ha la sua risposta. Visti: " + string.Join(" / ", tools));
+            Assert.IsFalse(string.IsNullOrWhiteSpace(session.LastTurnText), "il turno arriva in fondo");
+        }
+
         [Ignore("Chiede una risposta vera a opencode: provata il 29/10/2026 con XDG_* isolati, che il servizio eredita.")]
         [TestMethod]
         public async Task Read_and_write_in_a_linked_root_and_refuse_a_folder_outside()
