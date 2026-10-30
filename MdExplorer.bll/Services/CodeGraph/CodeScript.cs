@@ -248,7 +248,9 @@ namespace MdExplorer.Features.Services.CodeGraph
               // una pagina ne include un'altra (pagine a direttive, D42 passo 2)
               "includes",
               // un componente mostra il suo template (Angular, D42 B)
-              "renders" };
+              "renders",
+              // un'astrazione si risolve in un'implementazione registrata altrove (ServiceLoader…, 30/10/2026)
+              "resolvesTo" };
         /// <summary><c>rule</c>: l'arco l'ha prodotto una regola di arricchimento (D42), mai il parser.</summary>
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous", "rule" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };

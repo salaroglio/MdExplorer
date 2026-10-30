@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 14
+  version: 15
   updatePolicy: replace
 ---
 
@@ -94,6 +94,11 @@ callers and impact.
 - **Confidence of an edge**: `extracted` = the parser is sure; `inferred` = deduced; `ambiguous` = more than one
   candidate, the parser did not choose; `rule` = added by an enrichment rule the user approved (relation `dispatches`:
   the method named by a string). Say which one when it matters to the answer.
+- **Registrations** (`resolvesTo`): an interface — and each of its methods — resolves into the implementations
+  *registered* elsewhere (today Java `META-INF/services`, read by MdExplorer at every scan; `path:line` is the
+  registration file). `implements` says who could run; `resolvesTo` says who is registered to run: a class that
+  implements but is not registered is not loaded by that mechanism. A call that ends on an abstract method continues
+  through `resolvesTo`; `code_impact` of an implementation climbs back to whoever calls the interface.
 - **Pages** (when the project has a page dialect): a page is a `module`; its `control` symbols are the elements with an
   event (`onclick`…); `includes` links a page to the pages it includes; `guard` on a control or an `includes` edge is the
   condition in the page (`$if[ROLE==S]$`): the control exists only then. Visibility in the page is not authorisation on the

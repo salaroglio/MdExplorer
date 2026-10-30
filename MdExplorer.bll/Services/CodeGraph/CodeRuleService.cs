@@ -178,6 +178,54 @@ namespace MdExplorer.Features.Services.CodeGraph
             return edges.Count;
         }
 
+        /// <summary>L'id degli archi delle registrazioni (<see cref="CodeRegistrations"/>): col trattino basso, come <see cref="PageScriptsId"/>.</summary>
+        public const string RegistrationsId = "_registrations";
+
+        /// <summary>
+        /// Le registrazioni del progetto (30/10/2026) diventano archi <c>resolvesTo</c> in
+        /// <c>.mde-code/_rules/_registrations.rules.ttl</c>, rifatto a ogni scansione da TUTTI i file di registrazione del
+        /// progetto (<paramref name="files"/>: percorso logico e testo); senza registrazioni il file non c'è. Nessuna
+        /// approvazione: è lo standard del meccanismo (ServiceLoader), non una convenzione del progetto. Torna gli archi
+        /// scritti e le righe che il grafo non sa risolvere.
+        /// </summary>
+        public async Task<(int Edges, List<string> Misses)> ApplyRegistrationsAsync(string projectPath, IReadOnlyList<(string Path, string Text)> files, CancellationToken ct = default)
+        {
+            var path = ScriptPath(projectPath, RegistrationsId);
+            var registrations = files.Where(f => CodeRegistrations.IsServiceLoaderFile(f.Path)).OrderBy(f => f.Path, StringComparer.Ordinal)
+                .SelectMany(f => CodeRegistrations.ParseServiceLoader(f.Path, f.Text)).ToList();
+            if (registrations.Count == 0)
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    await _store.RemoveScriptAsync(projectPath, path, ct);
+                }
+                return (0, new List<string>());
+            }
+            var owners = await _store.OwnersWithMembersAsync(projectPath,
+                registrations.SelectMany(r => new[] { r.AbstractionQualifiedName, r.ImplementationQualifiedName }), ct);
+            // la chiave cerca anche per nome semplice: qui conta solo il nome qualificato
+            var edges = CodeRegistrations.Edges(registrations, owners, out var misses);
+            var script = new CodeScript
+            {
+                Header = new CodeScriptHeader
+                {
+                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Rule, Source = RegistrationsId,
+                    WrittenBy = "MdExplorer", WrittenAt = string.Empty,
+                },
+                RuleDescription = "MdExplorer: le registrazioni (Java ServiceLoader, META-INF/services) — l'interfaccia, e ogni suo metodo, si risolve nelle implementazioni registrate.",
+            };
+            script.Edges.AddRange(edges);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var text = CodeScriptTurtle.Write(script);
+            if (!File.Exists(path) || File.ReadAllText(path, Encoding.UTF8) != text) File.WriteAllText(path, text, new UTF8Encoding(false));
+            var loaded = await _store.LoadScriptAsync(projectPath, path, ct);
+            if (loaded.Error != null) throw new CodeRuleException(loaded.Error);
+            _logger?.LogInformation("[CodeRules] '{Project}': {Registrations} registrazioni, {Edges} archi resolvesTo, {Misses} righe fuori dal grafo",
+                projectPath, registrations.Count, edges.Count, misses.Count);
+            return (edges.Count, misses);
+        }
+
         private async Task WriteAndLoadAsync(string projectPath, CodeEnrichmentRule rule, CodeRulePreview preview, CancellationToken ct)
         {
             var script = new CodeScript

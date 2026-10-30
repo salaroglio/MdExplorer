@@ -432,6 +432,53 @@ namespace MdExplorer.Services.CodeGraph
             return list;
         }
 
+        /// <summary>
+        /// I file di registrazione (<c>META-INF/services/…</c>) di tutti i programmi del progetto, col percorso logico, una
+        /// volta sola anche se due programmi si sovrappongono. Le cartelle che lo scanner salta (target, build…) contengono
+        /// copie: si saltano. Le radici remote o non collegate non si leggono, e si dice.
+        /// </summary>
+        private async Task<(List<(string Path, string Text)> Files, List<string> Skipped)> RegistrationFilesAsync(string projectPath, CancellationToken ct)
+        {
+            var files = new Dictionary<string, string>(StringComparer.Ordinal);
+            var skipped = new List<string>();
+            foreach (var program in await ListProgramsAsync(projectPath, ct))
+            {
+                var scope = await ScopeOfAsync(projectPath, program.Folder, ct);
+                if (scope.Unusable != null) continue;   // lo dice già la sua scansione
+                if (scope.Remote != null)
+                {
+                    skipped.Add(UiText.Say($"registrazioni: {program.Folder} è remota, i suoi META-INF/services non si leggono ancora", $"registrations: {program.Folder} is remote, its META-INF/services are not read yet"));
+                    continue;
+                }
+                var stack = new Stack<string>();
+                stack.Push(scope.FolderAbs);
+                while (stack.Count > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var dir = stack.Pop();
+                    IEnumerable<string> children;
+                    try { children = Directory.EnumerateDirectories(dir); }
+                    catch (Exception ex) when (ex is UnauthorizedAccessException or IOException) { continue; }
+                    foreach (var child in children)
+                    {
+                        var name = Path.GetFileName(child);
+                        if (CodeChangeScanner.IgnoredDirectoryNames.Contains(name)) continue;
+                        if (name == "services" && Path.GetFileName(dir) == "META-INF")
+                        {
+                            foreach (var f in Directory.EnumerateFiles(child))
+                            {
+                                var logical = scope.ToLogical(f);
+                                if (!files.ContainsKey(logical)) files[logical] = File.ReadAllText(f, System.Text.Encoding.UTF8);
+                            }
+                            continue;
+                        }
+                        stack.Push(child);
+                    }
+                }
+            }
+            return (files.Select(kv => (kv.Key, kv.Value)).ToList(), skipped);
+        }
+
         private sealed class BridgeSet
         {
             /// <summary>«dipendenza@linguaggio» ordinati: nello stato dello scanner, per sapere quando cambiano.</summary>
@@ -738,6 +785,21 @@ namespace MdExplorer.Services.CodeGraph
                                 if (!p.Accepted) outcome.Warnings.Add(UiText.Say($"la regola '{p.RuleId}' ora collega {p.Resolved} chiamate su {p.Resolved + p.Unresolved}", $"rule '{p.RuleId}' now links {p.Resolved} calls out of {p.Resolved + p.Unresolved}"));
                     }
                     catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] regole di arricchimento non riapplicate"); outcome.Warnings.Add("regole di arricchimento: " + ex.Message); }
+                // Le registrazioni (30/10/2026): interfaccia → implementazioni registrate (ServiceLoader), da tutto il progetto
+                if (!targeted) try
+                {
+                    var rules = _services.GetService(typeof(CodeRuleService)) as CodeRuleService;
+                    if (rules != null)
+                    {
+                        var (files, skipped) = await RegistrationFilesAsync(projectPath, ct);
+                        var (edges, misses) = await rules.ApplyRegistrationsAsync(projectPath, files, ct);
+                        outcome.Warnings.AddRange(skipped);
+                        if (misses.Count > 0)
+                            outcome.Warnings.Add(UiText.Say($"registrazioni: {misses.Count} righe con una classe fuori dal grafo (es. {misses[0]})",
+                                $"registrations: {misses.Count} lines with a class outside the graph (e.g. {misses[0]})"));
+                    }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] registrazioni non applicate"); outcome.Warnings.Add("registrazioni: " + ex.Message); }
                 // Il report (F6): rigenerato a ogni analisi, non dopo ogni turno di MarkAgent.
                 if (!targeted) try
                 {

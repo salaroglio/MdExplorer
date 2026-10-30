@@ -105,7 +105,7 @@ public sealed class CodeTools : McpToolsBase
         [Description("Project name.")] string project,
         [Description("Symbol id (or exact qualified name).")] string symbol,
         [Description("'out' (default) or 'in'.")] string direction = "out",
-        [Description("One of: contains, imports, inherits, implements, references, calls, instantiates, jumps (between the fragments of a long block). Empty = all.")] string relation = null,
+        [Description("One of: contains, imports, inherits, implements, references, calls, instantiates, jumps (between the fragments of a long block), dispatches (enrichment rules), resolvesTo (interface → implementation registered in META-INF/services). Empty = all.")] string relation = null,
         [Description("Hops, 1-5 (default 1).")] int? depth = null,
         [Description("Max edges (default 50).")] int? limit = null)
     {

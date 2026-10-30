@@ -113,6 +113,47 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(await _rules.RemoveAsync(_project, "azione-pagina"));
         }
 
+        /// <summary>
+        /// 30/10/2026: ServiceLoader. Il grafo sapeva chi implementa l'interfaccia, non chi è registrato e quindi gira: ora
+        /// interfaccia → implementazioni registrate, metodo per metodo, e l'impatto di un'implementazione risale a chi
+        /// chiama l'interfaccia.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_an_interface_into_the_implementations_registered_in_meta_inf_services()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "CsvExporter.java"), "package com.acme;\n\npublic class CsvExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "OldExporter.java"), "package com.acme;\n\npublic class OldExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"), "package com.acme;\n\npublic class Runner {\n    public void run(Exporter e) {\n        e.export(\"x\");\n    }\n}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            const string services = "program/resources/META-INF/services/com.acme.Exporter";
+            var file = (services, "# registrati\ncom.acme.PdfExporter\n\ncom.acme.CsvExporter  # il secondo\ncom.lib.Missing\n");
+
+            var (edges, misses) = await _rules.ApplyRegistrationsAsync(_project, new[] { file });
+            Assert.AreEqual(1, misses.Count, "la classe di una libreria non è nel grafo: si dice");
+            StringAssert.Contains(misses[0], "com.lib.Missing");
+            var exporter = (await _store.ResolveAsync(_project, "com.acme.Exporter")).Single(x => x.Kind == "interface").Id;
+            var resolved = await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10);
+            CollectionAssert.AreEquivalent(new[] { "com.acme.CsvExporter", "com.acme.PdfExporter" }, resolved.Select(e => e.Other.QualifiedName).ToArray(), "OldExporter implementa ma non è registrata");
+            Assert.AreEqual(("extracted", services, 2), (resolved.Single(e => e.Other.QualifiedName == "com.acme.PdfExporter").Confidence, resolved[0].Path,
+                resolved.Single(e => e.Other.QualifiedName == "com.acme.PdfExporter").Line));
+            Assert.AreEqual(4, edges, "2 classi + 2 metodi");
+
+            // l'impatto del metodo registrato risale al metodo dell'interfaccia e a chi lo chiama
+            var pdfExport = (await _store.ResolveAsync(_project, "com.acme.PdfExporter.export")).Single(x => x.Kind == "method").Id;
+            var impact = await _store.ImpactAsync(_project, pdfExport, 2, 20);
+            CollectionAssert.IsSubsetOf(new[] { "com.acme.Exporter.export(String)", "com.acme.Runner.run(Exporter)" }, impact.Select(e => e.Other.QualifiedName).ToArray(),
+                string.Join(", ", impact.Select(e => e.Relation + " " + e.Other.QualifiedName)));
+
+            // tolto il file, via gli archi
+            await _rules.ApplyRegistrationsAsync(_project, Array.Empty<(string, string)>());
+            Assert.IsFalse(File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.RegistrationsId)));
+            Assert.AreEqual(0, (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Count);
+        }
+
         [TestMethod]
         public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
         {
