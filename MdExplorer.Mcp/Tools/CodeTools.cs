@@ -100,7 +100,9 @@ public sealed class CodeTools : McpToolsBase
         "direction='in' = who uses it (its callers, implementers, subclasses). Optional `relation` filters one relation. " +
         "`depth` follows the edges up to N hops (1-5). Each edge carries `confidence`: extracted (certain), inferred (resolved by name, " +
         "e.g. an interface call to its implementations), llm-resolved (several candidates, the LLM that described the code chose this one: a deduction, not the parser), " +
-        "ambiguous (several candidates). Answers 'who calls X', 'which classes implement I', 'what does X depend on'.")]
+        "ambiguous (several candidates), rule (added by an approved enrichment rule: dispatches, resolvesTo). An edge of a rule with a `describe` " +
+        "question may carry `description`: the answer for that point (e.g. qualifier and scope of a binding). " +
+        "Answers 'who calls X', 'which classes implement I', 'which implementation is registered for I', 'what does X depend on'.")]
     public async Task<string> code_neighbors(
         [Description("Project name.")] string project,
         [Description("Symbol id (or exact qualified name).")] string symbol,
@@ -264,13 +266,22 @@ public sealed class CodeTools : McpToolsBase
         "written before it or in its receiver: {\"pairedCall\": {\"callee\": \"x\", \"argument\": 0}}) | \"class\" ({\"class\": \"qualified.Name\"}) | " +
         "\"page\" (the string names a PAGE of the project's page dialect, not a method: e.g. the page shown after the call; matched by file name or path end), " +
         "\"aliasMap\": \"project-relative/path.properties\" (optional: alias=qualified.ClassName)}, " +
-        "\"excludePrefixes\": [\"redirect:\"] (optional)}. Unknown fields are an error.";
+        "\"excludePrefixes\": [\"redirect:\"] (optional)}. " +
+        "REGISTRATION rule (an abstraction resolved elsewhere: DI binding, @ImplementedBy, @Provides, a registry with X.class): " +
+        "{\"id\": \"…\", \"kind\": \"registration\", \"description\": \"…\", \"anchor\": {\"call\": \"to\"} | {\"annotation\": \"ImplementedBy\"}, " +
+        "\"abstraction\": {\"from\": …}, \"implementation\": {\"from\": …}} with from = \"argument\" ({\"argument\": 0}: an X.class of the anchor call) | " +
+        "\"chain\" ({\"callee\": \"bind\", \"argument\": 0}: an X.class of a call further down the anchor's chain) | \"annotated\" (the annotated symbol) | " +
+        "\"returnType\" (of the annotated method) | \"annotationArgument\" ({\"element\": \"value\"}); edges `resolvesTo`. " +
+        "ANY rule may add \"describe\": \"one specific question\" that MdExplorer asks the LLM for each linked point during «Describe with Mark»; " +
+        "the answer becomes the edge's description. Unknown fields are an error.";
 
     [McpServerTool, Description(
-        "Dry-run an ENRICHMENT RULE for the code graph. Use it when, answering the user, a call chain stops at a STRING that names a method " +
+        "Dry-run an ENRICHMENT RULE for the code graph. Use it when, answering the user (or when the user asks what the graph lacked), a call chain " +
+        "stops at an abstraction whose implementation is registered elsewhere (registration rule), or at a STRING that names a method " +
         "(e.g. setX(\"methodName\"), submit('alias.method'), a dispatcher that picks the method by name): the parser cannot see that link. " +
-        "A rule declares the convention; MdExplorer applies it to every recorded call with string arguments and adds `dispatches` edges. " +
-        "Nothing is written. Returns: callSites, notLiteral, excluded, resolved, unresolved, missCounts (why calls were not linked), " +
+        "A rule declares the convention; MdExplorer applies it to every recorded fact (calls with string or X.class arguments, chains, annotations) " +
+        "and adds `dispatches` or `resolvesTo` edges. " +
+        "Nothing is written. Returns: callSites, notLiteral, excluded, resolved, unresolved, outsideGraph (registration: an end is a library class, not counted against the rule), missCounts (why points were not linked), " +
         "missExamples, contexts (folders by number of calls), edgeCount, accepted + rejectReasons (MdExplorer rejects rules that link under 60%), " +
         "and `sample`: up to 5 linked calls spread over the list. Fix the rule and retry until accepted; then OPEN EACH SAMPLE CALL in the source " +
         "(path:line) and check the target is really the method executed, before code_rule_propose. " + RuleShape)]
@@ -314,7 +325,7 @@ public sealed class CodeTools : McpToolsBase
 
     [McpServerTool, Description(
         "The project's active enrichment rules (approved by the user, shared with Git) and the list of further analyses proposed so far. " +
-        "Edges made by rules have relation `dispatches` and confidence `rule`.")]
+        "Edges made by rules have relation `dispatches` (dispatch rules) or `resolvesTo` (registration rules) and confidence `rule`.")]
     public async Task<string> code_rules([Description("Project name.")] string project)
     {
         var (client, path, error) = await ProjectAsync(project);

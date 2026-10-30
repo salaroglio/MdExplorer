@@ -142,6 +142,11 @@ namespace MdExplorer.Services.CodeGraph
         /// si carica nel database; lo spazio di una sola cartella dentro Fuseki non si misura.
         /// </summary>
         public long ScriptsBytes { get; set; }
+        /// <summary>
+        /// I collegamenti delle regole con una domanda <c>describe</c> da descrivere in questo giro (D43): punti (file:riga)
+        /// della cartella mai descritti o con la riga, gli archi o la domanda cambiati. Una domanda all'LLM per gruppo di punti.
+        /// </summary>
+        public int Links { get; set; }
     }
 
     public sealed class CodeDescriptionEditOutcome
@@ -166,6 +171,7 @@ namespace MdExplorer.Services.CodeGraph
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly MdExplorer.Services.LlmSessions.OneShotReadOnlySession _llm;
         private readonly ICodeGraphStore _store;
+        private readonly CodeRuleService _rules;
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeDocJobService> _logger;
         private readonly MdExplorer.Features.Services.IUiLanguage _language;
@@ -185,9 +191,10 @@ namespace MdExplorer.Services.CodeGraph
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
             MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
-            MdExplorer.Features.Services.IUiLanguage language, MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles remoteFiles, ILogger<CodeDocJobService> logger)
+            MdExplorer.Features.Services.IUiLanguage language, MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles remoteFiles, ILogger<CodeDocJobService> logger,
+            CodeRuleService rules)
         {
-            _roots = roots;
+            _roots = roots; _rules = rules;
             _remoteFiles = remoteFiles;
             _language = language;
             _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
@@ -309,7 +316,7 @@ namespace MdExplorer.Services.CodeGraph
                 await SaveRunAsync(projectPath, run, token);
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = groups.Count, levels, symbols = candidates.Count, trivial = trivialWritten, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1,
                     toReview = plan.Assessment.ToReview, reviewing = review, bodyUnknown = plan.Assessment.BodyUnknown,
-                    cascade = review ? plan.Assessment.Cascade.Count : 0, cascadeByLevel = review ? plan.Assessment.CascadeByLevel : Array.Empty<int>() });
+                    cascade = review ? plan.Assessment.Cascade.Count : 0, cascadeByLevel = review ? plan.Assessment.CascadeByLevel : Array.Empty<int>(), links = plan.Links.Count });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Symbols} simboli in {Groups} domande su {Levels} livelli, {Trivial} metodi banali descritti da MdExplorer; da rivedere {Review} ({Reviewing}), a cascata {Cascade} ({CascadeLevels}), corpo senza impronta {BodyUnknown}",
                     folderRelative, candidates.Count, groups.Count, levels, trivialWritten, plan.Assessment.ToReview, review ? "rivisti in questo giro" : "non in questo giro",
                     plan.Assessment.Cascade.Count, CascadeLevelsText(plan.Assessment.CascadeByLevel), plan.Assessment.BodyUnknown);
@@ -518,6 +525,9 @@ namespace MdExplorer.Services.CodeGraph
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] ultimo caricamento in Fuseki non riuscito: gli script sono su disco, entrano alla prossima apertura del progetto"); }
                 if (firstFailure != null) throw firstFailure;
                 token.ThrowIfCancellationRequested();
+                // i collegamenti delle regole (D43): dopo i simboli, così le sintesi dei capi ci sono già
+                var (linksDone, linksFailed) = await DescribeLinksAsync(connectionId, projectPath, resolver, plan.Links, engine, model, writtenBy, token);
+                failedCount += linksFailed;
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} domande, dal basso, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
                 if (failedCount + partialCount + blockedCount > 0)
@@ -534,7 +544,7 @@ namespace MdExplorer.Services.CodeGraph
                 else run.Status = CodeDescriptionRun.Done;
                 run.CurrentFile = null;
                 await SaveRunAsync(projectPath, run, token);
-                await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal, failed = failedCount, partial = partialCount, blocked = blockedCount });
+                await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal, failed = failedCount, partial = partialCount, blocked = blockedCount, links = linksDone });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Files} domande, {Described} simboli descritti, {Rejected} righe scartate", folderRelative, files, described, rejectedTotal);
             }
             catch (OperationCanceledException)
@@ -591,6 +601,103 @@ namespace MdExplorer.Services.CodeGraph
             return value.Value;
         }
 
+        /// <summary>Quanti punti per domanda all'LLM, per le descrizioni dei collegamenti (le righe intorno sono poche).</summary>
+        private const int LinkPointsPerQuestion = 20;
+
+        /// <summary>
+        /// I punti delle regole con <c>describe</c> che stanno nei file di questa cartella (<paramref name="sources"/>) e vanno
+        /// descritti (D43): mai descritti, o con la riga, gli archi o la domanda cambiati. Un sorgente che non si legge resta
+        /// nel conto con le righe vuote: alla domanda fallisce e lo si dice.
+        /// </summary>
+        private async Task<List<(CodeEnrichmentRule Rule, CodeLinkPoint Point, List<ScriptEdge> Edges)>> LinkPointsAsync(string projectPath, CodeRootResolver resolver,
+            IEnumerable<string> sources, CancellationToken token)
+        {
+            var result = new List<(CodeEnrichmentRule, CodeLinkPoint, List<ScriptEdge>)>();
+            var mine = sources.ToHashSet(StringComparer.Ordinal);
+            var texts = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            foreach (var rule in _rules.List(projectPath).Where(r => r.Describe != null))
+            {
+                var script = CodeRuleService.ReadScript(projectPath, rule.Id);
+                if (script == null) continue;
+                var version = CodeLinkDocs.PromptVersion(rule.Describe);
+                foreach (var (path, line, edges) in CodeLinkDocs.Points(script).Where(p => mine.Contains(p.Path)))
+                {
+                    if (!texts.TryGetValue(path, out var lines))
+                    {
+                        var (text, error) = await SourceTextAsync(resolver, path, token);
+                        if (error != null) _logger.LogWarning("[CodeDoc] collegamenti di '{Rule}': {Path} non si legge — {Error}", rule.Id, path, error);
+                        texts[path] = lines = (text ?? string.Empty).Replace("\r\n", "\n").Split('\n');
+                    }
+                    var lineText = line <= lines.Length ? lines[line - 1] : string.Empty;
+                    var hash = CodeLinkDocs.FactHash(lineText, edges);
+                    var why = CodeLinkDocs.Why(script.LinkDocs.FirstOrDefault(d => d.Path == path && d.Line == line), hash, version);
+                    if (why == null) continue;
+                    result.Add((rule, new CodeLinkPoint { RuleId = rule.Id, Path = path, Line = line, Excerpt = CodeLinkDocs.Excerpt(lines, line), FactHash = hash, PromptVersion = version, Why = why }, edges));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Le domande sui collegamenti (D43), regola per regola, a gruppi di punti, con lo stesso motore dei simboli. I
+        /// collegamenti si scrivono coi nomi dei capi e la loro sintesi, se c'è. Torna i punti descritti e quelli rimasti senza.
+        /// </summary>
+        private async Task<(int Done, int Failed)> DescribeLinksAsync(string connectionId, string projectPath, CodeRootResolver resolver,
+            List<(CodeEnrichmentRule Rule, CodeLinkPoint Point, List<ScriptEdge> Edges)> links, MarkAgentEngine engine, string model, string writtenBy, CancellationToken token)
+        {
+            if (links.Count == 0) return (0, 0);
+            var symbols = await _store.SymbolsAsync(projectPath, links.SelectMany(l => l.Edges).SelectMany(e => new[] { e.SourceId, e.TargetId }), token);
+            string Name(string id) => symbols.TryGetValue(id, out var s) ? s.QualifiedName + (s.Summary != null ? $" («{s.Summary}»)" : string.Empty) : id;
+            var done = 0; var failed = 0;
+            foreach (var byRule in links.GroupBy(l => l.Rule.Id))
+            {
+                var rule = byRule.First().Rule;
+                foreach (var chunk in byRule.Chunk(LinkPointsPerQuestion))
+                {
+                    token.ThrowIfCancellationRequested();
+                    var points = chunk.Select(l => new CodeLinkPoint
+                    {
+                        RuleId = l.Point.RuleId, Path = l.Point.Path, Line = l.Point.Line, Excerpt = l.Point.Excerpt, FactHash = l.Point.FactHash, PromptVersion = l.Point.PromptVersion, Why = l.Point.Why,
+                        // il collegamento della classe basta: metodo → metodo nasce dallo stesso punto
+                        Links = l.Edges.Select(e => $"{Name(e.SourceId)} → {Name(e.TargetId)}").Distinct(StringComparer.Ordinal).Take(5).ToList(),
+                    }).ToList();
+                    await SendAsync(connectionId, new { phase = "links", rule = rule.Id, points = points.Count });
+                    _logger.LogInformation("[CodeDoc] collegamenti di '{Rule}': {Count} punti ({Missing} nuovi, {Changed} cambiati)", rule.Id, points.Count,
+                        points.Count(p => p.Why == "missing"), points.Count(p => p.Why == "changed"));
+                    string answer;
+                    try
+                    {
+                        answer = await _llm.AskAsync(projectPath, engine, model, CodeLinkDocs.BuildPrompt(rule, points, _language.Current), "code-doc",
+                            UiText.Say("le descrizioni dei collegamenti si scrivono solo con quello che c'è nella richiesta; nessun file si legge né si scrive", "link descriptions are written only from what is in the request; no file is read or written"), token, noFiles: true);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[CodeDoc] collegamenti di '{Rule}': l'AI non ha risposto", rule.Id);
+                        failed += points.Count;
+                        await SendAsync(connectionId, new { phase = "file-failed", file = rule.Id, detail = UiText.Say("collegamenti: l'AI non ha risposto — ", "links: the AI did not answer — ") + ex.Message });
+                        continue;
+                    }
+                    var answers = CodeLinkDocs.ParseAnswer(answer, points, out var rejected);
+                    foreach (var r in rejected) _logger.LogWarning("[CodeDoc] collegamenti di '{Rule}': risposta scartata — {Why}", rule.Id, r);
+                    var byKey = points.ToDictionary(p => p.Key, StringComparer.Ordinal);
+                    var docs = answers.Select(a => new ScriptLinkDoc
+                    {
+                        Path = byKey[a.Key].Path, Line = byKey[a.Key].Line, Summary = a.Summary, WrittenBy = writtenBy, WrittenAt = DateTime.UtcNow.ToString("o"),
+                        FactHash = byKey[a.Key].FactHash, PromptVersion = byKey[a.Key].PromptVersion,
+                    }).ToList();
+                    if (docs.Count > 0) await _rules.SaveLinkDocsAsync(projectPath, rule.Id, docs, token);
+                    done += docs.Count;
+                    var missing = points.Count - docs.Count;
+                    failed += missing;
+                    if (missing > 0)
+                        await SendAsync(connectionId, new { phase = "file-failed", file = rule.Id, detail = UiText.Say($"collegamenti: {missing} punti senza descrizione, «Riprendi» li rifà", $"links: {missing} points without a description, «Resume» redoes them") });
+                    else await SendAsync(connectionId, new { phase = "links-done", rule = rule.Id, described = docs.Count });
+                }
+            }
+            return (done, failed);
+        }
+
         private static string SourceOf(string projectPath, string astScriptPath)
         {
             var rel = CodeGraphPaths.ToProjectRelative(projectPath, astScriptPath);
@@ -623,6 +730,8 @@ namespace MdExplorer.Services.CodeGraph
             public int Realigned;
             /// <summary>I prompt dei pacchetti di linguaggio del progetto (B6b): testo in coda a mde-code-doc e versione composta.</summary>
             public CodeDocLanguagePrompts Prompts;
+            /// <summary>I collegamenti delle regole da descrivere (D43), con la loro regola e gli archi del punto.</summary>
+            public List<(CodeEnrichmentRule Rule, CodeLinkPoint Point, List<ScriptEdge> Edges)> Links = new();
         }
 
         /// <summary>
@@ -714,6 +823,7 @@ namespace MdExplorer.Services.CodeGraph
                 var last = plan.Groups.LastOrDefault(g => !g.IsCrossFileCycle && g.Sources[0] == source);
                 if (last != null) plan.AskFileIn[last.Index] = source;
             }
+            plan.Links = await LinkPointsAsync(projectPath, resolver, plan.DocFiles.Values.Select(f => f.Ast.Header.Source), token);
             foreach (var w in plan.Graph.Warnings.Take(20)) _logger.LogWarning("[CodeDoc] {Warning}", w);
             if (plan.Realigned > 0)
                 _logger.LogInformation("[CodeDoc] {Count} descrizioni con l'impronta del corpo letta in UTF-8 da un file che non lo è: riallineate, il corpo è lo stesso{Where}",
@@ -770,7 +880,7 @@ namespace MdExplorer.Services.CodeGraph
                 Missing = a.Count(CodeDocVerdict.Missing), SignatureChanged = a.Count(CodeDocVerdict.SignatureChanged), BodyChanged = a.Count(CodeDocVerdict.BodyChanged),
                 Incomplete = a.Count(CodeDocVerdict.Incomplete),
                 ReviewContext = a.Count(CodeDocVerdict.ReviewContext), ReviewPrompt = a.Count(CodeDocVerdict.ReviewPrompt), ReviewNoFingerprint = a.Count(CodeDocVerdict.ReviewNoFingerprint),
-                Cascade = a.Cascade.Count, CascadeByLevel = a.CascadeByLevel,
+                Cascade = a.Cascade.Count, CascadeByLevel = a.CascadeByLevel, Links = plan.Links.Count,
                 Fresh = a.Count(CodeDocVerdict.Fresh), Trivial = plan.Trivial, BodyUnknown = a.BodyUnknown,
                 Files = plan.Groups.SelectMany(g => g.Sources).Distinct(StringComparer.Ordinal).Count(),
                 AnalyzedFiles = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).Count(),

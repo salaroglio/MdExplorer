@@ -110,6 +110,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["TypeArgument"] = Set("argumentOf", "position", "typeName", "confidence"),
             ["Annotation"] = Set("annotationOf", "ordinal", "name", "line", "path", "typeName"),
             ["AnnotationArgument"] = Set("argumentOf", "position", "element", "value", "typeName"),
+            ["LinkDescription"] = Set("rule", "path", "line", "summary", "writtenBy", "writtenAt", "factHash", "promptVersion"),
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
             ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash", "bodyHash", "contextHash", "promptVersion"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
@@ -291,6 +292,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     SourceId = SymbolId(n.IriValue("source", path)), TargetId = SymbolId(n.IriValue("target", path)),
                     Relation = n.Enum("relation", CodeScriptParser.Relations, path), Confidence = n.Enum("confidence", CodeScriptParser.Confidences, path),
                     Line = n.OptInt("line", path), Path = n.OptStr("path"),
+                });
+            }
+            foreach (var n in nodes.Where(n => n.Class == "LinkDescription"))
+            {
+                if (n.IriValue("rule", path) != set.Iri)
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:rule non è la regola dello script", $"<{n.Iri}>: code:rule is not the script's rule"));
+                script.LinkDocs.Add(new ScriptLinkDoc
+                {
+                    Path = n.Str("path", path), Line = n.Int("line", path), Summary = n.Str("summary", path), WrittenBy = n.OptStr("writtenBy"), WrittenAt = n.OptStr("writtenAt"),
+                    FactHash = n.OptStr("factHash"), PromptVersion = n.OptStr("promptVersion"),
                 });
             }
         }

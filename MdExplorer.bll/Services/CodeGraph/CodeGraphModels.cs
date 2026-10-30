@@ -299,6 +299,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>L'altro capo dell'arco (chi chiama, o chi è chiamato, a seconda della direzione chiesta).</summary>
         public CodeSymbolView Other { get; set; }
         public int Depth { get; set; }
+        /// <summary>Per un arco di una regola con <c>describe</c> (D43): la descrizione del collegamento in quel punto; null se non c'è.</summary>
+        public string Description { get; set; }
     }
 
     public sealed class CodeOverview

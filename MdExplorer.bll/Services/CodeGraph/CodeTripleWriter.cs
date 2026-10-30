@@ -218,6 +218,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
+            foreach (var d in script.LinkDocs.OrderBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Line))
+            {
+                sb.Append(Iri(LinkDoc(h.Source, d.Path, d.Line))).Append(" a ").Append(CodeOntology.ClassLinkDescription)
+                  .Append(" ; code:rule ").Append(rule)
+                  .Append(" ; code:path ").Append(Lit(d.Path))
+                  .Append(" ; code:line ").Append(Int(d.Line))
+                  .Append(" ; code:summary ").Append(Lit(d.Summary ?? string.Empty))
+                  .Append(" ; code:writtenBy ").Append(Lit(d.WrittenBy ?? string.Empty))
+                  .Append(" ; code:writtenAt ").Append(Lit(d.WrittenAt ?? string.Empty))
+                  .Append(" ; code:factHash ").Append(Lit(d.FactHash ?? string.Empty))
+                  .Append(" ; code:promptVersion ").Append(Lit(d.PromptVersion ?? string.Empty));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+            }
         }
 
         private static StringBuilder FromScript(StringBuilder sb, string fromScriptLit)

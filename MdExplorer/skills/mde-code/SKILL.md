@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 15
+  version: 16
   updatePolicy: replace
 ---
 
@@ -38,8 +38,9 @@ symbol tells what the whole chain does. Use it to answer questions about the cod
 exist, is it really called, does it do that?).
 
 The graph is a tool you read, not a deliverable to complete. What it does not have — files of a language with no parser
-(configuration, generated classes, templates), calls made through a string — is a limit of the scan, not a gap to fill:
-say so, and read the source for that part.
+(configuration, generated classes, templates), calls made through a string, implementations chosen by a DI container —
+is a limit of the scan: say so, and read the source for that part. Do not fill it on your own initiative; when the user
+asks what the graph lacked, follow «What the graph lacked» below.
 
 ## The one rule: ask the `code_*` tools
 
@@ -93,7 +94,9 @@ callers and impact.
   dependency.
 - **Confidence of an edge**: `extracted` = the parser is sure; `inferred` = deduced; `ambiguous` = more than one
   candidate, the parser did not choose; `rule` = added by an enrichment rule the user approved (relation `dispatches`:
-  the method named by a string). Say which one when it matters to the answer.
+  the method named by a string; `resolvesTo`: the implementation registered for an abstraction). Say which one when it
+  matters to the answer. An edge made by a rule with a `describe` question may carry a `description` (in
+  `code_neighbors`): the answer to that question for that point — use it, it is what the user wanted to know there.
 - **Registrations** (`resolvesTo`): an interface — and each of its methods — resolves into the implementations
   *registered* elsewhere (today Java `META-INF/services`, read by MdExplorer at every scan; `path:line` is the
   registration file). `implements` says who could run; `resolvesTo` says who is registered to run: a class that
@@ -143,6 +146,60 @@ user (never a systematic search):
 4. `code_rule_propose` with the problem in plain words (the user may not be technical), the sample checks and, if the
    problem suggests them, further analyses. The user decides in the MarkAgent tab («Migliora il grafo»): tell them it is
    waiting there. Never write files under `.mde-code/` yourself.
+
+## What the graph lacked: «what would you have needed in the graph?»
+
+When the user asks it — «che cosa ti sarebbe servito nel grafo per dare una risposta più precisa?», «cosa è mancato al
+grafo?», «what would the graph need to answer better?» — the answer is a plan to improve the graph for THAT question,
+not a list of wishes. At the end of an analysis where the graph stopped and you read the source, you may offer it in one
+line; do not start it unasked.
+
+1. **Each gap, concretely**: where it stopped (`path:line`), what you read in the source instead, which fact would have
+   answered (a link, a property of a link, a revision…).
+2. **Classify each gap**:
+   - **The graph has the fact, a rule can use it** → write a rule (below): a STRING names the method → `dispatch`
+     (section above); an ABSTRACTION is resolved elsewhere (DI binding, `@ImplementedBy`, `@Provides`, a registry built
+     with `X.class`) → `registration`. If the user's question needs something the edge alone cannot say (qualifier,
+     scope, condition, the key of a handler), add a `describe` question (below).
+   - **The fact is not recorded** (the class is in a variable, `toInstance(new Y())`, a binder kept in a variable, a
+     configuration file, the content of a jar) → it is a request for MdExplorer: put it in `furtherAnalyses` of
+     `code_rule_propose`, or tell the user plainly.
+   - **It is not in the code** (production configuration, plugins actually deployed, runtime data) → say so: no rule
+     can help, it needs evidence from the deployment.
+3. For each rule: `code_rule_try` until `accepted` → open every `sample` point in the source → `code_rule_propose`, one
+   proposal per rule. Tell the user the proposals wait in the MarkAgent tab («Migliora il grafo») and that the link
+   descriptions are written by «Descrivi con Mark» on the folder (its preview counts them). Never write `.mde-code/`.
+
+### Registration rules (`kind: registration`)
+
+The facts they read, recorded by the Java extractor: `X.class` arguments of calls (type resolved through the imports),
+the chain of a call (`bind(X.class).annotatedWith(…).to(Y.class)`: `to` reaches `bind`), annotations with their
+arguments (`@ImplementedBy(Y.class)`, `@Named("x")`), the resolved return type of a method. One rule = an `anchor` (a call
+or an annotation) and where to read the two ends: `argument` (an `X.class` of the anchor call), `chain` (an `X.class` of a
+call further down the chain), `annotated` (the annotated symbol), `returnType` (of the annotated method),
+`annotationArgument` (an `X.class` of the annotation, `element` default `value`). Guice is three rules:
+
+```json
+{"id": "guice-bind", "kind": "registration", "description": "bind(X).to(Y): Guice gives Y where X is asked",
+ "anchor": {"call": "to"}, "abstraction": {"from": "chain", "callee": "bind", "argument": 0},
+ "implementation": {"from": "argument", "argument": 0}}
+{"id": "guice-implemented-by", "kind": "registration", "description": "@ImplementedBy(Y) on X: the default implementation",
+ "anchor": {"annotation": "ImplementedBy"}, "abstraction": {"from": "annotated"}, "implementation": {"from": "annotationArgument"}}
+{"id": "guice-provides", "kind": "registration", "description": "@Provides: the method provides the type it returns",
+ "anchor": {"annotation": "Provides"}, "abstraction": {"from": "returnType"}, "implementation": {"from": "annotated"}}
+```
+
+MdExplorer writes `resolvesTo` from the abstraction to the implementation and method → method with the same name; for
+`@Provides` the implementation is the method itself. A point whose class is outside the graph (a library) is read
+correctly and counted in `outsideGraph`, not against the rule. The same works for any registry written with class
+literals (a Java `MapBinder`/`Multibinder` chain, a framework of the project): read the code, find the anchor.
+
+### The `describe` question
+
+Optional on any rule: one question MdExplorer asks the LLM for EACH point the rule links, with the lines around it and
+the names (and summaries) of both ends; the answer becomes the link's `description`. Write it for the user's question,
+answerable from those lines: «With which qualifier (`@Named`) and scope is the implementation bound?», «Which message
+key leads to this handler, and under which condition?». Not «describe this binding»: the edge already says that.
 
 ## Page dialects: when the graph has no pages
 

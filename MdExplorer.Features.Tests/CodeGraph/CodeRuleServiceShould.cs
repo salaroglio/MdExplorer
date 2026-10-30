@@ -232,6 +232,17 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("com.acme.AppModule.clock()", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName,
                 "l'astrazione si risolve nel metodo che la fornisce");
             Assert.AreEqual(3, _rules.List(_project).Count);
+
+            // le descrizioni dei collegamenti (D43): si salvano nello script della regola, Mark le legge sugli archi,
+            // restano quando la regola si riapplica (nuova scansione) e vanno via col loro punto
+            await _rules.SaveLinkDocsAsync(_project, "guice-bind", new[] { new ScriptLinkDoc { Path = "program/src/com/acme/AppModule.java", Line = 9, Summary = "Qualificatore main.", FactHash = "f", PromptVersion = "v" } });
+            Assert.AreEqual("Qualificatore main.", (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single().Description);
+            await _rules.ReapplyAllAsync(_project);
+            Assert.AreEqual("Qualificatore main.", CodeRuleService.ReadScript(_project, "guice-bind").LinkDocs.Single().Summary, "la scansione rifà gli archi, non le descrizioni");
+            Assert.AreEqual("Qualificatore main.", (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single().Description);
+            await _rules.SaveLinkDocsAsync(_project, "guice-bind", new[] { new ScriptLinkDoc { Path = "program/src/com/acme/Gone.java", Line = 1, Summary = "x", FactHash = "f", PromptVersion = "v" } });
+            await _rules.ReapplyAllAsync(_project);
+            Assert.IsFalse(CodeRuleService.ReadScript(_project, "guice-bind").LinkDocs.Any(d => d.Path.EndsWith("Gone.java")), "un punto senza archi perde la descrizione");
             Assert.AreEqual(CodeRuleKind.Registration, _rules.List(_project).Single(r => r.Id == "guice-bind").Kind);
             Assert.AreEqual("Con quale qualificatore e durata?", _rules.List(_project).Single(r => r.Id == "guice-bind").Describe);
         }

@@ -51,6 +51,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<Dictionary<string, List<CodeCallSiteView>>> ChainsAsync(string projectPath, string callee, string downCallee, CancellationToken ct = default);
         /// <summary>I simboli con l'annotazione <paramref name="annotation"/> (nome com'è scritto o qualificato), con gli argomenti (D43).</summary>
         Task<List<CodeAnnotatedView>> AnnotatedAsync(string projectPath, string annotation, CancellationToken ct = default);
+        /// <summary>I simboli per id, con la sintesi se c'è: per le domande sui collegamenti (D43).</summary>
+        Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default);
         /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).

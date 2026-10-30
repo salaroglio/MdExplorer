@@ -132,6 +132,22 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int? ReceiverOrdinal { get; set; }
     }
 
+    /// <summary>
+    /// La descrizione di un collegamento fatto da una regola (D43, 30/10/2026): la risposta dell'LLM alla domanda
+    /// <c>describe</c> della regola per UN punto (file:riga) da cui nascono i suoi archi. Si rifà quando cambiano la riga
+    /// del sorgente o i suoi archi (<see cref="FactHash"/>) o la domanda (<see cref="PromptVersion"/>).
+    /// </summary>
+    public sealed class ScriptLinkDoc
+    {
+        public string Path { get; set; }
+        public int Line { get; set; }
+        public string Summary { get; set; }
+        public string WrittenBy { get; set; }
+        public string WrittenAt { get; set; }
+        public string FactHash { get; set; }
+        public string PromptVersion { get; set; }
+    }
+
     /// <summary>Un argomento <c>X.class</c> (D43, 30/10/2026).</summary>
     public sealed class ScriptTypeArgument
     {
@@ -248,6 +264,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptCallResolution> CallResolutions { get; } = new();
         /// <summary>Solo negli script di regola: che cosa fa la regola, in parole semplici (D42).</summary>
         public string RuleDescription { get; set; }
+        /// <summary>Solo negli script di regola: le descrizioni dei collegamenti, una per punto (D43, la domanda <c>describe</c>).</summary>
+        public List<ScriptLinkDoc> LinkDocs { get; } = new();
         /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
         public ScriptFileDoc FileDoc { get; set; }
         public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + CallSites.Count + Annotations.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);

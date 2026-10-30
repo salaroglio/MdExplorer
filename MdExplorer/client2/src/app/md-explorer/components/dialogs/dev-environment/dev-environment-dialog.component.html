@@ -252,6 +252,7 @@
           <ng-container *ngIf="preview; else calculating">
             {{ 'DEV_ENV.T_TODO_VALUE' | translate: { todo: previewTodo, files: preview.files } }}
             <div class="sub" *ngIf="previewTodo > 0">{{ 'DEV_ENV.T_TODO_DETAIL' | translate: { missing: preview.missing, signature: preview.signatureChanged, body: preview.bodyChanged, incomplete: preview.incomplete ?? 0 } }}</div>
+            <div class="sub" *ngIf="preview.links > 0">{{ 'DEV_ENV.T_TODO_LINKS' | translate: { count: preview.links } }}</div>
           </ng-container>
         </td>
       </tr>

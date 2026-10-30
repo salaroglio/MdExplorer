@@ -1011,6 +1011,10 @@
     "T_TODO": "To describe",
     "T_TODO_VALUE": "{{todo}} symbols in {{files}} files",
     "T_TODO_DETAIL": "new {{missing}} · signature changed {{signature}} · body changed {{body}} · incomplete {{incomplete}}",
+    "T_TODO_LINKS": "plus {{count}} rule links to describe (one question per group of points)",
+    "DESCRIBE_LINKS_PLANNED": "After the symbols: {{count}} rule links to describe",
+    "DESCRIBE_LINKS": "Links of rule {{rule}}: {{points}} points",
+    "DESCRIBE_LINKS_DONE": "Links of rule {{rule}}: {{described}} described",
     "T_REVIEW": "To review",
     "T_REVIEW_DETAIL": "called functions changed {{context}} · older prompt {{prompt}} · no fingerprint {{none}} — not redone by themselves",
     "T_SOURCES": "Sources",
@@ -1413,6 +1417,7 @@
     "STEPS_LABEL": "Steps",
     "STEP": { "PROBLEM": "The problem", "SCOPE": "Where", "CHECKS": "Checks", "CONFIRM": "Confirm?", "DONE": "Done" },
     "PROBLEM": {
+      "DESCRIBE": "And for each link it will ask the LLM, within «Describe with Mark»:",
       "RULE_SAYS": "To link these points MarkAgent proposes this rule:",
       "PROPOSED_BY": "Proposed by {{who}}. Nothing changes until you answer Yes."
     },
@@ -1425,6 +1430,7 @@
       "RESULT": "With this choice: {{edges}} links ({{resolved}} calls out of {{total}})"
     },
     "CHECKS": {
+      "OUTSIDE_GRAPH": "{{n}} points lead to classes outside the graph (libraries): read correctly, not linked.",
       "MDE": "What MdExplorer checked",
       "LINKED": "It links {{resolved}} calls out of {{total}} ({{percent}}%).",
       "EXCLUDED": "{{n}} calls skipped on purpose (they do not name a method).",
@@ -1437,6 +1443,12 @@
       "UNCHECKED": "Not among the links MarkAgent verified (the scope changed)"
     },
     "MISS": {
+      "noTypeArgument": "the X.class argument is missing",
+      "noChain": "the call to read from is not in the chain",
+      "chainAmbiguous": "the chain has more than one",
+      "noReturnType": "the method does not return a known type",
+      "abstractionNotInGraph": "the abstraction is outside the graph",
+      "implementationNotInGraph": "the implementation is outside the graph",
       "noSeparator": "the string does not have the expected shape",
       "noPairedCall": "the call that picks the class is missing",
       "aliasNotInMap": "the name is not in the map",

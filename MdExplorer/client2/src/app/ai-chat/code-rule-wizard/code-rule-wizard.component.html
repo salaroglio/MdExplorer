@@ -16,6 +16,10 @@
     <p class="lead">{{ proposal.problem }}</p>
     <p>{{ 'CODE_RULE.PROBLEM.RULE_SAYS' | translate }}</p>
     <blockquote>{{ proposal.rule.description }}</blockquote>
+    <ng-container *ngIf="proposal.rule.describe">
+      <p>{{ 'CODE_RULE.PROBLEM.DESCRIBE' | translate }}</p>
+      <blockquote>{{ proposal.rule.describe }}</blockquote>
+    </ng-container>
     <p class="hint">{{ 'CODE_RULE.PROBLEM.PROPOSED_BY' | translate:{ who: proposal.proposedBy } }}</p>
   </section>
 
@@ -50,6 +54,7 @@
       <li *ngIf="preview.excluded > 0">{{ 'CODE_RULE.CHECKS.EXCLUDED' | translate:{ n: preview.excluded } }}</li>
       <li *ngIf="preview.notLiteral > 0">{{ 'CODE_RULE.CHECKS.NOT_LITERAL' | translate:{ n: preview.notLiteral } }}</li>
       <li *ngIf="preview.outOfScope > 0">{{ 'CODE_RULE.CHECKS.OUT_OF_SCOPE' | translate:{ n: preview.outOfScope } }}</li>
+      <li *ngIf="(preview.outsideGraph ?? 0) > 0">{{ 'CODE_RULE.CHECKS.OUTSIDE_GRAPH' | translate:{ n: preview.outsideGraph } }}</li>
     </ul>
     <details *ngIf="missRows.length > 0">
       <summary>{{ 'CODE_RULE.CHECKS.MISSES' | translate:{ n: preview.unresolved } }}</summary>
@@ -67,7 +72,7 @@
         <mat-icon *ngIf="r.ok === true" class="ok" [attr.aria-label]="'CODE_RULE.CHECKS.OK' | translate">check_circle</mat-icon>
         <mat-icon *ngIf="r.ok === false" class="ko" [attr.aria-label]="'CODE_RULE.CHECKS.KO' | translate">cancel</mat-icon>
         <mat-icon *ngIf="r.ok === null" class="unchecked" [matTooltip]="'CODE_RULE.CHECKS.UNCHECKED' | translate">help_outline</mat-icon>
-        <span><code>{{ r.where }}</code> «{{ r.value }}» → <code>{{ r.target }}</code>
+        <span><code>{{ r.where }}</code> «{{ r.value }}»<ng-container *ngIf="r.target"> → <code>{{ r.target }}</code></ng-container>
           <span class="note" *ngIf="r.note">— {{ r.note }}</span></span>
       </li>
     </ul>
@@ -78,7 +83,7 @@
     <p class="lead">{{ 'CODE_RULE.CONFIRM.QUESTION' | translate:{ edges: preview.edgeCount } }}</p>
     <p>{{ 'CODE_RULE.CONFIRM.EXAMPLES' | translate }}</p>
     <ul class="sample">
-      <li *ngFor="let r of sampleRows.slice(0, 3)"><code>{{ r.where }}</code> «{{ r.value }}» → <code>{{ r.target }}</code></li>
+      <li *ngFor="let r of sampleRows.slice(0, 3)"><code>{{ r.where }}</code> «{{ r.value }}»<ng-container *ngIf="r.target"> → <code>{{ r.target }}</code></ng-container></li>
     </ul>
     <p class="hint">{{ 'CODE_RULE.CONFIRM.REVERSIBLE' | translate }}</p>
   </section>

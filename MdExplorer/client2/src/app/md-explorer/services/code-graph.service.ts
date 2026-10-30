@@ -173,6 +173,8 @@ export interface DescribePreview {
   analyzedFiles: number;
   /** Il peso su disco degli script del grafo della cartella (.mde-code). */
   scriptsBytes: number;
+  /** I collegamenti delle regole con una domanda «describe» da descrivere in questo giro (punti file:riga). */
+  links: number;
 }
 
 /** Il gestore di sorgenti di una cartella (git o SVN, rilevato da solo), come lo dà il backend (SourceControlInfo). */
@@ -213,6 +215,8 @@ export interface CodeRulePreview {
   resolved: number;
   unresolved: number;
   outOfScope: number;
+  /** Regole di registrazione: punti letti bene ma con un capo fuori dal grafo (una classe di libreria); non pesano sulla quota. */
+  outsideGraph?: number;
   resolvedShare: number;
   contexts: CodeRuleContext[];
   missCounts: { [reason: string]: number };
@@ -225,7 +229,7 @@ export interface CodeRulePreview {
 
 export interface CodeRuleAnalysis { title: string; description?: string | null; problem?: string | null; proposedBy?: string | null; proposedAt?: string | null; status: string; }
 
-export interface CodeEnrichmentRule { id: string; description: string; scope?: string[]; writtenBy?: string | null; writtenAt?: string | null; [key: string]: any; }
+export interface CodeEnrichmentRule { id: string; description: string; kind?: 'dispatch' | 'registration'; describe?: string | null; scope?: string[]; writtenBy?: string | null; writtenAt?: string | null; [key: string]: any; }
 
 /** Una regola proposta da MarkAgent che aspetta il «Sì» nel wizard «Migliora il grafo». */
 export interface CodeRuleProposal {

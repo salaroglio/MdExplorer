@@ -52,6 +52,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Un'annotazione su un simbolo (<c>@Provides</c>, <c>@ImplementedBy(Y.class)</c>), per le regole di registrazione (D43).</summary>
         public const string ClassAnnotation = "code:Annotation";
         public const string ClassAnnotationArgument = "code:AnnotationArgument";
+        /// <summary>La descrizione di un collegamento fatto da una regola, per punto (file:riga), dalla domanda <c>describe</c> (D43).</summary>
+        public const string ClassLinkDescription = "code:LinkDescription";
         /// <summary>L'insieme degli archi di una regola di arricchimento (D42): id, descrizione, chi l'ha scritta.</summary>
         public const string ClassRuleSet = "code:RuleSet";
         /// <summary>La certezza degli archi delle regole: dedotti da una convenzione dichiarata, non letti dal parser.</summary>

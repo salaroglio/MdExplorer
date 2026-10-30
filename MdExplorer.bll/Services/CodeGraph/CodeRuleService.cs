@@ -262,7 +262,36 @@ namespace MdExplorer.Features.Services.CodeGraph
             };
             script.Edges.AddRange(preview.Edges);
             var path = ScriptPath(projectPath, rule.Id);
+            // le descrizioni dei collegamenti (D43) restano per i punti che ci sono ancora: se il fatto è cambiato lo dicono
+            // le impronte, e «Descrivi con Mark» le rifà
+            var points = preview.Edges.Where(e => e.Path != null && e.Line != null).Select(e => (e.Path, e.Line.Value)).ToHashSet();
+            script.LinkDocs.AddRange((ReadScript(projectPath, rule.Id)?.LinkDocs ?? new List<ScriptLinkDoc>()).Where(d => points.Contains((d.Path, d.Line))));
             Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, CodeScriptTurtle.Write(script), new UTF8Encoding(false));
+            var loaded = await _store.LoadScriptAsync(projectPath, path, ct);
+            if (loaded.Error != null) throw new CodeRuleException(loaded.Error);
+        }
+
+        /// <summary>Lo script degli archi di una regola com'è su disco; null se non c'è.</summary>
+        public static CodeScript ReadScript(string projectPath, string ruleId)
+        {
+            var path = ScriptPath(projectPath, ruleId);
+            return File.Exists(path) ? CodeScriptParser.Parse(File.ReadAllText(path, Encoding.UTF8), path) : null;
+        }
+
+        /// <summary>
+        /// Le descrizioni dei collegamenti nuove (D43), fuse con quelle che ci sono (stesso punto = si sostituisce), scritte
+        /// nello script della regola e caricate. Chi chiama tiene il lucchetto delle scritture.
+        /// </summary>
+        public async Task SaveLinkDocsAsync(string projectPath, string ruleId, IEnumerable<ScriptLinkDoc> docs, CancellationToken ct = default)
+        {
+            var script = ReadScript(projectPath, ruleId) ?? throw new CodeRuleException(UiText.Say($"La regola «{ruleId}» non ha archi su disco.", $"The rule «{ruleId}» has no edges on disk."));
+            foreach (var d in docs)
+            {
+                script.LinkDocs.RemoveAll(x => x.Path == d.Path && x.Line == d.Line);
+                script.LinkDocs.Add(d);
+            }
+            var path = ScriptPath(projectPath, ruleId);
             File.WriteAllText(path, CodeScriptTurtle.Write(script), new UTF8Encoding(false));
             var loaded = await _store.LoadScriptAsync(projectPath, path, ct);
             if (loaded.Error != null) throw new CodeRuleException(loaded.Error);

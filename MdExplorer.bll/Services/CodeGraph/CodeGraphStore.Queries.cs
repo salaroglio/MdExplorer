@@ -193,6 +193,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result;
         }
 
+        public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
+            => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
+
         public async Task<List<CodeAnnotatedView>> AnnotatedAsync(string projectPath, string annotation, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
@@ -336,7 +339,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private sealed class EdgeRow
         {
-            public string From, To, Relation, Confidence, Path, Guard;
+            public string From, To, Relation, Confidence, Path, Guard, Description;
             public int? Line;
         }
 
@@ -351,12 +354,15 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var values = string.Join(" ", ids.Skip(i).Take(200).Select(id => Iri(Symbol(id))));
                 var rows = await RowsAsync(
-                    $"SELECT ?from ?to ?rel ?conf ?path ?line ?guard WHERE {{ GRAPH {g.DataIri} {{ VALUES ?from {{ {values} }} " +
+                    $"SELECT ?from ?to ?rel ?conf ?path ?line ?guard ?ldesc WHERE {{ GRAPH {g.DataIri} {{ VALUES ?from {{ {values} }} " +
                     $"?e a code:Edge ; {fromProp} ?from ; {toProp} ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} OPTIONAL {{ ?e code:guard ?guard }} {EffectiveConfidence}" +
+                    // D43: la descrizione del collegamento della regola che ha fatto l'arco, nello stesso punto
+                    $"OPTIONAL {{ ?e code:rule ?rr . ?ld a {CodeOntology.ClassLinkDescription} ; code:rule ?rr ; code:path ?path ; code:line ?line ; code:summary ?ldesc }} " +
                     (relation != null ? $"FILTER(?rel = {Lit(relation)}) " : string.Empty) + "} }", ct);
                 list.AddRange(rows.Select(r => new EdgeRow
                 {
                     From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line"), Guard = Str(r, "guard"),
+                    Description = Str(r, "ldesc"),
                 }));
             }
             return list;
@@ -387,7 +393,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             return found
                 .Select(f => new CodeEdgeView
                 {
-                    Relation = f.Edge.Relation, Confidence = f.Edge.Confidence, Path = f.Edge.Path, Line = f.Edge.Line, Guard = f.Edge.Guard, Depth = f.Depth,
+                    Relation = f.Edge.Relation, Confidence = f.Edge.Confidence, Path = f.Edge.Path, Line = f.Edge.Line, Guard = f.Edge.Guard, Depth = f.Depth, Description = f.Edge.Description,
                     Other = symbols.TryGetValue(f.Edge.To, out var s) ? s : new CodeSymbolView { Id = f.Edge.To, Kind = "unknown", Name = f.Edge.To, QualifiedName = f.Edge.To },
                 })
                 .GroupBy(v => (v.Other.Id, v.Relation, v.Depth)).Select(grp => grp.First())

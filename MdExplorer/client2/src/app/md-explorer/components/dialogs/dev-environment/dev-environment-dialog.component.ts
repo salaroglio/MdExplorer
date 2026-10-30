@@ -426,7 +426,10 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       case 'started':
         this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal, levels: p.levels, symbols: p.symbols, trivial: p.trivial }));
         if (p.cascade > 0) { this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_CASCADE', { count: p.cascade, detail: this.cascadeLevels(p.cascadeByLevel) })); }
+        if (p.links > 0) { this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_LINKS_PLANNED', { count: p.links })); }
         break;
+      case 'links': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_LINKS', { rule: p.rule, points: p.points })); break;
+      case 'links-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_LINKS_DONE', { rule: p.rule, described: p.described })); break;
       case 'describing':
         this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })
           + (p.cascade > 0 ? this.translate.instant('DEV_ENV.DESCRIBE_FILE_CASCADE', { count: p.cascade, from: (p.cascadeFrom ?? []).join(', ') }) : ''));

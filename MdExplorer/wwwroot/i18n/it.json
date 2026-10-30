@@ -1011,6 +1011,10 @@
     "T_TODO": "Da descrivere",
     "T_TODO_VALUE": "{{todo}} simboli in {{files}} file",
     "T_TODO_DETAIL": "nuovi {{missing}} · firma cambiata {{signature}} · corpo cambiato {{body}} · incompleti {{incomplete}}",
+    "T_TODO_LINKS": "più {{count}} collegamenti delle regole da descrivere (una domanda per gruppo di punti)",
+    "DESCRIBE_LINKS_PLANNED": "Dopo i simboli: {{count}} collegamenti delle regole da descrivere",
+    "DESCRIBE_LINKS": "Collegamenti della regola {{rule}}: {{points}} punti",
+    "DESCRIBE_LINKS_DONE": "Collegamenti della regola {{rule}}: {{described}} descritti",
     "T_REVIEW": "Da rivedere",
     "T_REVIEW_DETAIL": "funzioni chiamate cambiate {{context}} · prompt più vecchio {{prompt}} · senza impronta {{none}} — non si rifanno da sole",
     "T_SOURCES": "Sorgenti",
@@ -1413,6 +1417,7 @@
     "STEPS_LABEL": "Passi",
     "STEP": { "PROBLEM": "Il problema", "SCOPE": "Dove", "CHECKS": "Controlli", "CONFIRM": "Confermi?", "DONE": "Fatto" },
     "PROBLEM": {
+      "DESCRIBE": "E per ogni collegamento chiederà all'LLM, dentro «Descrivi con Mark»:",
       "RULE_SAYS": "Per collegare questi punti MarkAgent propone questa regola:",
       "PROPOSED_BY": "Proposta da {{who}}. Nulla cambia finché non rispondi Sì."
     },
@@ -1425,6 +1430,7 @@
       "RESULT": "Con questa scelta: {{edges}} collegamenti ({{resolved}} chiamate su {{total}})"
     },
     "CHECKS": {
+      "OUTSIDE_GRAPH": "{{n}} punti portano a classi fuori dal grafo (librerie): letti giusti, non si collegano.",
       "MDE": "Che cosa ha controllato MdExplorer",
       "LINKED": "Collega {{resolved}} chiamate su {{total}} ({{percent}}%).",
       "EXCLUDED": "{{n}} chiamate saltate di proposito (non indicano un metodo).",
@@ -1437,6 +1443,12 @@
       "UNCHECKED": "Non fra i collegamenti verificati da MarkAgent (la portata è cambiata)"
     },
     "MISS": {
+      "noTypeArgument": "manca l'argomento X.class",
+      "noChain": "la chiamata da cui leggere non è nella catena",
+      "chainAmbiguous": "nella catena ce n'è più d'una",
+      "noReturnType": "il metodo non restituisce un tipo noto",
+      "abstractionNotInGraph": "l'astrazione è fuori dal grafo",
+      "implementationNotInGraph": "l'implementazione è fuori dal grafo",
       "noSeparator": "la stringa non ha la forma prevista",
       "noPairedCall": "manca la chiamata che sceglie la classe",
       "aliasNotInMap": "il nome non è nella mappa",

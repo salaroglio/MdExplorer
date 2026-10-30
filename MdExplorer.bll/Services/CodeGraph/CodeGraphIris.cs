@@ -60,6 +60,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Un'annotazione su un simbolo (D43): il simbolo e l'ordine in cui è scritta.</summary>
         public static string Annotation(string symbolId, int ordinal) => $"urn:mde:annotation:{symbolId}:{ordinal}";
         public static string AnnotationArgument(string annotationIri, int index) => $"{annotationIri}:a{index}";
+        /// <summary>La descrizione dei collegamenti di una regola in un punto (D43).</summary>
+        public static string LinkDoc(string ruleId, string path, int line) => $"urn:mde:linkdoc:{Enc(ruleId)}:{Enc(path)}:{line}";
         public static string RuleSet(string ruleId) => $"urn:mde:rule:{Enc(ruleId)}";
         public static string FileDoc(string logicalPath) => $"urn:mde:fdoc:{Enc(logicalPath)}";
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";
