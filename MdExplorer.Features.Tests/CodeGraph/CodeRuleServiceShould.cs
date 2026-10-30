@@ -154,6 +154,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Count);
         }
 
+        /// <summary>
+        /// D43: i fatti nuovi (argomenti X.class, catene, annotazioni) entrano in Fuseki, e le regole sulle stringhe (D42) non
+        /// li vedono: un punto con soli tipi non è un punto con stringhe.
+        /// </summary>
+        [TestMethod]
+        public async Task Load_class_arguments_and_annotations_without_showing_them_to_string_rules()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter { }\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter { }\n");
+            File.WriteAllText(Path.Combine(src, "AppModule.java"),
+                "package com.acme;\n\nimport com.google.inject.Provides;\n\npublic class AppModule {\n" +
+                "    void configure() {\n        bind(Exporter.class).to(PdfExporter.class);\n        named(\"main\");\n    }\n" +
+                "    @Provides\n    Exporter make() { return null; }\n}\n");
+            Scan();
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+            Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "bind")).Count, "solo tipi: invisibile alle regole sulle stringhe");
+            Assert.AreEqual("main", (await _store.CallSitesAsync(_project, "named")).Single().Arguments[0]);
+        }
+
         [TestMethod]
         public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
         {

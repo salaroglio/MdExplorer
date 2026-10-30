@@ -378,7 +378,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(((string)null, (string)null), T("delegate"), "un delegante lo descrive l'LLM");
             Assert.AreEqual(((string)null, (string)null), T("twice"), "due istruzioni");
             Assert.IsNull(script.Symbols.Single(x => x.Kind == "constructor" && x.Name == "Shapes").Trivial, "i costruttori no");
-            Assert.AreEqual("5", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
+            Assert.AreEqual("6", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
         }
 
         [TestMethod]
@@ -416,6 +416,71 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var b = back.CallSites.Single(c => c.Callee == "send" && c.Ordinal == 1);
             Assert.AreEqual((go, 8, 3, "redirect:pagina"), (b.SourceId, b.Line, b.ArgumentCount, b.Arguments.Single().Value));
             Assert.AreEqual("svc", back.CallSites.Single(c => c.Callee == "setTarget").Receiver);
+        }
+
+        /// <summary>
+        /// D43 (30/10/2026): i fatti per le regole di registrazione, registrati e non interpretati. Un modulo Guice: gli
+        /// argomenti X.class col tipo risolto, la catena bind → to (anche oltre annotatedWith), le annotazioni con gli
+        /// argomenti, il tipo restituito risolto; tutto attraverso il Turtle.
+        /// </summary>
+        [TestMethod]
+        public void Record_class_arguments_chains_annotations_and_return_types_for_registration_rules()
+        {
+            InstallGrammarFromNuGet();
+            File.WriteAllText(Path.Combine(_src, "app", "AppModule.java"),
+                "package com.acme.app;\n\n" +                                                              // 1-2
+                "import com.google.inject.AbstractModule;\nimport com.google.inject.Provides;\nimport com.google.inject.name.Named;\n" +   // 3-5
+                "import com.google.inject.name.Names;\nimport com.google.inject.multibindings.MapBinder;\nimport com.acme.util.Helper;\n\n" + // 6-9
+                "public class AppModule extends AbstractModule {\n" +                                         // 10
+                "    @Override\n    protected void configure() {\n" +                                        // 11-12
+                "        bind(IFoo.class).annotatedWith(Names.named(\"main\")).to(Foo.class);\n" +           // 13
+                "        bind(Helper.class).toInstance(new Helper());\n" +                                    // 14
+                "        MapBinder<String, IFoo> m = MapBinder.newMapBinder(binder(), String.class, IFoo.class);\n" + // 15
+                "        m.addBinding(\"a\").to(Foo.class);\n" +                                              // 16
+                "    }\n\n" +                                                                                 // 17-18
+                "    @Provides @Named(\"helper\")\n    Helper provideHelper() { return new Helper(); }\n" +   // 19-20
+                "}\n");
+            File.WriteAllText(Path.Combine(_src, "app", "Svc.java"),
+                "package com.acme.app;\n\nimport com.google.inject.ImplementedBy;\nimport org.junit.jupiter.api.DisplayName;\n\n" +
+                "@ImplementedBy(Foo.class) @DisplayName(\"una frase con spazi\")\npublic interface Svc { }\n");
+            var scripts = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance).Extract(Request()).Scripts;
+            var script = scripts.Single(s => s.File.LogicalPath.EndsWith("/AppModule.java")).Script;
+            ScriptCallSite Site(string callee, int line) => script.CallSites.Single(c => c.Callee == callee && c.Line == line);
+
+            var bind = Site("bind", 13);
+            Assert.AreEqual(("com.acme.app.IFoo", "extracted", 0), (bind.TypeArguments.Single().TypeName, bind.TypeArguments.Single().Confidence, bind.TypeArguments.Single().Position));
+            Assert.IsTrue(bind.Ordinal >= CodeCallSites.TypeOnlyOrdinalBase, "solo tipi: numerato a parte, i numeri dei punti con stringhe non cambiano");
+            Assert.AreEqual(0, Site("named", 13).Ordinal, "il punto con la stringa tiene il numero di prima");
+            var to = Site("to", 13);
+            Assert.AreEqual("com.acme.app.Foo", to.TypeArguments.Single().TypeName);
+            Assert.AreEqual((13, bind.Ordinal), (to.ReceiverLine, to.ReceiverOrdinal), "la catena oltre annotatedWith, che non è registrata");
+            Assert.AreEqual("com.acme.util.Helper", Site("bind", 14).TypeArguments.Single().TypeName);
+            Assert.IsFalse(script.CallSites.Any(c => c.Callee == "toInstance"), "new Helper() non è un argomento di tipo");
+            var map = Site("newMapBinder", 15);
+            CollectionAssert.AreEqual(new[] { "1 String platform", "2 com.acme.app.IFoo extracted" }, map.TypeArguments.Select(t => $"{t.Position} {t.TypeName} {t.Confidence}").ToArray());
+            var add = Site("addBinding", 16);
+            Assert.AreEqual(("m", "a", (int?)null), (add.Receiver, add.Arguments.Single().Value, add.ReceiverLine), "una variabile non è una catena");
+            Assert.AreEqual((16, add.Ordinal), (Site("to", 16).ReceiverLine, Site("to", 16).ReceiverOrdinal));
+
+            var provide = script.Symbols.Single(s => s.Name == "provideHelper");
+            Assert.AreEqual("com.acme.util.Helper", provide.ReturnTypeName);
+            Assert.IsNull(script.Symbols.Single(s => s.Name == "configure").ReturnTypeName, "void");
+            var anns = script.Annotations.Where(a => a.SymbolId == provide.Id).OrderBy(a => a.Ordinal).ToList();
+            CollectionAssert.AreEqual(new[] { "Provides com.google.inject.Provides", "Named com.google.inject.name.Named" }, anns.Select(a => $"{a.Name} {a.TypeName}").ToArray());
+            Assert.AreEqual(("value", "helper"), (anns[1].Arguments.Single().Element, anns[1].Arguments.Single().Value));
+            Assert.IsFalse(script.Annotations.Any(a => a.Name == "Override"), "@Override non dice niente al grafo");
+
+            var svc = scripts.Single(s => s.File.LogicalPath.EndsWith("/Svc.java")).Script;
+            var implementedBy = svc.Annotations.Single(a => a.Name == "ImplementedBy");
+            Assert.AreEqual(("com.google.inject.ImplementedBy", "value", "com.acme.app.Foo"), (implementedBy.TypeName, implementedBy.Arguments.Single().Element, implementedBy.Arguments.Single().TypeName));
+            Assert.AreEqual(0, svc.Annotations.Single(a => a.Name == "DisplayName").Arguments.Count, "le frasi non si registrano");
+
+            foreach (var s in new[] { script, svc })
+            {
+                var text = CodeScriptTurtle.Write(s);
+                var back = CodeScriptParser.Parse(text, "x.ast.ttl");
+                Assert.AreEqual(text, CodeScriptTurtle.Write(back), "andata e ritorno identici");
+            }
         }
     }
 }

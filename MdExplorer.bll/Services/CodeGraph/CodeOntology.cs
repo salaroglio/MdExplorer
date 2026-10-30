@@ -47,6 +47,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public const string ClassCallSite = "code:CallSite";
         public const string ClassStringArgument = "code:StringArgument";
+        /// <summary>Un argomento <c>X.class</c> di un punto di chiamata, col tipo risolto in <c>code:typeName</c> (D43, 30/10/2026).</summary>
+        public const string ClassTypeArgument = "code:TypeArgument";
+        /// <summary>Un'annotazione su un simbolo (<c>@Provides</c>, <c>@ImplementedBy(Y.class)</c>), per le regole di registrazione (D43).</summary>
+        public const string ClassAnnotation = "code:Annotation";
+        public const string ClassAnnotationArgument = "code:AnnotationArgument";
         /// <summary>L'insieme degli archi di una regola di arricchimento (D42): id, descrizione, chi l'ha scritta.</summary>
         public const string ClassRuleSet = "code:RuleSet";
         /// <summary>La certezza degli archi delle regole: dedotti da una convenzione dichiarata, non letti dal parser.</summary>

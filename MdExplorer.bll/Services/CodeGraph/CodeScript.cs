@@ -69,6 +69,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Guard { get; set; }
         /// <summary>Il campo letto o scritto, o la costante restituita (com'è scritta nel codice); null per <c>empty</c>.</summary>
         public string TrivialOf { get; set; }
+        /// <summary>
+        /// Il tipo restituito risolto con gli import (<c>com.acme.Exporter</c>), per le regole (D43, 30/10/2026: un metodo
+        /// <c>@Provides</c> dice QUALE astrazione fornisce). Null se non è un tipo del perimetro o di una libreria (void,
+        /// piattaforma, parametro di tipo, ambiguo). Non entra nell'impronta della firma: quella resta su <see cref="ReturnType"/>.
+        /// </summary>
+        public string ReturnTypeName { get; set; }
         /// <summary><c>external</c> = fuori perimetro: nessun file, nessuna riga, condiviso fra gli script.</summary>
         public bool IsExternal => string.Equals(Kind, "external", StringComparison.OrdinalIgnoreCase);
     }
@@ -116,6 +122,54 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Receiver { get; set; }
         public int ArgumentCount { get; set; }
         public List<ScriptStringArgument> Arguments { get; } = new();
+        /// <summary>Gli argomenti <c>X.class</c> (D43): il tipo risolto con gli import, per le regole di registrazione.</summary>
+        public List<ScriptTypeArgument> TypeArguments { get; } = new();
+        /// <summary>
+        /// La catena (D43): la chiamata registrata, dello stesso chiamante, che fa da ricevente a questa scendendo la catena
+        /// (<c>bind(X.class).annotatedWith(…).to(Y.class)</c>: <c>to</c> → <c>bind</c>). Null se non ce n'è.
+        /// </summary>
+        public int? ReceiverLine { get; set; }
+        public int? ReceiverOrdinal { get; set; }
+    }
+
+    /// <summary>Un argomento <c>X.class</c> (D43, 30/10/2026).</summary>
+    public sealed class ScriptTypeArgument
+    {
+        public int Position { get; set; }
+        /// <summary>Il nome qualificato (<c>com.acme.Exporter</c>); per un tipo della piattaforma com'è scritto (<c>String</c>).</summary>
+        public string TypeName { get; set; }
+        /// <summary><c>extracted</c>/<c>inferred</c> come la risoluzione dei tipi; <c>platform</c> per i tipi della piattaforma.</summary>
+        public string Confidence { get; set; }
+    }
+
+    /// <summary>
+    /// Un'annotazione su una dichiarazione (D43, 30/10/2026): <c>@ImplementedBy(Y.class)</c>, <c>@Provides</c>,
+    /// <c>@Named("x")</c>. Non le annotazioni che non dicono niente al grafo (<c>@Override</c>, <c>@SuppressWarnings</c>…).
+    /// </summary>
+    public sealed class ScriptAnnotation
+    {
+        public string SymbolId { get; set; }
+        /// <summary>Da 0, nell'ordine in cui sono scritte sul simbolo: rende l'IRI unico.</summary>
+        public int Ordinal { get; set; }
+        /// <summary>Il nome com'è scritto, senza <c>@</c> (<c>Provides</c>).</summary>
+        public string Name { get; set; }
+        /// <summary>Risolto con gli import (<c>com.google.inject.Provides</c>); null se non si sa.</summary>
+        public string TypeName { get; set; }
+        public int Line { get; set; }
+        public List<ScriptAnnotationArgument> Arguments { get; } = new();
+    }
+
+    /// <summary>Un argomento di un'annotazione: stringa o tipo (<c>X.class</c>); un array dà un argomento per elemento.</summary>
+    public sealed class ScriptAnnotationArgument
+    {
+        /// <summary>L'elemento (<c>value</c> se non è scritto).</summary>
+        public string Element { get; set; }
+        /// <summary>Da 0 dentro l'annotazione: rende l'IRI unico.</summary>
+        public int Index { get; set; }
+        /// <summary>La stringa senza virgolette; null se è un tipo.</summary>
+        public string Value { get; set; }
+        /// <summary>Il tipo risolto, come <see cref="ScriptTypeArgument.TypeName"/>; null se è una stringa.</summary>
+        public string TypeName { get; set; }
     }
 
     public sealed class ScriptStringArgument
@@ -188,6 +242,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptParameter> Parameters { get; } = new();
         public List<ScriptEdge> Edges { get; } = new();
         public List<ScriptCallSite> CallSites { get; } = new();
+        public List<ScriptAnnotation> Annotations { get; } = new();
         public List<ScriptSymbolDoc> SymbolDocs { get; } = new();
         public List<ScriptParameterDoc> ParameterDocs { get; } = new();
         public List<ScriptCallResolution> CallResolutions { get; } = new();
@@ -195,7 +250,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string RuleDescription { get; set; }
         /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
         public ScriptFileDoc FileDoc { get; set; }
-        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + CallSites.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
+        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + CallSites.Count + Annotations.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
     }
 
     /// <summary>

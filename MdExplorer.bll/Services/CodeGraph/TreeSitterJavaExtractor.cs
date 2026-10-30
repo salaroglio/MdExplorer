@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "5";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42)
+        public string ExtractorVersion => "6";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -699,6 +699,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var fqn = outerFqn != null ? outerFqn + "." + name : (_pf.Package.Length == 0 ? name : _pf.Package + "." + name);
                 var kind = KindOf(decl);
                 var typeId = Declare(decl, kind, name, fqn, Signature(decl), null, Visibility(decl), parentId, isStatic: HasModifier(decl, "static"));
+                RecordAnnotations(decl, typeId, TypeParamsFor(fqn, null));
                 if (parentId != null) Edge(parentId, typeId, "contains", "extracted", Line(decl));
                 else
                 {
@@ -783,6 +784,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var name = NameOf(v);
                     if (name == null) continue;
                     var fid = Declare(v, "field", name, fqn + "." + name, Signature(field), typeNode?.Text, Visibility(field), typeId, isStatic: HasModifier(field, "static"));
+                    RecordAnnotations(field, fid, TypeParamsFor(fqn, null));
                     Edge(typeId, fid, "contains", "extracted", Line(v));
                     foreach (var t in TypeNames(typeNode)) Reference(fid, t, Line(field));
                     WalkBody(v, fid, fqn, Locals(v));   // inizializzatore: new X(), chiamate
@@ -796,6 +798,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var returnNode = kind == "constructor" ? null : ReturnTypeOf(m);
                 var qn = fqn + "." + name + ParameterTypeList(m);
                 var id = Declare(m, kind, name, qn, Signature(m), returnNode?.Text, Visibility(m), typeId, isStatic: HasModifier(m, "static"));
+                var typeParams = TypeParamsFor(fqn, m);
+                if (returnNode != null && ResolvedTypeName(returnNode, typeParams, out var returnConfidence) is { } returnName && returnConfidence != "platform")
+                    _script.Symbols[^1].ReturnTypeName = returnName;   // Declare l'ha appena aggiunto in coda
+                RecordAnnotations(m, id, typeParams);
                 Edge(typeId, id, "contains", "extracted", Line(m));
                 foreach (var t in TypeNames(returnNode)) Reference(id, t, Line(m));
                 EmitParameters(m, id);
@@ -918,6 +924,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void WalkBody(Node body, string ownerId, string ownerFqn, LocalScope locals, Node member = null)
             {
                 _typeParams = TypeParamsFor(ownerFqn, member);
+                // le catene (D43): ogni punto registrato col suo nodo; il ricevente si collega dopo, quando tutti ci sono
+                var sitesHere = new Dictionary<(int, int), ScriptCallSite>();
+                var chained = new List<(ScriptCallSite Site, Node Receiver)>();
                 foreach (var n in Walk(body))
                 {
                     if (n.Type == "method_invocation")
@@ -929,8 +938,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var argc = args?.NamedChildren.Count ?? -1;
                         ResolveCall(ownerId, ownerFqn, obj == nameNode ? null : obj, nameNode.Text, argc, locals, Line(n), n);
                         if (args != null)
-                            _callSites.Add(ownerId, Line(n), nameNode.Text, obj == nameNode ? null : obj.Text,
-                                args.NamedChildren.Where(c => c.Type is not ("line_comment" or "block_comment")).Select(StringValue).ToList());
+                        {
+                            var argNodes = args.NamedChildren.Where(c => c.Type is not ("line_comment" or "block_comment")).ToList();
+                            var site = _callSites.Add(ownerId, Line(n), nameNode.Text, obj == nameNode ? null : obj.Text,
+                                argNodes.Select(StringValue).ToList(), types: argNodes.Select((a, i) => TypeArgumentOf(a, i, _typeParams)).ToList());
+                            if (site != null)
+                            {
+                                sitesHere[((int)n.StartIndex, (int)n.EndIndex)] = site;
+                                if (obj != nameNode && obj != null) chained.Add((site, obj));
+                            }
+                        }
                     }
                     else if (n.Type == "explicit_constructor_invocation")
                     {
@@ -953,6 +970,115 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (head != null) TypeEdges(ownerId, head, "instantiates", Line(n));
                     }
                 }
+                foreach (var (site, receiver) in chained) LinkReceiver(site, receiver, sitesHere);
+            }
+
+            // ---- fatti per le regole di registrazione (D43, 30/10/2026): registrati, mai interpretati qui
+
+            /// <summary>
+            /// Il ricevente di una chiamata registrata, scendendo la catena fino alla prima chiamata registrata
+            /// (<c>bind(X.class).annotatedWith(…).to(Y.class)</c>: <c>to</c> → <c>bind</c>, anche se <c>annotatedWith</c> non è registrata).
+            /// </summary>
+            private static void LinkReceiver(ScriptCallSite site, Node receiver, Dictionary<(int, int), ScriptCallSite> sitesHere)
+            {
+                for (var x = receiver; x != null;)
+                {
+                    if (x.Type == "parenthesized_expression") { x = x.NamedChildren.FirstOrDefault(); continue; }
+                    if (x.Type != "method_invocation") return;
+                    if (sitesHere.TryGetValue(((int)x.StartIndex, (int)x.EndIndex), out var found))
+                    {
+                        site.ReceiverLine = found.Line; site.ReceiverOrdinal = found.Ordinal;
+                        return;
+                    }
+                    var name = x.NamedChildren.LastOrDefault(c => c.Type == "identifier");
+                    var obj = x.NamedChildren.FirstOrDefault();
+                    if (obj == null || obj == name) return;
+                    x = obj;
+                }
+            }
+
+            /// <summary>Un argomento <c>X.class</c> col tipo risolto; null per tutto il resto.</summary>
+            private ScriptTypeArgument TypeArgumentOf(Node arg, int position, IReadOnlyCollection<string> typeParams)
+            {
+                if (arg?.Type != "class_literal") return null;
+                var typeNode = arg.NamedChildren.FirstOrDefault(IsTypeNode);
+                if (typeNode == null) return null;
+                var name = ResolvedTypeName(typeNode, typeParams, out var confidence);
+                return name == null ? null : new ScriptTypeArgument { Position = position, TypeName = name, Confidence = confidence };
+            }
+
+            /// <summary>
+            /// Un tipo scritto, risolto come le chiamate: il nome qualificato se è uno solo (perimetro o libreria), il nome com'è
+            /// scritto con certezza <c>platform</c> per la piattaforma; null se ambiguo, sconosciuto o un parametro di tipo.
+            /// </summary>
+            private string ResolvedTypeName(Node typeNode, IReadOnlyCollection<string> typeParams, out string confidence)
+            {
+                confidence = null;
+                var r = _index.ResolveText(_ctx, typeNode.Text, typeParams);
+                switch (r.Kind)
+                {
+                    case TypeRefKind.Project when r.Fqns.Count == 1:
+                    case TypeRefKind.External when r.Fqns.Count == 1 && !r.Fqns[0].StartsWith("?", StringComparison.Ordinal):
+                        confidence = r.Confidence;
+                        return r.Fqns[0];
+                    case TypeRefKind.Platform:
+                        confidence = "platform";
+                        return r.PlatformName ?? TypeNames(typeNode).FirstOrDefault() ?? typeNode.Text;
+                    default:
+                        return null;
+                }
+            }
+
+            /// <summary>Le annotazioni che non dicono niente al grafo: non si registrano.</summary>
+            private static readonly HashSet<string> SilentAnnotations = new(StringComparer.Ordinal)
+                { "Override", "Deprecated", "SuppressWarnings", "SafeVarargs", "FunctionalInterface" };
+
+            /// <summary>
+            /// Le annotazioni della dichiarazione col nome risolto e gli argomenti stringa (a forma di nome) o <c>X.class</c> (anche in un array,
+            /// uno per elemento); costanti ed espressioni no. Un'annotazione su più campi dichiarati insieme vale per ognuno.
+            /// </summary>
+            private void RecordAnnotations(Node decl, string symbolId, IReadOnlyCollection<string> typeParams)
+            {
+                var modifiers = decl.NamedChildren.FirstOrDefault(c => c.Type == "modifiers");
+                if (modifiers == null) return;
+                var ordinal = 0;
+                foreach (var a in modifiers.NamedChildren.Where(c => c.Type is "marker_annotation" or "annotation"))
+                {
+                    var nameNode = a.NamedChildren.FirstOrDefault(c => c.Type is "identifier" or "scoped_identifier");
+                    if (nameNode == null || SilentAnnotations.Contains(nameNode.Text.Split('.').Last())) continue;
+                    var annotation = new ScriptAnnotation { SymbolId = symbolId, Ordinal = ordinal++, Name = nameNode.Text, Line = Line(a), TypeName = AnnotationTypeName(nameNode.Text) };
+                    var list = a.NamedChildren.FirstOrDefault(c => c.Type == "annotation_argument_list");
+                    var index = 0;
+                    foreach (var item in list?.NamedChildren.Where(c => c.Type is not ("line_comment" or "block_comment")) ?? Enumerable.Empty<Node>())
+                    {
+                        var element = "value";
+                        var value = item;
+                        if (item.Type == "element_value_pair")
+                        {
+                            element = item.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text ?? "value";
+                            value = item.NamedChildren.LastOrDefault();
+                        }
+                        var values = value?.Type == "element_value_array_initializer" ? value.NamedChildren.ToList() : new List<Node> { value };
+                        foreach (var v in values.Where(v => v != null))
+                        {
+                            // come i punti di chiamata: solo stringhe a forma di nome, non le frasi (@DisplayName, dati dei test)
+                            var text = StringValue(v) is { } sv && CodeCallSites.IsNameLike(sv) ? sv : null;
+                            var type = TypeArgumentOf(v, 0, typeParams);
+                            if (text == null && type == null) continue;
+                            annotation.Arguments.Add(new ScriptAnnotationArgument { Element = element, Index = index++, Value = text, TypeName = type?.TypeName });
+                        }
+                    }
+                    _script.Annotations.Add(annotation);
+                }
+            }
+
+            /// <summary>Il nome qualificato dell'annotazione: com'è scritto se ha già il package, se no dagli import (certi); null se della piattaforma o non si sa.</summary>
+            private string AnnotationTypeName(string written)
+            {
+                if (written.Contains('.')) return written;
+                var r = _index.Resolve(_ctx, written);
+                // solo se gli import lo dicono: senza, il resolver supporrebbe «stesso package» (inferred), e qui sarebbe un nome inventato
+                return r.Kind is TypeRefKind.Project or TypeRefKind.External && r.Fqns.Count == 1 && r.Confidence == "extracted" ? r.Fqns[0] : null;
             }
 
             /// <summary>

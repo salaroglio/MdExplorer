@@ -99,13 +99,17 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
             ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount"),
-            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard" }
+            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
             ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard"),
             ["RuleSet"] = Set("ruleId", "description", "writtenBy", "writtenAt", "schema"),
-            ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver"),
+            ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver", "receiverSite"),
             ["StringArgument"] = Set("argumentOf", "position", "value"),
+            // D43 (30/10/2026): i fatti per le regole di registrazione
+            ["TypeArgument"] = Set("argumentOf", "position", "typeName", "confidence"),
+            ["Annotation"] = Set("annotationOf", "ordinal", "name", "line", "path", "typeName"),
+            ["AnnotationArgument"] = Set("argumentOf", "position", "element", "value", "typeName"),
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
             ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash", "bodyHash", "contextHash", "promptVersion"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
@@ -193,6 +197,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     TrivialOf = n.OptStr("trivialOf"),
                     BodyHash = n.OptStr("bodyHash"),
                     Guard = n.OptStr("guard"),
+                    ReturnTypeName = n.OptStr("returnTypeName"),
                 });
             }
             foreach (var n in nodes.Where(n => n.Class == "Parameter"))
@@ -217,6 +222,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                     SourceId = SymbolId(n.IriValue("caller", path)), Callee = n.Str("callee", path), Line = n.Int("line", path),
                     Ordinal = n.Int("ordinal", path), ArgumentCount = n.Int("argumentCount", path), Receiver = n.OptStr("receiver"),
                 };
+                if (n.OptIri("receiverSite") is { } rs)
+                {
+                    // urn:mde:callsite:<chiamante>:<riga>:<ordine>, dello stesso chiamante
+                    var parts = rs.Split(':');
+                    if (parts.Length < 2 || !int.TryParse(parts[^2], out var rl) || !int.TryParse(parts[^1], out var ro))
+                        throw new CodeScriptFormatException(path, 0, $"<{n.Iri}>: code:receiverSite <{rs}> non è un punto di chiamata");
+                    c.ReceiverLine = rl; c.ReceiverOrdinal = ro;
+                }
                 sites[n.Iri] = c;
                 script.CallSites.Add(c);
             }
@@ -227,7 +240,37 @@ namespace MdExplorer.Features.Services.CodeGraph
                     throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:argumentOf <{of}> non è un code:CallSite dello script", $"<{n.Iri}>: code:argumentOf <{of}> is not a code:CallSite of the script"));
                 site.Arguments.Add(new ScriptStringArgument { Position = n.Int("position", path), Value = n.Str("value", path) });
             }
-            foreach (var c in script.CallSites) c.Arguments.Sort((a, b) => a.Position.CompareTo(b.Position));
+            foreach (var n in nodes.Where(n => n.Class == "TypeArgument"))
+            {
+                var of = n.IriValue("argumentOf", path);
+                if (!sites.TryGetValue(of, out var site))
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:argumentOf <{of}> non è un code:CallSite dello script", $"<{n.Iri}>: code:argumentOf <{of}> is not a code:CallSite of the script"));
+                site.TypeArguments.Add(new ScriptTypeArgument { Position = n.Int("position", path), TypeName = n.Str("typeName", path), Confidence = n.Str("confidence", path) });
+            }
+            foreach (var c in script.CallSites)
+            {
+                c.Arguments.Sort((a, b) => a.Position.CompareTo(b.Position));
+                c.TypeArguments.Sort((a, b) => a.Position.CompareTo(b.Position));
+            }
+            var annotations = new Dictionary<string, ScriptAnnotation>(StringComparer.Ordinal);
+            foreach (var n in nodes.Where(n => n.Class == "Annotation"))
+            {
+                var a = new ScriptAnnotation
+                {
+                    SymbolId = SymbolId(n.IriValue("annotationOf", path)), Ordinal = n.Int("ordinal", path), Name = n.Str("name", path),
+                    Line = n.Int("line", path), TypeName = n.OptStr("typeName"),
+                };
+                annotations[n.Iri] = a;
+                script.Annotations.Add(a);
+            }
+            foreach (var n in nodes.Where(n => n.Class == "AnnotationArgument"))
+            {
+                var of = n.IriValue("argumentOf", path);
+                if (!annotations.TryGetValue(of, out var a))
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:argumentOf <{of}> non è un code:Annotation dello script", $"<{n.Iri}>: code:argumentOf <{of}> is not a code:Annotation of the script"));
+                a.Arguments.Add(new ScriptAnnotationArgument { Index = n.Int("position", path), Element = n.Str("element", path), Value = n.OptStr("value"), TypeName = n.OptStr("typeName") });
+            }
+            foreach (var a in script.Annotations) a.Arguments.Sort((x, y) => x.Index.CompareTo(y.Index));
         }
 
         private static void ReadRule(CodeScript script, List<Node> nodes, string path)

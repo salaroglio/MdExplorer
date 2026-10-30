@@ -79,6 +79,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.TrivialOf != null) sb.Append(" ; code:trivialOf ").Append(Lit(s.TrivialOf));
                 if (s.BodyHash != null) sb.Append(" ; code:bodyHash ").Append(Lit(s.BodyHash));
                 if (s.Guard != null) sb.Append(" ; code:guard ").Append(Lit(s.Guard));
+                if (s.ReturnTypeName != null) sb.Append(" ; code:returnTypeName ").Append(Lit(s.ReturnTypeName));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
                 FromScript(sb, fromScriptLit).Append(" .\n");
@@ -127,13 +128,47 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:argumentCount ").Append(Int(c.ArgumentCount))
                   .Append(" ; code:path ").Append(Lit(h.Source));
                 if (c.Receiver != null) sb.Append(" ; code:receiver ").Append(Lit(c.Receiver));
+                if (c.ReceiverLine != null && c.ReceiverOrdinal != null) sb.Append(" ; code:receiverSite ").Append(Iri(CallSite(c.SourceId, c.ReceiverLine.Value, c.ReceiverOrdinal.Value)));
                 FromScript(sb, fromScriptLit).Append(" .\n");
+                // gli argomenti X.class (D43): code:typeName e non code:value, così le regole sulle stringhe non li vedono
+                foreach (var t in c.TypeArguments)
+                {
+                    sb.Append(Iri(TypeArgument(cs, t.Position))).Append(" a ").Append(CodeOntology.ClassTypeArgument)
+                      .Append(" ; code:argumentOf ").Append(Iri(cs))
+                      .Append(" ; code:position ").Append(Int(t.Position))
+                      .Append(" ; code:typeName ").Append(Lit(t.TypeName))
+                      .Append(" ; code:confidence ").Append(Lit(t.Confidence));
+                    FromScript(sb, fromScriptLit).Append(" .\n");
+                }
                 foreach (var a in c.Arguments)
                 {
                     sb.Append(Iri(StringArgument(cs, a.Position))).Append(" a ").Append(CodeOntology.ClassStringArgument)
                       .Append(" ; code:argumentOf ").Append(Iri(cs))
                       .Append(" ; code:position ").Append(Int(a.Position))
                       .Append(" ; code:value ").Append(Lit(a.Value));
+                    FromScript(sb, fromScriptLit).Append(" .\n");
+                }
+            }
+
+            foreach (var a in script.Annotations)
+            {
+                var ai = Annotation(a.SymbolId, a.Ordinal);
+                sb.Append(Iri(ai)).Append(" a ").Append(CodeOntology.ClassAnnotation)
+                  .Append(" ; code:annotationOf ").Append(Iri(Symbol(a.SymbolId)))
+                  .Append(" ; code:ordinal ").Append(Int(a.Ordinal))
+                  .Append(" ; code:name ").Append(Lit(a.Name))
+                  .Append(" ; code:line ").Append(Int(a.Line))
+                  .Append(" ; code:path ").Append(Lit(h.Source));
+                if (a.TypeName != null) sb.Append(" ; code:typeName ").Append(Lit(a.TypeName));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+                foreach (var x in a.Arguments)
+                {
+                    sb.Append(Iri(AnnotationArgument(ai, x.Index))).Append(" a ").Append(CodeOntology.ClassAnnotationArgument)
+                      .Append(" ; code:argumentOf ").Append(Iri(ai))
+                      .Append(" ; code:position ").Append(Int(x.Index))
+                      .Append(" ; code:element ").Append(Lit(x.Element));
+                    if (x.Value != null) sb.Append(" ; code:value ").Append(Lit(x.Value));
+                    if (x.TypeName != null) sb.Append(" ; code:typeName ").Append(Lit(x.TypeName));
                     FromScript(sb, fromScriptLit).Append(" .\n");
                 }
             }
