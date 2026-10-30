@@ -183,6 +183,24 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Keep_in_the_scan_state_the_source_control_the_graph_comes_from()
+        {
+            // 30/10/2026: git o SVN, la revisione, il ramo, le modifiche locali; una scansione di prima non ce l'ha e non si inventa
+            await _store.UpsertScanStateAsync(_project, new CodeScanState { ProgramFolder = "src", Mode = "hash", Candidates = 1, Reparsed = 1 });
+            Assert.IsNull((await _store.GetScanStateAsync(_project, "src")).SourceControl);
+
+            await _store.UpsertScanStateAsync(_project, new CodeScanState { ProgramFolder = "src", Mode = "hash", Candidates = 1, Reparsed = 1,
+                SourceControl = new SourceControlInfo { Kind = SourceControlInfo.Svn, Revision = "1230:1240", Branch = "^/trunk/prog", LocalChanges = 3 } });
+            var sc = (await _store.GetScanStateAsync(_project, "src")).SourceControl;
+            Assert.AreEqual((SourceControlInfo.Svn, "1230:1240", "^/trunk/prog", 3, (string)null), (sc.Kind, sc.Revision, sc.Branch, sc.LocalChanges, sc.Note));
+
+            await _store.UpsertScanStateAsync(_project, new CodeScanState { ProgramFolder = "src", Mode = "hash", Candidates = 1, Reparsed = 1,
+                SourceControl = new SourceControlInfo { Kind = SourceControlInfo.Svn, Note = "svnversion non installato" } });
+            sc = (await _store.GetScanStateAsync(_project, "src")).SourceControl;
+            Assert.AreEqual((SourceControlInfo.Svn, (string)null, 0, "svnversion non installato"), (sc.Kind, sc.Revision, sc.LocalChanges, sc.Note), "la revisione vecchia non resta appesa");
+        }
+
+        [TestMethod]
         public async Task Keep_scripts_of_a_newer_schema_on_retirement()
         {
             File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody).Replace($"\"schema\":{CodeScriptParser.CurrentSchema}", "\"schema\":99"));

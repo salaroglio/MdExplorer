@@ -326,6 +326,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (state.AnalyzedCommit != null) sb.Append(" ; code:analyzedCommit ").Append(Lit(state.AnalyzedCommit));
             if (!string.IsNullOrEmpty(state.Bridges)) sb.Append(" ; code:bridges ").Append(Lit(state.Bridges));
             if (!string.IsNullOrEmpty(state.RemoteStamps)) sb.Append(" ; code:remoteStamps ").Append(Lit(state.RemoteStamps));
+            if (state.SourceControl is { } sc)
+            {
+                sb.Append(" ; code:scmKind ").Append(Lit(sc.Kind ?? SourceControlInfo.Unknown)).Append(" ; code:scmLocalChanges ").Append(Int(sc.LocalChanges));
+                if (sc.Revision != null) sb.Append(" ; code:scmRevision ").Append(Lit(sc.Revision));
+                if (sc.Branch != null) sb.Append(" ; code:scmBranch ").Append(Lit(sc.Branch));
+                if (sc.Note != null) sb.Append(" ; code:scmNote ").Append(Lit(sc.Note));
+            }
             sb.Append(" . } }\n");
             return sb.ToString();
         }

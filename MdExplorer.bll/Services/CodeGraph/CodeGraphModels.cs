@@ -170,6 +170,44 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// impronta» per file. Fanno per il server quello che il commit fa per git: dicono che cosa è cambiato.
         /// </summary>
         public string RemoteStamps { get; set; }
+        /// <summary>Da quale stato del gestore di sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli.</summary>
+        public SourceControlInfo SourceControl { get; set; }
+    }
+
+    /// <summary>La riga «Sorgenti» della finestra «Ambiente di sviluppo»: lo stato dei sorgenti alla scansione e adesso.</summary>
+    public sealed class CodeSourceControlView
+    {
+        public string Folder { get; set; }
+        /// <summary>Quando è stata fatta l'ultima scansione; null se mai.</summary>
+        public string ScannedAt { get; set; }
+        /// <summary>Lo stato alla scansione; null se mai scansionata o scansionata prima del 30/10/2026.</summary>
+        public SourceControlInfo Scanned { get; set; }
+        public SourceControlInfo Now { get; set; }
+    }
+
+    /// <summary>
+    /// Il gestore di sorgenti di una cartella e il suo stato, rilevato e mai scelto (utente, 30/10/2026: «le stesse
+    /// informazioni anche nel caso in cui il sorgente fosse su git»): la cartella più vicina fra <c>.git</c> e <c>.svn</c>,
+    /// salendo, decide. Serve a dire «il grafo è della revisione X» e, confrontato con adesso, quanto è indietro.
+    /// </summary>
+    public sealed class SourceControlInfo
+    {
+        public const string Git = "git";
+        public const string Svn = "svn";
+        public const string None = "none";
+        /// <summary>Radice remota: MDE Remote non lo chiede ancora.</summary>
+        public const string Unknown = "unknown";
+
+        /// <summary><see cref="Git"/>, <see cref="Svn"/>, <see cref="None"/> o <see cref="Unknown"/>.</summary>
+        public string Kind { get; set; }
+        /// <summary>Il commit (git) o la revisione (SVN: <c>1240</c>, o <c>1230:1240</c> per una copia mista); null se non si sa, e <see cref="Note"/> dice perché.</summary>
+        public string Revision { get; set; }
+        /// <summary>Il ramo (git) o l'URL relativo al repository (SVN: <c>^/trunk/prog</c>).</summary>
+        public string Branch { get; set; }
+        /// <summary>I file già nel gestore modificati in locale e non ancora salvati: con questi la revisione da sola non basta.</summary>
+        public int LocalChanges { get; set; }
+        /// <summary>Perché manca qualcosa (nessun gestore, comando non installato, radice remota); null se tutto è stato letto.</summary>
+        public string Note { get; set; }
     }
 
     public sealed class CodeSymbolView

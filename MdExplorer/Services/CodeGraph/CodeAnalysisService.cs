@@ -89,6 +89,8 @@ namespace MdExplorer.Services.CodeGraph
     {
         /// <summary>I linguaggi rilevati nella cartella (per estensione, dopo gli ignore) e quelli scelti in <c>.development.yml</c>.</summary>
         Task<CodeFolderLanguages> GetLanguagesAsync(string projectPath, string folderRelative, CancellationToken ct = default);
+        /// <summary>Da quale stato dei sorgenti viene il grafo della cartella (all'ultima scansione) e com'è adesso: la riga «Sorgenti» della finestra.</summary>
+        Task<CodeSourceControlView> SourceControlAsync(string projectPath, string folderRelative, CancellationToken ct = default);
         /// <summary>Salva la scelta in <c>.development.yml</c> (voce della cartella, <c>codeGraph.languages</c>). Lista vuota = toglie la voce.</summary>
         /// <param name="descriptionMode"><c>all</c>, <c>onDemand</c> o null = lascia quello che c'è.</param>
         void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages, string descriptionMode = null);
@@ -152,6 +154,7 @@ namespace MdExplorer.Services.CodeGraph
     public sealed class CodeAnalysisService : ICodeAnalysisService
     {
         private readonly ICodeChangeScanner _scanner;
+        private readonly ISourceControlProbe _sourceControl;
         private readonly ICodeExtractorRegistry _extractors;
         private readonly ICodeGraphStore _store;
         private readonly CodeGraphReportWriter _report;
@@ -164,9 +167,9 @@ namespace MdExplorer.Services.CodeGraph
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CodeScanInProgress> _scanning = new();
 
         public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeGraphStore store,
-            CodeGraphReportWriter report, ICodeRootService roots, RemoteCodeScanner remote, IHubContext<MonitorMDHub> hub, IServiceProvider services, ILogger<CodeAnalysisService> logger)
+            CodeGraphReportWriter report, ICodeRootService roots, RemoteCodeScanner remote, IHubContext<MonitorMDHub> hub, IServiceProvider services, ILogger<CodeAnalysisService> logger, ISourceControlProbe sourceControl)
         {
-            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _remote = remote; _hub = hub; _services = services; _logger = logger;
+            _scanner = scanner; _sourceControl = sourceControl; _extractors = extractors; _store = store; _report = report; _roots = roots; _remote = remote; _hub = hub; _services = services; _logger = logger;
         }
 
         /// <summary>
@@ -292,6 +295,17 @@ namespace MdExplorer.Services.CodeGraph
         private static string NotAnalyzableReason(CodeRootState root) => root.Status != CodeRootStatus.Linked ? root.Reason : null;
 
         // ------------------------------------------------------------------ .development.yml
+
+        public async Task<CodeSourceControlView> SourceControlAsync(string projectPath, string folderRelative, CancellationToken ct = default)
+        {
+            folderRelative = NormalizeRelative(folderRelative);
+            var scope = await ScopeOfAsync(projectPath, folderRelative, ct);
+            var scan = await _store.GetScanStateAsync(projectPath, folderRelative, ct);
+            var now = scope.Unusable != null ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = scope.Unusable }
+                : scope.Remote != null ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }
+                : await _sourceControl.ProbeAsync(scope.FolderAbs, ct);
+            return new CodeSourceControlView { Folder = folderRelative, ScannedAt = scan?.ScannedAt, Scanned = scan?.SourceControl, Now = now };
+        }
 
         public async Task<CodeFolderLanguages> GetLanguagesAsync(string projectPath, string folderRelative, CancellationToken ct = default)
         {
@@ -698,9 +712,13 @@ namespace MdExplorer.Services.CodeGraph
                 else if (outcome.Reparsed > 0 && outcome.Reparsed == inPerimeter.Count)
                     outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct);
                 else outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
+                // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli
+                var sourceControl = scope.Remote != null
+                    ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }
+                    : await _sourceControl.ProbeAsync(scope.FolderAbs, ct);
                 await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {
-                    Bridges = bridgeSet.Signature,
+                    Bridges = bridgeSet.Signature, SourceControl = sourceControl,
                     ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode, RemoteStamps = remote?.Stamps,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
                 }, ct);

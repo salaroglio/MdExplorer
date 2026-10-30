@@ -234,6 +234,19 @@
     </div>
     <table class="info-table" *ngIf="(configured && (preview || previewLoading)) || runningRun">
       <tr>
+        <th>{{ 'DEV_ENV.T_SOURCES' | translate }}</th>
+        <td>
+          <ng-container *ngIf="sourceControl; else sourcesPending">
+            {{ sourceControlLine }}
+            <div class="sub" [class.warn]="sourceControlBehind">{{ sourceControlScanned }}</div>
+          </ng-container>
+          <ng-template #sourcesPending>
+            <span *ngIf="sourceControlError" class="warn">{{ sourceControlError }}</span>
+            <ng-container *ngIf="!sourceControlError"><ng-container *ngTemplateOutlet="calculating"></ng-container></ng-container>
+          </ng-template>
+        </td>
+      </tr>
+      <tr>
         <th>{{ 'DEV_ENV.T_TODO' | translate }}</th>
         <td [class.stale]="previewLoading">
           <ng-container *ngIf="preview; else calculating">

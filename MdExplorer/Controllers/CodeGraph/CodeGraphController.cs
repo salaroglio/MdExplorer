@@ -125,6 +125,20 @@ namespace MdExplorer.Controllers.CodeGraph
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
         });
 
+        /// <summary>
+        /// GET /api/codegraph/source-control?projectPath&amp;folderPath — git o SVN, rilevati da soli (30/10/2026): la revisione
+        /// da cui viene il grafo della cartella e quella di adesso, con le modifiche locali. Sola lettura.
+        /// </summary>
+        [HttpGet("source-control")]
+        public Task<IActionResult> SourceControl([FromQuery] string projectPath, [FromQuery] string folderPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath);
+            if (bad != null) return bad;
+            var rel = ToRelative(projectPath, folderPath);
+            if (rel == null) return BadRequest(new { error = UiText.Say("folderPath deve stare dentro il progetto", "folderPath must be inside the project") });
+            return Ok(await _analysis.SourceControlAsync(projectPath, rel, ct));
+        });
+
         public class ResumeRequest { public string? ProjectPath { get; set; } public string? Folder { get; set; } public string? ConnectionId { get; set; } }
 
         /// <summary>
@@ -820,7 +834,7 @@ namespace MdExplorer.Controllers.CodeGraph
                 {
                     folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
-                    lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges },
+                    lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges, sourceControl = scan.SourceControl },
                     // i programmi da cui questo dipende secondo il build; «linked» = il ponte è attivo nel grafo dall'ultima analisi
                     uses = bridges.Where(b => b.From == p.Folder).Select(b => new
                     {

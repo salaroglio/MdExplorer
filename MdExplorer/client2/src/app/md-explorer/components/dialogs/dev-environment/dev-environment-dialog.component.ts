@@ -5,7 +5,7 @@ import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef, MAT_L
 import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, SourceControlInfo, SourceControlView, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
 
 export interface DevEnvironmentDialogData {
@@ -138,6 +138,49 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public noStructure = true;
   get structureReady(): boolean { return this.outcome != null || !this.noStructure; }
 
+  /** La riga «Sorgenti» (30/10/2026): testi calcolati una volta all'arrivo, mai un getter nel template. */
+  public sourceControl: SourceControlView | null = null;
+  public sourceControlLine = '';
+  public sourceControlScanned = '';
+  public sourceControlBehind = false;
+  public sourceControlError = '';
+
+  private loadSourceControl(): void {
+    this.codeGraph.sourceControl(this.data.projectRoot, this.data.folderPath).subscribe({
+      next: v => {
+        this.sourceControl = v;
+        this.sourceControlError = '';
+        this.sourceControlLine = this.describeSourceControl(v.now);
+        const at = v.scannedAt ? new Date(v.scannedAt).toLocaleString() : '';
+        const then = v.scanned, now = v.now;
+        this.sourceControlBehind = !!(then?.revision && now.revision && then.revision !== now.revision);
+        this.sourceControlScanned =
+          !v.scannedAt ? this.translate.instant('DEV_ENV.SCM_NEVER')
+          : !then ? this.translate.instant('DEV_ENV.SCM_NOT_RECORDED', { at })
+          : this.sourceControlBehind ? this.translate.instant('DEV_ENV.SCM_BEHIND', { revision: this.shortRevision(then), at })
+          : then.revision && then.revision === now.revision
+            ? this.translate.instant(then.localChanges > 0 ? 'DEV_ENV.SCM_ALIGNED_LOCAL' : 'DEV_ENV.SCM_ALIGNED', { at, count: then.localChanges })
+          : this.translate.instant('DEV_ENV.SCM_SCANNED_AT', { at, state: this.describeSourceControl(then) });
+      },
+      error: (err) => { this.sourceControl = null; this.sourceControlError = err?.error?.error || err?.message || ''; }
+    });
+  }
+
+  private shortRevision(s: SourceControlInfo): string {
+    return s.kind === 'git' ? (s.revision ?? '').substring(0, 8) : 'r' + s.revision;
+  }
+
+  private describeSourceControl(s: SourceControlInfo): string {
+    if (s.kind === 'none') { return this.translate.instant('DEV_ENV.SCM_NONE'); }
+    if (s.kind === 'unknown') { return s.note ?? this.translate.instant('DEV_ENV.SCM_UNKNOWN'); }
+    const parts = [s.kind === 'git' ? 'git' : 'SVN'];
+    if (s.revision) { parts[0] += ' ' + this.shortRevision(s); }
+    if (s.branch) { parts.push(s.branch); }
+    if (s.localChanges > 0) { parts.push(this.translate.instant('DEV_ENV.SCM_LOCAL', { count: s.localChanges })); }
+    if (s.note) { parts.push(s.note); }
+    return parts.join(' · ');
+  }
+
   private loadOutdated(): void {
     this.codeGraph.outdated(this.data.projectRoot, this.folderRelative).subscribe({
       next: o => { this.outdated = o.count > 0 ? o : null; },
@@ -155,7 +198,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.upgrading = false;
         this.outdated = null;
         this.showOutdatedFiles = false;
-        this.loadOutdated();
+        this.loadOutdated(); this.loadSourceControl();
         this.loadPreview();
         if (then) { then(); }
       },
@@ -413,7 +456,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
         this.descriptionMode = this.configured ? res.describe : null;
-        if (this.configured) { this.loadPreview(); this.loadOutdated(); }
+        if (this.configured) { this.loadPreview(); this.loadOutdated(); this.loadSourceControl(); }
         this.descriptionParallel = res.descriptionParallel || 3;
         // Prima volta: si propongono i linguaggi rilevati che hanno un estrattore pronto.
         if (this.selected.size === 0) {
@@ -558,7 +601,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
           next: (res) => {
             this.analyzing = false;
             this.outcome = res.folder ?? null;
-            if (this.outcome?.error) { this.errorMessage = this.outcome.error; } else { this.loadPreview(); this.loadOutdated(); }
+            if (this.outcome?.error) { this.errorMessage = this.outcome.error; } else { this.loadPreview(); this.loadOutdated(); this.loadSourceControl(); }
           },
           error: (err) => {
             this.analyzing = false;

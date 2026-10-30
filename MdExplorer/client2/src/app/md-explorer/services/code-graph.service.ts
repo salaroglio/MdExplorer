@@ -175,6 +175,23 @@ export interface DescribePreview {
   scriptsBytes: number;
 }
 
+/** Il gestore di sorgenti di una cartella (git o SVN, rilevato da solo), come lo dà il backend (SourceControlInfo). */
+export interface SourceControlInfo {
+  kind: 'git' | 'svn' | 'none' | 'unknown';
+  revision: string | null;
+  branch: string | null;
+  localChanges: number;
+  note: string | null;
+}
+
+/** La riga «Sorgenti»: lo stato dei sorgenti all'ultima scansione e adesso (CodeSourceControlView). */
+export interface SourceControlView {
+  folder: string;
+  scannedAt: string | null;
+  scanned: SourceControlInfo | null;
+  now: SourceControlInfo;
+}
+
 /** Regole di arricchimento del grafo (D42): una cartella in cui la regola trova chiamate, per scegliere la portata. */
 export interface CodeRuleContext { prefix: string; depth: number; callSites: number; resolved: number; }
 
@@ -359,6 +376,10 @@ export class CodeGraphService {
   }
 
   /** Gli script della cartella scritti da un estrattore precedente (D25); `folder` relativa alla radice del progetto o «@alias». */
+  sourceControl(projectPath: string, folderPath: string): Observable<SourceControlView> {
+    return this.http.get<SourceControlView>('../api/codegraph/source-control', { params: { projectPath, folderPath } });
+  }
+
   outdated(projectPath: string, folder: string): Observable<OutdatedScripts> {
     return this.http.get<OutdatedScripts>('../api/codegraph/outdated', { params: { projectPath, folder } });
   }

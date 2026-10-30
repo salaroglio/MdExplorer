@@ -67,6 +67,7 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeGraphTurnRefresher, MdExplorer.Services.CodeGraph.CodeGraphTurnRefresher>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ISourceControlProbe, MdExplorer.Services.CodeGraph.SourceControlProbe>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeDocJobService, MdExplorer.Services.CodeGraph.CodeDocJobService>();
             return services;
