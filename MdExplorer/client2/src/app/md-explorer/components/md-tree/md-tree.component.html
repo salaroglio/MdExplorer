@@ -366,7 +366,9 @@
     <button mat-icon-button color="primary">
       <mat-icon class="mat-icon-rtl-mirror">{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
     </button>
-    <mat-icon class="code-root-folder-icon">{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+    <!-- cartella marcata program: la stessa icona delle cartelle program del progetto -->
+    <mat-icon *ngIf="isCodeRootProgram(node)" color="primary" class="mat-icon-rtl-mirror terminal-icon">terminal</mat-icon>
+    <mat-icon *ngIf="!isCodeRootProgram(node)" class="code-root-folder-icon">{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
     <div class="node-text">{{node.name}}</div>
   </mat-tree-node>
 
