@@ -17,7 +17,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
     /// <summary>Perché un punto di chiamata non ha trovato il metodo: il motivo che Mark legge per correggere la regola.</summary>
     [System.Text.Json.Serialization.JsonConverter(typeof(CamelCaseEnumConverter))]
-    public enum CodeRuleMiss { NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets, PageNotFound }
+    public enum CodeRuleMiss
+    {
+        NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets, PageNotFound,
+        // regole di registrazione (D43): il fatto che manca, o il capo che il grafo non ha
+        NoTypeArgument, NoChain, ChainAmbiguous, NoReturnType, AbstractionNotInGraph, ImplementationNotInGraph,
+    }
 
     public sealed class CodeRuleSiteResult
     {
@@ -55,6 +60,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Unresolved { get; set; }
         /// <summary>Le chiamate fuori dalla portata scelta (<see cref="CodeEnrichmentRule.Scope"/>).</summary>
         public int OutOfScope { get; set; }
+        /// <summary>
+        /// Regole di registrazione (D43): punti letti bene ma con un capo che il grafo non ha (una classe di libreria).
+        /// Non pesano sulla quota collegata: la convenzione è letta giusta, è il bersaglio che sta fuori. Il motivo è in <see cref="MissCounts"/>.
+        /// </summary>
+        public int OutsideGraph { get; set; }
         /// <summary>
         /// Le cartelle con chiamate da risolvere, su tutto il grafo (anche fuori portata), dalla più grande alla più piccola:
         /// l'impegno di calcolo di ciascuna è il numero di chiamate (fino a 3 livelli, al più <see cref="CodeRuleEngine.MaxContexts"/>).
@@ -212,7 +222,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>Le cartelle che contengono il file, fino a <see cref="MaxContextDepth"/> livelli: <c>a/</c>, <c>a/b/</c>, <c>a/b/c/</c>.</summary>
-        private static IEnumerable<CodeRuleContext> ContextsOf(string path, Dictionary<string, CodeRuleContext> contexts)
+        internal static IEnumerable<CodeRuleContext> ContextsOf(string path, Dictionary<string, CodeRuleContext> contexts)
         {
             var parts = (path ?? string.Empty).Split('/');
             var prefix = string.Empty;

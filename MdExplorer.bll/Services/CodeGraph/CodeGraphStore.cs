@@ -42,6 +42,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// In ordine di file, riga e ordine sulla riga.
         /// </summary>
         Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
+        /// <summary>I punti di chiamata di <paramref name="callee"/> con argomenti X.class (D43), anche quelli con soli tipi.</summary>
+        Task<List<CodeCallSiteView>> TypeCallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
+        /// <summary>
+        /// Le catene (D43): per ogni punto di <paramref name="callee"/>, i punti di <paramref name="downCallee"/> che si
+        /// trovano scendendo i suoi riceventi (<c>to</c> → <c>bind</c>), con i loro argomenti X.class. Chiave: l'IRI del punto.
+        /// </summary>
+        Task<Dictionary<string, List<CodeCallSiteView>>> ChainsAsync(string projectPath, string callee, string downCallee, CancellationToken ct = default);
+        /// <summary>I simboli con l'annotazione <paramref name="annotation"/> (nome com'è scritto o qualificato), con gli argomenti (D43).</summary>
+        Task<List<CodeAnnotatedView>> AnnotatedAsync(string projectPath, string annotation, CancellationToken ct = default);
         /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).

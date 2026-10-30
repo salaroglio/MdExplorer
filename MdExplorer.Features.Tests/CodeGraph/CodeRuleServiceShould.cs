@@ -175,6 +175,80 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("main", (await _store.CallSitesAsync(_project, "named")).Single().Arguments[0]);
         }
 
+        /// <summary>
+        /// D43 passo 2: Guice scritto come regole di registrazione, non nel codice di MdExplorer. bind(X.class)…to(Y.class),
+        /// @ImplementedBy(Y.class), @Provides: archi resolvesTo con certezza «rule», metodo per metodo, e l'impatto risale.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_guice_bindings_written_as_registration_rules()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Store.java"), "package com.acme;\n\nimport com.google.inject.ImplementedBy;\n\n@ImplementedBy(FileStore.class)\npublic interface Store {\n    void save();\n}\n");
+            File.WriteAllText(Path.Combine(src, "FileStore.java"), "package com.acme;\n\npublic class FileStore implements Store {\n    public void save() { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Clock.java"), "package com.acme;\n\npublic interface Clock { }\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"), "package com.acme;\n\npublic class Runner {\n    public void run(Exporter e) {\n        e.export(\"x\");\n    }\n}\n");
+            File.WriteAllText(Path.Combine(src, "AppModule.java"),
+                "package com.acme;\n\nimport com.google.inject.AbstractModule;\nimport com.google.inject.Provides;\nimport com.google.inject.name.Names;\n\n" +
+                "public class AppModule extends AbstractModule {\n" +
+                "    protected void configure() {\n" +
+                "        bind(Exporter.class).annotatedWith(Names.named(\"main\")).to(PdfExporter.class);\n" +   // riga 9
+                "        bind(Exporter.class).to(Lib.class);\n" +                                                    // riga 10: classe fuori dal grafo
+                "    }\n" +
+                "    @Provides\n    Clock clock() { return null; }\n" +                                               // righe 12-13
+                "}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var bind = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-bind"", ""kind"": ""registration"", ""description"": ""bind(X).to(Y): Guice usa Y quando serve X."",
+                ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""chain"", ""callee"": ""bind"", ""argument"": 0 },
+                ""implementation"": { ""from"": ""argument"", ""argument"": 0 }, ""describe"": ""Con quale qualificatore e durata?"" }");
+            var preview = await _rules.PreviewAsync(_project, bind);
+            Assert.IsTrue(preview.Accepted, string.Join(" ", preview.RejectReasons));
+            Assert.AreEqual((2, 1, 0, 1), (preview.CallSites, preview.Resolved, preview.Unresolved, preview.OutsideGraph), "Lib è fuori dal grafo: letta giusta, non pesa sulla quota");
+            Assert.AreEqual(1, preview.MissCounts["implementationNotInGraph"], "ma si dice");
+            Assert.AreEqual(("com.acme.Exporter → com.acme.PdfExporter", 9), (preview.Sample.Single().Value, preview.Sample.Single().Site.Line));
+            await _rules.ApplyAsync(_project, bind, "MarkAgent / test");
+            var exporter = (await _store.ResolveAsync(_project, "com.acme.Exporter")).Single(x => x.Kind == "interface").Id;
+            var edge = (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single();
+            Assert.AreEqual(("com.acme.PdfExporter", "rule", 9), (edge.Other.QualifiedName, edge.Confidence, edge.Line));
+            var pdfExport = (await _store.ResolveAsync(_project, "com.acme.PdfExporter.export")).Single(x => x.Kind == "method").Id;
+            CollectionAssert.Contains((await _store.ImpactAsync(_project, pdfExport, 2, 20)).Select(e => e.Other.QualifiedName).ToList(), "com.acme.Runner.run(Exporter)",
+                "l'impatto dell'implementazione risale a chi chiama l'interfaccia");
+
+            var implementedBy = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-implemented-by"", ""kind"": ""registration"", ""description"": ""@ImplementedBy(Y): l'implementazione predefinita."",
+                ""anchor"": { ""annotation"": ""ImplementedBy"" }, ""abstraction"": { ""from"": ""annotated"" }, ""implementation"": { ""from"": ""annotationArgument"" } }");
+            await _rules.ApplyAsync(_project, implementedBy, "MarkAgent / test");
+            var store = (await _store.ResolveAsync(_project, "com.acme.Store")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("com.acme.FileStore", (await _store.NeighborsAsync(_project, store, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+            var save = (await _store.ResolveAsync(_project, "com.acme.Store.save")).Single(x => x.Kind == "method").Id;
+            Assert.AreEqual("com.acme.FileStore.save()", (await _store.NeighborsAsync(_project, save, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName, "e metodo per metodo");
+
+            var provides = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-provides"", ""kind"": ""registration"", ""description"": ""@Provides: il metodo fornisce il tipo che restituisce."",
+                ""anchor"": { ""annotation"": ""Provides"" }, ""abstraction"": { ""from"": ""returnType"" }, ""implementation"": { ""from"": ""annotated"" } }");
+            await _rules.ApplyAsync(_project, provides, "MarkAgent / test");
+            var clock = (await _store.ResolveAsync(_project, "com.acme.Clock")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("com.acme.AppModule.clock()", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName,
+                "l'astrazione si risolve nel metodo che la fornisce");
+            Assert.AreEqual(3, _rules.List(_project).Count);
+            Assert.AreEqual(CodeRuleKind.Registration, _rules.List(_project).Single(r => r.Id == "guice-bind").Kind);
+            Assert.AreEqual("Con quale qualificatore e durata?", _rules.List(_project).Single(r => r.Id == "guice-bind").Describe);
+        }
+
+        [TestMethod]
+        public void Refuse_a_registration_rule_that_reads_a_fact_its_anchor_does_not_have()
+        {
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""returnType"" }, ""implementation"": { ""from"": ""argument"", ""argument"": 0 } }"));
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""annotation"": ""Provides"" }, ""abstraction"": { ""from"": ""chain"", ""callee"": ""bind"", ""argument"": 0 }, ""implementation"": { ""from"": ""annotated"" } }"));
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""call"": { ""callee"": ""to"", ""argument"": 0 }, ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""argument"", ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""argument"": 1 } }"),
+                "i campi di una regola dispatch non valgono");
+            Assert.AreEqual(CodeRuleKind.Dispatch, CodeEnrichmentRule.Parse(Rule).Kind, "una regola di prima resta dispatch");
+        }
+
         [TestMethod]
         public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
         {

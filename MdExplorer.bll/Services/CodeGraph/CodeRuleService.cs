@@ -33,6 +33,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<CodeRulePreview> PreviewAsync(string projectPath, CodeEnrichmentRule rule, CancellationToken ct = default)
         {
             rule.Validate();
+            if (rule.Kind == CodeRuleKind.Registration) return await PreviewRegistrationAsync(projectPath, rule, ct);
             var aliasMap = ReadAliasMap(projectPath, rule);
             var sites = await _store.CallSitesAsync(projectPath, rule.Call.Callee, ct);
             var paired = rule.Owner.From == CodeRuleOwnerSource.PairedCall
@@ -50,6 +51,28 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             else owners = await _store.OwnersWithMembersAsync(projectPath, CodeRuleEngine.OwnerKeys(rule, sites, paired, aliasMap), ct);
             return CodeRuleEngine.Evaluate(rule, sites, paired, aliasMap, owners);
+        }
+
+        /// <summary>
+        /// Una regola di registrazione (D43): i fatti dal grafo (punti con X.class e loro catene, o simboli annotati), le
+        /// coppie, le classi, gli archi <c>resolvesTo</c>.
+        /// </summary>
+        private async Task<CodeRulePreview> PreviewRegistrationAsync(string projectPath, CodeEnrichmentRule rule, CancellationToken ct)
+        {
+            var sites = new List<CodeCallSiteView>();
+            var chains = new Dictionary<string, List<CodeCallSiteView>>(StringComparer.Ordinal);
+            var annotated = new List<CodeAnnotatedView>();
+            if (rule.Anchor.Call != null)
+            {
+                sites = await _store.TypeCallSitesAsync(projectPath, rule.Anchor.Call, ct);
+                foreach (var end in new[] { rule.Abstraction, rule.Implementation }.Where(e => e.From == CodeRuleEndSource.Chain).DistinctBy(e => e.Callee))
+                    foreach (var kv in await _store.ChainsAsync(projectPath, rule.Anchor.Call, end.Callee, ct))
+                        chains[kv.Key] = kv.Value;   // una sola chiamata della catena per regola: abstraction e implementation la condividono
+            }
+            else annotated = await _store.AnnotatedAsync(projectPath, rule.Anchor.Annotation, ct);
+            var candidates = CodeRegistrationRuleEngine.Prepare(rule, sites, chains, annotated);
+            var owners = await _store.OwnersWithMembersAsync(projectPath, CodeRegistrationRuleEngine.OwnerKeys(candidates), ct);
+            return CodeRegistrationRuleEngine.Evaluate(rule, candidates, owners);
         }
 
         /// <summary>

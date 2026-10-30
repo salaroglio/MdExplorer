@@ -152,6 +152,77 @@ namespace MdExplorer.Features.Services.CodeGraph
             return sites;
         }
 
+        public async Task<List<CodeCallSiteView>> TypeCallSitesAsync(string projectPath, string callee, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?c ?caller ?path ?line ?ord ?recv ?argc ?pos ?tn ?tc WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"?c a {CodeOntology.ClassCallSite} ; code:callee {Lit(callee)} ; code:caller ?caller ; code:path ?path ; code:line ?line ; code:ordinal ?ord ; code:argumentCount ?argc . " +
+                $"OPTIONAL {{ ?c code:receiver ?recv }} ?t a {CodeOntology.ClassTypeArgument} ; code:argumentOf ?c ; code:position ?pos ; code:typeName ?tn ; code:confidence ?tc }} }} ORDER BY ?path ?line ?ord ?pos", ct);
+            return TypeSites(rows, callee).Values.ToList();
+        }
+
+        private static Dictionary<string, CodeCallSiteView> TypeSites(IEnumerable<Dictionary<string, string>> rows, string callee, string iriColumn = "c")
+        {
+            var byIri = new Dictionary<string, CodeCallSiteView>(StringComparer.Ordinal);
+            foreach (var r in rows)
+            {
+                var iri = r[iriColumn];
+                if (!byIri.TryGetValue(iri, out var site))
+                    byIri[iri] = site = new CodeCallSiteView
+                    {
+                        Iri = iri, CallerId = r.TryGetValue("caller", out var caller) && caller != null ? SymbolId(caller) : null, Callee = callee,
+                        Path = Str(r, "path"), Line = Count(r, "line"), Ordinal = Count(r, "ord"), Receiver = Str(r, "recv"), ArgumentCount = Count(r, "argc"),
+                    };
+                if (r.TryGetValue("pos", out var pos) && pos != null)
+                    site.TypeArguments[Count(r, "pos")] = new CodeTypeArgumentView { TypeName = Str(r, "tn"), Confidence = Str(r, "tc") };
+            }
+            return byIri;
+        }
+
+        public async Task<Dictionary<string, List<CodeCallSiteView>>> ChainsAsync(string projectPath, string callee, string downCallee, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?c ?d ?line ?ord ?pos ?tn ?tc WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"?c a {CodeOntology.ClassCallSite} ; code:callee {Lit(callee)} ; code:receiverSite+ ?d . ?d code:callee {Lit(downCallee)} ; code:line ?line ; code:ordinal ?ord . " +
+                $"OPTIONAL {{ ?t a {CodeOntology.ClassTypeArgument} ; code:argumentOf ?d ; code:position ?pos ; code:typeName ?tn ; code:confidence ?tc }} }} }}", ct);
+            var result = new Dictionary<string, List<CodeCallSiteView>>(StringComparer.Ordinal);
+            foreach (var group in rows.GroupBy(r => r["c"], StringComparer.Ordinal))
+                result[group.Key] = TypeSites(group, downCallee, "d").Values.ToList();
+            return result;
+        }
+
+        public async Task<List<CodeAnnotatedView>> AnnotatedAsync(string projectPath, string annotation, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            // il nome com'è scritto (Provides, o a.b.Provides) o risolto (com.google.inject.Provides); un nome semplice vale
+            // anche come fine di un nome qualificato
+            var simple = !annotation.Contains('.');
+            var match = simple
+                ? $"FILTER(?name = {Lit(annotation)} || STRENDS(?name, {Lit("." + annotation)}) || (BOUND(?tn) && STRENDS(?tn, {Lit("." + annotation)})))"
+                : $"FILTER(?name = {Lit(annotation)} || (BOUND(?tn) && ?tn = {Lit(annotation)}))";
+            var rows = await RowsAsync(
+                $"SELECT ?an ?s ?kind ?qn ?rt ?name ?path ?line ?ai ?el ?val ?atn WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"?an a {CodeOntology.ClassAnnotation} ; code:annotationOf ?s ; code:name ?name ; code:path ?path ; code:line ?line . OPTIONAL {{ ?an code:typeName ?tn }} {match} " +
+                "?s code:kind ?kind ; code:qualifiedName ?qn . OPTIONAL { ?s code:returnTypeName ?rt } " +
+                $"OPTIONAL {{ ?x a {CodeOntology.ClassAnnotationArgument} ; code:argumentOf ?an ; code:position ?ai ; code:element ?el . OPTIONAL {{ ?x code:value ?val }} OPTIONAL {{ ?x code:typeName ?atn }} }} }} }} ORDER BY ?path ?line ?ai", ct);
+            var result = new List<CodeAnnotatedView>();
+            foreach (var group in rows.GroupBy(r => r["an"], StringComparer.Ordinal))
+            {
+                var first = group.First();
+                var view = new CodeAnnotatedView
+                {
+                    AnnotationIri = group.Key, SymbolId = SymbolId(first["s"]), Kind = Str(first, "kind"), QualifiedName = Str(first, "qn"),
+                    ReturnTypeName = Str(first, "rt"), Name = Str(first, "name"), Path = Str(first, "path"), Line = Count(first, "line"),
+                };
+                foreach (var r in group.Where(r => r.TryGetValue("ai", out var ai) && ai != null).OrderBy(r => Count(r, "ai")))
+                    view.Arguments.Add((Str(r, "el"), Str(r, "val"), Str(r, "atn")));
+                result.Add(view);
+            }
+            return result;
+        }
+
         public async Task<List<CodeOwnerMember>> PagesAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
         {
             if (pageLanguages == null || pageLanguages.Count == 0) return new List<CodeOwnerMember>();

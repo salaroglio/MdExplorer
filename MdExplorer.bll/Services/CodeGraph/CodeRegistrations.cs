@@ -14,6 +14,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Mechanism { get; init; }
         public string AbstractionQualifiedName { get; init; }
         public string ImplementationQualifiedName { get; init; }
+        /// <summary>
+        /// L'implementazione è un MEMBRO, non una classe (D43: il metodo <c>@Provides</c> che fornisce l'astrazione): l'arco
+        /// va dall'astrazione a lui, senza metodo → metodo. Null = una classe, cercata per <see cref="ImplementationQualifiedName"/>.
+        /// </summary>
+        public string ImplementationSymbolId { get; init; }
         /// <summary>Il file che la dichiara (percorso logico) e la riga.</summary>
         public string Path { get; init; }
         public int Line { get; init; }
@@ -70,7 +75,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// dell'astrazione con più metodi omonimi nell'implementazione (overload) = <c>ambiguous</c>. Quello che il grafo non
         /// ha (una libreria fuori dal perimetro) non diventa un arco: si dice in <paramref name="misses"/>.
         /// </summary>
-        public static List<ScriptEdge> Edges(IEnumerable<CodeRegistration> registrations, IEnumerable<CodeOwnerMember> owners, out List<string> misses)
+        /// <param name="sure">La certezza degli archi senza dubbi: <c>extracted</c> per un meccanismo standard letto da
+        /// MdExplorer (ServiceLoader), <c>rule</c> per una regola scritta da Mark e approvata dall'utente (D43).</param>
+        public static List<ScriptEdge> Edges(IEnumerable<CodeRegistration> registrations, IEnumerable<CodeOwnerMember> owners, out List<string> misses, string sure = "extracted")
         {
             var byName = owners.GroupBy(o => o.OwnerQualifiedName, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             var edges = new List<ScriptEdge>();
@@ -78,16 +85,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var r in registrations)
             {
                 byName.TryGetValue(r.AbstractionQualifiedName, out var abs);
-                byName.TryGetValue(r.ImplementationQualifiedName, out var impl);
-                if (abs == null || impl == null)
+                List<CodeOwnerMember> impl = null;
+                if (r.ImplementationSymbolId == null) byName.TryGetValue(r.ImplementationQualifiedName, out impl);
+                if (abs == null || impl == null && r.ImplementationSymbolId == null)
                 {
                     misses.Add(UiText.Say($"{r.Path}:{r.Line}: {(abs == null ? r.AbstractionQualifiedName : r.ImplementationQualifiedName)} non è nel grafo",
                         $"{r.Path}:{r.Line}: {(abs == null ? r.AbstractionQualifiedName : r.ImplementationQualifiedName)} is not in the graph"));
                     continue;
                 }
                 var absIds = abs.Select(o => o.OwnerId).Distinct(StringComparer.Ordinal).ToList();
+                if (r.ImplementationSymbolId != null)
+                {
+                    foreach (var a in absIds) edges.Add(Edge(a, r.ImplementationSymbolId, absIds.Count == 1 ? sure : "ambiguous", r));
+                    continue;
+                }
                 var implIds = impl.Select(o => o.OwnerId).Distinct(StringComparer.Ordinal).ToList();
-                var classConfidence = absIds.Count == 1 && implIds.Count == 1 ? "extracted" : "ambiguous";
+                var classConfidence = absIds.Count == 1 && implIds.Count == 1 ? sure : "ambiguous";
                 foreach (var a in absIds)
                     foreach (var b in implIds)
                         edges.Add(Edge(a, b, classConfidence, r));
@@ -96,7 +109,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var m in abs.Where(o => o.MemberId != null).GroupBy(o => o.MemberId, StringComparer.Ordinal).Select(g => g.First()))
                 {
                     if (!implMethods.TryGetValue(m.MemberName, out var targets)) continue;   // ereditato da una superclasse: non qui
-                    var confidence = targets.Count == 1 && classConfidence == "extracted" ? "extracted" : "ambiguous";
+                    var confidence = targets.Count == 1 && classConfidence == sure ? sure : "ambiguous";
                     foreach (var t in targets) edges.Add(Edge(m.MemberId, t, confidence, r));
                 }
             }

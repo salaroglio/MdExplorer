@@ -259,6 +259,33 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Receiver { get; set; }
         public int ArgumentCount { get; set; }
         public SortedDictionary<int, string> Arguments { get; } = new();
+        /// <summary>L'IRI del punto: per legare le catene (D43). Fuori dal JSON delle risposte.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string Iri { get; set; }
+        /// <summary>Gli argomenti X.class per posizione (D43): il tipo risolto e la sua certezza (<c>platform</c> per la piattaforma).</summary>
+        public SortedDictionary<int, CodeTypeArgumentView> TypeArguments { get; } = new();
+    }
+
+    public sealed class CodeTypeArgumentView
+    {
+        public string TypeName { get; set; }
+        public string Confidence { get; set; }
+    }
+
+    /// <summary>Un simbolo con un'annotazione (D43): il fatto da cui nasce una registrazione per annotazione.</summary>
+    public sealed class CodeAnnotatedView
+    {
+        public string AnnotationIri { get; set; }
+        public string SymbolId { get; set; }
+        public string Kind { get; set; }
+        public string QualifiedName { get; set; }
+        /// <summary>Il tipo restituito risolto, se è un metodo (<c>code:returnTypeName</c>).</summary>
+        public string ReturnTypeName { get; set; }
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public int Line { get; set; }
+        /// <summary>Gli argomenti: (elemento, stringa, tipo), nell'ordine scritto.</summary>
+        public List<(string Element, string Value, string TypeName)> Arguments { get; } = new();
     }
 
     public sealed class CodeEdgeView
