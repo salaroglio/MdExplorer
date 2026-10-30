@@ -53,6 +53,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeAnnotatedView>> AnnotatedAsync(string projectPath, string annotation, CancellationToken ct = default);
         /// <summary>I simboli per id, con la sintesi se c'è: per le domande sui collegamenti (D43).</summary>
         Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default);
+        /// <summary>I fatti per le regole presenti nel grafo, i <paramref name="top"/> più frequenti per tipo (D43, <c>code_schema</c>).</summary>
+        Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default);
         /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).

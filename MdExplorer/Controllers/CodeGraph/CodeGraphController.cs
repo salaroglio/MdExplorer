@@ -874,6 +874,41 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(await _store.MapAsync(projectPath, folder, programs, ct));
         });
 
+        /// <summary>
+        /// GET /api/codegraph/schema?projectPath — il modello del grafo spiegato a Mark (D43, <c>code_schema</c>): che cosa
+        /// vogliono dire tipi, relazioni e certezze, con i numeri del progetto; i fatti che le regole possono leggere, dai
+        /// più frequenti; le regole attive con quanto collegano; il catalogo delle domande pronte (<c>code_query</c>).
+        /// </summary>
+        [HttpGet("schema")]
+        public Task<IActionResult> Schema([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var o = await _store.OverviewAsync(projectPath, ct);
+            var facts = await _store.RuleFactsAsync(projectPath, 25, ct);
+            var rules = HttpContext.RequestServices.GetRequiredService<CodeRuleService>();
+            return Ok(new
+            {
+                symbolKinds = CodeGraphSchema.SymbolKinds.Select(k => new { kind = k.Key, meaning = k.Value, count = o.SymbolsByKind.TryGetValue(k.Key, out var n) ? n : 0 }),
+                relations = CodeGraphSchema.Relations.Select(r => new { relation = r.Key, meaning = r.Value, count = o.EdgesByRelation.TryGetValue(r.Key, out var n) ? n : 0 }),
+                confidences = CodeGraphSchema.Confidences.Select(c => new { confidence = c.Key, meaning = c.Value }),
+                described = new { symbols = o.DescribedSymbols, of = o.Symbols, files = o.DescribedFiles, ofFiles = o.Files },
+                ruleFacts = new
+                {
+                    meaning = CodeGraphSchema.RuleFacts,
+                    typeArguments = facts.TypeCallees.Select(x => new { callee = x.Callee, points = x.Count }),
+                    stringArguments = facts.StringCallees.Select(x => new { callee = x.Callee, points = x.Count }),
+                    annotations = facts.Annotations.Select(x => new { name = x.Name, resolved = x.TypeName, symbols = x.Count }),
+                    chains = facts.Chains, resolvedReturnTypes = facts.ResolvedReturnTypes,
+                },
+                rules = rules.List(projectPath).Select(r =>
+                {
+                    var script = CodeRuleService.ReadScript(projectPath, r.Id);
+                    return new { r.Id, kind = r.Kind.ToString().ToLowerInvariant(), r.Description, r.Describe, edges = script?.Edges.Count ?? 0, linkDescriptions = script?.LinkDocs.Count ?? 0 };
+                }),
+                queries = CodeQueryCatalog.All.Select(q => new { q.Name, q.Question, parameters = q.Parameters }),
+            });
+        });
+
         [HttpGet("overview")]
         public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {

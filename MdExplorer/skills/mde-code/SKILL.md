@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 16
+  version: 17
   updatePolicy: replace
 ---
 
@@ -72,6 +72,7 @@ callers and impact.
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
+| What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
 | Does this document (design, analysis, specification) match the code? | see «Checking a document against the code» |
 | Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |
@@ -154,6 +155,8 @@ grafo?», «what would the graph need to answer better?» — the answer is a pl
 not a list of wishes. At the end of an analysis where the graph stopped and you read the source, you may offer it in one
 line; do not start it unasked.
 
+0. `code_schema` first: which facts the graph really has (the callees with X.class or string arguments, the annotations)
+   and which rules already exist — a rule can only read what is there.
 1. **Each gap, concretely**: where it stopped (`path:line`), what you read in the source instead, which fact would have
    answered (a link, a property of a link, a revision…).
 2. **Classify each gap**:

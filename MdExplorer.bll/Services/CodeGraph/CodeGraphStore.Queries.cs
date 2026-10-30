@@ -193,6 +193,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result;
         }
 
+        public async Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var facts = new CodeRuleFacts();
+            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?t a {CodeOntology.ClassTypeArgument} ; code:argumentOf ?c . ?c code:callee ?callee }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
+                facts.TypeCallees.Add((Str(r, "callee"), Count(r, "n")));
+            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?t a {CodeOntology.ClassStringArgument} ; code:argumentOf ?c . ?c code:callee ?callee }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
+                facts.StringCallees.Add((Str(r, "callee"), Count(r, "n")));
+            foreach (var r in await RowsAsync($"SELECT ?name ?tn (COUNT(?a) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?a a {CodeOntology.ClassAnnotation} ; code:name ?name . OPTIONAL {{ ?a code:typeName ?tn }} }} }} GROUP BY ?name ?tn ORDER BY DESC(?n) ?name LIMIT {top}", ct))
+                facts.Annotations.Add((Str(r, "name"), Str(r, "tn"), Count(r, "n")));
+            var counts = (await RowsAsync($"SELECT (COUNT(DISTINCT ?m) AS ?returns) (COUNT(DISTINCT ?c) AS ?chains) WHERE {{ GRAPH {g.DataIri} {{ {{ ?m code:returnTypeName ?x }} UNION {{ ?c code:receiverSite ?y }} }} }}", ct)).FirstOrDefault();
+            if (counts != null) { facts.ResolvedReturnTypes = Count(counts, "returns"); facts.Chains = Count(counts, "chains"); }
+            return facts;
+        }
+
         public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
             => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
 

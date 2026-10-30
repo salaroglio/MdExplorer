@@ -168,6 +168,19 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "The MODEL of the project's code graph, explained: what each symbol kind, relation and confidence means, with this project's counts; " +
+        "the facts enrichment rules can read (calls with X.class arguments, calls with string arguments, annotations — most frequent first — chains, " +
+        "resolved return types); the active rules with how many edges they make; the catalog of ready-made questions for code_query. " +
+        "Call it before writing a rule, before answering «what would you have needed in the graph?», and when you are unsure what a relation means.")]
+    public async Task<string> code_schema(
+        [Description("Project name.")] string project)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await GetAsync(client, Q(path, "schema"), "code_schema", project, "");
+    }
+
+    [McpServerTool, Description(
         "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols and files have a " +
         "description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). Start here to get the shape of an unknown codebase.")]
     public async Task<string> code_overview(

@@ -173,6 +173,13 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
             Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "bind")).Count, "solo tipi: invisibile alle regole sulle stringhe");
             Assert.AreEqual("main", (await _store.CallSitesAsync(_project, "named")).Single().Arguments[0]);
+
+            // code_schema (D43): i fatti che una regola può leggere, con i numeri
+            var facts = await _store.RuleFactsAsync(_project, 10);
+            CollectionAssert.AreEquivalent(new[] { "bind 1", "to 1" }, facts.TypeCallees.Select(x => $"{x.Callee} {x.Count}").ToArray());
+            CollectionAssert.Contains(facts.StringCallees.Select(x => x.Callee).ToList(), "named");
+            Assert.AreEqual(("Provides", "com.google.inject.Provides", 1), facts.Annotations.Single());
+            Assert.AreEqual((1, 1), (facts.Chains, facts.ResolvedReturnTypes), "to → bind; make() restituisce Exporter");
         }
 
         /// <summary>
