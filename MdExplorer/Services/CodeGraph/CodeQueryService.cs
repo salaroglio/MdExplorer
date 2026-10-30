@@ -63,7 +63,109 @@ namespace MdExplorer.Services.CodeGraph
                 UnknownExternals => await UnknownExternalsAsync(projectPath, prefix, Int("limit", 1, 200, 30), ct),
                 WhereIsIt => await WhereIsItAsync(projectPath, prefix, P("type"), Int("limit", 1, 50, 10), ct),
                 NotAnalyzed => await NotAnalyzedAsync(projectPath, folder, ct),
+                CodeQueryCatalog.ProgramOutline => await ProgramOutlineAsync(projectPath, folder ?? throw Required("folder"), Int("limit", 1, 200, 40), ct),
+                CodeQueryCatalog.EntryPoints => (await _store.EntryPointsAsync(projectPath, prefix, Int("limit", 1, 200, 30), ct))
+                    .Select(x => new { symbol = Brief(x.Symbol), calls = x.Calls }),
+                CodeQueryCatalog.FlowFrom => await FlowFromAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 5, 3), Int("limit", 1, 300, 80), ct),
+                CodeQueryCatalog.Hotspots => (await _store.HotspotsAsync(projectPath, prefix, Int("limit", 1, 200, 20), ct))
+                    .Select(x => new { symbol = Brief(x.Symbol), incoming = x.Incoming, fromSymbols = x.Sources }),
+                CodeQueryCatalog.CrossProgram => await CrossProgramAsync(projectPath, ct),
+                CodeQueryCatalog.Cycles => await CyclesAsync(projectPath, prefix, Int("limit", 1, 100, 20), ct),
+                CodeQueryCatalog.Unused => new
+                {
+                    candidates = (await _store.UnusedAsync(projectPath, prefix, Int("limit", 1, 300, 50), ct)).Select(Brief),
+                    note = UiText.Say("candidati, non certezze: riflessione, configurazione e framework possono usarli senza un arco nel grafo; i file di test sono esclusi",
+                        "candidates, not certainties: reflection, configuration and frameworks can use them without an edge in the graph; test files are excluded"),
+                },
+                CodeQueryCatalog.Uncertain => (await _store.UncertainAsync(projectPath, prefix, Int("limit", 1, 200, 30), ct))
+                    .Select(x => new { symbol = Brief(x.Symbol), confidence = x.Confidence, edges = x.Count }),
                 _ => throw new InvalidOperationException($"domanda «{name}» nel catalogo ma senza esecuzione"),
+            };
+        }
+
+        private static CodeQueryException Required(string key)
+            => new(UiText.Say($"manca «{key}», che questa domanda vuole.", $"«{key}» is missing, and this question needs it."));
+
+        /// <summary>Un simbolo in breve: quello che serve per citarlo e capirlo, senza le impronte.</summary>
+        private static object Brief(CodeSymbolView s)
+            => new { s.Id, s.Kind, s.QualifiedName, at = s.Path == null ? null : $"{s.Path}:{s.LineStart}", s.Summary };
+
+        private async Task<object> ProgramOutlineAsync(string projectPath, string folder, int limit, CancellationToken ct)
+        {
+            var prefix = folder + "/";
+            var files = await _store.FilesUnderAsync(projectPath, prefix, limit, ct);
+            var types = (await _store.TopLevelTypesAsync(projectPath, prefix, 2000, ct)).GroupBy(t => t.Path).ToDictionary(g => g.Key, g => g.ToList());
+            var (describable, described) = await _store.DescribedCountsAsync(projectPath, prefix, ct);
+            return new
+            {
+                folder, describable, described,
+                files = files.Select(f => new
+                {
+                    path = f.Path, symbols = f.Symbols, summary = f.Summary,
+                    types = types.TryGetValue(f.Path, out var l) ? l.Select(t => new { t.Kind, t.QualifiedName, t.Summary }) : null,
+                }),
+                next = UiText.Say("entry-points per dove si entra, flow-from per ogni ingresso, unknown-externals e where-is-it per i limiti",
+                    "entry-points for where it starts, flow-from for each entry, unknown-externals and where-is-it for the limits"),
+            };
+        }
+
+        private async Task<object> FlowFromAsync(string projectPath, string symbol, int depth, int limit, CancellationToken ct)
+        {
+            var start = (await _store.ResolveAsync(projectPath, symbol, 10, ct)).Where(s => s.Kind != "external").ToList();
+            if (start.Count != 1)
+                throw new CodeQueryException(start.Count == 0
+                    ? UiText.Say($"«{symbol}» non è nel grafo: code_find_symbol per trovarlo.", $"«{symbol}» is not in the graph: code_find_symbol to find it.")
+                    : UiText.Say($"«{symbol}» è più di un simbolo: usa l'id. {string.Join("; ", start.Take(5).Select(s => $"{s.Id} {s.QualifiedName}"))}",
+                        $"«{symbol}» is more than one symbol: use the id. {string.Join("; ", start.Take(5).Select(s => $"{s.Id} {s.QualifiedName}"))}"));
+            var (steps, cut) = await CodeFlow.FromAsync(_store, projectPath, start[0], depth, limit, ct);
+            return new
+            {
+                start = Brief(start[0]),
+                steps = steps.Select(x => new { depth = x.Depth, from = x.From, x.Edge.Relation, x.Edge.Confidence, to = Brief(x.Edge.Other), at = x.Edge.Path == null ? null : $"{x.Edge.Path}:{x.Edge.Line}", x.Edge.Description }),
+                truncated = cut ? UiText.Say($"fermato a {limit} passi: aumenta limit o parti da un punto più in basso", $"stopped at {limit} steps: raise limit or start further down") : null,
+            };
+        }
+
+        /// <summary>La cartella program di un percorso logico: la più lunga che lo contiene.</summary>
+        private static string ProgramOf(string path, IReadOnlyList<string> programs)
+            => programs.Where(p => path.StartsWith(p + "/", StringComparison.Ordinal)).OrderByDescending(p => p.Length).FirstOrDefault();
+
+        private async Task<object> CrossProgramAsync(string projectPath, CancellationToken ct)
+        {
+            var programs = (await _analysis.ProgramScopesAsync(projectPath, ct)).Select(s => s.Folder).ToList();
+            var edges = await _store.FileEdgesAsync(projectPath, ct);
+            var cross = edges.Select(e => (e, From: ProgramOf(e.From, programs), To: ProgramOf(e.To, programs)))
+                .Where(x => x.From != null && x.To != null && x.From != x.To).ToList();
+            return new
+            {
+                programs,
+                links = cross.GroupBy(x => (x.From, x.To)).Select(g => new
+                {
+                    from = g.Key.From, to = g.Key.To, edges = g.Sum(x => x.e.Count),
+                    relations = g.GroupBy(x => x.e.Relation).ToDictionary(r => r.Key, r => r.Sum(x => x.e.Count)),
+                    mostUsedFiles = g.GroupBy(x => x.e.To).Select(f => new { file = f.Key, edges = f.Sum(x => x.e.Count) }).OrderByDescending(f => f.edges).Take(5),
+                }).OrderByDescending(l => l.edges),
+            };
+        }
+
+        private async Task<object> CyclesAsync(string projectPath, string prefix, int limit, CancellationToken ct)
+        {
+            var edges = (await _store.FileEdgesAsync(projectPath, ct))
+                .Where(e => prefix == null || e.From.StartsWith(prefix, StringComparison.Ordinal) && e.To.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+            var next = edges.GroupBy(e => e.From).ToDictionary(g => g.Key, g => g.Select(e => e.To).ToList(), StringComparer.Ordinal);
+            var cycles = MdExplorer.Features.Services.CodeGraph.CodeDocGraph.Cycles(edges.SelectMany(e => new[] { e.From, e.To }), next);
+            return new
+            {
+                total = cycles.Count,
+                cycles = cycles.OrderByDescending(c => c.Count).Take(limit).Select(c =>
+                {
+                    var inside = new HashSet<string>(c, StringComparer.Ordinal);
+                    return new
+                    {
+                        files = c.OrderBy(f => f, StringComparer.Ordinal),
+                        edges = edges.Where(e => inside.Contains(e.From) && inside.Contains(e.To)).GroupBy(e => e.Relation).ToDictionary(g => g.Key, g => g.Sum(e => e.Count)),
+                    };
+                }),
             };
         }
 

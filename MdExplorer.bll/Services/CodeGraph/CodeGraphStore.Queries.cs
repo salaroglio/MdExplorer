@@ -231,6 +231,86 @@ namespace MdExplorer.Features.Services.CodeGraph
             return row == null ? (0, 0) : (Count(row, "all"), Count(row, "described"));
         }
 
+        private static string Under(string prefix, string variable = "?path") => string.IsNullOrEmpty(prefix) ? string.Empty : $"FILTER(STRSTARTS({variable}, {Lit(prefix)})) ";
+
+        /// <summary>Un elenco ordinato di id con un numero, poi le viste dei simboli nello stesso ordine.</summary>
+        private async Task<List<(CodeSymbolView Symbol, Dictionary<string, string> Row)>> RankedAsync(ProjectGraphs g, string query, CancellationToken ct)
+        {
+            var rows = await RowsAsync(query, ct);
+            var symbols = await SymbolsByIdsAsync(g, rows.Select(r => SymbolId(r["s"])), ct);
+            return rows.Where(r => symbols.ContainsKey(SymbolId(r["s"]))).Select(r => (symbols[SymbolId(r["s"])], r)).ToList();
+        }
+
+        public async Task<List<(CodeSymbolView Symbol, int Calls)>> EntryPointsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var ranked = await RankedAsync(g,
+                $"SELECT ?s (COUNT(DISTINCT ?out) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ VALUES ?k {{ \"method\" \"function\" }} ?s a code:Symbol ; code:kind ?k ; code:path ?path . {Under(pathPrefix)}" +
+                "FILTER NOT EXISTS { ?s code:trivial ?t } OPTIONAL { ?s code:visibility ?vis } FILTER(!BOUND(?vis) || ?vis = \"public\") " +
+                "FILTER NOT EXISTS { ?in a code:Edge ; code:target ?s ; code:relation ?r . FILTER(?r IN (\"calls\", \"dispatches\", \"resolvesTo\", \"instantiates\")) FILTER NOT EXISTS { ?rejectedBy code:rejects ?in } } " +
+                $"OPTIONAL {{ ?o a code:Edge ; code:source ?s ; code:relation \"calls\" ; code:target ?out }} }} }} GROUP BY ?s ORDER BY DESC(?n) ?s LIMIT {limit}", ct);
+            return ranked.Select(x => (x.Symbol, Count(x.Row, "n"))).ToList();
+        }
+
+        public async Task<List<(string Path, int Symbols, string Summary)>> FilesUnderAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?path ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?path ; code:symbolCount ?n . {Under(pathPrefix)}" +
+                $"OPTIONAL {{ ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum }} }} }} ORDER BY DESC(?n) ?path LIMIT {limit}", ct);
+            return rows.Select(r => (Str(r, "path"), Count(r, "n"), Str(r, "sum"))).ToList();
+        }
+
+        public async Task<List<CodeSymbolView>> TopLevelTypesAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var types = string.Join(" ", new[] { "class", "interface", "record", "struct", "enum", "component", "service", "directive", "pipe", "ngmodule", "module" }.Select(Lit));
+            return await SymbolsWhereAsync(g,
+                $"VALUES ?kind {{ {types} }} ?s code:kind ?kind ; code:path ?path . {Under(pathPrefix)}" +
+                "FILTER NOT EXISTS { ?s code:parent ?outer . ?outer code:kind ?ok . FILTER(?ok NOT IN (\"namespace\", \"module\")) }",
+                $"ORDER BY ?path ?ls LIMIT {limit}", ct);
+        }
+
+        public async Task<List<(CodeSymbolView Symbol, int Incoming, int Sources)>> HotspotsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var ranked = await RankedAsync(g,
+                $"SELECT ?s (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?sources) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:path ?path . FILTER(?k != \"external\") {Under(pathPrefix)}" +
+                $"?e a code:Edge ; code:target ?s ; code:source ?src ; code:relation ?r . FILTER(?r NOT IN (\"contains\", \"imports\")) {NotRejected}}} }} GROUP BY ?s ORDER BY DESC(?sources) DESC(?n) ?s LIMIT {limit}", ct);
+            return ranked.Select(x => (x.Symbol, Count(x.Row, "n"), Count(x.Row, "sources"))).ToList();
+        }
+
+        public async Task<List<CodeSymbolView>> UnusedAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            // metodi non pubblici mai raggiunti; tipi che nessuno nomina. I pubblici possono essere un'API: si vedono in entry-points
+            return await SymbolsWhereAsync(g,
+                $"?s code:kind ?kind ; code:path ?path . {Under(pathPrefix)}" +
+                "OPTIONAL { ?s code:visibility ?v0 } " +
+                "FILTER((?kind IN (\"method\", \"function\") && BOUND(?v0) && ?v0 != \"public\") || ?kind IN (\"class\", \"interface\", \"record\", \"struct\", \"enum\")) " +
+                "FILTER NOT EXISTS { ?s code:trivial ?t } FILTER(!STRENDS(?path, \"Test.java\") && !CONTAINS(?path, \"/test/\")) " +
+                "FILTER NOT EXISTS { ?in a code:Edge ; code:target ?s ; code:relation ?r . FILTER(?r != \"contains\") FILTER NOT EXISTS { ?rejectedBy code:rejects ?in } }",
+                $"ORDER BY ?path ?ls LIMIT {limit}", ct);
+        }
+
+        public async Task<List<(CodeSymbolView Symbol, string Confidence, int Count)>> UncertainAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var ranked = await RankedAsync(g,
+                $"SELECT ?s ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?s ; code:confidence ?conf0 ; code:path ?path . {Under(pathPrefix)}{EffectiveConfidence}" +
+                $"FILTER(?conf IN (\"inferred\", \"ambiguous\", \"{CodeOntology.LlmResolved}\")) }} }} GROUP BY ?s ?conf ORDER BY DESC(?n) ?s LIMIT {limit}", ct);
+            return ranked.Select(x => (x.Symbol, Str(x.Row, "conf"), Count(x.Row, "n"))).ToList();
+        }
+
+        public async Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?from ?to ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel . FILTER(?rel NOT IN (\"contains\", \"imports\")) {NotRejected}" +
+                "?s code:path ?from . ?t code:path ?to . FILTER(?from != ?to) } } GROUP BY ?from ?to ?rel", ct);
+            return rows.Select(r => (Str(r, "from"), Str(r, "to"), Str(r, "rel"), Count(r, "n"))).ToList();
+        }
+
         public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
             => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
 

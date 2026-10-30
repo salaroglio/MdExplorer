@@ -59,6 +59,21 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeExternalUse>> ExternalUsesAsync(string projectPath, string pathPrefix, CancellationToken ct = default);
         /// <summary>Quanti simboli descrivibili (non banali) sotto <paramref name="pathPrefix"/> e quanti con una descrizione (D43 F3).</summary>
         Task<(int Describable, int Described)> DescribedCountsAsync(string projectPath, string pathPrefix, CancellationToken ct = default);
+        // D43 F2: le domande pronte per capire il codice e scriverne l'analisi funzionale (<c>code_query</c>)
+        /// <summary>Metodi e funzioni (pubblici o senza visibilità) che nessuno nel grafo chiama, dal flusso più grande (chiamate in uscita).</summary>
+        Task<List<(CodeSymbolView Symbol, int Calls)>> EntryPointsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>I file sotto il prefisso con quanti simboli e la loro descrizione, dal più grande.</summary>
+        Task<List<(string Path, int Symbols, string Summary)>> FilesUnderAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>I tipi di primo livello (senza un tipo che li contiene) sotto il prefisso, con la sintesi.</summary>
+        Task<List<CodeSymbolView>> TopLevelTypesAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>I simboli da cui dipende di più (archi entranti, contains e imports esclusi), con quanti archi e da quanti simboli.</summary>
+        Task<List<(CodeSymbolView Symbol, int Incoming, int Sources)>> HotspotsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>Candidati a codice morto: metodi non pubblici mai chiamati e tipi che nessuno usa (nessun arco entrante se non contains).</summary>
+        Task<List<CodeSymbolView>> UnusedAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>Gli archi incerti per simbolo di partenza: certezza (inferred, ambiguous, llm-resolved) e quanti.</summary>
+        Task<List<(CodeSymbolView Symbol, string Confidence, int Count)>> UncertainAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>Gli archi fra file (contains e imports esclusi): file di partenza, file d'arrivo, relazione, quanti.</summary>
+        Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).

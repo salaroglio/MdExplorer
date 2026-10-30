@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 18
+  version: 19
   updatePolicy: replace
 ---
 
@@ -134,6 +134,23 @@ and the document is under review:
    main symbols.
 
 Do not propose changes to the graph or to its rules unless the user asks: the question is about the document.
+
+## Writing the functional analysis of a program
+
+When the user asks for a summary, an analysis or a document about what a program DOES, build it from the graph with the
+ready-made questions (`code_query`, catalog in `code_schema`), then read the source only where they point:
+
+1. `program-outline` (`folder`): the files with what each is for and the main types — the structure of the document.
+2. `entry-points` (`folder`): where the program starts (called by a framework, a UI, a job, `main`) — one section each.
+3. `flow-from` (`symbol`) for each entry point: what happens, step by step, with the summaries; `resolvesTo` steps are
+   the implementations really registered, and a step's `description` (from a rule) is what that link means.
+4. `cross-program`: what the program uses from the others, and who uses it — the boundaries.
+5. The limits, always written in the document: `unknown-externals` + `where-is-it` (what is only known by name, and where
+   it is in the repository), `uncertain` (where the graph guessed), `not-analyzed` (files and descriptions missing), and
+   the revision of the sources from `code_inventory`.
+
+`hotspots` (where a change weighs), `cycles` (files that depend on each other) and `unused` (candidates for dead code —
+candidates only) are for change analyses and reviews. Cite every claim with `path:line`.
 
 ## Enrichment rules: when the graph stops at a string
 

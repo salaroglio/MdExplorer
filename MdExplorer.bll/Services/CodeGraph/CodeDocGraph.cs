@@ -318,6 +318,15 @@ namespace MdExplorer.Features.Services.CodeGraph
             return null;
         }
 
+        /// <summary>I cicli (componenti fortemente connesse con più di un nodo) di un grafo qualsiasi: per <c>code_query cycles</c> (D43).</summary>
+        public static List<List<string>> Cycles(IEnumerable<string> nodes, IReadOnlyDictionary<string, List<string>> next)
+        {
+            var list = nodes.Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal).ToList();
+            var adj = list.ToDictionary(n => n, n => next.TryGetValue(n, out var l) ? l.Where(next.ContainsKey).Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToList() : new List<string>(), StringComparer.Ordinal);
+            foreach (var t in adj.Values.SelectMany(v => v).Where(t => !adj.ContainsKey(t)).ToList()) adj[t] = new List<string>();
+            return Tarjan(adj.Keys.OrderBy(n => n, StringComparer.Ordinal).ToList(), adj).Components.Where(c => c.Count > 1).ToList();
+        }
+
         /// <summary>Tarjan iterativo (i 40.000 simboli di PlantUML fanno saltare lo stack della versione ricorsiva).</summary>
         private static (Dictionary<string, int> Component, List<List<string>> Components) Tarjan(List<string> nodes, Dictionary<string, List<string>> adj)
         {

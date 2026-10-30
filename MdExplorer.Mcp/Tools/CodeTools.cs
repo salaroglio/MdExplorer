@@ -185,6 +185,8 @@ public sealed class CodeTools : McpToolsBase
         "the parameters is in code_schema. unknown-externals: what the code uses that the graph knows only by name, by type and package. " +
         "where-is-it: WHERE in the repository that information is although it was not analyzed (source outside the program folders, a jar, a .class, " +
         "a configuration file) with the remedy. not-analyzed: files on disk not in the graph and symbols without a description, per program folder. " +
+        "program-outline (folder): files with what each is for and the main types — the skeleton of a functional analysis. entry-points: where the code starts. " +
+        "flow-from (symbol, depth): what happens when it runs, step by step with summaries. hotspots, cross-program, cycles, unused (candidates), uncertain. " +
         "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
     public async Task<string> code_query(
         [Description("Project name.")] string project,

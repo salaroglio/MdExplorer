@@ -275,6 +275,53 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(CodeRuleKind.Dispatch, CodeEnrichmentRule.Parse(Rule).Kind, "una regola di prima resta dispatch");
         }
 
+        /// <summary>D43 F2: le domande pronte per capire il codice, su un piccolo programma vero (estrattore Java, Fuseki).</summary>
+        [TestMethod]
+        public async Task Answer_the_ready_made_questions_on_a_small_program()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { int a = 1; a++; }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"),
+                "package com.acme;\n\npublic class Runner {\n" +
+                "    public void run(Exporter e) {\n        e.export(\"x\");\n        helper();\n    }\n" +
+                "    private void helper() { int a = 1; a++; }\n" +
+                "    private void unused() { int b = 2; b++; }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Main.java"),
+                "package com.acme;\n\npublic class Main {\n    public static void main(String[] args) {\n        new Runner().run(new PdfExporter());\n    }\n}\n");
+            File.WriteAllText(Path.Combine(src, "A.java"), "package com.acme;\n\npublic class A {\n    public void a() { new B().b(); }\n}\n");
+            File.WriteAllText(Path.Combine(src, "B.java"), "package com.acme;\n\npublic class B {\n    public void b() { new A().a(); }\n}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            const string prefix = "program/src/com/acme/";
+
+            var entries = (await _store.EntryPointsAsync(_project, prefix, 50)).Select(x => x.Symbol.QualifiedName).ToList();
+            CollectionAssert.Contains(entries, "com.acme.Main.main(String[])");
+            CollectionAssert.DoesNotContain(entries, "com.acme.Runner.run(Exporter)", "main la chiama");
+
+            var unused = (await _store.UnusedAsync(_project, prefix, 50)).Select(s => s.QualifiedName).ToList();
+            CollectionAssert.Contains(unused, "com.acme.Runner.unused()");
+            CollectionAssert.DoesNotContain(unused, "com.acme.Runner.helper()", "run la chiama");
+            CollectionAssert.DoesNotContain(unused, "com.acme.Runner.run(Exporter)", "pubblica: è in entry-points, non qui");
+
+            Assert.IsTrue((await _store.HotspotsAsync(_project, prefix, 5)).Count > 0);
+            Assert.IsTrue((await _store.FilesUnderAsync(_project, prefix, 50)).Any(f => f.Path.EndsWith("/Runner.java")));
+            CollectionAssert.Contains((await _store.TopLevelTypesAsync(_project, prefix, 50)).Select(t => t.QualifiedName).ToList(), "com.acme.Runner");
+            await _store.UncertainAsync(_project, prefix, 10);
+
+            var edges = await _store.FileEdgesAsync(_project);
+            var cycles = CodeDocGraph.Cycles(edges.SelectMany(e => new[] { e.From, e.To }), edges.GroupBy(e => e.From).ToDictionary(g => g.Key, g => g.Select(e => e.To).ToList()));
+            CollectionAssert.AreEquivalent(new[] { prefix + "A.java", prefix + "B.java" }, cycles.Single().ToArray(), "A e B si chiamano a vicenda");
+
+            var main = (await _store.ResolveAsync(_project, "com.acme.Main.main(String[])")).Single();
+            var (steps, truncated) = await CodeFlow.FromAsync(_store, _project, main, 3, 80);
+            Assert.IsFalse(truncated);
+            var flow = steps.Select(x => $"{x.Depth} {x.Edge.Relation} {x.Edge.Other.QualifiedName}").ToList();
+            CollectionAssert.Contains(flow, "1 calls com.acme.Runner.run(Exporter)", string.Join("; ", flow));
+            CollectionAssert.Contains(flow, "2 calls com.acme.Runner.helper()", string.Join("; ", flow));
+            Assert.IsFalse(steps.Any(x => x.Edge.Relation == "references"), "il flusso segue chi esegue, non i tipi nominati");
+        }
+
         [TestMethod]
         public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
         {

@@ -50,3 +50,24 @@ namespace MdExplorer.IntegrationTests
         }
     }
 }
+
+namespace MdExplorer.IntegrationTests
+{
+    /// <summary>D43: le domande pronte controllano nome e parametri PRIMA di toccare il grafo, e dicono come rimediare.</summary>
+    [TestClass]
+    public class CodeQueryParameters_Should
+    {
+        [TestMethod]
+        public async System.Threading.Tasks.Task Refuse_unknown_questions_unknown_parameters_and_numbers_out_of_range()
+        {
+            var service = new CodeQueryService(null, null, null);   // non deve servire: il rifiuto viene prima
+            async System.Threading.Tasks.Task<string> Refusal(string name, System.Collections.Generic.Dictionary<string, string> p)
+                => (await Assert.ThrowsExceptionAsync<CodeQueryException>(() => service.RunAsync("/x", name, p))).Message;
+            StringAssert.Contains(await Refusal("everything", null), "unknown-externals");
+            StringAssert.Contains(await Refusal("hotspots", new() { ["depth"] = "2" }), "folder");
+            StringAssert.Contains(await Refusal("hotspots", new() { ["limit"] = "9999" }), "200");
+            StringAssert.Contains(await Refusal("flow-from", new()), "symbol");
+            StringAssert.Contains(await Refusal("program-outline", new()), "folder");
+        }
+    }
+}
