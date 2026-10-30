@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 17
+  version: 18
   updatePolicy: replace
 ---
 
@@ -73,6 +73,7 @@ callers and impact.
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
 | What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
+| A ready-made question (the catalog is in `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
 | Does this document (design, analysis, specification) match the code? | see «Checking a document against the code» |
 | Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |
@@ -172,6 +173,22 @@ line; do not start it unasked.
 3. For each rule: `code_rule_try` until `accepted` → open every `sample` point in the source → `code_rule_propose`, one
    proposal per rule. Tell the user the proposals wait in the MarkAgent tab («Migliora il grafo») and that the link
    descriptions are written by «Descrivi con Mark» on the folder (its preview counts them). Never write `.mde-code/`.
+
+### Blind spots: what the graph knows only by name
+
+Before writing that something «is not known», ask the graph where it stops — and say it in the answer or document:
+
+- `code_query unknown-externals` (with `folder` for one program): the types and calls the code uses that the graph knows
+  only by name, by type and package, with the members called. `?` = calls whose type is not even known.
+- `code_query where-is-it` (with `type`, or the most used ones): WHERE in the repository the missing information is —
+  a source outside the program folders (`source`), a file with the same name (`source-same-name`, to check), a compiled
+  `.class` or a jar that contains the class (`compiled`, `jar`), a configuration file that names it (`config`) — each
+  with the remedy (mark the folder as program, link an external root `@alias`, choose the language, a further analysis
+  for bytecode). `notFound` = nowhere in the repository: an external library; say so.
+- `code_query not-analyzed`: per program folder, the files on disk that are not in the graph (no parser, language not
+  chosen, not extracted) and the symbols still without a description.
+
+These are facts for the user, not tasks: propose the remedy, do not apply it.
 
 ### Registration rules (`kind: registration`)
 

@@ -180,6 +180,14 @@ namespace MdExplorer.Features.Tests.CodeGraph
             CollectionAssert.Contains(facts.StringCallees.Select(x => x.Callee).ToList(), "named");
             Assert.AreEqual(("Provides", "com.google.inject.Provides", 1), facts.Annotations.Single());
             Assert.AreEqual((1, 1), (facts.Chains, facts.ResolvedReturnTypes), "to → bind; make() restituisce Exporter");
+
+            // F3: gli esterni di cui si sa solo il nome, e quanto è descritto
+            var externals = CodeExternals.Group(await _store.ExternalUsesAsync(_project, null));
+            CollectionAssert.Contains(externals.Select(t => t.Type).ToList(), "com.google.inject.Provides", "l'import di una libreria");
+            Assert.AreEqual(0, (await _store.ExternalUsesAsync(_project, "altrove/")).Count, "il filtro sul percorso");
+            var (describable, described) = await _store.DescribedCountsAsync(_project, "program/");
+            Assert.IsTrue(describable > 0);
+            Assert.AreEqual(0, described, "nessuno è ancora descritto");
         }
 
         /// <summary>

@@ -208,6 +208,29 @@ namespace MdExplorer.Features.Services.CodeGraph
             return facts;
         }
 
+        public async Task<List<CodeExternalUse>> ExternalUsesAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var prefix = string.IsNullOrEmpty(pathPrefix) ? string.Empty : $"FILTER(STRSTARTS(?path, {Lit(pathPrefix)})) ";
+            var rows = await RowsAsync(
+                $"SELECT ?qn ?rel (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?callers) (MIN(CONCAT(?path, \":\", COALESCE(STR(?line), \"\"))) AS ?example) WHERE {{ GRAPH {g.DataIri} {{ " +
+                "?x a code:Symbol ; code:kind \"external\" ; code:qualifiedName ?qn . ?e a code:Edge ; code:target ?x ; code:source ?src ; code:relation ?rel ; code:path ?path . " +
+                $"OPTIONAL {{ ?e code:line ?line }} FILTER(?rel != \"contains\") {prefix}{NotRejected}}} }} GROUP BY ?qn ?rel", ct);
+            return rows.Select(r => new CodeExternalUse { QualifiedName = Str(r, "qn"), Relation = Str(r, "rel"), Uses = Count(r, "n"), Callers = Count(r, "callers"), Example = Str(r, "example") }).ToList();
+        }
+
+        public async Task<(int Describable, int Described)> DescribedCountsAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var kinds = string.Join(" ", new[] { "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type", "component", "service", "directive", "pipe", "ngmodule", "fragment" }
+                .Where(CodeDocPlanner.IsDescribable).Select(Lit));
+            var prefix = string.IsNullOrEmpty(pathPrefix) ? string.Empty : $"FILTER(STRSTARTS(?path, {Lit(pathPrefix)})) ";
+            var row = (await RowsAsync(
+                $"SELECT (COUNT(DISTINCT ?s) AS ?all) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ VALUES ?k {{ {kinds} }} " +
+                $"?s a code:Symbol ; code:kind ?k ; code:path ?path . FILTER NOT EXISTS {{ ?s code:trivial ?t }} {prefix}OPTIONAL {{ ?d a code:Description ; code:describes ?s }} }} }}", ct)).FirstOrDefault();
+            return row == null ? (0, 0) : (Count(row, "all"), Count(row, "described"));
+        }
+
         public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
             => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
 

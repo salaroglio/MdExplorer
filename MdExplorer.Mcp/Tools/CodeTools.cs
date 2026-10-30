@@ -181,6 +181,23 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "A READY-MADE QUESTION on the code graph, by name (you never write SPARQL): MdExplorer checks the parameters and runs it. The catalog with " +
+        "the parameters is in code_schema. unknown-externals: what the code uses that the graph knows only by name, by type and package. " +
+        "where-is-it: WHERE in the repository that information is although it was not analyzed (source outside the program folders, a jar, a .class, " +
+        "a configuration file) with the remedy. not-analyzed: files on disk not in the graph and symbols without a description, per program folder. " +
+        "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
+    public async Task<string> code_query(
+        [Description("Project name.")] string project,
+        [Description("The question's name, from the catalog in code_schema (e.g. unknown-externals).")] string name,
+        [Description("Optional parameters as a JSON object of strings, e.g. {\"folder\": \"program\", \"limit\": \"20\"}.")] Dictionary<string, string> parameters = null)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await PostAsync(client, "/api/codegraph/query", new { projectPath = path, name, parameters = parameters ?? new Dictionary<string, string>() },
+            "code_query", project, name);
+    }
+
+    [McpServerTool, Description(
         "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols and files have a " +
         "description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). Start here to get the shape of an unknown codebase.")]
     public async Task<string> code_overview(

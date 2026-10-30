@@ -909,6 +909,21 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         });
 
+        public class QueryRequest { public string? ProjectPath { get; set; } public string? Name { get; set; } public Dictionary<string, string>? Parameters { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/query {projectPath, name, parameters} — una domanda pronta del catalogo (D43, <c>code_query</c>):
+        /// parametri controllati, SPARQL e file letti da MdExplorer. Un nome o un parametro sbagliato è un 400 col rimedio.
+        /// </summary>
+        [HttpPost("query")]
+        public Task<IActionResult> Query([FromBody] QueryRequest request, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var queries = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeQueryService>();
+            try { return Ok(await queries.RunAsync(request.ProjectPath, request.Name, request.Parameters, ct)); }
+            catch (MdExplorer.Services.CodeGraph.CodeQueryException ex) { return BadRequest(new { error = ex.Message }); }
+        });
+
         [HttpGet("overview")]
         public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {

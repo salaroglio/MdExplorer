@@ -85,10 +85,26 @@ namespace MdExplorer.Services.CodeGraph
         public IReadOnlyList<string> LanguageNotices { get; set; } = Array.Empty<string>();
     }
 
+    /// <summary>Una cartella program con la sua cartella su questo disco (D43 F3).</summary>
+    public sealed class CodeProgramScope
+    {
+        public string Folder { get; init; }
+        public IReadOnlyList<string> Languages { get; init; }
+        /// <summary>Null se remota o non utilizzabile (<see cref="Unusable"/> dice perché).</summary>
+        public string AbsolutePath { get; init; }
+        public Func<string, string> ToLogical { get; init; }
+        public string Unusable { get; init; }
+    }
+
     public interface ICodeAnalysisService
     {
         /// <summary>I linguaggi rilevati nella cartella (per estensione, dopo gli ignore) e quelli scelti in <c>.development.yml</c>.</summary>
         Task<CodeFolderLanguages> GetLanguagesAsync(string projectPath, string folderRelative, CancellationToken ct = default);
+        /// <summary>
+        /// Le cartelle program del progetto (anche contesti e radici) con la cartella su questo disco: null se remota o non
+        /// utilizzabile, col motivo. Per le domande che guardano i file (D43 F3: che cosa non è stato analizzato).
+        /// </summary>
+        Task<List<CodeProgramScope>> ProgramScopesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Da quale stato dei sorgenti viene il grafo della cartella (all'ultima scansione) e com'è adesso: la riga «Sorgenti» della finestra.</summary>
         Task<CodeSourceControlView> SourceControlAsync(string projectPath, string folderRelative, CancellationToken ct = default);
         /// <summary>Salva la scelta in <c>.development.yml</c> (voce della cartella, <c>codeGraph.languages</c>). Lista vuota = toglie la voce.</summary>
@@ -295,6 +311,23 @@ namespace MdExplorer.Services.CodeGraph
         private static string NotAnalyzableReason(CodeRootState root) => root.Status != CodeRootStatus.Linked ? root.Reason : null;
 
         // ------------------------------------------------------------------ .development.yml
+
+        public async Task<List<CodeProgramScope>> ProgramScopesAsync(string projectPath, CancellationToken ct = default)
+        {
+            var list = new List<CodeProgramScope>();
+            foreach (var p in await ListProgramsAsync(projectPath, ct))
+            {
+                var scope = await ScopeOfAsync(projectPath, p.Folder, ct);
+                list.Add(new CodeProgramScope
+                {
+                    Folder = p.Folder, Languages = scope.Languages,
+                    AbsolutePath = scope.Unusable == null && scope.Remote == null ? scope.FolderAbs : null,
+                    ToLogical = scope.ToLogical,
+                    Unusable = scope.Unusable ?? (scope.Remote != null ? UiText.Say("radice remota: i suoi file non si guardano da qui", "remote root: its files are not looked at from here") : null),
+                });
+            }
+            return list;
+        }
 
         public async Task<CodeSourceControlView> SourceControlAsync(string projectPath, string folderRelative, CancellationToken ct = default)
         {
