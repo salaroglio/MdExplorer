@@ -123,6 +123,12 @@ namespace MdExplorer.Services.CodeGraph
         public int ReviewContext { get; set; }
         public int ReviewPrompt { get; set; }
         public int ReviewNoFingerprint { get; set; }
+        /// <summary>
+        /// Le descrizioni a posto che un giro di revisione trascina con sé (30/10/2026): chiamano o contengono un simbolo che
+        /// si riscrive, a salire. <see cref="CascadeByLevel"/>[0] = livello 1 (tocca un riscritto).
+        /// </summary>
+        public int Cascade { get; set; }
+        public int[] CascadeByLevel { get; set; }
         public int Fresh { get; set; }
         /// <summary>Metodi banali la cui frase fissa manca o va rifatta: la scrive MdExplorer al giro, senza LLM.</summary>
         public int Trivial { get; set; }
@@ -302,9 +308,11 @@ namespace MdExplorer.Services.CodeGraph
                 progress.Run = run;
                 await SaveRunAsync(projectPath, run, token);
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = groups.Count, levels, symbols = candidates.Count, trivial = trivialWritten, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1,
-                    toReview = plan.Assessment.ToReview, reviewing = review, bodyUnknown = plan.Assessment.BodyUnknown });
-                _logger.LogInformation("[CodeDoc] '{Folder}': {Symbols} simboli in {Groups} domande su {Levels} livelli, {Trivial} metodi banali descritti da MdExplorer; da rivedere {Review} ({Reviewing}), corpo senza impronta {BodyUnknown}",
-                    folderRelative, candidates.Count, groups.Count, levels, trivialWritten, plan.Assessment.ToReview, review ? "rivisti in questo giro" : "non in questo giro", plan.Assessment.BodyUnknown);
+                    toReview = plan.Assessment.ToReview, reviewing = review, bodyUnknown = plan.Assessment.BodyUnknown,
+                    cascade = review ? plan.Assessment.Cascade.Count : 0, cascadeByLevel = review ? plan.Assessment.CascadeByLevel : Array.Empty<int>() });
+                _logger.LogInformation("[CodeDoc] '{Folder}': {Symbols} simboli in {Groups} domande su {Levels} livelli, {Trivial} metodi banali descritti da MdExplorer; da rivedere {Review} ({Reviewing}), a cascata {Cascade} ({CascadeLevels}), corpo senza impronta {BodyUnknown}",
+                    folderRelative, candidates.Count, groups.Count, levels, trivialWritten, plan.Assessment.ToReview, review ? "rivisti in questo giro" : "non in questo giro",
+                    plan.Assessment.Cascade.Count, CascadeLevelsText(plan.Assessment.CascadeByLevel), plan.Assessment.BodyUnknown);
 
                 // Dal basso (F12a): ogni domanda parte quando quelle da cui dipende sono finite, N insieme (punto 2b del 14/10).
                 // «Arrivata alla domanda X» = tutte quelle prima di X sono finite (il punto più basso ancora aperto).
@@ -372,9 +380,11 @@ namespace MdExplorer.Services.CodeGraph
                         blocker = group.DependsOn.FirstOrDefault(d => notDescribed[d], -1);
                         if (blocker < 0) runningSince[group.Index] = DateTime.UtcNow;
                     }
+                    var cascadeHere = group.Candidates.Where(c => c.CascadeLevel > 0).ToList();
                     if (blocker < 0)
-                        _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} liv {Level} partita: {File} ({Symbols} simboli, dipende da {Deps})",
-                            group.Index + 1, groups.Count, group.Level, label, group.Candidates.Count, group.DependsOn.Count);
+                        _logger.LogInformation("[CodeDoc] domanda {Index}/{Total} liv {Level} partita: {File} ({Symbols} simboli, {Cascade} a cascata, dipende da {Deps}){CascadeList}",
+                            group.Index + 1, groups.Count, group.Level, label, group.Candidates.Count, cascadeHere.Count, group.DependsOn.Count,
+                            cascadeHere.Count == 0 ? string.Empty : " — " + string.Join("; ", cascadeHere.Take(10).Select(c => $"{c.Symbol.QualifiedName} ← {c.CascadeFrom} (cascata liv {c.CascadeLevel})")));
                     try
                     {
                         if (blocker >= 0)
@@ -386,7 +396,8 @@ namespace MdExplorer.Services.CodeGraph
                             await SendAsync(connectionId, new { phase = "file-blocked", file = label, detail = why });
                             return;
                         }
-                        await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count });
+                        await SendAsync(connectionId, new { phase = "describing", file = label, fileIndex = group.Index + 1, fileTotal = groups.Count, level = group.Level, symbols = group.Candidates.Count,
+                            cascade = cascadeHere.Count, cascadeFrom = cascadeHere.Select(c => c.CascadeFrom).Distinct(StringComparer.Ordinal).Take(3).ToList() });
                         askFileIn.TryGetValue(group.Index, out var askFileOf);
                         var result = await DescribeGroupAsync(projectPath, resolver, group, docFiles, graph, summaries, writeGate, askFileOf != null, engine, model, skillBody, writtenBy, promptVersion, plan.Prompts, t);
                         lock (sync) rejectedTotal += result.Rejected;
@@ -676,7 +687,16 @@ namespace MdExplorer.Services.CodeGraph
                 plan.Candidates.AddRange(a.Candidates);
                 foreach (var kv in a.Counts) plan.Assessment.Counts[kv.Key] = plan.Assessment.Count(kv.Key) + kv.Value;
                 plan.Assessment.BodyUnknown += a.BodyUnknown;
+                plan.Assessment.Rewritten.UnionWith(a.Rewritten);
+                foreach (var kv in a.Followable) plan.Assessment.Followable[kv.Key] = kv.Value;
                 if (CodeDocPlanner.NeedsFileDoc(existing, force)) askFiles.Add(f.Ast.Header.Source);
+            }
+            // la cascata (30/10/2026): chi sopra un riscritto sarebbe «da rivedere» al giro dopo; la revisione la prende tutta,
+            // dal basso, così un giro solo arriva a zero. Contata anche senza revisione: l'anteprima dice quanto costa.
+            if (!force)
+            {
+                var cascade = CodeDocPlanner.Cascade(plan.Assessment, plan.Graph);
+                if (review) plan.Candidates.AddRange(cascade);
             }
             plan.Assessment.Candidates.AddRange(plan.Candidates);
 
@@ -750,12 +770,17 @@ namespace MdExplorer.Services.CodeGraph
                 Missing = a.Count(CodeDocVerdict.Missing), SignatureChanged = a.Count(CodeDocVerdict.SignatureChanged), BodyChanged = a.Count(CodeDocVerdict.BodyChanged),
                 Incomplete = a.Count(CodeDocVerdict.Incomplete),
                 ReviewContext = a.Count(CodeDocVerdict.ReviewContext), ReviewPrompt = a.Count(CodeDocVerdict.ReviewPrompt), ReviewNoFingerprint = a.Count(CodeDocVerdict.ReviewNoFingerprint),
+                Cascade = a.Cascade.Count, CascadeByLevel = a.CascadeByLevel,
                 Fresh = a.Count(CodeDocVerdict.Fresh), Trivial = plan.Trivial, BodyUnknown = a.BodyUnknown,
                 Files = plan.Groups.SelectMany(g => g.Sources).Distinct(StringComparer.Ordinal).Count(),
                 AnalyzedFiles = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).Count(),
                 ScriptsBytes = Directory.EnumerateFiles(scriptsFolder, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length),
             };
         }
+
+        /// <summary>«liv 1: 18 · liv 2: 15» per il log.</summary>
+        private static string CascadeLevelsText(int[] byLevel)
+            => byLevel.Length == 0 ? "-" : string.Join(" · ", byLevel.Select((n, i) => $"liv {i + 1}: {n}"));
 
         /// <summary>Uno script AST della cartella e dove sta lo script delle sue descrizioni.</summary>
         private sealed class DocFile

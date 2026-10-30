@@ -160,6 +160,10 @@ export interface DescribePreview {
   reviewContext: number;
   reviewPrompt: number;
   reviewNoFingerprint: number;
+  /** Le descrizioni a posto che «Rivedi» trascina con sé: chiamano o contengono un simbolo riscritto, a salire. */
+  cascade: number;
+  /** Quanti a cascata per livello: [0] = livello 1 (tocca un riscritto). */
+  cascadeByLevel: number[];
   fresh: number;
   trivial: number;
   bodyUnknown: number;

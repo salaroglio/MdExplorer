@@ -260,6 +260,58 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(rec, graph.ContextHash("rec", S), "rec2 è nello stesso ciclo: si descrivono insieme, non conta");
         }
 
+        /// <summary>
+        /// Utente, 30/10/2026: «ne erano rimaste 17, gli ho fatto fare la rielaborazione e dopo ne ha trovate 18». Riscritta
+        /// leaf, chi la chiama o la contiene aveva in impronta la sintesi vecchia: la revisione lo prende nello stesso giro,
+        /// a salire, dopo di lei.
+        /// </summary>
+        [TestMethod]
+        public void Take_in_the_review_round_who_sits_above_a_rewritten_description_level_by_level()
+        {
+            var (a, b) = Fixture();
+            var graph = new CodeDocGraph(new[] { a, b });
+            string S(string id) => "sintesi di " + id;
+            CodeScript DocOf(CodeScript ast)
+            {
+                var doc = Script(ast.Header.Source); doc.Header.Kind = CodeScriptKind.Doc;
+                foreach (var x in ast.Symbols.Where(x => CodeDocPlanner.IsDescribable(x.Kind) && x.Trivial == null))
+                    doc.SymbolDocs.Add(Doc(x.Id, CodeDocPlanner.SignatureHash(x, Array.Empty<ScriptParameter>()), null, graph.ContextHash(x.Id, S), "8"));
+                return doc;
+            }
+            var docA = DocOf(a); var docB = DocOf(b);
+            docA.SymbolDocs.Single(d => d.SymbolId == "leaf").PromptVersion = "7";                              // da rivedere
+            docA.SymbolDocs.Single(d => d.SymbolId == "top").PromptVersion = CodeDocPlanner.EditedPromptVersion;  // corretta a mano
+
+            CodeDocAssessment AssessAll(bool review)
+            {
+                var all = new CodeDocAssessment();
+                foreach (var (ast, doc) in new[] { (a, docA), (b, docB) })
+                {
+                    var one = CodeDocPlanner.Assess(ast, doc, force: false, review, id => graph.ContextHash(id, S), "8");
+                    all.Candidates.AddRange(one.Candidates);
+                    all.Rewritten.UnionWith(one.Rewritten);
+                    foreach (var kv in one.Followable) all.Followable[kv.Key] = kv.Value;
+                }
+                return all;
+            }
+
+            var plain = AssessAll(review: false);
+            var cascade = CodeDocPlanner.Cascade(plain, graph);
+            var levelOf = cascade.ToDictionary(c => c.Symbol.Id, c => c.CascadeLevel);
+            CollectionAssert.AreEquivalent(new[] { "mid", "b1", "A", "B" }, levelOf.Keys.ToArray(), "top è corretta a mano: non cambia sintesi e la cascata non passa da lei");
+            Assert.AreEqual((1, 1, 1, 2), (levelOf["mid"], levelOf["b1"], levelOf["A"], levelOf["B"]), "chiamano o contengono leaf; B contiene b1");
+            Assert.AreEqual("p.X.leaf()", cascade.Single(c => c.Symbol.Id == "mid").CascadeFrom);
+            CollectionAssert.AreEqual(new[] { 3, 1 }, plain.CascadeByLevel);
+            Assert.IsFalse(plain.Candidates.Any(c => c.Verdict == CodeDocVerdict.ReviewCascade), "senza revisione la cascata si conta e basta");
+
+            var review = AssessAll(review: true);
+            var candidates = review.Candidates.Concat(CodeDocPlanner.Cascade(review, graph)).ToList();
+            var groups = graph.Plan(candidates);
+            int LevelOf(string id) => groups.Single(g => g.Candidates.Any(c => c.Symbol.Id == id)).Level;
+            Assert.IsTrue(LevelOf("mid") > LevelOf("leaf") && LevelOf("b1") > LevelOf("leaf") && LevelOf("A") > LevelOf("leaf") && LevelOf("B") > LevelOf("b1"),
+                "dal basso: ognuno dopo chi lo trascina, così legge la sintesi nuova");
+        }
+
         [TestMethod]
         public void Read_back_the_fingerprints_and_keep_hand_written_corrections_out_of_review()
         {

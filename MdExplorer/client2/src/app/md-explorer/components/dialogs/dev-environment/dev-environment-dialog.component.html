@@ -160,6 +160,7 @@
           <button mat-stroked-button class="step-button" (click)="requestDescribe(true)" [disabled]="!canDescribe">
             <mat-icon>rate_review</mat-icon>
             {{ 'DEV_ENV.DESCRIBE_REVIEW' | translate: { count: previewReview } }}
+            <ng-container *ngIf="preview?.cascade">{{ 'DEV_ENV.DESCRIBE_REVIEW_CASCADE' | translate: { count: preview?.cascade } }}</ng-container>
           </button>
         </div>
         <div class="step-row" *ngIf="!describing && runningRun">
@@ -247,6 +248,7 @@
           <ng-container *ngIf="preview; else calculating">
             {{ previewReview }}
             <div class="sub" *ngIf="previewReview > 0">{{ 'DEV_ENV.T_REVIEW_DETAIL' | translate: { context: preview.reviewContext, prompt: preview.reviewPrompt, none: preview.reviewNoFingerprint } }}</div>
+            <div class="sub" *ngIf="previewReview > 0 && preview.cascade > 0">{{ 'DEV_ENV.T_REVIEW_CASCADE' | translate: { count: preview.cascade, levels: preview.cascadeByLevel.length, detail: cascadeDetail } }}</div>
           </ng-container>
         </td>
       </tr>

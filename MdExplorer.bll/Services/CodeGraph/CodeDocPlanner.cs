@@ -29,6 +29,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         ReviewPrompt,
         /// <summary>Senza impronta del contesto o del prompt: scritta prima del 21/10/2026, o da «Descrivi» su un solo simbolo.</summary>
         ReviewNoFingerprint,
+        /// <summary>
+        /// Oggi a posto, ma chiama (o contiene) un simbolo che il giro di revisione riscrive: dopo sarebbe <see cref="ReviewContext"/>,
+        /// quindi si rivede nello stesso giro, dopo di lui (30/10/2026). <see cref="Verdict"/> non lo dà mai: lo dà <see cref="CodeDocPlanner.Cascade"/>.
+        /// </summary>
+        ReviewCascade,
     }
 
     /// <summary>Chi descrivere in un giro e perché, con i conti per la finestra.</summary>
@@ -39,6 +44,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Simboli con un corpo ma senza impronta nello script AST (script di prima del 21/10): il corpo cambiato non si vede finché non si rifà «Estrai la struttura».</summary>
         public int BodyUnknown { get; set; }
         public int Count(CodeDocVerdict v) => Counts.TryGetValue(v, out var n) ? n : 0;
+        /// <summary>Chi un giro di revisione riscrive: quelle da fare o da rifare e quelle «da rivedere» (da qui parte la cascata).</summary>
+        public HashSet<string> Rewritten { get; } = new(StringComparer.Ordinal);
+        /// <summary>Le descrizioni a posto che la cascata può trascinare nel giro (non quelle corrette a mano): il candidato già pronto.</summary>
+        public Dictionary<string, CodeDocCandidate> Followable { get; } = new(StringComparer.Ordinal);
+        /// <summary>La cascata di un giro di revisione (<see cref="CodeDocPlanner.Cascade"/>), per livello.</summary>
+        public List<CodeDocCandidate> Cascade { get; } = new();
+        /// <summary>Quanti a cascata per livello: [0] = livello 1.</summary>
+        public int[] CascadeByLevel => Cascade.Count == 0 ? Array.Empty<int>()
+            : Enumerable.Range(1, Cascade.Max(c => c.CascadeLevel)).Select(l => Cascade.Count(c => c.CascadeLevel == l)).ToArray();
         public int ToReview => Count(CodeDocVerdict.ReviewContext) + Count(CodeDocVerdict.ReviewPrompt) + Count(CodeDocVerdict.ReviewNoFingerprint);
     }
 
@@ -58,6 +72,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Source { get; init; }
         /// <summary>Perché è nel giro (F12b).</summary>
         public CodeDocVerdict Verdict { get; init; } = CodeDocVerdict.Missing;
+        /// <summary>Per <see cref="CodeDocVerdict.ReviewCascade"/>: a che distanza da un riscritto (1 = lo chiama o lo contiene) e il nome di uno che lo trascina.</summary>
+        public int CascadeLevel { get; init; }
+        public string CascadeFrom { get; init; }
     }
 
     /// <summary>
@@ -140,11 +157,34 @@ namespace MdExplorer.Features.Services.CodeGraph
                     && d.PromptVersion != EditedPromptVersion && WhatIsMissing(s, prms, d, existingDoc).Count > 0)
                     verdict = CodeDocVerdict.Incomplete;
                 result.Counts[verdict] = result.Count(verdict) + 1;
+                if (verdict != CodeDocVerdict.Fresh) result.Rewritten.Add(s.Id);
+                else if (d.PromptVersion != EditedPromptVersion)
+                    result.Followable[s.Id] = new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source, Verdict = CodeDocVerdict.ReviewCascade };
                 var take = force || verdict is CodeDocVerdict.Missing or CodeDocVerdict.SignatureChanged or CodeDocVerdict.BodyChanged or CodeDocVerdict.Incomplete
                            || review && verdict is CodeDocVerdict.ReviewContext or CodeDocVerdict.ReviewPrompt or CodeDocVerdict.ReviewNoFingerprint;
                 if (take) result.Candidates.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash, Source = ast.Header.Source, Verdict = verdict });
             }
             return result;
+        }
+
+        /// <summary>
+        /// La cascata di un giro di revisione su tutta la cartella (<paramref name="a"/> = gli Assess di tutti i file messi
+        /// insieme): le descrizioni a posto che, riscritti <see cref="CodeDocAssessment.Rewritten"/>, sarebbero «da rivedere»
+        /// al giro dopo, a salire fino in cima. Le mette in <see cref="CodeDocAssessment.Cascade"/>; entrano nel giro solo se
+        /// chi chiama lo vuole (la revisione). Il caso peggiore: chi riscrive con le stesse parole non cambia l'impronta.
+        /// </summary>
+        public static List<CodeDocCandidate> Cascade(CodeDocAssessment a, CodeDocGraph graph)
+        {
+            var reached = graph.Cascade(a.Rewritten, a.Followable.ContainsKey);
+            var list = reached.OrderBy(kv => kv.Value.Level).ThenBy(kv => kv.Key, StringComparer.Ordinal).Select(kv =>
+            {
+                var c = a.Followable[kv.Key];
+                return new CodeDocCandidate { Symbol = c.Symbol, Parameters = c.Parameters, SignatureHash = c.SignatureHash, Source = c.Source,
+                    Verdict = CodeDocVerdict.ReviewCascade, CascadeLevel = kv.Value.Level, CascadeFrom = kv.Value.From };
+            }).ToList();
+            a.Cascade.Clear();
+            a.Cascade.AddRange(list);
+            return list;
         }
 
         private static readonly HashSet<string> WithReturn = new(StringComparer.Ordinal) { "method", "function", "property" };

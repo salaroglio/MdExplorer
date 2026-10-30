@@ -222,20 +222,66 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public string ContextHash(string symbolId, Func<string, string> summaryOf)
         {
+            string Token(string id) => _symbols.TryGetValue(id, out var s) ? $"{s.Symbol.QualifiedName}={summaryOf(id) ?? "∅"}"
+                : _externals.TryGetValue(id, out var x) ? $"ext:{x.QualifiedName}" : $"?:{id}";
+            var tokens = ContextOf(symbolId).Select(c => c.Prefix + Token(c.Id)).ToList();
+            tokens.Sort(StringComparer.Ordinal);
+            return CodeBodyHash.Hash(string.Join("\n", tokens.Distinct(StringComparer.Ordinal)));
+        }
+
+        /// <summary>Di chi entra la sintesi nell'impronta del contesto di <paramref name="symbolId"/> (<see cref="ContextHash"/>), col prefisso del suo token.</summary>
+        private IEnumerable<(string Prefix, string Id)> ContextOf(string symbolId)
+        {
             _cycleOf ??= CyclesOfAll();
             _cycleOf.TryGetValue(symbolId, out var mine);
             bool SameCycle(string id) => _cycleOf.TryGetValue(id, out var c) && c == mine && mine != 0;
-            var tokens = new List<string>();
-            string Token(string id) => _symbols.TryGetValue(id, out var s) ? $"{s.Symbol.QualifiedName}={summaryOf(id) ?? "∅"}"
-                : _externals.TryGetValue(id, out var x) ? $"ext:{x.QualifiedName}" : $"?:{id}";
             if (_calls.TryGetValue(symbolId, out var calls))
                 foreach (var e in calls)
-                    if (e.TargetId != symbolId && !SameCycle(e.TargetId)) tokens.Add((e.Confidence == "ambiguous" ? "amb:" : "call:") + Token(e.TargetId));
+                    if (e.TargetId != symbolId && !SameCycle(e.TargetId)) yield return (e.Confidence == "ambiguous" ? "amb:" : "call:", e.TargetId);
             if (FromParts(symbolId) && _members.TryGetValue(symbolId, out var members))
                 foreach (var m in members)
-                    if (_symbols.TryGetValue(m, out var ms) && CodeDocPlanner.IsDescribable(ms.Symbol.Kind)) tokens.Add("member:" + Token(m));
-            tokens.Sort(StringComparer.Ordinal);
-            return CodeBodyHash.Hash(string.Join("\n", tokens.Distinct(StringComparer.Ordinal)));
+                    if (_symbols.TryGetValue(m, out var ms) && CodeDocPlanner.IsDescribable(ms.Symbol.Kind)) yield return ("member:", m);
+        }
+
+        private Dictionary<string, List<string>> _dependents;
+
+        /// <summary>
+        /// La cascata di un giro che riscrive <paramref name="rewritten"/> (utente, 30/10/2026: «ne erano rimaste 17, dopo il
+        /// giro ne ha trovate 18»): chi ha nell'impronta del contesto la sintesi di un riscritto diventa «da rivedere» al giro
+        /// dopo, e così via a salire. Qui, a salire, chi <paramref name="canJoin"/> accetta: livello 1 = tocca un riscritto,
+        /// 2 = tocca uno del livello 1…; <c>From</c> è il nome di uno che lo trascina. Chi non entra (corretto a mano, banale)
+        /// non cambia sintesi e la cascata non passa da lui.
+        /// </summary>
+        public Dictionary<string, (int Level, string From)> Cascade(IEnumerable<string> rewritten, Func<string, bool> canJoin)
+        {
+            if (_dependents == null)
+            {
+                _dependents = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                foreach (var id in _symbols.Keys.OrderBy(k => k, StringComparer.Ordinal))
+                    foreach (var target in ContextOf(id).Select(c => c.Id).Where(_symbols.ContainsKey).Distinct(StringComparer.Ordinal))
+                    {
+                        if (!_dependents.TryGetValue(target, out var list)) _dependents[target] = list = new List<string>();
+                        list.Add(id);
+                    }
+            }
+            var result = new Dictionary<string, (int Level, string From)>(StringComparer.Ordinal);
+            var seen = new HashSet<string>(rewritten, StringComparer.Ordinal);
+            var wave = seen.OrderBy(k => k, StringComparer.Ordinal).ToList();
+            for (var level = 1; wave.Count > 0; level++)
+            {
+                var next = new List<string>();
+                foreach (var id in wave)
+                    if (_dependents.TryGetValue(id, out var dependents))
+                        foreach (var d in dependents)
+                            if (!seen.Contains(d) && canJoin(d))
+                            {
+                                seen.Add(d);
+                                result[d] = (level, _symbols[id].Symbol.QualifiedName);
+                                next.Add(d);
+                            }
+                wave = next;
+            }
+            return result;
         }
 
         /// <summary>I cicli di chiamate fra TUTTI i simboli descrivibili non banali: id → numero del ciclo (1…), assente se non è in un ciclo.</summary>

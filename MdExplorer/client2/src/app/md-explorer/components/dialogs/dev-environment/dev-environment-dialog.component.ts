@@ -61,6 +61,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public preview: DescribePreview | null = null;
   public previewTodo = 0;
   public previewReview = 0;
+  /** «liv 1: 18 · liv 2: 15»: la cascata di «Rivedi» per livello, calcolata una volta (mai un getter nel template). */
+  public cascadeDetail = '';
   /** Gli script dell'estrattore precedente (D25): l'avviso in alto e la domanda prima di «Descrivi con Mark». */
   public outdated: OutdatedScripts | null = null;
   public showOutdatedFiles = false;
@@ -337,6 +339,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.noStructure = false;
         this.previewTodo = p.missing + p.signatureChanged + p.bodyChanged + (p.incomplete ?? 0);
         this.previewReview = p.reviewContext + p.reviewPrompt + p.reviewNoFingerprint;
+        this.cascadeDetail = this.cascadeLevels(p.cascadeByLevel);
         this.scriptsMb = this.formatMb(p.scriptsBytes ?? 0);
         this.loadFolderWeight();
         this.updateEstimate();
@@ -370,11 +373,21 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     if (connectionId) { this.codeGraph.cancelDescribe(connectionId).subscribe(); }
   }
 
+  private cascadeLevels(byLevel: number[] | null | undefined): string {
+    return (byLevel ?? []).map((n, i) => this.translate.instant('DEV_ENV.CASCADE_LEVEL', { level: i + 1, count: n })).join(' · ');
+  }
+
   private onDescribeProgress(p: any): void {
     if (!p) { return; }
     switch (p.phase) {
-      case 'started': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal, levels: p.levels, symbols: p.symbols, trivial: p.trivial })); break;
-      case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })); break;
+      case 'started':
+        this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal, levels: p.levels, symbols: p.symbols, trivial: p.trivial }));
+        if (p.cascade > 0) { this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_CASCADE', { count: p.cascade, detail: this.cascadeLevels(p.cascadeByLevel) })); }
+        break;
+      case 'describing':
+        this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, level: p.level, file: p.file, symbols: p.symbols })
+          + (p.cascade > 0 ? this.translate.instant('DEV_ENV.DESCRIBE_FILE_CASCADE', { count: p.cascade, from: (p.cascadeFrom ?? []).join(', ') }) : ''));
+        break;
       case 'file-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE_DONE', { file: p.file, described: p.described, rejected: p.rejected })); break;
       case 'file-failed': case 'file-skipped': case 'file-blocked': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
       case 'done':
