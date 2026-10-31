@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
+import { ProjectsService } from '../../md-explorer/services/projects.service';
 
 export interface TelegramStatus {
   state: 'not-connected' | 'off' | 'standby' | 'listening';
@@ -19,12 +20,25 @@ export interface TelegramPairing {
   telegramUserName?: string | null;
   botUsername?: string | null;
   recovered?: boolean;
+  action?: 'connect' | 'regenerate' | 'project';
+}
+
+export interface ProjectBotStatus {
+  state: 'none' | 'setup' | 'configured' | 'error';
+  botUsername: string | null;
+  channelTitle: string | null;
+  subscription: 'subscribed' | 'not-subscribed' | 'unknown' | null;
+  setupState: 'waiting-channel' | 'failed' | null;
+  channelLink: string | null;
+  notPublished: boolean;
+  error: string | null;
 }
 
 /**
  * Sezione Telegram delle impostazioni (docs-internal/Sprints/2026-10-31-Telecomando-Telegram.md, F3 = D4): collega o
  * recupera il bot personale col QR, conferma di chi si è abbinato, interruttore, «Prendi il controllo», nome, rigenera,
  * scollega. Lo stato cambia anche da solo (un'altra installazione prende il bot), quindi si rilegge mentre è aperta.
+ * Sotto, il bot del progetto aperto (F4 = D5): crearlo, aggiungerlo al canale privato, iscriversi agli avvisi.
  */
 @Component({
   selector: 'app-telegram-settings',
@@ -42,14 +56,30 @@ export class TelegramSettingsComponent implements OnInit, OnDestroy {
   busy = false;
   error: string | null = null;
 
+  /** Il progetto aperto (null dalla pagina dei progetti) e il suo bot. */
+  projectPath: string | null = null;
+  projectName: string | null = null;
+  project: ProjectBotStatus | null = null;
+  /** Il link d'invito al canale appena creato, per una sola persona. */
+  inviteLink: string | null = null;
+  projectNotice: string | null = null;
+
   private statusTimer: any = null;
   private pairingTimer: any = null;
+  private projectSub: Subscription | null = null;
 
-  constructor(private http: HttpClient, private translate: TranslateService) {}
+  constructor(private http: HttpClient, private translate: TranslateService, private projects: ProjectsService) {}
 
   ngOnInit(): void {
     this.loadStatus(true);
-    this.statusTimer = setInterval(() => this.loadStatus(false), 3000);
+    this.projectSub = this.projects.currentProjects$.subscribe(p => {
+      this.projectPath = p?.path || null;
+      this.projectName = p?.name || null;
+      this.project = null;
+      this.inviteLink = null;
+      this.loadProject();
+    });
+    this.statusTimer = setInterval(() => { this.loadStatus(false); this.loadProject(); }, 3000);
     // Un abbinamento lasciato a metà (dialogo chiuso e riaperto) si ritrova.
     this.http.get<TelegramPairing>(`${this.api}/pairing`).subscribe({
       next: p => { if (p.state !== 'none') this.showPairing(p); },
@@ -61,6 +91,7 @@ export class TelegramSettingsComponent implements OnInit, OnDestroy {
   get pairingActive(): boolean { return !!this.pairing && this.pairing.state !== 'none'; }
   get waitingPhone(): boolean { return this.pairing?.state === 'waiting-start' || this.pairing?.state === 'waiting-bot'; }
   get qrUrl(): string { return `${this.api}/pairing/qr?t=${this.qrStamp}`; }
+  qrOf(link: string): string { return `${this.api}/qr?text=${encodeURIComponent(link)}`; }
 
   loadStatus(resetName: boolean): void {
     this.http.get<TelegramStatus>(`${this.api}/status`).subscribe({
@@ -81,12 +112,53 @@ export class TelegramSettingsComponent implements OnInit, OnDestroy {
   }
 
   confirmPairing(): void {
+    const forProject = this.pairing?.action === 'project';
     this.run(this.http.post<TelegramStatus>(`${this.api}/pairing/confirm`, {}), s => {
       this.stopPairingPolling();
       this.pairing = null;
       this.status = s;
-      this.installationName = s.installationName;
+      if (forProject) this.loadProject();
+      else this.installationName = s.installationName;
     });
+  }
+
+  // ---------------------------------------------------------------- bot di progetto
+
+  loadProject(): void {
+    if (!this.projectPath) return;
+    const path = this.projectPath;
+    this.http.get<ProjectBotStatus>(`${this.api}/project`, { params: { path } }).subscribe({
+      next: p => { if (path === this.projectPath) this.project = p; },
+      error: e => { if (path === this.projectPath) this.project = { state: 'error', error: this.message(e) } as ProjectBotStatus; }
+    });
+  }
+
+  /** «Crea il bot di progetto»: prima i controlli (già un bot qui o sull'origin, repository pubblico), poi l'abbinamento. */
+  createProjectBot(): void {
+    if (!this.projectPath) return;
+    const path = this.projectPath;
+    this.run(this.http.get<{ publicRepository: boolean; origin: string | null }>(`${this.api}/project/preflight`, { params: { path } }), pre => {
+      const warning = this.translate.instant(pre.publicRepository ? 'TELEGRAM_SETTINGS.PROJECT_PUBLIC_CONFIRM' : 'TELEGRAM_SETTINGS.PROJECT_CREATE_CONFIRM');
+      if (!window.confirm(warning)) return;
+      this.run(this.http.post<TelegramPairing>(`${this.api}/pairing`, { action: 'project', projectPath: path }), p => {
+        this.qrStamp = Date.now();
+        this.showPairing(p);
+      });
+    });
+  }
+
+  cancelProjectSetup(): void {
+    if (!this.projectPath) return;
+    this.run(this.http.delete(`${this.api}/project/setup`, { params: { path: this.projectPath } }), () => this.loadProject());
+  }
+
+  inviteToChannel(): void {
+    this.run(this.http.post<{ link: string }>(`${this.api}/project/invite`, { projectPath: this.projectPath }), r => this.inviteLink = r.link);
+  }
+
+  sendProjectTest(): void {
+    this.run(this.http.post(`${this.api}/project/test`, { projectPath: this.projectPath }),
+      () => this.projectNotice = this.translate.instant('TELEGRAM_SETTINGS.PROJECT_TEST_SENT'));
   }
 
   cancelPairing(): void {
@@ -124,6 +196,7 @@ export class TelegramSettingsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     clearInterval(this.statusTimer);
+    this.projectSub?.unsubscribe();
     this.stopPairingPolling();
   }
 

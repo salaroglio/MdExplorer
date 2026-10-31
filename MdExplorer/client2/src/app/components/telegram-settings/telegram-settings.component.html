@@ -8,8 +8,8 @@
 <mat-card *ngIf="pairingActive" class="tg-card">
   <mat-card-content>
     <ng-container *ngIf="waitingPhone">
-      <h4>{{ 'TELEGRAM_SETTINGS.PAIR_TITLE' | translate }}</h4>
-      <p>{{ 'TELEGRAM_SETTINGS.PAIR_STEPS' | translate }}</p>
+      <h4>{{ (pairing!.action === 'project' ? 'TELEGRAM_SETTINGS.PROJECT_PAIR_TITLE' : 'TELEGRAM_SETTINGS.PAIR_TITLE') | translate }}</h4>
+      <p>{{ (pairing!.action === 'project' ? 'TELEGRAM_SETTINGS.PROJECT_PAIR_STEPS' : 'TELEGRAM_SETTINGS.PAIR_STEPS') | translate }}</p>
       <div class="tg-qr-row">
         <img class="tg-qr" [src]="qrUrl" alt="QR">
         <div class="tg-qr-side">
@@ -123,5 +123,81 @@
         <mat-icon>delete_outline</mat-icon> {{ 'TELEGRAM_SETTINGS.DELETE_BOT' | translate }}
       </button>
     </div>
+  </mat-card-content>
+</mat-card>
+
+<!-- Bot del progetto aperto (F4) -->
+<mat-card *ngIf="projectPath && project" class="tg-card">
+  <mat-card-content>
+    <h4>{{ 'TELEGRAM_SETTINGS.PROJECT_TITLE' | translate: { name: projectName } }}</h4>
+    <p class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_INTRO' | translate }}</p>
+
+    <div *ngIf="project.error" class="tg-error">
+      <mat-icon>warning</mat-icon><span>{{ project.error }}</span>
+    </div>
+
+    <ng-container *ngIf="project.state === 'none'">
+      <div class="tg-actions tg-actions-left">
+        <button mat-raised-button color="primary" (click)="createProjectBot()" [disabled]="busy || pairingActive">
+          <mat-icon>add</mat-icon> {{ 'TELEGRAM_SETTINGS.PROJECT_CREATE' | translate }}
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="project.state === 'setup'">
+      <p>{{ 'TELEGRAM_SETTINGS.PROJECT_BOT_IS' | translate }} <strong>&#64;{{ project.botUsername }}</strong>.</p>
+      <ng-container *ngIf="project.setupState === 'waiting-channel'">
+        <ol class="tg-steps">
+          <li>{{ 'TELEGRAM_SETTINGS.PROJECT_STEP_CHANNEL' | translate }}</li>
+          <li>{{ 'TELEGRAM_SETTINGS.PROJECT_STEP_ADD' | translate }}</li>
+        </ol>
+        <div class="tg-qr-row">
+          <img class="tg-qr" [src]="qrOf(project.channelLink!)" alt="QR">
+          <div class="tg-qr-side">
+            <button mat-stroked-button color="primary" (click)="openLink(project.channelLink!)">
+              <mat-icon>send</mat-icon> {{ 'TELEGRAM_SETTINGS.PROJECT_ADD_TO_CHANNEL' | translate }}
+            </button>
+            <code class="tg-link">{{ project.channelLink }}</code>
+            <p class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_WAITING_CHANNEL' | translate }}</p>
+          </div>
+        </div>
+      </ng-container>
+      <div class="tg-actions">
+        <button mat-button (click)="cancelProjectSetup()" [disabled]="busy">{{ 'TELEGRAM_SETTINGS.CANCEL' | translate }}</button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="project.state === 'configured'">
+      <div class="tg-status-row">
+        <a class="tg-bot" (click)="openLink('https://t.me/' + project.botUsername)">&#64;{{ project.botUsername }}</a>
+        <span>{{ 'TELEGRAM_SETTINGS.PROJECT_CHANNEL' | translate }}: <strong>{{ project.channelTitle }}</strong></span>
+        <span *ngIf="project.subscription === 'subscribed'" class="tg-state listening">{{ 'TELEGRAM_SETTINGS.PROJECT_SUBSCRIBED' | translate }}</span>
+        <span *ngIf="project.subscription === 'not-subscribed'" class="tg-state">{{ 'TELEGRAM_SETTINGS.PROJECT_NOT_SUBSCRIBED' | translate }}</span>
+      </div>
+      <p *ngIf="project.subscription === 'unknown'" class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_SUBSCRIPTION_UNKNOWN' | translate }}</p>
+      <p *ngIf="project.subscription === 'subscribed'" class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_LEAVE_HINT' | translate }}</p>
+      <p *ngIf="project.notPublished" class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_NOT_PUBLISHED' | translate }}</p>
+
+      <div *ngIf="inviteLink" class="tg-qr-row">
+        <img class="tg-qr" [src]="qrOf(inviteLink)" alt="QR">
+        <div class="tg-qr-side">
+          <button mat-stroked-button color="primary" (click)="openLink(inviteLink)">
+            <mat-icon>send</mat-icon> {{ 'TELEGRAM_SETTINGS.OPEN_TELEGRAM' | translate }}
+          </button>
+          <code class="tg-link">{{ inviteLink }}</code>
+          <p class="hint-text">{{ 'TELEGRAM_SETTINGS.PROJECT_INVITE_HINT' | translate }}</p>
+        </div>
+      </div>
+      <p *ngIf="projectNotice" class="hint-text">{{ projectNotice }}</p>
+
+      <div class="tg-actions tg-actions-left">
+        <button *ngIf="project.subscription !== 'subscribed'" mat-raised-button color="primary" (click)="inviteToChannel()" [disabled]="busy">
+          <mat-icon>notifications_active</mat-icon> {{ 'TELEGRAM_SETTINGS.PROJECT_SUBSCRIBE' | translate }}
+        </button>
+        <button mat-stroked-button (click)="sendProjectTest()" [disabled]="busy">
+          <mat-icon>campaign</mat-icon> {{ 'TELEGRAM_SETTINGS.PROJECT_TEST' | translate }}
+        </button>
+      </div>
+    </ng-container>
   </mat-card-content>
 </mat-card>

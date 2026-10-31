@@ -14,7 +14,7 @@ namespace MdExplorer.Services.Telegram
     /// <summary>Un abbinamento in corso, come lo vede l'interfaccia.</summary>
     public sealed record TelegramPairingView(
         string State, string Link, DateTimeOffset ExpiresAt, string Error,
-        long? TelegramUserId, string TelegramUserName, string BotUsername, bool Recovered);
+        long? TelegramUserId, string TelegramUserName, string BotUsername, bool Recovered, string Action);
 
     /// <summary>
     /// Abbinamento col bot gestore (F1 sul relay, <c>/mdchat/tg</c>): MDE crea una coppia di chiavi RSA, chiede un codice, l'utente
@@ -31,6 +31,7 @@ namespace MdExplorer.Services.Telegram
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly TelegramRemoteService _remote;
+        private readonly ProjectBotService _projectBot;
         private readonly SemaphoreSlim _gate = new(1, 1);
 
         private Pending _pending;
@@ -42,17 +43,20 @@ namespace MdExplorer.Services.Telegram
             public string PollSecret;
             public string Link;
             public string Action;
+            public string ProjectRoot;  // solo per action=project
             public DateTimeOffset ExpiresAt;
             public TelegramPairingView Last;
             public string Token;        // decifrato, in memoria finché l'utente non conferma
             public long BotId;
         }
 
-        public TelegramPairingService(IHttpClientFactory httpClientFactory, IConfiguration configuration, TelegramRemoteService remote)
+        public TelegramPairingService(IHttpClientFactory httpClientFactory, IConfiguration configuration, TelegramRemoteService remote,
+            ProjectBotService projectBot)
         {
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
             _remote = remote;
+            _projectBot = projectBot;
         }
 
         /// <summary>Il link da aprire sul telefono, finché l'abbinamento aspetta l'Avvia; altrimenti <c>null</c>.</summary>
@@ -76,11 +80,16 @@ namespace MdExplorer.Services.Telegram
             return url.TrimEnd('/');
         }
 
-        /// <summary>Comincia un abbinamento (<c>connect</c> o <c>regenerate</c>); quello in corso, se c'è, si abbandona.</summary>
-        public async Task<TelegramPairingView> StartAsync(string action, CancellationToken ct)
+        /// <summary>
+        /// Comincia un abbinamento: <c>connect</c> o <c>regenerate</c> per il bot personale, <c>project</c> per creare il bot del
+        /// progetto in <paramref name="projectRoot"/> (D5). Quello in corso, se c'è, si abbandona.
+        /// </summary>
+        public async Task<TelegramPairingView> StartAsync(string action, string projectRoot, CancellationToken ct)
         {
-            if (action != "connect" && action != "regenerate")
-                throw new ArgumentException(UiText.Say("Azione sconosciuta: connect oppure regenerate.", "Unknown action: connect or regenerate."));
+            if (action != "connect" && action != "regenerate" && action != "project")
+                throw new ArgumentException(UiText.Say("Azione sconosciuta: connect, regenerate oppure project.", "Unknown action: connect, regenerate or project."));
+            if (action == "project")
+                await _projectBot.PreflightAsync(projectRoot, ct);   // già un bot, qui o sull'origin: si ferma prima
             await _gate.WaitAsync(ct);
             try
             {
@@ -91,6 +100,7 @@ namespace MdExplorer.Services.Telegram
                     publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()),
                     installationName = _remote.InstallationName,
                     action,
+                    projectName = action == "project" ? System.IO.Path.GetFileName(System.IO.Path.GetFullPath(projectRoot).TrimEnd('/', '\\')) : null,
                 }, ct);
                 var body = await ReadAsync(response, ct);
                 _pending = new Pending
@@ -100,9 +110,10 @@ namespace MdExplorer.Services.Telegram
                     PollSecret = body["pollSecret"]!.GetValue<string>(),
                     Link = body["link"]!.GetValue<string>(),
                     Action = action,
+                    ProjectRoot = action == "project" ? projectRoot : null,
                     ExpiresAt = DateTimeOffset.FromUnixTimeMilliseconds(body["expiresAt"]!.GetValue<long>()),
                 };
-                _pending.Last = new TelegramPairingView("waiting-start", _pending.Link, _pending.ExpiresAt, null, null, null, null, false);
+                _pending.Last = new TelegramPairingView("waiting-start", _pending.Link, _pending.ExpiresAt, null, null, null, null, false, action);
                 return _pending.Last;
             }
             finally { _gate.Release(); }
@@ -128,7 +139,7 @@ namespace MdExplorer.Services.Telegram
                 var state = body["state"]!.GetValue<string>();
                 p.Last = new TelegramPairingView(state, p.Link, p.ExpiresAt, body["error"]?.GetValue<string>(),
                     user?["id"]?.GetValue<long>(), DisplayName(user), bot?["username"]?.GetValue<string>(),
-                    body["recovered"]?.GetValue<bool>() ?? false);
+                    body["recovered"]?.GetValue<bool>() ?? false, p.Action);
                 if (state == "ready")
                 {
                     var sealedToken = Convert.FromBase64String(body["sealedToken"]!.GetValue<string>());
@@ -151,7 +162,10 @@ namespace MdExplorer.Services.Telegram
                     throw new InvalidOperationException(UiText.Say(
                         "Non c'è un bot pronto da confermare: l'abbinamento non è finito o è scaduto.",
                         "There is no bot ready to confirm: the pairing has not finished or has expired."));
-                await _remote.ConnectAsync(p.Token, p.BotId, p.Last.BotUsername, p.Last.TelegramUserId!.Value, p.Last.TelegramUserName, ct);
+                if (p.Action == "project")
+                    await _projectBot.AcceptTokenAsync(p.ProjectRoot, p.Token, p.Last.BotUsername, ct);
+                else
+                    await _remote.ConnectAsync(p.Token, p.BotId, p.Last.BotUsername, p.Last.TelegramUserId!.Value, p.Last.TelegramUserName, ct);
                 Drop();
             }
             finally { _gate.Release(); }

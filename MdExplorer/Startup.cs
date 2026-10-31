@@ -430,6 +430,9 @@ namespace MdExplorer
             services.AddSingleton<Services.Telegram.TelegramRemoteService>();
             services.AddHostedService(sp => sp.GetRequiredService<Services.Telegram.TelegramRemoteService>());
             services.AddSingleton<Services.Telegram.TelegramPairingService>();
+            // Bot di progetto (F4): avvisi nel canale del progetto dopo i push e i pull con conflitti di MDE.
+            services.AddSingleton<Services.Telegram.ProjectBotService>();
+            services.AddSingleton<Services.Git.IGitPublishEvents, Services.Telegram.ProjectGitNotifier>();
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat
             services.AddSingleton<Services.TeamChat.IChatRoomKeys, Services.TeamChat.ChatRoomKeys>();
             services.AddSingleton<Services.TeamChat.VpsChatStreamingService>();

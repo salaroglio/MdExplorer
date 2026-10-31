@@ -17,14 +17,19 @@ namespace MdExplorer.Service.Controllers.Telegram
     {
         private readonly TelegramRemoteService _remote;
         private readonly TelegramPairingService _pairing;
+        private readonly ProjectBotService _projectBot;
 
-        public TelegramController(TelegramRemoteService remote, TelegramPairingService pairing)
+        public TelegramController(TelegramRemoteService remote, TelegramPairingService pairing, ProjectBotService projectBot)
         {
             _remote = remote;
             _pairing = pairing;
+            _projectBot = projectBot;
         }
 
-        public sealed record PairingRequest(string Action);
+        /// <param name="Action">connect | regenerate | project</param>
+        /// <param name="ProjectPath">Solo per <c>project</c>: la cartella del progetto.</param>
+        public sealed record PairingRequest(string Action, string ProjectPath);
+        public sealed record ProjectRequest(string ProjectPath);
         public sealed record EnabledRequest(bool Enabled);
         public sealed record NameRequest(string Name);
 
@@ -34,7 +39,7 @@ namespace MdExplorer.Service.Controllers.Telegram
         /// <summary>Comincia un abbinamento: {action: connect|regenerate} → link da aprire sul telefono.</summary>
         [HttpPost("pairing")]
         public Task<IActionResult> StartPairing([FromBody] PairingRequest request, CancellationToken ct)
-            => Run(async () => Ok(await _pairing.StartAsync(request?.Action ?? "connect", ct)));
+            => Run(async () => Ok(await _pairing.StartAsync(request?.Action ?? "connect", request?.ProjectPath, ct)));
 
         /// <summary>Lo stato dell'abbinamento; con <c>ready</c> mostra chi si è abbinato e aspetta la conferma.</summary>
         [HttpGet("pairing")]
@@ -75,6 +80,42 @@ namespace MdExplorer.Service.Controllers.Telegram
         [HttpPut("installation-name")]
         public Task<IActionResult> SetInstallationName([FromBody] NameRequest request)
             => Run(() => { _remote.SetInstallationName(request?.Name); return Task.FromResult<IActionResult>(Ok(_remote.Status)); });
+
+        // ------------------------------------------------------------------ bot di progetto (F4)
+
+        [HttpGet("project")]
+        public Task<IActionResult> ProjectStatus([FromQuery] string path, CancellationToken ct)
+            => Run(async () => Ok(await _projectBot.StatusAsync(path, ct)));
+
+        /// <summary>Prima di creare: il progetto non ha già un bot (qui o sull'origin); il repository è pubblico?</summary>
+        [HttpGet("project/preflight")]
+        public Task<IActionResult> ProjectPreflight([FromQuery] string path, CancellationToken ct)
+            => Run(async () => Ok(await _projectBot.PreflightAsync(path, ct)));
+
+        [HttpDelete("project/setup")]
+        public IActionResult CancelProjectSetup([FromQuery] string path)
+        {
+            _projectBot.CancelSetup(path);
+            return Ok(new { state = "none" });
+        }
+
+        [HttpPost("project/invite")]
+        public Task<IActionResult> ProjectInvite([FromBody] ProjectRequest request, CancellationToken ct)
+            => Run(async () => Ok(new { link = await _projectBot.InviteAsync(request?.ProjectPath, ct) }));
+
+        [HttpPost("project/test")]
+        public Task<IActionResult> ProjectTest([FromBody] ProjectRequest request, CancellationToken ct)
+            => Run(async () => { await _projectBot.SendTestAsync(request?.ProjectPath, ct); return Ok(new { ok = true }); });
+
+        /// <summary>Un link Telegram come QR (invito al canale, aggiunta del bot al canale). Solo link t.me.</summary>
+        [HttpGet("qr")]
+        public IActionResult Qr([FromQuery] string text)
+        {
+            if (string.IsNullOrEmpty(text) || !text.StartsWith("https://t.me/", StringComparison.Ordinal) || text.Length > 512)
+                return BadRequest(new { error = "solo link https://t.me/" });
+            using var data = new QRCoder.QRCodeGenerator().CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.M);
+            return Content(new QRCoder.SvgQRCode(data).GetGraphic(6), "image/svg+xml");
+        }
 
         /// <summary>Errori della persona (precondizioni, gestore, Telegram) → 400 col testo; il resto risale.</summary>
         private async Task<IActionResult> Run(Func<Task<IActionResult>> action)

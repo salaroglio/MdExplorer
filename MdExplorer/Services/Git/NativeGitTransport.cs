@@ -127,22 +127,45 @@ namespace MdExplorer.Services.Git
         private const int LsRemoteTimeoutMs = 60_000;
         private readonly INativeGitRunner _git;
         private readonly ILogger<NativeGitTransport> _logger;
+        private readonly IGitPublishEvents _events;
 
-        public NativeGitTransport(INativeGitRunner git, ILogger<NativeGitTransport> logger)
+        public NativeGitTransport(INativeGitRunner git, ILogger<NativeGitTransport> logger, IGitPublishEvents events = null)
         {
             _git = git ?? throw new ArgumentNullException(nameof(git));
             _logger = logger;
+            _events = events;
         }
 
         public async Task<NativeGitOutcome> PushAsync(string repositoryPath, string remoteName, string branchName, CancellationToken ct = default)
+        {
+            var before = await Observe(() => _events.BeforePushAsync(repositoryPath, remoteName ?? "origin", branchName, ct));
             // -u: il primo push di un branch nuovo lo mette a tracciare il remoto; sui successivi è innocuo.
-            => await Gated(await RemoteUrlAsync(repositoryPath, remoteName ?? "origin", ct),
+            var outcome = await Gated(await RemoteUrlAsync(repositoryPath, remoteName ?? "origin", ct),
                 () => Run(repositoryPath, new[] { "push", "-u", remoteName ?? "origin", string.IsNullOrEmpty(branchName) ? "HEAD" : branchName }, ct), ct);
+            if (before != null) await Observe(() => { _events.AfterPush(before, outcome.Ok); return Task.FromResult<object>(null); });
+            return outcome;
+        }
 
         public async Task<NativeGitOutcome> PullAsync(string repositoryPath, CancellationToken ct = default)
+        {
             // --no-rebase: lo stesso merge che faceva Commands.Pull, senza dipendere da pull.rebase dell'utente.
-            => await Gated(await RemoteUrlAsync(repositoryPath, "origin", ct),
+            var outcome = await Gated(await RemoteUrlAsync(repositoryPath, "origin", ct),
                 () => Run(repositoryPath, new[] { "pull", "--no-rebase" }, ct), ct);
+            if (!outcome.Ok) await Observe(async () => { await _events.PullFailedAsync(repositoryPath, ct); return null; });
+            return outcome;
+        }
+
+        /// <summary>Gli osservatori (avvisi del bot di progetto) non cambiano mai l'esito di git: un loro errore finisce nel log.</summary>
+        private async Task<object> Observe(Func<Task<object>> call)
+        {
+            if (_events == null) return null;
+            try { return await call(); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "[git] osservatore dei push/pull fallito");
+                return null;
+            }
+        }
 
         public async Task<NativeGitOutcome> FetchAsync(string repositoryPath, string remoteName, CancellationToken ct = default)
             => await Gated(await RemoteUrlAsync(repositoryPath, remoteName ?? "origin", ct),

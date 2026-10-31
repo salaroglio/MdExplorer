@@ -56,6 +56,9 @@ namespace MdExplorer.Services.Telegram
 
         public string InstallationName => _installationName ?? Environment.MachineName;
 
+        /// <summary>L'utente Telegram abbinato (0 senza bot personale): serve a sapere se è iscritto al canale del progetto.</summary>
+        public long OwnerId { get { lock (_lock) return _ownerId; } }
+
         public TelegramRemoteStatus Status
         {
             get
