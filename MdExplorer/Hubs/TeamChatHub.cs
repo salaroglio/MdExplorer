@@ -74,19 +74,38 @@ namespace MdExplorer.Hubs
             _connectionRooms[connectionId] = roomId;
             _connectionUsers[connectionId] = user;
 
-            // Register with the chat service (connects to Firebase)
-            await _chatService.JoinRoom(roomId, connectionId, user);
+            await Relayed(async () =>
+            {
+                // Register with the chat service (connects to the relay)
+                await _chatService.JoinRoom(roomId, connectionId, user);
 
-            // Get message history and send to client
-            var messages = await _chatService.GetRecentMessages(roomId, 50);
-            await Clients.Caller.SendAsync("ReceiveMessageHistory", messages);
+                // Get message history and send to client
+                var messages = await _chatService.GetRecentMessages(roomId, 50);
+                await Clients.Caller.SendAsync("ReceiveMessageHistory", messages);
 
-            // Get current presence and broadcast to all in room
-            var presence = _chatService.GetPresence(roomId);
-            await Clients.Group(roomId).SendAsync("PresenceUpdate", presence);
+                // Get current presence and broadcast to all in room
+                var presence = _chatService.GetPresence(roomId);
+                await Clients.Group(roomId).SendAsync("PresenceUpdate", presence);
 
-            // Send system message
-            await SendSystemMessage(roomId, $"{user.UserName} joined the chat");
+                // Send system message
+                await SendSystemMessage(roomId, $"{user.UserName} joined the chat");
+            });
+        }
+
+        /// <summary>
+        /// Un errore del relay (rifiuto, relay che non risponde, socket che non si apre) arriva al client col suo
+        /// testo: SignalR mostra solo il messaggio di una <see cref="HubException"/>, le altre diventano «errore inatteso».
+        /// </summary>
+        private static async Task Relayed(Func<Task> work)
+        {
+            try
+            {
+                await work();
+            }
+            catch (Exception ex) when (ex is not HubException)
+            {
+                throw new HubException(ex.Message);
+            }
         }
 
         /// <summary>
@@ -102,8 +121,16 @@ namespace MdExplorer.Hubs
         {
             if (_connectionUsers.TryGetValue(connectionId, out var user))
             {
-                // Send leave message before removing
-                await SendSystemMessage(roomId, $"{user.UserName} left the chat");
+                // Send leave message before removing. Se il relay non lo prende si dice nel log, ma l'uscita
+                // dalla stanza va finita comunque: altrimenti la connessione resterebbe iscritta.
+                try
+                {
+                    await SendSystemMessage(roomId, $"{user.UserName} left the chat");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning("Leave notice for room {RoomId} not delivered: {Error}", roomId, ex.Message);
+                }
             }
 
             // Remove from SignalR group
@@ -130,19 +157,24 @@ namespace MdExplorer.Hubs
         {
             var connectionId = Context.ConnectionId;
 
-            // Verify the client is in this room
+            // Verify the client is in this room: un messaggio scartato qui va detto a chi scrive, non solo al log.
             if (!_connectionRooms.TryGetValue(connectionId, out var currentRoom) || currentRoom != roomId)
             {
                 _logger.LogWarning("Client {ConnectionId} tried to send to room {RoomId} but is in {CurrentRoom}",
                     connectionId, roomId, currentRoom ?? "no room");
-                return;
+                throw new HubException(MdExplorer.Features.Services.UiText.Say(
+                    "Messaggio non inviato: questa finestra non è più nella stanza. Riapri la chat dal progetto.",
+                    "Message not sent: this window is no longer in the room. Open the chat again from the project."));
             }
 
-            // Save to Firebase and get the message with ID
-            var savedMessage = await _chatService.SendMessage(roomId, message);
+            await Relayed(async () =>
+            {
+                // Save to the relay and get the message with ID
+                var savedMessage = await _chatService.SendMessage(roomId, message);
 
-            // Broadcast to all clients in the room
-            await Clients.Group(roomId).SendAsync("ReceiveMessage", savedMessage);
+                // Broadcast to all clients in the room
+                await Clients.Group(roomId).SendAsync("ReceiveMessage", savedMessage);
+            });
         }
 
         private async Task SendSystemMessage(string roomId, string content)

@@ -1702,7 +1702,8 @@
     "NO_REMOTE_HINT": "Team chat is available for repositories with a remote origin.",
     "CONNECTION_ERROR": "Connection error",
     "CONNECTION_ERROR_HINT": "Failed to connect to chat server.",
-    "RELAY_ROOM_NOT_REGISTERED": "This project's room is not registered on the relay yet. The first time the relay master key is needed: enter it in the project settings (Agent city), then reopen the chat.",
+    "RELAY_ROOM_NOT_REGISTERED": "This project's room is not registered on the relay and the relay does not accept new rooms without the master key yet: it needs updating. Meanwhile the master key can be entered in the project settings (Agent city).",
+    "RELAY_TOO_MANY_ROOMS": "The relay received too many new rooms from this network in the last hour: try again later.",
     "RELAY_BAD_TOKEN": "The relay knows this room with a different project secret: pull, so that agentCity.roomSecret in .development.yml matches the repo.",
     "RELAY_BAD_MASTER_KEY": "The relay rejected the master key: remove or fix it in the project settings.",
     "RELAY_UNREACHABLE": "The relay does not answer: check the network and try again.",
@@ -1715,7 +1716,8 @@
     "NO_MESSAGES": "No messages yet",
     "NO_MESSAGES_HINT": "Be the first to say hello to your team!",
     "PLACEHOLDER": "Type a message...",
-    "NOTIFICATION_TITLE": "Team Chat - MdExplorer"
+    "NOTIFICATION_TITLE": "Team Chat - MdExplorer",
+    "SEND_FAILED": "Message not sent: {{reason}}"
   },
   "PROMPTLAB": {
     "TITLE": "PromptLab",

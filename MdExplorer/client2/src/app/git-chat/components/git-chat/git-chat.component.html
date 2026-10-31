@@ -85,7 +85,8 @@
     <div *ngIf="connectionState === 'error'" class="status-error">
       <mat-icon>error</mat-icon>
       <span>{{ 'GIT_CHAT.CONNECTION_ERROR' | translate }}</span>
-      <p class="status-hint">{{ (relayErrorKey || 'GIT_CHAT.CONNECTION_ERROR_HINT') | translate:{ code: roomInfo?.relayCode } }}</p>
+      <p class="status-hint" *ngIf="relayErrorKey || !joinError">{{ (relayErrorKey || 'GIT_CHAT.CONNECTION_ERROR_HINT') | translate:{ code: roomInfo?.relayCode } }}</p>
+      <p class="status-hint" *ngIf="!relayErrorKey && joinError">{{ joinError }}</p>
     </div>
   </div>
 
@@ -127,6 +128,12 @@
         </div>
       </ng-container>
     </div>
+  </div>
+
+  <!-- Il messaggio non è partito: si dice perché, il testo resta nella casella -->
+  <div class="send-error" *ngIf="connectionState === 'connected' && sendError">
+    <mat-icon>error</mat-icon>
+    <span>{{ 'GIT_CHAT.SEND_FAILED' | translate:{ reason: sendError } }}</span>
   </div>
 
   <!-- Input area -->

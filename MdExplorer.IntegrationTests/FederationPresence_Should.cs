@@ -37,7 +37,7 @@ namespace MdExplorer.IntegrationTests
             var announce = svc.BuildAnnounce(path, "git@github.com:acme/repo.git", "carlo@x.it", Trusted);
 
             Assert.IsNotNull(announce, "città attiva → annuncio prodotto");
-            Assert.AreEqual(FederationRoom.ComputeRoomId("git@github.com:acme/repo.git"), announce.RoomId);
+            Assert.AreEqual(FederationRoom.ComputeRoomId("git@github.com:acme/repo.git", saved.RoomSecret), announce.RoomId);
             StringAssert.StartsWith(announce.EncryptedPresence, "mdfed.v1.");
 
             // La busta si apre col room secret condiviso e ricostruisce la presenza.

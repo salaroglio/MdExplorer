@@ -46,7 +46,7 @@ namespace MdExplorer.Controllers.GitChat
 
         /// <summary>
         /// Gets the chat room information for a repository
-        /// Returns roomId (hash of normalized remote URL), repository name, and user info
+        /// Returns roomId (derived from the project room secret and the normalized remote URL), repository name, and user info
         /// </summary>
         [HttpGet("room-info")]
         public async Task<IActionResult> GetRoomInfo([FromQuery][Required] string repositoryPath)
@@ -96,7 +96,6 @@ namespace MdExplorer.Controllers.GitChat
 
                     var remoteUrl = origin.Url;
                     var normalizedUrl = NormalizeGitUrl(remoteUrl);
-                    var roomId = ComputeRoomId(normalizedUrl);
                     var repositoryName = ExtractRepositoryName(remoteUrl);
 
                     // Get git user info
@@ -118,6 +117,8 @@ namespace MdExplorer.Controllers.GitChat
                         (secret, keyState) = (published, "differs");       // i colleghi sono nella stanza di quella pubblicata
                     else
                         (secret, keyState) = (local, KeyState(repo, repositoryPath, local));
+                    // La stanza si ricava dal segreto scelto: è la stessa dei colleghi che hanno quel segreto.
+                    var roomId = ComputeRoomId(normalizedUrl, secret);
                     _roomKeys.Register(roomId, repositoryPath, secret);
                     var relay = await _chatService.CheckRoomAsync(roomId);
 
@@ -219,14 +220,15 @@ namespace MdExplorer.Controllers.GitChat
                         return Ok(new { success = false, error = "No remote origin" });
                     }
 
-                    var normalizedUrl = NormalizeGitUrl(origin.Url);
-                    var roomId = ComputeRoomId(normalizedUrl);
+                    // Senza il segreto del progetto non c'è stanza (si ricava da lì): niente conteggio.
+                    // Aprire un progetto non deve scrivere .development.yml, quindi il segreto non si crea qui.
+                    var secret = _metadata.ReadRoomSecret(dto.RepositoryPath);
+                    if (secret == null)
+                        return Ok(new { success = false, error = "No room secret: the project has no chat room yet" });
 
-                    // Il conteggio di chi ha il progetto aperto passa dal relay solo se il progetto ha
-                    // già il suo segreto: aprire un progetto non deve scrivere .development.yml.
-                    var secret = _metadata.GetAgentCity(dto.RepositoryPath)?.RoomSecret;
-                    if (!string.IsNullOrWhiteSpace(secret))
-                        _roomKeys.Register(roomId, dto.RepositoryPath, secret);
+                    var normalizedUrl = NormalizeGitUrl(origin.Url);
+                    var roomId = ComputeRoomId(normalizedUrl, secret);
+                    _roomKeys.Register(roomId, dto.RepositoryPath, secret);
 
                     // Get user info from git config
                     var userName = repo.Config.Get<string>("user.name")?.Value ?? "Anonymous";
@@ -348,8 +350,8 @@ namespace MdExplorer.Controllers.GitChat
             return "shared";
         }
 
-        private static string ComputeRoomId(string normalizedUrl)
-            => MdExplorer.Features.Federation.FederationRoom.RoomIdFromNormalized(normalizedUrl);
+        private static string ComputeRoomId(string normalizedUrl, string roomSecret)
+            => MdExplorer.Features.Federation.FederationRoom.RoomIdFromNormalized(normalizedUrl, roomSecret);
 
         /// <summary>
         /// Computes a user ID from email using SHA256

@@ -41,6 +41,7 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     switch (this.roomInfo?.relayCode) {
       case undefined: case null: return null;
       case 'room-not-registered': return 'GIT_CHAT.RELAY_ROOM_NOT_REGISTERED';
+      case 'too-many-rooms': return 'GIT_CHAT.RELAY_TOO_MANY_ROOMS';
       case 'bad-token': return 'GIT_CHAT.RELAY_BAD_TOKEN';
       case 'bad-master-key': return 'GIT_CHAT.RELAY_BAD_MASTER_KEY';
       case 'unreachable': return 'GIT_CHAT.RELAY_UNREACHABLE';
@@ -49,6 +50,10 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   inputMessage = '';
+  /** Perché l'ultimo messaggio non è partito (il testo resta nella casella). */
+  sendError: string | null = null;
+  /** Perché non si è entrati nella stanza, quando il relay non ha dato un codice. */
+  joinError: string | null = null;
   showSettings = false;
   showOnlineUsers = false;
   private shouldScrollToBottom = true;
@@ -123,10 +128,12 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private async initializeChatForProject(projectPath: string): Promise<void> {
+    this.joinError = null;
     try {
       await this.chatService.joinRoom(projectPath);
     } catch (error) {
       console.error('[GitChatComponent] Failed to initialize chat:', error);
+      this.joinError = this.serverMessage(error);
     }
   }
 
@@ -134,6 +141,7 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const content = this.inputMessage.trim();
     if (!content) return;
 
+    this.sendError = null;
     try {
       await this.chatService.sendMessage(content);
       this.inputMessage = '';
@@ -144,7 +152,16 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
     } catch (error) {
       console.error('[GitChatComponent] Failed to send message:', error);
+      this.sendError = this.serverMessage(error);
     }
+  }
+
+  /** Il testo che il servizio ha messo nella HubException, senza il prefisso che SignalR ci aggiunge. */
+  private serverMessage(error: unknown): string {
+    const text = (error as any)?.message ?? String(error);
+    const marker = 'HubException: ';
+    const at = text.indexOf(marker);
+    return at >= 0 ? text.substring(at + marker.length) : text;
   }
 
   onKeyPress(event: KeyboardEvent): void {

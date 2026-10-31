@@ -83,7 +83,7 @@ namespace MdExplorer.Services.Federation
                 throw new InvalidOperationException(
                     MdExplorer.Features.Services.UiText.Say($"Città attiva per '{projectPath}' ma room secret assente in .development.yml: riattivare la città per rigenerarlo.", $"City active for '{projectPath}' but the room secret is missing in .development.yml: turn the city on again to generate it."));
 
-            var roomId = FederationRoom.ComputeRoomId(gitOrigin);
+            var roomId = FederationRoom.ComputeRoomId(gitOrigin, cfg.RoomSecret);
             var presence = FederationPresenceBuilder.Build(roomId, gitEmail, trustedAgents);
             var json = JsonSerializer.Serialize(presence);
             var envelope = FederationCrypto.Encrypt(cfg.RoomSecret, roomId, json);

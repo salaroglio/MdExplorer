@@ -96,7 +96,10 @@ namespace MdExplorer.Services.TeamChat
                     {
                         Path = "/mdchat/socket.io",
                         Reconnection = true,
-                        ReconnectionAttempts = 10,
+                        // Riprova per sempre, come la città (FederationRelayService): con 10 tentativi, dopo una
+                        // sospensione del PC o una rete instabile la chat restava sorda e nessuno ricreava il socket.
+                        // A ogni rientro OnConnected rifà le iscrizioni (ResubscribeAllRooms).
+                        ReconnectionAttempts = int.MaxValue,
                         ReconnectionDelay = 1000,
                         ReconnectionDelayMax = 30000,
                         ConnectionTimeout = TimeSpan.FromSeconds(30)

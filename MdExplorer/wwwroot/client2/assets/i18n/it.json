@@ -1702,7 +1702,8 @@
     "NO_REMOTE_HINT": "La chat di squadra è disponibile per repository con un origin remoto.",
     "CONNECTION_ERROR": "Errore di connessione",
     "CONNECTION_ERROR_HINT": "Connessione al server chat fallita.",
-    "RELAY_ROOM_NOT_REGISTERED": "La stanza di questo progetto non è ancora registrata sul relay. La prima volta serve la chiave master del relay: inseriscila nelle impostazioni del progetto (Città degli agenti), poi riapri la chat.",
+    "RELAY_ROOM_NOT_REGISTERED": "La stanza di questo progetto non è registrata sul relay e il relay non accetta ancora stanze nuove senza chiave master: va aggiornato. Intanto si può inserire la chiave master nelle impostazioni del progetto (Città degli agenti).",
+    "RELAY_TOO_MANY_ROOMS": "Il relay ha ricevuto troppe stanze nuove da questa rete nell'ultima ora: riprova più tardi.",
     "RELAY_BAD_TOKEN": "Il relay conosce questa stanza con un altro segreto del progetto: fai il pull, così agentCity.roomSecret in .development.yml è quello del repo.",
     "RELAY_BAD_MASTER_KEY": "Il relay ha rifiutato la chiave master: toglila o correggila nelle impostazioni del progetto.",
     "RELAY_UNREACHABLE": "Il relay non risponde: controlla la rete e riprova.",
@@ -1715,7 +1716,8 @@
     "NO_MESSAGES": "Nessun messaggio",
     "NO_MESSAGES_HINT": "Sii il primo a salutare il tuo team!",
     "PLACEHOLDER": "Scrivi un messaggio...",
-    "NOTIFICATION_TITLE": "Chat di Squadra - MdExplorer"
+    "NOTIFICATION_TITLE": "Chat di Squadra - MdExplorer",
+    "SEND_FAILED": "Messaggio non inviato: {{reason}}"
   },
   "PROMPTLAB": {
     "TITLE": "PromptLab",

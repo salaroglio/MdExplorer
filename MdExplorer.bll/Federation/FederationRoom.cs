@@ -44,13 +44,28 @@ namespace MdExplorer.Features.Federation
             return normalized.TrimEnd('/');
         }
 
-        /// <summary>Stanza = primi 16 hex di SHA256(origin normalizzato).</summary>
-        public static string ComputeRoomId(string origin)
-            => RoomIdFromNormalized(NormalizeGitOrigin(origin));
+        /// <summary>Prefisso delle stanze ricavate dal segreto: il relay le lascia registrare senza chiave master.</summary>
+        public const string RoomIdPrefix = "r2-";
+
+        /// <summary>
+        /// Stanza = <c>r2-</c> + primi 32 hex di HMAC-SHA256(chiave = room secret, "mdroom-v2|" + origin normalizzato).
+        /// Senza il segreto non si calcola: nessuno può occupare la stanza di un progetto prima di chi ha il repo
+        /// (sprint Telecomando Telegram, C1). L'origin resta dentro, così un fork con lo stesso segreto ha la sua stanza.
+        /// </summary>
+        public static string ComputeRoomId(string origin, string roomSecret)
+            => RoomIdFromNormalized(NormalizeGitOrigin(origin), roomSecret);
 
         /// <summary>Primitiva condivisa: stanza da una stringa GIÀ normalizzata (la chat la usa così).</summary>
-        public static string RoomIdFromNormalized(string normalizedOrigin)
-            => Hash(normalizedOrigin ?? string.Empty, 16);
+        public static string RoomIdFromNormalized(string normalizedOrigin, string roomSecret)
+        {
+            if (string.IsNullOrWhiteSpace(roomSecret))
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say(
+                    "La stanza si ricava dal segreto del progetto: il segreto manca.",
+                    "The room is derived from the project secret: the secret is missing."), nameof(roomSecret));
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(roomSecret.Trim()));
+            var mac = hmac.ComputeHash(Encoding.UTF8.GetBytes("mdroom-v2|" + (normalizedOrigin ?? string.Empty)));
+            return RoomIdPrefix + Convert.ToHexString(mac).ToLowerInvariant().Substring(0, 32);
+        }
 
         /// <summary>Id del padrone = primi 12 hex di SHA256(email lowercased).</summary>
         public static string ComputeUserId(string email)

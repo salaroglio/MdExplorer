@@ -217,6 +217,25 @@
   }
 }
 
+.send-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 12px 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--mde-error-fg);
+  background: var(--mde-error-bg);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex: none;
+  }
+}
+
 // Messages container
 .messages-container {
   flex: 1;

@@ -10,13 +10,46 @@ namespace MdExplorer.Features.Tests.Federation
     [TestClass]
     public class FederationDomain_Should
     {
+        private const string Secret = "room-secret-condiviso";
+
         [TestMethod]
         public void Compute_the_same_room_for_ssh_and_https_of_the_same_repo()
         {
-            var https = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git");
-            var ssh = FederationRoom.ComputeRoomId("git@github.com:acme/repo.git");
+            var https = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", Secret);
+            var ssh = FederationRoom.ComputeRoomId("git@github.com:acme/repo.git", Secret);
             Assert.AreEqual(https, ssh, "SSH e HTTPS dello stesso repo → stessa stanza");
-            Assert.AreEqual(16, https.Length);
+        }
+
+        [TestMethod]
+        public void Compute_a_room_id_in_the_form_the_relay_self_registers()
+        {
+            // Il relay registra senza chiave master solo /^r2-[0-9a-f]{32}$/ (rooms.js).
+            var roomId = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", Secret);
+            StringAssert.Matches(roomId, new System.Text.RegularExpressions.Regex("^r2-[0-9a-f]{32}$"));
+        }
+
+        [TestMethod]
+        public void Compute_different_rooms_for_different_secrets_of_the_same_repo()
+        {
+            // Senza il segreto la stanza non si indovina: è ciò che rende sicura la registrazione libera.
+            var a = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", Secret);
+            var b = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", "un-altro-segreto");
+            Assert.AreNotEqual(a, b);
+        }
+
+        [TestMethod]
+        public void Compute_different_rooms_for_a_fork_with_the_same_secret()
+        {
+            var original = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", Secret);
+            var fork = FederationRoom.ComputeRoomId("https://github.com/someone/repo.git", Secret);
+            Assert.AreNotEqual(original, fork);
+        }
+
+        [TestMethod]
+        public void Refuse_to_compute_a_room_without_the_secret()
+        {
+            Assert.ThrowsException<System.ArgumentException>(
+                () => FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", " "));
         }
 
         [TestMethod]
@@ -33,9 +66,9 @@ namespace MdExplorer.Features.Tests.Federation
         {
             // Il bug che la review ha segnalato: 'repo.git' e 'repo.git/' devono dare la STESSA
             // stanza (prima chat e federazione divergevano su questo edge).
-            var a = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git");
-            var b = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git/");
-            var c = FederationRoom.ComputeRoomId("https://github.com/acme/repo");
+            var a = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", Secret);
+            var b = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git/", Secret);
+            var c = FederationRoom.ComputeRoomId("https://github.com/acme/repo", Secret);
             Assert.AreEqual(a, b, "repo.git/ e repo.git → stessa stanza");
             Assert.AreEqual(a, c, "…e uguale a repo senza suffisso");
         }
@@ -81,8 +114,8 @@ namespace MdExplorer.Features.Tests.Federation
         {
             // Città A annuncia; il relay custodisce la busta chiusa; città B (stesso secret via
             // git, stessa stanza) la apre e ricostruisce la presenza. Prova presence + crypto insieme.
-            const string secret = "room-secret-condiviso";
-            var roomId = FederationRoom.ComputeRoomId("git@github.com:acme/repo.git");
+            const string secret = Secret;
+            var roomId = FederationRoom.ComputeRoomId("git@github.com:acme/repo.git", secret);
 
             var presence = FederationPresenceBuilder.Build(roomId, "carlo@x.it",
                 new List<AgentRosterEntry> { new AgentRosterEntry { Name = "analyst", Role = "Analista" } });
