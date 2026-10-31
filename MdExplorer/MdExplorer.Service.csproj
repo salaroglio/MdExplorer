@@ -6,26 +6,22 @@
        ("multiple publish output files with the same relative path"). Teniamo netstandard2.1. -->
   <Target Name="DropDuplicateSQLiteInterop" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="'%(Filename)%(Extension)' == 'SQLite.Interop.dll' And $([MSBuild]::ValueOrDefault('%(FullPath)', '').Contains('netstandard2.0'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'SQLite.Interop.dll' And $([MSBuild]::ValueOrDefault('%(FullPath)', '').Contains('netstandard2.0'))" />
     </ItemGroup>
     <PropertyGroup>
     <!-- L'SDK di Copilot scaricherebbe un proprio CLI (oltre 300 MB) nell'output.
          MdExplorer usa quello installato dall'utente, che ha gia' la sua autenticazione. -->
     <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
-      <_SQLiteInteropCount>@(ResolvedFileToPublish->WithMetadataValue('Filename', 'SQLite.Interop')->Count())</_SQLiteInteropCount>
+      <_SQLiteInteropCount>@(ResolvedFileToPublish-&gt;WithMetadataValue('Filename', 'SQLite.Interop')-&gt;Count())</_SQLiteInteropCount>
     </PropertyGroup>
     <!-- Fail-loud: se il filtro le togliesse entrambe il publish riuscirebbe lo stesso, e l'app
          morirebbe a runtime con "Unable to load DLL 'SQLite.Interop.dll'" al primo accesso al DB. -->
-    <Error Condition="'$(RuntimeIdentifier)' == 'win-x64' And '$(_SQLiteInteropCount)' != '1'"
-           Text="Attesa 1 copia di SQLite.Interop.dll nel publish, trovate $(_SQLiteInteropCount). Il filtro di DropDuplicateSQLiteInterop non e' piu' allineato al layout di System.Data.SQLite.Core." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-x64' And '$(_SQLiteInteropCount)' != '1'" Text="Attesa 1 copia di SQLite.Interop.dll nel publish, trovate $(_SQLiteInteropCount). Il filtro di DropDuplicateSQLiteInterop non e' piu' allineato al layout di System.Data.SQLite.Core." />
   </Target>
 
   <Target Name="PostPublish" AfterTargets="AfterPublish">
     <Message Text="BEGIN After-publish PublishDir=$(PublishDir) PublishUrl=$(PublishUrl)" Importance="high" />
-    <Copy SourceFiles="$(OutDir)Binaries\plantuml.jar"
-          DestinationFiles="$(PublishDir)Plantuml.jar"
-          Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Binaries\plantuml.jar')" />
+    <Copy SourceFiles="$(OutDir)Binaries\plantuml.jar" DestinationFiles="$(PublishDir)Plantuml.jar" Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Binaries\plantuml.jar')" />
     <Message Text="END After-publish" Importance="high" />
 
     <!-- Build P2P Premium module if project exists -->
@@ -43,14 +39,9 @@
     <Message Text="P2P Premium build completed (exit code: $(P2PBuildExitCode))" Importance="high" Condition="Exists('$(P2PProjectPath)')" />
 
     <!-- Copy P2P Premium DLL to service_payload -->
-    <Copy SourceFiles="$(P2PDllSource)"
-          DestinationFiles="$(P2PDllDest)"
-          Condition="Exists('$(P2PDllSource)')"
-          ContinueOnError="true" />
-    <Message Text="Copied MdExplorer.P2P.Premium.dll to service_payload" Importance="high"
-             Condition="Exists('$(P2PDllSource)')" />
-    <Message Text="P2P Premium DLL not found - skipping copy" Importance="high"
-             Condition="!Exists('$(P2PDllSource)')" />
+    <Copy SourceFiles="$(P2PDllSource)" DestinationFiles="$(P2PDllDest)" Condition="Exists('$(P2PDllSource)')" ContinueOnError="true" />
+    <Message Text="Copied MdExplorer.P2P.Premium.dll to service_payload" Importance="high" Condition="Exists('$(P2PDllSource)')" />
+    <Message Text="P2P Premium DLL not found - skipping copy" Importance="high" Condition="!Exists('$(P2PDllSource)')" />
 
     <!-- Publish the MdExplorer.Mcp stdio server into its OWN isolated subfolder
          service_payload/mcp (-> app_service/mcp), NOT next to MdExplorer.Service.
@@ -95,8 +86,7 @@
     <Exec Command="dotnet publish &quot;$(McpProjectPath)&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained true -p:PublishSingleFile=false -o &quot;$(McpPublishDest)&quot;" />
 
     <!-- Fail-loud: the installer must never ship without the MCP server. -->
-    <Error Condition="!Exists('$(McpExeDest)')"
-           Text="$(McpExeName) was NOT produced in service_payload/mcp ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
+    <Error Condition="!Exists('$(McpExeDest)')" Text="$(McpExeName) was NOT produced in service_payload/mcp ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
     <Message Text="$(McpExeName) published into service_payload/mcp" Importance="high" />
 
     <!-- Publish the MdExplorer.Scheduler satellite into its OWN isolated subfolder
@@ -119,8 +109,7 @@
     <Exec Command="dotnet publish &quot;$(SchedulerProjectPath)&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained true -p:PublishSingleFile=false -o &quot;$(SchedulerPublishDest)&quot;" />
 
     <!-- Fail-loud: shipping without the scheduler would mean scheduled agents silently never fire. -->
-    <Error Condition="!Exists('$(SchedulerExeDest)')"
-           Text="$(SchedulerExeName) was NOT produced in service_payload/scheduler ('$(SchedulerExeDest)'). Scheduled .agent.md agents would silently never fire. Check the dotnet publish output above." />
+    <Error Condition="!Exists('$(SchedulerExeDest)')" Text="$(SchedulerExeName) was NOT produced in service_payload/scheduler ('$(SchedulerExeDest)'). Scheduled .agent.md agents would silently never fire. Check the dotnet publish output above." />
     <Message Text="$(SchedulerExeName) published into service_payload/scheduler" Importance="high" />
   </Target>
   
@@ -336,6 +325,7 @@
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
+    <PackageReference Include="QRCoder" Version="1.8.1" />
     <!-- 1.0.114.4 regredisce la lettura di PRAGMA table_info (dflt_value come Byte[]):
          ColumnExists di FluentMigrator 3.2.17 crasha sulle tabelle con default-funzione
          (Project.LastUpdate = datetime('now','localtime')), rompendo la catena di

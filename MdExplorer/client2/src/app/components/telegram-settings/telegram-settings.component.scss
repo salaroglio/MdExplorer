@@ -1,0 +1,48 @@
+.tg-card { margin-bottom: 12px; }
+
+h4 { margin: 0 0 8px; font-weight: 500; }
+
+.hint-text {
+  font-size: 12px;
+  color: var(--mde-text-hint);
+  margin-top: 4px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 8px 0 4px;
+  color: var(--mde-text-secondary);
+}
+
+.tg-error {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0;
+  color: #d93025; font-size: 13px;
+}
+
+.tg-qr-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+// Il QR resta nero su bianco anche col tema scuro: il telefono lo legge meglio.
+.tg-qr { width: 200px; height: 200px; background: #fff; padding: 8px; border-radius: 4px; }
+.tg-qr-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.tg-link { font-size: 12px; word-break: break-all; }
+
+.tg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.tg-actions-left { justify-content: flex-start; }
+
+.tg-status-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tg-bot { cursor: pointer; font-weight: 500; }
+.tg-state {
+  display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px;
+  background: var(--mde-border-color); color: var(--mde-text-secondary);
+  &.listening { background: #e8f5e9; color: #2e7d32; }
+  &.standby { background: #fff3e0; color: #e65100; }
+}
+
+.tg-toggle-row { display: flex; align-items: center; gap: 16px; margin: 16px 0 8px; flex-wrap: wrap; }
+
+.tg-name-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  mat-form-field { flex: 1; max-width: 360px; }
+  button { margin-top: 10px; }
+}

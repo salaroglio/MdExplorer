@@ -55,6 +55,16 @@ namespace MdExplorer.Services.Telegram
             _remote = remote;
         }
 
+        /// <summary>Il link da aprire sul telefono, finché l'abbinamento aspetta l'Avvia; altrimenti <c>null</c>.</summary>
+        public string CurrentLink
+        {
+            get
+            {
+                var p = _pending;
+                return p != null && p.Token == null && p.ExpiresAt > DateTimeOffset.UtcNow ? p.Link : null;
+            }
+        }
+
         /// <summary>L'indirizzo del gestore: <c>Telegram:ManagerUrl</c>, per esempio https://errantia.net/mdchat/tg.</summary>
         private string ManagerUrl()
         {

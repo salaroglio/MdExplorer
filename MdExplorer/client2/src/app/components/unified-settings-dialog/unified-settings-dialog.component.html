@@ -27,6 +27,11 @@
         <mat-icon matListItemIcon>dns</mat-icon>
         <span>{{ 'SETTINGS.SERVICES' | translate }}</span>
       </mat-list-item>
+      <mat-list-item (click)="selectCategory('telegram')"
+                     [class.active]="selectedCategory === 'telegram'">
+        <mat-icon matListItemIcon>send</mat-icon>
+        <span>{{ 'SETTINGS.TELEGRAM' | translate }}</span>
+      </mat-list-item>
     </mat-list>
   </div>
 
@@ -544,6 +549,14 @@
           </div>
         </mat-card-content>
       </mat-card>
+    </div>
+
+    <!-- ================================ -->
+    <!-- TELEGRAM TAB                     -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'telegram'" class="tab-panel">
+      <h3>{{ 'TELEGRAM_SETTINGS.TITLE' | translate }}</h3>
+      <app-telegram-settings></app-telegram-settings>
     </div>
 
   </div>

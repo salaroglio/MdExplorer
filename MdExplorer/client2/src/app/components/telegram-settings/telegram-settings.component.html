@@ -1,0 +1,127 @@
+<p class="hint-text">{{ 'TELEGRAM_SETTINGS.INTRO' | translate }}</p>
+
+<div *ngIf="error" class="tg-error">
+  <mat-icon>error_outline</mat-icon><span>{{ error }}</span>
+</div>
+
+<!-- Abbinamento in corso: QR, poi chi si è abbinato da confermare -->
+<mat-card *ngIf="pairingActive" class="tg-card">
+  <mat-card-content>
+    <ng-container *ngIf="waitingPhone">
+      <h4>{{ 'TELEGRAM_SETTINGS.PAIR_TITLE' | translate }}</h4>
+      <p>{{ 'TELEGRAM_SETTINGS.PAIR_STEPS' | translate }}</p>
+      <div class="tg-qr-row">
+        <img class="tg-qr" [src]="qrUrl" alt="QR">
+        <div class="tg-qr-side">
+          <button mat-stroked-button color="primary" (click)="openLink(pairing!.link!)">
+            <mat-icon>send</mat-icon> {{ 'TELEGRAM_SETTINGS.OPEN_TELEGRAM' | translate }}
+          </button>
+          <code class="tg-link">{{ pairing!.link }}</code>
+          <p class="hint-text">
+            {{ 'TELEGRAM_SETTINGS.EXPIRES' | translate: { time: (pairing!.expiresAt | date:'HH:mm') } }}
+          </p>
+          <p *ngIf="pairing!.state === 'waiting-bot'" class="hint-text">{{ 'TELEGRAM_SETTINGS.WAITING_BOT' | translate }}</p>
+        </div>
+      </div>
+      <div class="tg-actions">
+        <button mat-button (click)="cancelPairing()" [disabled]="busy">{{ 'TELEGRAM_SETTINGS.CANCEL' | translate }}</button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="pairing!.state === 'ready'">
+      <h4>{{ 'TELEGRAM_SETTINGS.CONFIRM_TITLE' | translate }}</h4>
+      <p>
+        {{ 'TELEGRAM_SETTINGS.CONFIRM_WHO' | translate }} <strong>{{ pairing!.telegramUserName }}</strong>,
+        {{ 'TELEGRAM_SETTINGS.CONFIRM_BOT' | translate }} <strong>&#64;{{ pairing!.botUsername }}</strong>
+        ({{ (pairing!.recovered ? 'TELEGRAM_SETTINGS.RECOVERED' : 'TELEGRAM_SETTINGS.CREATED') | translate }}).
+      </p>
+      <p class="hint-text">{{ 'TELEGRAM_SETTINGS.CONFIRM_HINT' | translate }}</p>
+      <div class="tg-actions">
+        <button mat-button (click)="cancelPairing()" [disabled]="busy">{{ 'TELEGRAM_SETTINGS.NOT_ME' | translate }}</button>
+        <button mat-raised-button color="primary" (click)="confirmPairing()" [disabled]="busy">
+          {{ 'TELEGRAM_SETTINGS.CONFIRM' | translate }}
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="pairing!.state === 'expired' || pairing!.state === 'failed'">
+      <p>
+        {{ (pairing!.state === 'expired' ? 'TELEGRAM_SETTINGS.EXPIRED' : 'TELEGRAM_SETTINGS.FAILED') | translate }}
+        <span *ngIf="pairing!.error">{{ pairing!.error }}</span>
+      </p>
+      <div class="tg-actions">
+        <button mat-button (click)="cancelPairing()" [disabled]="busy">{{ 'TELEGRAM_SETTINGS.CLOSE' | translate }}</button>
+        <button mat-raised-button color="primary" (click)="startPairing('connect')" [disabled]="busy">
+          {{ 'TELEGRAM_SETTINGS.RETRY' | translate }}
+        </button>
+      </div>
+    </ng-container>
+  </mat-card-content>
+</mat-card>
+
+<!-- Non collegata -->
+<mat-card *ngIf="status && !connected && !pairingActive" class="tg-card">
+  <mat-card-content>
+    <p>{{ 'TELEGRAM_SETTINGS.NOT_CONNECTED' | translate }}</p>
+    <div class="tg-actions">
+      <button mat-raised-button color="primary" (click)="startPairing('connect')" [disabled]="busy">
+        <mat-icon>link</mat-icon> {{ 'TELEGRAM_SETTINGS.CONNECT' | translate }}
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<!-- Collegata -->
+<mat-card *ngIf="status && connected" class="tg-card">
+  <mat-card-content>
+    <div class="tg-status-row">
+      <span class="tg-state" [ngClass]="status.state">{{ 'TELEGRAM_SETTINGS.STATE_' + status.state.toUpperCase() | translate }}</span>
+      <a class="tg-bot" (click)="openLink('https://t.me/' + status.botUsername)">&#64;{{ status.botUsername }}</a>
+      <span class="hint-text">{{ 'TELEGRAM_SETTINGS.OWNER' | translate }}: {{ status.ownerName }}</span>
+    </div>
+    <p *ngIf="status.state === 'standby'" class="hint-text">{{ 'TELEGRAM_SETTINGS.STANDBY_HINT' | translate }}</p>
+    <div *ngIf="status.lastError" class="tg-error">
+      <mat-icon>warning</mat-icon><span>{{ status.lastError }}</span>
+    </div>
+
+    <div class="tg-toggle-row">
+      <mat-slide-toggle color="primary" [checked]="status.state !== 'off'" [disabled]="busy"
+                        (change)="setEnabled($event.checked)">
+        {{ 'TELEGRAM_SETTINGS.ENABLED' | translate }}
+      </mat-slide-toggle>
+      <button *ngIf="status.state === 'standby'" mat-raised-button color="primary" (click)="takeControl()" [disabled]="busy">
+        <mat-icon>pan_tool</mat-icon> {{ 'TELEGRAM_SETTINGS.TAKE_CONTROL' | translate }}
+      </button>
+    </div>
+
+    <label class="field-label" for="tg-installation-name">{{ 'TELEGRAM_SETTINGS.INSTALLATION_NAME' | translate }}</label>
+    <div class="tg-name-row">
+      <mat-form-field appearance="outline">
+        <input matInput id="tg-installation-name" maxlength="64" [(ngModel)]="installationName"
+               (keyup.enter)="saveInstallationName()">
+        <mat-hint>{{ 'TELEGRAM_SETTINGS.INSTALLATION_NAME_HINT' | translate }}</mat-hint>
+      </mat-form-field>
+      <button mat-stroked-button (click)="saveInstallationName()"
+              [disabled]="busy || !installationName.trim() || installationName === status.installationName">
+        {{ 'TELEGRAM_SETTINGS.SAVE' | translate }}
+      </button>
+    </div>
+
+    <div class="tg-actions tg-actions-left">
+      <button mat-stroked-button (click)="startPairing('connect')" [disabled]="busy || pairingActive"
+              [title]="'TELEGRAM_SETTINGS.RECONNECT_HINT' | translate">
+        <mat-icon>sync</mat-icon> {{ 'TELEGRAM_SETTINGS.RECONNECT' | translate }}
+      </button>
+      <button mat-stroked-button (click)="startPairing('regenerate')" [disabled]="busy || pairingActive"
+              [title]="'TELEGRAM_SETTINGS.REGENERATE_HINT' | translate">
+        <mat-icon>key</mat-icon> {{ 'TELEGRAM_SETTINGS.REGENERATE' | translate }}
+      </button>
+      <button mat-stroked-button color="warn" (click)="disconnect()" [disabled]="busy">
+        <mat-icon>link_off</mat-icon> {{ 'TELEGRAM_SETTINGS.DISCONNECT' | translate }}
+      </button>
+      <button mat-button (click)="openLink('https://t.me/BotFather')" [title]="'TELEGRAM_SETTINGS.DELETE_BOT_HINT' | translate">
+        <mat-icon>delete_outline</mat-icon> {{ 'TELEGRAM_SETTINGS.DELETE_BOT' | translate }}
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

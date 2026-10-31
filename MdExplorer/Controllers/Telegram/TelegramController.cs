@@ -41,6 +41,17 @@ namespace MdExplorer.Service.Controllers.Telegram
         public Task<IActionResult> PollPairing(CancellationToken ct)
             => Run(async () => (IActionResult)Ok(await _pairing.PollAsync(ct) ?? (object)new { state = "none" }));
 
+        /// <summary>Il link dell'abbinamento in corso come QR (SVG), da inquadrare col telefono.</summary>
+        [HttpGet("pairing/qr")]
+        public IActionResult PairingQr()
+        {
+            var link = _pairing.CurrentLink;
+            if (link == null) return NotFound();
+            using var data = new QRCoder.QRCodeGenerator().CreateQrCode(link, QRCoder.QRCodeGenerator.ECCLevel.M);
+            var svg = new QRCoder.SvgQRCode(data).GetGraphic(6);
+            return Content(svg, "image/svg+xml");
+        }
+
         [HttpPost("pairing/confirm")]
         public Task<IActionResult> ConfirmPairing(CancellationToken ct)
             => Run(async () => { await _pairing.ConfirmAsync(ct); return Ok(_remote.Status); });
