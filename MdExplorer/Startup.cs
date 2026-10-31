@@ -422,6 +422,14 @@ namespace MdExplorer
 
             // Register Team Chat services
             services.AddHttpClient("MdChat");
+            // Telecomando Telegram (F2): MDE ascolta il bot personale direttamente su Telegram; il long polling dura
+            // 25 s, quindi il client ne aspetta di più. Il gestore (Telegram:ManagerUrl) serve solo all'abbinamento.
+            services.AddHttpClient(Services.Telegram.TelegramBotApi.HttpClientName, c => c.Timeout = System.TimeSpan.FromSeconds(60));
+            services.AddSingleton<Services.Telegram.TelegramSettingsStore>();
+            services.AddSingleton<Services.Telegram.TelegramBotApi>();
+            services.AddSingleton<Services.Telegram.TelegramRemoteService>();
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Telegram.TelegramRemoteService>());
+            services.AddSingleton<Services.Telegram.TelegramPairingService>();
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat
             services.AddSingleton<Services.TeamChat.IChatRoomKeys, Services.TeamChat.ChatRoomKeys>();
             services.AddSingleton<Services.TeamChat.VpsChatStreamingService>();
