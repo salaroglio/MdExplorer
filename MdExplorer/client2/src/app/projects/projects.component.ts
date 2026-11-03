@@ -27,6 +27,7 @@ import { versionInfo } from '../../environments/version'; // Importa la versione
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectCreateConfigOptions, TemplateShowcaseChoice } from './dialogs/project-create-config/project-create-config.model';
 import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
+import { OpenPerf } from '../shared/open-perf';
 
 @Component({
   selector: 'app-projects',
@@ -162,7 +163,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     this.projectService.currentProjects$.subscribe(_ => {
       if (_ != null && _!= undefined) {
-        this.router.navigate(['/main/navigation/document']);
+        OpenPerf.mark('risposta arrivata: navigate verso /main/navigation/document');
+        this.router.navigate(['/main/navigation/document'])
+          .then(ok => OpenPerf.mark(`navigazione conclusa (${ok ? 'ok' : 'non avvenuta'})`));
       }
     });
   }
@@ -205,6 +208,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
     this.isOpeningProject = true;
     console.log('[Projects] Opening project:', path);
+    OpenPerf.start(`click su apri progetto: ${path}`);
 
     this.projectService.setNewFolderProject(path);
 

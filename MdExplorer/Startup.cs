@@ -524,6 +524,34 @@ namespace MdExplorer
                 app.UseDeveloperExceptionPage();
             }
 
+            // Sonde dei tempi (indagine «apertura del progetto lenta», 03/11/2026): in sviluppo o con MDE_PERF_TRACE=1.
+            if (MdExplorer.Utilities.PerfTrace.IsRequested(env.IsDevelopment()))
+            {
+                MdExplorer.Utilities.PerfTrace.Enable(logger);
+                var inFlight = 0;
+                app.Use(async (context, next) =>
+                {
+                    var path = context.Request.Path.Value ?? string.Empty;
+                    if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await next();
+                        return;
+                    }
+                    var others = System.Threading.Interlocked.Increment(ref inFlight) - 1;
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    try { await next(); }
+                    finally
+                    {
+                        System.Threading.Interlocked.Decrement(ref inFlight);
+                        var ms = watch.ElapsedMilliseconds;
+                        // Tutte le richieste dell'apertura; le altre solo se lente, per non annegare il log.
+                        if (ms >= 300 || path.Contains("MdProjects", StringComparison.OrdinalIgnoreCase))
+                            MdExplorer.Utilities.PerfTrace.Write(
+                                $"HTTP {context.Request.Method} {path}: {ms} ms (arrivata alle {DateTime.Now.AddMilliseconds(-ms):HH:mm:ss.fff}, altre in corso: {others})");
+                    }
+                });
+            }
+
             // Add custom middleware to log only API requests (skip static files)
             app.Use(async (context, next) =>
             {

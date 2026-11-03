@@ -91,35 +91,44 @@ namespace MdExplorer.Service
 
         public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, HarnessTarget? requestedHarness = null)
         {
+            // Sonde dei tempi (PerfTrace): spente costano un confronto per fase.
+            using var perf = PerfTrace.Phases("SetNewProject");
             // Fuseki/Jena skills are deployed only for projects configured for Fuseki.
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, pathFromParameter);
+            perf.Mark("IsFusekiEnabled (DB utente)");
             // I gruppi di funzionalita' MCP accesi per questo progetto: finiscono nelle
             // configurazioni degli ambienti agentici come `--groups`, e da li' nel contesto
             // della chat. Vedi McpToolGroupsSettings.
             var mcpGroups = McpGroupsArgument(serviceProvider, pathFromParameter);
+            perf.Mark("McpGroupsArgument (DB utente)");
             ConfigTemplates(pathFromParameter, null, requestedHarness, fusekiEnabled, mcpGroups);
+            perf.Mark("ConfigTemplates (file, skill, configurazioni MCP)");
 
             // Initialize Git repository only if requested
             bool gitInitialized = false;
             if (initializeGit)
             {
                 gitInitialized = InitializeGitRepository(pathFromParameter);
+                perf.Mark("InitializeGitRepository");
             }
 
             // Ensure the per-install MDE artifacts are git-ignored. Runs for BOTH freshly
             // initialized and pre-existing repositories (e.g. a documentation repo shared
             // across clients), unlike InitializeGitRepository which bails out when .git exists.
             EnsureGitignoreEntries(pathFromParameter);
+            perf.Mark("EnsureGitignoreEntries");
 
             // For repositories where those artifacts were already committed (the typical
             // shared-docs case), .gitignore alone is not enough — stop tracking them so they
             // stop being versioned. Files are kept on disk; the staged removal is committed
             // with the client's next commit.
             UntrackPerInstallArtifacts(pathFromParameter);
+            perf.Mark("UntrackPerInstallArtifacts (git)");
 
             // Mark Search answer documents are session artifacts: previous sessions'
             // files are meaningless (their chat context is gone), so start clean.
             CleanMarkSearchArtifacts(pathFromParameter);
+            perf.Mark("CleanMarkSearchArtifacts");
 
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
@@ -131,6 +140,7 @@ namespace MdExplorer.Service
             // NOTE: Don't migrate MdExplorer.db here - it's already migrated at startup in SetProjectInitialization
             // Only migrate the project-specific databases (Engine and Project)
             UpgradeDatabases(null, databasePathEngine, databasePathProject);
+            perf.Mark("UpgradeDatabases (migrazioni engine+progetto)");
 
             serviceProvider.ReplaceDalFeatures(typeof(SettingsMap).Assembly,
                                     new DatabaseSQLite(), typeof(IUserSettingsDB),
@@ -141,10 +151,12 @@ namespace MdExplorer.Service
             serviceProvider.ReplaceDalFeatures(typeof(SemanticClusterMap).Assembly,
                                    new DatabaseSQLite(), typeof(IProjectDB),
                                    databasePathProject);
+            perf.Mark("ReplaceDalFeatures x3 (session factory)");
 
             // Update application extension configuration with new project path
             var extensionConfig = serviceProvider.GetService<Features.Configuration.Interfaces.IApplicationExtensionConfiguration>();
             extensionConfig?.SetProjectPath(pathFromParameter);
+            perf.Mark("SetProjectPath estensioni");
 
             // Migration complete
             return gitInitialized;
@@ -462,15 +474,20 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         {
             try
             {
+                using var perf = PerfTrace.Phases("SetNewProject › ConfigTemplates");
                 EnsureBaseConfigurationFiles(projectPath);
+                perf.Mark("EnsureBaseConfigurationFiles");
 
                 // L'harness si risolve DOPO i file base: la scelta vive in .development.yml, che
                 // deve gia' esistere perche' ci si possa scrivere dentro senza perdere i default
                 // del template embedded.
                 var harness = HarnessSettings.Resolve(projectPath, requestedHarness);
+                perf.Mark("HarnessSettings.Resolve");
                 InstallHarnessAssets(projectPath, harness, fusekiEnabled);
+                perf.Mark("InstallHarnessAssets (skill, agenti, istruzioni)");
 
                 RegisterMcpServerForHarness(projectPath, harness, mcpGroupsArgument);
+                perf.Mark("RegisterMcpServerForHarness");
             }
             catch (Exception ex)
             {

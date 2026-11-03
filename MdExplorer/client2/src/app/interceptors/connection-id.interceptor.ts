@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { switchMap, first } from 'rxjs/operators';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { OpenPerf } from '../shared/open-perf';
 
 /**
  * HTTP Interceptor that automatically adds connectionId to all API requests.
@@ -45,11 +46,13 @@ export class ConnectionIdInterceptor implements HttpInterceptor {
     }
 
     // Wait for connectionId to become available, then attach it
+    OpenPerf.mark(`richiesta TRATTENUTA in attesa del ConnectionId di SignalR: ${req.url}`);
     return this.mdServerMessages.connectionId$.pipe(
       first(),
-      switchMap((id) =>
-        next.handle(req.clone({ setParams: { ConnectionId: id } }))
-      )
+      switchMap((id) => {
+        OpenPerf.mark(`ConnectionId arrivato, parte: ${req.url}`);
+        return next.handle(req.clone({ setParams: { ConnectionId: id } }));
+      })
     );
   }
 }

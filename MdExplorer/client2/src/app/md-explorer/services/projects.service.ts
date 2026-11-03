@@ -6,6 +6,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
 import { versionInfo } from '../../../environments/version';
+import { OpenPerf } from '../../shared/open-perf';
 
 interface ProjectOpenedResponse {
   success: boolean;
@@ -163,7 +164,9 @@ export class ProjectsService {
   }
 
   setNewFolderProject(path: string):void {
+    OpenPerf.mark('setNewFolderProject: projectChanging (subscriber sincroni)');
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+    OpenPerf.mark('setNewFolderProject: notifyProjectClosed');
 
     // Close previous project if any
     this.notifyProjectClosed();
@@ -176,7 +179,10 @@ export class ProjectsService {
       request.harness = harness;
     }
 
+    OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
+      OpenPerf.mark('POST SetFolderProject: risposta');
+      OpenPerf.request('MdProjects/SetFolderProject');
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview

@@ -8,6 +8,7 @@ import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { SpecialFolder, Drive } from '../../commons/components/show-file-system/file-explorer.models';
 import { AppStoreService } from './app-store.service';
+import { OpenPerf } from '../../shared/open-perf';
 
 @Injectable({
   providedIn: 'root'
@@ -409,8 +410,11 @@ export class MdFileService {
     console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
+    OpenPerf.mark('GetShallowStructure chiesta (albero dei file)');
     return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure')
       .subscribe(data => {
+        OpenPerf.mark('GetShallowStructure: risposta');
+        OpenPerf.request('mdfiles/GetShallowStructure');
         if (epoch !== this._loadAllEpoch) {
           // A newer loadAll was issued while this response was in flight:
           // applying it would overwrite fresher data. Discard, with a trace.
