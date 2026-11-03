@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.Extensions.Logging;
 using NHibernate;
 
@@ -45,6 +46,12 @@ namespace MdExplorer.Services.Git
     {
         /// <summary>Sposta nel credential helper di git ogni segreto che MdExplorer conserva ancora nel suo DB. Idempotente: ciò che è spostato non c'è più.</summary>
         Task<GitCredentialMoveReport> RunAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Il trasloco dell'avvio: gira una volta sola nella vita dell'installazione. Dopo il primo tentativo,
+        /// riuscito o no, la riga <c>GitCredentialMove.Done</c> di <c>Setting</c> lo segna come fatto.
+        /// </summary>
+        Task<GitCredentialMoveReport> RunOnceAtStartupAsync(CancellationToken ct = default);
     }
 
     /// <summary>
@@ -59,7 +66,12 @@ namespace MdExplorer.Services.Git
     /// <para>
     /// Legge le tabelle con SQL diretto perché le entità non sono più mappate: le tabelle restano
     /// nel file (FluentMigrator su SQLite non sa cancellarle), vuote di segreti.
-    /// Ciò che non si è potuto spostare resta, con il perché nel rapporto, e si riprova all'avvio dopo.
+    /// Ciò che non si è potuto spostare resta nel DB, con il perché nel rapporto. All'avvio il trasloco
+    /// gira UNA volta sola (<see cref="RunOnceAtStartupAsync"/>): i motivi per cui una credenziale non si
+    /// sposta (repository sparito, host sconosciuto, nessun credential helper…) non cambiano da un avvio
+    /// all'altro, e riprovare ogni volta voleva dire tenere il DB utente bloccato a ogni partenza. Chi
+    /// sistema la causa riprova a mano (<c>POST api/ModernGit/credential-move</c>), oppure rifà il login
+    /// una volta: Git Credential Manager lo chiede al primo push.
     /// </para>
     /// <para>
     /// ⚠️ Lo SQL passa dalla <b>stessa sessione NHibernate</b> (System.Data.SQLite) del resto dell'app,
@@ -67,6 +79,13 @@ namespace MdExplorer.Services.Git
     /// non si vedono i lock. Misurato il 22/09/2026: la prima versione, che apriva il file con
     /// Microsoft.Data.Sqlite, alla chiusura ha buttato via il WAL dell'altra e il DB è finito in
     /// «disk I/O error». È lo stesso motivo per cui l'indice FTS vive in un file side-car.
+    /// </para>
+    /// <para>
+    /// ⚠️ Dentro la transazione niente può aprire una SECONDA sessione del DB utente: aspetterebbe il lock
+    /// di questa, nello stesso processo, per ~30 s. Era il caso di <see cref="UiText.Say"/>, che la prima
+    /// volta legge la lingua dal DB: il 03/11/2026 da un cliente il DB restava bloccato a ogni avvio e
+    /// <c>TelegramRemoteService</c>, preso nel mezzo, spegneva il servizio. Per questo la lingua si
+    /// carica PRIMA di aprire la transazione.
     /// </para>
     /// </summary>
     public sealed class GitCredentialMoveService : IGitCredentialMoveService
@@ -87,20 +106,36 @@ namespace MdExplorer.Services.Git
             _logger = logger;
         }
 
-        public async Task<GitCredentialMoveReport> RunAsync(CancellationToken ct = default)
+        /// <summary>La riga di <c>Setting</c> che segna il trasloco dell'avvio come fatto (valore: quando, UTC).</summary>
+        public const string DoneSetting = "GitCredentialMove.Done";
+
+        public Task<GitCredentialMoveReport> RunAsync(CancellationToken ct = default) => RunCoreAsync(onlyOnce: false, ct);
+
+        public Task<GitCredentialMoveReport> RunOnceAtStartupAsync(CancellationToken ct = default) => RunCoreAsync(onlyOnce: true, ct);
+
+        private async Task<GitCredentialMoveReport> RunCoreAsync(bool onlyOnce, CancellationToken ct)
         {
             var entries = new List<GitCredentialMoveEntry>();
+            // La lingua dei motivi si carica ADESSO, fuori dalla transazione: la prima lettura apre
+            // una seconda sessione del DB utente, che dentro la transazione resterebbe ad aspettare.
+            _ = UiText.Current;
             // Tutto dentro UNA transazione della sessione: letture fuori transazione rompono i
             // Commit successivi della stessa sessione (vedi memoria usersettingsdb_session_hygiene).
             _db.BeginTransaction();
             try
             {
+                if (onlyOnce && IsDone())
+                {
+                    _db.Commit();
+                    return Publish(entries);
+                }
                 if (TableExists("GitCredential"))
                     await MoveGitCredentialsAsync(entries, ct);
                 if (TableExists("GitlabSetting"))
                     await MoveGitlabSettingsAsync(entries, ct);
                 if (TableExists("Setting"))
                     await MoveGitHubTokenAsync(entries, ct);
+                MarkDone();
                 _db.Commit();
             }
             catch
@@ -288,8 +323,8 @@ namespace MdExplorer.Services.Git
             var foreign = ForeignWindowsCredentialTarget(uri);
             if (foreign != null)
                 why += " " + UiText.Say(
-                    $"Nella Gestione credenziali di Windows c'è la voce «{foreign}», scritta da un altro programma: Git Credential Manager cerca «git:» minuscolo e non la riconosce come sua. Chiudi MdExplorer, esegui  cmdkey /delete:{foreign}  e riaprilo: il trasloco riparte da solo.",
-                    $"Windows Credential Manager holds the entry \"{foreign}\", written by another program: Git Credential Manager looks for lowercase \"git:\" and does not recognise it as its own. Close MdExplorer, run  cmdkey /delete:{foreign}  and reopen it: the move runs again by itself.");
+                    $"Nella Gestione credenziali di Windows c'è la voce «{foreign}», scritta da un altro programma: Git Credential Manager cerca «git:» minuscolo e non la riconosce come sua. Esegui  cmdkey /delete:{foreign}  e rifai il login una volta: Git Credential Manager lo chiede al primo push.",
+                    $"Windows Credential Manager holds the entry \"{foreign}\", written by another program: Git Credential Manager looks for lowercase \"git:\" and does not recognise it as its own. Run  cmdkey /delete:{foreign}  and log in again once: Git Credential Manager asks at the first push.");
             return (false, why);
         }
 
@@ -357,6 +392,21 @@ namespace MdExplorer.Services.Git
             "bitbucket" => "https://bitbucket.org/",
             _ => null,
         };
+
+        private bool IsDone()
+            => Convert.ToInt64(_db.CreateSQLQuery("SELECT COUNT(*) FROM Setting WHERE Name = :name")
+                .SetParameter("name", DoneSetting).UniqueResult()) > 0;
+
+        /// <summary>Segna il trasloco come fatto, anche quando qualcosa non si è potuto spostare: riprovare all'avvio non cambierebbe il motivo.</summary>
+        private void MarkDone()
+        {
+            var when = DateTime.UtcNow.ToString("o");
+            if (IsDone())
+                _db.CreateSQLQuery("UPDATE Setting SET ValueString = :val WHERE Name = :name")
+                    .SetParameter("val", when).SetParameter("name", DoneSetting).ExecuteUpdate();
+            else
+                _db.GetDal<Setting>().Save(new Setting { Name = DoneSetting, Description = "Trasloco credenziali git eseguito", ValueString = when });
+        }
 
         private bool TableExists(string table)
             => _db.CreateSQLQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name")

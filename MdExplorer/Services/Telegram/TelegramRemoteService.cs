@@ -70,12 +70,41 @@ namespace MdExplorer.Services.Telegram
         private string State()
             => _token == null ? "not-connected" : !_enabled ? "off" : _role == "standby" ? "standby" : "listening";
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        /// <summary>
+        /// Legge il collegamento salvato e, se c'è, comincia ad ascoltare. Non lancia MAI: un BackgroundService che
+        /// lancia spegne l'intero servizio (<c>BackgroundServiceExceptionBehavior.StopHost</c>). Il 03/11/2026 da un
+        /// cliente il DB utente era bloccato all'avvio («database is locked») e questa lettura spegneva MdExplorer.
+        /// Se il DB non risponde si riprova dopo qualche secondo.
+        /// </summary>
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _stopping = stoppingToken;
+            for (var attempt = 1; !stoppingToken.IsCancellationRequested; attempt++)
+            {
+                try
+                {
+                    LoadAndReconcile();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Telegram] impostazioni non leggibili dal DB utente (tentativo {Attempt}), riprovo tra {Seconds} s",
+                        attempt, RetrySeconds);
+                    lock (_lock) _lastError = ex.Message;
+                }
+                try { await Task.Delay(TimeSpan.FromSeconds(RetrySeconds), stoppingToken); }
+                catch (OperationCanceledException) { return; }
+            }
+        }
+
+        private const int RetrySeconds = 10;
+
+        private void LoadAndReconcile()
+        {
             var s = _store.ReadAll();
             lock (_lock)
             {
+                _lastError = null; // l'eventuale «DB non leggibile» di un tentativo precedente
                 _installationName = s.GetValueOrDefault(TelegramSettingsStore.InstallationName);
                 var protectedToken = s.GetValueOrDefault(TelegramSettingsStore.TokenProtected);
                 if (protectedToken != null)
@@ -97,7 +126,6 @@ namespace MdExplorer.Services.Telegram
                 _role = s.GetValueOrDefault(TelegramSettingsStore.Role) ?? "listening";
                 Reconcile();
             }
-            return Task.CompletedTask;
         }
 
         /// <summary>Salva il bot appena abbinato (confermato dall'utente) e comincia ad ascoltarlo da qui.</summary>

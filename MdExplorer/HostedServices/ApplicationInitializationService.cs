@@ -39,19 +39,20 @@ namespace MdExplorer.Service.HostedServices
                 // Create a scope to resolve scoped services
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    // Il trasloco delle credenziali git dal DB al credential helper di git: una volta,
-                    // idempotente, mai fatale per l'avvio. Ciò che non si sposta resta e lo dice nel log.
+                    // Il trasloco delle credenziali git dal DB al credential helper di git: una volta sola
+                    // nella vita dell'installazione (riga GitCredentialMove.Done), mai fatale per l'avvio.
+                    // Ciò che non si sposta resta nel DB e lo dice nel log.
                     try
                     {
                         var moved = await scope.ServiceProvider
                             .GetRequiredService<MdExplorer.Services.Git.IGitCredentialMoveService>()
-                            .RunAsync(cancellationToken);
+                            .RunOnceAtStartupAsync(cancellationToken);
                         if (!moved.NothingLeft)
                             _logger.LogInformation("[trasloco] credenziali git: {Moved} spostate, {Failed} da sistemare", moved.Moved, moved.Failed);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "[trasloco] credenziali git: fallito, si riprova al prossimo avvio");
+                        _logger.LogError(ex, "[trasloco] credenziali git: fallito, si riprova al prossimo avvio (non è stato segnato come fatto)");
                     }
 
                     var session = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
