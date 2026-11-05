@@ -30,6 +30,14 @@ namespace MdExplorer.Features.Services.Atlassian
         Task<ConfluencePage> GetPageAsync(
             ConfluenceConnection conn, string pageId, CancellationToken ct = default);
 
+        /// <summary>Metadata of one attachment (GET /wiki/api/v2/attachments/{id}).</summary>
+        Task<ConfluenceAttachment> GetAttachmentAsync(
+            ConfluenceConnection conn, string attachmentId, CancellationToken ct = default);
+
+        /// <summary>Copies the content of one attachment into <paramref name="destination"/>; returns the bytes written.</summary>
+        Task<long> DownloadAttachmentAsync(
+            ConfluenceConnection conn, ConfluenceAttachment attachment, System.IO.Stream destination, CancellationToken ct = default);
+
         /// <summary>
         /// Creates a page (POST /wiki/api/v2/pages). The markdown body is converted
         /// to ADF. The space is given by key (resolved to id) or id directly.

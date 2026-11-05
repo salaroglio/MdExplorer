@@ -602,6 +602,116 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? FileName { get; set; }
         }
 
+        public class DownloadAttachmentRequest
+        {
+            public Guid ProjectId { get; set; }
+        }
+
+        // ============================================================
+        //   POST /api/atlassian/jira/issue/{key}/attachment/{attachmentId}/download
+        //   Scarica un allegato nel progetto, così l'LLM lo può aprire (un'immagine
+        //   incorporata nella descrizione, uno screenshot, un log).
+        // ============================================================
+        [HttpPost("jira/issue/{key}/attachment/{attachmentId}/download")]
+        public async Task<IActionResult> DownloadJiraAttachment(
+            string key, string attachmentId, [FromBody] DownloadAttachmentRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(key)) return BadRequest(new { error = "issue key required" });
+            if (string.IsNullOrWhiteSpace(attachmentId)) return BadRequest(new { error = "attachment id required" });
+
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            try
+            {
+                var meta = await _jiraClient.GetAttachmentAsync(ctx.Connection, attachmentId);
+                var target = AttachmentDownloadTarget(ctx.ProjectPath, Path.Combine("jira", SafeName(key.Trim())),
+                    attachmentId.Trim(), meta.FileName, out var error);
+                if (target == null) return BadRequest(new { error });
+
+                long written;
+                using (var file = System.IO.File.Create(target))
+                    written = await _jiraClient.DownloadAttachmentAsync(ctx.Connection, attachmentId, file);
+
+                return Ok(DownloadResult(ctx.ProjectPath, target, attachmentId.Trim(), meta.FileName, meta.MimeType, written));
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (IOException ex) { return BadRequest(new { error = $"Cannot save the attachment: {ex.Message}" }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Jira attachment download failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ============================================================
+        //   POST /api/atlassian/confluence/attachment/{attachmentId}/download
+        // ============================================================
+        [HttpPost("confluence/attachment/{attachmentId}/download")]
+        public async Task<IActionResult> DownloadConfluenceAttachment(
+            string attachmentId, [FromBody] DownloadAttachmentRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(attachmentId)) return BadRequest(new { error = "attachment id required" });
+
+            var ctx = BuildConfluenceContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            try
+            {
+                var meta = await _confluenceClient.GetAttachmentAsync(ctx.Connection, attachmentId);
+                var target = AttachmentDownloadTarget(ctx.ProjectPath, "confluence",
+                    attachmentId.Trim(), meta.FileName, out var error);
+                if (target == null) return BadRequest(new { error });
+
+                long written;
+                using (var file = System.IO.File.Create(target))
+                    written = await _confluenceClient.DownloadAttachmentAsync(ctx.Connection, meta, file);
+
+                return Ok(DownloadResult(ctx.ProjectPath, target, attachmentId.Trim(), meta.FileName, meta.MediaType, written));
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (IOException ex) { return BadRequest(new { error = $"Cannot save the attachment: {ex.Message}" }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Confluence attachment download failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Dove finisce un allegato scaricato: {progetto}/.md/atlassian-attachments/{sotto}/{id}_{nome}.
+        /// Dentro il progetto perché è lì che l'LLM può leggere; in .md perché è roba di
+        /// lavoro, non documentazione. L'id davanti al nome: Jira ammette due allegati con
+        /// lo stesso nome sulla stessa issue.
+        /// </summary>
+        private static string AttachmentDownloadTarget(
+            string projectPath, string subFolder, string attachmentId, string fileName, out string error)
+        {
+            error = null;
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
+            {
+                error = "The project folder is not available on this machine, so there is nowhere to save the attachment.";
+                return null;
+            }
+            var folder = Path.Combine(projectPath, ".md", "atlassian-attachments", subFolder);
+            Directory.CreateDirectory(folder);
+            var name = SafeName(string.IsNullOrWhiteSpace(fileName) ? "attachment" : Path.GetFileName(fileName.Trim()));
+            return Path.Combine(folder, $"{SafeName(attachmentId)}_{name}");
+        }
+
+        private static string SafeName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var chars = name.Select(c => invalid.Contains(c) || c == '/' || c == '\\' ? '_' : c).ToArray();
+            var safe = new string(chars).Trim().TrimEnd('.');
+            return string.IsNullOrEmpty(safe) || safe == "." || safe == ".." ? "attachment" : safe;
+        }
+
+        private static object DownloadResult(
+            string projectPath, string target, string attachmentId, string fileName, string mimeType, long written) => new
+        {
+            attachmentId,
+            fileName,
+            mimeType,
+            size = written >= 0 ? written : new FileInfo(target).Length,
+            path = target,
+            relativePath = Path.GetRelativePath(projectPath, target).Replace('\\', '/'),
+        };
+
         // ============================================================
         //   POST /api/atlassian/jira/issue/{key}/attachment
         //   Allega un file dell'AREA DI PROGETTO a una issue.
@@ -1003,6 +1113,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public IActionResult ErrorResult { get; set; }
             public ConfluenceConnection Connection { get; set; }
             public List<string> SpaceKeys { get; set; } = new List<string>();
+            public string ProjectPath { get; set; }
         }
 
         private ConfluenceContext BuildConfluenceContext(Guid projectId)
@@ -1047,6 +1158,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     ApiToken = _passwordProtector.Unprotect(settings.ApiTokenEncrypted)
                 };
                 ctx.SpaceKeys = cfg?.ConfluenceSpaceKeys ?? new List<string>();
+                ctx.ProjectPath = project.Path;
                 return ctx;
             }
             catch (Exception ex)

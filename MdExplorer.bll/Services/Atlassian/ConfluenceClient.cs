@@ -105,16 +105,145 @@ namespace MdExplorer.Features.Services.Atlassian
                 ver.TryGetProperty("number", out var num) && num.ValueKind == JsonValueKind.Number)
                 page.Version = num.GetInt32();
 
+            // Gli allegati prima del testo: il loro fileId è l'id dei nodi media nel corpo,
+            // così le immagini incorporate escono col nome vero del file.
+            page.Attachments.AddRange(await ListAttachmentsAsync(conn, page.Id ?? pageId.Trim(), ct));
+            var mediaNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var a in page.Attachments)
+                if (!string.IsNullOrEmpty(a.FileId) && !string.IsNullOrEmpty(a.FileName))
+                    mediaNames[a.FileId] = a.FileName;
+
             // body.atlas_doc_format.value is a STRING containing the ADF JSON.
             if (root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.Object &&
                 body.TryGetProperty("atlas_doc_format", out var adf) && adf.ValueKind == JsonValueKind.Object)
             {
                 var value = GetString(adf, "value");
-                page.Body = AdfRenderer.ToText(value);
+                page.Body = AdfRenderer.ToText(value, mediaNames);
             }
 
             page.Url = BuildPageUrl(conn, root, page.Id);
             return page;
+        }
+
+        // ── Attachments ─────────────────────────────────────────────
+
+        // Una pagina con centinaia di allegati è rara; il tetto evita di girare senza fine
+        // se il cursore non si chiude, e quando scatta lo si dice invece di tagliare in silenzio.
+        private const int AttachmentPageSize = 250;
+        private const int AttachmentMaxPages = 8;
+
+        private async Task<List<ConfluenceAttachment>> ListAttachmentsAsync(
+            ConfluenceConnection conn, string pageId, CancellationToken ct)
+        {
+            var list = new List<ConfluenceAttachment>();
+            var url = $"{BaseUrl(conn)}/api/v2/pages/{Uri.EscapeDataString(pageId)}/attachments?limit={AttachmentPageSize}";
+            for (var pageNo = 0; url != null; pageNo++)
+            {
+                if (pageNo == AttachmentMaxPages)
+                    throw new AtlassianApiException(
+                        $"Page {pageId} has more than {AttachmentPageSize * AttachmentMaxPages} attachments: " +
+                        "too many to list in one read.");
+
+                using var doc = await GetJsonAsync(conn, url, ct);
+                url = null;
+                if (doc == null) break;
+                var root = doc.RootElement;
+                if (root.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+                    foreach (var r in results.EnumerateArray())
+                        list.Add(MapAttachment(r));
+                if (root.TryGetProperty("_links", out var links) && links.ValueKind == JsonValueKind.Object)
+                {
+                    var next = GetString(links, "next");
+                    if (!string.IsNullOrEmpty(next)) url = AbsoluteUrl(conn, next);
+                }
+            }
+            return list;
+        }
+
+        public async Task<ConfluenceAttachment> GetAttachmentAsync(
+            ConfluenceConnection conn, string attachmentId, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(attachmentId))
+                throw new AtlassianApiException("An attachment id is required.");
+            var url = $"{BaseUrl(conn)}/api/v2/attachments/{Uri.EscapeDataString(attachmentId.Trim())}";
+            using var doc = await GetJsonAsync(conn, url, ct);
+            if (doc == null)
+                throw new AtlassianApiException($"Confluence returned no metadata for attachment {attachmentId}.");
+            return MapAttachment(doc.RootElement);
+        }
+
+        public async Task<long> DownloadAttachmentAsync(
+            ConfluenceConnection conn, ConfluenceAttachment attachment, System.IO.Stream destination,
+            CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (attachment == null) throw new ArgumentNullException(nameof(attachment));
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            if (string.IsNullOrWhiteSpace(attachment.DownloadLink))
+                throw new AtlassianApiException(
+                    $"Confluence gave no download link for attachment {attachment.Id}.");
+
+            // Il link porta, con un redirect, al media store (altro host, URL firmato):
+            // HttpClient lo segue senza riportarvi l'Authorization, ed è corretto così.
+            var url = AbsoluteUrl(conn, attachment.DownloadLink);
+            var client = _httpClientFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic", BasicToken(conn));
+
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new AtlassianApiException(
+                    AtlassianNetworkDiagnostics.DescribeUnreachable("Confluence", BaseUrl(conn), ex), null, ex);
+            }
+
+            using (resp)
+            {
+                if (!resp.IsSuccessStatusCode)
+                    EnsureSuccessOrThrow(resp, await resp.Content.ReadAsStringAsync(ct), url);
+                var before = destination.CanSeek ? destination.Position : 0;
+                await resp.Content.CopyToAsync(destination, ct);
+                return destination.CanSeek ? destination.Position - before : -1;
+            }
+        }
+
+        private static ConfluenceAttachment MapAttachment(JsonElement r)
+        {
+            var a = new ConfluenceAttachment
+            {
+                Id = GetString(r, "id"),
+                FileName = GetString(r, "title"),
+                MediaType = GetString(r, "mediaType"),
+                Created = GetString(r, "createdAt"),
+                FileId = GetString(r, "fileId"),
+                DownloadLink = GetString(r, "downloadLink"),
+                Size = r.TryGetProperty("fileSize", out var fs) && fs.TryGetInt64(out var n) ? n : 0,
+            };
+            if (string.IsNullOrEmpty(a.DownloadLink) &&
+                r.TryGetProperty("_links", out var l) && l.ValueKind == JsonValueKind.Object)
+                a.DownloadLink = GetString(l, "download");
+            return a;
+        }
+
+        /// <summary>
+        /// I link di Confluence arrivano in due forme: relativi alla base /wiki
+        /// ("/download/attachments/…") oppure alla radice del sito ("/wiki/api/v2/…?cursor=").
+        /// </summary>
+        private static string AbsoluteUrl(ConfluenceConnection conn, string link)
+        {
+            if (link.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                link.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                return link;
+            var wiki = BaseUrl(conn);
+            if (wiki.EndsWith("/wiki", StringComparison.OrdinalIgnoreCase) &&
+                link.StartsWith("/wiki/", StringComparison.OrdinalIgnoreCase))
+                return wiki.Substring(0, wiki.Length - "/wiki".Length) + link;
+            return wiki + (link.StartsWith("/") ? link : "/" + link);
         }
 
         public async Task<ConfluenceWriteResult> CreatePageAsync(

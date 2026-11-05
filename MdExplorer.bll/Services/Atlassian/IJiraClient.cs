@@ -67,6 +67,15 @@ namespace MdExplorer.Features.Services.Atlassian
         Task<IReadOnlyList<JiraVersion>> GetProjectVersionsAsync(
             JiraConnection conn, string projectKey, CancellationToken ct = default);
 
+        /// <summary>Metadata of one attachment (GET /rest/api/3/attachment/{id}).</summary>
+        Task<JiraAttachment> GetAttachmentAsync(JiraConnection conn, string attachmentId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Copies the content of one attachment into <paramref name="destination"/>
+        /// (GET /rest/api/3/attachment/content/{id}); returns the bytes written.
+        /// </summary>
+        Task<long> DownloadAttachmentAsync(JiraConnection conn, string attachmentId, System.IO.Stream destination, CancellationToken ct = default);
+
         /// <summary>
         /// Uploads a file to an issue (POST /rest/api/3/issue/{key}/attachments, multipart).
         /// The caller owns the stream and decides where the bytes come from: this client

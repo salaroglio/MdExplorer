@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace MdExplorer.Mcp;
@@ -130,5 +131,58 @@ public abstract class McpToolsBase
             error = "customFields is not valid JSON. Pass a JSON object, e.g. {\"Story Points\": 5}.";
             return false;
         }
+    }
+
+    // Formati che i modelli leggono come immagine; gli altri (svg, bmp, tiff…) restano
+    // solo sul disco e si aprono da lì.
+    private static readonly HashSet<string> InlineImageTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png", "image/jpeg", "image/gif", "image/webp",
+    };
+
+    // Oltre questa soglia l'immagine pesa troppo nel contesto: la si lascia sul disco.
+    private const long InlineImageMaxBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// La risposta di un download di allegato: il JSON del Service (dove sta il file) e,
+    /// se è un'immagine di formato e dimensione adatti, l'immagine stessa, così l'LLM la
+    /// vede subito senza dover aprire il file.
+    /// </summary>
+    protected static CallToolResult AttachmentDownloadResult(System.Net.Http.HttpResponseMessage resp, string body)
+    {
+        var result = new CallToolResult { Content = new List<ContentBlock> { new TextContentBlock { Text = body } } };
+        if (!resp.IsSuccessStatusCode)
+        {
+            result.IsError = true;
+            return result;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var path = root.TryGetProperty("path", out var p) ? p.GetString() : null;
+            var mime = root.TryGetProperty("mimeType", out var m) ? m.GetString() : null;
+            if (string.IsNullOrEmpty(path) || mime == null || !InlineImageTypes.Contains(mime))
+                return result;
+
+            var info = new FileInfo(path);
+            if (!info.Exists)
+            {
+                // Il Service gira altrove (container, macchina remota): il file c'è, ma non qui.
+                ((TextContentBlock)result.Content[0]).Text = body +
+                    "\n(The image was saved by MdExplorer but is not readable from this process, so it is not shown inline.)";
+                return result;
+            }
+            if (info.Length > InlineImageMaxBytes)
+            {
+                ((TextContentBlock)result.Content[0]).Text = body +
+                    $"\n(The image is {info.Length / (1024 * 1024)} MB, too large to show inline: open it from 'path'.)";
+                return result;
+            }
+            result.Content.Add(ImageContentBlock.FromBytes(File.ReadAllBytes(path), mime));
+        }
+        catch (JsonException) { /* corpo non JSON: resta il testo così com'è */ }
+        return result;
     }
 }

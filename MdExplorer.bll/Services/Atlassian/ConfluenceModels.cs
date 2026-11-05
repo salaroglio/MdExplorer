@@ -48,6 +48,25 @@ namespace MdExplorer.Features.Services.Atlassian
         /// <summary>Body flattened from ADF (atlas_doc_format) to markdown.</summary>
         public string Body { get; set; }
         public string Url { get; set; }      // absolute web URL
+        /// <summary>
+        /// I file allegati alla pagina. Le immagini incorporate nel testo compaiono lì come
+        /// "[embedded attachment: nome]" e qui con lo stesso nome e l'id da scaricare.
+        /// </summary>
+        public List<ConfluenceAttachment> Attachments { get; set; } = new List<ConfluenceAttachment>();
+    }
+
+    /// <summary>One file attached to a page (/wiki/api/v2/pages/{id}/attachments).</summary>
+    public class ConfluenceAttachment
+    {
+        public string Id { get; set; }         // "att123456": the id to download it
+        public string FileName { get; set; }   // the attachment title, i.e. the file name
+        public string MediaType { get; set; }
+        public long Size { get; set; }
+        public string Created { get; set; }
+        /// <summary>Media-store id: the same as attrs.id of the media node in the page body.</summary>
+        public string FileId { get; set; }
+        /// <summary>Download link as Confluence gives it (relative to the /wiki base).</summary>
+        public string DownloadLink { get; set; }
     }
 
     /// <summary>

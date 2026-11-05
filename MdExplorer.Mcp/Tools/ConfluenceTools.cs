@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace MdExplorer.Mcp;
@@ -76,7 +77,10 @@ public sealed class ConfluenceTools : McpToolsBase
         "Fetches the full content of a single Confluence page by its id (title + body " +
         "flattened to markdown, plus space id, version and URL). Call ConfluenceSearch " +
         "first to get the page id. Use this to read documentation/specs as context " +
-        "before planning or writing.")]
+        "before planning or writing. An image embedded in the page appears as " +
+        "'[embedded attachment: <file name>]'; every file attached to the page is listed in " +
+        "'attachments' with its id. To SEE an image or read a file, call " +
+        "ConfluenceDownloadAttachment with that id.")]
     public async Task<string> ConfluenceGetPage(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("The Confluence page id, e.g. '123456'.")] string pageId)
@@ -95,6 +99,40 @@ public sealed class ConfluenceTools : McpToolsBase
         catch (HttpRequestException ex)
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Downloads one attachment of a Confluence page (READ) into the project folder " +
+        "('.md/atlassian-attachments/confluence/') and returns where it was saved. If it is " +
+        "an image (png/jpeg/gif/webp, up to 5 MB) the image itself is returned too, so you " +
+        "can look at it; for any other file open the returned 'path' with your file tools. " +
+        "Get the attachment id from ConfluenceGetPage ('attachments'). Use it whenever the " +
+        "page shows an '[embedded attachment: …]' that matters for the task.")]
+    public async Task<CallToolResult> ConfluenceDownloadAttachment(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The attachment id, from the 'attachments' list of ConfluenceGetPage, e.g. 'att123456'.")] string attachmentId)
+    {
+        static CallToolResult Fail(string text) =>
+            new() { IsError = true, Content = new List<ContentBlock> { new TextContentBlock { Text = text } } };
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return Fail($"Project '{project}' not found.");
+        if (string.IsNullOrWhiteSpace(attachmentId)) return Fail("attachmentId is required.");
+        try
+        {
+            var payload = new { projectId = pid };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(
+                $"/api/atlassian/confluence/attachment/{Uri.EscapeDataString(attachmentId.Trim())}/download", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("ConfluenceDownloadAttachment", project, $"attachmentId={attachmentId}", body);
+            return AttachmentDownloadResult(resp, body);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Fail($"Error connecting to MdExplorer: {ex.Message}");
         }
     }
 

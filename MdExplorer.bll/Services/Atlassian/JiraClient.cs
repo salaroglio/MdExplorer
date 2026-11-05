@@ -22,7 +22,7 @@ namespace MdExplorer.Features.Services.Atlassian
         // Fields requested for triage lists and for the planning detail view.
         private const string SummaryFields = "summary,status,priority,issuetype,duedate,assignee,description";
         private const int SummaryDescriptionMax = 200;
-        private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks,parent";
+        private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks,parent,attachment";
 
         // Field-metadata cache, keyed by site base URL. The custom-field catalog changes
         // rarely, so caching it for a few minutes avoids a /field round-trip on every
@@ -162,6 +162,10 @@ namespace MdExplorer.Features.Services.Atlassian
                 if (f.TryGetProperty("issuelinks", out var links) && links.ValueKind == JsonValueKind.Array)
                     foreach (var link in links.EnumerateArray())
                         AddLink(detail, link);
+
+                if (f.TryGetProperty("attachment", out var atts) && atts.ValueKind == JsonValueKind.Array)
+                    foreach (var a in atts.EnumerateArray())
+                        detail.Attachments.Add(MapAttachment(a));
 
                 MapCustomFields(meta, f, detail);
             }
@@ -646,14 +650,7 @@ namespace MdExplorer.Features.Services.Atlassian
                 {
                     foreach (var el in doc.RootElement.EnumerateArray())
                     {
-                        list.Add(new JiraAttachment
-                        {
-                            Id = GetString(el, "id"),
-                            FileName = GetString(el, "filename"),
-                            MimeType = GetString(el, "mimeType"),
-                            ContentUrl = GetString(el, "content"),
-                            Size = el.TryGetProperty("size", out var s) && s.TryGetInt64(out var n) ? n : 0,
-                        });
+                        list.Add(MapAttachment(el));
                     }
                 }
             }
@@ -665,6 +662,65 @@ namespace MdExplorer.Features.Services.Atlassian
 
             return list;
         }
+
+        public async Task<JiraAttachment> GetAttachmentAsync(
+            JiraConnection conn, string attachmentId, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(attachmentId)) throw new AtlassianApiException("attachmentId is required.");
+            var url = $"{BaseUrl(conn)}/rest/api/3/attachment/{Uri.EscapeDataString(attachmentId.Trim())}";
+            using var doc = await GetJsonAsync(conn, url, ct);
+            if (doc == null)
+                throw new AtlassianApiException($"Jira returned no metadata for attachment {attachmentId}.");
+            return MapAttachment(doc.RootElement);
+        }
+
+        public async Task<long> DownloadAttachmentAsync(
+            JiraConnection conn, string attachmentId, System.IO.Stream destination, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(attachmentId)) throw new AtlassianApiException("attachmentId is required.");
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+
+            // Jira risponde con un redirect al media store (altro host, URL firmato):
+            // HttpClient lo segue e, cambiando host, non vi porta l'Authorization — giusto
+            // così, la firma è nell'URL.
+            var url = $"{BaseUrl(conn)}/rest/api/3/attachment/content/{Uri.EscapeDataString(attachmentId.Trim())}";
+            var client = _httpClientFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic", BasicToken(conn));
+
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new AtlassianApiException(
+                    AtlassianNetworkDiagnostics.DescribeUnreachable("Jira", BaseUrl(conn), ex), null, ex);
+            }
+
+            using (resp)
+            {
+                if (!resp.IsSuccessStatusCode)
+                    EnsureSuccessOrThrow(resp, await resp.Content.ReadAsStringAsync(ct), url);
+                var before = destination.CanSeek ? destination.Position : 0;
+                await resp.Content.CopyToAsync(destination, ct);
+                return destination.CanSeek ? destination.Position - before : -1;
+            }
+        }
+
+        private static JiraAttachment MapAttachment(JsonElement el) => new JiraAttachment
+        {
+            Id = GetString(el, "id"),
+            FileName = GetString(el, "filename"),
+            MimeType = GetString(el, "mimeType"),
+            ContentUrl = GetString(el, "content"),
+            Size = el.TryGetProperty("size", out var s) && s.TryGetInt64(out var n) ? n : 0,
+            Author = GetNestedString(el, "author", "displayName"),
+            Created = GetString(el, "created"),
+        };
 
         // ── Custom fields ───────────────────────────────────────────
 

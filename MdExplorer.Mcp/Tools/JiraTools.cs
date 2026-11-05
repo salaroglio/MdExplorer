@@ -1,11 +1,12 @@
 using System.ComponentModel;
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace MdExplorer.Mcp;
 
 /// <summary>
-/// Gruppo <c>jira</c>: i 15 tool Jira. Da soli sono il <b>54%</b> del peso di tutti i tool MCP
+/// Gruppo <c>jira</c>: i 16 tool Jira. Da soli sono il <b>54%</b> del peso di tutti i tool MCP
 /// (~4.354 token su ~8.009, misurati il 22/09/2026): su un progetto senza Jira sono il risparmio
 /// più grosso che questo sprint possa fare.
 /// </summary>
@@ -88,7 +89,10 @@ public sealed class JiraTools : McpToolsBase
         "Fetches the full details of a single Jira issue (summary, description, " +
         "acceptance criteria text, labels, recent comments, and linked issues) so " +
         "you can write an implementation plan. Call JiraFindMyIssues first to get " +
-        "the issue key. Rich text (description/comments) is flattened to markdown.")]
+        "the issue key. Rich text (description/comments) is flattened to markdown. An image " +
+        "embedded in the text appears as '[embedded attachment: <file name>]'; every file " +
+        "attached to the issue is listed in 'attachments' with its id. To SEE an image or " +
+        "read a file, call JiraDownloadAttachment with that id.")]
     public async Task<string> JiraGetIssue(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("The Jira issue key, e.g. 'BCO-123'.")] string issueKey)
@@ -213,6 +217,43 @@ public sealed class JiraTools : McpToolsBase
         catch (HttpRequestException ex)
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Downloads one attachment of a Jira issue (READ) into the project folder " +
+        "('.md/atlassian-attachments/jira/<issue>/') and returns where it was saved. If it is " +
+        "an image (png/jpeg/gif/webp, up to 5 MB) the image itself is returned too, so you " +
+        "can look at it; for any other file open the returned 'path' with your file tools. " +
+        "Get the attachment id from JiraGetIssue ('attachments'). Use it whenever the issue " +
+        "text mentions a screenshot or an '[embedded attachment: …]'.")]
+    public async Task<CallToolResult> JiraDownloadAttachment(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The Jira issue key, e.g. 'BCO-123'.")] string issueKey,
+        [Description("The attachment id, from the 'attachments' list of JiraGetIssue, e.g. '10042'.")] string attachmentId)
+    {
+        static CallToolResult Fail(string text) =>
+            new() { IsError = true, Content = new List<ContentBlock> { new TextContentBlock { Text = text } } };
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return Fail($"Project '{project}' not found.");
+        if (string.IsNullOrWhiteSpace(issueKey)) return Fail("issueKey is required.");
+        if (string.IsNullOrWhiteSpace(attachmentId)) return Fail("attachmentId is required.");
+        try
+        {
+            var payload = new { projectId = pid };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(
+                $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/attachment/" +
+                $"{Uri.EscapeDataString(attachmentId.Trim())}/download", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraDownloadAttachment", project, $"issueKey={issueKey},attachmentId={attachmentId}", body);
+            return AttachmentDownloadResult(resp, body);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Fail($"Error connecting to MdExplorer: {ex.Message}");
         }
     }
 

@@ -49,6 +49,11 @@ namespace MdExplorer.Features.Services.Atlassian
         public List<string> Labels { get; set; } = new List<string>();
         public List<JiraComment> Comments { get; set; } = new List<JiraComment>();
         public List<string> Links { get; set; } = new List<string>();
+        /// <summary>
+        /// I file allegati alla issue. Le immagini incorporate nel testo compaiono lì come
+        /// "[embedded attachment: nome]" e qui con lo stesso nome e l'id da scaricare.
+        /// </summary>
+        public List<JiraAttachment> Attachments { get; set; } = new List<JiraAttachment>();
         // CustomFields is inherited from JiraIssueSummary.
     }
 
@@ -115,7 +120,8 @@ namespace MdExplorer.Features.Services.Atlassian
     }
 
     /// <summary>
-    /// One file attached to an issue, as returned by POST .../attachments.
+    /// One file attached to an issue, as returned by POST .../attachments, by
+    /// GET .../attachment/{id} and inside the issue's "attachment" field.
     /// <see cref="ContentUrl"/> needs the same Basic auth as the rest of the API:
     /// it is not a public link.
     /// </summary>
@@ -126,6 +132,8 @@ namespace MdExplorer.Features.Services.Atlassian
         public long Size { get; set; }
         public string MimeType { get; set; }
         public string ContentUrl { get; set; }
+        public string Author { get; set; }
+        public string Created { get; set; }
     }
 
     public class JiraComment
