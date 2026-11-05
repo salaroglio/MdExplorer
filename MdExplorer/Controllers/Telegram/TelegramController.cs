@@ -28,7 +28,7 @@ namespace MdExplorer.Service.Controllers.Telegram
 
         /// <param name="Action">connect | regenerate | project</param>
         /// <param name="ProjectPath">Solo per <c>project</c>: la cartella del progetto.</param>
-        public sealed record PairingRequest(string Action, string ProjectPath);
+        public sealed record PairingRequest(string Action, string? ProjectPath);
         public sealed record ProjectRequest(string ProjectPath);
         public sealed record EnabledRequest(bool Enabled);
         public sealed record NameRequest(string Name);
