@@ -1,0 +1,88 @@
+/* Annotare le slide (slide-ink.js): la tela sopra la pagina e il pannello con penna, evidenziatore, gomma,
+   colori e «Azzera». Sulla pagina, non sulla slide, quindi non si ingrandiscono con lei. */
+
+.mde-ink-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 36;
+    pointer-events: none;
+    touch-action: none;
+}
+
+/* Acceso: la tela prende il puntatore e si disegna. */
+.mde-ink-canvas.mde-ink-on {
+    pointer-events: auto;
+    cursor: crosshair;
+}
+
+/* La gomma: un cerchio come cursore. */
+.mde-ink-canvas.mde-ink-on.mde-ink-erasing {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='34' height='34'><circle cx='17' cy='17' r='15' fill='rgba(255,255,255,0.35)' stroke='%23444' stroke-width='2'/></svg>") 17 17, cell;
+}
+
+.mde-ink-panel {
+    position: fixed;
+    z-index: 44;
+    gap: 4px;
+    opacity: 0.94;
+}
+
+.mde-ink-panel[hidden] {
+    display: none;
+}
+
+.mde-ink-panel button {
+    font-size: 15px;
+}
+
+.mde-ink-panel .mde-ink-tool[aria-pressed="true"] {
+    background: rgba(26, 115, 232, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.7);
+}
+
+.mde-ink-palette {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 4px;
+    padding: 0 6px;
+    border-left: 1px solid rgba(0, 0, 0, 0.15);
+    border-right: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Con la gomma il colore non serve: si vede ma è spento. */
+.mde-ink-palette.mde-ink-palette-off {
+    opacity: 0.45;
+}
+
+.mde-ink-panel .mde-ink-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.mde-ink-panel .mde-ink-swatch[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px #1a73e8;
+}
+
+.mde-ink-panel .mde-ink-clear {
+    width: auto;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mde-ink-panel .mde-ink-close {
+    font-size: 13px;
+    color: #555;
+}
+
+html.reveal-print .mde-ink-canvas,
+html.print-pdf .mde-ink-canvas,
+html.reveal-print .mde-ink-panel,
+html.print-pdf .mde-ink-panel {
+    display: none !important;
+}

@@ -53,12 +53,45 @@ namespace Ad.Tools.Dal.Decorators
 
         public ITransaction BeginTransaction()
         {
-            return _implementation.BeginTransaction();
+            if (!DalDiagnostics.Enabled) return _implementation.BeginTransaction();
+            using (var probe = new DalDiagnostics.WaitProbe(this))
+            {
+                var tx = _implementation.BeginTransaction();
+                AfterBegin(probe);
+                return tx;
+            }
         }
 
         public ITransaction BeginTransaction(IsolationLevel isolationLevel)
         {
-            return _implementation.BeginTransaction(isolationLevel);
+            if (!DalDiagnostics.Enabled) return _implementation.BeginTransaction(isolationLevel);
+            using (var probe = new DalDiagnostics.WaitProbe(this))
+            {
+                var tx = _implementation.BeginTransaction(isolationLevel);
+                AfterBegin(probe);
+                return tx;
+            }
+        }
+
+        // Sonda delle attese (DalDiagnostics): quando è iniziata la transazione in corso, per misurare quanto tiene il lock.
+        private long _transactionStartedAt;
+
+        private void AfterBegin(DalDiagnostics.WaitProbe probe)
+        {
+            var database = DalDiagnostics.DatabaseName(_implementation.Connection);
+            probe.Done(database);
+            _transactionStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            DalDiagnostics.Opened(this, database, () => _implementation.IsOpen && _implementation.GetCurrentTransaction()?.IsActive == true);
+        }
+
+        /// <summary>Chiamato da Commit/Rollback: scrive [DB-HOLD] se la transazione ha tenuto il lock troppo a lungo.</summary>
+        internal void ReportHold(string how)
+        {
+            if (!DalDiagnostics.Enabled || _transactionStartedAt == 0) return;
+            var ms = DalDiagnostics.ElapsedMs(_transactionStartedAt);
+            _transactionStartedAt = 0;
+            DalDiagnostics.Closed(this);
+            DalDiagnostics.Report("DB-HOLD " + how, DalDiagnostics.DatabaseName(_implementation.Connection), ms);
         }
 
         public void CancelQuery()

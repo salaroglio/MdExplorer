@@ -6,11 +6,13 @@ import { NewProjectComponent } from './new-project/new-project.component';
 import { CloneProjectComponent } from './dialogs/clone-project/clone-project.component';
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
+import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
 import { ProjectEditDialogComponent } from './dialogs/project-edit/project-edit-dialog.component';
 import { IconEditorComponent } from './dialogs/project-edit/icon-editor/icon-editor.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { CatalogPickerDialogComponent } from './dialogs/catalog-picker/catalog-picker.component';
+import { DiagnosticsSendDialogComponent } from './dialogs/diagnostics-send/diagnostics-send.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -38,11 +40,13 @@ const routes: Routes = [
     CloneProjectComponent,
     ModernCloneProjectComponent,
     ProjectCreateConfigDialogComponent,
+    TemplateShowcaseDialogComponent,
     ProjectEditDialogComponent,
     IconEditorComponent,
     ProjectSettingsComponent,
     P2PManagerComponent,
-    CatalogPickerDialogComponent
+    CatalogPickerDialogComponent,
+    DiagnosticsSendDialogComponent
   ],
   imports: [
     RouterModule.forChild(routes),

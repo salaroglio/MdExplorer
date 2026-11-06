@@ -162,11 +162,8 @@ namespace MdExplorer.Service.Controllers
                 if (System.IO.File.Exists(devConfigPath))
                 {
                     // Load existing config
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    config = deserializer.Deserialize<DevelopmentConfig>(yamlContent) ?? new DevelopmentConfig();
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
                 }
                 else
                 {

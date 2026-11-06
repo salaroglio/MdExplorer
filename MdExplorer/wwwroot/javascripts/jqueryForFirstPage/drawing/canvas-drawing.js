@@ -200,7 +200,7 @@ function toggleMdCanvas(me) {
     const buttonDiv = me.parentElement; // Il div con classe mdeLowerBarButton
 
     if (window.toggleCanvas) {
-        me.children[0].src = "/assets/drawAnimated.gif";
+        me.children[0].src = mdeAsset("assets/drawAnimated.gif");
         $(window.canvas).removeAttr('hidden');
         window.canvas.style.left = 0;
         palette.style.display = 'block'; // Mostra la tavolozza
@@ -211,7 +211,7 @@ function toggleMdCanvas(me) {
         resize();
 
     } else {
-        me.children[0].src = "/assets/drawStatic.png";
+        me.children[0].src = mdeAsset("assets/drawStatic.png");
         window.canvas.setAttribute('hidden', 'hidden');
         palette.style.display = 'none'; // Nascondi la tavolozza
         buttonDiv.classList.remove('active'); // Rimuovi classe active

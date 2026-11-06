@@ -1,0 +1,10 @@
+[Unit]
+Description=MdExplorer: raccoglie la diagnostica dal relay ogni 5 minuti
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

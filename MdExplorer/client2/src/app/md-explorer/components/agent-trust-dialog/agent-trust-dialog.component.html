@@ -1,0 +1,51 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">verified_user</mat-icon>
+  {{ 'AGENT_TRUST.TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="trust-dialog">
+  <p class="who">
+    <strong>{{ agent.name }}</strong><span *ngIf="agent.role"> — {{ agent.role }}</span>
+  </p>
+  <p class="where">{{ 'AGENT_TRUST.WHERE' | translate: { project: data.projectPath } }}</p>
+
+  <!-- Dichiarazione dell'autore: va letta, ma nessuno la verifica. -->
+  <section class="block">
+    <h3>
+      {{ 'AGENT_TRUST.WHAT_IT_DOES' | translate }}
+      <span class="tag declared">{{ 'AGENT_TRUST.DECLARED' | translate }}</span>
+    </h3>
+    <p *ngIf="agent.summary; else noSummary" class="summary">{{ agent.summary }}</p>
+    <ng-template #noSummary>
+      <p class="muted">{{ 'AGENT_TRUST.NO_SUMMARY' | translate }}</p>
+    </ng-template>
+  </section>
+
+  <!-- Calcolato dall'app dagli strumenti dichiarati: l'unica parte che l'app fa rispettare. -->
+  <section class="block">
+    <h3>
+      {{ 'AGENT_TRUST.ON_YOUR_COMPUTER' | translate }}
+      <span class="tag computed">{{ 'AGENT_TRUST.COMPUTED' | translate }}</span>
+    </h3>
+    <ul class="effects">
+      <li *ngFor="let e of effects" [class.danger]="e.granted && e.danger" [class.denied]="!e.granted">
+        <mat-icon>{{ iconOf(e) }}</mat-icon>
+        <span>{{ effectKey(e) | translate }}</span>
+      </li>
+      <li *ngIf="agent.onApprovalNotify?.length" class="handover">
+        <mat-icon>forward_to_inbox</mat-icon>
+        <span>{{ 'AGENT_TRUST.HANDOVER' | translate: { names: agent.onApprovalNotify.join(', ') } }}</span>
+      </li>
+    </ul>
+    <p class="limits">{{ 'AGENT_TRUST.LIMITS' | translate }}</p>
+  </section>
+
+  <div *ngIf="hasDanger" class="danger-warning">
+    <mat-icon>warning</mat-icon> {{ 'AGENT_TRUST.DANGER_WARNING' | translate }}
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">{{ 'AGENT_TRUST.CANCEL' | translate }}</button>
+  <button mat-raised-button color="primary" (click)="confirm()">{{ 'AGENT_TRUST.CONFIRM' | translate }}</button>
+</mat-dialog-actions>

@@ -15,6 +15,9 @@ namespace MdExplorer.Features.Commands.html
 {
     public class FromPlantumlToSvgHtml : FromPlantumlToSvg, ICommandHtml
     {
+        /// <summary>Runs on slide decks: the diagram becomes an <svg> in the slide, which scripts can work on.</summary>
+        public bool WorksInSlides => true;
+
         public FromPlantumlToSvgHtml(string ServerAddress, ILogger<FromPlantumlToSvg> logger, IUserSettingsDB session, PlantumlServer plantumlServer, IHelper helper)
             : base(ServerAddress, logger, session, plantumlServer, helper)
         {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MdExplorer.Features.Services.Atlassian;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -61,5 +62,54 @@ namespace MdExplorer.Features.Tests.Atlassian
             }";
             StringAssert.Contains(AdfRenderer.ToText(adf), "## Title");
         }
-    }
+    
+        // Prima l'immagine incorporata spariva senza traccia: l'LLM non sapeva che ci fosse.
+        [TestMethod]
+        public void LeaveAPlaceholderForAnEmbeddedImage()
+        {
+            const string adf = @"{
+                ""type"":""doc"",""version"":1,
+                ""content"":[
+                    {""type"":""paragraph"",""content"":[{""type"":""text"",""text"":""Vedi screenshot:""}]},
+                    {""type"":""mediaSingle"",""content"":[
+                        {""type"":""media"",""attrs"":{""id"":""abc-123"",""type"":""file"",""collection"":""jira-1"",""alt"":""errore.png""}}
+                    ]},
+                    {""type"":""paragraph"",""content"":[{""type"":""text"",""text"":""fine""}]}
+                ]
+            }";
+            Assert.AreEqual("Vedi screenshot:\n\n[embedded attachment: errore.png]\n\nfine", AdfRenderer.ToText(adf));
+        }
+
+        [TestMethod]
+        public void NameTheImageFromTheAttachmentsWhenGiven()
+        {
+            const string adf = @"{
+                ""type"":""doc"",""version"":1,
+                ""content"":[
+                    {""type"":""mediaGroup"",""content"":[
+                        {""type"":""media"",""attrs"":{""id"":""f-1"",""type"":""file""}},
+                        {""type"":""media"",""attrs"":{""id"":""f-2"",""type"":""file""}}
+                    ]}
+                ]
+            }";
+            var names = new Dictionary<string, string> { ["f-1"] = "schema.png" };
+            var text = AdfRenderer.ToText(adf, names);
+            StringAssert.Contains(text, "[embedded attachment: schema.png]");
+            StringAssert.Contains(text, "[embedded attachment (name unknown, see the attachments list)]");
+        }
+
+        [TestMethod]
+        public void RenderAnExternalImageAsAMarkdownImage()
+        {
+            const string adf = @"{
+                ""type"":""doc"",""version"":1,
+                ""content"":[
+                    {""type"":""mediaSingle"",""content"":[
+                        {""type"":""media"",""attrs"":{""type"":""external"",""url"":""https://example.com/a.png"",""alt"":""logo""}}
+                    ]}
+                ]
+            }";
+            Assert.AreEqual("![logo](https://example.com/a.png)", AdfRenderer.ToText(adf));
+        }
+}
 }

@@ -13,6 +13,9 @@ namespace MdExplorer.Abstractions.Services
         /// <param name="projectPath">The root path of the project containing .mdignore file</param>
         void LoadPatterns(string projectPath);
 
+        /// <summary>Rilegge .mdignore anche se è già stato letto: il file è cambiato.</summary>
+        void ReloadPatterns(string projectPath);
+
         /// <summary>
         /// Determines if a given path should be ignored based on .mdignore patterns
         /// </summary>

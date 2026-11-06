@@ -5,10 +5,13 @@ import { MatSort } from '@angular/material/sort';
 import { GITService } from '../../services/gitservice.service';
 import { GitCommitInfo } from '../../models/modern-git-models';
 import { TranslateService } from '@ngx-translate/core';
+import { GitDialogRepo } from '../../components/git-repo-picker/git-repo-picker.component';
 
 export interface GitHistoryDialogData {
   projectPath: string;
   projectName?: string;
+  /** Il progetto e i suoi submodule: ognuno ha la sua cronologia. Assente = solo il progetto. */
+  repos?: GitDialogRepo[];
 }
 
 @Component({
@@ -27,6 +30,10 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
   displayedColumns: string[] = ['hash', 'date', 'author', 'message'];
   selectedView: 'table' | 'graph' = 'table';
 
+  /** I repository fra cui scegliere, e quello di cui si sta guardando la cronologia. */
+  repos: GitDialogRepo[] = [];
+  activeRepo: GitDialogRepo | null = null;
+
   constructor(
     public dialogRef: MatDialogRef<GitHistoryDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: GitHistoryDialogData,
@@ -37,7 +44,29 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
+    this.repos = this.data.repos || [];
+    this.activeRepo = this.repos.find(r => r.isRoot) || this.repos[0] || null;
     this.loadCommitHistory();
+  }
+
+  /** Il percorso su cui si legge: il repository scelto, o il progetto se non c'è scelta. */
+  private get activePath(): string {
+    return this.activeRepo?.path || this.data.projectPath;
+  }
+
+  selectRepo(repo: GitDialogRepo): void {
+    this.activeRepo = repo;
+    this.loadCommitHistory();
+  }
+
+  /**
+   * Il commit che il PROGETTO registra per il submodule che si sta guardando. Nella cronologia
+   * del submodule segna dove «vuole» il progetto: ciò che sta sopra è più nuovo della versione
+   * registrata, ciò che sta sotto è già compreso.
+   */
+  isRecordedByProject(commit: GitCommitInfo): boolean {
+    const recorded = this.activeRepo && !this.activeRepo.isRoot ? this.activeRepo.recordedCommit : null;
+    return !!recorded && commit.hash === recorded;
   }
 
   ngAfterViewInit(): void {
@@ -48,7 +77,7 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
     this.isLoading = true;
     this.error = null;
 
-    this.gitService.getCommitHistory(this.data.projectPath, 100).subscribe({
+    this.gitService.getCommitHistory(this.activePath, 100).subscribe({
       next: (commits) => {
         this.isLoading = false;
         this.commits = commits;

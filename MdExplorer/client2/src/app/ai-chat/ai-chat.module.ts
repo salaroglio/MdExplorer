@@ -12,13 +12,17 @@ import { MatLegacyProgressBarModule as MatProgressBarModule } from '@angular/mat
 import { MatLegacyProgressSpinnerModule as MatProgressSpinnerModule } from '@angular/material/legacy-progress-spinner';
 import { MatLegacyChipsModule as MatChipsModule } from '@angular/material/legacy-chips';
 import { MatLegacyFormFieldModule as MatFormFieldModule } from '@angular/material/legacy-form-field';
+import { MatLegacySelectModule as MatSelectModule } from '@angular/material/legacy-select';
 import { MatLegacyInputModule as MatInputModule } from '@angular/material/legacy-input';
 import { MatLegacyTooltipModule as MatTooltipModule } from '@angular/material/legacy-tooltip';
+import { MatLegacyDialogModule as MatDialogModule } from '@angular/material/legacy-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 
 // Components
 import { AiChatComponent } from './ai-chat.component';
 import { ModelManagerComponent } from './model-manager.component';
+import { CodeRuleWizardComponent } from './code-rule-wizard/code-rule-wizard.component';
+import { CodeLanguageWizardComponent } from './code-language-wizard/code-language-wizard.component';
 
 const routes: Routes = [
   {
@@ -34,7 +38,9 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     AiChatComponent,
-    ModelManagerComponent
+    ModelManagerComponent,
+    CodeRuleWizardComponent,
+    CodeLanguageWizardComponent
   ],
   imports: [
     CommonModule,
@@ -48,8 +54,10 @@ const routes: Routes = [
     MatProgressSpinnerModule,
     MatChipsModule,
     MatFormFieldModule,
+    MatSelectModule,
     MatInputModule,
     MatTooltipModule,
+    MatDialogModule,
     TranslateModule
   ],
   exports: [

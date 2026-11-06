@@ -17,7 +17,17 @@ import { RenameFileComponent } from './components/refactoring/rename-file/rename
 import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
+import { DevEnvironmentDialogComponent } from './components/dialogs/dev-environment/dev-environment-dialog.component';
+import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
+import { RemoteFolderPickerDialogComponent } from './components/dialogs/code-roots/remote-folder-picker-dialog.component';
+import { CodeRootNameDialogComponent } from './components/dialogs/code-roots/code-root-name-dialog.component';
+import { RemoteFileEditorDialogComponent } from './components/dialogs/code-roots/remote-file-editor-dialog.component';
+import { CodeRootEncodingsDialogComponent } from './components/dialogs/code-roots/code-root-encodings-dialog.component';
+import { CodeRootsReminderDialogComponent } from './components/dialogs/code-roots/code-roots-reminder-dialog.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
+import { AgentReviewComponent } from './components/agent-review/agent-review.component';
+import { WorkingChangesComponent } from './components/working-changes/working-changes.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
@@ -49,7 +59,16 @@ import { AppStoreComponent } from './components/app-store/app-store.component';
 import { InstallWizardDialogComponent } from './components/dialogs/install-wizard/install-wizard.component';
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
 import { AppShowComponent } from './components/app-show/app-show.component';
-import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
+import { BackgroundWorkPanelComponent } from './components/background-work-panel/background-work-panel.component';
+import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
+import { MarkSearchComponent } from './components/mark-search/mark-search.component';
+import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog/agent-schedule-dialog.component';
+import { AgentRegistryDialogComponent } from './components/agent-registry-dialog/agent-registry-dialog.component';
+import { AgentTrustDialogComponent } from './components/agent-trust-dialog/agent-trust-dialog.component';
+import { AgentMemoryDialogComponent } from './components/agent-memory-dialog/agent-memory-dialog.component';
+import { AgentMailComponent } from './components/agent-mail/agent-mail.component';
+import { LeaveAgentCopyDialogComponent } from './components/leave-agent-copy-dialog/leave-agent-copy-dialog.component';
 
 
 const routes: Routes = [
@@ -83,6 +102,8 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
+    AgentReviewComponent,
+    WorkingChangesComponent,
     SidenavComponent,
     ToolbarComponent,
     SafePipe,
@@ -93,6 +114,13 @@ const routes: Routes = [
     RulesComponent,
     NewMarkdownComponent,
     NewDirectoryComponent,
+    DevEnvironmentDialogComponent,
+    CodeRootsDialogComponent,
+    RemoteFolderPickerDialogComponent,
+    CodeRootNameDialogComponent,
+    RemoteFileEditorDialogComponent,
+    CodeRootEncodingsDialogComponent,
+    CodeRootsReminderDialogComponent,
     MdTreeComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,
@@ -117,7 +145,17 @@ const routes: Routes = [
     InstallWizardDialogComponent,
     BulkExportProgressDialogComponent,
     AppShowComponent,
-    IndexingProgressSnackComponent
+    BackgroundWorkPanelComponent,
+    AiSelectionDialogComponent,
+    MarkSearchComponent,
+    AgentLaunchDialogComponent,
+    AgentScheduleDialogComponent,
+    AgentRegistryDialogComponent,
+    AgentTrustDialogComponent,
+    AgentMemoryDialogComponent,
+    AgentMailComponent,
+    LeaveAgentCopyDialogComponent,
+    E2eDialogComponent
   ],
   imports: [
     CommonModule,

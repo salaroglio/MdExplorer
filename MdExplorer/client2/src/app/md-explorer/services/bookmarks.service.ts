@@ -34,25 +34,45 @@ export class BookmarksService {
         let mdfile = this.mdFileService.getMdFileFromDataStore(mdFileToSearch);
         let bookmark = new Bookmark(mdFileToSearch);
         bookmark.fullPath = _.fullPath;
+        bookmark.displayName = _.displayName || _.name;
         books.push(bookmark);
       });
 
       this.bookmarks$.next(books);
-    });    
+    });
 
+  }
+
+  // One-shot reload of the resolved labels (no combineLatest: the md-file tree
+  // is already loaded when this runs, right after a toggle).
+  private refreshBookmarks(projectId: string): void {
+    const url = '../api/mdFiles/GetBookmarks';
+    const params = new HttpParams().set('projectId', projectId);
+    this.http.get<GetBookmarkResponseDto[]>(url, { params }).subscribe(bookmarks => {
+      const books = bookmarks.map(_ => {
+        const bookmark = new Bookmark(new MdFile(_.name, _.fullPath, null, null));
+        bookmark.fullPath = _.fullPath;
+        bookmark.displayName = _.displayName || _.name;
+        return bookmark;
+      });
+      this.bookmarks$.next(books);
+    });
   }
 
   toggleBookmark(bookmark: Bookmark): void {
     const url = '../api/mdFiles/ToggleBookmark';
     
-    let post$ = this.http.post<any>(url, bookmark);    
+    let post$ = this.http.post<any>(url, bookmark);
     post$.subscribe(_ => {
-      //this.bookmarks$.next(_);
+      // Reload so the new entry gets its server-resolved label
+      // (document title + folder disambiguation on duplicates).
+      this.refreshBookmarks(bookmark.projectId);
     });
 
     let currentBookmarks = this.bookmarks$.value;
     let currentBookmark = currentBookmarks.find(_ => _.fullPath === bookmark.fullPath);
     if (currentBookmark == null || currentBookmark == undefined) {
+      bookmark.displayName = bookmark.displayName || bookmark.name;
       currentBookmarks.push(bookmark);
       this.bookmarks$.next(currentBookmarks);
     } else {

@@ -193,6 +193,18 @@ namespace MdExplorer.Service.Controllers
         }
 
         /// <summary>
+        /// The document view's Markdig pipeline with the user's Jira settings. The page is rendered
+        /// with it, and a correction made on the page reads the file with it.
+        /// </summary>
+        protected Markdig.MarkdownPipeline BuildDocumentViewPipeline()
+        {
+            var settingDal = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.Setting>();
+            var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
+            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
+            return MdExplorer.Features.Services.SourceMapping.DocumentViewPipeline.Build(jiraEnabled ? jiraUrl : null);
+        }
+
+        /// <summary>
         /// Enables or disables file system monitoring for the current client.
         /// Uses per-client FileSystemWatcherManager. Disable calls nest (see
         /// IFileSystemWatcherManager.SetWatcherEnabled).
@@ -204,9 +216,14 @@ namespace MdExplorer.Service.Controllers
         /// rely on suppression must not assume it took effect).
         /// </returns>
         protected bool SetFileSystemWatcherEnabled(bool enabled)
-        {
-            var connectionId = Request.Query["ConnectionId"].ToString();
+            => SetFileSystemWatcherEnabled(enabled, Request.Query["ConnectionId"].ToString());
 
+        /// <summary>
+        /// As <see cref="SetFileSystemWatcherEnabled(bool)"/>, for a request that carries its
+        /// connectionId in the JSON body (the posts made by the page) rather than in the query string.
+        /// </summary>
+        protected bool SetFileSystemWatcherEnabled(bool enabled, string connectionId)
+        {
             if (!string.IsNullOrEmpty(connectionId) && _fileSystemWatcherManager != null)
             {
                 return _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);

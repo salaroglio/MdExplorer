@@ -1,0 +1,89 @@
+.mem-content {
+  min-width: 460px;
+  max-width: 640px;
+}
+
+.mem-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mem-loading,
+.mem-empty {
+  opacity: 0.7;
+  padding: 12px 0;
+}
+
+.mem-error {
+  color: #c62828;
+  padding: 8px 0;
+}
+
+.mem-diary {
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.mem-fact {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.mem-fact-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.mem-agent {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+
+  &.shared {
+    background: rgba(21, 101, 192, 0.12);
+    color: #1565c0;
+  }
+}
+
+.mem-tags {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.mem-statement {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.mem-fact-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mem-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+
+  input {
+    width: 70px;
+    padding: 4px 6px;
+  }
+}

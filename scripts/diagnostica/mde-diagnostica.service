@@ -1,0 +1,6 @@
+[Unit]
+Description=MdExplorer: raccoglie i pacchetti di «Invia diagnostica» dal relay
+
+[Service]
+Type=oneshot
+ExecStart=%h/Documents/sviluppo/MdExplorer/scripts/diagnostica/raccogli-diagnostica.sh

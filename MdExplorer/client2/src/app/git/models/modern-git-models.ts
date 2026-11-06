@@ -93,23 +93,7 @@ export interface RemoteStatus {
   authenticationFailureReason?: string;
 }
 
-export interface SetupRemoteRequest {
-  repositoryPath: string;
-  organization: string;
-  repositoryName: string;
-  repositoryDescription?: string;
-  isPrivate?: boolean;
-  saveOrganization: boolean;
-  pushAfterAdd: boolean;
-}
 
-export interface SetupRemoteResponse {
-  success: boolean;
-  message?: string;
-  error?: string;
-  needsToken?: boolean;
-  durationMs?: number;
-}
 
 // Legacy response compatibility adapter
 export interface ModernResponsePull {

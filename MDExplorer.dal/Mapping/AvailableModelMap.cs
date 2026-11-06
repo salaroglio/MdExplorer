@@ -12,6 +12,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.ModelId).Length(255).Not.Nullable();
             Map(x => x.Name).Length(500).Nullable();
             Map(x => x.Provider).Length(100).Not.Nullable();
+            Map(x => x.Description).Length(1000).Nullable();
             Map(x => x.DiscoveredAt).Not.Nullable();
         }
     }

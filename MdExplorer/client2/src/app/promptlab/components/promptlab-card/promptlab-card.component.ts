@@ -161,8 +161,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
                 this.distillationService.triggerDistillation(
                   this.card.id,
                   this.card.conversation,
-                  this.card.distilledPrompt,
-                  this.promptLabService.getCurrentModel()
+                  this.card.distilledPrompt
                 );
               }
             }
@@ -519,18 +518,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
             break;
         }
       });
-
-    // Use diagram-specific model if configured, otherwise session default
-    const diagramModel = type === 'sequence'
-      ? (session?.sequencePromptModel || '')
-      : (session?.workflowPromptModel || '');
-
-    if (diagramModel) {
-      const provider = diagramModel.toLowerCase().includes('llama') ? 'local' : 'copilotcli';
-      await this.aiChatService.setProviderAsync(provider, diagramModel);
-    } else {
-      await this.promptLabService.ensureChatModePublic();
-    }
+    // The project's engine, the MarkAgent tab's: PromptLab never switches it (D7).
     this.aiChatService.sendMessageToChannel(message, channelId);
   }
 
@@ -615,19 +603,7 @@ export class PromptLabCardComponent implements OnInit, OnDestroy, AfterViewCheck
             break;
         }
       });
-
-    // Use same model as the diagram generation
-    const session = this.promptLabService.currentSession();
-    const diagramModel = this.activeDiagram === 'sequence'
-      ? (session?.sequencePromptModel || '')
-      : (session?.workflowPromptModel || '');
-
-    if (diagramModel) {
-      const provider = diagramModel.toLowerCase().includes('llama') ? 'local' : 'copilotcli';
-      await this.aiChatService.setProviderAsync(provider, diagramModel);
-    } else {
-      await this.promptLabService.ensureChatModePublic();
-    }
+    // The project's engine, the MarkAgent tab's: PromptLab never switches it (D7).
     this.aiChatService.sendMessageToChannel(fixMessage, channelId);
   }
 

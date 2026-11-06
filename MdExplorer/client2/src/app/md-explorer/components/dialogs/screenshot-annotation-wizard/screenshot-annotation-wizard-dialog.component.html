@@ -5,6 +5,16 @@
 </h2>
 
 <mat-dialog-content>
+  <!-- Where the image will go. For Ctrl+V it is the ONLY confirmation of the point (no guide
+       line before the wizard), so it stays in sight on both steps, not in a note. -->
+  <div class="paste-destination" [class.at-end]="!data.anchor">
+    <mat-icon>{{ data.anchor ? 'place' : 'vertical_align_bottom' }}</mat-icon>
+    <span *ngIf="data.anchor">
+      {{ (data.anchor.position === 'before' ? 'SCREENSHOT.DEST_BEFORE' : 'SCREENSHOT.DEST_AFTER') | translate:{ label: data.anchor.label } }}
+    </span>
+    <span *ngIf="!data.anchor">{{ 'SCREENSHOT.DEST_END' | translate }}</span>
+  </div>
+
   <!-- Loading Spinner -->
   <div *ngIf="isLoading" class="loading-container">
     <mat-spinner diameter="50"></mat-spinner>

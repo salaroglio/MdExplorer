@@ -19,7 +19,7 @@
     </button>
   </div>
   
-  <div class="search-results" *ngIf="showResults && (searchResults || isSearching)">
+  <div class="search-results" [class.search-results--wide]="textIndexEnabled" *ngIf="showResults && (searchResults || isSearching)">
     <div class="search-header" *ngIf="searchResults">
       <mat-tab-group [selectedIndex]="selectedTabIndex" (selectedIndexChange)="onTabChange($event)">
         <mat-tab>
@@ -124,6 +124,46 @@
                      matTooltipPosition="above"
                      [matTooltipShowDelay]="500">
                   {{ getRelativePath(content.path) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <mat-tab *ngIf="textIndexEnabled">
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              Text files
+              <span class="count">({{ totalTextContents || 0 }})</span>
+            </span>
+          </ng-template>
+
+          <div class="results-list text-list">
+            <div *ngIf="termTooShortForContent" class="no-results">
+              Inserisci almeno 3 caratteri per la ricerca nei file di testo
+            </div>
+
+            <div *ngIf="!termTooShortForContent && textResults.length === 0" class="no-results">
+              Nessun file di testo trovato
+            </div>
+
+            <div
+              *ngFor="let text of textResults"
+              class="result-item text-item"
+              (click)="selectTextContent(text)">
+              <mat-icon class="result-icon">article</mat-icon>
+              <div class="result-content">
+                <div class="result-title">
+                  {{ text.fileName }}
+                  <span class="text-ext" *ngIf="text.extension">{{ text.extension }}</span>
+                </div>
+                <div class="result-context" [innerHTML]="text.snippet"></div>
+                <div class="result-path"
+                     [title]="getPathTooltip(text.path)"
+                     [matTooltip]="getRelativePath(text.path)"
+                     matTooltipPosition="above"
+                     [matTooltipShowDelay]="500">
+                  {{ getRelativePath(text.path) }}
                 </div>
               </div>
             </div>

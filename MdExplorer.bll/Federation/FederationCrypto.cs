@@ -1,0 +1,183 @@
+using System;
+using System.Security.Cryptography;
+using System.Text;
+using MdExplorer.Features.Services;
+
+namespace MdExplorer.Features.Federation
+{
+    /// <summary>
+    /// Sollevata quando una busta federata non può essere aperta: versione ignota, formato
+    /// corrotto, o <b>tag GCM non valido</b> (manomissione / secret sbagliato). Fail-loud:
+    /// non si ritorna mai un testo "quasi giusto".
+    /// </summary>
+    public sealed class FederationCryptoException : Exception
+    {
+        public FederationCryptoException(string message) : base(message) { }
+        public FederationCryptoException(string message, Exception inner) : base(message, inner) { }
+    }
+
+    /// <summary>
+    /// Cifratura end-to-end del payload federato (§12.6 / Fase 6b, R15). Il relay vede solo
+    /// <b>buste chiuse</b>: la chiave non lascia mai le città. Schema (versionato <c>v1</c>):
+    /// <list type="bullet">
+    /// <item>chiave = <b>HKDF-SHA256</b>(ikm = room secret, salt = roomId, info = "mdfed-v1") → 32 byte;</item>
+    /// <item><b>AES-256-GCM</b>, <b>nonce 96-bit casuale per messaggio</b>, tag 128-bit;</item>
+    /// <item>busta = <c>mdfed.v1.</c> + base64(nonce ‖ tag ‖ ciphertext).</item>
+    /// </list>
+    /// Interoperabilità: stesso room secret (condiviso via git) + stesso roomId → stessa
+    /// chiave derivata su tutte le città, quindi ognuna decifra ciò che le altre cifrano.
+    /// Deterministica solo nella chiave: il nonce casuale rende ogni busta diversa.
+    /// </summary>
+    public static class FederationCrypto
+    {
+        public const string Version = "v1";
+        private const string Prefix = "mdfed.v1.";
+        private static readonly byte[] Info = Encoding.UTF8.GetBytes("mdfed-v1");
+        // Info DIVERSA per la credenziale di stanza: il join token è derivato dallo stesso
+        // secret ma con etichetta distinta, così il relay può custodire/confrontare il token
+        // di join SENZA mai poter derivare la chiave di cifratura (buste chiuse, R15).
+        private static readonly byte[] JoinInfo = Encoding.UTF8.GetBytes("mdfed-join");
+        // I messaggi della chat del progetto (16/10/2026) usano lo stesso segreto con un'etichetta
+        // loro: una busta della chat non si apre come busta della città, e viceversa.
+        private const string ChatPrefix = "mdchat.v1.";
+        private static readonly byte[] ChatInfo = Encoding.UTF8.GetBytes("mdchat-v1");
+        private static readonly byte[] PseudonymInfo = Encoding.UTF8.GetBytes("mdchat-pseudonym");
+
+        private const int KeyLen = 32;    // AES-256
+        private const int NonceLen = 12;  // 96-bit, raccomandato per GCM
+        private const int TagLen = 16;    // 128-bit
+
+        /// <summary>
+        /// Deriva la chiave simmetrica dal room secret e dal roomId (salt). Punto unico di
+        /// verità: la stessa derivazione DEVE valere su tutte le città per interoperare.
+        /// </summary>
+        public static byte[] DeriveKey(string roomSecret, string roomId) => DeriveKey(roomSecret, roomId, Info);
+
+        private static byte[] DeriveKey(string roomSecret, string roomId, byte[] info)
+        {
+            if (string.IsNullOrEmpty(roomSecret))
+                throw new ArgumentException(UiText.Say("room secret assente: senza segreto non si può derivare la chiave.", "room secret missing: without a secret the key cannot be derived."), nameof(roomSecret));
+            if (string.IsNullOrEmpty(roomId))
+                throw new ArgumentException(UiText.Say("roomId assente: serve come salt della derivazione.", "roomId missing: it is the salt of the derivation."), nameof(roomId));
+
+            var ikm = Encoding.UTF8.GetBytes(roomSecret);
+            var salt = Encoding.UTF8.GetBytes(roomId);
+            return HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, KeyLen, salt, info);
+        }
+
+        /// <summary>
+        /// Credenziale di stanza per il relay (§12.6, hardening #11): HKDF(secret, salt=roomId,
+        /// info="mdfed-join") → 16 byte hex. Tutte le città con lo stesso secret derivano lo
+        /// stesso token e il relay ne impone la coerenza per stanza — <b>senza</b> poter risalire
+        /// alla chiave di cifratura (info diversa). È ciò che il client presenta all'handshake.
+        /// </summary>
+        public static string DeriveJoinToken(string roomSecret, string roomId)
+        {
+            if (string.IsNullOrEmpty(roomSecret))
+                throw new ArgumentException(UiText.Say("room secret assente.", "room secret missing."), nameof(roomSecret));
+            if (string.IsNullOrEmpty(roomId))
+                throw new ArgumentException(UiText.Say("roomId assente.", "roomId missing."), nameof(roomId));
+
+            var ikm = Encoding.UTF8.GetBytes(roomSecret);
+            var salt = Encoding.UTF8.GetBytes(roomId);
+            var token = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 16, salt, JoinInfo);
+            return Convert.ToHexString(token).ToLowerInvariant();
+        }
+
+        /// <summary>Cifra <paramref name="plaintext"/> in una busta <c>mdfed.v1....</c>.</summary>
+        public static string Encrypt(string roomSecret, string roomId, string plaintext)
+            => Seal(roomSecret, roomId, plaintext, Info, Prefix);
+
+        /// <summary>
+        /// Apre una busta <c>mdfed.v1....</c>. Fail-loud: versione ignota, formato corrotto o
+        /// tag non valido (manomissione / secret errato) → <see cref="FederationCryptoException"/>.
+        /// </summary>
+        public static string Decrypt(string roomSecret, string roomId, string envelope)
+            => Open(roomSecret, roomId, envelope, Info, Prefix);
+
+        /// <summary>Cifra un messaggio della chat del progetto in una busta <c>mdchat.v1....</c>.</summary>
+        public static string EncryptChat(string roomSecret, string roomId, string plaintext)
+            => Seal(roomSecret, roomId, plaintext, ChatInfo, ChatPrefix);
+
+        /// <summary>Apre una busta <c>mdchat.v1....</c>, fail-loud come <see cref="Decrypt"/>.</summary>
+        public static string DecryptChat(string roomSecret, string roomId, string envelope)
+            => Open(roomSecret, roomId, envelope, ChatInfo, ChatPrefix);
+
+        /// <summary>
+        /// Uno pseudonimo stabile per stanza: HMAC-SHA256(chiave dal segreto, <paramref name="value"/>), 16 hex.
+        /// Al relay serve un id fisso per persona (spegne le sue sessioni vecchie), ma un hash dell'email si
+        /// rovescia provando le email; senza il segreto lo pseudonimo no.
+        /// </summary>
+        public static string ChatPseudonym(string roomSecret, string roomId, string value)
+        {
+            var key = DeriveKey(roomSecret, roomId, PseudonymInfo);
+            var mac = HMACSHA256.HashData(key, Encoding.UTF8.GetBytes((value ?? "").Trim().ToLowerInvariant()));
+            return Convert.ToHexString(mac, 0, 8).ToLowerInvariant();
+        }
+
+        /// <summary>true se <paramref name="text"/> è una busta della chat (i messaggi di prima erano in chiaro).</summary>
+        public static bool IsChatEnvelope(string text)
+            => text != null && text.StartsWith(ChatPrefix, StringComparison.Ordinal);
+
+        private static string Seal(string roomSecret, string roomId, string plaintext, byte[] info, string prefix)
+        {
+            if (plaintext == null) throw new ArgumentNullException(nameof(plaintext));
+
+            var key = DeriveKey(roomSecret, roomId, info);
+            var plainBytes = Encoding.UTF8.GetBytes(plaintext);
+
+            var nonce = RandomNumberGenerator.GetBytes(NonceLen);
+            var cipher = new byte[plainBytes.Length];
+            var tag = new byte[TagLen];
+
+            using (var gcm = new AesGcm(key, TagLen))
+                gcm.Encrypt(nonce, plainBytes, cipher, tag);
+
+            // busta = nonce ‖ tag ‖ ciphertext
+            var envelope = new byte[NonceLen + TagLen + cipher.Length];
+            Buffer.BlockCopy(nonce, 0, envelope, 0, NonceLen);
+            Buffer.BlockCopy(tag, 0, envelope, NonceLen, TagLen);
+            Buffer.BlockCopy(cipher, 0, envelope, NonceLen + TagLen, cipher.Length);
+
+            return prefix + Convert.ToBase64String(envelope);
+        }
+
+        private static string Open(string roomSecret, string roomId, string envelope, byte[] info, string prefix)
+        {
+            if (string.IsNullOrEmpty(envelope))
+                throw new FederationCryptoException(UiText.Say("Busta vuota.", "Empty envelope."));
+            if (!envelope.StartsWith(prefix, StringComparison.Ordinal))
+                throw new FederationCryptoException(UiText.Say($"Versione della busta non riconosciuta: attesa '{prefix.TrimEnd('.')}'. Aggiornare la città più vecchia.", $"Envelope version not recognized: expected '{prefix.TrimEnd('.')}'. Update the older city."));
+
+            byte[] raw;
+            try { raw = Convert.FromBase64String(envelope.Substring(prefix.Length)); }
+            catch (FormatException ex) { throw new FederationCryptoException(UiText.Say("Busta corrotta: base64 non valido.", "Corrupt envelope: invalid base64."), ex); }
+
+            if (raw.Length < NonceLen + TagLen)
+                throw new FederationCryptoException(UiText.Say("Busta troppo corta: nonce/tag mancanti.", "Envelope too short: nonce/tag missing."));
+
+            var nonce = new byte[NonceLen];
+            var tag = new byte[TagLen];
+            var cipher = new byte[raw.Length - NonceLen - TagLen];
+            Buffer.BlockCopy(raw, 0, nonce, 0, NonceLen);
+            Buffer.BlockCopy(raw, NonceLen, tag, 0, TagLen);
+            Buffer.BlockCopy(raw, NonceLen + TagLen, cipher, 0, cipher.Length);
+
+            var key = DeriveKey(roomSecret, roomId, info);
+            var plain = new byte[cipher.Length];
+            try
+            {
+                using var gcm = new AesGcm(key, TagLen);
+                gcm.Decrypt(nonce, cipher, tag, plain);
+            }
+            catch (AuthenticationTagMismatchException ex)
+            {
+                // Tag non valido: la busta è stata manomessa OPPURE il room secret è sbagliato.
+                // In entrambi i casi non c'è un plaintext fidato da restituire.
+                throw new FederationCryptoException(UiText.Say("Tag di autenticazione non valido: busta manomessa o room secret errato.", "Invalid authentication tag: envelope tampered with or wrong room secret."), ex);
+            }
+
+            return Encoding.UTF8.GetString(plain);
+        }
+    }
+}

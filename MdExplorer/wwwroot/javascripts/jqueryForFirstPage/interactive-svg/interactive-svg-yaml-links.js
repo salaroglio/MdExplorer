@@ -85,7 +85,8 @@ var InteractiveSvgYamlLinks = (function() {
             window.open(url, '_blank');
         } else {
             // Internal link: communicate with Angular via postMessage (avoids double load)
-            var documentPath = $('body').attr('documentpath') || '';
+            // Plain DOM, not jQuery: the slide page loads these scripts without jQuery.
+            var documentPath = (document.body && document.body.getAttribute('DocumentPath')) || '';
             var resolvedPath;
 
             if (url.charAt(0) === '/') {

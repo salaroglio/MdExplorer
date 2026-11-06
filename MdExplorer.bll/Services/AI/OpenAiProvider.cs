@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Services.AI
 
         public async Task<string> ChatAsync(string prompt, string modelId = null, CancellationToken ct = default)
         {
-            _logger.LogInformation($"[OpenAiProvider.ChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[OpenAiProvider.ChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -153,7 +153,7 @@ namespace MdExplorer.Features.Services.AI
             string modelId = null,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            _logger.LogInformation($"[OpenAiProvider.StreamChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[OpenAiProvider.StreamChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -259,7 +259,7 @@ namespace MdExplorer.Features.Services.AI
 
                 if (!string.IsNullOrEmpty(text))
                 {
-                    _logger.LogDebug($"[OpenAiProvider.StreamChatAsync] Yielding text chunk: {text?.Substring(0, Math.Min(text?.Length ?? 0, 50))}...");
+                    _logger.LogDebug("[OpenAiProvider.StreamChatAsync] Yielding text chunk: {Length} caratteri", text?.Length ?? 0);
                     yield return text;
                 }
             }
@@ -616,11 +616,17 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 else if (finishReason == "length")
                 {
                     _logger.LogWarning("[OpenAiProvider.ChatWithToolsAsync] Reached token limit");
-                    finalResponse = "⚠️ La risposta è stata troncata perché la conversazione ha raggiunto il limite di token.\n\n" +
-                                  "**Suggerimenti**:\n" +
-                                  "- Inizia una nuova conversazione per ripartire da zero\n" +
-                                  "- Riduci la lunghezza delle richieste\n" +
-                                  "- Fai domande più specifiche e concise";
+                    finalResponse = MdExplorer.Features.Services.UiText.Say(
+                        "⚠️ La risposta è stata troncata perché la conversazione ha raggiunto il limite di token.\n\n" +
+                        "**Suggerimenti**:\n" +
+                        "- Inizia una nuova conversazione per ripartire da zero\n" +
+                        "- Riduci la lunghezza delle richieste\n" +
+                        "- Fai domande più specifiche e concise",
+                        "⚠️ The answer was cut off because the conversation reached the token limit.\n\n" +
+                        "**Suggestions**:\n" +
+                        "- Start a new conversation to begin again\n" +
+                        "- Make your requests shorter\n" +
+                        "- Ask more specific, concise questions");
                     break;
                 }
 

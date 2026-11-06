@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
+import { filter, take } from 'rxjs/operators';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { MdFileService } from '../md-explorer/services/md-file.service';
+import { MdNavigationService } from '../md-explorer/services/md-navigation.service';
 import { MdFile } from '../md-explorer/models/md-file';
 import { ModernCloneProjectComponent } from '../projects/dialogs/modern-clone-project/modern-clone-project.component';
 
@@ -30,7 +32,8 @@ export class UrlHandlerService {
     private snackBar: MatSnackBar,
     private mdServerMessages: MdServerMessagesService,
     private projectsService: ProjectsService,
-    private mdFileService: MdFileService
+    private mdFileService: MdFileService,
+    private navService: MdNavigationService
   ) {}
 
   /**
@@ -74,15 +77,21 @@ export class UrlHandlerService {
   }
 
   /**
-   * Handle open document command
+   * Handle open document command.
+   *
+   * Opens the project if it is not the current one, waits for the document view and for the
+   * tree's first level (`mdFiles` with paths under that project), then selects the file the
+   * same way an in-document link does (`main-content.handleMdNavigate`): a minimal MdFile with
+   * the relative path, through the navigation history and the side-nav selection. Nothing is
+   * looked up in the tree's dataStore: the tree is lazy, a nested file is not there yet.
+   *
+   * Before (seen 2026-10-08): the handler waited for `folderIndexingComplete`, which never comes
+   * when the project is already indexed (10 s timeout, then "proceeding anyway"), searched the
+   * dataStore (a nested file was never found), and read `subscription` inside a synchronous
+   * BehaviorSubject emission, before it was assigned.
    */
   private handleOpenDocument(data: any): void {
-    console.log('[UrlHandler] ========== handleOpenDocument called ==========');
-    console.log('[UrlHandler] Data received:', JSON.stringify(data));
-
-    // Set flag to skip landing page - we're opening a specific document
-    this.skipLandingPage = true;
-    console.log('[UrlHandler] skipLandingPage set to true');
+    console.log('[UrlHandler] handleOpenDocument:', JSON.stringify(data));
 
     // Data structure from backend:
     // {
@@ -94,51 +103,28 @@ export class UrlHandlerService {
     //   section: string (optional anchor)
     // }
 
-    // Normalize paths for comparison (replace backslashes with forward slashes)
-    const normalizedProjectPath = data.projectPath?.replace(/\\/g, '/').toLowerCase();
+    // The landing page must not replace the document we are about to open.
+    this.skipLandingPage = true;
 
-    // Set up listener for indexing complete BEFORE setting the project
-    // This ensures we catch the event even if indexing is fast
-    let indexingCompleteReceived = false;
-    const indexingCompleteHandler = (indexData: any, _: any) => {
-      console.log('[UrlHandler] folderIndexingComplete received:', indexData);
-      indexingCompleteReceived = true;
-    };
-    this.mdServerMessages.addFolderIndexingCompleteListener(indexingCompleteHandler, this);
+    const wantedProject = this.normalizePath(data.projectPath);
+    const current = this.projectsService.currentProjects$.getValue();
+    const alreadyOpen = !!current && this.normalizePath(current.path) === wantedProject;
+    if (!alreadyOpen) {
+      console.log('[UrlHandler] Opening project:', data.projectPath);
+      this.projectsService.setNewFolderProject(data.projectPath);
+    }
 
-    // First, set the project as current
-    console.log('[UrlHandler] Setting project:', data.projectPath);
-    this.projectsService.setNewFolderProject(data.projectPath);
-
-    // Wait for project to be set, then navigate to the document
-    console.log('[UrlHandler] Subscribing to currentProjects$...');
-    const subscription = this.projectsService.currentProjects$.subscribe(project => {
-      console.log('[UrlHandler] currentProjects$ emitted:', project ? project.path : 'null');
-
-      if (project) {
-        const normalizedCurrentPath = project.path?.replace(/\\/g, '/').toLowerCase();
-        console.log('[UrlHandler] Comparing paths:');
-        console.log('[UrlHandler]   - Current project path (normalized):', normalizedCurrentPath);
-        console.log('[UrlHandler]   - Expected project path (normalized):', normalizedProjectPath);
-        console.log('[UrlHandler]   - Match:', normalizedCurrentPath === normalizedProjectPath);
-
-        if (normalizedCurrentPath === normalizedProjectPath) {
-          console.log('[UrlHandler] Project matched! Navigating to document view...');
-          subscription.unsubscribe();
-          console.log('[UrlHandler] Unsubscribed from currentProjects$');
-
-          // Navigate to the document view
-          this.router.navigate(['/main/navigation/document']).then(() => {
-            console.log('[UrlHandler] Navigation complete, waiting for indexing to complete...');
-
-            // Wait for indexing to complete before selecting the file
-            this.waitForIndexingComplete(indexingCompleteReceived, () => {
-              console.log('[UrlHandler] Indexing complete, selecting file...');
-              this.selectFile(data.fullPath, data.filePath, data.section);
-            });
-          });
-        }
-      }
+    this.projectsService.currentProjects$.pipe(
+      filter(project => !!project && this.normalizePath(project.path) === wantedProject),
+      take(1)
+    ).subscribe(() => {
+      this.router.navigate(['/main/navigation/document']).then(() => {
+        // The tree has loaded the first level of THIS project: the view is ready for a selection.
+        this.mdFileService.mdFiles.pipe(
+          filter(files => files?.length > 0 && files.some(f => this.normalizePath(f.fullPath).startsWith(wantedProject))),
+          take(1)
+        ).subscribe(() => this.selectFile(data.filePath, data.fullPath, data.section));
+      });
     });
 
     this.snackBar.open(`Opening ${data.filePath}...`, 'OK', {
@@ -146,95 +132,55 @@ export class UrlHandlerService {
     });
   }
 
-  /**
-   * Wait for indexing to complete, with timeout fallback
-   */
-  private waitForIndexingComplete(alreadyComplete: boolean, callback: () => void): void {
-    if (alreadyComplete) {
-      console.log('[UrlHandler] Indexing already complete');
-      setTimeout(callback, 500); // Small delay to ensure UI is ready
-      return;
-    }
-
-    console.log('[UrlHandler] Waiting for folderIndexingComplete event...');
-    let completed = false;
-
-    // Set up one-time listener for indexing complete
-    const handler = (_data: any, _: any) => {
-      if (!completed) {
-        completed = true;
-        console.log('[UrlHandler] folderIndexingComplete event received');
-        setTimeout(callback, 500); // Small delay to ensure UI is ready
-      }
-    };
-    this.mdServerMessages.addFolderIndexingCompleteListener(handler, this);
-
-    // Timeout fallback after 10 seconds
-    setTimeout(() => {
-      if (!completed) {
-        completed = true;
-        console.log('[UrlHandler] Timeout waiting for indexing, proceeding anyway...');
-        callback();
-      }
-    }, 10000);
+  /** Forward slashes, lower case, no trailing slash: the same path written in two ways compares equal. */
+  private normalizePath(path: string | undefined): string {
+    return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
   }
 
   /**
-   * Select a file in the tree and optionally scroll to a section
+   * Select a file by its path in the project (and optionally scroll to a section), the way
+   * an in-document link does: whoever follows the selected file (the view, the tree, the
+   * MarkAgent context) follows it too.
    */
-  private selectFile(fullPath: string, relativePath: string, section?: string): void {
-    console.log('[UrlHandler] Selecting file:', fullPath, 'relativePath:', relativePath, 'section:', section);
-
-    // Create a minimal MdFile object to search for in the dataStore
-    const searchFile: MdFile = {
-      fullPath: fullPath,
-      path: fullPath,
-      name: fullPath.split(/[/\\]/).pop() || '',
+  private selectFile(filePath: string, fullPath: string, section?: string): void {
+    const relativePath = (filePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    console.log('[UrlHandler] Selecting file:', relativePath, 'section:', section || '');
+    const mdFile: MdFile = {
+      name: relativePath.split('/').pop() || relativePath,
+      path: relativePath,
       relativePath: relativePath,
+      fullPath: fullPath || relativePath,
+      fullDirectoryPath: '',
       level: 0,
       expandable: false,
-      type: 'mdFile',
-      childrens: [],
+      type: 'file',
       index: 0,
       isLoading: false,
-      fullDirectoryPath: fullPath.substring(0, Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')))
+      childrens: []
     };
+    this.navService.setNewNavigation(mdFile);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
 
-    // Try to find the file in the dataStore to get the complete MdFile object
-    const foundFile = this.mdFileService.getMdFileFromDataStore(searchFile);
-
-    if (foundFile) {
-      console.log('[UrlHandler] Found file in dataStore:', foundFile.fullPath);
-      // Set the file as selected - this will trigger the document to load
-      this.mdFileService.setSelectedMdFileFromSideNav(foundFile);
-      this.mdFileService.setSelectedMdFileFromServer(foundFile);
-    } else {
-      console.log('[UrlHandler] File not found in dataStore, using search file with relativePath:', relativePath);
-      // Fallback: use the minimal object with the relativePath from the URL
-      this.mdFileService.setSelectedMdFileFromSideNav(searchFile);
-      this.mdFileService.setSelectedMdFileFromServer(searchFile);
-    }
-
-    // Reset skipLandingPage flag after file selection
+    // The document is being opened: from now on the landing page may be opened as usual.
     this.skipLandingPage = false;
-    console.log('[UrlHandler] skipLandingPage reset to false');
 
-    // If there's a section anchor, scroll to it after the document loads
     if (section) {
-      setTimeout(() => {
-        this.scrollToSection(section);
-      }, 1000); // Give time for the document to render
+      setTimeout(() => this.scrollToSection(section), 1500); // Give time for the document to render
     }
   }
 
   /**
-   * Scroll to a section anchor in the document
+   * Scroll to a section anchor in the document. The document is rendered inside the viewer's
+   * iframe: the anchor is looked for there, then in the page itself.
    */
   private scrollToSection(section: string): void {
     console.log('[UrlHandler] Scrolling to section:', section);
-
-    // Try to find the element by id
-    const element = document.getElementById(section);
+    const documents: Document[] = [];
+    document.querySelectorAll('iframe').forEach(frame => {
+      try { if (frame.contentDocument) { documents.push(frame.contentDocument); } } catch { /* cross-origin: not ours */ }
+    });
+    documents.push(document);
+    const element = documents.map(d => d.getElementById(section)).find(e => !!e);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {

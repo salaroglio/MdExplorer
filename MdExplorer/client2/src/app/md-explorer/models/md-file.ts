@@ -28,10 +28,29 @@ export class MdFile implements IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // True for *.agent.md files (agentic markdown: launchable/schedulable agents)
+  isAgentFile?: boolean;
+
   // Folder "reveal extra content" (eye) state — see IFileInfoNode for semantics.
   hasExtraContent?: boolean;
   extraLoaded?: boolean;
   isExtra?: boolean;
+  // Only on the "emptyroot" node: what the tree could not show (a program folder ignored or missing on disk).
+  treeNotices?: string[];
+  // A revealed non-markdown file whose content is text: clickable, shown colored in the panel.
+  isTextFile?: boolean;
+
+  // A slide deck opened on one of its slides: reveal.js's position ('#/3' or '#/3/1'). Set by the
+  // breadcrumb between decks and by the history of the title-bar arrows.
+  slideHash?: string;
+
+  // The pages of a slide deck a link asks for ('2,6-9'): [Costi](vendite.md?pages=2,6-9). The
+  // same deck opened with other pages is another history entry.
+  slidePages?: string;
+  /** Pagina «Grafo del codice» (type = 'codegraph'): la radice del progetto e la cartella program; symbol = simbolo da centrare. */
+  codeGraphProjectPath?: string;
+  codeGraphFolder?: string;
+  codeGraphSymbol?: string;
 
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;
@@ -44,4 +63,10 @@ export class MdFile implements IFileInfoNode {
   appArgs?: string[];
   appIcon?: string;
   appDescription?: string;
+
+  /** Radice di codice esterna nell'albero (type 'codeRoot'): lo stato su questa macchina e il motivo se non è collegata. */
+  codeRootStatus?: string;
+  codeRootReason?: string;
+  /** Radice remota via SSH (sprint 2026-10-21, F3): si crea, rinomina, cancella e modifica dall'albero. */
+  codeRootRemote?: boolean;
 }

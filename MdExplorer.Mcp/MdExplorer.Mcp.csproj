@@ -8,21 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ModelContextProtocol" Version="0.8.0-preview.1" />
+    <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
     <!-- MdExplorer.Mcp is published SELF-CONTAINED into its OWN isolated subfolder
          (service_payload/mcp -> app_service/mcp), NOT into the shared folder with
          MdExplorer.Service. That isolation means its dependency closure ships complete
          and self-consistent next to the exe, so there is no clash with the Service's
          older (8.x) assemblies.
-         These two must be aligned with the 10.x closure that ModelContextProtocol 0.8
-         pulls in (it requires Microsoft.Extensions.Hosting.Abstractions 10.0.2 and,
-         transitively via Microsoft.Extensions.AI.Abstractions 10.2.0, System.Text.Json
-         10.x). Host.CreateApplicationBuilder needs the full Hosting package and
+         These two must be aligned with the 10.x closure that ModelContextProtocol 2.0
+         pulls in (Microsoft.Extensions.Hosting.Abstractions 10.0.10 and, transitively via
+         Microsoft.Extensions.AI.Abstractions 10.8.3, System.Text.Json 10.0.10). Host.CreateApplicationBuilder needs the full Hosting package and
          AddHttpClient needs Http; pinning them BELOW 10.x would unify Hosting.Abstractions
          up to 10.0.2 while the full Hosting binding still expected 8.0.0.0 -> the same
          "Could not load assembly" mismatch, now inside the isolated folder. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
   </ItemGroup>
 
 </Project>

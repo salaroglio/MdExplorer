@@ -1,6 +1,10 @@
 <h2 mat-dialog-title>{{ 'GIT_HISTORY.TITLE' | translate }} {{ data.projectName ? '- ' + data.projectName : '' }}</h2>
 
 <mat-dialog-content>
+  <!-- Il progetto e i submodule hanno ognuno la sua cronologia: qui si sceglie quale. -->
+  <app-git-repo-picker [repos]="repos" [selected]="activeRepo" [disabled]="isLoading"
+                       (selectedChange)="selectRepo($event)"></app-git-repo-picker>
+
   <!-- Loading spinner -->
   <div *ngIf="isLoading" class="loading-container">
     <mat-spinner></mat-spinner>
@@ -43,6 +47,11 @@
               {{ commit.shortHash || commit.hash.substring(0, 7) }}
             </span>
             <mat-icon *ngIf="commit.isMerge" class="merge-icon" [title]="'GIT_HISTORY.MERGE_COMMIT' | translate">merge_type</mat-icon>
+            <!-- Dove il progetto «vuole» questo submodule: la versione registrata. -->
+            <span class="recorded-here" *ngIf="isRecordedByProject(commit)"
+                  [matTooltip]="'GITFLOW.PROJECT_IS_HERE_TIP' | translate">
+              <mat-icon>push_pin</mat-icon>{{ 'GITFLOW.PROJECT_IS_HERE' | translate }}
+            </span>
           </td>
         </ng-container>
 
@@ -71,7 +80,7 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.recorded-row]="isRecordedByProject(row)"></tr>
       </table>
 
       <div *ngIf="commits.length === 0" class="no-commits">

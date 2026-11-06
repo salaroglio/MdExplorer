@@ -1,0 +1,109 @@
+/*
+ * mde-space — il tema delle presentazioni di MdExplorer: il cielo stellato del set «mde-space» (wwwroot/mde-space,
+ * generato da toolIDE/mde-space/genera.py) e i colori delle card di MDE (viola, rosa, azzurro) sul blu notte.
+ * Parte da «black» (il font e tutto il resto) e cambia solo cielo, colori e qualche dettaglio.
+ * Uno sfondo diverso per una slide: <!-- .slide: data-background-image="/mde-space/sfondi/luna.svg" -->.
+ * Le icone: <img class="mde-icona" src="/mde-space/icone/razzo.svg"> nel testo, «mde-icona-grande» da sola.
+ */
+@import "black.css";
+
+:root {
+  --r-background: #0b1026 url(/mde-space/sfondi/stelle.svg) center / cover no-repeat;
+  --r-background-color: #0b1026;
+  --r-main-color: #eef1ff;
+  --r-heading-color: #ffffff;
+  --r-heading-text-transform: none;
+  --r-heading-font-weight: 700;
+  --r-heading-letter-spacing: -0.01em;
+  --r-link-color: #4facfe;
+  --r-link-color-dark: #2d8be0;
+  --r-link-color-hover: #00f2fe;
+  --r-selection-background-color: #764ba2;
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3 {
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* Il titolo grande con il gradiente delle card di MDE. */
+.reveal h1 {
+  background: linear-gradient(90deg, #f093fb 0%, #a5b4fc 45%, #4facfe 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55));
+}
+
+.reveal strong {
+  color: #ffd166;
+}
+
+.reveal em {
+  color: #c7d2fe;
+}
+
+.reveal ul li::marker,
+.reveal ol li::marker {
+  color: #4facfe;
+  font-weight: 700;
+}
+
+.reveal code {
+  color: #7ff7ff;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0 0.2em;
+}
+
+.reveal table th {
+  color: #f093fb;
+  border-bottom-color: rgba(240, 147, 251, 0.6);
+}
+
+.reveal table td {
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Le icone del set: nel testo e da sole. Senza bordo, ombra o sfondo, che reveal mette alle immagini. */
+.reveal img.mde-icona,
+.reveal img.mde-icona-grande {
+  border: 0;
+  box-shadow: none;
+  background: none;
+  margin: 0;
+}
+
+.reveal img.mde-icona {
+  height: 1.25em;
+  vertical-align: middle;
+  margin: 0 0.25em 0.1em 0;
+}
+
+.reveal img.mde-icona-grande {
+  height: 2.2em;
+  display: block;
+  margin: 0 auto 0.3em;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
+}
+
+/* Una slide con un paesaggio in basso (luna, Marte, alieni): il testo resta nel cielo, sopra l'orizzonte. */
+.reveal .slides section.mde-cielo {
+  top: 0 !important;
+  padding-top: 0.3em;
+}
+
+/* Una slide con il disegno a destra (orbite, razzo): il testo sta nella metà di sinistra. */
+.reveal .slides section.mde-sinistra {
+  text-align: left;
+}
+
+.reveal .slides section.mde-sinistra > * {
+  margin-right: 42%;
+}
+
+.reveal .slides section.mde-sinistra img.mde-icona-grande {
+  margin: 0 0 0.3em 0;
+}

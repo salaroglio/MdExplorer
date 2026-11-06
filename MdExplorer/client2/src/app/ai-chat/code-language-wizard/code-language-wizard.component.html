@@ -1,0 +1,112 @@
+<h2 mat-dialog-title class="wizard-title">
+  <mat-icon>auto_fix_high</mat-icon>
+  {{ 'CODE_RULE.TITLE' | translate }}
+</h2>
+
+<ol class="wizard-steps" [attr.aria-label]="'CODE_RULE.STEPS_LABEL' | translate">
+  <li *ngFor="let s of steps; let i = index" [class.current]="i === step" [class.done]="i < step">
+    {{ 'CODE_RULE.STEP.' + s | translate }}
+  </li>
+</ol>
+
+<mat-dialog-content class="wizard-body">
+
+  <!-- 1 · Il problema -->
+  <section *ngIf="step === 0">
+    <p class="lead">{{ proposal.problem }}</p>
+    <p>{{ (preview.kind === 'pages' ? 'CODE_LANG.PROBLEM.PAGES' : 'CODE_LANG.PROBLEM.LINES') | translate:{ name: preview.displayName, extensions: extensions } }}</p>
+    <p *ngIf="preview.replacesVersion != null" class="hint">{{ 'CODE_LANG.PROBLEM.REPLACES' | translate:{ id: preview.languageId, version: preview.replacesVersion } }}</p>
+    <p class="hint">{{ 'CODE_RULE.PROBLEM.PROPOSED_BY' | translate:{ who: proposal.proposedBy } }}</p>
+  </section>
+
+  <!-- 2 · I controlli -->
+  <section *ngIf="step === 1">
+    <h3>{{ 'CODE_RULE.CHECKS.MDE' | translate }}</h3>
+    <ul class="facts">
+      <li>{{ 'CODE_LANG.CHECKS.READ' | translate:{ read: preview.filesRead, files: preview.files, folders: folders } }}</li>
+      <ng-container *ngIf="preview.pages as p">
+        <li>{{ 'CODE_LANG.CHECKS.CONTROLS' | translate:{ controls: p.controls, guarded: p.guardedControls } }}</li>
+        <li *ngIf="p.functions > 0 || p.callSites > 0">{{ 'CODE_LANG.CHECKS.SCRIPTS' | translate:{ functions: p.functions, calls: p.callSites } }}</li>
+        <li *ngIf="followableIncludes > 0">{{ 'CODE_LANG.CHECKS.INCLUDES' | translate:{ resolved: p.includesResolved, total: followableIncludes } }}</li>
+        <li *ngIf="p.dynamicIncludes > 0">{{ 'CODE_LANG.CHECKS.DYNAMIC' | translate:{ n: p.dynamicIncludes } }}</li>
+      </ng-container>
+      <ng-container *ngIf="!preview.pages">
+        <li *ngFor="let k of kindRows">{{ k.kind }}: {{ k.count }}</li>
+      </ng-container>
+      <li *ngIf="preview.warningCount > 0">{{ 'CODE_LANG.CHECKS.WARNINGS' | translate:{ n: preview.warningCount, files: preview.filesWithWarnings } }}</li>
+    </ul>
+    <details *ngIf="unresolvedRows.length > 0">
+      <summary>{{ 'CODE_LANG.CHECKS.UNRESOLVED' | translate:{ n: unresolvedRows.length } }}</summary>
+      <ul class="examples">
+        <li *ngFor="let u of unresolvedRows"><code>{{ u.target }}</code> × {{ u.count }}</li>
+      </ul>
+    </details>
+    <details *ngIf="preview.notes.length > 0">
+      <summary>{{ 'CODE_LANG.CHECKS.NOTES' | translate:{ n: preview.notes.length } }}</summary>
+      <ul class="examples"><li *ngFor="let n of preview.notes">{{ n }}</li></ul>
+    </details>
+    <details *ngIf="preview.warnings.length > 0">
+      <summary>{{ 'CODE_LANG.CHECKS.WARNING_LIST' | translate }}</summary>
+      <ul class="examples"><li *ngFor="let w of preview.warnings"><code>{{ w }}</code></li></ul>
+    </details>
+
+    <h3>{{ 'CODE_LANG.CHECKS.MARK' | translate }}</h3>
+    <ul class="sample">
+      <li *ngFor="let r of sampleRows">
+        <mat-icon *ngIf="r.ok === true" class="ok" [attr.aria-label]="'CODE_RULE.CHECKS.OK' | translate">check_circle</mat-icon>
+        <mat-icon *ngIf="r.ok === false" class="ko" [attr.aria-label]="'CODE_RULE.CHECKS.KO' | translate">cancel</mat-icon>
+        <mat-icon *ngIf="r.ok === null" class="unchecked">help_outline</mat-icon>
+        <span>
+          <code>{{ r.path }}</code><span class="note" *ngIf="r.note"> — {{ r.note }}</span>
+          <details>
+            <summary>{{ 'CODE_LANG.CHECKS.FACTS' | translate:{ n: r.facts.length } }}</summary>
+            <ul class="examples"><li *ngFor="let f of r.facts"><code>{{ f }}</code></li></ul>
+          </details>
+        </span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 3 · Confermi? -->
+  <section *ngIf="step === 2">
+    <p class="lead">{{ (preview.kind === 'pages' ? 'CODE_LANG.CONFIRM.QUESTION_PAGES' : 'CODE_LANG.CONFIRM.QUESTION_LINES') | translate:{ files: preview.files, name: preview.displayName } }}</p>
+    <p>{{ 'CODE_LANG.CONFIRM.FOLDERS' | translate:{ folders: folders } }}</p>
+    <p class="hint">{{ 'CODE_LANG.CONFIRM.REVERSIBLE' | translate:{ id: preview.languageId } }}</p>
+  </section>
+
+  <!-- 4 · Fatto -->
+  <section *ngIf="step === 3">
+    <p class="lead" *ngIf="!undone">{{ 'CODE_LANG.DONE.APPLIED' | translate:{ name: preview.displayName } }}</p>
+    <p class="lead" *ngIf="undone">{{ 'CODE_LANG.DONE.UNDONE' | translate }}</p>
+    <p class="hint" *ngIf="!undone">{{ 'CODE_LANG.DONE.WHERE' | translate:{ id: appliedId } }}</p>
+    <ng-container *ngIf="analyses.length > 0">
+      <h3>{{ 'CODE_RULE.DONE.ANALYSES' | translate }}</h3>
+      <ul class="analyses">
+        <li *ngFor="let a of analyses">
+          <strong>{{ a.title }}</strong><span class="status">({{ 'CODE_RULE.STATUS.' + a.status | translate }})</span>
+          <div *ngIf="a.description">{{ a.description }}</div>
+        </li>
+      </ul>
+      <p class="hint">{{ 'CODE_RULE.DONE.ANALYSES_HINT' | translate }}</p>
+    </ng-container>
+  </section>
+
+  <p class="error" *ngIf="error" role="alert">{{ error }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <ng-container *ngIf="step < 2">
+    <button mat-button (click)="close()">{{ 'CODE_RULE.LATER' | translate }}</button>
+    <button mat-button (click)="back()" [disabled]="step === 0">{{ 'CODE_RULE.BACK' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="next()">{{ 'CODE_RULE.NEXT' | translate }}</button>
+  </ng-container>
+  <ng-container *ngIf="step === 2">
+    <button mat-button (click)="back()" [disabled]="busy">{{ 'CODE_RULE.BACK' | translate }}</button>
+    <button mat-stroked-button (click)="discard()" [disabled]="busy">{{ 'CODE_RULE.CONFIRM.NO' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="apply()" [disabled]="busy">{{ 'CODE_RULE.CONFIRM.YES' | translate }}</button>
+  </ng-container>
+  <ng-container *ngIf="step === 3">
+    <button mat-stroked-button (click)="undo()" *ngIf="!undone" [disabled]="busy">{{ 'CODE_LANG.DONE.UNDO' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="close()">{{ 'CODE_RULE.CLOSE' | translate }}</button>
+  </ng-container>
+</mat-dialog-actions>

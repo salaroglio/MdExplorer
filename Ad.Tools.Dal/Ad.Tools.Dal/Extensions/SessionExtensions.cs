@@ -18,11 +18,13 @@ namespace Ad.Tools.Dal.Extensions
         public static void Commit (this ISessionDB session)
         {
             session.GetCurrentTransaction()?.Commit();
+            (session as Ad.Tools.Dal.Decorators.SessionDB)?.ReportHold("commit");
         }
 
         public static void Rollback(this ISessionDB session)
         {
             session.GetCurrentTransaction()?.Rollback();
+            (session as Ad.Tools.Dal.Decorators.SessionDB)?.ReportHold("rollback");
         }
     }
 }

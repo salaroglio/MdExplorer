@@ -41,7 +41,9 @@ $(function () {
     let $TOC = $("#TOC");
     let pathFile = $TOC.attr("mdeFullPathDocument");
 
-    // Load TOC/Refs settings and visibility
+    // Load TOC/Refs settings and visibility. A static export has no service: the TOC shows as the page
+    // starts (visible), and the button still opens and closes it.
+    if (window.mdeStaticExport) return;
     $.get("/api/tabcontroller/GetTOCData?fullPathFile=" + pathFile, function (documentSetting) {
         if (documentSetting == undefined) {
             return;
