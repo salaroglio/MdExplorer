@@ -49,6 +49,8 @@
     "THEME_MILAN": "Red"
   },
   "PROJECTS": {
+    "OPEN_FAILED": "The project {{path}} did not open: {{reason}}",
+    "OPENING": "Opening the project…",
     "RECENT_PROJECTS": "Recent Projects",
     "SEARCH_PROJECTS": "Search projects...",
     "NO_MATCH_TITLE": "No results",
@@ -2753,10 +2755,13 @@
     "SAVE_FAILED": "Could not save: the agent did not start."
   },
   "BACKGROUND_WORK": {
+    "OPENING_WAITING": "The service is opening the project: {{count}} page requests are waiting and leave as soon as it is ready.",
+    "OPENING_DONE": "Project opened in {{seconds}} s: the {{count}} waiting requests have left.",
     "TITLE": "Building knowledge",
     "EXPAND": "Show background work",
     "COLLAPSE": "Minimize",
     "KIND": {
+      "opening": "Opening the project",
       "indexing": "Indexing documents",
       "scan": "Scanning code",
       "description": "Describing code"

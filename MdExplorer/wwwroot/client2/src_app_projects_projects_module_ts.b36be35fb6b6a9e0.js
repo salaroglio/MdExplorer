@@ -11093,6 +11093,10 @@ class ProjectsComponent {
     console.log('[Projects] Opening project:', path);
     _shared_open_perf__WEBPACK_IMPORTED_MODULE_11__.OpenPerf.start(`click su apri progetto: ${path}`);
     this.projectService.setNewFolderProject(path);
+    // La pagina del progetto si apre SUBITO: le sue richieste aspettano nell'interceptor finché il servizio non
+    // ha aperto il progetto (ProjectOpeningGate). Prima si restava qui fermi fino alla risposta, a freddo 7-9 s.
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_11__.OpenPerf.mark('navigate verso /main/navigation/document al click (non aspetta SetFolderProject)');
+    this.router.navigate(['/main/navigation/document']);
     // Reset flag after a timeout (in case navigation doesn't happen)
     setTimeout(() => {
       this.isOpeningProject = false;
@@ -11925,4 +11929,4 @@ class NgDialogAnimationService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_projects_projects_module_ts.493427d8521a49fc.js.map
+//# sourceMappingURL=src_app_projects_projects_module_ts.b36be35fb6b6a9e0.js.map

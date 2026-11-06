@@ -9372,11 +9372,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "ConnectionIdInterceptor": () => (/* binding */ ConnectionIdInterceptor)
 /* harmony export */ });
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 155);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 2673);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs/operators */ 155);
 /* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../shared/open-perf */ 9782);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../shared/project-opening-gate */ 8989);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+
+
 
 
 
@@ -9388,16 +9391,33 @@ __webpack_require__.r(__webpack_exports__);
  *
  * If the connectionId is not yet available (SignalR still connecting),
  * the request is held until the connectionId arrives.
+ *
+ * While a project is opening (ProjectOpeningGate closed) every API request except the
+ * SetFolderProject itself is held too, and leaves as soon as the project is ready: the
+ * project page is shown at the click, its data requests wait for the service.
  */
 class ConnectionIdInterceptor {
-  constructor(mdServerMessages) {
+  constructor(mdServerMessages, gate) {
     this.mdServerMessages = mdServerMessages;
+    this.gate = gate;
   }
   intercept(req, next) {
     // Only add connectionId to API requests (not external URLs)
     if (!req.url.startsWith('../api/') && !req.url.startsWith('/api/')) {
       return next.handle(req);
     }
+    // Mentre un progetto si apre, la richiesta aspetta che sia pronto (tranne quella che lo apre).
+    if (this.gate.isOpening && !req.context.get(_shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__.OPENS_PROJECT)) {
+      _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`richiesta TRATTENUTA finché il progetto non è aperto: ${req.url}`);
+      this.gate.held(req.url);
+      return this.gate.whenOpen().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(() => {
+        _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`progetto aperto, parte: ${req.url}`);
+        return this.withConnectionId(req, next);
+      }));
+    }
+    return this.withConnectionId(req, next);
+  }
+  withConnectionId(req, next) {
     // Skip if connectionId is already in the URL
     if (req.url.includes('connectionId=') || req.url.includes('ConnectionId=')) {
       return next.handle(req);
@@ -9413,7 +9433,7 @@ class ConnectionIdInterceptor {
     }
     // Wait for connectionId to become available, then attach it
     _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`richiesta TRATTENUTA in attesa del ConnectionId di SignalR: ${req.url}`);
-    return this.mdServerMessages.connectionId$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.first)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(id => {
+    return this.mdServerMessages.connectionId$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.first)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(id => {
       _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`ConnectionId arrivato, parte: ${req.url}`);
       return next.handle(req.clone({
         setParams: {
@@ -9424,11 +9444,11 @@ class ConnectionIdInterceptor {
   }
   static {
     this.ɵfac = function ConnectionIdInterceptor_Factory(t) {
-      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService));
+      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__.ProjectOpeningGate));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineInjectable"]({
       token: ConnectionIdInterceptor,
       factory: ConnectionIdInterceptor.ɵfac
     });
@@ -14679,13 +14699,27 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "ProjectsService": () => (/* binding */ ProjectsService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ 8316);
-/* harmony import */ var _environments_version__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../environments/version */ 9279);
-/* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../shared/open-perf */ 9782);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 591);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 3158);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 2313);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../shared/project-opening-gate */ 8989);
+/* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ 8316);
+/* harmony import */ var _environments_version__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../environments/version */ 9279);
+/* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../shared/open-perf */ 9782);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/core */ 2560);
+
+
+
+
+
+
 
 
 
@@ -14698,30 +14732,31 @@ class ProjectsService {
   get mdProjects() {
     return this._mdProjects.asObservable();
   }
-  constructor(http, injector) {
+  constructor(http, injector, openingGate) {
     this.http = http;
     this.injector = injector;
-    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.openingGate = openingGate;
+    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
     // RAG enabled status for current project
-    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(false);
     // Copilot CLI auto-select state for the freshly opened project.
     // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
     // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
     // or to disable the chat with a "not installed" banner.
-    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
     // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
     // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
     // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
     // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
-    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
     /**
      * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
      * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
      * «c'è» sarebbe un processo a vuoto.
      */
-    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
-    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
+    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
     // Track current project's chat room info for cleanup
     this.currentRoomId = null;
@@ -14743,7 +14778,7 @@ class ProjectsService {
     this.dataStore = {
       mdProjects: []
     };
-    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
+    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject([]);
   }
   fetchProjects() {
     const url = '../api/MdProjects/GetProjects';
@@ -14778,7 +14813,7 @@ class ProjectsService {
       try {
         return yield _this2.http.post('../api/MdProjects/CreateFromTemplate', {
           ...request,
-          mdeVersion: _environments_version__WEBPACK_IMPORTED_MODULE_2__.versionInfo.version
+          mdeVersion: _environments_version__WEBPACK_IMPORTED_MODULE_3__.versionInfo.version
         }).toPromise();
       } catch (err) {
         throw new Error(err?.error?.error || err?.message || String(err));
@@ -14796,9 +14831,9 @@ class ProjectsService {
   }
   setNewFolderProject(path) {
     var _this3 = this;
-    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('setNewFolderProject: projectChanging (subscriber sincroni)');
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__.OpenPerf.mark('setNewFolderProject: projectChanging (subscriber sincroni)');
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
-    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('setNewFolderProject: notifyProjectClosed');
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__.OpenPerf.mark('setNewFolderProject: notifyProjectClosed');
     // Close previous project if any
     this.notifyProjectClosed();
     // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
@@ -14810,11 +14845,11 @@ class ProjectsService {
     if (harness) {
       request.harness = harness;
     }
-    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
-    this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__.OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
+    this.postSetFolderProject(request).subscribe(/*#__PURE__*/function () {
       var _ref = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
-        _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('POST SetFolderProject: risposta');
-        _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.request('MdProjects/SetFolderProject');
+        _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__.OpenPerf.mark('POST SetFolderProject: risposta');
+        _shared_open_perf__WEBPACK_IMPORTED_MODULE_4__.OpenPerf.request('MdProjects/SetFolderProject');
         _this3.currentProjects$.next(response);
         // Update window title for Electron taskbar preview
         _this3.updateWindowTitle(response.name);
@@ -14830,7 +14865,7 @@ class ProjectsService {
         _this3.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
-          const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
+          const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.MdExplorer;
           console.log('Setting compatibility mode from project open response:', mode);
           // Get CompatibilityModeService using dynamic import to avoid circular dependency
           const {
@@ -14845,6 +14880,35 @@ class ProjectsService {
       };
     }());
   }
+  /**
+   * La richiesta che apre il progetto, con il cancello chiuso finché non risponde: la pagina del progetto si apre
+   * al click e le sue richieste /api aspettano nell'interceptor (vedi ProjectOpeningGate). Il cancello si riapre
+   * PRIMA che il chiamante riceva la risposta, e in ogni caso alla fine, anche su errore.
+   */
+  postSetFolderProject(request) {
+    this.openingGate.close();
+    return this.http.post('../api/MdProjects/SetFolderProject', request, _shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__.ProjectOpeningGate.openingRequest()).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(() => this.openingGate.open()), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.catchError)(err => {
+      this.openingGate.open();
+      this.projectOpenFailed(request.path, err);
+      return rxjs__WEBPACK_IMPORTED_MODULE_9__.EMPTY;
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => this.openingGate.open()));
+  }
+  /** La pagina del progetto è già aperta (vuota): si torna alla lista e si dice perché. */
+  projectOpenFailed(path, err) {
+    const reason = err?.error?.error || err?.error?.message || err?.message || String(err);
+    console.error('[Projects] SetFolderProject fallita per', path, err);
+    const translate = this.injector.get(_ngx_translate_core__WEBPACK_IMPORTED_MODULE_11__.TranslateService);
+    this.injector.get(_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_12__.MatLegacySnackBar).open(translate.instant('PROJECTS.OPEN_FAILED', {
+      path,
+      reason
+    }), 'OK', {
+      duration: 12000
+    });
+    // Come l'uscita dal progetto (sidenav.openProject): senza, la lista rivedrebbe il progetto di prima in
+    // currentProjects$ e rinavigherebbe subito alla sua pagina.
+    this.currentProjects$.next(null);
+    this.injector.get(_angular_router__WEBPACK_IMPORTED_MODULE_13__.Router).navigate(['/projects']);
+  }
   createProjectWithConfig(config) {
     var _this4 = this;
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
@@ -14857,7 +14921,7 @@ class ProjectsService {
       // decide il progetto, che se la porta scritta in .development.yml.
       harness: config.harness
     };
-    this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
+    this.postSetFolderProject(request).subscribe(/*#__PURE__*/function () {
       var _ref2 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
         _this4.currentProjects$.next(response);
         // Update window title for Electron taskbar preview
@@ -14874,7 +14938,7 @@ class ProjectsService {
         _this4.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
-          const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
+          const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.MdExplorer;
           console.log('Setting compatibility mode from project create response:', mode);
           // Get CompatibilityModeService using dynamic import to avoid circular dependency
           const {
@@ -14929,25 +14993,25 @@ class ProjectsService {
     return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
   }
   getParticipants(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GetParticipants', {
       params
     });
   }
   saveParticipants(projectPath, participants) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpParams().set('path', projectPath);
     return this.http.put('../api/MdProjects/Participants', participants, {
       params
     });
   }
   getGitAuthors(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GitAuthors', {
       params
     });
   }
   getCurrentGitUser(projectPath) {
-    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams();
+    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpParams();
     if (projectPath) {
       params = params.set('path', projectPath);
     }
@@ -15187,11 +15251,11 @@ class ProjectsService {
   }
   static {
     this.ɵfac = function ProjectsService_Factory(t) {
-      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
+      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_15__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_shared_project_opening_gate__WEBPACK_IMPORTED_MODULE_1__.ProjectOpeningGate));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵdefineInjectable"]({
       token: ProjectsService,
       factory: ProjectsService.ɵfac,
       providedIn: 'root'
@@ -18999,6 +19063,118 @@ class OpenPerf {
 
 /***/ }),
 
+/***/ 8989:
+/*!************************************************!*\
+  !*** ./src/app/shared/project-opening-gate.ts ***!
+  \************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "OPENS_PROJECT": () => (/* binding */ OPENS_PROJECT),
+/* harmony export */   "ProjectOpeningGate": () => (/* binding */ ProjectOpeningGate)
+/* harmony export */ });
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 155);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
+
+
+
+
+/** Marca la richiesta che APRE il progetto: è l'unica che passa mentre il cancello è chiuso. */
+const OPENS_PROJECT = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpContextToken(() => false);
+/**
+ * Il cancello dell'apertura di un progetto (06/11/2026).
+ * <p>
+ * La lista dei progetti va alla pagina del progetto AL CLICK, senza aspettare SetFolderProject: a freddo,
+ * subito dopo l'avvio o un aggiornamento, il servizio impiegava fino a 7-9 s e la lista restava lì ferma.
+ * Ma la pagina, appena nasce, chiede l'albero dei file e molto altro, e il servizio risponderebbe «connessione
+ * non registrata». Allora, finché il progetto si sta aprendo, l'interceptor del ConnectionId TRATTIENE le
+ * richieste /api e le lascia partire quando il progetto è pronto: la pagina si disegna subito, i dati arrivano
+ * appena possono. Nessun componente deve saperlo.
+ * </p>
+ * Senza dipendenze, perché lo usa l'interceptor: ProjectsService (che usa HttpClient) creerebbe un ciclo.
+ */
+class ProjectOpeningGate {
+  constructor() {
+    this._opening$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__.BehaviorSubject(false);
+    this._state$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__.BehaviorSubject({
+      opening: false,
+      held: [],
+      startedAt: null,
+      lastDurationMs: null
+    });
+    /** true mentre SetFolderProject è in corso. */
+    this.opening$ = this._opening$.asObservable();
+    /** Lo stato con le richieste trattenute: lo mostra il riquadro dei lavori in sfondo. */
+    this.state$ = this._state$.asObservable();
+  }
+  get isOpening() {
+    return this._opening$.value;
+  }
+  /** Il contesto da dare alla richiesta SetFolderProject. */
+  static openingRequest() {
+    return {
+      context: new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpContext().set(OPENS_PROJECT, true)
+    };
+  }
+  close() {
+    this._state$.next({
+      opening: true,
+      held: [],
+      startedAt: Date.now(),
+      lastDurationMs: null
+    });
+    this._opening$.next(true);
+  }
+  /** Va chiamato SEMPRE alla fine di SetFolderProject, anche se fallisce: altrimenti ogni richiesta resta ferma. */
+  open() {
+    if (!this._opening$.value) {
+      return;
+    } // già aperto (tap e finalize lo chiamano entrambi)
+    const s = this._state$.value;
+    this._state$.next({
+      ...s,
+      opening: false,
+      lastDurationMs: s.startedAt ? Date.now() - s.startedAt : null
+    });
+    this._opening$.next(false);
+  }
+  /** L'interceptor la chiama per ogni richiesta che trattiene. */
+  held(url) {
+    const s = this._state$.value;
+    this._state$.next({
+      ...s,
+      held: [...s.held, ProjectOpeningGate.shortName(url)]
+    });
+  }
+  /** `../api/mdfiles/GetShallowStructure?x=1` → `mdfiles/GetShallowStructure`. */
+  static shortName(url) {
+    const path = url.split('?')[0].replace(/^(\.\.)?\/api\//i, '');
+    return path.split('/').slice(0, 2).join('/');
+  }
+  /** Emette una volta, appena il cancello è aperto (subito, se lo è già). */
+  whenOpen() {
+    return this._opening$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.filter)(opening => !opening), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.first)());
+  }
+  static {
+    this.ɵfac = function ProjectOpeningGate_Factory(t) {
+      return new (t || ProjectOpeningGate)();
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
+      token: ProjectOpeningGate,
+      factory: ProjectOpeningGate.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 338:
 /*!******************************************************************************!*\
   !*** ./src/app/signalR/dialogs/connection-lost/connection-lost.component.ts ***!
@@ -20185,8 +20361,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.06.1',
-  buildTime: '2026.11.06 15:35:20'
+  version: '2026.11.06.3',
+  buildTime: '2026.11.06 18:19:21'
 };
 
 /***/ }),
@@ -20220,4 +20396,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.04d224289b372dbb.js.map
+//# sourceMappingURL=main.169c33c0e65a2307.js.map

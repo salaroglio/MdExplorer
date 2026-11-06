@@ -49,6 +49,8 @@
     "THEME_MILAN": "Rosso"
   },
   "PROJECTS": {
+    "OPEN_FAILED": "Il progetto {{path}} non si è aperto: {{reason}}",
+    "OPENING": "Apertura del progetto…",
     "RECENT_PROJECTS": "Progetti Recenti",
     "SEARCH_PROJECTS": "Cerca progetti...",
     "NO_MATCH_TITLE": "Nessun risultato",
@@ -2753,10 +2755,13 @@
     "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
   },
   "BACKGROUND_WORK": {
+    "OPENING_WAITING": "Il servizio sta aprendo il progetto: {{count}} richieste della pagina aspettano e partono appena è pronto.",
+    "OPENING_DONE": "Progetto aperto in {{seconds}} s: partite le {{count}} richieste in attesa.",
     "TITLE": "Costruzione della conoscenza",
     "EXPAND": "Mostra i lavori in sfondo",
     "COLLAPSE": "Riduci a icona",
     "KIND": {
+      "opening": "Apertura del progetto",
       "indexing": "Indicizzazione dei documenti",
       "scan": "Scansione del codice",
       "description": "Descrizione del codice"
