@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Services.AI
 
         public async Task<string> ChatAsync(string prompt, string modelId = null, CancellationToken ct = default)
         {
-            _logger.LogInformation($"[OpenAiProvider.ChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[OpenAiProvider.ChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -153,7 +153,7 @@ namespace MdExplorer.Features.Services.AI
             string modelId = null,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            _logger.LogInformation($"[OpenAiProvider.StreamChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[OpenAiProvider.StreamChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -259,7 +259,7 @@ namespace MdExplorer.Features.Services.AI
 
                 if (!string.IsNullOrEmpty(text))
                 {
-                    _logger.LogDebug($"[OpenAiProvider.StreamChatAsync] Yielding text chunk: {text?.Substring(0, Math.Min(text?.Length ?? 0, 50))}...");
+                    _logger.LogDebug("[OpenAiProvider.StreamChatAsync] Yielding text chunk: {Length} caratteri", text?.Length ?? 0);
                     yield return text;
                 }
             }

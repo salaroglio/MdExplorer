@@ -449,7 +449,7 @@ namespace MdExplorer.Hubs
             try
             {
                 channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
-                _logger.LogInformation($"Received chat message (channel={channelId}): {message?.Substring(0, Math.Min(message?.Length ?? 0, 50))}...");
+                _logger.LogInformation("Received chat message (channel={ChannelId}): {Length} caratteri", channelId, message?.Length ?? 0); // mai il testo nel log (06/11/2026)
 
                 // Get chat mode for this connection
                 var chatMode = GetChatMode();
@@ -1594,7 +1594,7 @@ namespace MdExplorer.Hubs
                 }
 
                 var lastUserMessage = history.Messages[history.Messages.Count - 1].Content;
-                _logger.LogInformation($"[RegenerateAiResponse] Regenerating from last user message: {lastUserMessage?.Substring(0, Math.Min(lastUserMessage?.Length ?? 0, 50))}...");
+                _logger.LogInformation("[RegenerateAiResponse] Regenerating from last user message: {Length} caratteri", lastUserMessage?.Length ?? 0); // mai il testo nel log
 
                 // Check if using external AI provider (Gemini or OpenAI)
                 if (chatMode.ProviderType.HasValue)
