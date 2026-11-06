@@ -17,6 +17,7 @@ import { ClipboardPasteService } from '../../services/clipboard-paste.service';
 import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
 import { TranslateService } from '@ngx-translate/core';
 import { AiChatService } from '../../../services/ai-chat.service';
+import { ProjectOpeningGate } from '../../../shared/project-opening-gate';
 
 
 
@@ -91,7 +92,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private clipboardPasteService: ClipboardPasteService,
     private embeddedAppState: EmbeddedAppStateService,
     private translate: TranslateService,
-    private aiChat: AiChatService
+    private aiChat: AiChatService,
+    /** Mentre il servizio apre il progetto: barra di avanzamento e «Apertura del progetto…» nel titolo. */
+    public openingGate: ProjectOpeningGate
   ) {
     this.setupResizeListeners();
 

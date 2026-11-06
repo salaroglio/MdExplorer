@@ -5,11 +5,12 @@ import { MdServerMessagesService } from '../../signalR/services/server-messages.
 import { ProjectsService } from './projects.service';
 import { IndexingProgressService, IndexingProgressState } from './indexing-progress.service';
 import { CodeGraphService, DescriptionRun } from './code-graph.service';
+import { ProjectOpeningGate } from '../../shared/project-opening-gate';
 
 /** Una riga del pannello dei lavori in sfondo. */
 export interface BackgroundRow {
   id: string;
-  kind: 'indexing' | 'scan' | 'description';
+  kind: 'opening' | 'indexing' | 'scan' | 'description';
   folder?: string;
   /** running = lavoro vivo; interrupted = MdExplorer chiuso a metà; stopped = fermata dall'utente; failed; done = appena finita. */
   state: 'running' | 'interrupted' | 'stopped' | 'failed' | 'done';
@@ -24,6 +25,10 @@ export interface BackgroundRow {
   updatedAt?: string;
   filesDescribed?: number;
   error?: string;
+  /** Apertura del progetto: le richieste della pagina trattenute finché il servizio non ha finito (controller/azione). */
+  heldRequests?: string[];
+  /** Apertura del progetto conclusa: quanto ha impiegato il servizio. */
+  durationMs?: number;
 }
 
 /**
@@ -40,6 +45,9 @@ export class BackgroundWorkService {
 
   private readonly indexingVisible$ = new BehaviorSubject<boolean>(false);
   private readonly codeRows$ = new BehaviorSubject<BackgroundRow[]>([]);
+  /** L'apertura del progetto in corso o appena finita (06/11/2026): la pagina si apre al click, i dati aspettano. */
+  private readonly openingRow$ = new BehaviorSubject<BackgroundRow | null>(null);
+  private openingDoneTimer: any;
   private projectPath: string | null = null;
   private doneTimers = new Map<string, any>();
 
@@ -51,10 +59,27 @@ export class BackgroundWorkService {
     private projects: ProjectsService,
     private indexing: IndexingProgressService,
     private codeGraph: CodeGraphService,
+    private openingGate: ProjectOpeningGate,
   ) {
-    this.rows$ = combineLatest([this.indexing.state$, this.indexingVisible$, this.codeRows$]).pipe(
-      map(([state, visible, code]) => visible ? [this.indexingRow(state), ...code] : code),
+    this.rows$ = combineLatest([this.indexing.state$, this.indexingVisible$, this.codeRows$, this.openingRow$]).pipe(
+      map(([state, visible, code, opening]) => [
+        ...(opening ? [opening] : []),
+        ...(visible ? [this.indexingRow(state)] : []),
+        ...code,
+      ]),
     );
+
+    // Le richieste che l'interceptor trattiene mentre il servizio apre il progetto: si vedono qui, e alla fine
+    // la riga dice quanto ci è voluto e quante sono partite, poi sparisce.
+    this.openingGate.state$.subscribe(s => {
+      if (s.opening) {
+        clearTimeout(this.openingDoneTimer);
+        this.openingRow$.next({ id: 'opening', kind: 'opening', state: 'running', percent: null, heldRequests: [...new Set(s.held)], index: s.held.length });
+      } else if (this.openingRow$.value?.state === 'running') {
+        this.openingRow$.next({ id: 'opening', kind: 'opening', state: 'done', percent: 100, index: s.held.length, durationMs: s.lastDurationMs ?? undefined });
+        this.openingDoneTimer = setTimeout(() => this.openingRow$.next(null), 5000);
+      }
+    });
 
     this.serverMessages.parsingProjectStart$.subscribe(() => { this.indexing.reset(); this.indexingVisible$.next(true); });
     this.serverMessages.knowledgeProgress$.subscribe(d => this.indexing.setProgress(d?.processed ?? 0, d?.total ?? 0, d?.percent ?? 0));

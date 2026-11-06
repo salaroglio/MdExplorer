@@ -211,6 +211,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     OpenPerf.start(`click su apri progetto: ${path}`);
 
     this.projectService.setNewFolderProject(path);
+    // La pagina del progetto si apre SUBITO: le sue richieste aspettano nell'interceptor finché il servizio non
+    // ha aperto il progetto (ProjectOpeningGate). Prima si restava qui fermi fino alla risposta, a freddo 7-9 s.
+    OpenPerf.mark('navigate verso /main/navigation/document al click (non aspetta SetFolderProject)');
+    this.router.navigate(['/main/navigation/document']);
 
     // Reset flag after a timeout (in case navigation doesn't happen)
     setTimeout(() => {

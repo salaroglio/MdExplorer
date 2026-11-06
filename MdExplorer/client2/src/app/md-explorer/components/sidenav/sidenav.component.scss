@@ -340,3 +340,12 @@ mat-toolbar {
     }
   }
 }
+
+// Apertura del progetto in corso (ProjectOpeningGate): sopra tutto, non sposta il layout.
+.project-opening-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}

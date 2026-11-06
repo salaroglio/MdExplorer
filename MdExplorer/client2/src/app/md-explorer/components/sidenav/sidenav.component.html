@@ -1,5 +1,6 @@
 
 
+<mat-progress-bar *ngIf="openingGate.opening$ | async" mode="indeterminate" class="project-opening-bar"></mat-progress-bar>
 <mat-sidenav-container autosize fullscreen class="app-sidenav-container">
 
   <mat-sidenav #sidenav [style.width]="sideNavWidth" class=" mat-elevation-z10"
@@ -24,7 +25,7 @@
         [matTooltip]="'SIDENAV.AUTO_RELOAD' | translate"
         class="fsw-toggle">
       </mat-slide-toggle>
-      <span>{{titleProject}}</span>
+      <span>{{ (openingGate.opening$ | async) ? ('PROJECTS.OPENING' | translate) : titleProject }}</span>
       <span class="flexExpand"></span>
     </mat-toolbar>
     <mat-tab-group headerPosition="below" [(selectedIndex)]="selectedTabIndex" (selectedTabChange)="onTabChange($event)" style="justify-content: space-between; height: calc(100% - 64px);">

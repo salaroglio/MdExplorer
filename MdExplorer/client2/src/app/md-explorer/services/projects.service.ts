@@ -2,7 +2,12 @@ import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
 import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { ProjectOpeningGate } from '../../shared/project-opening-gate';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
 import { versionInfo } from '../../../environments/version';
@@ -96,7 +101,8 @@ export class ProjectsService {
 
   constructor(
     private http: HttpClient,
-    private injector: Injector
+    private injector: Injector,
+    private openingGate: ProjectOpeningGate
   ) {
     this.dataStore = { mdProjects: [] };
     this._mdProjects = new BehaviorSubject<MdProject[]>([]);
@@ -180,7 +186,7 @@ export class ProjectsService {
     }
 
     OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
-    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
+    this.postSetFolderProject(request).subscribe(async response => {
       OpenPerf.mark('POST SetFolderProject: risposta');
       OpenPerf.request('MdProjects/SetFolderProject');
       this.currentProjects$.next(response);
@@ -218,6 +224,37 @@ export class ProjectsService {
 
   }
 
+  /**
+   * La richiesta che apre il progetto, con il cancello chiuso finché non risponde: la pagina del progetto si apre
+   * al click e le sue richieste /api aspettano nell'interceptor (vedi ProjectOpeningGate). Il cancello si riapre
+   * PRIMA che il chiamante riceva la risposta, e in ogni caso alla fine, anche su errore.
+   */
+  private postSetFolderProject(request: { path: string; [key: string]: any }): Observable<any> {
+    this.openingGate.close();
+    return this.http.post<any>('../api/MdProjects/SetFolderProject', request, ProjectOpeningGate.openingRequest()).pipe(
+      tap(() => this.openingGate.open()),
+      catchError(err => {
+        this.openingGate.open();
+        this.projectOpenFailed(request.path, err);
+        return EMPTY;
+      }),
+      finalize(() => this.openingGate.open())
+    );
+  }
+
+  /** La pagina del progetto è già aperta (vuota): si torna alla lista e si dice perché. */
+  private projectOpenFailed(path: string, err: any): void {
+    const reason = err?.error?.error || err?.error?.message || err?.message || String(err);
+    console.error('[Projects] SetFolderProject fallita per', path, err);
+    const translate = this.injector.get(TranslateService);
+    this.injector.get(MatSnackBar).open(
+      translate.instant('PROJECTS.OPEN_FAILED', { path, reason }), 'OK', { duration: 12000 });
+    // Come l'uscita dal progetto (sidenav.openProject): senza, la lista rivedrebbe il progetto di prima in
+    // currentProjects$ e rinavigherebbe subito alla sua pagina.
+    this.currentProjects$.next(null);
+    this.injector.get(Router).navigate(['/projects']);
+  }
+
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
 
@@ -232,7 +269,7 @@ export class ProjectsService {
       harness: config.harness
     };
 
-    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
+    this.postSetFolderProject(request).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview

@@ -28,6 +28,11 @@
         <mat-progress-bar *ngIf="r.state === 'running'" class="bg-work__bar"
                           [mode]="r.percent == null ? 'indeterminate' : 'determinate'" [value]="r.percent ?? 0"></mat-progress-bar>
 
+        <!-- apertura del progetto: la pagina è già qui, le sue richieste aspettano il servizio -->
+        <div class="bg-work__detail" *ngIf="r.kind === 'opening' && r.state === 'running'">{{ 'BACKGROUND_WORK.OPENING_WAITING' | translate: { count: r.index ?? 0 } }}</div>
+        <div class="bg-work__file" *ngIf="r.kind === 'opening' && r.state === 'running' && r.heldRequests?.length" [title]="r.heldRequests.join(', ')">{{ r.heldRequests.join(' · ') }}</div>
+        <div class="bg-work__detail" *ngIf="r.kind === 'opening' && r.state === 'done'">{{ 'BACKGROUND_WORK.OPENING_DONE' | translate: { seconds: ((r.durationMs ?? 0) / 1000).toFixed(1), count: r.index ?? 0 } }}</div>
+
         <!-- in corso -->
         <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind !== 'scan' && r.total">
           {{ r.index }} / {{ r.total }}<ng-container *ngIf="r.kind === 'description'"> {{ 'BACKGROUND_WORK.FILES' | translate }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container><ng-container *ngIf="r.engine"> · {{ r.engine }}</ng-container></ng-container>
