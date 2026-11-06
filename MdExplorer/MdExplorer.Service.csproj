@@ -124,6 +124,9 @@
     <StartupObject />
     <FileVersion />
     <AssemblyVersion>2023.05.11.001</AssemblyVersion>
+    <!-- Solo le traduzioni delle librerie che MDE parla: le altre 12 lingue (ru, ja, de, cs…) erano ~22 MB nel
+         pacchetto Windows, solo messaggi d'errore di Windows Forms/WPF e pacchetti NuGet (06/11/2026). -->
+    <SatelliteResourceLanguages>it;en</SatelliteResourceLanguages>
   </PropertyGroup>
   
   <!-- Windows-specific configuration -->
