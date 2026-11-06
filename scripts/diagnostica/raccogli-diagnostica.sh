@@ -27,7 +27,9 @@ on_remote() {
   if [ -z "$REMOTE" ]; then bash -c "$1"; else ssh -o BatchMode=yes -o ConnectTimeout=15 "$REMOTE" "$1"; fi
 }
 copy_from_remote() { # $1 = codice, $2 = cartella di destinazione
-  if [ -z "$REMOTE" ]; then cp -r "$REMOTE_DIR/$1/." "$2/"; else scp -q -o BatchMode=yes -r "$REMOTE:$REMOTE_DIR/$1/." "$2/"; fi
+  # I due file per nome: lo scp di OpenSSH 8.9 rifiuta «cartella/.» («unexpected filename: .», 06/11/2026).
+  if [ -z "$REMOTE" ]; then cp "$REMOTE_DIR/$1/package.zip" "$REMOTE_DIR/$1/meta.json" "$2/"
+  else scp -q -o BatchMode=yes "$REMOTE:$REMOTE_DIR/$1/package.zip" "$REMOTE:$REMOTE_DIR/$1/meta.json" "$2/"; fi
 }
 
 notify() {
