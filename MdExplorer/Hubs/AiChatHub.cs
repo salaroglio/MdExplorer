@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Services;
 using System;
@@ -41,6 +42,33 @@ namespace MdExplorer.Hubs
         private readonly OpenCodeSessionPool _openCodePool;
         /// <summary>Serve per una cosa sola: sapere quali gruppi di funzionalità MCP accendere per il progetto.</summary>
         private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        // ── Turno in background ─────────────────────────────────────────────────────────────
+        // SignalR esegue UNA invocazione alla volta per connessione: un turno di chat tenuto
+        // dentro il metodo dell'hub teneva in coda anche CancelPrompt, e lo Stop arrivava solo a
+        // risposta finita. Ora il turno gira in background e il metodo torna subito. Ma quando il
+        // metodo torna SignalR smaltisce l'hub (Context e Clients lanciano ObjectDisposedException)
+        // e lo scope DI dell'invocazione (ToolExecutor, IUserSettingsDB): il turno usa quindi
+        // valori catturati prima di tornare e un suo scope. Fuori da un turno valgono gli originali.
+        private string _turnConnectionId;
+        private IClientProxy _turnCaller;
+        private CancellationToken? _turnAborted;
+        private ToolExecutor _turnToolExecutor;
+        private Abstractions.DB.IUserSettingsDB _turnUserSettingsDB;
+
+        private string ConnectionId => _turnConnectionId ?? Context.ConnectionId;
+        private IClientProxy Caller => _turnCaller ?? Clients.Caller;
+        private CancellationToken ConnectionAborted => _turnAborted ?? Context.ConnectionAborted;
+        private ToolExecutor Tools => _turnToolExecutor ?? _toolExecutor;
+        private Abstractions.DB.IUserSettingsDB UserSettings => _turnUserSettingsDB ?? _userSettingsDB;
+
+        /// <summary>
+        /// Un turno alla volta per connessione, come quando SignalR li metteva in coda: la sessione
+        /// del motore (Claude, Copilot, opencode) e lo slot dello Stop sono per connessione, due
+        /// turni insieme si pesterebbero. La coda però non blocca più le altre invocazioni.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _turnGates = new();
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -97,8 +125,10 @@ namespace MdExplorer.Hubs
             IHubContext<AiChatHub> hubContext,
             Services.MarkDiagram.MarkAgentBriefings briefings,
             Services.CodeGraph.ICodeRootService codeRoots,
-            Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher)
+            Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher,
+            IServiceScopeFactory scopeFactory)
         {
+            _scopeFactory = scopeFactory;
             _briefings = briefings;
             _codeRoots = codeRoots;
             _turnRefresher = turnRefresher;
@@ -143,7 +173,7 @@ namespace MdExplorer.Hubs
             whyNot = null;
 
             // Use the MonitorMDHub connectionId (sent by frontend) to find the project path
-            var hasProjectConnId = _connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var projectConnId)
+            var hasProjectConnId = _connectionProjectConnectionIds.TryGetValue(ConnectionId, out var projectConnId)
                                    && !string.IsNullOrEmpty(projectConnId);
             if (hasProjectConnId)
             {
@@ -160,7 +190,7 @@ namespace MdExplorer.Hubs
                 : MdExplorer.Features.Services.UiText.Say("la chat non ha ancora ricevuto quale progetto sta guardando", "the chat has not yet been told which project it is looking at");
 
             _logger.LogWarning("⚠️ Unable to get project path ({WhyNot}). AiChat connectionId={AiChatConnId}, projectConnId={ProjectConnId}",
-                whyNot, Context?.ConnectionId, hasProjectConnId ? projectConnId : "not set");
+                whyNot, ConnectionId, hasProjectConnId ? projectConnId : "not set");
             return string.Empty;
         }
 
@@ -175,16 +205,16 @@ namespace MdExplorer.Hubs
             // Si interroga ogni motore: il turno in volo appartiene a uno solo di loro, ma
             // chiedere a entrambi costa nulla ed evita che lo Stop funzioni su un provider e
             // resti muto sull'altro.
-            var cancelledCopilot = _copilotChatPool?.CancelActivePrompt(Context.ConnectionId) ?? false;
-            var cancelledClaude = _claudeCodePool?.CancelActivePrompt(Context.ConnectionId) ?? false;
-            var cancelledOpenCode = _openCodePool?.CancelActivePrompt(Context.ConnectionId) ?? false;
+            var cancelledCopilot = _copilotChatPool?.CancelActivePrompt(ConnectionId) ?? false;
+            var cancelledClaude = _claudeCodePool?.CancelActivePrompt(ConnectionId) ?? false;
+            var cancelledOpenCode = _openCodePool?.CancelActivePrompt(ConnectionId) ?? false;
             var cancelled = cancelledCopilot || cancelledClaude || cancelledOpenCode;
             if (!cancelled)
             {
                 // Niente in volo per questa connessione. Dirlo al client conta: prima si
                 // restituiva sempre "fatto" e la UI spegneva l'indicatore, dando l'impressione
                 // di aver fermato qualcosa che invece continuava.
-                _logger.LogInformation("[AiChatHub] CancelPrompt: nessun turno in volo per {ConnectionId}", Context.ConnectionId);
+                _logger.LogInformation("[AiChatHub] CancelPrompt: nessun turno in volo per {ConnectionId}", ConnectionId);
             }
             return Task.FromResult(cancelled);
         }
@@ -199,9 +229,9 @@ namespace MdExplorer.Hubs
         {
             if (channelId == "default")
             {
-                return Clients.Caller.SendAsync("ReceiveMessage", "system", warning);
+                return Caller.SendAsync("ReceiveMessage", "system", warning);
             }
-            return Clients.Caller.SendAsync("ReceiveError", warning, channelId);
+            return Caller.SendAsync("ReceiveError", warning, channelId);
         }
 
         // Per-file cap so a huge document can't blow up the model context; the cut is
@@ -239,7 +269,7 @@ namespace MdExplorer.Hubs
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[SendMessageWithContext] Failed to read context files");
-                await Clients.Caller.SendAsync("ReceiveError",
+                await Caller.SendAsync("ReceiveError",
                     MdExplorer.Features.Services.UiText.Say("Lettura dei file di contesto fallita: ", "Reading the context files failed: ") + ex.Message, channelId);
                 return;
             }
@@ -328,17 +358,17 @@ namespace MdExplorer.Hubs
         {
             // A test launch is running on this connection: a chat turn would cancel it (one Stop slot per
             // connection) or restart the tab session under it. Said, not done.
-            if (_e2eLaunch != null && _e2eLaunch.IsRunning(Context.ConnectionId))
+            if (_e2eLaunch != null && _e2eLaunch.IsRunning(ConnectionId))
             {
-                await Clients.Caller.SendAsync("ReceiveError",
+                await Caller.SendAsync("ReceiveError",
                     MdExplorer.Features.Services.UiText.Say("È in corso un lancio di test e2e: aspetta che finisca o interrompilo dalla finestra dei test.", "An e2e test run is in progress: wait for it to finish or stop it from the tests window."), string.IsNullOrEmpty(channelId) ? "default" : channelId);
-                await Clients.Caller.SendAsync("StreamComplete", string.IsNullOrEmpty(channelId) ? "default" : channelId);
+                await Caller.SendAsync("StreamComplete", string.IsNullOrEmpty(channelId) ? "default" : channelId);
                 return;
             }
             // What was done in parallel (a change confirmed from «spiega il diagramma») reaches the tab's LLM at the
             // head of the user's message, in the tab's own conversation only: no turn of its own (D9).
             if ((string.IsNullOrEmpty(channelId) || channelId == "default") && _briefings != null
-                && _connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var monitorConnectionId))
+                && _connectionProjectConnectionIds.TryGetValue(ConnectionId, out var monitorConnectionId))
             {
                 var briefings = _briefings.TakeAll(monitorConnectionId);
                 if (briefings.Count > 0)
@@ -347,15 +377,63 @@ namespace MdExplorer.Hubs
                     message = Services.MarkDiagram.MarkAgentBriefings.Block(briefings) + message;
                 }
             }
-            _chatTurnsInFlight.AddOrUpdate(Context.ConnectionId, 1, (_, n) => n + 1);
-            try
+            StartTurnInBackground(channelId, "SendMessage", () => SendMessageCore(message, channelId));
+        }
+
+        /// <summary>
+        /// Avvia un turno di chat in background e torna subito, così l'invocazione SignalR si libera
+        /// e lo Stop (<see cref="CancelPrompt"/>) arriva mentre il turno è in corso. Cattura ciò che il
+        /// turno usa e che sparisce col Dispose dell'hub; i turni della stessa connessione restano in fila.
+        /// </summary>
+        private void StartTurnInBackground(string channelId, string origin, Func<Task> turn)
+        {
+            channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
+            var connectionId = Context.ConnectionId;
+            var aborted = Context.ConnectionAborted;
+            var caller = _hubContext.Clients.Client(connectionId);
+            var scope = _scopeFactory.CreateScope();
+            _turnConnectionId = connectionId;
+            _turnCaller = caller;
+            _turnAborted = aborted;
+            _turnToolExecutor = scope.ServiceProvider.GetRequiredService<ToolExecutor>();
+            _turnUserSettingsDB = scope.ServiceProvider.GetRequiredService<Abstractions.DB.IUserSettingsDB>();
+
+            var gate = _turnGates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+            var logger = _logger;
+            // Contato da subito, non quando il turno parte: un lancio e2e non deve infilarsi
+            // tra un turno accodato e il suo avvio.
+            _chatTurnsInFlight.AddOrUpdate(connectionId, 1, (_, n) => n + 1);
+
+            _ = Task.Run(async () =>
             {
-                await SendMessageCore(message, channelId);
-            }
-            finally
-            {
-                _chatTurnsInFlight.AddOrUpdate(Context.ConnectionId, 0, (_, n) => Math.Max(0, n - 1));
-            }
+                try
+                {
+                    await gate.WaitAsync(aborted);
+                    try { await turn(); }
+                    finally { gate.Release(); }
+                }
+                catch (OperationCanceledException) when (aborted.IsCancellationRequested)
+                {
+                    // Connessione chiusa mentre il turno era in coda: nessuno a cui rispondere.
+                }
+                catch (Exception ex)
+                {
+                    // Il turno gestisce i suoi errori; qui arriva solo ciò che gli è sfuggito. Va detto al
+                    // client, altrimenti l'indicatore di streaming resterebbe acceso per sempre.
+                    logger.LogError(ex, "[{Origin}] turno in background fallito", origin);
+                    try
+                    {
+                        await caller.SendAsync("ReceiveError", ex.Message, channelId);
+                        await caller.SendAsync("StreamComplete", channelId);
+                    }
+                    catch { /* connessione chiusa */ }
+                }
+                finally
+                {
+                    _chatTurnsInFlight.AddOrUpdate(connectionId, 0, (_, n) => Math.Max(0, n - 1));
+                    scope.Dispose();
+                }
+            });
         }
 
         private async Task SendMessageCore(string message, string channelId)
@@ -364,9 +442,9 @@ namespace MdExplorer.Hubs
             // Prima esisteva solo dentro il ramo Copilot ACP: su OpenAI/Gemini/locale il
             // pulsante Stop non trovava nulla da cancellare e restituiva 'false' a nessuno,
             // mentre il backend continuava a generare.
-            using var turnCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-            _copilotChatPool?.RegisterActivePrompt(Context.ConnectionId, turnCts);
-            _claudeCodePool?.RegisterActivePrompt(Context.ConnectionId, turnCts);
+            using var turnCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
+            _copilotChatPool?.RegisterActivePrompt(ConnectionId, turnCts);
+            _claudeCodePool?.RegisterActivePrompt(ConnectionId, turnCts);
 
             try
             {
@@ -406,7 +484,7 @@ namespace MdExplorer.Hubs
                     var currentDoc = docContext.CurrentDocumentPath;
 
                     // Get conversation history and add current message
-                    var history = GetOrCreateHistory(Context.ConnectionId, channelId);
+                    var history = GetOrCreateHistory(ConnectionId, channelId);
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
                         Role = "user",
@@ -416,7 +494,7 @@ namespace MdExplorer.Hubs
                     _logger.LogInformation($"[SendMessage] Conversation history has {history.Messages.Count} messages");
 
                     // Log user message to chat logger
-                    _chatLogger?.LogUserMessage(Context.ConnectionId, message, currentDoc, history.Messages.Count);
+                    _chatLogger?.LogUserMessage(ConnectionId, message, currentDoc, history.Messages.Count);
 
                     // CopilotCli: use streaming for progressive output
                     if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli)
@@ -429,14 +507,14 @@ namespace MdExplorer.Hubs
                         catch (CopilotMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[SendMessage] Copilot interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception acpEx)
                         {
                             _logger.LogError(acpEx, "[SendMessage] Copilot fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Copilot non è partito: ", "Copilot did not start: ") + acpEx.Message, channelId);
                             response = string.Empty;
                         }
@@ -455,14 +533,14 @@ namespace MdExplorer.Hubs
                         catch (ClaudeCodeMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[SendMessage] Claude Code interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Stream di Claude Code interrotto: ", "Claude Code stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception ccEx)
                         {
                             _logger.LogError(ccEx, "[SendMessage] Claude Code fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Claude Code non è partito: ", "Claude Code did not start: ") + ccEx.Message, channelId);
                             response = string.Empty;
                         }
@@ -480,14 +558,14 @@ namespace MdExplorer.Hubs
                         catch (OpenCodeMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[SendMessage] opencode interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Stream di opencode interrotto: ", "opencode stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                             response = string.Empty;
                         }
                         catch (Exception ocEx)
                         {
                             _logger.LogError(ocEx, "[SendMessage] opencode fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("opencode non è partito: ", "opencode did not start: ") + ocEx.Message, channelId);
                             response = string.Empty;
                         }
@@ -497,13 +575,13 @@ namespace MdExplorer.Hubs
                     {
                         // Other providers: use ChatWithToolsAsync (with tool calling)
                         var tools = FileOperationTools.GetToolDefinitions();
-                        var connectionId = Context.ConnectionId;
+                        var connectionId = ConnectionId;
                         var workspaceRoot = GetProjectPath();
 
                         _logger.LogInformation($"[SendMessage] Using workspace root: {workspaceRoot}");
 
                         Func<string, dynamic, Task<object>> toolExecutorFunc =
-                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
+                            async (toolName, arguments) => await Tools.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
 
                         var conversationHistory = history.Messages.Cast<object>().ToList();
 
@@ -524,7 +602,7 @@ namespace MdExplorer.Hubs
                             Content = response
                         });
 
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
+                        await Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                     }
                 }
                 else
@@ -539,7 +617,7 @@ namespace MdExplorer.Hubs
                     // Use LocalLlamaProvider with tool calling support
                     var docContext = GetDocumentContext();
                     var currentDoc = docContext.CurrentDocumentPath;
-                    var history = GetOrCreateHistory(Context.ConnectionId, channelId);
+                    var history = GetOrCreateHistory(ConnectionId, channelId);
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
                     {
                         Role = "user",
@@ -547,11 +625,11 @@ namespace MdExplorer.Hubs
                     });
 
                     var tools = FileOperationTools.GetToolDefinitions();
-                    var connectionId = Context.ConnectionId;
+                    var connectionId = ConnectionId;
                     var workspaceRoot = GetProjectPath();
 
                     Func<string, dynamic, Task<object>> toolExecutorFunc =
-                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
+                        async (toolName, arguments) => await Tools.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
 
                     var conversationHistory = history.Messages.Cast<object>().ToList();
 
@@ -566,7 +644,7 @@ namespace MdExplorer.Hubs
                     // Send thinking content if available
                     if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
+                        await Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
                     }
 
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
@@ -575,10 +653,10 @@ namespace MdExplorer.Hubs
                         Content = response
                     });
 
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
+                    await Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                 }
 
-                await Clients.Caller.SendAsync("StreamComplete", channelId);
+                await Caller.SendAsync("StreamComplete", channelId);
             }
             catch (OperationCanceledException)
             {
@@ -586,19 +664,19 @@ namespace MdExplorer.Hubs
                 // rosso in chat sarebbe sbagliato — l'utente ha ottenuto ciò che ha chiesto.
                 // Ciò che era già arrivato resta visibile.
                 _logger.LogInformation("[AiChatHub] turno annullato dall'utente (channel={Channel})", channelId);
-                await Clients.Caller.SendAsync("StreamComplete", channelId);
+                await Caller.SendAsync("StreamComplete", channelId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing chat message");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+                await Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
             finally
             {
                 // Il turno non è più in volo: toglilo dal registro, altrimenti uno Stop
                 // successivo cancellerebbe un token morto e riferirebbe "fatto" a vuoto.
-                _copilotChatPool?.UnregisterActivePrompt(Context.ConnectionId, turnCts);
-                _claudeCodePool?.UnregisterActivePrompt(Context.ConnectionId, turnCts);
+                _copilotChatPool?.UnregisterActivePrompt(ConnectionId, turnCts);
+                _claudeCodePool?.UnregisterActivePrompt(ConnectionId, turnCts);
             }
         }
 
@@ -647,7 +725,7 @@ namespace MdExplorer.Hubs
                 if (model == null)
                 {
                     _logger.LogWarning($"[AiChatHub] Model {modelId} not found in available models");
-                    await Clients.Caller.SendAsync("ModelLoadError", $"Model {modelId} not found");
+                    await Caller.SendAsync("ModelLoadError", $"Model {modelId} not found");
                     return;
                 }
 
@@ -656,11 +734,11 @@ namespace MdExplorer.Hubs
                 if (!model.IsInstalled)
                 {
                     _logger.LogWarning($"[AiChatHub] Model {model.Name} is not installed");
-                    await Clients.Caller.SendAsync("ModelLoadError", $"Model {model.Name} is not installed");
+                    await Caller.SendAsync("ModelLoadError", $"Model {model.Name} is not installed");
                     return;
                 }
 
-                await Clients.Caller.SendAsync("ModelLoading", model.Name);
+                await Caller.SendAsync("ModelLoading", model.Name);
                 
                 _logger.LogInformation($"[AiChatHub] Calling _aiChatService.LoadModelAsync with path: {model.LocalPath} and id: {modelId}");
                 var success = await _aiChatService.LoadModelAsync(model.LocalPath, modelId);
@@ -670,103 +748,121 @@ namespace MdExplorer.Hubs
                 if (success)
                 {
                     var systemPrompt = _aiChatService.GetSystemPrompt();
-                    await Clients.Caller.SendAsync("ModelLoaded", model.Name, systemPrompt);
+                    await Caller.SendAsync("ModelLoaded", model.Name, systemPrompt);
                     _logger.LogInformation($"[AiChatHub] Model {model.Name} loaded successfully with system prompt");
                 }
                 else
                 {
-                    await Clients.Caller.SendAsync("ModelLoadError", $"Failed to load {model.Name}");
+                    await Caller.SendAsync("ModelLoadError", $"Failed to load {model.Name}");
                     _logger.LogWarning($"[AiChatHub] Failed to load model {model.Name}");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"[AiChatHub] Error loading model {modelId}");
-                await Clients.Caller.SendAsync("ModelLoadError", ex.Message);
+                await Caller.SendAsync("ModelLoadError", ex.Message);
             }
         }
 
         public override async Task OnConnectedAsync()
         {
-            _logger.LogInformation($"Client connected: {Context.ConnectionId}");
+            _logger.LogInformation($"Client connected: {ConnectionId}");
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            _logger.LogInformation($"Client disconnected: {Context.ConnectionId}");
+            _logger.LogInformation($"Client disconnected: {ConnectionId}");
             // Clean up connection state
-            _connectionChatModes.TryRemove(Context.ConnectionId, out _);
-            _connectionDocumentContexts.TryRemove(Context.ConnectionId, out _);
-            _connectionHistories.TryRemove(Context.ConnectionId, out _);
-            _connectionProjectConnectionIds.TryRemove(Context.ConnectionId, out _);
+            _connectionChatModes.TryRemove(ConnectionId, out _);
+            _connectionDocumentContexts.TryRemove(ConnectionId, out _);
+            _connectionHistories.TryRemove(ConnectionId, out _);
+            _connectionProjectConnectionIds.TryRemove(ConnectionId, out _);
+            // La fila dei turni: chi la sta usando ne tiene il riferimento e la rilascia lo stesso.
+            _turnGates.TryRemove(ConnectionId, out _);
             // Kill any persistent Copilot session (SDK or ACP) attached to this connection.
             if (_copilotChatPool != null)
             {
-                try { await _copilotChatPool.ReleaseAsync(Context.ConnectionId); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Copilot pool release failed for {ConnectionId}", Context.ConnectionId); }
+                try { await _copilotChatPool.ReleaseAsync(ConnectionId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Copilot pool release failed for {ConnectionId}", ConnectionId); }
             }
             // Idem per il processo Claude Code: se resta vivo dopo la disconnessione diventa
             // un orfano che nessuno raccoglie più.
             if (_claudeCodePool != null)
             {
-                try { await _claudeCodePool.ReleaseAsync(Context.ConnectionId); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Rilascio del pool Claude Code fallito per {ConnectionId}", Context.ConnectionId); }
+                try { await _claudeCodePool.ReleaseAsync(ConnectionId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Rilascio del pool Claude Code fallito per {ConnectionId}", ConnectionId); }
             }
             await base.OnDisconnectedAsync(exception);
         }
         
-        public async Task ClearHistory(string channelId = null)
+        public Task ClearHistory(string channelId = null)
         {
             if (string.IsNullOrEmpty(channelId))
             {
                 // Clear all channels for this connection (backwards compat)
-                _logger.LogInformation($"[ClearHistory] Clearing ALL conversation history for connection {Context.ConnectionId}");
-                _connectionHistories.TryRemove(Context.ConnectionId, out _);
+                _logger.LogInformation($"[ClearHistory] Clearing ALL conversation history for connection {ConnectionId}");
+                _connectionHistories.TryRemove(ConnectionId, out _);
 
                 // Recycle the persistent Copilot session too (SDK or ACP). Its process keeps
                 // server-side conversation memory across turns; a "new chat" must start
                 // from zero, otherwise a fresh (possibly heavy) task inherits the full
                 // history of prior interactions and can saturate the model context window.
-                // The next prompt lazily spawns a clean Copilot process.
-                if (_copilotChatPool != null)
+                // The next prompt lazily spawns a clean Copilot process. Idem Claude Code e
+                // opencode: anche loro tengono la memoria della conversazione.
+                //
+                // Il turno ora gira in background (StartTurnInBackground), quindi ClearHistory non
+                // aspetta più in coda la sua fine: chiudere le sessioni sotto un turno vivo lo
+                // romperebbe a metà. Chi pulisce la chat non vuole più quella risposta: la si ferma,
+                // e le sessioni si chiudono quando il turno ha lasciato il posto (stessa fila dei turni).
+                var connectionId = ConnectionId;
+                _copilotChatPool?.CancelActivePrompt(connectionId);
+                _claudeCodePool?.CancelActivePrompt(connectionId);
+                _openCodePool?.CancelActivePrompt(connectionId);
+                var gate = _turnGates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+                var logger = _logger;
+                var (copilot, claude, opencode) = (_copilotChatPool, _claudeCodePool, _openCodePool);
+                _ = Task.Run(async () =>
                 {
-                    try { await _copilotChatPool.ReleaseAsync(Context.ConnectionId); }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] Copilot pool release failed for {ConnectionId}", Context.ConnectionId); }
-                }
-
-                // Stessa ragione per Claude Code: anche il suo processo tiene la memoria della
-                // conversazione, quindi una "chat nuova" deve ripartire da un processo nuovo.
-                if (_claudeCodePool != null)
-                {
-                    try { await _claudeCodePool.ReleaseAsync(Context.ConnectionId); }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] rilascio del pool Claude Code fallito per {ConnectionId}", Context.ConnectionId); }
-                }
-
-                // E per opencode: la memoria del turno sta nella sessione sul server, quindi una
-                // "chat nuova" ha bisogno di una sessione nuova.
-                if (_openCodePool != null)
-                {
-                    try { await _openCodePool.ReleaseAsync(Context.ConnectionId); }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] rilascio del pool opencode fallito per {ConnectionId}", Context.ConnectionId); }
-                }
+                    await gate.WaitAsync();
+                    try
+                    {
+                        if (copilot != null)
+                        {
+                            try { await copilot.ReleaseAsync(connectionId); }
+                            catch (Exception ex) { logger.LogWarning(ex, "[ClearHistory] Copilot pool release failed for {ConnectionId}", connectionId); }
+                        }
+                        if (claude != null)
+                        {
+                            try { await claude.ReleaseAsync(connectionId); }
+                            catch (Exception ex) { logger.LogWarning(ex, "[ClearHistory] rilascio del pool Claude Code fallito per {ConnectionId}", connectionId); }
+                        }
+                        if (opencode != null)
+                        {
+                            try { await opencode.ReleaseAsync(connectionId); }
+                            catch (Exception ex) { logger.LogWarning(ex, "[ClearHistory] rilascio del pool opencode fallito per {ConnectionId}", connectionId); }
+                        }
+                    }
+                    finally { gate.Release(); }
+                });
             }
             else
             {
                 // Clear only the specified channel. The Copilot session is per-connection
                 // (shared across channels), so it is NOT recycled here — other channels
                 // on the same connection may be mid-conversation.
-                _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {Context.ConnectionId}, channel {channelId}");
-                if (_connectionHistories.TryGetValue(Context.ConnectionId, out var channels))
+                _logger.LogInformation($"[ClearHistory] Clearing conversation history for connection {ConnectionId}, channel {channelId}");
+                if (_connectionHistories.TryGetValue(ConnectionId, out var channels))
                 {
                     channels.TryRemove(channelId, out _);
                 }
             }
+            return Task.CompletedTask;
         }
 
         public Task SetChatMode(string mode, string modelId)
         {
-            _logger.LogInformation($"[SetChatMode] Called with mode: {mode}, modelId: {modelId}, ConnectionId: {Context.ConnectionId}");
+            _logger.LogInformation($"[SetChatMode] Called with mode: {mode}, modelId: {modelId}, ConnectionId: {ConnectionId}");
 
             var chatMode = GetChatMode();
 
@@ -802,10 +898,10 @@ namespace MdExplorer.Hubs
                     break;
             }
 
-            _logger.LogInformation($"[SetChatMode] Connection {Context.ConnectionId} - ProviderType: {chatMode.ProviderType}, ModelId: {chatMode.ModelId}");
+            _logger.LogInformation($"[SetChatMode] Connection {ConnectionId} - ProviderType: {chatMode.ProviderType}, ModelId: {chatMode.ModelId}");
 
             // Update the stored mode
-            _connectionChatModes[Context.ConnectionId] = chatMode;
+            _connectionChatModes[ConnectionId] = chatMode;
 
             _logger.LogInformation($"[SetChatMode] Total connections tracked: {_connectionChatModes.Count}");
 
@@ -822,7 +918,7 @@ namespace MdExplorer.Hubs
         public async Task RunE2eTests(string targetPath, string channelId)
         {
             channelId = string.IsNullOrEmpty(channelId) ? "e2e" : channelId;
-            var connectionId = Context.ConnectionId;
+            var connectionId = ConnectionId;
             var client = _hubContext.Clients.Client(connectionId);
 
             var projectPath = GetProjectPath(out var whyNoProject);
@@ -838,7 +934,7 @@ namespace MdExplorer.Hubs
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }
-            var (projectEngine, projectModel) = MdExplorer.Service.ProjectsManager.ProjectEngine(_userSettingsDB, projectPath);
+            var (projectEngine, projectModel) = MdExplorer.Service.ProjectsManager.ProjectEngine(UserSettings, projectPath);
 
             var request = new Services.E2e.E2eLaunchRequest
             {
@@ -847,14 +943,14 @@ namespace MdExplorer.Hubs
                 Target = targetPath,
                 ProjectEngine = projectEngine,
                 ProjectModel = projectModel,
-                McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
-                ConnectionAborted = Context.ConnectionAborted,
+                McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(UserSettings, projectPath),
+                ConnectionAborted = ConnectionAborted,
             };
 
             // The launch runs in the background and this call returns at once: SignalR runs one invocation per
             // connection at a time, so a launch held here kept Stop (CancelPrompt) and the chat waiting until it
             // ended — measured on 27/09/2026: Stop sent after 15 s, answered only when the launch finished at 53 s.
-            var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
             _claudeCodePool?.RegisterActivePrompt(connectionId, cts);
             _copilotChatPool?.RegisterActivePrompt(connectionId, cts);
             _openCodePool?.RegisterActivePrompt(connectionId, cts);
@@ -895,7 +991,7 @@ namespace MdExplorer.Hubs
 
         private ChatModeInfo GetChatMode()
         {
-            return _connectionChatModes.GetOrAdd(Context.ConnectionId, _ => new ChatModeInfo());
+            return _connectionChatModes.GetOrAdd(ConnectionId, _ => new ChatModeInfo());
         }
 
         /// <summary>
@@ -906,33 +1002,33 @@ namespace MdExplorer.Hubs
         public Task SetProjectConnectionId(string projectConnectionId)
         {
             _logger.LogInformation("[SetProjectConnectionId] AiChat={AiChatConn} → Project={ProjectConn}",
-                Context.ConnectionId, projectConnectionId);
-            _connectionProjectConnectionIds[Context.ConnectionId] = projectConnectionId;
+                ConnectionId, projectConnectionId);
+            _connectionProjectConnectionIds[ConnectionId] = projectConnectionId;
             return Task.CompletedTask;
         }
 
         public Task SetCurrentDocument(string filePath)
         {
-            _logger.LogInformation($"[SetCurrentDocument] Called with filePath: {filePath}, ConnectionId: {Context.ConnectionId}");
+            _logger.LogInformation($"[SetCurrentDocument] Called with filePath: {filePath}, ConnectionId: {ConnectionId}");
 
             var docContext = GetDocumentContext();
             docContext.CurrentDocumentPath = filePath;
 
-            _connectionDocumentContexts[Context.ConnectionId] = docContext;
+            _connectionDocumentContexts[ConnectionId] = docContext;
 
-            _logger.LogInformation($"[SetCurrentDocument] Connection {Context.ConnectionId} - CurrentDocument: {docContext.CurrentDocumentPath}");
+            _logger.LogInformation($"[SetCurrentDocument] Connection {ConnectionId} - CurrentDocument: {docContext.CurrentDocumentPath}");
 
             return Task.CompletedTask;
         }
 
         private DocumentContext GetDocumentContext()
         {
-            return _connectionDocumentContexts.GetOrAdd(Context.ConnectionId, _ => new DocumentContext());
+            return _connectionDocumentContexts.GetOrAdd(ConnectionId, _ => new DocumentContext());
         }
 
         private ConversationHistory GetConversationHistory()
         {
-            return GetOrCreateHistory(Context.ConnectionId, "default");
+            return GetOrCreateHistory(ConnectionId, "default");
         }
 
         private ConversationHistory GetOrCreateHistory(string connectionId, string channelId)
@@ -1034,12 +1130,12 @@ namespace MdExplorer.Hubs
             // entrano nel contesto della sessione. Il file si riscrive a ogni sessione, quindi un cambio
             // nelle impostazioni vale dalla prossima chat.
             var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(
-                MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
+                MdExplorer.Service.ProjectsManager.McpGroupsArgument(UserSettings, projectPath),
                 await LinkedCodeRootsAsync(projectPath));
             var session = await _claudeCodePool.GetOrCreateAsync(
-                Context.ConnectionId, projectPath, effectiveModel, options);
+                ConnectionId, projectPath, effectiveModel, options);
 
-            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+            await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "claudecode", modelId = effectiveModel, transport = "stream-json" }, channelId);
 
             var promptText = string.IsNullOrEmpty(currentDoc)
@@ -1049,28 +1145,28 @@ namespace MdExplorer.Hubs
             var responseText = new StringBuilder();
             int chunksSent = 0;
 
-            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-            _claudeCodePool.RegisterActivePrompt(Context.ConnectionId, promptCts);
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
+            _claudeCodePool.RegisterActivePrompt(ConnectionId, promptCts);
             try
             {
                 await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
                 {
                     if (chunk.Kind == ClaudeCodeChunk.KindMessage)
                     {
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
                         responseText.Append(chunk.Text);
                         chunksSent++;
                     }
                     else if (chunk.Kind == ClaudeCodeChunk.KindThinking)
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
                     }
                     else if (chunk.Kind == ClaudeCodeChunk.KindTool)
                     {
                         // Attività sui tool: è una riga di stato, non la risposta, e non entra
                         // nel testo finale. Copilot la manda sullo stesso canale, ma solo col
                         // trasporto SDK: sull'ACP questa informazione non esiste.
-                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }
@@ -1086,7 +1182,7 @@ namespace MdExplorer.Hubs
             }
             finally
             {
-                _claudeCodePool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                _claudeCodePool.UnregisterActivePrompt(ConnectionId, promptCts);
                 promptCts.Dispose();
             }
 
@@ -1097,7 +1193,7 @@ namespace MdExplorer.Hubs
                 var rate = session.LastRateLimit;
                 if (usage != null || rate != null)
                 {
-                    await Clients.Caller.SendAsync("ReceiveClaudeUsage", new
+                    await Caller.SendAsync("ReceiveClaudeUsage", new
                     {
                         // Due numeri diversi, tenuti distinti apposta: `total_cost_usd` del
                         // protocollo è il cumulato della sessione, non il costo del turno.
@@ -1175,9 +1271,9 @@ namespace MdExplorer.Hubs
                     + $"{whyNoProject}. Reopen the project."));
             }
 
-            var session = await _openCodePool.GetOrCreateAsync(Context.ConnectionId, projectPath, modelId, await LinkedCodeRootsAsync(projectPath));
+            var session = await _openCodePool.GetOrCreateAsync(ConnectionId, projectPath, modelId, await LinkedCodeRootsAsync(projectPath));
 
-            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+            await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "opencode", modelId = modelId, transport = "serve-sse" }, channelId);
 
             var promptText = string.IsNullOrEmpty(currentDoc)
@@ -1187,25 +1283,25 @@ namespace MdExplorer.Hubs
             var streamed = new StringBuilder();
             int chunksSent = 0;
 
-            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-            _openCodePool.RegisterActivePrompt(Context.ConnectionId, promptCts);
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
+            _openCodePool.RegisterActivePrompt(ConnectionId, promptCts);
             try
             {
                 await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
                 {
                     if (chunk.Kind == OpenCodeChunk.KindMessage)
                     {
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
                         streamed.Append(chunk.Text);
                         chunksSent++;
                     }
                     else if (chunk.Kind == OpenCodeChunk.KindThinking)
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
                     }
                     else if (chunk.Kind == OpenCodeChunk.KindTool)
                     {
-                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }
@@ -1221,7 +1317,7 @@ namespace MdExplorer.Hubs
             }
             finally
             {
-                _openCodePool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                _openCodePool.UnregisterActivePrompt(ConnectionId, promptCts);
                 promptCts.Dispose();
             }
 
@@ -1232,7 +1328,7 @@ namespace MdExplorer.Hubs
                 var usage = session.LastTurnUsage;
                 if (usage != null)
                 {
-                    await Clients.Caller.SendAsync("ReceiveOpenCodeUsage", new
+                    await Caller.SendAsync("ReceiveOpenCodeUsage", new
                     {
                         providerId = usage.ProviderId,
                         modelId = usage.ModelId,
@@ -1305,9 +1401,9 @@ namespace MdExplorer.Hubs
             // not a choice, only a label that could be false.
             var requestedModel = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
             var session = await _copilotChatPool.GetOrCreateAsync(
-                Context.ConnectionId, projectPath, requestedModel, await LinkedCodeRootsAsync(projectPath));
+                ConnectionId, projectPath, requestedModel, await LinkedCodeRootsAsync(projectPath));
 
-            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+            await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);
             // Before the answer too: a new session shows the quota straight away.
             await SendCopilotUsageAsync(session, channelId);
@@ -1320,28 +1416,28 @@ namespace MdExplorer.Hubs
             int chunksSent = 0;
             // Link the connection lifetime with a user-cancellable source so the Stop button
             // (CancelPrompt hub method) can abort this in-flight prompt.
-            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-            _copilotChatPool.RegisterActivePrompt(Context.ConnectionId, promptCts);
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
+            _copilotChatPool.RegisterActivePrompt(ConnectionId, promptCts);
             try
             {
                 await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
                 {
                     if (chunk.Kind == CopilotChatChunk.KindMessage)
                     {
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
                         responseText.Append(chunk.Text);
                         chunksSent++;
                     }
                     else if (chunk.Kind == CopilotChatChunk.KindThinking)
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
                     }
                     else if (chunk.Kind == CopilotChatChunk.KindTool)
                     {
                         // Same channel Claude Code already uses: a status line, not the answer,
                         // and it never enters the final text. On the SDK transport Copilot now
                         // reports its steps; on ACP this never arrives.
-                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }
@@ -1359,7 +1455,7 @@ namespace MdExplorer.Hubs
             }
             finally
             {
-                _copilotChatPool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                _copilotChatPool.UnregisterActivePrompt(ConnectionId, promptCts);
                 promptCts.Dispose();
             }
 
@@ -1374,7 +1470,7 @@ namespace MdExplorer.Hubs
                     _logger.LogWarning("[AiChatHub] Copilot: chiesto {Requested}, ha risposto {Answered}",
                         requestedModel, session.AnsweredModel);
                 }
-                await Clients.Caller.SendAsync("ReceiveAnsweredModel",
+                await Caller.SendAsync("ReceiveAnsweredModel",
                     new { requestedModel, answeredModel = session.AnsweredModel }, channelId);
             }
 
@@ -1398,9 +1494,9 @@ namespace MdExplorer.Hubs
         {
             try
             {
-                var usage = await session.GetUsageAsync(Context.ConnectionAborted);
+                var usage = await session.GetUsageAsync(ConnectionAborted);
                 if (usage == null) return;
-                await Clients.Caller.SendAsync("ReceiveCopilotUsage", new
+                await Caller.SendAsync("ReceiveCopilotUsage", new
                 {
                     quotaType = usage.QuotaType,
                     quotaUnlimited = usage.QuotaUnlimited,
@@ -1419,20 +1515,28 @@ namespace MdExplorer.Hubs
             }
         }
 
-        public async Task EditAndRegenerateFromMessage(int messageIndex, string newContent, string channelId = "default")
+        public Task EditAndRegenerateFromMessage(int messageIndex, string newContent, string channelId = "default")
+        {
+            // Rigenera = un turno intero: in background come SendMessage, così lo Stop arriva.
+            StartTurnInBackground(channelId, "EditAndRegenerateFromMessage",
+                () => EditAndRegenerateFromMessageCore(messageIndex, newContent, channelId));
+            return Task.CompletedTask;
+        }
+
+        private async Task EditAndRegenerateFromMessageCore(int messageIndex, string newContent, string channelId)
         {
             channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
-            _logger.LogInformation($"[EditAndRegenerateFromMessage] Index: {messageIndex}, NewContent length: {newContent?.Length ?? 0}, ConnectionId: {Context.ConnectionId}, Channel: {channelId}");
+            _logger.LogInformation($"[EditAndRegenerateFromMessage] Index: {messageIndex}, NewContent length: {newContent?.Length ?? 0}, ConnectionId: {ConnectionId}, Channel: {channelId}");
 
             try
             {
-                var history = GetOrCreateHistory(Context.ConnectionId, channelId);
+                var history = GetOrCreateHistory(ConnectionId, channelId);
 
                 // Validazione indice
                 if (messageIndex < 0 || messageIndex >= history.Messages.Count)
                 {
                     _logger.LogWarning($"[EditAndRegenerateFromMessage] Invalid message index: {messageIndex}, total messages: {history.Messages.Count}");
-                    await Clients.Caller.SendAsync("ReceiveError", "Invalid message index", channelId);
+                    await Caller.SendAsync("ReceiveError", "Invalid message index", channelId);
                     return;
                 }
 
@@ -1442,7 +1546,7 @@ namespace MdExplorer.Hubs
                 if (messageToEdit.Role != "user")
                 {
                     _logger.LogWarning($"[EditAndRegenerateFromMessage] Cannot edit non-user message at index {messageIndex}");
-                    await Clients.Caller.SendAsync("ReceiveError", "Can only edit user messages", channelId);
+                    await Caller.SendAsync("ReceiveError", "Can only edit user messages", channelId);
                     return;
                 }
 
@@ -1461,7 +1565,7 @@ namespace MdExplorer.Hubs
                 _logger.LogInformation($"[EditAndRegenerateFromMessage] Truncated history to {history.Messages.Count} messages");
 
                 // Notifica frontend di rimuovere messaggi
-                await Clients.Caller.SendAsync("TruncateMessagesAfter", messageIndex, channelId);
+                await Caller.SendAsync("TruncateMessagesAfter", messageIndex, channelId);
 
                 // Rigenera risposta AI
                 await RegenerateAiResponse(channelId);
@@ -1469,7 +1573,7 @@ namespace MdExplorer.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[EditAndRegenerateFromMessage] Error editing and regenerating message");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+                await Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
         }
 
@@ -1480,12 +1584,12 @@ namespace MdExplorer.Hubs
             try
             {
                 var chatMode = GetChatMode();
-                var history = GetOrCreateHistory(Context.ConnectionId, channelId);
+                var history = GetOrCreateHistory(ConnectionId, channelId);
 
                 if (history.Messages.Count == 0 || history.Messages[history.Messages.Count - 1].Role != "user")
                 {
                     _logger.LogWarning("[RegenerateAiResponse] No user message to regenerate from");
-                    await Clients.Caller.SendAsync("ReceiveError", "No user message to regenerate from", channelId);
+                    await Caller.SendAsync("ReceiveError", "No user message to regenerate from", channelId);
                     return;
                 }
 
@@ -1503,7 +1607,7 @@ namespace MdExplorer.Hubs
                     if (provider == null)
                     {
                         _logger.LogWarning($"[RegenerateAiResponse] Provider {chatMode.ProviderType} not found!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
+                        await Caller.SendAsync("ReceiveMessage",
                             "system",
                             $"⚠️ {chatMode.ProviderType} provider is not available.");
                         return;
@@ -1512,7 +1616,7 @@ namespace MdExplorer.Hubs
                     if (!provider.IsAvailable())
                     {
                         _logger.LogWarning($"[RegenerateAiResponse] Provider {chatMode.ProviderType} is not configured!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
+                        await Caller.SendAsync("ReceiveMessage",
                             "system",
                             $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
                         return;
@@ -1536,13 +1640,13 @@ namespace MdExplorer.Hubs
                         catch (CopilotMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[RegenerateAiResponse] Copilot interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 "Copilot stream interrupted: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception acpEx)
                         {
                             _logger.LogError(acpEx, "[RegenerateAiResponse] Copilot fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Copilot non è partito: ", "Copilot did not start: ") + acpEx.Message, channelId);
                         }
                     }
@@ -1555,13 +1659,13 @@ namespace MdExplorer.Hubs
                         catch (ClaudeCodeMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[RegenerateAiResponse] Claude Code interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Stream di Claude Code interrotto: ", "Claude Code stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception ccEx)
                         {
                             _logger.LogError(ccEx, "[RegenerateAiResponse] Claude Code fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Claude Code non è partito: ", "Claude Code did not start: ") + ccEx.Message, channelId);
                         }
                     }
@@ -1574,13 +1678,13 @@ namespace MdExplorer.Hubs
                         catch (OpenCodeMidStreamException midEx)
                         {
                             _logger.LogError(midEx, "[RegenerateAiResponse] opencode interrotto a metà stream");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("Stream di opencode interrotto: ", "opencode stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
                         }
                         catch (Exception ocEx)
                         {
                             _logger.LogError(ocEx, "[RegenerateAiResponse] opencode fallito prima dello streaming");
-                            await Clients.Caller.SendAsync("ReceiveError",
+                            await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("opencode non è partito: ", "opencode did not start: ") + ocEx.Message, channelId);
                         }
                     }
@@ -1588,10 +1692,10 @@ namespace MdExplorer.Hubs
                     {
                         // Other providers: use ChatWithToolsAsync (with tool calling)
                         var tools = FileOperationTools.GetToolDefinitions();
-                        var connectionId = Context.ConnectionId;
+                        var connectionId = ConnectionId;
                         var workspaceRoot = GetProjectPath();
                         Func<string, dynamic, Task<object>> toolExecutorFunc =
-                            async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
+                            async (toolName, arguments) => await Tools.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, currentDoc);
 
                         var conversationHistory = history.Messages.Cast<object>().ToList();
 
@@ -1611,7 +1715,7 @@ namespace MdExplorer.Hubs
                             Content = response
                         });
 
-                        await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
+                        await Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                     }
                 }
                 else
@@ -1619,7 +1723,7 @@ namespace MdExplorer.Hubs
                     // Use local model
                     if (!_aiChatService.IsModelLoaded())
                     {
-                        await Clients.Caller.SendAsync("ReceiveMessage",
+                        await Caller.SendAsync("ReceiveMessage",
                             "system",
                             "⚠️ No AI model loaded. Please download and select a model from Settings.");
                         return;
@@ -1629,11 +1733,11 @@ namespace MdExplorer.Hubs
                     var localDocContext = GetDocumentContext();
                     var localCurrentDoc = localDocContext.CurrentDocumentPath;
                     var tools = FileOperationTools.GetToolDefinitions();
-                    var connectionId = Context.ConnectionId;
+                    var connectionId = ConnectionId;
                     var workspaceRoot = GetProjectPath();
 
                     Func<string, dynamic, Task<object>> toolExecutorFunc =
-                        async (toolName, arguments) => await _toolExecutor.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, localCurrentDoc);
+                        async (toolName, arguments) => await Tools.ExecuteToolAsync(toolName, arguments, workspaceRoot, connectionId, localCurrentDoc);
 
                     var conversationHistory = history.Messages.Cast<object>().ToList();
 
@@ -1648,7 +1752,7 @@ namespace MdExplorer.Hubs
                     // Send thinking content if available
                     if (!string.IsNullOrEmpty(_localProvider.LastThinkingContent))
                     {
-                        await Clients.Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
+                        await Caller.SendAsync("ReceiveThinking", _localProvider.LastThinkingContent, channelId);
                     }
 
                     history.Messages.Add(new bll.Models.AI.ConversationMessage
@@ -1657,16 +1761,16 @@ namespace MdExplorer.Hubs
                         Content = response
                     });
 
-                    await Clients.Caller.SendAsync("ReceiveStreamChunk", response, channelId);
+                    await Caller.SendAsync("ReceiveStreamChunk", response, channelId);
                 }
 
-                await Clients.Caller.SendAsync("StreamComplete", channelId);
+                await Caller.SendAsync("StreamComplete", channelId);
                 _logger.LogInformation("[RegenerateAiResponse] Regeneration complete");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[RegenerateAiResponse] Error regenerating AI response");
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+                await Caller.SendAsync("ReceiveError", ex.Message, channelId);
             }
         }
     }
