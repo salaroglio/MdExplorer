@@ -48,6 +48,15 @@ namespace MdExplorer
         /// log.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// La cartella dei log, risolta una volta: la usano anche i log scritti a parte dal servizio
+        /// (ChatInteractionLogger), che prima si costruivano da soli la working directory — cioè, installato, la
+        /// cartella del programma (06/11/2026: <c>app_service\Logs</c> sul PC dell'utente, e 211 MB di Logs finiti nel
+        /// pacchetto). <c>null</c> = nessuna cartella scrivibile: niente log, come per gli altri.
+        /// </summary>
+        internal static string LogDirectory => _logDirectory.Value;
+        private static readonly Lazy<string> _logDirectory = new Lazy<string>(ResolveLogDirectory);
+
         private static string ResolveLogDirectory()
         {
             foreach (var candidate in LogDirectoryCandidates())

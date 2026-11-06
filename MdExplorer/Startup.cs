@@ -311,7 +311,7 @@ namespace MdExplorer
             services.AddScoped<Services.IGitCommitAiService, Services.GitCommitAiService>();
 
             // Add Chat Interaction Logger for debugging tool calling
-            services.AddSingleton<Features.Services.ChatInteractionLogger>();
+            services.AddSingleton(_ => new Features.Services.ChatInteractionLogger(Program.LogDirectory));
 
             // Add multi-provider AI system
             // Registra tutti i provider disponibili (possono essere iniettati come IEnumerable<IAiProvider>)
