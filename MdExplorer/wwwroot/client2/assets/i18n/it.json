@@ -49,6 +49,12 @@
     "THEME_MILAN": "Rosso"
   },
   "DIAGNOSTICS": {
+    "SEND": "Invia",
+    "SENDING": "Invio…",
+    "SENT": "Inviato. Comunica questo codice a chi ti aiuta:",
+    "COPY_CODE": "Copia il codice",
+    "SENT_NOTE": "Il pacchetto resta sul server al massimo fino a {{expires}}, poi viene cancellato.",
+    "SEND_FAILED": "Invio non riuscito: {{error}}",
     "BUTTON": "Invia diagnostica",
     "BUTTON_TOOLTIP": "Prepara i log dell'ultimo giorno, senza dati personali, per chi ti aiuta a capire un problema",
     "TITLE": "Invia diagnostica",
