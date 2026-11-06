@@ -11,6 +11,7 @@ import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
 import { SpeechService, VoiceRecording } from '../services/speech.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { CodeGraphService, CodeLanguageProposal, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
 import { CodeRuleWizardComponent, CodeRuleWizardData } from './code-rule-wizard/code-rule-wizard.component';
@@ -152,7 +153,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private speech: SpeechService,
     private serverMessages: MdServerMessagesService,
     private codeGraph: CodeGraphService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private mdFileService: MdFileService
   ) {}
 
   /** Regole di arricchimento proposte da MarkAgent per il progetto aperto (D42): accendono «Migliora il grafo». */
@@ -941,6 +943,61 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.formattedCache.set(content, formatted);
     }
     return formatted;
+  }
+
+  /**
+   * Clicks on links inside a rendered message. The HTML comes from [innerHTML], so a link had no
+   * handler: a relative href such as `docs/x.md` navigated the whole window and MDE restarted.
+   * Web links go to the external browser, markdown files open in the viewer, the rest does nothing.
+   */
+  onMessageLinkClick(event: MouseEvent): void {
+    const anchor = (event.target as HTMLElement)?.closest?.('a');
+    if (!anchor) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const href = (anchor.getAttribute('href') || '').trim();
+    if (!href || href.startsWith('#')) return;
+
+    if (/^(https?:|mailto:)/i.test(href)) {
+      const api = (window as any).electronAPI;
+      if (api?.openExternal) api.openExternal(href);
+      else window.open(href, '_blank', 'noopener');
+      return;
+    }
+
+    let path = href.replace(/^file:\/\/\/?/i, '');
+    path = path.split('#')[0].split('?')[0];
+    try { path = decodeURIComponent(path); } catch { /* keep the raw text */ }
+    path = path.replace(/\\/g, '/');
+    if (!/\.md$/i.test(path)) return;
+
+    const project = this.projectsService.currentProjects$.value;
+    if (!project?.path) return;
+    const root = project.path.replace(/\\/g, '/').replace(/\/+$/, '');
+
+    // file:///C:/x  →  "C:/x";  file:///home/x  →  "home/x" (the slash went with the scheme).
+    if (/^file:/i.test(href) && !/^[a-z]:\//i.test(path)) path = '/' + path;
+
+    let full: string;
+    const isAbsolute = /^[a-z]:\//i.test(path) || path.toLowerCase().startsWith(root.toLowerCase() + '/');
+    if (isAbsolute) {
+      full = path;
+    } else {
+      full = root + '/' + path.replace(/^\.\//, '').replace(/^\/+/, '');
+    }
+    if (!full.toLowerCase().startsWith(root.toLowerCase() + '/')) return; // outside the project
+
+    const rel = full.substring(root.length);
+    const mdFile = {
+      fullPath: full,
+      relativePath: rel,
+      path: rel,
+      name: rel.substring(rel.lastIndexOf('/') + 1),
+      type: 'mdFile'
+    };
+    this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile as any);
   }
 
   getMessageClass(message: ChatMessage): string {

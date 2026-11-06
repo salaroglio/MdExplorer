@@ -212,6 +212,7 @@
             </mat-progress-spinner>
           </div>
           <div class="thinking-body" *ngIf="!isThinkingCollapsed(message.id)"
+               (click)="onMessageLinkClick($event)"
                [innerHTML]="formatMessageContent(message.thinkingContent)">
           </div>
         </div>
@@ -219,7 +220,8 @@
         <!-- Normal view mode -->
         <div class="message-text"
              *ngIf="editingMessageId !== message.id"
-             [innerHTML]="formatMessageContent(message.content)"></div>
+             (click)="onMessageLinkClick($event)"
+               [innerHTML]="formatMessageContent(message.content)"></div>
 
         <!-- Edit mode -->
         <div class="message-edit" *ngIf="editingMessageId === message.id">

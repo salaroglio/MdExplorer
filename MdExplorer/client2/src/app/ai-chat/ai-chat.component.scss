@@ -105,11 +105,6 @@
       border-left: 3px solid transparent;
       margin-bottom: 2px;
       animation: slideIn 0.3s ease-out;
-      transition: background-color 0.15s ease;
-
-      &:hover {
-        background-color: var(--mde-hover-overlay);
-      }
 
       .message-content {
         flex: 1;
@@ -159,6 +154,9 @@
           word-wrap: break-word;
           overflow-wrap: break-word;
 
+          // The HTML comes from [innerHTML] (marked): without ::ng-deep the emulated encapsulation
+          // never matched these rules, and links kept the browser's dark blue on the dark theme.
+          ::ng-deep {
           // Paragraphs
           p {
             margin: 0 0 8px 0;
@@ -225,10 +223,6 @@
             tr:nth-child(even) {
               background: var(--mde-bg-secondary);
             }
-
-            tr:hover {
-              background: var(--mde-bg-hover);
-            }
           }
 
           // Lists
@@ -263,8 +257,10 @@
           a {
             color: var(--mde-accent-primary);
             text-decoration: none;
+            cursor: pointer;
             &:hover {
               text-decoration: underline;
+              background: none;
             }
           }
 
@@ -280,6 +276,7 @@
             max-width: 100%;
             border-radius: 4px;
           }
+          } // ::ng-deep
         }
 
         .thinking-section {
@@ -334,6 +331,13 @@
             color: #555;
             max-height: 300px;
             overflow-y: auto;
+
+            ::ng-deep a {
+              color: var(--mde-accent-primary);
+              text-decoration: none;
+              cursor: pointer;
+              &:hover { text-decoration: underline; }
+            }
 
             pre {
               background: #2d2d2d;
@@ -392,9 +396,6 @@
           color: var(--mde-accent-secondary);
         }
 
-        &:hover {
-          background-color: #ebeefb;
-        }
       }
 
       &.message-assistant {
@@ -405,9 +406,6 @@
           color: var(--mde-success-fg);
         }
 
-        &:hover {
-          background-color: var(--mde-hover-overlay);
-        }
       }
 
       &.message-system {
@@ -629,10 +627,6 @@
 
       &.message-user {
         background-color: rgba(121, 134, 203, 0.15);
-
-        &:hover {
-          background-color: rgba(121, 134, 203, 0.25);
-        }
       }
     }
   }
