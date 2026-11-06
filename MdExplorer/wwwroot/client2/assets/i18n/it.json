@@ -48,6 +48,24 @@
     "THEME_SYSTEM": "Segui il sistema",
     "THEME_MILAN": "Rosso"
   },
+  "DIAGNOSTICS": {
+    "BUTTON": "Invia diagnostica",
+    "BUTTON_TOOLTIP": "Prepara i log dell'ultimo giorno, senza dati personali, per chi ti aiuta a capire un problema",
+    "TITLE": "Invia diagnostica",
+    "INTRO": "Questi sono i log dell'ultimo giorno, già ripuliti: nome utente, cartella personale, email e segreti sono sostituiti. Guarda cosa contengono prima di salvarli o inviarli.",
+    "PREPARING": "Preparo il pacchetto…",
+    "ZIP_SIZE": "Zip: {{size}}",
+    "HIDDEN_USER": "Nome e cartella oscurati: {{count}}",
+    "HIDDEN_EMAIL": "Email oscurate: {{count}}",
+    "HIDDEN_SECRET": "Segreti oscurati: {{count}}",
+    "NOT_INCLUDED": "Non partono: le conversazioni della chat, i database, i documenti, le configurazioni con chiavi.",
+    "LINES": "{{count}} righe",
+    "TRUNCATED": "solo la parte finale",
+    "TAIL_ONLY": "Qui vedi le ultime 300 righe; nello zip c'è tutto il file.",
+    "SAVE_ZIP": "Salva lo zip",
+    "LOAD_FAILED": "Non riesco a preparare il pacchetto: {{error}}",
+    "SAVE_FAILED": "Lo zip non si è salvato: {{error}}"
+  },
   "PROJECTS": {
     "OPEN_FAILED": "Il progetto {{path}} non si è aperto: {{reason}}",
     "OPENING": "Apertura del progetto…",

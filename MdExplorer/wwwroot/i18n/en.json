@@ -48,6 +48,24 @@
     "THEME_SYSTEM": "Follow system",
     "THEME_MILAN": "Red"
   },
+  "DIAGNOSTICS": {
+    "BUTTON": "Send diagnostics",
+    "BUTTON_TOOLTIP": "Prepare the last day's logs, without personal data, for whoever helps you understand a problem",
+    "TITLE": "Send diagnostics",
+    "INTRO": "These are the last day's logs, already cleaned: user name, personal folder, emails and secrets are replaced. Look at what they contain before saving or sending them.",
+    "PREPARING": "Preparing the package…",
+    "ZIP_SIZE": "Zip: {{size}}",
+    "HIDDEN_USER": "Name and folder hidden: {{count}}",
+    "HIDDEN_EMAIL": "Emails hidden: {{count}}",
+    "HIDDEN_SECRET": "Secrets hidden: {{count}}",
+    "NOT_INCLUDED": "Not included: chat conversations, databases, documents, configurations with keys.",
+    "LINES": "{{count}} lines",
+    "TRUNCATED": "last part only",
+    "TAIL_ONLY": "Here you see the last 300 lines; the zip has the whole file.",
+    "SAVE_ZIP": "Save the zip",
+    "LOAD_FAILED": "I cannot prepare the package: {{error}}",
+    "SAVE_FAILED": "The zip was not saved: {{error}}"
+  },
   "PROJECTS": {
     "OPEN_FAILED": "The project {{path}} did not open: {{reason}}",
     "OPENING": "Opening the project…",
