@@ -218,14 +218,22 @@ namespace MdExplorer.Services.Git
 
             if (row.Depth == 0)
             {
+                // .development.yml modificato solo qui (MdExplorer lo scrive da sé: il segreto della chat, una scelta): git
+                // rifiuterebbe il pull appena gli aggiornamenti toccano il file. Lo si mette da parte e lo si riunisce dopo.
+                var parked = await ParkDevelopmentYamlAsync(dir, ct);
+                if (parked.Refusal != null) return Refuse(parked.Refusal);
+
                 // Lo scaricamento del progetto allinea già i submodule, solo in avanti (ModernGitService).
                 var res = await _git.PullAsync(dir);
+                var ymlNotes = parked.Park == null
+                    ? Array.Empty<string>()
+                    : await UnparkDevelopmentYamlAsync(dir, parked.Park, res.Success, ct);
                 result = res.Success
                     ? new RepoActionResult
                     {
                         Success = true,
                         Message = res.HasChanges ? UiText.Say($"'{row.Label}' aggiornato.", $"'{row.Label}' updated.") : UiText.Say($"'{row.Label}' era già aggiornato.", $"'{row.Label}' was already up to date."),
-                        Warnings = res.Warnings ?? Array.Empty<string>(),
+                        Warnings = (res.Warnings ?? Array.Empty<string>()).Concat(ymlNotes).ToList(),
                     }
                     : new RepoActionResult { Success = false, Message = await DescribeFailedPullAsync(dir, row.Label, res.ErrorMessage, ct) };
             }
@@ -466,6 +474,166 @@ namespace MdExplorer.Services.Git
                 Warnings = warnings,
             }, view, before, ct);
         }
+
+        /// <summary>La versione locale di .development.yml messa da parte prima del pull.</summary>
+        private sealed record ParkedYaml(string BaseText, string Ours, string BackupPath);
+
+        private const string DevYaml = ".development.yml";
+
+        /// <summary>
+        /// Prima del pull (06/11/2026, BCCSI-Docs bloccato da 18 giorni): se l'UNICO file modificato e non salvato è
+        /// <c>.development.yml</c>, lo si mette da parte. MdExplorer lo scrive da sé (il segreto della chat creato da
+        /// <c>EnsureRoomSecret</c>, «servono commit e push») e git rifiuta il pull appena gli aggiornamenti toccano il file:
+        /// «Your local changes … would be overwritten by merge». La correzione del 07/10 (<see cref="ResolveDevelopmentYamlAsync"/>)
+        /// non c'entrava: lavora su un'unione già partita, qui non parte nemmeno.
+        /// <para>
+        /// Prima si prova l'unione a vuoto contro il ramo remoto appena scaricato: un conflitto vero, o dei commenti (che
+        /// l'unione voce per voce perderebbe), fermano TUTTO senza toccare niente. Poi la versione locale si salva dentro la
+        /// cartella git, il file torna quello dell'ultimo commit, e dopo il pull <see cref="UnparkDevelopmentYamlAsync"/> la
+        /// rimette voce per voce sopra quella scaricata.
+        /// </para>
+        /// </summary>
+        private async Task<(ParkedYaml Park, string Refusal)> ParkDevelopmentYamlAsync(string dir, CancellationToken ct)
+        {
+            var status = await _runner.RunAsync(dir, new[] { "status", "--porcelain=v1", "--untracked-files=no" }, ct);
+            if (!status.Ok) return (null, null);
+            var changed = (status.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Length > 3 ? l.Substring(3).Trim().Trim('"') : string.Empty).ToList();
+            if (changed.Count != 1 || changed[0] != DevYaml) return (null, null); // niente, o altri file: il pull va come sempre
+
+            var path = Path.Combine(dir, DevYaml);
+            var ours = await File.ReadAllTextAsync(path, ct);
+            var baseShow = await _runner.RunAsync(dir, new[] { "show", "HEAD:" + DevYaml }, ct);
+            if (!baseShow.Ok) return (null, null); // il file non è nell'ultimo commit: niente da proteggere
+            var baseText = baseShow.Stdout;
+
+            if (HasYamlComments(ours) || HasYamlComments(baseText))
+                return (null, UiText.Say(
+                    $"Hai cambiato {DevYaml} senza salvarlo in un commit, e il file contiene dei commenti: unendolo voce per voce li " +
+                    "perderei. Non ho scaricato niente: fai il commit del file, poi scarica.",
+                    $"You changed {DevYaml} without committing it, and the file contains comments: merging it entry by entry would " +
+                    "lose them. I downloaded nothing: commit the file, then pull."));
+
+            // L'unione a vuoto contro il ramo remoto: se fallirebbe, ci si ferma prima di toccare qualsiasi cosa.
+            var fetch = await _runner.RunAsync(dir, new[] { "fetch", "--quiet" }, ct);
+            var upstream = await _runner.RunAsync(dir, new[] { "show", "@{u}:" + DevYaml }, ct);
+            if (fetch.Ok && upstream.Ok && upstream.Stdout != baseText)
+            {
+                if (HasYamlComments(upstream.Stdout))
+                    return (null, UiText.Say(
+                        $"Gli aggiornamenti cambiano {DevYaml}, che hai cambiato anche tu senza commit, e la loro versione contiene " +
+                        "dei commenti che unendola voce per voce perderei. Non ho scaricato niente: fai il commit del file, poi scarica.",
+                        $"The updates change {DevYaml}, which you changed too without committing, and their version contains comments " +
+                        "that an entry-by-entry merge would lose. I downloaded nothing: commit the file, then pull."));
+                string trial, conflict;
+                try
+                {
+                    trial = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText, ours, upstream.Stdout,
+                        new[] { MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret }, out _, out conflict);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
+                {
+                    return (null, UiText.Say(
+                        $"Hai cambiato {DevYaml} senza commit e non riesco a unirlo con gli aggiornamenti ({ex.Message}). " +
+                        "Non ho scaricato niente: fai il commit del file, poi scarica.",
+                        $"You changed {DevYaml} without committing and I cannot merge it with the updates ({ex.Message}). " +
+                        "I downloaded nothing: commit the file, then pull."));
+                }
+                if (trial == null)
+                    return (null, UiText.Say(
+                        $"Gli aggiornamenti cambiano in {DevYaml} la voce «{conflict}», che hai cambiato anche tu in un altro modo " +
+                        "(senza commit). Non ho scaricato niente: decidi quale tenere, fai il commit, poi scarica.",
+                        $"The updates change the entry «{conflict}» in {DevYaml}, which you changed too in another way (without " +
+                        "committing). I downloaded nothing: decide which one to keep, commit, then pull."));
+            }
+
+            // La copia di sicurezza, dentro la cartella git: non finisce mai in un commit e non sporca il progetto.
+            var gitDir = await _runner.RunAsync(dir, new[] { "rev-parse", "--absolute-git-dir" }, ct);
+            if (!gitDir.Ok) return (null, null);
+            var backupDir = Path.Combine(gitDir.Stdout.Trim(), "mde");
+            Directory.CreateDirectory(backupDir);
+            var backup = Path.Combine(backupDir, $"development.yml.{DateTime.Now:yyyyMMdd-HHmmss}.local");
+            await File.WriteAllTextAsync(backup, ours, ct);
+
+            var restore = await _runner.RunAsync(dir, new[] { "checkout", "--", DevYaml }, ct);
+            if (!restore.Ok)
+            {
+                await File.WriteAllTextAsync(path, ours, ct);
+                return (null, UiText.Say($"Non riesco a mettere da parte {DevYaml}: {restore.Describe()}. Non ho scaricato niente.",
+                                         $"I cannot set {DevYaml} aside: {restore.Describe()}. I downloaded nothing."));
+            }
+            _logger.LogInformation("[Flusso] {File} modificato senza commit messo da parte prima del pull in {Dir} (copia: {Backup})", DevYaml, dir, backup);
+            return (new ParkedYaml(baseText, ours, backup), null);
+        }
+
+        /// <summary>
+        /// Dopo il pull: la versione locale di <c>.development.yml</c> torna sopra quella scaricata, voce per voce, e resta una
+        /// modifica non salvata come prima. Pull fallito: torna identica, byte per byte. Se l'unione non riesce (raro: è già
+        /// stata provata a vuoto) resta la versione scaricata e si dice dov'è la copia della propria.
+        /// </summary>
+        private async Task<IReadOnlyList<string>> UnparkDevelopmentYamlAsync(string dir, ParkedYaml park, bool pulled, CancellationToken ct)
+        {
+            var path = Path.Combine(dir, DevYaml);
+            if (!pulled)
+            {
+                await File.WriteAllTextAsync(path, park.Ours, ct);
+                return Array.Empty<string>();
+            }
+
+            var now = await _runner.RunAsync(dir, new[] { "show", "HEAD:" + DevYaml }, ct);
+            if (!now.Ok || now.Stdout == park.BaseText)
+            {
+                // Gli aggiornamenti non hanno toccato il file (o l'hanno tolto): la tua versione torna com'era.
+                await File.WriteAllTextAsync(path, park.Ours, ct);
+                return Array.Empty<string>();
+            }
+
+            string merged = null, conflict = null;
+            IReadOnlyList<string> tookSource = Array.Empty<string>();
+            try
+            {
+                if (!HasYamlComments(now.Stdout))
+                    merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(park.BaseText, park.Ours, now.Stdout,
+                        new[] { MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret }, out tookSource, out conflict);
+                else
+                    conflict = UiText.Say("la versione scaricata contiene commenti", "the downloaded version contains comments");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
+            {
+                conflict = ex.Message;
+            }
+            if (merged == null)
+            {
+                _logger.LogWarning("[Flusso] {File} non riunito dopo il pull in {Dir} ({Conflict}): resta lo scaricato, copia in {Backup}", DevYaml, dir, conflict, park.BackupPath);
+                return new[] { UiText.Say(
+                    $"Le tue modifiche a {DevYaml} non si sono potute riunire a quelle scaricate ({conflict}): " +
+                    $"il file ora è quello scaricato, e la tua versione è salvata in {park.BackupPath}.",
+                    $"Your changes to {DevYaml} could not be merged with the downloaded ones ({conflict}): " +
+                    $"the file is now the downloaded one, and your version is saved in {park.BackupPath}.") };
+            }
+
+            await File.WriteAllTextAsync(path, merged, ct);
+            _logger.LogInformation("[Flusso] {File} modificato senza commit riunito voce per voce dopo il pull in {Dir}", DevYaml, dir);
+            var notes = new List<string> { UiText.Say(
+                $"Avevi cambiato {DevYaml} senza commit e gli aggiornamenti lo cambiavano anche loro: li ho uniti voce per voce. " +
+                "Le tue modifiche restano da salvare con un commit.",
+                $"You had changed {DevYaml} without committing and the updates changed it too: I merged them entry by entry. " +
+                "Your changes are still to be committed.") };
+            if (tookSource.Contains(MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret))
+                notes.Add(UiText.Say(
+                    $"Questo computer aveva creato un suo segreto della chat, diverso da quello pubblicato: vale quello pubblicato, che i " +
+                    $"colleghi usano già. Il tuo è nella copia {park.BackupPath}.",
+                    $"This computer had created its own chat secret, different from the published one: the published one, which your " +
+                    $"colleagues already use, is kept. Yours is in the copy {park.BackupPath}."));
+            return notes;
+        }
+
+        /// <summary>
+        /// Un commento YAML: <c>#</c> a inizio riga o dopo uno spazio. Approssimato per eccesso (un <c> #</c> dentro una stringa
+        /// conta): sbagliare in questo verso ferma il pull con un messaggio, nell'altro cancellerebbe un commento.
+        /// </summary>
+        internal static bool HasYamlComments(string yaml)
+            => !string.IsNullOrEmpty(yaml) && System.Text.RegularExpressions.Regex.IsMatch(yaml, @"(^|\s)#", System.Text.RegularExpressions.RegexOptions.Multiline);
 
         /// <summary>
         /// A merge stopped only on <c>.development.yml</c>: MdExplorer writes that file both at the source (a new project setting)
