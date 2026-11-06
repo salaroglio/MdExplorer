@@ -9372,10 +9372,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "ConnectionIdInterceptor": () => (/* binding */ ConnectionIdInterceptor)
 /* harmony export */ });
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ 155);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 2673);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 155);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 2673);
+/* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../shared/open-perf */ 9782);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+
 
 
 
@@ -9410,19 +9412,23 @@ class ConnectionIdInterceptor {
       }));
     }
     // Wait for connectionId to become available, then attach it
-    return this.mdServerMessages.connectionId$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.first)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.switchMap)(id => next.handle(req.clone({
-      setParams: {
-        ConnectionId: id
-      }
-    }))));
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`richiesta TRATTENUTA in attesa del ConnectionId di SignalR: ${req.url}`);
+    return this.mdServerMessages.connectionId$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.first)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(id => {
+      _shared_open_perf__WEBPACK_IMPORTED_MODULE_0__.OpenPerf.mark(`ConnectionId arrivato, parte: ${req.url}`);
+      return next.handle(req.clone({
+        setParams: {
+          ConnectionId: id
+        }
+      }));
+    }));
   }
   static {
     this.ɵfac = function ConnectionIdInterceptor_Factory(t) {
-      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_0__.MdServerMessagesService));
+      return new (t || ConnectionIdInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
       token: ConnectionIdInterceptor,
       factory: ConnectionIdInterceptor.ɵfac
     });
@@ -13205,16 +13211,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MdFileService": () => (/* binding */ MdFileService)
 /* harmony export */ });
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 9337);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 3158);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 3158);
 /* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/md-file */ 1115);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _app_store_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./app-store.service */ 451);
+/* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../shared/open-perf */ 9782);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _app_store_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./app-store.service */ 451);
+
 
 
 
@@ -13230,18 +13238,18 @@ class MdFileService {
     this.injector = injector;
     this.appStoreService = appStoreService;
     this._navigationArray = []; // deve morire
-    this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     // Fase 7h: richiesta di review read-only del documento corrente dal worktree di un agente.
-    this._viewWorktree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this._viewWorktree = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     // Epoch counter for loadAll: every call invalidates the previous one. Without
     // it, two overlapping reloads (e.g. git pull + branch switch in quick
     // succession) raced and whichever HTTP response landed LAST won — possibly
     // the older one, leaving a stale tree. The last REQUEST must win.
     this._loadAllEpoch = 0;
     /** Quello che l'albero non ha potuto mostrare (cartelle program ignorate o assenti), detto dal server al caricamento. */
-    this.treeNotices$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.treeNotices$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     /** Una riga compattata è stata spezzata: le chiavi di espansione (fullPath) prima e dopo. */
-    this.compactChainBroken$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    this.compactChainBroken$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     // Termine da cercare dentro il documento appena l'iframe lo carica.
     // Settato dalla search-box (click su un risultato "Content"), consumato
     // da main-content nel load handler dell'iframe (one-shot).
@@ -13253,13 +13261,13 @@ class MdFileService {
       mdDynFolderDocument: [],
       serverSelectedMdFile: defaultSelectedMdFile
     };
-    this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
-    this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
-    this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
-    this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
-    this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
-    this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
-    this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject('block');
+    this._mdFiles = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject([]);
+    this._mdDynFolderDocument = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject([]);
+    this._serverSelectedMdFile = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject([]);
+    this._selectedMdFileFromToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject([]);
+    this._selectedMdFileFromSideNav = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
+    this._selectedDirectoryFromNewDirectory = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
+    this._whatDisplayForToolbar = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject('block');
     // Subscribe to Git branch switch events to refresh tree
     this.mdServerMessages.gitBranchSwitched$.subscribe(data => {
       console.log('🌳 Git branch switched - refreshing tree. Files indexed:', data.fileCount);
@@ -13344,7 +13352,7 @@ class MdFileService {
   }
   /** Elenco dei worktree degli agenti del progetto aperto (agente → path). */
   getAgentWorktrees(connectionId) {
-    return this.http.get(`../api/MdExplorerWorktree/list?connectionId=${connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.map)(r => r?.worktrees ?? []));
+    return this.http.get(`../api/MdExplorerWorktree/list?connectionId=${connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.map)(r => r?.worktrees ?? []));
   }
   get selectedDirectoryFromNewDirectory() {
     return this._selectedDirectoryFromNewDirectory.asObservable();
@@ -13383,7 +13391,7 @@ class MdFileService {
   }
   getDocumentSettings(mdFile) {
     const url = '../api/mdFiles/getdocumentsettings';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('fullPath', mdFile.fullPath);
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpParams().set('fullPath', mdFile.fullPath);
     return this.http.get(url, {
       params
     });
@@ -13437,7 +13445,7 @@ class MdFileService {
    */
   addNewFileWithDirectories(hierarchy) {
     console.log('🔧 [addNewFileWithDirectories] INIZIO - hierarchy:', JSON.stringify(hierarchy, null, 2));
-    const completed = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    const completed = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     if (!hierarchy || hierarchy.length === 0) {
       console.log('⚠️ [addNewFileWithDirectories] hierarchy vuoto, esco');
       setTimeout(() => {
@@ -13548,7 +13556,10 @@ class MdFileService {
     console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_1__.OpenPerf.mark('GetShallowStructure chiesta (albero dei file)');
     return this.http.get('../api/mdfiles/GetShallowStructure').subscribe(data => {
+      _shared_open_perf__WEBPACK_IMPORTED_MODULE_1__.OpenPerf.mark('GetShallowStructure: risposta');
+      _shared_open_perf__WEBPACK_IMPORTED_MODULE_1__.OpenPerf.request('mdfiles/GetShallowStructure');
       if (epoch !== this._loadAllEpoch) {
         // A newer loadAll was issued while this response was in flight:
         // applying it would overwrite fresher data. Discard, with a trace.
@@ -13742,7 +13753,7 @@ class MdFileService {
    * @param parentFullPath fullPath ASSOLUTO della cartella (per le compact folder: l'ultimo segmento).
    */
   revealFolderExtras(parentFullPath) {
-    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(children => {
+    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.tap)(children => {
       const kids = children || [];
       kids.forEach(child => {
         child.isExtra = true;
@@ -13780,7 +13791,7 @@ class MdFileService {
    * non vedeva i file scritti dopo (screenshot e script di un lancio e2e).
    */
   refreshFolderExtras(parentFullPath) {
-    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(children => {
+    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.tap)(children => {
       const kids = children || [];
       const present = new Set(kids.map(c => (c.fullPath || '').toLowerCase()));
       const keep = c => !c.isExtra || present.has((c.fullPath || '').toLowerCase());
@@ -14216,7 +14227,7 @@ class MdFileService {
   }
   loadDynFolders(path, level) {
     const url = '../api/mdfiles/GetDynFoldersDocument';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     }).subscribe(data => {
@@ -14237,14 +14248,14 @@ class MdFileService {
       url = '../api/mdfiles/GetDynFoldersAndFilesDocument';
     }
     console.log(url);
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
   }
   loadPublishNodes(path, level) {
     const url = '../api/mdPublishNodes';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
@@ -14347,9 +14358,9 @@ class MdFileService {
     console.log('[MdFileService] file.fullPath:', file.fullPath);
     const url = '../api/mdfiles/OpenFolderOnFileExplorer';
     console.log('[MdFileService] POST to:', url);
-    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(response => {
+    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.tap)(response => {
       console.log('[MdFileService] Response received:', response);
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.catchError)(error => {
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.catchError)(error => {
       console.error('[MdFileService] Error in openFolderOnFileExplorer:', error);
       throw error;
     }));
@@ -14555,11 +14566,11 @@ class MdFileService {
   }
   static {
     this.ɵfac = function MdFileService_Factory(t) {
-      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_9__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_2__.AppStoreService));
+      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_7__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_10__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_3__.AppStoreService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineInjectable"]({
       token: MdFileService,
       factory: MdFileService.ɵfac,
       providedIn: 'root'
@@ -14668,12 +14679,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "ProjectsService": () => (/* binding */ ProjectsService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ 8316);
 /* harmony import */ var _environments_version__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../environments/version */ 9279);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../shared/open-perf */ 9782);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+
 
 
 
@@ -14688,27 +14701,27 @@ class ProjectsService {
   constructor(http, injector) {
     this.http = http;
     this.injector = injector;
-    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.currentProjects$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     // RAG enabled status for current project
-    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this.ragEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     // Copilot CLI auto-select state for the freshly opened project.
     // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
     // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
     // or to disable the chat with a "not installed" banner.
-    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
     // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
     // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
     // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
-    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     /**
      * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
      * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
      * «c'è» sarebbe un processo a vuoto.
      */
-    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
-    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
     // Track current project's chat room info for cleanup
     this.currentRoomId = null;
@@ -14730,7 +14743,7 @@ class ProjectsService {
     this.dataStore = {
       mdProjects: []
     };
-    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
+    this._mdProjects = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
   }
   fetchProjects() {
     const url = '../api/MdProjects/GetProjects';
@@ -14783,7 +14796,9 @@ class ProjectsService {
   }
   setNewFolderProject(path) {
     var _this3 = this;
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('setNewFolderProject: projectChanging (subscriber sincroni)');
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('setNewFolderProject: notifyProjectClosed');
     // Close previous project if any
     this.notifyProjectClosed();
     // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
@@ -14795,8 +14810,11 @@ class ProjectsService {
     if (harness) {
       request.harness = harness;
     }
+    _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
     this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
       var _ref = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
+        _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.mark('POST SetFolderProject: risposta');
+        _shared_open_perf__WEBPACK_IMPORTED_MODULE_3__.OpenPerf.request('MdProjects/SetFolderProject');
         _this3.currentProjects$.next(response);
         // Update window title for Electron taskbar preview
         _this3.updateWindowTitle(response.name);
@@ -14911,25 +14929,25 @@ class ProjectsService {
     return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
   }
   getParticipants(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GetParticipants', {
       params
     });
   }
   saveParticipants(projectPath, participants) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.put('../api/MdProjects/Participants', participants, {
       params
     });
   }
   getGitAuthors(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GitAuthors', {
       params
     });
   }
   getCurrentGitUser(projectPath) {
-    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams();
+    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams();
     if (projectPath) {
       params = params.set('path', projectPath);
     }
@@ -15169,11 +15187,11 @@ class ProjectsService {
   }
   static {
     this.ɵfac = function ProjectsService_Factory(t) {
-      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_6__.Injector));
+      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
       token: ProjectsService,
       factory: ProjectsService.ɵfac,
       providedIn: 'root'
@@ -18903,6 +18921,84 @@ class MaterialModule {
 
 /***/ }),
 
+/***/ 9782:
+/*!*************************************!*\
+  !*** ./src/app/shared/open-perf.ts ***!
+  \*************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "OpenPerf": () => (/* binding */ OpenPerf)
+/* harmony export */ });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
+
+/**
+ * Sonda dei tempi dell'apertura di un progetto (03/11/2026): dal click alla schermata del documento.
+ * Solo in sviluppo (isDevMode) o con localStorage 'mde-perf' = '1'; righe '[OPEN-PERF]' in console,
+ * da confrontare con le righe '[PERF]' del servizio (stesso orologio: stessa macchina).
+ */
+class OpenPerf {
+  static {
+    this.t0 = 0;
+  }
+  static get enabled() {
+    try {
+      return (0,_angular_core__WEBPACK_IMPORTED_MODULE_0__.isDevMode)() || localStorage.getItem('mde-perf') === '1';
+    } catch {
+      return (0,_angular_core__WEBPACK_IMPORTED_MODULE_0__.isDevMode)();
+    }
+  }
+  /** Il click: azzera il cronometro. */
+  static start(what) {
+    if (!OpenPerf.enabled) {
+      return;
+    }
+    OpenPerf.t0 = performance.now();
+    // il buffer di default (250) in una sessione lunga è già pieno: le richieste dell'apertura non ci finirebbero
+    try {
+      performance.setResourceTimingBufferSize(5000);
+    } catch {/* browser senza */}
+    console.log(`[OPEN-PERF] ${OpenPerf.clock()} +0 ms  ${what}`);
+  }
+  static mark(what) {
+    if (!OpenPerf.enabled || OpenPerf.t0 === 0) {
+      return;
+    }
+    console.log(`[OPEN-PERF] ${OpenPerf.clock()} +${Math.round(performance.now() - OpenPerf.t0)} ms  ${what}`);
+  }
+  /**
+   * Dove è andato il tempo di una richiesta, dalla Resource Timing del browser:
+   * coda nel browser (fetchStart→requestStart: connessioni occupate), server (requestStart→responseStart),
+   * download. Senza connessioni libere il browser trattiene la richiesta e il servizio non la vede ancora.
+   */
+  static request(urlPart) {
+    if (!OpenPerf.enabled) {
+      return;
+    }
+    const entries = performance.getEntriesByType('resource').filter(e => e.name.includes(urlPart));
+    const e = entries[entries.length - 1];
+    if (!e) {
+      OpenPerf.mark(`${urlPart}: nessuna Resource Timing`);
+      return;
+    }
+    const queued = e.requestStart > 0 ? Math.round(e.requestStart - e.fetchStart) : -1;
+    const server = e.requestStart > 0 ? Math.round(e.responseStart - e.requestStart) : -1;
+    const download = Math.round(e.responseEnd - e.responseStart);
+    OpenPerf.mark(`${urlPart}: in coda nel browser ${queued} ms, server ${server} ms, download ${download} ms, totale ${Math.round(e.duration)} ms`);
+    const pending = performance.getEntriesByType('resource').filter(r => r.responseEnd > e.fetchStart && r.startTime < e.fetchStart && r.name.includes('/api/')).map(r => r.name.replace(/^.*\/api\//, '').replace(/\?.*$/, ''));
+    if (pending.length) {
+      OpenPerf.mark(`  richieste API ancora aperte quando è partita: ${pending.length} → ${pending.join(', ')}`);
+    }
+  }
+  static clock() {
+    const d = new Date();
+    return d.toTimeString().substring(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+}
+
+/***/ }),
+
 /***/ 338:
 /*!******************************************************************************!*\
   !*** ./src/app/signalR/dialogs/connection-lost/connection-lost.component.ts ***!
@@ -20089,8 +20185,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.31.4',
-  buildTime: '2026.10.31 18:26:28'
+  version: '2026.11.06.1',
+  buildTime: '2026.11.06 15:35:20'
 };
 
 /***/ }),
@@ -20124,4 +20220,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.16cacb73d4559cbb.js.map
+//# sourceMappingURL=main.04d224289b372dbb.js.map
