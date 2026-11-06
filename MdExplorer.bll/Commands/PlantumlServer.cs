@@ -244,7 +244,6 @@ namespace MdExplorer.Features.Commands
                 var possiblePaths = new[]
                 {
                     Path.Combine(currentApplicationPath, "Binaries", "plantuml.jar"),
-                    Path.Combine(currentApplicationPath, "Binaries", "plantuml-1.jar"),
                     Path.Combine(currentApplicationPath, "..", "..", "..", "..", "Binaries", "plantuml.jar")
                 };
 

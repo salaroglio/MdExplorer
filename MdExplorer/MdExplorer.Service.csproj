@@ -21,7 +21,6 @@
 
   <Target Name="PostPublish" AfterTargets="AfterPublish">
     <Message Text="BEGIN After-publish PublishDir=$(PublishDir) PublishUrl=$(PublishUrl)" Importance="high" />
-    <Copy SourceFiles="$(OutDir)Binaries\plantuml.jar" DestinationFiles="$(PublishDir)Plantuml.jar" Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Binaries\plantuml.jar')" />
     <Message Text="END After-publish" Importance="high" />
 
     <!-- Build P2P Premium module if project exists -->
@@ -228,9 +227,11 @@
   
   <!-- Cross-platform resources -->
   <ItemGroup>
-    <EmbeddedResource Include="Binaries\plantuml.jar">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
+    <!-- File accanto al servizio, NON EmbeddedResource: nessuno lo estraeva dalla DLL, che pesava 26 MB in più (06/11/2026).
+         È l'unica copia di PlantUML nel pacchetto: la legge PlantumlServer da Binaries/plantuml.jar. -->
+    <None Include="Binaries\plantuml.jar">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- Fuseki (D19/D20): jar nel pacchetto accanto a plantuml.jar; None + copia, NON EmbeddedResource (57 MB). -->
     <None Include="Binaries\jena-fuseki-server.jar">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -641,7 +642,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Binaries\plantuml-1.jar">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="Binaries\plantuml-2.jar">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
