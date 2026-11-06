@@ -132,18 +132,28 @@ namespace MdExplorer.Utilities
         public static IReadOnlyList<string> Resolve(Project project, IUserSettingsDB db, out bool chosen)
         {
             if (project == null) throw new ArgumentNullException(nameof(project));
-
-            var catalog = Catalog();
             chosen = !string.IsNullOrWhiteSpace(project.McpToolGroups);
+            return Resolve(project.McpToolGroups, chosen ? null : ReadDefaultInputs(project, db), project.Path);
+        }
 
-            var wanted = chosen
-                ? project.McpToolGroups
+        /// <summary>
+        /// <see cref="Resolve(Project, IUserSettingsDB, out bool)"/> in due tempi, per chi tiene una transazione:
+        /// <paramref name="chosenGroups"/> e <paramref name="inputs"/> si leggono dentro (<see cref="ReadDefaultInputs"/>),
+        /// questo si chiama DOPO il commit, perché legge <c>.development.yml</c> dal disco.
+        /// <paramref name="inputs"/> serve solo quando non c'è una scelta salvata.
+        /// </summary>
+        public static IReadOnlyList<string> Resolve(string chosenGroups, DefaultInputs inputs, string projectPath, PerfTrace.PhaseTimer perf = null)
+        {
+            var wanted = !string.IsNullOrWhiteSpace(chosenGroups)
+                ? chosenGroups
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Select(s => s.ToLowerInvariant())
                     .ToHashSet()
-                : DefaultFor(project, db).ToHashSet();
+                : DefaultFor(inputs ?? throw new ArgumentNullException(nameof(inputs),
+                        "Senza una scelta salvata servono le righe del DB utente: leggile con ReadDefaultInputs nella transazione."),
+                    projectPath, perf).ToHashSet();
 
-            return catalog
+            return Catalog()
                 .Where(g => g.Mandatory || wanted.Contains(g.Id))
                 .Select(g => g.Id)
                 .ToList();
@@ -158,35 +168,38 @@ namespace MdExplorer.Utilities
         /// </para>
         /// </summary>
         public static IReadOnlyList<string> DefaultFor(Project project, IUserSettingsDB db)
+            => DefaultFor(ReadDefaultInputs(project, db), project.Path);
+
+        /// <summary>
+        /// Quello che <see cref="DefaultFor(Project, IUserSettingsDB)"/> legge dal DB utente. Separato dai file perché
+        /// il DB si apre con BEGIN IMMEDIATE: il 06/11/2026, primo avvio dopo un aggiornamento su Windows, la lettura
+        /// di gruppi + .development.yml ha tenuto il lock 6,5 s e fermato l'apertura del progetto e AgentMessageDispatcher.
+        /// </summary>
+        public sealed class DefaultInputs
         {
-            var groups = new List<string> { "core", "plantuml" };
+            public bool Atlassian { get; init; }
+            public bool Redmine { get; init; }
+            public bool Neo4j { get; init; }
+            public bool HasLlmAgents { get; init; }
+            public IReadOnlyList<string> BindingLocalPaths { get; init; } = Array.Empty<string>();
+        }
+
+        /// <summary>Solo letture del DB utente, da chiamare dentro la transazione. Nessun file.</summary>
+        public static DefaultInputs ReadDefaultInputs(Project project, IUserSettingsDB db, PerfTrace.PhaseTimer perf = null)
+        {
+            if (project == null) throw new ArgumentNullException(nameof(project));
 
             var atlassian = db.GetDal<ProjectAtlassianSettings>().GetList()
                 .FirstOrDefault(s => s.Project != null && s.Project.Id == project.Id);
-            if (atlassian?.Enabled == true)
-            {
-                groups.Add("jira");
-                groups.Add("confluence");
-            }
-
+            perf?.Mark("Atlassian (DB)");
             // Redmine (sprint 2026-10-27-Redmine, RM3): acceso quando la persona l'ha abilitato per il progetto.
             var redmine = db.GetDal<ProjectRedmineSettings>().GetList()
                 .FirstOrDefault(s => s.Project != null && s.Project.Id == project.Id);
-            if (redmine?.Enabled == true)
-            {
-                groups.Add("redmine");
-            }
-
+            perf?.Mark("Redmine (DB)");
             var neo4j = db.GetDal<ProjectNeo4jSettings>().GetList()
                 .FirstOrDefault(s => s.Project != null && s.Project.Id == project.Id);
-            if (neo4j?.Enabled == true)
-            {
-                groups.Add("kg");
-            }
+            perf?.Mark("Neo4j (DB)");
 
-            // La città degli agenti si accende nel .development.yml (committato, vale per il team):
-            // è il segnale giusto anche quando nessun agente è ancora stato registrato. Gli agenti
-            // già registrati valgono comunque, per un progetto acceso prima che la voce esistesse.
             // ⚠️ `.ToList()` prima del confronto: NHibernate non sa tradurre in SQL né
             // `string.Equals(a, b, StringComparison)` né `TrimEnd`, e solleva NotSupportedException
             // invece di restituire niente (misurato il 22/09/2026). La tabella degli agenti è piccola.
@@ -194,36 +207,76 @@ namespace MdExplorer.Utilities
             // ⚠️ Solo gli agenti `llm`, cioè quelli che qualcuno ha scritto: MdExplorer registra da
             // sé l'algoritmico `a2a-ping` in OGNI progetto, quindi «ha agenti» sarebbe sempre vero e
             // il gruppo resterebbe acceso ovunque (misurato il 22/09/2026 su un progetto appena nato).
-            var hasAgents = AgentCityEnabled(project.Path)
-                || db.GetDal<AgentIdentity>().GetList().ToList()
-                    .Any(a => string.Equals(a.Kind, "llm", StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(
-                            (a.ProjectPath ?? string.Empty).TrimEnd('/', '\\'),
-                            projectPath,
-                            StringComparison.OrdinalIgnoreCase));
-            if (hasAgents)
-            {
-                groups.Add("agents");
-            }
+            var hasLlmAgents = db.GetDal<AgentIdentity>().GetList().ToList()
+                .Any(a => string.Equals(a.Kind, "llm", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        (a.ProjectPath ?? string.Empty).TrimEnd('/', '\\'),
+                        projectPath,
+                        StringComparison.OrdinalIgnoreCase));
+            perf?.Mark("AgentIdentity (DB)");
 
             // Le radici di codice collegate su QUESTA macchina (UserDB, non .development.yml).
             // ⚠️ `.ToList()` prima del confronto per percorso (vedi sopra).
-            var bindings = db.GetDal<CodeRootBinding>().GetList().ToList()
+            var bindingLocalPaths = db.GetDal<CodeRootBinding>().GetList().ToList()
                 .Where(b => string.Equals((b.ProjectPath ?? string.Empty).TrimEnd('/', '\\'), projectPath, StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.LocalPath ?? string.Empty)
                 .ToList();
+            perf?.Mark("CodeRootBinding (DB)");
+
+            return new DefaultInputs
+            {
+                Atlassian = atlassian?.Enabled == true,
+                Redmine = redmine?.Enabled == true,
+                Neo4j = neo4j?.Enabled == true,
+                HasLlmAgents = hasLlmAgents,
+                BindingLocalPaths = bindingLocalPaths,
+            };
+        }
+
+        /// <summary>I gruppi proposti da <paramref name="inputs"/> e dal <c>.development.yml</c>. Legge file: fuori dalla transazione.</summary>
+        public static IReadOnlyList<string> DefaultFor(DefaultInputs inputs, string projectPath, PerfTrace.PhaseTimer perf = null)
+        {
+            if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+            var groups = new List<string> { "core", "plantuml" };
+
+            if (inputs.Atlassian)
+            {
+                groups.Add("jira");
+                groups.Add("confluence");
+            }
+            if (inputs.Redmine)
+            {
+                groups.Add("redmine");
+            }
+            if (inputs.Neo4j)
+            {
+                groups.Add("kg");
+            }
+
+            // La città degli agenti si accende nel .development.yml (committato, vale per il team):
+            // è il segnale giusto anche quando nessun agente è ancora stato registrato. Gli agenti
+            // già registrati valgono comunque, per un progetto acceso prima che la voce esistesse.
+            var agentCity = AgentCityEnabled(projectPath);
+            perf?.Mark("AgentCityEnabled (.development.yml)");
+            if (agentCity || inputs.HasLlmAgents)
+            {
+                groups.Add("agents");
+            }
 
             // Il grafo del codice (sprint 2026-10-09, D6): acceso di default quando una cartella `program`
             // ha dei linguaggi scelti nella finestra «Ambiente di sviluppo» (codeGraph.languages), o quando il progetto ha
             // una radice esterna collegata (26/10, come «remote» per le ssh://): senza, MarkAgent riceve la cartella ma non
             // code_roots, e non sa a quale @alias corrisponde.
-            if (CodeGraphConfigured(project.Path) || bindings.Count > 0)
+            var codeGraph = CodeGraphConfigured(projectPath);
+            perf?.Mark("CodeGraphConfigured (.development.yml)");
+            if (codeGraph || inputs.BindingLocalPaths.Count > 0)
             {
                 groups.Add("code");
             }
 
             // Le radici remote (sprint 2026-10-21-Cartella-Remota-Via-SSH, F4): la posizione ssh:// sta nello UserDB di
             // QUESTA macchina, non nel .development.yml — un collega con il codice in locale non riceve i remote_*.
-            if (bindings.Any(b => (b.LocalPath ?? string.Empty).StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)))
+            if (inputs.BindingLocalPaths.Any(p => p.StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)))
             {
                 groups.Add("remote");
             }

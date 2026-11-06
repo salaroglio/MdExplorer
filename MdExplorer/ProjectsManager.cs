@@ -859,21 +859,33 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             if (db == null || string.IsNullOrWhiteSpace(projectPath))
                 return null;
 
+            // Il DB si apre con BEGIN IMMEDIATE: dentro la transazione solo le righe, i file (.development.yml) dopo.
+            // Il 06/11/2026 (Windows, primo avvio dopo un aggiornamento) tutto dentro ha tenuto il lock 6,5 s: l'apertura
+            // del progetto ferma e AgentMessageDispatcher in coda. Le fasi dicono quale pezzo costa (MDE_PERF_TRACE=1).
+            using var perf = PerfTrace.Phases("McpGroupsArgument");
             try
             {
+                string chosenGroups, path;
+                McpToolGroupsSettings.DefaultInputs inputs = null;
                 db.BeginTransaction();
                 try
                 {
                     var project = FindProjectByPath(db, projectPath);
+                    perf.Mark("FindProjectByPath (DB)");
                     if (project == null) return null;
 
-                    var groups = McpToolGroupsSettings.Resolve(project, db, out _);
-                    return McpToolGroupsSettings.ToArgument(groups);
+                    chosenGroups = project.McpToolGroups;
+                    path = project.Path;
+                    if (string.IsNullOrWhiteSpace(chosenGroups))
+                        inputs = McpToolGroupsSettings.ReadDefaultInputs(project, db, perf);
                 }
                 finally
                 {
                     db.Commit();
                 }
+                perf.Mark("Commit");
+
+                return McpToolGroupsSettings.ToArgument(McpToolGroupsSettings.Resolve(chosenGroups, inputs, path, perf));
             }
             catch (Exception ex)
             {
