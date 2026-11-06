@@ -28,3 +28,20 @@
   word-break: break-all;
   user-select: text;
 }
+
+.sent {
+  margin: 4px 0 14px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--mde-success-fg, #2e7d32);
+  background: var(--mde-bg-tertiary);
+}
+.sent-label { color: var(--mde-text-secondary); font-size: 0.9em; }
+.sent-code {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 1.8em; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--mde-text-primary);
+  user-select: text;
+}
+.sent-note { color: var(--mde-text-secondary); font-size: 0.85em; }

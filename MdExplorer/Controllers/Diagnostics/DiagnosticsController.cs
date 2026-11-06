@@ -4,6 +4,8 @@ using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Net.Http;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Controllers.Diagnostics
 {
@@ -127,6 +129,63 @@ namespace MdExplorer.Controllers.Diagnostics
         {
             var bytes = package.Zip(package.Collect());
             return File(bytes, "application/zip", $"mde-diagnostica-{DateTime.Now:yyyy-MM-dd-HHmm}.zip");
+        }
+
+        public sealed class SendPackageRequest
+        {
+            /// <summary>La versione di MDE vista dal client (versionInfo): quella dell'assembly del servizio è ferma.</summary>
+            public string Version { get; set; }
+        }
+
+        /// <summary>
+        /// POST api/Diagnostics/Package/send — spedisce al relay (Diagnostics:UploadUrl, errantia) lo stesso pacchetto
+        /// dell'anteprima e ritorna il codice da dire a chi aiuta. Sprint «Invia diagnostica», D3.
+        /// </summary>
+        [HttpPost("Package/send")]
+        public async System.Threading.Tasks.Task<IActionResult> SendPackage(
+            [FromBody] SendPackageRequest request,
+            [FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] System.Net.Http.IHttpClientFactory http,
+            [FromServices] Microsoft.Extensions.Configuration.IConfiguration configuration,
+            [FromServices] Microsoft.Extensions.Logging.ILogger<DiagnosticsController> logger)
+        {
+            var url = configuration["Diagnostics:UploadUrl"];
+            if (string.IsNullOrWhiteSpace(url))
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say(
+                    "Manca Diagnostics:UploadUrl nella configurazione del servizio: non so dove inviare.",
+                    "Diagnostics:UploadUrl is missing from the service configuration: I do not know where to send.") });
+
+            var zip = package.Zip(package.Collect());
+            using var content = new System.Net.Http.ByteArrayContent(zip);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+            using var message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url) { Content = content };
+            message.Headers.TryAddWithoutValidation("X-MDE-Version", (request?.Version ?? "").Trim());
+            message.Headers.TryAddWithoutValidation("X-MDE-OS", RuntimeInformation.OSDescription);
+
+            try
+            {
+                var client = http.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(60);
+                using var response = await client.SendAsync(message);
+                var body = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+                var root = doc.RootElement;
+                string Get(string name) => root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty(name, out var v) ? v.ToString() : null;
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogWarning("[Diagnostica] invio rifiutato dal relay: {Status} {Body}", (int)response.StatusCode, body);
+                    return StatusCode(502, new { error = Get("error") ?? $"HTTP {(int)response.StatusCode}", code = Get("code") });
+                }
+                logger.LogInformation("[Diagnostica] pacchetto inviato: codice {Code}, {Bytes} byte", Get("code"), zip.Length);
+                return Ok(new { code = Get("code"), expiresAt = Get("expiresAt"), bytes = zip.Length });
+            }
+            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException || ex is System.Threading.Tasks.TaskCanceledException || ex is System.Text.Json.JsonException)
+            {
+                logger.LogWarning(ex, "[Diagnostica] invio non riuscito verso {Url}", url);
+                return StatusCode(502, new { error = MdExplorer.Features.Services.UiText.Say(
+                    $"Il relay non ha risposto ({ex.Message}). Puoi salvare lo zip e mandarlo in un altro modo.",
+                    $"The relay did not answer ({ex.Message}). You can save the zip and send it another way.") });
+            }
         }
 
         [HttpGet("LogPath")]

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
+import { versionInfo } from '../../../../environments/version';
 
 interface PackageFile {
   name: string;
@@ -22,7 +23,7 @@ interface PackagePreview {
 /**
  * «Invia diagnostica» (sprint 2026-11-06-Invia-Diagnostica, D1): l'anteprima del pacchetto di log, già oscurato, prima di
  * qualsiasi invio. Chi invia vede quali file partono, da dove vengono, cosa è stato tolto, e la coda di ciascuno.
- * D1: solo «Salva lo zip». L'invio al relay arriva con la D3.
+ * D3: «Invia» spedisce lo stesso pacchetto al relay (errantia) e mostra il codice da dire a chi aiuta.
  */
 @Component({
   selector: 'app-diagnostics-send',
@@ -33,6 +34,9 @@ export class DiagnosticsSendDialogComponent implements OnInit {
   preview: PackagePreview | null = null;
   loading = true;
   saving = false;
+  sending = false;
+  sent: { code: string; expiresAt: string } | null = null;
+  copied = false;
   error = '';
 
   constructor(
@@ -57,6 +61,28 @@ export class DiagnosticsSendDialogComponent implements OnInit {
 
   count(r: { [kind: string]: number } | undefined, kind: string): number {
     return (r && r[kind]) || 0;
+  }
+
+  send(): void {
+    this.sending = true;
+    this.error = '';
+    this.http.post<{ code: string; expiresAt: string }>('../api/Diagnostics/Package/send', { version: versionInfo.version }).subscribe({
+      next: r => { this.sent = r; this.sending = false; },
+      error: err => {
+        this.error = this.translate.instant('DIAGNOSTICS.SEND_FAILED', { error: err?.error?.error || err?.message || err });
+        this.sending = false;
+      }
+    });
+  }
+
+  expiry(iso: string): string {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? iso : d.toLocaleString();
+  }
+
+  copyCode(): void {
+    if (!this.sent?.code) { return; }
+    navigator.clipboard.writeText(this.sent.code).then(() => { this.copied = true; setTimeout(() => this.copied = false, 2000); });
   }
 
   saveZip(): void {

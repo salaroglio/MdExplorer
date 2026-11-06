@@ -49,6 +49,12 @@
     "THEME_MILAN": "Red"
   },
   "DIAGNOSTICS": {
+    "SEND": "Send",
+    "SENDING": "Sending…",
+    "SENT": "Sent. Give this code to whoever is helping you:",
+    "COPY_CODE": "Copy the code",
+    "SENT_NOTE": "The package stays on the server at most until {{expires}}, then it is deleted.",
+    "SEND_FAILED": "Sending failed: {{error}}",
     "BUTTON": "Send diagnostics",
     "BUTTON_TOOLTIP": "Prepare the last day's logs, without personal data, for whoever helps you understand a problem",
     "TITLE": "Send diagnostics",

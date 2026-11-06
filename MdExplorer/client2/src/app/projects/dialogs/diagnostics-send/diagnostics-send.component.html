@@ -13,6 +13,17 @@
 
   <div *ngIf="error" class="error">{{ error }}</div>
 
+  <div *ngIf="sent" class="sent">
+    <div class="sent-label">{{ 'DIAGNOSTICS.SENT' | translate }}</div>
+    <div class="sent-code">
+      <span>{{ sent.code }}</span>
+      <button mat-icon-button (click)="copyCode()" [matTooltip]="'DIAGNOSTICS.COPY_CODE' | translate">
+        <mat-icon>{{ copied ? 'check' : 'content_copy' }}</mat-icon>
+      </button>
+    </div>
+    <div class="sent-note">{{ 'DIAGNOSTICS.SENT_NOTE' | translate: { expires: expiry(sent.expiresAt) } }}</div>
+  </div>
+
   <ng-container *ngIf="preview">
     <div class="summary">
       <span class="chip">{{ 'DIAGNOSTICS.ZIP_SIZE' | translate: { size: kb(preview.zipBytes) } }}</span>
@@ -44,5 +55,9 @@
   <button mat-stroked-button color="primary" [disabled]="!preview || saving" (click)="saveZip()">
     <mat-icon>download</mat-icon>
     {{ 'DIAGNOSTICS.SAVE_ZIP' | translate }}
+  </button>
+  <button mat-flat-button color="primary" [disabled]="!preview || sending || !!sent" (click)="send()">
+    <mat-icon>{{ sending ? 'hourglass_top' : 'send' }}</mat-icon>
+    {{ (sending ? 'DIAGNOSTICS.SENDING' : 'DIAGNOSTICS.SEND') | translate }}
   </button>
 </mat-dialog-actions>
