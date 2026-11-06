@@ -12,6 +12,7 @@ import { IconEditorComponent } from './dialogs/project-edit/icon-editor/icon-edi
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { CatalogPickerDialogComponent } from './dialogs/catalog-picker/catalog-picker.component';
+import { DiagnosticsSendDialogComponent } from './dialogs/diagnostics-send/diagnostics-send.component';
 import { RouterModule, Routes } from '@angular/router';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -44,7 +45,8 @@ const routes: Routes = [
     IconEditorComponent,
     ProjectSettingsComponent,
     P2PManagerComponent,
-    CatalogPickerDialogComponent
+    CatalogPickerDialogComponent,
+    DiagnosticsSendDialogComponent
   ],
   imports: [
     RouterModule.forChild(routes),

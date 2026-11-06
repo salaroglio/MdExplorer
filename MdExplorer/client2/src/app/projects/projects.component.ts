@@ -28,6 +28,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ProjectCreateConfigOptions, TemplateShowcaseChoice } from './dialogs/project-create-config/project-create-config.model';
 import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
 import { OpenPerf } from '../shared/open-perf';
+import { DiagnosticsSendDialogComponent } from './dialogs/diagnostics-send/diagnostics-send.component';
 
 @Component({
   selector: 'app-projects',
@@ -491,6 +492,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   /**
    * Open the application log file (.NET backend)
    */
+  /** «Invia diagnostica»: l'anteprima dei log oscurati (sprint 2026-11-06-Invia-Diagnostica). */
+  openDiagnostics(): void {
+    this.dialog.open(DiagnosticsSendDialogComponent, { width: '920px', maxWidth: '95vw', maxHeight: '90vh', autoFocus: false });
+  }
+
   openLog(): void {
     this.http.post<any>('../api/Diagnostics/OpenLog', {}).subscribe({
       next: (result) => {

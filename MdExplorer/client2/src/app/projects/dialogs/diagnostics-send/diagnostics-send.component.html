@@ -1,0 +1,48 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">health_and_safety</mat-icon>
+  {{ 'DIAGNOSTICS.TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="diag-content">
+  <p class="intro">{{ 'DIAGNOSTICS.INTRO' | translate }}</p>
+
+  <div *ngIf="loading" class="loading">
+    <mat-progress-spinner mode="indeterminate" diameter="28"></mat-progress-spinner>
+    <span>{{ 'DIAGNOSTICS.PREPARING' | translate }}</span>
+  </div>
+
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <ng-container *ngIf="preview">
+    <div class="summary">
+      <span class="chip">{{ 'DIAGNOSTICS.ZIP_SIZE' | translate: { size: kb(preview.zipBytes) } }}</span>
+      <span class="chip">{{ 'DIAGNOSTICS.HIDDEN_USER' | translate: { count: count(preview.redactions, 'utente') } }}</span>
+      <span class="chip">{{ 'DIAGNOSTICS.HIDDEN_EMAIL' | translate: { count: count(preview.redactions, 'email') } }}</span>
+      <span class="chip">{{ 'DIAGNOSTICS.HIDDEN_SECRET' | translate: { count: count(preview.redactions, 'segreto') } }}</span>
+    </div>
+    <p class="note">{{ 'DIAGNOSTICS.NOT_INCLUDED' | translate }}</p>
+
+    <mat-accordion multi>
+      <mat-expansion-panel *ngFor="let f of preview.files">
+        <mat-expansion-panel-header>
+          <mat-panel-title class="file-name">{{ f.name }}</mat-panel-title>
+          <mat-panel-description>
+            {{ kb(f.bytes) }} · {{ 'DIAGNOSTICS.LINES' | translate: { count: f.lines } }}
+            <span *ngIf="f.truncated">&nbsp;· {{ 'DIAGNOSTICS.TRUNCATED' | translate }}</span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+        <div class="source" *ngIf="f.source">{{ f.source }}</div>
+        <div class="tail-note" *ngIf="f.lines > 300">{{ 'DIAGNOSTICS.TAIL_ONLY' | translate }}</div>
+        <pre class="file-preview">{{ f.preview }}</pre>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-stroked-button color="primary" [disabled]="!preview || saving" (click)="saveZip()">
+    <mat-icon>download</mat-icon>
+    {{ 'DIAGNOSTICS.SAVE_ZIP' | translate }}
+  </button>
+</mat-dialog-actions>

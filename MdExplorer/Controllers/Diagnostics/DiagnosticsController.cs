@@ -93,6 +93,42 @@ namespace MdExplorer.Controllers.Diagnostics
         /// <summary>
         /// Gets the log file path
         /// </summary>
+        /// <summary>
+        /// GET api/Diagnostics/Package — l'anteprima di «Invia diagnostica»: i file del pacchetto, la coda di ciascuno già
+        /// oscurata, quante sostituzioni per tipo e il peso dello zip. Lo zip completo è <see cref="PackageZip"/>.
+        /// </summary>
+        [HttpGet("Package")]
+        public IActionResult Package([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package)
+        {
+            const int previewLines = 300;
+            var files = package.Collect();
+            var zipBytes = package.Zip(files).Length;
+            var totals = files.SelectMany(f => f.Redactions).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
+            return Ok(new
+            {
+                zipBytes,
+                redactions = totals,
+                files = files.Select(f =>
+                {
+                    var lines = f.Text.Split('\n');
+                    return new
+                    {
+                        name = f.Name, source = f.Source, bytes = f.OriginalBytes, truncated = f.Truncated,
+                        lines = lines.Length, redactions = f.Redactions,
+                        preview = string.Join('\n', lines.Skip(Math.Max(0, lines.Length - previewLines))),
+                    };
+                }),
+            });
+        }
+
+        /// <summary>GET api/Diagnostics/Package/zip — lo stesso pacchetto dell'anteprima, intero, come zip da salvare.</summary>
+        [HttpGet("Package/zip")]
+        public IActionResult PackageZip([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package)
+        {
+            var bytes = package.Zip(package.Collect());
+            return File(bytes, "application/zip", $"mde-diagnostica-{DateTime.Now:yyyy-MM-dd-HHmm}.zip");
+        }
+
         [HttpGet("LogPath")]
         public IActionResult GetLogPath()
         {

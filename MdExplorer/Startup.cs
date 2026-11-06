@@ -179,6 +179,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentWorktreePreference, Services.AgentRun.AgentWorktreePreference>();
             // Salute di Java (12/10/2026): all'avvio, in sfondo, dopo che il server è in ascolto; avvisi nella pagina dei progetti.
             services.AddSingleton<Services.Java.StartupNotices>();
+            // «Invia diagnostica» (sprint 2026-11-06): i log dell'ultimo giorno, oscurati.
+            services.AddSingleton(_ => new Services.Diagnostics.DiagnosticsPackageService(
+                Program.LogDirectory, Services.Diagnostics.DiagnosticsPackageService.DefaultElectronUserData(),
+                Services.Diagnostics.DiagnosticsPackageService.CurrentContext));
             services.AddSingleton<Services.Java.JavaHealthService>();
             services.AddHostedService(sp => sp.GetRequiredService<Services.Java.JavaHealthService>());
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();

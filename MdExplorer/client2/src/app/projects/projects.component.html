@@ -247,6 +247,13 @@
             <mat-icon>monitor</mat-icon>
             {{ 'PROJECTS.ELECTRON_LOG' | translate }}
           </button>
+          <button mat-stroked-button
+                  color="primary"
+                  (click)="openDiagnostics()"
+                  [matTooltip]="'DIAGNOSTICS.BUTTON_TOOLTIP' | translate">
+            <mat-icon>health_and_safety</mat-icon>
+            {{ 'DIAGNOSTICS.BUTTON' | translate }}
+          </button>
         </div>
       </div>
 
