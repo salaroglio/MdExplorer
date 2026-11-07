@@ -203,5 +203,102 @@ namespace MdExplorer.IntegrationTests
             Console.WriteLine($"{files.Count} file controllati");
             Assert.AreEqual(0, bad.Count, string.Join("\n", bad));
         }
+
+        // ---- F5: la regola di crescita ----
+
+        /// <summary>
+        /// Le impronte delle istantanee già pubblicate: un'istantanea uscita in un pacchetto non si cambia mai (gli MDE installati la
+        /// usano per riconoscere i gruppi scritti con quel numero). Quando ne aggiungi una nuova, aggiungi qui la sua impronta.
+        /// </summary>
+        private static readonly Dictionary<int, string> Published = new()
+        {
+            [1] = "217dfd9b9fddc939fe7d95703603cdd044af3b12df05e2dee9d078001e7fc3a3",
+            [2] = "a7cd33ba715b2bd78dec6cb45b9589edec7ec8425eaba40e087737adee8e90ad",
+        };
+
+        private static string SnapshotText(int version)
+        {
+            using var stream = typeof(DevelopmentSchemaSnapshots).Assembly.GetManifestResourceStream(DevelopmentSchemaSnapshots.ResourceName(version));
+            using var reader = new StreamReader(stream!);
+            return reader.ReadToEnd().Replace("\r\n", "\n");
+        }
+
+        [TestMethod]
+        public void Never_change_a_published_snapshot()
+        {
+            foreach (var (version, hash) in Published)
+            {
+                var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(SnapshotText(version)))).ToLowerInvariant();
+                Assert.AreEqual(hash, actual,
+                    $"L'istantanea {version} di .development.yml è cambiata: gli MDE già installati riconoscono i gruppi con quella vecchia. " +
+                    "Rimettila com'era e porta la modifica in un numero nuovo.");
+            }
+            Assert.IsTrue(Published.ContainsKey(DevelopmentSchemaSnapshots.Current),
+                $"Manca l'impronta dell'istantanea {DevelopmentSchemaSnapshots.Current} in Published: aggiungila quando la pubblichi.");
+        }
+
+        /// <summary>
+        /// Le voci di <paramref name="before"/> che <paramref name="after"/> perde o cambia: sparite, tipo diverso, valori ammessi tolti.
+        /// Una voce ritirata in <c>RetiredConfigKeys</c> può sparire: la pulizia la toglie dai file prima del controllo.
+        /// </summary>
+        private static List<string> Broken(SchemaNode before, SchemaNode after, string path)
+        {
+            var found = new List<string>();
+            if (after == null)
+            {
+                if (!Retired.Contains(path)) found.Add($"«{path}» sparita: ritirala in RetiredConfigKeys o lasciala");
+                return found;
+            }
+            if (before.Kind != after.Kind) { found.Add($"«{path}» ha cambiato tipo ({before.Kind} → {after.Kind}): fai una voce nuova e ritira questa"); return found; }
+            if (before.Choices != null)
+            {
+                var lost = before.Choices.Except(after.Choices ?? new List<string>(), StringComparer.OrdinalIgnoreCase).ToList();
+                if (after.Choices == null) { }   // da elenco chiuso a testo libero: si accetta di più, nessun file si spegne
+                else if (lost.Count > 0) found.Add($"«{path}» non ammette più {string.Join(", ", lost)}: un file con quei valori si spegnerebbe");
+            }
+            else if (after.Choices != null) found.Add($"«{path}» è diventata a elenco chiuso: i valori scritti prima si spegnerebbero");
+            if (before.Kind == SchemaKind.Group)
+                foreach (var (key, child) in before.Keys ?? new SortedDictionary<string, SchemaNode>())
+                    found.AddRange(Broken(child, after.Keys != null && after.Keys.TryGetValue(key, out var a) ? a : null, path.Length == 0 ? key : path + "." + key));
+            if (before.Kind == SchemaKind.List)
+                found.AddRange(Broken(before.Item, after.Item, path + "[]"));
+            return found;
+        }
+
+        private static readonly HashSet<string> Retired = new(
+            RetiredConfigKeys.All.Select(r => r.Section + "." + r.Key).Concat(RetiredConfigKeys.BecameList.Select(r => r.Section + "." + r.Key)), StringComparer.Ordinal);
+
+        [TestMethod]
+        public void Grow_only_by_adding_from_one_number_to_the_next()
+        {
+            var all = DevelopmentSchemaSnapshots.All;
+            for (var i = 1; i < all.Count; i++)
+            {
+                var broken = Broken(all[i - 1].Root, all[i].Root, "");
+                Assert.AreEqual(0, broken.Count, $"Dallo schema {all[i - 1].Version} al {all[i].Version}:\n" + string.Join("\n", broken));
+            }
+        }
+
+        [TestMethod]
+        public void Catch_a_removed_a_retyped_and_a_narrowed_entry()
+        {
+            var before = DevelopmentSchema.FromModel();
+            var after = DevelopmentSchema.FromModel();
+            after.Keys["harness"].Keys.Remove("model");
+            after.Keys["redmine"].Keys["projects"] = new SchemaNode { Kind = SchemaKind.Text };
+            after.Keys["harness"].Keys["target"].Choices.Remove("opencode");
+            after.Keys["atlassian"].Keys.Remove("jiraBaseUrl");
+
+            var broken = Broken(before, after, "");
+
+            Assert.AreEqual(4, broken.Count, string.Join("\n", broken));
+            Assert.IsTrue(broken.Any(b => b.Contains("«harness.model» sparita")));
+            Assert.IsTrue(broken.Any(b => b.Contains("«redmine.projects» ha cambiato tipo")));
+            Assert.IsTrue(broken.Any(b => b.Contains("opencode")));
+
+            // Una voce ritirata in RetiredConfigKeys può sparire (il caso di planningFolder, 04/06).
+            before.Keys["atlassian"].Keys["planningFolder"] = new SchemaNode { Kind = SchemaKind.Text };
+            Assert.IsFalse(Broken(before, DevelopmentSchema.FromModel(), "").Any(b => b.Contains("planningFolder")));
+        }
     }
 }
