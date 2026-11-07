@@ -109,8 +109,10 @@ namespace MdExplorer.Features.Execution
         {
             // Replace the value portion of `export NAME=<anything-on-one-line>`.
             var pattern = $@"^([\t ]*export[\t ]+{Regex.Escape(paramName)}[\t ]*=[\t ]*)(?:""[^""\r\n]*""|'[^'\r\n]*'|[^\s\r\n]+)([\t ]*(?:\r?\n|$))";
-            var replacement = "$1" + ToBashDoubleQuoted(userValue) + "$2";
-            return Regex.Replace(code, pattern, replacement, RegexOptions.Multiline);
+            // Con una funzione e non con un testo di sostituzione: in quel testo .NET interpreta $1, $_ (tutto lo script), ${x}, $$, $&,
+            // e un valore come «pa$1ss» arrivava allo script cambiato (R1 della valutazione del 07/11).
+            var quoted = ToBashDoubleQuoted(userValue);
+            return Regex.Replace(code, pattern, m => m.Groups[1].Value + quoted + m.Groups[2].Value, RegexOptions.Multiline);
         }
 
         private static string RewritePwshParamDefault(string code, string paramName, string userValue)
@@ -118,8 +120,9 @@ namespace MdExplorer.Features.Execution
             // Replace the default in `[type]$Name = <value>` inside a PowerShell param() block.
             // Matches up to a comma/closing paren so multi-param signatures stay intact.
             var pattern = $@"(\[[A-Za-z][A-Za-z0-9\.]*\][\t ]*\${Regex.Escape(paramName)}[\t ]*=[\t ]*)(?:""[^""\r\n]*""|'[^'\r\n]*'|[^,\)\r\n]+)";
-            var replacement = "$1" + ToPwshSingleQuoted(userValue);
-            return Regex.Replace(code, pattern, replacement);
+            // Con una funzione, non con un testo di sostituzione (vedi RewriteExportDefault, R1).
+            var quoted = ToPwshSingleQuoted(userValue);
+            return Regex.Replace(code, pattern, m => m.Groups[1].Value + quoted);
         }
 
         private static string ToBashDoubleQuoted(string value)
