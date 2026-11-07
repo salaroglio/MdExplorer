@@ -29,6 +29,13 @@ namespace MdExplorer.Utilities
         public static string StartMarker(int version) => $"<!-- mde:skill v{version} -->";
 
         private static readonly Regex Start = new(@"<!-- mde:skill v(?<v>\d+) -->", RegexOptions.Compiled);
+        private static readonly Regex WholeBlock = new(@"<!-- mde:skill v(?<v>\d+) -->[\s\S]*?<!-- /mde:skill -->", RegexOptions.Compiled);
+
+        /// <summary>Il blocco di MDE nel testo (marcatori compresi) e la sua versione; Success=false se non c'è. Per l'unione nel pull (S5).</summary>
+        public static Match FindBlock(string text) => WholeBlock.Match(text ?? string.Empty);
+
+        /// <summary>La versione di un blocco trovato con <see cref="FindBlock"/>.</summary>
+        public static int VersionOf(Match block) => int.Parse(block.Groups["v"].Value);
 
         /// <summary>La frase di oggi, con il percorso della skill del motore del progetto.</summary>
         public static string MdeDocSentence(string skillPath)

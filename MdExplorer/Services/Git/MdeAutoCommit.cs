@@ -30,6 +30,8 @@ namespace MdExplorer.Services.Git
         RemoteHasNews,
         UserCommitsToPublish,
         PushFailed,
+        /// <summary>Commit fatto prima di un pull: si pubblica dopo, con il push dell'utente.</summary>
+        BeforePull,
         Error,
     }
 
@@ -105,6 +107,35 @@ namespace MdExplorer.Services.Git
             _delayMs = int.TryParse(configuration?["MdeAutoCommit:DelayMs"], out var d) ? d : 1500;
         }
 
+        /// <summary>Acceso (<c>MdeAutoCommit:Enabled</c>): spento, MDE non fa commit da sé, nemmeno prima del pull.</summary>
+        public bool Enabled => _enabled;
+
+        /// <summary>
+        /// S5: prima di un pull fatto da MDE, il commit dei file di MDE rimasti modificati (versioni vecchie, scritture di un momento fa).
+        /// Senza push: il remoto ha novità per definizione, si pubblica con il prossimo push dell'utente. Null se spento o niente da fare.
+        /// </summary>
+        public async Task<MdeAutoCommitResult> CommitPendingAsync(string repositoryRoot, CancellationToken ct = default)
+        {
+            if (!_enabled) return null;
+            await FlushAsync(ct);
+            var root = Path.GetFullPath(repositoryRoot).TrimEnd(Path.DirectorySeparatorChar);
+            var status = await _git.RunAsync(root, new[] { "status", "--porcelain", "--untracked-files=all" }, ct);
+            if (!status.Ok) return null;
+            var batch = new Batch();
+            foreach (var line in (status.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (line.Length < 4) continue;
+                var rel = line.Substring(3).Trim().Trim('"');
+                var arrow = rel.IndexOf(" -> ", StringComparison.Ordinal);
+                if (arrow >= 0) rel = rel.Substring(arrow + 4);
+                var full = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));
+                if (IsOwned(root, full))
+                    batch.Owned[full] = new MdeWhy("modifiche di MDE rimaste senza commit, salvate prima di scaricare", "MDE changes left without a commit, saved before pulling");
+            }
+            if (batch.Owned.Count == 0) return null;
+            return await HandleAsync(root, batch, push: false);
+        }
+
         /// <summary>Gli esiti più recenti (al massimo 50), dal più vecchio.</summary>
         public IReadOnlyList<MdeAutoCommitResult> RecentResults => _results.ToArray();
 
@@ -167,10 +198,10 @@ namespace MdExplorer.Services.Git
                 (_, previous) => previous.ContinueWith(_ => HandleAsync(root, batch)).Unwrap());
         }
 
-        private async Task HandleAsync(string root, Batch batch)
+        private async Task<MdeAutoCommitResult> HandleAsync(string root, Batch batch, bool push = true)
         {
             MdeAutoCommitResult result;
-            try { result = batch.Owned.Count > 0 ? await CommitCoreAsync(root, batch.Owned) : new MdeAutoCommitResult { RepositoryRoot = root, PendingKind = MdeCommitPending.NothingToSave }; }
+            try { result = batch.Owned.Count > 0 ? await CommitCoreAsync(root, batch.Owned, push) : new MdeAutoCommitResult { RepositoryRoot = root, PendingKind = MdeCommitPending.NothingToSave }; }
             catch (Exception ex)
             {
                 result = new MdeAutoCommitResult { RepositoryRoot = root, Files = batch.Owned.Keys.Select(p => Rel(root, p)).ToList(), Reasons = batch.Owned.Values.Distinct().ToList(), PendingKind = MdeCommitPending.Error, PendingDetail = ex.Message };
@@ -204,6 +235,7 @@ namespace MdExplorer.Services.Git
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[MdeAutoCommit] notifica non mandata"); }
             }
+            return result;
         }
 
         /// <summary>Le notifiche del giro, nella lingua dell'interfaccia. «Niente da salvare» non si dice.</summary>
@@ -243,6 +275,7 @@ namespace MdExplorer.Services.Git
                 MdeCommitPending.RemoteHasNews => UiText.Say("il remoto ha novità, parte con il prossimo pull e push", "the remote has news, it goes with the next pull and push"),
                 MdeCommitPending.UserCommitsToPublish => UiText.Say("hai commit tuoi non ancora pubblicati, parte con il tuo prossimo push", "you have commits of your own not yet pushed, it goes with your next push"),
                 MdeCommitPending.PushFailed => UiText.Say("push non riuscito, parte con il tuo prossimo push", "push failed, it goes with your next push"),
+                MdeCommitPending.BeforePull => UiText.Say("fatto prima di scaricare, parte con il tuo prossimo push", "made before pulling, it goes with your next push"),
                 MdeCommitPending.CommitFailed => UiText.Say("commit non riuscito", "commit failed"),
                 MdeCommitPending.NotARepository => UiText.Say("non è un repository git", "not a git repository"),
                 _ => UiText.Say("errore", "error"),
@@ -250,7 +283,7 @@ namespace MdExplorer.Services.Git
             return string.IsNullOrWhiteSpace(detail) ? text + "." : $"{text} ({detail.Trim()}).";
         }
 
-        private async Task<MdeAutoCommitResult> CommitCoreAsync(string root, Dictionary<string, MdeWhy> written)
+        private async Task<MdeAutoCommitResult> CommitCoreAsync(string root, Dictionary<string, MdeWhy> written, bool push = true)
         {
             MdeAutoCommitResult Stop(MdeCommitPending kind, string detail = null, IReadOnlyList<string> files = null, string message = null, bool committed = false)
                 => new()
@@ -294,7 +327,7 @@ namespace MdExplorer.Services.Git
             var commit = await _git.RunAsync(root, new[] { "commit", "--only", "-m", message, "-m", body, "--" }.Concat(paths).ToArray());
             if (!commit.Ok) return Stop(MdeCommitPending.CommitFailed, commit.Describe(), paths);
 
-            var (pushKind, pushDetail) = await PushIfSafeAsync(root);
+            var (pushKind, pushDetail) = push ? await PushIfSafeAsync(root) : (MdeCommitPending.BeforePull, null);
             return new MdeAutoCommitResult
             {
                 RepositoryRoot = root, Files = paths, Reasons = reasons, Committed = true, CommitMessage = message,

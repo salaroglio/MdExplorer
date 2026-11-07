@@ -133,6 +133,7 @@ namespace MdExplorer.Services.Git
         private readonly ISubmoduleAligner _aligner;
         private readonly IRepoRemoteState _remotes;
         private readonly ILogger<RepoSyncService> _logger;
+        private readonly MdeAutoCommit _autoCommit;
 
         public RepoSyncService(
             IWorkingChangesService changes,
@@ -142,8 +143,10 @@ namespace MdExplorer.Services.Git
             INativeGitRunner runner,
             ISubmoduleAligner aligner,
             IRepoRemoteState remotes,
+            MdeAutoCommit autoCommit,
             ILogger<RepoSyncService> logger)
         {
+            _autoCommit = autoCommit;
             _changes = changes;
             _requests = requests;
             _git = git;
@@ -220,14 +223,42 @@ namespace MdExplorer.Services.Git
             {
                 // .development.yml modificato solo qui (MdExplorer lo scrive da sé: il segreto della chat, una scelta): git
                 // rifiuterebbe il pull appena gli aggiornamenti toccano il file. Lo si mette da parte e lo si riunisce dopo.
+                // Sprint «File di sistema di MDE», S5: prima il commit dei file di MDE rimasti modificati, così il pull non si ferma su di
+                // loro. Con il commit automatico spento (o senza identità git) resta il parcheggio di .development.yml qui sotto.
+                await _autoCommit.CommitPendingAsync(dir, ct);
                 var parked = await ParkDevelopmentYamlAsync(dir, ct);
                 if (parked.Refusal != null) return Refuse(parked.Refusal);
 
                 // Lo scaricamento del progetto allinea già i submodule, solo in avanti (ModernGitService).
                 var res = await _git.PullAsync(dir);
+                IReadOnlyList<string> mdeNotes = Array.Empty<string>();
+                if (!res.Success && (await _runner.RunAsync(dir, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct)).Ok)
+                {
+                    var resolved = await ResolveMdeConflictsAsync(dir, ct);
+                    if (resolved.Problem != null)
+                    {
+                        // conflitto vero su una voce: si torna a prima, e si dice quale voce
+                        await _runner.RunAsync(dir, new[] { "merge", "--abort" }, ct);
+                        if (parked.Park != null) await UnparkDevelopmentYamlAsync(dir, parked.Park, false, ct);
+                        return await WithChangesAsync(Fail(resolved.Problem), view, before, ct);
+                    }
+                    mdeNotes = MdeResolutionNotes(resolved).ToList();
+                    if (resolved.Done)
+                    {
+                        var aligned = await _aligner.AlignAsync(dir, SubmoduleAlignMode.Forward, null, ct);
+                        res = new GitOperationResult { Success = true, HasChanges = true, Warnings = aligned.Notes };
+                    }
+                    else if (resolved.Remaining.Count > 0)
+                    {
+                        mdeNotes = mdeNotes.Append(UiText.Say(
+                            $"Restano da sistemare a mano: {string.Join(", ", resolved.Remaining)}.",
+                            $"Still to fix by hand: {string.Join(", ", resolved.Remaining)}.")).ToList();
+                    }
+                }
                 var ymlNotes = parked.Park == null
                     ? Array.Empty<string>()
                     : await UnparkDevelopmentYamlAsync(dir, parked.Park, res.Success, ct);
+                ymlNotes = mdeNotes.Concat(ymlNotes).ToList();
                 result = res.Success
                     ? new RepoActionResult
                     {
@@ -235,7 +266,7 @@ namespace MdExplorer.Services.Git
                         Message = res.HasChanges ? UiText.Say($"'{row.Label}' aggiornato.", $"'{row.Label}' updated.") : UiText.Say($"'{row.Label}' era già aggiornato.", $"'{row.Label}' was already up to date."),
                         Warnings = (res.Warnings ?? Array.Empty<string>()).Concat(ymlNotes).ToList(),
                     }
-                    : new RepoActionResult { Success = false, Message = await DescribeFailedPullAsync(dir, row.Label, res.ErrorMessage, ct) };
+                    : new RepoActionResult { Success = false, Message = string.Join(" ", new[] { await DescribeFailedPullAsync(dir, row.Label, res.ErrorMessage, ct) }.Concat(mdeNotes)) };
             }
             else
             {
@@ -411,21 +442,11 @@ namespace MdExplorer.Services.Git
             var notes = new List<string>();
             if (!merge.Ok)
             {
-                var resolved = await ResolveDevelopmentYamlAsync(dir, ct);
+                var resolved = await ResolveMdeConflictsAsync(dir, ct);
                 if (resolved.Done)
                 {
                     merge = resolved.Commit.Value;
-                    notes.Add(UiText.Say(
-                        "La sorgente e questo computer avevano cambiato tutti e due .development.yml: li ho uniti voce per voce, " +
-                        "tenendo le tue voci e aggiungendo quelle nuove.",
-                        "The source and this computer had both changed .development.yml: I merged them entry by entry, " +
-                        "keeping your entries and adding the new ones."));
-                    if (resolved.TookSource.Contains(MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret))
-                        notes.Add(UiText.Say(
-                            "Questo computer aveva creato un suo segreto della chat, diverso da quello pubblicato: vale quello pubblicato, " +
-                            "che i colleghi usano già, e il tuo è stato scartato.",
-                            "This computer had created its own chat secret, different from the published one: the published one, which " +
-                            "your colleagues already use, is kept and yours was discarded."));
+                    notes.AddRange(MdeResolutionNotes(resolved));
                 }
                 else if (resolved.Problem != null)
                 {
@@ -635,52 +656,149 @@ namespace MdExplorer.Services.Git
         internal static bool HasYamlComments(string yaml)
             => !string.IsNullOrEmpty(yaml) && System.Text.RegularExpressions.Regex.IsMatch(yaml, @"(^|\s)#", System.Text.RegularExpressions.RegexOptions.Multiline);
 
-        /// <summary>
-        /// A merge stopped only on <c>.development.yml</c>: MdExplorer writes that file both at the source (a new project setting)
-        /// and on this computer (the city turned on, the room key), and git stops on two insertions in the same block even when
-        /// nothing contradicts. It is merged entry by entry (<see cref="MdExplorer.Features.Git.DevelopmentYamlMerge"/>) and the
-        /// merge is committed. Not done when other files conflict too, or when the same entry was changed differently on both
-        /// sides: then <c>Problem</c> says which one.
-        /// </summary>
-        private async Task<(bool Done, GitResult? Commit, string Problem, IReadOnlyList<string> TookSource)> ResolveDevelopmentYamlAsync(string dir, CancellationToken ct)
+        /// <summary>Esito di <see cref="ResolveMdeConflictsAsync"/>.</summary>
+        private sealed record MdeConflictResolution(bool Done, GitResult? Commit, string Problem, IReadOnlyList<string> TookSource,
+            IReadOnlyList<string> Resolved, IReadOnlyList<string> Remaining)
         {
-            const string file = ".development.yml";
+            public static readonly MdeConflictResolution None = new(false, default, null, Array.Empty<string>(), Array.Empty<string>(), Array.Empty<string>());
+        }
+
+        /// <summary>
+        /// S5 dello sprint «File di sistema di MDE»: un'unione ferma sui file di MDE (<see cref="MdeOwnedFiles"/>) la risolve MDE, con la
+        /// regola di ciascuno. MDE li scrive da sé a ogni macchina, e git si ferma su due aggiunte vicine anche quando niente si contraddice.
+        /// <list type="bullet">
+        /// <item><c>.development.yml</c>: voce per voce (<see cref="MdExplorer.Features.Git.DevelopmentYamlMerge"/>); il segreto della chat
+        /// già pubblicato vince; la stessa voce cambiata in due modi è un conflitto vero → <c>Problem</c> con il nome della voce.</item>
+        /// <item>file di istruzioni: fuori dal blocco di MDE l'unione normale di git; dentro, il blocco con la versione più alta (a parità
+        /// quello di qui). Righe del gruppo cambiate in due modi: il file resta in conflitto per l'utente (non è di MDE).</item>
+        /// </list>
+        /// Se restano in conflitto solo file di MDE risolti, l'unione si chiude con il commit; altrimenti i file di MDE sono risolti e
+        /// aggiunti, e gli altri restano all'utente (<c>Remaining</c>).
+        /// </summary>
+        private async Task<MdeConflictResolution> ResolveMdeConflictsAsync(string dir, CancellationToken ct)
+        {
             var conflicts = await _runner.RunAsync(dir, new[] { "diff", "--name-only", "--diff-filter=U" }, ct);
             var files = (conflicts.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
-            if (files.Count != 1 || files[0] != file) return (false, default, null, Array.Empty<string>());
+            var mde = files.Where(f => MdeOwnedFiles.Find(f) != null).ToList();
+            if (mde.Count == 0) return MdeConflictResolution.None;
 
-            var baseText = await _runner.RunAsync(dir, new[] { "show", ":1:" + file }, ct);
-            var ours = await _runner.RunAsync(dir, new[] { "show", ":2:" + file }, ct);
-            var theirs = await _runner.RunAsync(dir, new[] { "show", ":3:" + file }, ct);
-            if (!ours.Ok || !theirs.Ok) return (false, default, null, Array.Empty<string>());
-
-            string merged, conflict;
-            IReadOnlyList<string> tookSource;
-            // Il segreto della stanza creato anche qui non è un conflitto: vale quello pubblicato, che i colleghi usano già.
-            try { merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout,
-                      new[] { MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret }, out tookSource, out conflict); }
-            catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
+            var merged = new Dictionary<string, string>();
+            var tookSource = new List<string>();
+            var remaining = files.Except(mde).ToList();
+            foreach (var file in mde)
             {
-                return (false, default, UiText.Say(
-                    $"Gli aggiornamenti toccano {file}, che hai cambiato anche tu, e non l'ho potuto unire voce per voce ({ex.Message}): " +
-                    "non ho scaricato niente e il progetto è com'era.",
-                    $"The updates touch {file}, which you changed too, and I could not merge it entry by entry ({ex.Message}): " +
-                    "I downloaded nothing and the project is as it was."), Array.Empty<string>());
-            }
-            if (merged == null)
-                return (false, default, UiText.Say(
-                    $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
-                    "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, fai il commit e riprova.",
-                    $"The updates change the entry «{conflict}» in {file}, which you changed too in another way: " +
-                    "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again."), Array.Empty<string>());
+                var baseText = await _runner.RunAsync(dir, new[] { "show", ":1:" + file }, ct);
+                var ours = await _runner.RunAsync(dir, new[] { "show", ":2:" + file }, ct);
+                var theirs = await _runner.RunAsync(dir, new[] { "show", ":3:" + file }, ct);
+                if (!ours.Ok || !theirs.Ok) { remaining.Add(file); continue; } // cancellato da un lato: lo decide l'utente
 
-            await File.WriteAllTextAsync(Path.Combine(dir, file), merged, ct);
-            var add = await _runner.RunAsync(dir, new[] { "add", "--", file }, ct);
-            if (!add.Ok) return (false, default, UiText.Say($"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}", $"{file} merged, but I cannot add it to the merge: {add.Describe()}"), Array.Empty<string>());
+                if (MdeOwnedFiles.Find(file).Kind == MdeMergeKind.YamlEntries)
+                {
+                    string text, conflict;
+                    IReadOnlyList<string> took;
+                    // Il segreto della stanza creato anche qui non è un conflitto: vale quello pubblicato, che i colleghi usano già.
+                    try { text = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout,
+                              new[] { MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret }, out took, out conflict); }
+                    catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
+                    {
+                        return MdeConflictResolution.None with { Problem = UiText.Say(
+                            $"Gli aggiornamenti toccano {file}, che è cambiato anche qui, e non l'ho potuto unire voce per voce ({ex.Message}): " +
+                            "non ho scaricato niente e il progetto è com'era.",
+                            $"The updates touch {file}, which changed here too, and I could not merge it entry by entry ({ex.Message}): " +
+                            "I downloaded nothing and the project is as it was.") };
+                    }
+                    if (text == null)
+                        return MdeConflictResolution.None with { Problem = UiText.Say(
+                            $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che è cambiata anche qui in un altro modo: " +
+                            "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, fai il commit e riprova.",
+                            $"The updates change the entry «{conflict}» in {file}, which changed here too in another way: " +
+                            "I downloaded nothing and the project is as it was. Decide which one to keep, commit, and try again.") };
+                    merged[file] = text;
+                    tookSource.AddRange(took);
+                }
+                else
+                {
+                    var layout = HarnessLayout.All.FirstOrDefault(l => string.Equals(l.InstructionsFile, file, StringComparison.OrdinalIgnoreCase));
+                    var text = await MergeBlockFileAsync(dir, layout?.SkillRelativePath("mde-doc"), baseText.Ok ? baseText.Stdout : string.Empty, ours.Stdout, theirs.Stdout, ct);
+                    if (text == null) { remaining.Add(file); continue; }
+                    merged[file] = text;
+                }
+            }
+
+            foreach (var (file, text) in merged)
+                await File.WriteAllTextAsync(Path.Combine(dir, file.Replace('/', Path.DirectorySeparatorChar)), text, ct);
+            if (merged.Count > 0)
+            {
+                var add = await _runner.RunAsync(dir, new[] { "add", "--" }.Concat(merged.Keys).ToArray(), ct);
+                if (!add.Ok) return MdeConflictResolution.None with { Problem = UiText.Say($"{string.Join(", ", merged.Keys)} uniti, ma non riesco ad aggiungerli all'unione: {add.Describe()}", $"{string.Join(", ", merged.Keys)} merged, but I cannot add them to the merge: {add.Describe()}") };
+            }
+            var resolved = merged.Keys.ToList();
+            if (remaining.Count > 0) return new MdeConflictResolution(false, default, null, tookSource, resolved, remaining);
+
             var commit = await _runner.RunAsync(dir, new[] { "commit", "--no-edit" }, ct);
-            if (!commit.Ok) return (false, default, UiText.Say($"{file} unito, ma l'unione non si chiude: {commit.Describe()}", $"{file} merged, but the merge does not close: {commit.Describe()}"), Array.Empty<string>());
-            _logger.LogInformation("[Flusso] {File} unito voce per voce con gli aggiornamenti della sorgente in {Dir}", file, dir);
-            return (true, commit, null, tookSource);
+            if (!commit.Ok) return MdeConflictResolution.None with { Problem = UiText.Say($"{string.Join(", ", resolved)} uniti, ma l'unione non si chiude: {commit.Describe()}", $"{string.Join(", ", resolved)} merged, but the merge does not close: {commit.Describe()}") };
+            _logger.LogInformation("[Flusso] file di MDE uniti da MDE in {Dir}: {Files}", dir, string.Join(", ", resolved));
+            return new MdeConflictResolution(true, commit, null, tookSource, resolved, Array.Empty<string>());
+        }
+
+        /// <summary>
+        /// Il file di istruzioni unito: il blocco di MDE si toglie dai tre lati (al suo posto una riga segnaposto), il resto lo unisce git
+        /// (<c>git merge-file</c>), poi al segnaposto va il blocco con la versione più alta, a parità quello di qui. Null = le righe del
+        /// gruppo sono cambiate in due modi: decide l'utente.
+        /// </summary>
+        private async Task<string> MergeBlockFileAsync(string dir, string skillPath, string baseText, string ours, string theirs, CancellationToken ct)
+        {
+            const string Placeholder = "<!-- mde:skill (posto del blocco di MDE durante l'unione) -->";
+            // Il paragrafo delle versioni precedenti si migra al blocco su ogni lato, base compresa: altrimenti il paragrafo vecchio
+            // nella base e il blocco nei due lati sembrano a git due cambi della stessa zona, e una riga del gruppo accanto va in conflitto.
+            string Lf(string t)
+            {
+                var text = (t ?? string.Empty).Replace("\r\n", "\n");
+                if (skillPath == null) return text;
+                try { return MdeInstructionsBlock.Apply(text, skillPath); } catch (InvalidOperationException) { return text; }
+            }
+            static (string Text, string Block, int Version) Strip(string text)
+            {
+                var m = MdeInstructionsBlock.FindBlock(text);
+                return m.Success
+                    ? (text.Substring(0, m.Index) + Placeholder + text.Substring(m.Index + m.Length), m.Value, MdeInstructionsBlock.VersionOf(m))
+                    : (text, null, -1);
+            }
+            var b = Strip(Lf(baseText)); var o = Strip(Lf(ours)); var t = Strip(Lf(theirs));
+
+            var gitDir = (await _runner.RunAsync(dir, new[] { "rev-parse", "--absolute-git-dir" }, ct)).Stdout?.Trim();
+            var work = Path.Combine(string.IsNullOrEmpty(gitDir) ? Path.GetTempPath() : gitDir, "mde", "merge-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(work);
+            try
+            {
+                string Put(string name, string text) { var f = Path.Combine(work, name); File.WriteAllText(f, text); return f; }
+                var of = Put("ours", o.Text); var bf = Put("base", b.Text); var tf = Put("theirs", t.Text);
+                var result = await _runner.RunAsync(dir, new[] { "merge-file", "-p", of, bf, tf }, ct);
+                if (result.ExitCode != 0) return null; // >0 conflitti sulle righe del gruppo, <0 errore
+                var text = result.Stdout ?? string.Empty;
+                var winner = o.Block == null ? t.Block : t.Block == null ? o.Block : t.Version > o.Version ? t.Block : o.Block;
+                if (text.Contains(Placeholder)) text = text.Replace(Placeholder, winner ?? string.Empty);
+                return text;
+            }
+            finally { try { Directory.Delete(work, recursive: true); } catch { /* è dentro .git/mde, innocuo */ } }
+        }
+
+        /// <summary>Che cosa ha unito MDE da solo, da dire all'utente.</summary>
+        private static IEnumerable<string> MdeResolutionNotes(MdeConflictResolution resolved)
+        {
+            if (resolved.Resolved.Count == 0) yield break;
+            var files = string.Join(", ", resolved.Resolved);
+            yield return UiText.Say(
+                $"Gli aggiornamenti e questo computer avevano cambiato tutti e due {files}, file di MDE: li ho uniti io " +
+                "(.development.yml voce per voce, tenendo le tue voci e aggiungendo quelle nuove; nelle istruzioni il blocco di MDE più recente, il resto com'era).",
+                $"The updates and this computer had both changed {files}, MDE files: I merged them myself " +
+                "(.development.yml entry by entry, keeping your entries and adding the new ones; in the instructions the most recent MDE block, the rest as it was).");
+            if (resolved.TookSource.Contains(MdExplorer.Features.Git.DevelopmentYamlMerge.RoomSecret))
+                yield return UiText.Say(
+                    "Questo computer aveva creato un suo segreto della chat, diverso da quello pubblicato: vale quello pubblicato, " +
+                    "che i colleghi usano già, e il tuo è stato scartato.",
+                    "This computer had created its own chat secret, different from the published one: the published one, which " +
+                    "your colleagues already use, is kept and yours was discarded.");
         }
 
         /// <summary>The branch HEAD is on; null when detached.</summary>
