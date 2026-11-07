@@ -334,7 +334,10 @@
          ColumnExists di FluentMigrator 3.2.17 crasha sulle tabelle con default-funzione
          (Project.LastUpdate = datetime('now','localtime')), rompendo la catena di
          migrazioni su install pulito. 1.0.113.1 non ha la regressione. -->
-    <PackageReference Include="System.Data.SQLite" Version="1.0.113.1" />
+    <!-- Core e non il pacchetto completo (07/11/2026): quello si porta dietro System.Data.SQLite.EF6 → EntityFramework 6.3
+         → EntityFramework.SqlServer + System.Data.SqlClient, che nessuno usa (SQLite passa da NHibernate). Stessa versione:
+         stessa System.Data.SQLite.dll e stessi SQLite.Interop.dll di prima. -->
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.1" />
     <!-- A2A (città degli agenti, Fase 2): tipi + wire format del protocollo Agent2Agent.
          Solo il package base 'A2A'; 'A2A.AspNetCore'/MapA2A si valuta a parte (agenti
          dinamici). Solo preview su NuGet (decisione #3). -->
