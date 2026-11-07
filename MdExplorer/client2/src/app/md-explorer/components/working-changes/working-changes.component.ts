@@ -162,16 +162,25 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
 
   trackByRepo = (_: number, r: RepoChanges) => r.path;
 
+  /**
+   * N3 (QA 07/11). Nel tuo lavoro «Scarta» c'è solo sui file con modifiche non ancora in un commit: un commit non si scarta da qui.
+   * Nella revisione di un agente c'è su ogni file: lo riporta com'era dove il suo ramo è nato, con un commit nel suo ramo.
+   */
+  canDiscard(repo: RepoChanges, file: WorkingChange): boolean {
+    if (this.agent) return true;
+    return !!repo.uncommitted?.some(u => u.path === file.path);
+  }
+
   /** Si scarta DOPO aver visto il diff, non alla cieca: per questo sta qui e non nel commit. */
   discard(repo: RepoChanges, file: WorkingChange, event: MouseEvent): void {
     event.stopPropagation();
     // Il nome del repository sta nella domanda: due file omonimi in due submodule diversi
     // sarebbero indistinguibili, e questo gesto non si annulla.
     const where = repo.path ? repo.path + '/' + file.path : file.path;
-    const question = this.translate.instant('CHANGES.DISCARD_CONFIRM', { path: where });
+    const question = this.translate.instant(this.agent ? 'CHANGES.DISCARD_AGENT_CONFIRM' : 'CHANGES.DISCARD_CONFIRM', { path: where });
     if (!window.confirm(question)) return;
 
-    this.changes.discard(this.projectPath, this.agent, file.path, repo.path).subscribe({
+    this.changes.discard(this.projectPath, this.agent, file.path, repo.path, file.oldPath).subscribe({
       next: () => {
         if (this.openedPath === file.path && this.openedRepo === repo.path) this.closeDiff();
         this.refresh();

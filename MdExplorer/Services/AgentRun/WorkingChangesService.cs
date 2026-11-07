@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -211,8 +212,14 @@ namespace MdExplorer.Services.AgentRun
         /// Butta via le modifiche a un singolo file, riportandolo com'era sul ramo di partenza
         /// (o eliminandolo, se non esisteva). Irreversibile: nessun commit lo trattiene.
         /// </summary>
+        /// <summary>
+        /// «Scarta» (N3 della valutazione del 07/11). Il tuo lavoro: butta solo le modifiche non ancora in un commit, e il file torna al
+        /// tuo ultimo commit (HEAD); i commit, anche non pubblicati, non si toccano. Il lavoro di un agente (revisione): il file torna
+        /// com'era dove il suo ramo è nato, anche se l'agente l'aveva già committato, con un commit nel suo ramo, così la richiesta di
+        /// unione non lo porta più. <paramref name="oldPath"/>: il nome di prima, per un file rinominato.
+        /// </summary>
         Task<string> DiscardAsync(string projectPath, string agentName, string relativePath,
-            string repoPath = null, CancellationToken ct = default);
+            string repoPath = null, CancellationToken ct = default, string oldPath = null);
     }
 
     /// <summary>
@@ -637,29 +644,90 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public async Task<string> DiscardAsync(string projectPath, string agentName, string relativePath,
-            string repoPath = null, CancellationToken ct = default)
+            string repoPath = null, CancellationToken ct = default, string oldPath = null)
         {
-            var (root, _, _, problem) = await ResolveContextAsync(projectPath, agentName, ct);
+            var (root, _, kind, problem) = await ResolveContextAsync(projectPath, agentName, ct);
             if (problem != null) throw new InvalidOperationException(problem);
 
             var dir = await ResolveRepoDirAsync(root, repoPath, ct);
-            var safe = SafeRelative(dir, relativePath);
-            var full = Path.Combine(dir, safe);
+            var paths = new List<string> { SafeRelative(dir, relativePath) };
+            if (!string.IsNullOrWhiteSpace(oldPath)) paths.Add(SafeRelative(dir, oldPath));
 
-            var tracked = await _git.RunAsync(dir, new[] { "ls-files", "--error-unmatch", safe }, ct);
-            if (!tracked.Ok)
+            if (kind == ChangesContextKind.Agent)
+                return await DiscardFromAgentWorkAsync(dir, paths, ct);
+
+            // Il tuo lavoro: solo ciò che non è ancora in un commit. Prima si ripristinava dal remoto (@{upstream}) e si perdevano
+            // i tuoi commit non pubblicati, o entrava nel file la versione di un collega scaricata e non unita.
+            var status = await _git.RunAsync(dir, new[] { "status", "--porcelain=v1", "--untracked-files=all", "--" }.Concat(paths).ToArray(), ct);
+            if (!status.Ok) throw new InvalidOperationException(UiText.Say($"Stato di '{relativePath}' non leggibile: {status.Describe()}", $"Cannot read the state of '{relativePath}': {status.Describe()}"));
+            if (string.IsNullOrWhiteSpace(status.Stdout))
+                throw new InvalidOperationException(UiText.Say(
+                    $"'{relativePath}' non ha modifiche da scartare: quello che vedi è già in un tuo commit, e un commit non si scarta da qui.",
+                    $"'{relativePath}' has no changes to discard: what you see is already in one of your commits, and a commit is not discarded from here."));
+
+            foreach (var safe in paths)
             {
-                // Mai stato in git: l'unico modo di "riportarlo com'era" è che non esista.
-                if (File.Exists(full)) File.Delete(full);
-                return "eliminato";
+                var full = Path.Combine(dir, safe);
+                if (await InCommitAsync(dir, "HEAD", safe, ct))
+                {
+                    var res = await _git.RunAsync(dir, new[] { "restore", "--source=HEAD", "--staged", "--worktree", "--", safe }, ct);
+                    if (!res.Ok)
+                        throw new InvalidOperationException(UiText.Say($"Ripristino di '{safe}' fallito: {res.Describe()}", $"Restoring '{safe}' failed: {res.Describe()}"));
+                }
+                else
+                {
+                    // Nuovo (mai in un commit): riportarlo com'era vuol dire che non esista. Se era già aggiunto, si toglie anche da lì.
+                    await _git.RunAsync(dir, new[] { "rm", "--cached", "--quiet", "--ignore-unmatch", "--", safe }, ct);
+                    if (File.Exists(full)) File.Delete(full);
+                }
+            }
+            return "ripristinato da HEAD";
+        }
+
+        /// <summary>
+        /// Nella revisione di un agente: il file torna com'era nel punto in cui il suo ramo è nato dal ramo principale (non com'è ora
+        /// sul remoto: ci entrerebbe il lavoro di un collega arrivato nel frattempo), con un commit nel ramo dell'agente.
+        /// </summary>
+        private async Task<string> DiscardFromAgentWorkAsync(string dir, IReadOnlyList<string> paths, CancellationToken ct)
+        {
+            var baseRef = await ResolveBaseRefAsync(dir, ct)
+                ?? throw new InvalidOperationException(UiText.Say("Non trovo il ramo da cui è nato il lavoro dell'agente.", "I cannot find the branch the agent's work was born from."));
+            var fork = await _git.RunAsync(dir, new[] { "merge-base", "HEAD", baseRef }, ct);
+            var origin = fork.Stdout?.Trim();
+            if (!fork.Ok || string.IsNullOrEmpty(origin))
+                throw new InvalidOperationException(UiText.Say($"Non trovo il punto in cui il lavoro dell'agente si è staccato da {baseRef}: {fork.Describe()}",
+                                                               $"I cannot find where the agent's work split from {baseRef}: {fork.Describe()}"));
+
+            foreach (var safe in paths)
+            {
+                var full = Path.Combine(dir, safe);
+                if (await InCommitAsync(dir, origin, safe, ct))
+                {
+                    var res = await _git.RunAsync(dir, new[] { "restore", "--source=" + origin, "--staged", "--worktree", "--", safe }, ct);
+                    if (!res.Ok)
+                        throw new InvalidOperationException(UiText.Say($"Ripristino di '{safe}' fallito: {res.Describe()}", $"Restoring '{safe}' failed: {res.Describe()}"));
+                }
+                else
+                {
+                    // Non c'era quando l'agente è partito: l'ha creato lui, quindi via.
+                    await _git.RunAsync(dir, new[] { "rm", "--cached", "--quiet", "--ignore-unmatch", "--", safe }, ct);
+                    if (File.Exists(full)) File.Delete(full);
+                }
             }
 
-            var source = await ResolveBaseRefAsync(dir, ct) ?? "HEAD";
-            var res = await _git.RunAsync(dir, new[] { "checkout", source, "--", safe }, ct);
-            if (!res.Ok)
-                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Ripristino di '{relativePath}' fallito: {res.Describe()}", $"Restoring '{relativePath}' failed: {res.Describe()}"));
-            return "ripristinato da " + source;
+            var changed = await _git.RunAsync(dir, new[] { "status", "--porcelain=v1", "--untracked-files=no", "--" }.Concat(paths).ToArray(), ct);
+            if (string.IsNullOrWhiteSpace(changed.Stdout)) return "già com'era";
+            var shown = string.Join(", ", paths);
+            var commit = await _git.RunAsync(dir, new[] { "commit", "--quiet", "-m", $"MDE: tolto {shown} dal lavoro dell'agente (revisione)", "--" }.Concat(paths).ToArray(), ct);
+            if (!commit.Ok)
+                throw new InvalidOperationException(UiText.Say(
+                    $"Il file è tornato com'era, ma il commit nel ramo dell'agente non è riuscito ({commit.Describe()}): finché non c'è, la richiesta di unione lo porta ancora.",
+                    $"The file is back as it was, but the commit in the agent's branch failed ({commit.Describe()}): until it exists, the merge request still brings it."));
+            return "tolto dal lavoro dell'agente";
         }
+
+        private async Task<bool> InCommitAsync(string dir, string commit, string path, CancellationToken ct)
+            => (await _git.RunAsync(dir, new[] { "cat-file", "-e", commit + ":" + path.Replace('\\', '/') }, ct)).Ok;
 
         // ---- contesto ----
 

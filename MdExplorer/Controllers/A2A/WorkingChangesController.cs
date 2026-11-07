@@ -105,7 +105,7 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var what = await _changes.DiscardAsync(
-                    body.ProjectPath, EmptyToNull(body.Agent), body.Path, EmptyToNull(body.Repo));
+                    body.ProjectPath, EmptyToNull(body.Agent), body.Path, EmptyToNull(body.Repo), HttpContext.RequestAborted, EmptyToNull(body.OldPath));
                 _logger.LogInformation("[Changes] '{Repo}/{Path}' {What} (agente: {Agent}).",
                     body.Repo ?? ".", body.Path, what, body.Agent ?? "—");
                 return Ok(new { path = body.Path, repo = body.Repo, outcome = what });
@@ -122,6 +122,8 @@ namespace MdExplorer.Controllers.A2A
             public string? Path { get; set; }
             /// <summary>Repository di cui il percorso è relativo: vuoto = la radice del contesto.</summary>
             public string? Repo { get; set; }
+            /// <summary>Il nome di prima, per un file rinominato: si rimette anche quello.</summary>
+            public string? OldPath { get; set; }
         }
 
         private static string? EmptyToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;

@@ -282,9 +282,9 @@ export class WorkingChangesService {
     return this.http.post<RepoActionResult>('../api/RepoSync/abort-merge', { projectPath, repo: repo || null, connectionId });
   }
 
-  discard(projectPath: string, agent: string | null, path: string, repo = ''): Observable<{ path: string; outcome: string }> {
+  discard(projectPath: string, agent: string | null, path: string, repo = '', oldPath: string | null = null): Observable<{ path: string; outcome: string }> {
     return this.http.post<{ path: string; outcome: string }>('../api/WorkingChanges/discard', {
-      projectPath, agent: agent || null, path, repo: repo || null,
+      projectPath, agent: agent || null, path, repo: repo || null, oldPath: oldPath || null,
     });
   }
 }

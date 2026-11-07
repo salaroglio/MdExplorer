@@ -150,8 +150,8 @@
                       [matTooltip]="'CHANGES.OPEN_AGENT_DOCUMENT' | translate">
                 <mat-icon>description</mat-icon>
               </button>
-              <button mat-icon-button class="discard" (click)="discard(r, f, $event)"
-                      [matTooltip]="'CHANGES.DISCARD' | translate">
+              <button mat-icon-button class="discard" *ngIf="canDiscard(r, f)" (click)="discard(r, f, $event)"
+                      [matTooltip]="(agent ? 'CHANGES.DISCARD_AGENT' : 'CHANGES.DISCARD') | translate">
                 <mat-icon>undo</mat-icon>
               </button>
             </li>
