@@ -62,9 +62,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.IO.Compression;
 using System.Web;
-#if WINDOWS_FORMS_AVAILABLE
-using System.Windows.Forms;
-#endif
 using MdExplorer.Utilities;
 using static MdExplorer.Service.Controllers.RefactoringFilesController;
 using static System.Net.WebRequestMethods;
@@ -342,25 +339,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { message = "done" });
         }
 
+        /// <summary>
+        /// L'URL di un repository negli appunti, per proporlo in «Clona progetto». Prima il corpo stava in un #if
+        /// (WINDOWS_FORMS_AVAILABLE) mai definito: rispondeva sempre vuoto (07/11/2026).
+        /// </summary>
         [HttpGet]
-        public IActionResult getTextFromClipboard()
+        public async Task<IActionResult> getTextFromClipboard()
         {
-#if WINDOWS_FORMS_AVAILABLE
-            var textToGet = string.Empty;
-
-            var myTask = ExtensionTask.CreateSTATask(async () =>
+            string text;
+            try { text = await CrossPlatformClipboard.GetTextAsync() ?? string.Empty; }
+            catch (Exception ex)
             {
-                textToGet = Clipboard.GetText();
-            });
-            myTask.Wait();
-
-            textToGet = textToGet.Contains("http") && textToGet.Contains("git") ? textToGet : string.Empty;
-#else
-            // Clipboard functionality not available on Linux without GUI
-            var textToGet = string.Empty;
-#endif
-
-            return Ok(new { url = textToGet });
+                _logger?.LogWarning(ex, "Appunti non leggibili per la proposta dell'URL da clonare");
+                text = string.Empty;
+            }
+            var url = text.Trim();
+            return Ok(new { url = url.Contains("http") && url.Contains("git") && !url.Contains('\n') ? url : string.Empty });
         }
 
         [HttpPost]

@@ -6,9 +6,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-#if WINDOWS_CLIPBOARD_SUPPORT
-using System.Windows.Forms;
-#endif
 
 namespace MdExplorer.Utilities
 {
@@ -49,105 +46,33 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
-        /// Windows implementation using Windows.Forms
+        /// Windows: chiamate dirette agli appunti (<see cref="WindowsClipboard"/>), senza Windows Forms (07/11/2026).
         /// </summary>
         private static Task<ClipboardResult> GetImageWindows()
         {
-            Console.WriteLine("[CrossPlatformClipboard] GetImageWindows() started");
-            var tcs = new TaskCompletionSource<ClipboardResult>();
-
-#if WINDOWS_CLIPBOARD_SUPPORT
-            Console.WriteLine("[CrossPlatformClipboard] WINDOWS_CLIPBOARD_SUPPORT is defined - creating STA thread for clipboard access");
-            Thread thread = new Thread(() =>
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+            try
             {
-                try
-                {
-                    Console.WriteLine("[CrossPlatformClipboard] STA Thread started - checking if clipboard contains image");
-                    if (Clipboard.ContainsImage())
-                    {
-                        Console.WriteLine("[CrossPlatformClipboard] Clipboard contains an image - attempting to retrieve it");
-                        using (var image = Clipboard.GetImage())
-                        {
-                            if (image != null)
-                            {
-                                Console.WriteLine($"[CrossPlatformClipboard] Image retrieved - Size: {image.Width}x{image.Height}");
-                                using (var ms = new MemoryStream())
-                                {
-                                    image.Save(ms, ImageFormat.Png);
-                                    var imageBytes = ms.ToArray();
-                                    Console.WriteLine($"[CrossPlatformClipboard] Image converted to PNG - Size: {imageBytes.Length} bytes");
-                                    tcs.SetResult(new ClipboardResult
-                                    {
-                                        Success = true,
-                                        ImageData = imageBytes
-                                    });
-                                }
-                            }
-                            else
-                            {
-                                tcs.SetResult(new ClipboardResult
-                                {
-                                    Success = false,
-                                    ErrorMessage = "Could not retrieve image from clipboard",
-                                    PlatformHint = "Make sure an image is copied to the clipboard"
-                                });
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("[CrossPlatformClipboard] Clipboard does NOT contain an image");
-                        // Check what's in the clipboard
-                        try
-                        {
-                            if (Clipboard.ContainsText())
-                            {
-                                Console.WriteLine("[CrossPlatformClipboard] Clipboard contains TEXT instead");
-                            }
-                            if (Clipboard.ContainsFileDropList())
-                            {
-                                Console.WriteLine("[CrossPlatformClipboard] Clipboard contains FILE DROP LIST instead");
-                            }
-                        }
-                        catch (Exception debugEx)
-                        {
-                            Console.WriteLine($"[CrossPlatformClipboard] Debug check failed: {debugEx.Message}");
-                        }
-
-                        tcs.SetResult(new ClipboardResult
-                        {
-                            Success = false,
-                            ErrorMessage = "No image found in clipboard",
-                            PlatformHint = "Copy an image to the clipboard first"
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetResult(new ClipboardResult
+                var png = WindowsClipboard.GetImagePng();
+                if (png == null)
+                    return Task.FromResult(new ClipboardResult
                     {
                         Success = false,
-                        ErrorMessage = $"Error accessing clipboard: {ex.Message}",
-                        PlatformHint = "Try copying the image again"
+                        ErrorMessage = "No image found in clipboard",
+                        PlatformHint = "Copy an image to the clipboard first"
                     });
-                }
-            });
-
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            thread.Join();
-            Console.WriteLine("[CrossPlatformClipboard] STA Thread completed");
-#else
-            Console.WriteLine("[CrossPlatformClipboard] WINDOWS_CLIPBOARD_SUPPORT is NOT defined - Windows clipboard support not available");
-            tcs.SetResult(new ClipboardResult
+                Console.WriteLine($"[CrossPlatformClipboard] Image from clipboard: {png.Length} bytes PNG");
+                return Task.FromResult(new ClipboardResult { Success = true, ImageData = png });
+            }
+            catch (Exception ex)
             {
-                Success = false,
-                ErrorMessage = "Windows clipboard support not available",
-                PlatformHint = "The application needs to be built with WINDOWS_CLIPBOARD_SUPPORT flag enabled"
-            });
-#endif
-
-            return tcs.Task;
+                return Task.FromResult(new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error accessing clipboard: {ex.Message}",
+                    PlatformHint = "Try copying the image again"
+                });
+            }
         }
 
         /// <summary>
@@ -458,44 +383,20 @@ namespace MdExplorer.Utilities
 
         private static Task<ClipboardResult> SetImageWindows(byte[] pngData)
         {
-            var tcs = new TaskCompletionSource<ClipboardResult>();
-
-#if WINDOWS_CLIPBOARD_SUPPORT
-            Thread thread = new Thread(() =>
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+            try
             {
-                try
-                {
-                    using (var ms = new MemoryStream(pngData))
-                    using (var image = Image.FromStream(ms))
-                    {
-                        var dataObj = new DataObject();
-                        dataObj.SetImage(image);
-                        Clipboard.SetDataObject(dataObj, true);
-                        tcs.SetResult(new ClipboardResult { Success = true });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetResult(new ClipboardResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Error setting clipboard: {ex.Message}"
-                    });
-                }
-            });
-
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            thread.Join();
-#else
-            tcs.SetResult(new ClipboardResult
+                WindowsClipboard.SetImagePng(pngData);
+                return Task.FromResult(new ClipboardResult { Success = true });
+            }
+            catch (Exception ex)
             {
-                Success = false,
-                ErrorMessage = "Windows clipboard support not available"
-            });
-#endif
-
-            return tcs.Task;
+                return Task.FromResult(new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard: {ex.Message}"
+                });
+            }
         }
 
         private static async Task<ClipboardResult> SetImageLinux(byte[] pngData)
@@ -547,6 +448,55 @@ namespace MdExplorer.Utilities
                     Success = false,
                     ErrorMessage = $"Error setting clipboard: {ex.Message}"
                 };
+            }
+        }
+
+        /// <summary>
+        /// Il testo negli appunti, o <c>null</c> se non c'è (07/11/2026: prima lo leggeva solo un ramo #if mai compilato, e
+        /// «Clona progetto» non proponeva mai l'URL copiato). Su Linux e macOS con un timeout breve: xclip può restare appeso.
+        /// </summary>
+        public static async Task<string> GetTextAsync()
+        {
+            if (OperatingSystem.IsWindows())
+                return WindowsClipboard.GetText();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (await CheckCommandAvailable("xclip")) return await ReadTextFrom("xclip", "-selection clipboard -o");
+                if (await CheckCommandAvailable("wl-paste")) return await ReadTextFrom("wl-paste", "--no-newline");
+                return null;
+            }
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return await ReadTextFrom("pbpaste", string.Empty);
+            return null;
+        }
+
+        private static async Task<string> ReadTextFrom(string fileName, string arguments)
+        {
+            Process process = null;
+            try
+            {
+                process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = fileName, Arguments = arguments,
+                    RedirectStandardOutput = true, RedirectStandardError = true,
+                    UseShellExecute = false, CreateNoWindow = true,
+                    StandardOutputEncoding = System.Text.Encoding.UTF8,
+                });
+                if (process == null) return null;
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                var output = process.StandardOutput.ReadToEndAsync(cts.Token);
+                await process.WaitForExitAsync(cts.Token);
+                return process.ExitCode == 0 ? await output : null;
+            }
+            catch (OperationCanceledException)
+            {
+                // gli appunti non rispondono (xclip appeso): il processo si chiude, e per una proposta di URL vale «niente»
+                try { process?.Kill(entireProcessTree: true); } catch { /* già uscito */ }
+                return null;
+            }
+            finally
+            {
+                process?.Dispose();
             }
         }
 
@@ -776,53 +726,6 @@ namespace MdExplorer.Utilities
             }
         }
 
-        // Keep original Windows Forms approach as fallback reference
-        private static Task<ClipboardResult> SetFileDropListWindowsForms(string filePath)
-        {
-            var tcs = new TaskCompletionSource<ClipboardResult>();
-
-#if WINDOWS_CLIPBOARD_SUPPORT
-            Thread thread = new Thread(() =>
-            {
-                try
-                {
-                    var dataObj = new DataObject();
-
-                    // Set file drop list (CF_HDROP)
-                    var files = new System.Collections.Specialized.StringCollection();
-                    files.Add(filePath);
-                    dataObj.SetFileDropList(files);
-
-                    // Set Preferred DropEffect = DROPEFFECT_COPY (1)
-                    var dropEffect = new MemoryStream(new byte[] { 1, 0, 0, 0 });
-                    dataObj.SetData("Preferred DropEffect", dropEffect);
-
-                    Clipboard.SetDataObject(dataObj, true);
-                    tcs.SetResult(new ClipboardResult { Success = true });
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetResult(new ClipboardResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Error setting clipboard: {ex.Message}"
-                    });
-                }
-            });
-
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-            thread.Join();
-#else
-            tcs.SetResult(new ClipboardResult
-            {
-                Success = false,
-                ErrorMessage = "Windows clipboard support not available"
-            });
-#endif
-
-            return tcs.Task;
-        }
 
         private static async Task<ClipboardResult> SetFileDropListLinux(string filePath)
         {

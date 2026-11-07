@@ -131,7 +131,9 @@
   
   <!-- Windows-specific configuration -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <UseWindowsForms>true</UseWindowsForms>
+    <!-- false dal 07/11/2026: Windows Forms serviva solo agli appunti (ora WindowsClipboard, chiamate dirette a user32) e
+         portava nel pacchetto l'intero runtime desktop di Windows, Windows Forms + WPF (~70 MB). -->
+    <UseWindowsForms>false</UseWindowsForms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <DefineConstants>TRACE;DEBUG;WINDOWS_CLIPBOARD_SUPPORT</DefineConstants>
   </PropertyGroup>
