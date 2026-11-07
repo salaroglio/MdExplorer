@@ -41,13 +41,18 @@ namespace MdExplorer.IntegrationTests
             Environment = new Dictionary<string, string>(),
         };
 
+        /// <summary>Un nome che non può diventare un modello vero (vedi sotto).</summary>
+        private const string Missing = "modello-che-non-esiste-mde-test";
+
         [TestMethod]
         public async Task Fail_loud_when_the_declared_model_is_not_available()
         {
             AgentTurnResult result;
             try
             {
-                result = await Runner().RunTurnAsync(Request("copilot", "gpt-5.6-luna"));
+                // Un nome che non può diventare vero: «gpt-5.6-luna», usato fino al 07/11, nel frattempo è diventato un modello
+                // di Copilot (CLI 1.0.107: lo usa e lo dichiara negli eventi), e il test falliva senza che MDE sbagliasse.
+                result = await Runner().RunTurnAsync(Request("copilot", Missing));
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("Copilot CLI"))
             {
@@ -60,9 +65,10 @@ namespace MdExplorer.IntegrationTests
 
             // Il messaggio deve dire QUALE agente, QUALE modello e COSA fare — e dichiarare che
             // non si ripiega su un altro modello.
-            StringAssert.Contains(result.Diagnostic, "gpt-5.6-luna");
+            StringAssert.Contains(result.Diagnostic, Missing);
             StringAssert.Contains(result.Diagnostic, "wiki-curator");
-            StringAssert.Contains(result.Diagnostic, "Nessun ripiego");
+            // Il messaggio segue la lingua dell'interfaccia (UiText): nei test di solito è l'inglese.
+            Assert.IsTrue(result.Diagnostic.Contains("Nessun ripiego") || result.Diagnostic.Contains("No fallback"), result.Diagnostic);
         }
 
         [TestMethod]
