@@ -26,6 +26,7 @@ namespace MdExplorer.Controllers.A2A
     /// </summary>
     [ApiController]
     [Route("api/RepoSync")]
+    [MdExplorer.Services.Git.UserGitOperation]   // N6: il commit automatico di MDE aspetta il suo turno
     public class RepoSyncController : MdControllerBase<RepoSyncController>
     {
         private readonly IRepoSyncService _sync;

@@ -25,6 +25,7 @@ namespace MdExplorer.Service.Controllers.GIT
     [ApiController]
     [Route("/api/gitservice/branches")]
     [Obsolete("This controller is deprecated. Use ModernGitToolbarController for SSH-based operations.")]
+    [MdExplorer.Services.Git.UserGitOperation]   // N6: il commit automatico di MDE aspetta il suo turno
     public class BranchesController : MdControllerBase<BranchesController>
     {
         private readonly IGitService _gitService;

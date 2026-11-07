@@ -30,6 +30,7 @@ namespace MdExplorer.Controllers.ModernGit
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [MdExplorer.Services.Git.UserGitOperation]   // N6: il commit automatico di MDE aspetta il suo turno
     public class ModernGitController : MdControllerBase<ModernGitController>
     {
         private readonly IModernGitService _gitService;

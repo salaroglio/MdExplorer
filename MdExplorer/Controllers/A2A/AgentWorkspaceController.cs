@@ -24,6 +24,7 @@ namespace MdExplorer.Controllers.A2A
     /// </summary>
     [ApiController]
     [Route("api/AgentWorkspace")]
+    [MdExplorer.Services.Git.UserGitOperation]   // N6: il commit automatico di MDE aspetta il suo turno
     public class AgentWorkspaceController : ControllerBase
     {
         private readonly IAgentWorktreeManager _worktree;

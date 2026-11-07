@@ -171,7 +171,7 @@ namespace MdExplorer.Services.Git
                 if (!_pending.TryGetValue(root, out var batch))
                 {
                     batch = new Batch();
-                    batch.Timer = new Timer(_ => Fire(root));
+                    batch.Timer = new Timer(_ => Fire(root, waitForUser: true));
                     _pending[root] = batch;
                 }
                 (owned ? batch.Owned : batch.User)[fullPath] = why ?? MdeWhy.Generic;
@@ -182,16 +182,38 @@ namespace MdExplorer.Services.Git
         /// <summary>Fa partire subito quello che è in attesa e aspetta che finisca (test, chiusura del servizio).</summary>
         public async Task FlushAsync(CancellationToken ct = default)
         {
-            string[] roots;
-            lock (_lock) roots = _pending.Keys.ToArray();
-            foreach (var root in roots) Fire(root);
-            foreach (var task in _running.Values.ToArray())
+            // Chi chiede di fare subito (il pull di MDE, dentro un'operazione dell'utente) non può aspettare il turno: aspetterebbe sé
+            // stesso. Anche i giri già in attesa del turno partono.
+            Interlocked.Increment(ref _flushing);
+            try
             {
-                try { await task.WaitAsync(ct); } catch { /* l'esito è già nei risultati */ }
+                string[] roots;
+                lock (_lock) roots = _pending.Keys.ToArray();
+                foreach (var root in roots) Fire(root, waitForUser: false);
+                foreach (var task in _running.Values.ToArray())
+                {
+                    try { await task.WaitAsync(ct); } catch { /* l'esito è già nei risultati */ }
+                }
             }
+            finally { Interlocked.Decrement(ref _flushing); }
         }
 
-        private void Fire(string root)
+        private int _flushing;
+
+        /// <summary>Tempo massimo di attesa del turno: un'operazione dell'utente che non finisce non deve fermare MDE per sempre.</summary>
+        private static readonly TimeSpan MaxWaitForUser = TimeSpan.FromMinutes(10);
+
+        /// <summary>N6: aspetta che le operazioni git dell'utente finiscano (o che qualcuno chieda di fare subito).</summary>
+        private async Task WaitForUserAsync(string root)
+        {
+            if (!UserGitActivity.Busy) return;
+            _logger.LogInformation("[MdeAutoCommit] {Root}: un'operazione git dell'utente è in corso, il commit di MDE aspetta il suo turno", root);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (UserGitActivity.Busy && Volatile.Read(ref _flushing) == 0 && clock.Elapsed < MaxWaitForUser)
+                await Task.Delay(200);
+        }
+
+        private void Fire(string root, bool waitForUser)
         {
             Batch batch;
             lock (_lock)
@@ -201,14 +223,15 @@ namespace MdExplorer.Services.Git
             }
             // un giro alla volta per repository: il successivo aspetta il precedente
             _running.AddOrUpdate(root,
-                _ => Task.Run(() => HandleAsync(root, batch)),
-                (_, previous) => previous.ContinueWith(_ => HandleAsync(root, batch)).Unwrap());
+                _ => Task.Run(() => HandleAsync(root, batch, waitForUser: waitForUser)),
+                (_, previous) => previous.ContinueWith(_ => HandleAsync(root, batch, waitForUser: waitForUser)).Unwrap());
         }
 
-        private async Task<MdeAutoCommitResult> HandleAsync(string root, Batch batch, bool push = true)
+        private async Task<MdeAutoCommitResult> HandleAsync(string root, Batch batch, bool push = true, bool waitForUser = false)
         {
             MdeAutoCommitResult result;
             var busy = batch.Owned.Count > 0;
+            if (busy && waitForUser) await WaitForUserAsync(root);
             if (busy) await SayBusyAsync(root, true);
             try { result = batch.Owned.Count > 0 ? await CommitCoreAsync(root, batch.Owned, push) : new MdeAutoCommitResult { RepositoryRoot = root, PendingKind = MdeCommitPending.NothingToSave }; }
             catch (Exception ex)

@@ -286,5 +286,57 @@ namespace MdExplorer.IntegrationTests
                 .Where(f => MdExplorer.Utilities.MdeOwnedFiles.Find(f) != null).ToList();
             Assert.AreEqual(0, dirty.Count, "file di MDE non salvati: " + string.Join(", ", dirty));
         }
+
+        // ---- N6 (QA 07/11): MDE aspetta il suo turno se è partita prima un'operazione git dell'utente ----
+
+        private static readonly Dictionary<string, string> Quick = new() { ["MdeAutoCommit:Enabled"] = "true", ["MdeAutoCommit:DelayMs"] = "300" };
+
+        private static async Task<bool> Eventually(Func<bool> condition, int ms = 10000)
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (clock.ElapsedMilliseconds < ms) { if (condition()) return true; await Task.Delay(100); }
+            return condition();
+        }
+
+        [TestMethod]
+        public async Task Wait_for_the_user_git_operation_that_started_first()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(Quick);
+            var (project, _, _) = Setup(ctx, "turno");
+            var before = Git(project, "rev-list --count HEAD").Out;
+
+            var userOperation = UserGitActivity.Begin();
+            try
+            {
+                var r = await ctx.Client.PostAsync("/api/ProjectSettings/SetHarness", Json(new { projectPath = project, target = "claude" }));
+                Assert.IsTrue(r.IsSuccessStatusCode, await r.Content.ReadAsStringAsync());
+                await Task.Delay(1500);
+                Assert.AreEqual(before, Git(project, "rev-list --count HEAD").Out, "l'operazione dell'utente è in corso: MDE aspetta");
+            }
+            finally { userOperation.Dispose(); }
+
+            Assert.IsTrue(await Eventually(() => Git(project, "rev-list --count HEAD").Out != before), "finita l'operazione dell'utente, MDE fa il suo commit");
+            StringAssert.StartsWith(Git(project, "log -1 --format=%s").Out, "MDE: ");
+        }
+
+        [TestMethod]
+        public async Task Not_wait_for_itself_when_its_pull_saves_its_files_first()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(Quick);
+            var (project, _, _) = Setup(ctx, "turno-pull");
+            var service = ctx.Factory.Services.GetRequiredService<MdeAutoCommit>();
+
+            using (UserGitActivity.Begin())   // il pull dell'utente è in corso, e dentro salva prima i file di MDE
+            {
+                var r = await ctx.Client.PostAsync("/api/ProjectSettings/SetHarness", Json(new { projectPath = project, target = "claude" }));
+                Assert.IsTrue(r.IsSuccessStatusCode, await r.Content.ReadAsStringAsync());
+                await Task.Delay(800);   // il giro di MDE è partito e aspetta il turno
+                var save = service.CommitPendingAsync(project);
+                Assert.AreSame(save, await Task.WhenAny(save, Task.Delay(15000)), "il pull non resta ad aspettare sé stesso");
+            }
+            StringAssert.StartsWith(Git(project, "log -1 --format=%s").Out, "MDE: ");
+        }
     }
 }
