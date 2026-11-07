@@ -8,7 +8,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace MdExplorer.Features.Configuration
 {
-    public enum SchemaMismatchKind { UnknownGroup, UnknownKey, MissingKey, WrongType, ValueNotAllowed }
+    public enum SchemaMismatchKind { UnknownGroup, UnknownKey, MissingKey, WrongType, ValueNotAllowed, NewerVersion }
 
     /// <summary>Una differenza fra il file e lo schema: dove, alla riga, che cosa.</summary>
     public sealed record SchemaMismatch(string Path, int Line, SchemaMismatchKind Kind, string Detail);
@@ -27,11 +27,16 @@ namespace MdExplorer.Features.Configuration
     /// </summary>
     public sealed class DevelopmentSchemaCheck
     {
+        public const string CityGroup = "agentCity";
+
+        /// <summary>La versione di .development.yml che questo MDE gestisce (la più alta delle sue istantanee).</summary>
+        public int Current { get; private set; } = DevelopmentSchemaSnapshots.Current;
+
         /// <summary>Il numero scritto nel file (<c># mde-schema: N</c>); 1 se non c'è (file scritti prima dello sprint).</summary>
         public int FileSchema { get; private set; } = 1;
 
         /// <summary>Il file è stato scritto da un MDE con uno schema più alto di questo: le differenze vogliono dire «aggiorna MDE».</summary>
-        public bool WrittenByNewerMde => FileSchema > DevelopmentSchemaSnapshots.Current;
+        public bool WrittenByNewerMde => FileSchema > Current;
 
         /// <summary>Non null se il file non si legge come YAML con delle voci: allora è tutto spento.</summary>
         public SchemaMismatch Unreadable { get; private set; }
@@ -89,6 +94,7 @@ namespace MdExplorer.Features.Configuration
                 StringComparer.Ordinal);
 
             var newestFirst = snapshots.OrderByDescending(x => x.Version).ToList();
+            var current = snapshots.Max(x => x.Version);
             foreach (var (keyNode, value) in map.Children)
             {
                 var key = ((YamlScalarNode)keyNode).Value;
@@ -100,6 +106,12 @@ namespace MdExplorer.Features.Configuration
                 }
                 check.Unit(value, key, candidates, retired);
             }
+
+            // La città degli agenti lavora solo tra MDE che gestiscono la stessa versione di .development.yml (N7, utente 07/11): il
+            // registro dei giri e i messaggi fra i computer cambiano con quella versione. Un MDE che ne gestisce una più bassa la spegne.
+            if (check.FileSchema > current && map.Children.TryGetValue(new YamlScalarNode(CityGroup), out var city) && !check.IsOff(CityGroup))
+                check._off.Add(new SwitchedOffGroup(CityGroup, null, new[] { new SchemaMismatch(CityGroup, Line(city), SchemaMismatchKind.NewerVersion, "") }));
+            check.Current = current;
             return check;
         }
 
@@ -223,8 +235,15 @@ namespace MdExplorer.Features.Configuration
             var groupsIt = string.Join(", ", _off.Select(o => Label(o, true)));
             var groupsEn = string.Join(", ", _off.Select(o => Label(o, false)));
             if (WrittenByNewerMde)
-                return say($"Configurato da un MDE più nuovo (schema {FileSchema}, questo MDE ha il {DevelopmentSchemaSnapshots.Current}): {groupsIt} restano spenti finché non aggiorni MDE. Il resto funziona.",
-                           $"Configured by a newer MDE (schema {FileSchema}, this MDE has {DevelopmentSchemaSnapshots.Current}): {groupsEn} stay off until you update MDE. The rest works.");
+            {
+                var city = _off.Any(o => o.Path == CityGroup);
+                return say($"Questo progetto usa la versione {FileSchema} di .development.yml, il tuo MDE gestisce fino alla {Current}: " +
+                           (city ? "per lavorare nella città degli agenti aggiorna MDE all'ultima versione. " : "aggiorna MDE all'ultima versione. ") +
+                           $"Restano spenti: {groupsIt}. Il resto funziona.",
+                           $"This project uses version {FileSchema} of .development.yml, your MDE handles up to {Current}: " +
+                           (city ? "to work in the agent city, update MDE to the latest version. " : "update MDE to the latest version. ") +
+                           $"Still off: {groupsEn}. The rest works.");
+            }
             var first = _off.SelectMany(o => o.Mismatches).First();
             return say($"In .development.yml {groupsIt} non combaciano con lo schema di questo MDE (riga {first.Line}, «{first.Path}»: {Kind(first.Kind, true)}{Detail(first)}): restano spenti. Se un collega usa un MDE più nuovo, aggiorna MDE.",
                        $"In .development.yml {groupsEn} do not match the schema of this MDE (line {first.Line}, «{first.Path}»: {Kind(first.Kind, false)}{Detail(first)}): they stay off. If a colleague uses a newer MDE, update MDE.");
@@ -262,6 +281,7 @@ namespace MdExplorer.Features.Configuration
             SchemaMismatchKind.UnknownKey => it ? "voce che questo MDE non conosce" : "entry this MDE does not know",
             SchemaMismatchKind.MissingKey => it ? "voce mancante" : "missing entry",
             SchemaMismatchKind.ValueNotAllowed => it ? "valore che questo MDE non conosce" : "value this MDE does not know",
+            SchemaMismatchKind.NewerVersion => it ? "versione di .development.yml più alta di quella che questo MDE gestisce" : "version of .development.yml higher than this MDE handles",
             _ => it ? "tipo diverso" : "different type",
         };
     }

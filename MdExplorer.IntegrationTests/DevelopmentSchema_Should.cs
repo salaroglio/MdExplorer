@@ -158,8 +158,8 @@ namespace MdExplorer.IntegrationTests
             var check = DevelopmentSchemaCheck.Run("# mde-schema: 9\n" + Today.Replace("  target: claude\n", "  target: claude\n  effort: high\n"));
             Assert.AreEqual(9, check.FileSchema);
             Assert.IsTrue(check.WrittenByNewerMde);
-            StringAssert.Contains(check.Describe(Say), "MDE più nuovo (schema 9");
-            StringAssert.Contains(check.Describe(Say), "aggiorni MDE");
+            StringAssert.Contains(check.Describe(Say), "Questo progetto usa la versione 9 di .development.yml");
+            StringAssert.Contains(check.Describe(Say), "aggiorna MDE all'ultima versione");
 
             Assert.IsFalse(DevelopmentSchemaCheck.Run("# mde-schema: 1\n" + Today).WrittenByNewerMde);
             Assert.AreEqual(1, DevelopmentSchemaCheck.Run("# un commento\n" + Today).FileSchema);

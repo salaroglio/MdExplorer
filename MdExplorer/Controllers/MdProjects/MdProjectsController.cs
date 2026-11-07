@@ -978,6 +978,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>());
                 logPhase("ConfigCleanup");
 
+                // N7: con la città accesa, un MDE che gestisce una versione di .development.yml più alta la scrive nel file.
+                try { MdExplorer.Utilities.DevelopmentConfigWriter.AlignForCity(MdExplorer.Utilities.DevelopmentConfigFile.PathIn(request.Path)); }
+                catch (Exception alignEx) { logger?.LogWarning(alignEx, "[Config] versione di .development.yml non allineata per la città in {Path}", request.Path); }
+
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
                 _foldersIgnoreService.InvalidateCache(request.Path);
                 logPhase("InvalidateCache");

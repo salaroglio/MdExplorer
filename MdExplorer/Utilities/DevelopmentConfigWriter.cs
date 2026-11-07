@@ -38,6 +38,29 @@ namespace MdExplorer.Utilities
 
         public static string Header(int schema) => $"# mde-schema: {schema}";
 
+        private static readonly Regex HeaderLine = new(@"^#\s*mde-schema:\s*\d+[ \t]*\n", RegexOptions.Compiled | RegexOptions.Multiline);
+
+        /// <summary>
+        /// N7 (utente 07/11): la città degli agenti lavora solo tra MDE che gestiscono la stessa versione di <c>.development.yml</c>.
+        /// Un MDE che ne gestisce una più alta di quella scritta, in un progetto con la città accesa, alza il numero nel file (solo la
+        /// riga in testa, il resto resta byte per byte): così chi è rimasto indietro lo scopre con l'avviso «aggiorna MDE», invece di
+        /// bloccarsi su un registro dei giri o su messaggi che non capisce. True se ha scritto.
+        /// </summary>
+        public static bool AlignForCity(string path)
+        {
+            if (!File.Exists(path)) return false;
+            var text = File.ReadAllText(path);
+            var current = DevelopmentSchemaSnapshots.Current;
+            if ((DevelopmentSchemaCheck.SchemaNumberOf(text) ?? 1) >= current) return false;
+            var read = DevelopmentConfigFile.Read(path);
+            if (read.IsOff(DevelopmentSchemaCheck.CityGroup) || read.Config.AgentCity?.Enabled != true) return false;
+            var lf = text.Replace("\r\n", "\n");
+            var aligned = Header(current) + "\n" + HeaderLine.Replace(lf, string.Empty, 1);
+            return MdeRepoWriter.WriteIfChanged(path, aligned, new MdeWhy(
+                $"portata alla versione {current} la versione di .development.yml: la città degli agenti lavora solo tra MDE che gestiscono la stessa, chi è indietro riceve l'invito ad aggiornare",
+                $"raised .development.yml to version {current}: the agent city works only among MDEs handling the same one, whoever is behind is asked to update"));
+        }
+
         private static readonly Regex TopKey = new(@"^(?<key>[A-Za-z_][\w-]*)\s*:", RegexOptions.Compiled);
 
         /// <summary>Il testo nuovo del file (fine riga LF): <paramref name="original"/> null = il file non c'è ancora.</summary>
