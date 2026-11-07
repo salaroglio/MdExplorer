@@ -241,6 +241,33 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-code-doc", Shared("MdExplorer.Service.skills.mde_code_doc.prompt.md")),
         };
 
+        /// <summary>Un file che MDE distribuisce, come esce dal pacchetto: per il test che vuole il numero alzato a ogni cambio (N5).</summary>
+        public sealed record ShippedAsset(string Kind, string Name, string Layout, int Version, string ContentHash);
+
+        /// <summary>
+        /// Tutto ciò che i cataloghi distribuiscono, per ogni ambiente agentico: tipo, nome, versione del blocco <c>mde:</c> e impronta
+        /// del contenuto, file di accompagnamento compresi. Un file cambiato senza alzare la versione non arriva nei progetti che
+        /// l'hanno già (N5 della valutazione del 07/11): il test <c>MdeSkillVersions_Should</c> lo impedisce.
+        /// </summary>
+        public static IReadOnlyList<ShippedAsset> Shipped()
+        {
+            var list = new List<ShippedAsset>();
+            foreach (var (kind, catalog) in new[] { ("skill", BuiltInSkills), ("agent", BuiltInAgents), ("prompt", BuiltInPrompts) })
+                foreach (var entry in catalog)
+                    foreach (var target in new[] { HarnessTarget.Copilot, HarnessTarget.OpenCode, HarnessTarget.Claude })
+                    {
+                        var content = entry.SourceFor(target).Read()
+                            ?? throw new InvalidOperationException($"Embedded resource missing for {kind} '{entry.Name}' ({target}).");
+                        var all = new System.Text.StringBuilder(content.Replace("\r\n", "\n"));
+                        foreach (var (file, resource) in entry.Companions)
+                            all.Append("\n--- ").Append(file).Append('\n').Append((ReadEmbeddedText(resource)
+                                ?? throw new InvalidOperationException($"Embedded resource missing: {resource}")).Replace("\r\n", "\n"));
+                        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(all.ToString()))).ToLowerInvariant();
+                        list.Add(new ShippedAsset(kind, entry.Name, target.ToString(), ExtractMdeMarker(content).Version ?? 0, hash.Substring(0, 16)));
+                    }
+            return list;
+        }
+
         private const string OriginMarker = "mdexplorer";
 
         // Captures the YAML frontmatter (between the two `---` fences) at the top of the file.
