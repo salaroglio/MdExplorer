@@ -105,7 +105,7 @@ namespace MdExplorer.Features.Configuration
 
         /// <summary>
         /// Un'unità (gruppo in cima o elemento di lista) combacia se combacia con almeno un'istantanea; se no si spegne con le
-        /// differenze rispetto allo schema più nuovo che la conosce. Gli elementi delle sue liste di gruppi sono unità a sé.
+        /// differenze rispetto all'istantanea più vicina. Gli elementi delle sue liste di gruppi sono unità a sé.
         /// </summary>
         private void Unit(YamlNode node, string path, IReadOnlyList<(SchemaSnapshot Snapshot, SchemaNode Node)> candidates, HashSet<string> retired)
         {
@@ -115,7 +115,8 @@ namespace MdExplorer.Features.Configuration
             {
                 var found = new List<SchemaMismatch>();
                 Own(node, c.Node, path, c.Snapshot.MissingKeysAllowed, retired, found);
-                first ??= found;
+                // Le differenze da dire sono quelle dell'istantanea più vicina (meno differenze; a pari, la più nuova).
+                if (first == null || found.Count < first.Count) first = found;
                 if (found.Count == 0) { matched = c; break; }
             }
             if (matched == null)

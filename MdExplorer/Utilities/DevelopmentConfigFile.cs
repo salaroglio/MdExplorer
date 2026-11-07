@@ -50,19 +50,6 @@ namespace MdExplorer.Utilities
 
         /// <summary>Lo stesso, a partire dalla cartella del progetto.</summary>
         public static DevelopmentConfigRead ReadProject(string projectPath) => Read(PathIn(projectPath));
-
-        /// <summary>
-        /// Il motivo per non scrivere il file, o null. Fino alla scrittura per gruppo (F3) MDE riscrive il file intero dal modello, che
-        /// non ha i gruppi spenti: scrivere ora li cancellerebbe e il commit automatico pubblicherebbe la cancellazione. Quindi, se
-        /// c'è un gruppo spento, non si scrive niente. Le due lingue insieme, senza UiText: si arriva qui anche dentro una transazione.
-        /// </summary>
-        public static string WhyNotWritable(string path)
-        {
-            if (!File.Exists(path)) return null;
-            var check = DevelopmentConfigText.Prune(File.ReadAllText(path)).Check;
-            if (check.AllGood) return null;
-            return check.Describe((it, en) => it + " / " + en) + " — MDE non riscrive il file per non perdere quei gruppi. / MDE does not rewrite the file so as not to lose those groups.";
-        }
     }
 
     public sealed class DevelopmentConfigRead

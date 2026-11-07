@@ -64,8 +64,10 @@ namespace MdExplorer.IntegrationTests
             // (worktree attivi se c'è git), quindi non può dire «assente».
             var yml = System.IO.File.ReadAllText(System.IO.Path.Combine(path, ".development.yml"));
             StringAssert.Contains(yml, "agentCity:");
-            Assert.IsFalse(yml.Contains("useAgentWorktrees"),
+            // Dallo schema 2 (D6) la voce c'è, senza valore: è sempre null, «decide l'app».
+            StringAssert.Contains(yml, "  useAgentWorktrees:\n",
                 "i worktree non vanno spenti da un salvataggio che non ne parla: `null` vuol dire «decide l'app»");
+            Assert.IsFalse(yml.Contains("useAgentWorktrees: "), yml);
         }
 
         [TestMethod]
@@ -88,7 +90,7 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Read_strictly_a_file_with_the_retired_key_but_refuse_a_key_nobody_knows()
+        public async Task Drop_the_retired_key_and_switch_off_only_the_group_with_a_key_nobody_knows()
         {
             using var ctx = new AgentCityContext();
             var (_, path) = ctx.SeedProject("lettura-rigida");
@@ -105,12 +107,15 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(System.Net.HttpStatusCode.OK, ok.StatusCode, await ok.Content.ReadAsStringAsync());
             Assert.IsFalse(System.IO.File.ReadAllText(file).Contains("autoMergeAgentDeliverables"));
 
-            // Un errore di battitura NON è una riga ritirata: la lettura rigida si ferma e dice quale riga.
+            // Un errore di battitura NON è una riga ritirata. Dal 07/11 (schema di .development.yml, D3) non ferma più tutto: spegne
+            // il suo gruppo, che resta nel file com'era, e il resto si salva.
             System.IO.File.WriteAllText(file, "folders: []\nagentCity:\n  enabeld: true\n");
-            var refused = await ctx.Client.PostAsync("/api/mdfiles/SetDevelopmentTags", new StringContent(body, Encoding.UTF8, "application/json"));
-            Assert.AreEqual(System.Net.HttpStatusCode.InternalServerError, refused.StatusCode);
-            StringAssert.Contains(await refused.Content.ReadAsStringAsync(), "enabeld");
-            StringAssert.Contains(System.IO.File.ReadAllText(file), "enabeld", "e il file non viene riscritto");
+            var saved = await ctx.Client.PostAsync("/api/mdfiles/SetDevelopmentTags", new StringContent(body, Encoding.UTF8, "application/json"));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, saved.StatusCode, await saved.Content.ReadAsStringAsync());
+            var after = System.IO.File.ReadAllText(file);
+            StringAssert.Contains(after, "agentCity:\n  enabeld: true\n", "il gruppo spento resta parola per parola");
+            StringAssert.Contains(after, "- wip");
+            Assert.IsTrue(MdExplorer.Utilities.DevelopmentConfigFile.Read(file).IsOff("agentCity"));
         }
     }
 }

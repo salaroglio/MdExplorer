@@ -218,7 +218,7 @@ version: 1.0.0
 
             Assert.IsTrue(File.Exists(Path.Combine(path, ".mde-template/gara-iso/esempio/gara.md")));
             var yml = File.ReadAllText(Path.Combine(path, ".development.yml"));
-            StringAssert.Contains(yml, "- id: gara-iso\n  url: " + url + "\n  language: it\n  example: true\n", "un metodo non scrive kind");
+            StringAssert.Contains(yml, "- id: gara-iso\n  url: " + url + "\n  kind:\n  language: it\n  example: true\n", "un metodo lascia kind senza valore (D6 dello schema 2)");
         }
 
         [TestMethod]

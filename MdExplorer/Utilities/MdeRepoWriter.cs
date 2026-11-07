@@ -29,16 +29,11 @@ namespace MdExplorer.Utilities
     /// </summary>
     public static class MdeRepoWriter
     {
-        private static readonly ISerializer DevelopmentSerializer = new SerializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-            .Build();
-
         /// <summary>
-        /// L'unico serializzatore di <c>.development.yml</c>: camelCase, senza le voci vuote. Tutti gli scrittori lo usano, così lo
-        /// stesso contenuto produce sempre lo stesso testo, chiunque lo salvi.
+        /// Il testo di un <c>.development.yml</c> nuovo, lo stesso che MDE scriverebbe dopo (<see cref="DevelopmentConfigWriter"/>): numero
+        /// di schema in testa, i gruppi presenti con tutte le voci (vuote se non compilate, D6), i gruppi assenti omessi.
         /// </summary>
-        public static string SerializeDevelopmentConfig(object config) => DevelopmentSerializer.Serialize(config);
+        public static string SerializeDevelopmentConfig(MdExplorer.Service.Models.DevelopmentConfig config) => DevelopmentConfigWriter.Compose(null, config);
 
         /// <summary>
         /// Avvisato dopo ogni scrittura EFFETTIVA di un file del repository (non quando il testo era già uguale), con il motivo:
@@ -54,15 +49,14 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
-        /// Salva <c>.development.yml</c> se cambia. True = il file è stato scritto. Se il file ha un gruppo spento dal controllo dello
-        /// schema non scrive e lancia, con il motivo: il modello non ha quel gruppo e riscrivendo lo cancellerebbe
-        /// (<see cref="DevelopmentConfigFile.WhyNotWritable"/>; F2, fino alla scrittura per gruppo di F3).
+        /// Salva <c>.development.yml</c> se cambia, un gruppo alla volta (<see cref="DevelopmentConfigWriter"/>): i gruppi uguali e quelli
+        /// spenti restano byte per byte. True = il file è stato scritto. Scrivere in un gruppo spento, o creare in un file di un MDE più
+        /// nuovo, lancia <see cref="DevelopmentConfigOffException"/> con il motivo.
         /// </summary>
-        public static bool WriteDevelopmentConfig(string filePath, object config, MdeWhy why = null)
+        public static bool WriteDevelopmentConfig(string filePath, MdExplorer.Service.Models.DevelopmentConfig config, MdeWhy why = null)
         {
-            var refused = DevelopmentConfigFile.WhyNotWritable(filePath);
-            if (refused != null) throw new DevelopmentConfigOffException(refused);
-            return WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? MdeWhy.ConfigUpdated);
+            var original = File.Exists(filePath) ? File.ReadAllText(filePath) : null;
+            return WriteIfChanged(filePath, DevelopmentConfigWriter.Compose(original, config), why ?? MdeWhy.ConfigUpdated);
         }
 
         /// <summary>

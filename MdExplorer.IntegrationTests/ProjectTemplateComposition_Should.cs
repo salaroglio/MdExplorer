@@ -85,7 +85,7 @@ theory:
 
             var yml = Read(path, ".development.yml");
             StringAssert.Contains(yml, "- id: documenti\n  url: " + foundation + "\n  kind: foundation\n");
-            StringAssert.Contains(yml, "- id: ddd\n  url: " + ddd + "\n  language: it\n  example: false\n  theory: true\n");
+            StringAssert.Contains(yml, "- id: ddd\n  url: " + ddd + "\n  kind:\n  language: it\n  example: false\n  theory: true\n");
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("The theory of «Sviluppo con DDD» in teoria/ddd/: 2 documents")), string.Join("\n", outcome.Notes));
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out, "la teoria è nel commit del metodo");
         }

@@ -76,7 +76,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills", "ddd-modella")), "la skill degli agenti no");
             Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills", "mde-workflow")), "nemmeno quelle di MDE per gli agenti");
             var yml = Read(path, ".development.yml");
-            Assert.IsFalse(yml.Contains("workflowDocs"), yml);
+            Assert.IsFalse(yml.Contains("workflowDocs:\n  -"), "nessun workflow (la voce c'è, senza valore: D6)\n" + yml);
             Assert.IsFalse(yml.Contains("agentCity:\n  enabled: true"), "la città resta spenta:\n" + yml);
             Assert.IsFalse(File.Exists(Path.Combine(path, "responsabilita.md")) && Read(path, "responsabilita.md").Contains("Analista DDD"), "niente ruoli");
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("«Sviluppo con DDD» has agents, roles and workflows for the agent city: they arrive when you turn it on")),

@@ -61,15 +61,18 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public void Serialize_the_development_config_without_empty_entries()
+        public void Serialize_the_development_config_with_every_entry_of_the_groups_present()
         {
+            // Dal 07/11 (schema 2, D6): le voci di un gruppo presente ci sono tutte, vuote se non compilate; i gruppi assenti no.
             var config = new DevelopmentConfig();
             config.Folders.Add(new DevelopmentFolder { Path = "bde_legacy", Tags = new() { "program" } });
             var yaml = MdeRepoWriter.SerializeDevelopmentConfig(config);
             StringAssert.Contains(yaml, "path: bde_legacy");
-            Assert.IsFalse(yaml.Contains("description:"), yaml);
-            Assert.IsFalse(yaml.Contains("knowledgeGraph:"), yaml);
-            Assert.IsFalse(yaml.Contains("codeGraph:"), yaml);
+            StringAssert.Contains(yaml, "  description:\n", yaml);
+            StringAssert.Contains(yaml, "  knowledgeGraph:\n", yaml);
+            StringAssert.Contains(yaml, "  codeGraph:\n", yaml);
+            Assert.IsFalse(yaml.Contains("redmine:"), yaml);
+            Assert.IsFalse(yaml.Contains("''"), yaml);
         }
 
         [TestMethod]

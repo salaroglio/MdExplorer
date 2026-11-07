@@ -89,16 +89,20 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public void Not_rewrite_a_file_with_a_switched_off_group()
+        public void Write_another_group_and_leave_the_switched_off_one_as_it_was()
         {
-            var text = Base + "harness:\n  target: claude\n  effort: high\n";
-            File.WriteAllText(Yml, text);
+            // F2 qui rifiutava (riscriveva il file intero); da F3 si scrive per gruppo.
+            var off = "harness:\n  target: claude\n  effort: high\n";
+            File.WriteAllText(Yml, Base + off);
             var metadata = new ProjectMetadataService(NullLogger<ProjectMetadataService>.Instance);
 
-            Assert.AreEqual("Il progetto", metadata.GetDescription(_dir), "la lettura va");
-            var ex = Assert.ThrowsException<DevelopmentConfigOffException>(() => metadata.SetDescription(_dir, "Nuova descrizione"));
-            StringAssert.Contains(ex.Message, "harness");
-            Assert.AreEqual(text, File.ReadAllText(Yml), "il file resta uguale byte per byte");
+            metadata.SetDescription(_dir, "Nuova descrizione");
+
+            var after = File.ReadAllText(Yml);
+            StringAssert.Contains(after, "description: Nuova descrizione");
+            StringAssert.Contains(after, off, "il gruppo spento resta parola per parola");
+            StringAssert.Contains(after, "  mirror: true\n", "e anche l'elemento spento della lista");
+            Assert.AreEqual("Nuova descrizione", metadata.GetDescription(_dir));
         }
 
         [TestMethod]
@@ -143,7 +147,6 @@ namespace MdExplorer.IntegrationTests
             var read = DevelopmentConfigFile.Read(Yml);
             Assert.IsNotNull(read.Check.Unreadable);
             Assert.IsNull(read.Config.Harness);
-            Assert.IsNotNull(DevelopmentConfigFile.WhyNotWritable(Yml));
             Assert.AreEqual(HarnessTarget.None, HarnessSettings.Resolve(_dir, requested: null));
             Assert.AreEqual(text, File.ReadAllText(Yml));
         }
