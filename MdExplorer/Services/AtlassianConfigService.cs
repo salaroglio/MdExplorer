@@ -88,12 +88,7 @@ namespace MdExplorer.Services
 
             dev.Atlassian = config;
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(dev));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, dev);
             _logger.LogInformation("Atlassian config updated in {FilePath}", filePath);
         }
     }

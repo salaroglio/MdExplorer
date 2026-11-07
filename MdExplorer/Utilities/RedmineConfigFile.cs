@@ -31,11 +31,7 @@ namespace MdExplorer.Utilities
 
             var dev = DevelopmentConfigCleanup.ReadStrict(file);
             dev.Redmine = config;
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(file, serializer.Serialize(dev));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, dev);
         }
     }
 }

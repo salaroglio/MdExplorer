@@ -140,12 +140,7 @@ namespace MdExplorer.Utilities
             root.Harness = new HarnessConfig { Target = IdOf(target), Model = keptModel };
             ExcludeHarnessFolderFromYamlAutoGeneration(root, target);
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(root));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
             Console.WriteLine($"[HarnessSettings] harness.target = {IdOf(target)} written in {filePath}");
         }
 

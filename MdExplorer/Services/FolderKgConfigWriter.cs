@@ -77,11 +77,7 @@ namespace MdExplorer.Services
             }
             entry.KnowledgeGraph = new FolderKnowledgeGraphConfig { Namespace = ns, Enabled = true };
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(filePath, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
             _logger.LogInformation(
                 "[FolderKgConfigWriter] auto-created KG namespace '{Namespace}' for folder '{Folder}' in {File}",
                 ns, string.IsNullOrEmpty(relKey) ? "." : relKey, filePath);

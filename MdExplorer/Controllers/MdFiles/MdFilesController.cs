@@ -1179,12 +1179,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 config.Folders.RemoveAll(f => f.Tags == null || f.Tags.Count == 0);
 
                 // Save config
-                var serializer = new SerializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-
-                var newYamlContent = serializer.Serialize(config);
-                System.IO.File.WriteAllText(devConfigPath, newYamlContent);
+                // Il serializzatore comune (senza voci vuote) e solo se cambia: sprint «File di sistema di MDE», S1.
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config);
 
                 _logger.LogInformation($"Development tags saved for folder: {relativePath}");
                 Console.WriteLine($"[MdFilesController] SetDevelopmentTags completed successfully");

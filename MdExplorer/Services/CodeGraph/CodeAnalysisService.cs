@@ -408,7 +408,7 @@ namespace MdExplorer.Services.CodeGraph
                         ?? throw new InvalidOperationException(UiText.Say($"@{alias}/{sub} non è marcata come programma: marcala prima di scegliere i linguaggi.", $"@{alias}/{sub} is not marked as a program: mark it before choosing the languages."));
                     context.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? context.CodeGraph?.Describe };
                 }
-                File.WriteAllText(path, new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build().Serialize(config));
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
                 _logger.LogInformation("[CodeGraph] '@{Alias}': linguaggi = {Langs}", alias, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
                 return;
             }
@@ -421,8 +421,7 @@ namespace MdExplorer.Services.CodeGraph
             }
             entry.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? entry.CodeGraph?.Describe };
 
-            var serializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
-            File.WriteAllText(path, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
             _logger.LogInformation("[CodeGraph] '{Folder}': linguaggi = {Langs}", folderRelative, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
         }
 

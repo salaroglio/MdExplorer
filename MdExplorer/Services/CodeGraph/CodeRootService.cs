@@ -495,8 +495,7 @@ namespace MdExplorer.Services.CodeGraph
         private static void WriteConfig(string projectPath, DevelopmentConfig config)
         {
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            var serializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
-            File.WriteAllText(path, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
         }
 
         private static string Combine(string root, string subpath)

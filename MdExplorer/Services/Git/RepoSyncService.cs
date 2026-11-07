@@ -481,7 +481,7 @@ namespace MdExplorer.Services.Git
         private const string DevYaml = ".development.yml";
 
         /// <summary>
-        /// Prima del pull (06/11/2026, BCCSI-Docs bloccato da 18 giorni): se l'UNICO file modificato e non salvato è
+        /// Prima del pull (06/11/2026, progetto A bloccato da 18 giorni): se l'UNICO file modificato e non salvato è
         /// <c>.development.yml</c>, lo si mette da parte. MdExplorer lo scrive da sé (il segreto della chat creato da
         /// <c>EnsureRoomSecret</c>, «servono commit e push») e git rifiuta il pull appena gli aggiornamenti toccano il file:
         /// «Your local changes … would be overwritten by merge». La correzione del 07/10 (<see cref="ResolveDevelopmentYamlAsync"/>)

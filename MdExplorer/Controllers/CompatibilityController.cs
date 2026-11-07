@@ -179,12 +179,8 @@ namespace MdExplorer.Service.Controllers
                 };
 
                 // Save config
-                var serializer = new SerializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-
-                var newYamlContent = serializer.Serialize(config);
-                System.IO.File.WriteAllText(devConfigPath, newYamlContent);
+                // Il serializzatore comune (senza voci vuote) e solo se cambia: sprint «File di sistema di MDE», S1.
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config);
 
                 _logger.LogInformation($"SetCompatibilityMode - Successfully saved to: {devConfigPath}");
 

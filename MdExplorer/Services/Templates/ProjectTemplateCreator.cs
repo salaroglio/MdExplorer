@@ -497,11 +497,9 @@ namespace MdExplorer.Services.Templates
                 }
             }
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            await File.WriteAllTextAsync(file, serializer.Serialize(config), ct);
+            // Lo stesso serializzatore di ogni altra scrittura (sprint «File di sistema di MDE», S1): un progetto nuovo nasce con il testo
+            // che MDE scriverebbe dopo, e il primo salvataggio non lo riformatta.
+            await File.WriteAllTextAsync(file, MdExplorer.Utilities.MdeRepoWriter.SerializeDevelopmentConfig(config), ct);
 
             // Le istruzioni: un blocco del metodo in ogni file d'istruzioni che il progetto ha, e in quello del suo motore.
             if (!string.IsNullOrWhiteSpace(manifest.Instructions))

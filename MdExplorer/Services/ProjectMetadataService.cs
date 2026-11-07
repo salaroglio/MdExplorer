@@ -139,12 +139,7 @@ namespace MdExplorer.Services
             var trimmed = description?.Trim();
             config.Project.Description = string.IsNullOrEmpty(trimmed) ? null : trimmed;
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
             _logger.LogInformation("Project description updated in {FilePath}", filePath);
         }
 
@@ -233,12 +228,7 @@ namespace MdExplorer.Services
 
             config.Project.Participants = normalized;
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
         }
 
@@ -380,12 +370,7 @@ namespace MdExplorer.Services
                 UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
             };
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(root));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
             _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
             return root.AgentCity;
         }
@@ -425,11 +410,7 @@ namespace MdExplorer.Services
             root.AgentCity ??= new AgentCityConfig { Enabled = false };
             root.AgentCity.RoomSecret = GenerateRoomSecret();
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(filePath, serializer.Serialize(root));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
             _logger.LogInformation("Room secret del progetto creato in {FilePath}: servono commit e push", filePath);
             return (root.AgentCity.RoomSecret, true);
         }
@@ -613,11 +594,7 @@ namespace MdExplorer.Services
                 UpdatedAt = DateTime.UtcNow.ToString("o")
             };
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(filePath, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
             _logger.LogInformation("Project icon updated at {IconPath} ({Bytes} bytes)", iconAbs, pngBytes.Length);
         }
 
@@ -684,10 +661,7 @@ namespace MdExplorer.Services
 
                 config.Project.Icon = null;
 
-                var serializer = new SerializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-                File.WriteAllText(filePath, serializer.Serialize(config));
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
                 _logger.LogInformation("Project icon reference removed from {FilePath}", filePath);
             }
             catch (Exception ex)

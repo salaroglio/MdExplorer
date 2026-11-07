@@ -396,11 +396,7 @@ namespace MdExplorer.Services.Templates
 
         private static void Write(string file, DevelopmentConfig config)
         {
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(file, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, config);
         }
     }
 }
