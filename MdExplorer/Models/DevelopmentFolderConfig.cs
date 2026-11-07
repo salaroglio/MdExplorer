@@ -270,6 +270,9 @@ namespace MdExplorer.Service.Models
         /// questo. Null = non scelto, e allora non si scrivono descrizioni né note.
         /// </summary>
         public string TextFormatting { get; set; }
+
+        /// <summary>I valori ammessi di <see cref="TextFormatting"/> (li usano il controller e lo schema del file).</summary>
+        public static readonly IReadOnlyList<string> TextFormats = new[] { "markdown", "textile" };
     }
 
     /// <summary>

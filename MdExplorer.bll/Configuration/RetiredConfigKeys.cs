@@ -22,6 +22,10 @@ namespace MdExplorer.Features.Configuration
             // 2026-08-02 retired, 2026-10-05 removed: a document delivered by an agent is proposed and a
             // person decides (the merge request); nothing merged by itself any more, and nothing read the flag.
             ("agentCity", "autoMergeAgentDeliverables"),
+            // 2026-06-04 removed (7bf6e440) without being retired here: the Jira triage wrote its plans in this folder, then the
+            // plans moved to Confluence/MCP. Found 07/11 in a real project (F0 of docs-internal/Sprints/2026-11-07-Schema-Development-Yml.md):
+            // with the schema check it would have switched Jira off.
+            ("atlassian", "planningFolder"),
         };
 
         /// <summary>

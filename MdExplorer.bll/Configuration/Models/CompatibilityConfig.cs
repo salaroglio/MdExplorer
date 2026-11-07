@@ -14,6 +14,9 @@ namespace MdExplorer.Features.Configuration.Models
         /// </summary>
         public string Mode { get; set; } = "mdexplorer";
 
+        /// <summary>I valori ammessi di <see cref="Mode"/> (lo schema di .development.yml li controlla).</summary>
+        public static readonly System.Collections.Generic.IReadOnlyList<string> Modes = new[] { "mdexplorer", "github", "commonmark" };
+
         /// <summary>
         /// GitHub-specific options
         /// </summary>

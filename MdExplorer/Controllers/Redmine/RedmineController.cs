@@ -27,7 +27,7 @@ namespace MdExplorer.Service.Controllers.Redmine
     public class RedmineController : ControllerBase
     {
         private const string KeyMask = "********";
-        private static readonly string[] TextFormats = { "markdown", "textile" };
+        private static readonly IReadOnlyList<string> TextFormats = MdExplorer.Service.Models.RedmineConfig.TextFormats;
 
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly IPasswordProtector _passwordProtector;
