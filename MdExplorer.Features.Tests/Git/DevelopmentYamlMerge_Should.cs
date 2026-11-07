@@ -89,5 +89,26 @@ namespace MdExplorer.Features.Tests.Git
                                 "  ownershipDoc: citta-degli-agenti/gara/responsabilita.md\n  workflowDoc: citta-degli-agenti/gara/workflow.md\n";
             Assert.AreEqual(demo, DevelopmentYamlMerge.Merge(demo, demo, demo, out _));
         }
+
+        [TestMethod]
+        public void Keep_empty_entries_empty_and_the_highest_schema_number()
+        {
+            // Schema 2 di .development.yml (07/11): voci non compilate «voce:», e in testa il numero di schema. YamlDotNet scriverebbe
+            // '' (testo vuoto), che il controllo dello schema leggerebbe come tipo sbagliato per un gruppo.
+            const string b = "# mde-schema: 2\nharness:\n  target: copilot\n  model:\nfolders:\n- path: docs\n  knowledgeGraph:\n";
+            var ours = b.Replace("target: copilot", "target: claude");
+            var theirs = b.Replace("# mde-schema: 2", "# mde-schema: 3").Replace("- path: docs", "- path: specs");
+
+            var merged = DevelopmentYamlMerge.Merge(b, ours, theirs, out var conflict);
+
+            Assert.IsNull(conflict);
+            StringAssert.StartsWith(merged, "# mde-schema: 3\n");
+            StringAssert.Contains(merged, "  model:\n");
+            StringAssert.Contains(merged, "  knowledgeGraph:\n");
+            Assert.IsFalse(merged.Contains("''"), merged);
+            StringAssert.Contains(merged, "target: claude");
+            StringAssert.Contains(merged, "- path: specs");
+            Assert.IsTrue(MdExplorer.Features.Configuration.DevelopmentSchemaCheck.Run(merged).AllGood);
+        }
     }
 }

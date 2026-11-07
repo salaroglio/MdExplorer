@@ -235,6 +235,7 @@ namespace MdExplorer.Services.Git
                 // Lo scaricamento del progetto allinea già i submodule, solo in avanti (ModernGitService).
                 var res = await _git.PullAsync(dir);
                 IReadOnlyList<string> mdeNotes = Array.Empty<string>();
+                bool mergeStopped;
                 if (!res.Success && (await _runner.RunAsync(dir, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct)).Ok)
                 {
                     var resolved = await ResolveMdeConflictsAsync(dir, ct);
@@ -258,9 +259,13 @@ namespace MdExplorer.Services.Git
                             $"Still to fix by hand: {string.Join(", ", resolved.Remaining)}.")).ToList();
                     }
                 }
+                // N4 (QA 07/11): l'unione è ancora in corso (si è fermata su file dell'utente) anche quando git ha unito .development.yml
+                // da sé, senza conflitto: lo dice MERGE_HEAD, non l'elenco dei file che MDE ha dovuto risolvere.
+                mergeStopped = !res.Success && (await _runner.RunAsync(dir, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct)).Ok;
                 var ymlNotes = parked.Park == null
                     ? Array.Empty<string>()
-                    : await UnparkDevelopmentYamlAsync(dir, parked.Park, res.Success, ct);
+                    // N4 (QA 07/11): con l'unione a metà la copia messa da parte non torna sopra quella unita, ci si riunisce.
+                    : await UnparkDevelopmentYamlAsync(dir, parked.Park, res.Success || mergeStopped, ct, fromWorkingTree: mergeStopped);
                 ymlNotes = mdeNotes.Concat(ymlNotes).ToList();
                 result = res.Success
                     ? new RepoActionResult
@@ -597,7 +602,9 @@ namespace MdExplorer.Services.Git
         /// modifica non salvata come prima. Pull fallito: torna identica, byte per byte. Se l'unione non riesce (raro: è già
         /// stata provata a vuoto) resta la versione scaricata e si dice dov'è la copia della propria.
         /// </summary>
-        private async Task<IReadOnlyList<string>> UnparkDevelopmentYamlAsync(string dir, ParkedYaml park, bool pulled, CancellationToken ct)
+        /// <param name="fromWorkingTree">L'unione è rimasta a metà (file dell'utente in conflitto): la versione scaricata e già unita da MDE
+        /// è quella sul disco, non quella di HEAD, che è ancora la vecchia.</param>
+        private async Task<IReadOnlyList<string>> UnparkDevelopmentYamlAsync(string dir, ParkedYaml park, bool pulled, CancellationToken ct, bool fromWorkingTree = false)
         {
             var path = Path.Combine(dir, DevYaml);
             if (!pulled)
@@ -606,7 +613,9 @@ namespace MdExplorer.Services.Git
                 return Array.Empty<string>();
             }
 
-            var now = await _runner.RunAsync(dir, new[] { "show", "HEAD:" + DevYaml }, ct);
+            var now = fromWorkingTree
+                ? (File.Exists(path) ? new GitResult { ExitCode = 0, Stdout = await File.ReadAllTextAsync(path, ct), Stderr = "" } : new GitResult { ExitCode = 1, Stdout = "", Stderr = "missing" })
+                : await _runner.RunAsync(dir, new[] { "show", "HEAD:" + DevYaml }, ct);
             if (!now.Ok || now.Stdout == park.BaseText)
             {
                 // Gli aggiornamenti non hanno toccato il file (o l'hanno tolto): la tua versione torna com'era.
@@ -656,10 +665,15 @@ namespace MdExplorer.Services.Git
 
         /// <summary>
         /// Un commento YAML: <c>#</c> a inizio riga o dopo uno spazio. Approssimato per eccesso (un <c> #</c> dentro una stringa
-        /// conta): sbagliare in questo verso ferma il pull con un messaggio, nell'altro cancellerebbe un commento.
+        /// conta): sbagliare in questo verso ferma il pull con un messaggio, nell'altro cancellerebbe un commento. La riga
+        /// <c># mde-schema: N</c> non conta: la scrive MDE (schema di .development.yml, F3) e l'unione voce per voce la rimette.
         /// </summary>
         internal static bool HasYamlComments(string yaml)
-            => !string.IsNullOrEmpty(yaml) && System.Text.RegularExpressions.Regex.IsMatch(yaml, @"(^|\s)#", System.Text.RegularExpressions.RegexOptions.Multiline);
+            => !string.IsNullOrEmpty(yaml) && System.Text.RegularExpressions.Regex.IsMatch(
+                   SchemaHeader.Replace(yaml, string.Empty), @"(^|\s)#", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        private static readonly System.Text.RegularExpressions.Regex SchemaHeader =
+            new(@"^#\s*mde-schema:\s*\d+\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
 
         /// <summary>Esito di <see cref="ResolveMdeConflictsAsync"/>.</summary>
         private sealed record MdeConflictResolution(bool Done, GitResult? Commit, string Problem, IReadOnlyList<string> TookSource,

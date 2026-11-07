@@ -53,11 +53,40 @@ namespace MdExplorer.Features.Configuration
 
             Remove(root, check.SwitchedOff.Select(o => o.Path));
             DropEmpty(root);
+            return new Usable(Save(root), check);
+        }
+
+        private static readonly Regex EmptyValue = new(@"(?m): ~$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Un albero YAML in testo come lo scrive MDE (fine riga LF): una voce vuota resta «voce:» (D6). YamlDotNet la scriverebbe
+        /// '' (testo vuoto), che poi non si rilegge come gruppo né come lista: diventa il segnaposto ~ e poi niente. Un testo che vale
+        /// davvero «~» è fra apici, quindi non si confonde. Lo usano lo scrittore del servizio e l'unione voce per voce del pull.
+        /// </summary>
+        public static string Save(YamlMappingNode root)
+        {
+            if (root == null || root.Children.Count == 0) return string.Empty;
+            MarkEmpty(root);
             using var writer = new StringWriter();
             new YamlStream(new YamlDocument(root)).Save(writer, assignAnchors: false);
-            var pruned = writer.ToString().Replace("\r\n", "\n");
-            if (pruned.EndsWith("...\n", StringComparison.Ordinal)) pruned = pruned.Substring(0, pruned.Length - 4);
-            return new Usable(pruned, check);
+            var text = writer.ToString().Replace("\r\n", "\n");
+            if (text.EndsWith("...\n", StringComparison.Ordinal)) text = text.Substring(0, text.Length - 4);
+            return EmptyValue.Replace(text, ":");
+        }
+
+        private static void MarkEmpty(YamlNode node)
+        {
+            switch (node)
+            {
+                case YamlMappingNode map:
+                    foreach (var key in map.Children.Where(c => IsEmpty(c.Value)).Select(c => c.Key).ToList())
+                        map.Children[key] = new YamlScalarNode("~");
+                    foreach (var child in map.Children.Values) MarkEmpty(child);
+                    break;
+                case YamlSequenceNode seq:
+                    foreach (var child in seq.Children) MarkEmpty(child);
+                    break;
+            }
         }
 
         private static readonly Regex Segment = new(@"^(?<name>[^\[\]]+)(?:\[(?<i>\d+)\])?$", RegexOptions.Compiled);

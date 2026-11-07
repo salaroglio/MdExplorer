@@ -38,12 +38,12 @@ namespace MdExplorer.Features.Git
             var merged = MergeMapping(b, o, t, "", sourceWins ?? Array.Empty<string>(), took, ref conflict);
             if (conflict != null) return null;
 
-            var stream = new YamlStream(new YamlDocument(merged));
-            using var writer = new StringWriter();
-            stream.Save(writer, assignAnchors: false);
-            var text = writer.ToString().Replace("\r\n", "\n");
-            // YamlDotNet chiude il documento con «...»: il file di MdExplorer non lo ha.
-            if (text.EndsWith("...\n")) text = text.Substring(0, text.Length - 4);
+            // Come lo scrive MDE: voci vuote «voce:» (D6 dello schema), non '' che spegnerebbe il gruppo; e in testa il numero di
+            // schema più alto dei tre lati, che l'unione per voci perderebbe (sprint «Schema di .development.yml»).
+            var text = MdExplorer.Features.Configuration.DevelopmentConfigText.Save(merged);
+            var schema = new[] { baseText, ours, theirs }
+                .Select(MdExplorer.Features.Configuration.DevelopmentSchemaCheck.SchemaNumberOf).Max();
+            if (schema != null) text = $"# mde-schema: {schema}\n" + text;
             return ours.Contains("\r\n") ? text.Replace("\n", "\r\n") : text;
         }
 

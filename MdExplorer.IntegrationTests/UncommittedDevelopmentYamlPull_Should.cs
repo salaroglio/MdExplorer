@@ -187,5 +187,54 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(mine, Yml(project));
             Assert.IsFalse(Directory.Exists(Path.Combine(project, ".git", "mde")), "niente messo da parte");
         }
+
+        /// <summary>
+        /// N4 della valutazione del 07/11: l'unione si ferma su un file dell'utente dopo che MDE ha unito il suo .development.yml; la
+        /// copia messa da parte (le mie modifiche senza commit) non deve tornare sopra quella unita, cancellando le voci del collega.
+        /// </summary>
+        [TestMethod]
+        public async Task Keep_the_colleague_entries_when_the_merge_stops_on_a_user_file()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (project, colleague) = Setup(ctx, "unione-a-meta");
+            Publish(colleague, ".development.yml", Start.Replace("target: copilot", "target: claude"), "motore");
+            Publish(colleague, "README.md", "# progetto\nriga del collega\n", "readme");
+            File.WriteAllText(Path.Combine(project, "README.md"), "# progetto\nriga mia\n");
+            Git(project, "add README.md"); Git(project, "commit -q -m \"readme mio\"");
+            // MDE ha scritto il segreto della chat e il commit automatico è spento: il file resta modificato, e il pull lo mette da parte
+            File.WriteAllText(Path.Combine(project, ".development.yml"), Start.Replace("harness:", "agentCity:\n  enabled: false\n  roomSecret: SEGRETO\nharness:"));
+
+            var pulled = await Pull(ctx, project);
+
+            Assert.IsFalse(pulled.Success, "il README resta da sistemare a mano");
+            StringAssert.Contains(Git(project, "status --porcelain").Out, "UU README.md");
+            var yml = Yml(project);
+            StringAssert.Contains(yml, "target: claude", "la voce del collega c'è ancora");
+            StringAssert.Contains(yml, "roomSecret: SEGRETO", "e anche la mia");
+        }
+
+        /// <summary>
+        /// Dallo schema 2 MDE scrive in testa <c># mde-schema: N</c>: non è un commento dell'utente, quindi il pull con il file modificato
+        /// senza commit deve unire come prima, e tenere il numero più alto.
+        /// </summary>
+        [TestMethod]
+        public async Task Merge_a_file_that_carries_the_schema_number()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var withNumber = "# mde-schema: 2\n" + Start;
+            var (project, colleague) = Setup(ctx, "numero-schema", withNumber);
+            Publish(colleague, ".development.yml", "# mde-schema: 3\n" + Start.Replace("target: copilot", "target: claude"), "motore");
+            File.WriteAllText(Path.Combine(project, ".development.yml"), withNumber.Replace("harness:", "agentCity:\n  enabled: false\n  roomSecret: SEGRETO\nharness:"));
+
+            var pulled = await Pull(ctx, project);
+
+            Assert.IsTrue(pulled.Success, pulled.Message ?? pulled.Refused);
+            var yml = Yml(project);
+            StringAssert.StartsWith(yml, "# mde-schema: 3\n", "il numero più alto dei due");
+            StringAssert.Contains(yml, "target: claude");
+            StringAssert.Contains(yml, "roomSecret: SEGRETO");
+        }
     }
 }

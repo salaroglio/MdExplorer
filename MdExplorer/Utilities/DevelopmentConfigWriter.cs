@@ -117,8 +117,6 @@ namespace MdExplorer.Utilities
             return Save(root);
         }
 
-        private static readonly Regex EmptyValue = new(@"(?m): ~$", RegexOptions.Compiled);
-
         /// <summary>Le voci di un tipo del modello, nell'ordine in cui le scrive il serializzatore (quello della dichiarazione).</summary>
         private static IEnumerable<(string Name, Type Type)> Properties(Type type)
             => type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -305,35 +303,7 @@ namespace MdExplorer.Utilities
             return stream.Documents.Count == 0 ? new YamlMappingNode() : stream.Documents[0].RootNode as YamlMappingNode ?? new YamlMappingNode();
         }
 
-        /// <summary>
-        /// Il nodo in testo. Una voce vuota si scrive «voce:» (D6): YamlDotNet la scriverebbe '' (testo vuoto), quindi diventa il
-        /// segnaposto ~ e poi niente. Un testo che vale davvero «~» il serializzatore lo mette fra apici, quindi non si confonde.
-        /// </summary>
-        private static string Save(YamlMappingNode root)
-        {
-            if (root.Children.Count == 0) return string.Empty;
-            MarkEmpty(root);
-            using var writer = new StringWriter();
-            new YamlStream(new YamlDocument(root)).Save(writer, assignAnchors: false);
-            var text = writer.ToString().Replace("\r\n", "\n");
-            if (text.EndsWith("...\n", StringComparison.Ordinal)) text = text.Substring(0, text.Length - 4);
-            return EmptyValue.Replace(text, ":");
-        }
-
-        private static void MarkEmpty(YamlNode node)
-        {
-            switch (node)
-            {
-                case YamlMappingNode map:
-                    foreach (var key in map.Children.Where(c => c.Value is YamlScalarNode s && IsNull(s)).Select(c => c.Key).ToList())
-                        map.Children[key] = new YamlScalarNode("~");
-                    foreach (var child in map.Children.Values) MarkEmpty(child);
-                    break;
-                case YamlSequenceNode seq:
-                    foreach (var child in seq.Children) MarkEmpty(child);
-                    break;
-            }
-        }
+        private static string Save(YamlMappingNode root) => DevelopmentConfigText.Save(root);
 
         private static DevelopmentConfigOffException Refuse(DevelopmentSchemaCheck check, string it, string en)
         {
