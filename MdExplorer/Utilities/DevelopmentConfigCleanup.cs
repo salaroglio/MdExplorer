@@ -55,6 +55,7 @@ namespace MdExplorer.Utilities
                 if (removed.Count == 0) return false;
 
                 File.WriteAllText(path, cleaned);
+                MdeRepoWriter.NotifyWritten(path, "tolte le voci che MDE non usa più: " + string.Join(", ", removed));
                 logger?.LogWarning("[Config] '{File}': tolte o convertite le righe ritirate {Keys}. Il file risulta modificato: serve un commit.",
                     path, string.Join(", ", removed));
                 return true;

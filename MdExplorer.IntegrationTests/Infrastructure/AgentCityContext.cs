@@ -32,9 +32,12 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public FakeAgentRunGate Gate => Factory.Gate;
         public FakeFederationSender FederationSender => Factory.FederationSender;
 
-        public AgentCityContext()
+        public AgentCityContext() : this(null) { }
+
+        /// <param name="settings">Impostazioni in più per il servizio (vedi <see cref="AgentCityFactory"/>).</param>
+        public AgentCityContext(System.Collections.Generic.IDictionary<string, string> settings)
         {
-            Factory = new AgentCityFactory();
+            Factory = new AgentCityFactory(settings);
             Client = Factory.CreateClient();
         }
 

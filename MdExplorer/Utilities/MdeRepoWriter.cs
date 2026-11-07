@@ -29,15 +29,35 @@ namespace MdExplorer.Utilities
         /// </summary>
         public static string SerializeDevelopmentConfig(object config) => DevelopmentSerializer.Serialize(config);
 
+        /// <summary>
+        /// Avvisato dopo ogni scrittura EFFETTIVA di un file del repository (non quando il testo era già uguale), con il motivo:
+        /// lo ascolta il commit automatico (S2) e, dopo, le notifiche (S3). Statico perché gli scrittori sono statici e sparsi.
+        /// </summary>
+        public static event Action<string, string> Written;
+
+        /// <summary>Per le scritture che non passano da <see cref="WriteIfChanged"/> (istruzioni, pulizia delle voci ritirate).</summary>
+        public static void NotifyWritten(string fullPath, string why)
+        {
+            try { Written?.Invoke(fullPath, why); }
+            catch (Exception ex) { Console.WriteLine($"[MdeRepoWriter] avviso di scrittura fallito per {fullPath}: {ex.Message}"); }
+        }
+
         /// <summary>Salva <c>.development.yml</c> se cambia. True = il file è stato scritto.</summary>
-        public static bool WriteDevelopmentConfig(string filePath, object config)
-            => WriteIfChanged(filePath, SerializeDevelopmentConfig(config));
+        public static bool WriteDevelopmentConfig(string filePath, object config, string why = null)
+            => WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? "configurazione del progetto aggiornata");
 
         /// <summary>
         /// Scrive <paramref name="content"/> in <paramref name="fullPath"/> solo se è diverso da quello che c'è (fine riga a parte).
         /// Conserva i fine riga e il BOM del file esistente, così un file CRLF resta CRLF. True = il file è stato scritto.
         /// </summary>
-        public static bool WriteIfChanged(string fullPath, string content)
+        public static bool WriteIfChanged(string fullPath, string content, string why = null)
+        {
+            var written = WriteIfChangedCore(fullPath, content);
+            if (written) NotifyWritten(fullPath, why ?? "aggiornato da MDE");
+            return written;
+        }
+
+        private static bool WriteIfChangedCore(string fullPath, string content)
         {
             if (string.IsNullOrWhiteSpace(fullPath)) throw new ArgumentException("Percorso mancante.", nameof(fullPath));
             content ??= string.Empty;

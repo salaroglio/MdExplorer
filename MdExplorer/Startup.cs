@@ -156,6 +156,9 @@ namespace MdExplorer
 
             // git di sistema: worktree, submodule e diff testuali, che LibGit2Sharp non copre.
             services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
+            // Sprint «File di sistema di MDE», S2: commit (e push sicuro) dei file di MDE appena li scrive.
+            services.AddSingleton<Services.Git.MdeAutoCommit>();
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Git.MdeAutoCommit>());
 
             // Rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso fra il pull/clone
             // e l'apertura del progetto: chi apre una cartella clonata da fuori li trovava

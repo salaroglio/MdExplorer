@@ -34,8 +34,12 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public FakeAgentRunGate Gate { get; } = new FakeAgentRunGate();
         public FakeFederationSender FederationSender { get; } = new FakeFederationSender();
 
-        public AgentCityFactory()
+        private readonly System.Collections.Generic.IDictionary<string, string> _settings;
+
+        /// <param name="settings">Impostazioni in più o sovrascritte (per esempio <c>MdeAutoCommit:Enabled=true</c>).</param>
+        public AgentCityFactory(System.Collections.Generic.IDictionary<string, string> settings = null)
         {
+            _settings = settings;
             DataDir = Path.Combine(Path.GetTempPath(), "mde-inttests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(DataDir);
             // Letta da CrossPlatformPath.GetAppDataDirectory() su Linux: isola tutta la UserDB.
@@ -72,7 +76,12 @@ namespace MdExplorer.IntegrationTests.Infrastructure
                     ["MdChat:ApiKey"] = string.Empty,
                     // Il controllo periodico dei giri lo fanno i test, quando vogliono (PollAsync): niente giri in sottofondo.
                     ["Workflow:PollSeconds"] = "0",
+                    // Il commit automatico dei file di MDE (sprint «File di sistema di MDE», S2) aggiungerebbe commit «MDE: …» ai
+                    // repository di ogni test: spento, lo accendono solo i test di quella funzione.
+                    ["MdeAutoCommit:Enabled"] = "false",
                 }));
+            if (_settings != null)
+                builder.ConfigureAppConfiguration(cfg => cfg.AddInMemoryCollection(_settings));
 
             builder.ConfigureTestServices(services =>
             {
