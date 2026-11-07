@@ -118,7 +118,7 @@ namespace MdExplorer.Services.Git
             var unmerged = await _git.RunAsync(repositoryPath, new[] { "diff", "--name-only", "--diff-filter=U" }, ct);
             var conflicts = (unmerged.Stdout ?? string.Empty)
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim().Trim('"')).Where(x => x.Length > 0)
+                .Select(GitPaths.Unquote).Where(x => x.Length > 0)
                 .Distinct(StringComparer.Ordinal).ToList();
 
             var marked = new List<string>();

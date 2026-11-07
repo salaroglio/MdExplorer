@@ -125,7 +125,7 @@ namespace MdExplorer.Services.Git
             foreach (var line in (status.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (line.Length < 4) continue;
-                var rel = line.Substring(3).Trim().Trim('"');
+                var rel = GitPaths.Unquote(line.Substring(3));
                 var arrow = rel.IndexOf(" -> ", StringComparison.Ordinal);
                 if (arrow >= 0) rel = rel.Substring(arrow + 4);
                 var full = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));

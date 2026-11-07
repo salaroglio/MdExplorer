@@ -1328,7 +1328,7 @@ namespace MdExplorer.Services.AgentRun
                 if (raw.Length < 4) continue;
                 var status = raw.Substring(0, 2);
                 if (status == "  ") continue;                 // pulito
-                var path = raw.Substring(3).Trim().Trim('"'); // porcelain: 2 char stato + spazio + path
+                var path = GitPaths.Unquote(raw.Substring(3)); // porcelain: 2 char stato + spazio + path
                 var slash = path.IndexOf(" -> ", System.StringComparison.Ordinal);
                 if (slash >= 0) path = path.Substring(slash + 4);   // rename: prendi la destinazione
                 path = path.TrimEnd('/');
@@ -1426,6 +1426,9 @@ namespace MdExplorer.Services.AgentRun
                     CreateNoWindow = true,
                 }
             };
+            // N2 (QA 07/11): i nomi con lettere accentate in chiaro, non in ottale fra virgolette.
+            foreach (var a in GitPaths.QuotePathOff)
+                process.StartInfo.ArgumentList.Add(a);
             foreach (var a in args)
                 process.StartInfo.ArgumentList.Add(a);
             process.StartInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";

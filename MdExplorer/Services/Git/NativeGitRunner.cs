@@ -84,6 +84,9 @@ namespace MdExplorer.Services.Git
                     CreateNoWindow = true,
                 }
             };
+            // N2 (QA 07/11): i nomi con lettere accentate in chiaro, non in ottale fra virgolette.
+            foreach (var a in GitPaths.QuotePathOff)
+                process.StartInfo.ArgumentList.Add(a);
             foreach (var a in args)
                 process.StartInfo.ArgumentList.Add(a);
             process.StartInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";

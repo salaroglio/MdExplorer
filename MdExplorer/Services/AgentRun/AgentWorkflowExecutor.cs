@@ -586,7 +586,7 @@ namespace MdExplorer.Services.AgentRun
             var prefix = Git(projectPath, "rev-parse", "--show-prefix").Out.Trim();
             var dirty = Git(projectPath, "status", "--porcelain=v1", "--untracked-files=all").Out
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Length > 3 ? l.Substring(3).Trim().Trim('"') : "")
+                .Select(l => l.Length > 3 ? MdExplorer.Services.Git.GitPaths.Unquote(l.Substring(3)) : "")
                 .Select(p => p.Contains(" -> ") ? p.Substring(p.IndexOf(" -> ", StringComparison.Ordinal) + 4) : p)
                 .Where(p => p.StartsWith(prefix, StringComparison.Ordinal)).Select(p => p.Substring(prefix.Length)).ToList();
             var diff = Git(projectPath, "diff", "--name-only", "--relative", askedCommit, "HEAD");

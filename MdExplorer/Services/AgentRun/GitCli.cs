@@ -13,6 +13,8 @@ namespace MdExplorer.Services.AgentRun
                 WorkingDirectory = cwd, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
             };
+            // N2 (QA 07/11): i nomi con lettere accentate in chiaro, non in ottale fra virgolette.
+            foreach (var a in MdExplorer.Services.Git.GitPaths.QuotePathOff) psi.ArgumentList.Add(a);
             foreach (var a in args) psi.ArgumentList.Add(a);
             psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
             var caller = MdExplorer.Services.Git.GitNetworkLog.Caller(args);

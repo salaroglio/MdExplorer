@@ -1044,14 +1044,8 @@ namespace MdExplorer.Services.AgentRun
         private static IEnumerable<string> SplitLines(string s)
             => (s ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.TrimEnd('\r'));
 
-        /// <summary>Git cita i percorsi con caratteri speciali: senza toglierle, il path non aprirebbe niente.</summary>
-        private static string Unquote(string path)
-        {
-            var p = (path ?? string.Empty).Trim();
-            if (p.Length >= 2 && p[0] == '"' && p[^1] == '"')
-                p = p.Substring(1, p.Length - 2).Replace("\\\"", "\"").Replace("\\\\", "\\");
-            return p;
-        }
+        /// <summary>Git cita i percorsi con caratteri speciali: virgolette tolte e sequenze decodificate (N2, QA 07/11).</summary>
+        private static string Unquote(string path) => MdExplorer.Services.Git.GitPaths.Unquote(path);
 
         /// <summary>
         /// Il percorso arriva dal client: deve restare dentro la radice del contesto. Senza questo

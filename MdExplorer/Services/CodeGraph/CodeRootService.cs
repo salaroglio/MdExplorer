@@ -447,7 +447,7 @@ namespace MdExplorer.Services.CodeGraph
                     continue;
                 }
                 if (line.Length < 4) continue;
-                var path = line.Substring(3).Trim().Trim('"');
+                var path = MdExplorer.Services.Git.GitPaths.Unquote(line.Substring(3));
                 var arrow = path.IndexOf(" -> ", StringComparison.Ordinal);
                 if (arrow >= 0) path = path.Substring(arrow + 4);
                 // git dà i percorsi relativi alla radice del repository: qui relativi alla radice analizzata (sottocartella)

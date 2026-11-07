@@ -529,7 +529,7 @@ namespace MdExplorer.Services.Git
             var status = await _runner.RunAsync(dir, new[] { "status", "--porcelain=v1", "--untracked-files=no" }, ct);
             if (!status.Ok) return (null, null);
             var changed = (status.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Length > 3 ? l.Substring(3).Trim().Trim('"') : string.Empty).ToList();
+                .Select(l => l.Length > 3 ? GitPaths.Unquote(l.Substring(3)) : string.Empty).ToList();
             if (changed.Count != 1 || changed[0] != DevYaml) return (null, null); // niente, o altri file: il pull va come sempre
 
             var path = Path.Combine(dir, DevYaml);
@@ -922,7 +922,7 @@ namespace MdExplorer.Services.Git
                 if (!diff.Ok) continue;
                 changed.AddRange((diff.Stdout ?? string.Empty)
                     .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => Prefixed(repo.Path, x.Trim().Trim('"'))));
+                    .Select(x => Prefixed(repo.Path, GitPaths.Unquote(x))));
             }
 
             return new RepoActionResult

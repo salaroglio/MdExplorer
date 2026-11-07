@@ -669,7 +669,8 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "git",
-                    Arguments = arguments,
+                    // N2 (QA 07/11): i nomi con lettere accentate in chiaro, non in ottale fra virgolette.
+                    Arguments = GitPaths.QuotePathOffText + " " + arguments,
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
