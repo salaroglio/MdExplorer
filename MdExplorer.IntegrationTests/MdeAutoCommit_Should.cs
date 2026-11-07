@@ -67,6 +67,14 @@ namespace MdExplorer.IntegrationTests
             return (project, origin, colleague);
         }
 
+        /// <summary>Nell'ultimo commit solo file di MDE: SetHarness scrive .development.yml e crea CLAUDE.md.</summary>
+        private static void AssertOnlyMdeFilesIn(string project)
+        {
+            var files = Git(project, "show --name-only --format= HEAD").Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            CollectionAssert.Contains(files, ".development.yml");
+            foreach (var f in files) Assert.IsNotNull(MdExplorer.Utilities.MdeOwnedFiles.Find(f), "nel commit di MDE c'è un file non suo: " + f);
+        }
+
         private static async Task<MdeAutoCommitResult> SaveHarnessAndFlush(AgentCityContext ctx, string project, string target = "claude")
         {
             var r = await ctx.Client.PostAsync("/api/ProjectSettings/SetHarness", Json(new { projectPath = project, target }));
@@ -89,7 +97,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
             Assert.IsTrue(result.Pushed, string.Join(" | ", result.Notices));
             StringAssert.StartsWith(Git(project, "log -1 --format=%s").Out, "MDE: ");
-            Assert.AreEqual(".development.yml", Git(project, "show --name-only --format= HEAD").Out, "nel commit c'è solo il file di MDE");
+            AssertOnlyMdeFilesIn(project);
             Assert.AreEqual(Git(project, "rev-parse HEAD").Out, Git(origin, "rev-parse main").Out, "pubblicato");
             Assert.AreEqual(string.Empty, Git(project, "status --porcelain -- .development.yml").Out);
         }
@@ -106,7 +114,7 @@ namespace MdExplorer.IntegrationTests
             var result = await SaveHarnessAndFlush(ctx, project);
 
             Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
-            Assert.AreEqual(".development.yml", Git(project, "show --name-only --format= HEAD").Out);
+            AssertOnlyMdeFilesIn(project);
             Assert.AreEqual("M  README.md", Git(project, "status --porcelain -- README.md").Out, "la modifica dell'utente resta in stage");
         }
 
@@ -222,6 +230,61 @@ namespace MdExplorer.IntegrationTests
             await SaveHarnessAndFlush(ctx, project); // stessa scelta: il file non si riscrive, nessun avviso
 
             Assert.AreEqual(before, service.RecentResults.Count, "nessuna scrittura, nessuna notifica");
+        }
+        // ---------------------------------------------------------------- S4: il blocco nelle istruzioni, all'apertura vera
+
+        private static async Task<MdeAutoCommit> OpenAndFlush(AgentCityContext ctx, string project, string connection)
+        {
+            var r = await ctx.Client.PostAsync($"/api/MdProjects/SetFolderProject?ConnectionId={connection}", Json(new { path = project }));
+            Assert.IsTrue(r.IsSuccessStatusCode, await r.Content.ReadAsStringAsync());
+            var service = ctx.Factory.Services.GetRequiredService<MdeAutoCommit>();
+            await service.FlushAsync();
+            return service;
+        }
+
+        [TestMethod]
+        public async Task Migrate_the_old_paragraph_to_the_block_on_opening_and_commit_it()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, origin, colleague) = Setup(ctx, "migra-blocco");
+            // il progetto com'era prima: harness claude, CLAUDE.md con il paragrafo senza marcatori e una riga del gruppo
+            File.WriteAllText(Path.Combine(colleague, ".development.yml"), "harness:\n  target: claude\n");
+            File.WriteAllText(Path.Combine(colleague, "CLAUDE.md"),
+                "# Istruzioni\n\nRegola del gruppo.\n\n## Skill MdExplorer\n\n" + MdExplorer.Utilities.MdeInstructionsBlock.MdeDocSentence(".claude/skills/mde-doc/SKILL.md") + "\n");
+            Git(colleague, "add -A"); Git(colleague, "commit -q -m prima"); Git(colleague, "push -q origin HEAD:main");
+            Git(project, "pull -q");
+
+            var service = await OpenAndFlush(ctx, project, "s4-uno");
+
+            var claude = File.ReadAllText(Path.Combine(project, "CLAUDE.md"));
+            StringAssert.Contains(claude, "<!-- mde:skill v1 -->");
+            StringAssert.StartsWith(claude, "# Istruzioni\n\nRegola del gruppo.\n\n", "il resto del file è del gruppo");
+            var commits = Git(project, "log --format=%s @{u}..HEAD").Out + Git(project, "log --format=%s -5").Out;
+            StringAssert.Contains(commits, "MDE: ", "la migrazione è in un commit di MDE");
+            StringAssert.Contains(Git(project, "log --format=%B -5").Out, "il paragrafo sulle skill di MDE ora è delimitato");
+            Assert.AreEqual(string.Empty, Git(project, "status --porcelain -- CLAUDE.md .development.yml").Out, "nessun file di MDE lasciato a metà");
+            Assert.IsTrue(service.RecentResults.Any(r => r.Notices.Any(n => n.Contains("CLAUDE.md"))), "e lo si dice");
+
+            // riaperto: niente da fare, nessun commit in più
+            var head = Git(project, "rev-parse HEAD").Out;
+            await OpenAndFlush(ctx, project, "s4-due");
+            Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "la seconda apertura non cambia niente");
+        }
+
+        [TestMethod]
+        public async Task Leave_no_mde_file_out_of_a_commit_after_the_first_opening()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, _) = Setup(ctx, "prima-apertura");
+
+            await OpenAndFlush(ctx, project, "s4-prima");
+
+            var dirty = Git(project, "status --porcelain").Out.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Substring(3).Trim('"'))
+                .Where(f => MdExplorer.Utilities.MdeOwnedFiles.Find(f) != null).ToList();
+            Assert.AreEqual(0, dirty.Count, "file di MDE non salvati: " + string.Join(", ", dirty));
         }
     }
 }

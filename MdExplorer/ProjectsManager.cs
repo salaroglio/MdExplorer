@@ -646,6 +646,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 FileUtil.ExtractResFile("MdExplorer.Service..development.yml", developmentConfigPath);
                 Console.WriteLine($"Created development configuration file: {developmentConfigPath}");
+                MdeRepoWriter.NotifyWritten(developmentConfigPath, new MdeWhy("creata la configurazione del progetto", "project configuration created"));
             }
         }
 
@@ -670,13 +671,23 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 FileUtil.ExtractResFile(layout.InstructionsResource, instructionsPath);
                 Console.WriteLine($"Created project instructions file ({layout.Id}): {instructionsPath}");
+                MdeRepoWriter.NotifyWritten(instructionsPath, new MdeWhy(
+                    $"create le istruzioni per {layout.Id}, con il blocco di MDE sulle sue skill",
+                    $"instructions for {layout.Id} created, with the MDE block about its skills"));
             }
             else
             {
-                // Il file nasce una volta sola: le frasi che MDE scriveva e che oggi dicono il falso si correggono qui,
-                // solo quelle (ProjectInstructionsRetired), il resto è del gruppo.
-                if (ProjectInstructionsRetired.ApplyToFile(instructionsPath))
-                    Console.WriteLine($"[ProjectsManager] Retired MDE sentences corrected in {instructionsPath}");
+                // Il file nasce una volta sola ed è del gruppo: di MDE è solo il blocco sulle skill (MdeInstructionsBlock, sprint «File di
+                // sistema di MDE» S4), che si porta alla versione di oggi; il paragrafo delle versioni precedenti diventa il blocco.
+                try
+                {
+                    if (MdeInstructionsBlock.ApplyToFile(instructionsPath, layout.SkillRelativePath("mde-doc")))
+                        Console.WriteLine($"[ProjectsManager] MDE block updated in {instructionsPath}");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Console.WriteLine($"[ProjectsManager] {instructionsPath}: {ex.Message}");
+                }
             }
 
             // Version-aware install/update. Each MdE-managed asset has an `mde:` block in its
