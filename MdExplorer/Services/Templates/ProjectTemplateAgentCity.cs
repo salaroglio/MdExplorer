@@ -79,7 +79,7 @@ namespace MdExplorer.Services.Templates
             }
 
             var configFile = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = File.Exists(configFile) ? DevelopmentConfigCleanup.ReadStrict(configFile) : new DevelopmentConfig();
+            var config = File.Exists(configFile) ? DevelopmentConfigFile.Config(configFile) : new DevelopmentConfig();
             config.AgentCity ??= new AgentCityConfig();
             config.AgentCity.Enabled = true;
             var ownership = string.IsNullOrWhiteSpace(config.AgentCity.OwnershipDoc)
@@ -142,7 +142,7 @@ namespace MdExplorer.Services.Templates
             var lang = rows.FirstOrDefault()?.Language ?? (string.IsNullOrWhiteSpace(language) ? "it" : language.Trim());
             var starter = AgentCityStarterFor(lang);
             var configFile = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var enabled = File.Exists(configFile) && DevelopmentConfigCleanup.ReadStrict(configFile).AgentCity?.Enabled == true;
+            var enabled = File.Exists(configFile) && DevelopmentConfigFile.Config(configFile).AgentCity?.Enabled == true;
             if (enabled && (!withGuide || Directory.Exists(System.IO.Path.Combine(path, starter.GuideFolder.TrimEnd('/').Replace('/', System.IO.Path.DirectorySeparatorChar)))))
                 throw Problem(withGuide ? "La città è già accesa, e la sua documentazione c'è già." : "La città degli agenti è già accesa.",
                               withGuide ? "The agent city is already on, and its documentation is already there." : "The agent city is already on.");
@@ -185,7 +185,7 @@ namespace MdExplorer.Services.Templates
             var notes = new List<string>();
             var touched = new List<string> { DevelopmentConfigCleanup.FileName };
             var configFile = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = DevelopmentConfigCleanup.ReadStrict(configFile);
+            var config = DevelopmentConfigFile.Config(configFile);
             config.AgentCity ??= new AgentCityConfig();
 
             var roles = manifest.RolesFor(cityOn: true).Select(r => (r.Role, r.Description, (IReadOnlyList<string>)(r.Agents ?? new List<string>()))).ToList();

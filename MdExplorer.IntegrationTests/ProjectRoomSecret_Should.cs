@@ -48,8 +48,8 @@ namespace MdExplorer.IntegrationTests
             const string conflicted = "agentCity:\n  enabled: false\n<<<<<<< HEAD\n  roomSecret: A\n=======\n  roomSecret: B\n>>>>>>> 20def39\n";
             System.IO.File.WriteAllText(file, conflicted);
 
-            Assert.ThrowsException<System.InvalidOperationException>(() => meta.ReadRoomSecret(path));
-            Assert.ThrowsException<System.InvalidOperationException>(() => meta.EnsureRoomSecret(path));
+            Assert.ThrowsException<MdExplorer.Utilities.DevelopmentConfigOffException>(() => meta.ReadRoomSecret(path));
+            Assert.ThrowsException<MdExplorer.Utilities.DevelopmentConfigOffException>(() => meta.EnsureRoomSecret(path));
             Assert.AreEqual(conflicted, System.IO.File.ReadAllText(file), "il file resta com'era");
         }
 

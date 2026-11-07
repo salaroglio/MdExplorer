@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="AgentMemory\mde-agent.ttl" />
+    <!-- Le istantanee dello schema di .development.yml, una per numero (sprint 2026-11-07-Schema-Development-Yml). -->
+    <EmbeddedResource Include="Configuration\Schemas\development-schema-*.json" LogicalName="MdExplorer.Features.Configuration.Schemas.%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
   <ItemGroup>

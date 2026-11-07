@@ -34,7 +34,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             MinimalDevYaml parsed;
             try
             {
-                var yaml = File.ReadAllText(ymlPath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(ymlPath).Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return null;
                 var deserializer = new DeserializerBuilder()
                     .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             MinimalDevYaml parsed;
             try
             {
-                var yaml = File.ReadAllText(ymlPath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(ymlPath).Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return output;
                 var deserializer = new DeserializerBuilder()
                     .WithNamingConvention(CamelCaseNamingConvention.Instance)

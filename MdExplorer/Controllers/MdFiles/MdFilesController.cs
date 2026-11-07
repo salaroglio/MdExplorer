@@ -1152,7 +1152,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 if (System.IO.File.Exists(devConfigPath))
                 {
                     // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
-                    config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
+                    config = MdExplorer.Utilities.DevelopmentConfigFile.Config(devConfigPath);
                 }
                 else
                 {
@@ -3224,7 +3224,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 if (System.IO.File.Exists(devConfigPath))
                 {
                     // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
-                    var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
+                    var config = MdExplorer.Utilities.DevelopmentConfigFile.Config(devConfigPath);
                     if (config?.Folders != null)
                     {
                         folders = config.Folders;

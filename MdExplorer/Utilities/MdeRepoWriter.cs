@@ -53,9 +53,17 @@ namespace MdExplorer.Utilities
             catch (Exception ex) { Console.WriteLine($"[MdeRepoWriter] avviso di scrittura fallito per {fullPath}: {ex.Message}"); }
         }
 
-        /// <summary>Salva <c>.development.yml</c> se cambia. True = il file è stato scritto.</summary>
+        /// <summary>
+        /// Salva <c>.development.yml</c> se cambia. True = il file è stato scritto. Se il file ha un gruppo spento dal controllo dello
+        /// schema non scrive e lancia, con il motivo: il modello non ha quel gruppo e riscrivendo lo cancellerebbe
+        /// (<see cref="DevelopmentConfigFile.WhyNotWritable"/>; F2, fino alla scrittura per gruppo di F3).
+        /// </summary>
         public static bool WriteDevelopmentConfig(string filePath, object config, MdeWhy why = null)
-            => WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? MdeWhy.ConfigUpdated);
+        {
+            var refused = DevelopmentConfigFile.WhyNotWritable(filePath);
+            if (refused != null) throw new DevelopmentConfigOffException(refused);
+            return WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? MdeWhy.ConfigUpdated);
+        }
 
         /// <summary>
         /// Scrive <paramref name="content"/> in <paramref name="fullPath"/> solo se è diverso da quello che c'è (fine riga a parte).
@@ -94,5 +102,11 @@ namespace MdExplorer.Utilities
         }
 
         private static string Normalize(string text) => (text ?? string.Empty).Replace("\r\n", "\n");
+    }
+
+    /// <summary>Scrittura di <c>.development.yml</c> rifiutata perché il file ha gruppi spenti (configurati da un MDE più nuovo o rovinati).</summary>
+    public sealed class DevelopmentConfigOffException : InvalidOperationException
+    {
+        public DevelopmentConfigOffException(string message) : base(message) { }
     }
 }

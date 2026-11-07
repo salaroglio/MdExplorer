@@ -16,7 +16,7 @@ namespace MdExplorer.Utilities
         public static RedmineConfig Read(string projectPath)
         {
             var file = Path.Combine(projectPath ?? "", DevelopmentConfigCleanup.FileName);
-            return File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file).Redmine : null;
+            return File.Exists(file) ? DevelopmentConfigFile.Config(file).Redmine : null;
         }
 
         /// <summary>Scrive la sezione (null la toglie) lasciando le altre come sono.</summary>
@@ -29,7 +29,7 @@ namespace MdExplorer.Utilities
                 throw new FileNotFoundException(
                     $"'{file}' does not exist: the project's base configuration must be created first.", file);
 
-            var dev = DevelopmentConfigCleanup.ReadStrict(file);
+            var dev = DevelopmentConfigFile.Config(file);
             dev.Redmine = config;
             MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, dev, new MdExplorer.Utilities.MdeWhy("aggiornato il collegamento a Redmine", "Redmine link updated"));
         }

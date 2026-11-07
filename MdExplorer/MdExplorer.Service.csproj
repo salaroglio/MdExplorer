@@ -246,8 +246,6 @@
     <None Include="Binaries\remote\linux-x64\mde-remote">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- Le istantanee dello schema di .development.yml, una per numero (sprint 2026-11-07-Schema-Development-Yml). -->
-    <EmbeddedResource Include="Schemas\development-schema-*.json" LogicalName="MdExplorer.Service.Schemas.%(Filename)%(Extension)" WithCulture="false" />
     <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />

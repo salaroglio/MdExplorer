@@ -325,7 +325,7 @@ namespace MdExplorer.Utilities
         {
             var file = Path.Combine(projectPath, DevelopmentConfigCleanup.FileName);
             if (!File.Exists(file)) return false;
-            try { return DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.Enabled == true; }
+            try { return DevelopmentConfigFile.Config(file).AgentCity?.Enabled == true; }
             catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[MdeSkillUpdater] {file} cannot be read ({ex.Message}): the agent-city assets are not installed.");

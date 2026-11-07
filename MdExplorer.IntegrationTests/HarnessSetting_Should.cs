@@ -157,11 +157,13 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Refuse_a_value_it_does_not_understand()
         {
+            // Dal 07/11 (schema di .development.yml, D3): un valore sconosciuto spegne il gruppo, si dice e si prosegue.
             SeedYml("harness:\n  target: cursor\n");
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => HarnessSettings.Read(_project));
-            StringAssert.Contains(ex.Message, "cursor", "l'errore deve dire cosa ha letto");
-            StringAssert.Contains(ex.Message, "opencode", "e quali valori sono ammessi");
+            Assert.AreEqual(HarnessTarget.None, HarnessSettings.Read(_project), "spento: nessun ambiente agentico, niente da indovinare");
+            var notice = MdExplorer.Utilities.DevelopmentConfigFile.ReadProject(_project).Check.Describe((it, en) => it);
+            StringAssert.Contains(notice, "cursor", "l'avviso deve dire cosa ha letto");
+            StringAssert.Contains(notice, "opencode", "e quali valori sono ammessi");
         }
 
         [TestMethod]

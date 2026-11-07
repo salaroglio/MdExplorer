@@ -873,7 +873,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
             var file = Path.Combine(path, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             try
             {
-                var rows = (System.IO.File.Exists(file) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).Templates : null)
+                var rows = (System.IO.File.Exists(file) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(file).Templates : null)
                            ?? new List<MdExplorer.Service.Models.ProjectTemplateConfig>();
                 // theoryAvailable: il manifesto nella zona ha la teoria nella lingua della riga, quindi «Scarica la teoria» si può (M3).
                 return Ok(new
@@ -1044,7 +1044,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     try
                     {
-                        var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                        var yamlContent = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(devConfigPath).Text;
                         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
                             .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
                             .Build();

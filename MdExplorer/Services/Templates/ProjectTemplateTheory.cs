@@ -60,7 +60,7 @@ namespace MdExplorer.Services.Templates
             {
                 row.Theory = true;
                 var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-                var config = DevelopmentConfigCleanup.ReadStrict(file);
+                var config = DevelopmentConfigFile.Config(file);
                 config.Templates[config.Templates.FindIndex(t => t.Id == row.Id)] = row;
                 Write(file, config);
                 try { await ApplyTheoryAsync(path, manifest, row, notes, touched, update: false, previous: null, ct); }

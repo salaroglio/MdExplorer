@@ -370,7 +370,7 @@ namespace MdExplorer.Services.CodeGraph
             folderRelative = NormalizeRelative(folderRelative);
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             if (!File.Exists(path)) return CodeDescriptionModes.OnDemand;
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            var config = MdExplorer.Utilities.DevelopmentConfigFile.Config(path);
             FolderCodeGraphConfig cg;
             if (CodeRootPaths.IsLogical(folderRelative))
             {
@@ -391,7 +391,7 @@ namespace MdExplorer.Services.CodeGraph
             if (descriptionMode != null) CodeDescriptionModes.Parse(descriptionMode, $"'{folderRelative}'");
 
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            var config = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path) : new DevelopmentConfig();
+            var config = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path) : new DevelopmentConfig();
             if (CodeRootPaths.IsLogical(folderRelative))
             {
                 // radice esterna: i linguaggi stanno nella sua voce di codeRoots (la voce la crea il collegamento, non questa)
@@ -451,7 +451,7 @@ namespace MdExplorer.Services.CodeGraph
             var list = new List<CodeProgramFolder>();
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             if (!File.Exists(path)) return list;
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            var config = MdExplorer.Utilities.DevelopmentConfigFile.Config(path);
             list.AddRange(config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
                 .Select(f => new CodeProgramFolder { Folder = NormalizeRelative(f.Path), Languages = f.CodeGraph.Languages.ToList() }));
             list.AddRange((await _roots.ListAsync(projectPath, ct))
@@ -943,7 +943,7 @@ namespace MdExplorer.Services.CodeGraph
         {
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             if (!File.Exists(path)) return (new DevelopmentConfig(), null);
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            var config = MdExplorer.Utilities.DevelopmentConfigFile.Config(path);
             var entry = config.Folders.FirstOrDefault(f => string.Equals(NormalizeRelative(f.Path), folderRelative, StringComparison.OrdinalIgnoreCase));
             return (config, entry);
         }

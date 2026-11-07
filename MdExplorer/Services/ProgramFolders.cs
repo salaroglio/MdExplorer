@@ -47,7 +47,7 @@ namespace MdExplorer.Service.Services
             var path = Path.Combine(projectPath, ".development.yml");
             if (!File.Exists(path))
                 return From(projectPath, null);
-            return From(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path)?.Folders);
+            return From(projectPath, MdExplorer.Utilities.DevelopmentConfigFile.Config(path)?.Folders);
         }
 
         public bool IsProgram(string folder) => _paths.Contains(Normalize(folder));

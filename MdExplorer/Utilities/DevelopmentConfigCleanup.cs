@@ -1,11 +1,7 @@
 using System;
 using System.IO;
 using MdExplorer.Features.Configuration;
-using MdExplorer.Service.Models;
 using Microsoft.Extensions.Logging;
-using YamlDotNet.Core;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace MdExplorer.Utilities
 {
@@ -17,29 +13,6 @@ namespace MdExplorer.Utilities
     public static class DevelopmentConfigCleanup
     {
         public const string FileName = ".development.yml";
-
-        /// <summary>
-        /// Reads a project's <c>.development.yml</c> <b>strictly</b>: the retired keys are taken out first, by
-        /// name; any other key the model does not have is an error that names the file, the line and the key —
-        /// a typo must not read as «nothing configured». Null content gives an empty configuration.
-        /// </summary>
-        public static DevelopmentConfig ReadStrict(string path)
-        {
-            var yaml = RetiredConfigKeys.Remove(File.ReadAllText(path), out _);
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .Build();
-            try
-            {
-                return deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig();
-            }
-            catch (YamlException ex)
-            {
-                var why = ex.InnerException?.Message ?? ex.Message;
-                throw new InvalidOperationException(
-                    $"'{path}', riga {ex.Start.Line}: {why} Correggi o togli quella riga: MdExplorer non legge un file di configurazione con righe che non conosce.", ex);
-            }
-        }
 
         /// <summary>True when the file was rewritten. A file that cannot be read or written is left alone and the reason is logged.</summary>
         public static bool CleanFile(string projectPath, ILogger logger)

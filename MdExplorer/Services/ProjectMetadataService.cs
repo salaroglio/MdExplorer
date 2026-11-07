@@ -52,8 +52,9 @@ namespace MdExplorer.Services
         /// (<see cref="MdExplorer.Features.Configuration.RetiredConfigKeys"/>): chi legge e poi riscrive il file non
         /// perde un valore solo perché il progetto non è stato ancora riaperto.
         /// </summary>
+        /// <summary>Il testo usabile: senza voci ritirate e senza i gruppi spenti dallo schema (il cancello di lettura, F2).</summary>
         private static string ReadConfigText(string filePath)
-            => MdExplorer.Features.Configuration.RetiredConfigKeys.Remove(File.ReadAllText(filePath), out _);
+            => MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
         // Icon lives in .mdMetadata/ (NOT .md/) because .md/ is the working
         // folder ignored by .gitignore — committable artifacts must live in a
         // folder that follows the project on clone/share.
@@ -399,9 +400,12 @@ namespace MdExplorer.Services
             if (!Directory.Exists(projectPath))
                 throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
 
-            // Lettura rigorosa: un file che non si legge non vuol dire «nessun segreto» (GetAgentCity lo direbbe null).
+            // Un gruppo spento non vuol dire «nessun segreto»: crearne uno aprirebbe una stanza diversa da quella dei colleghi.
             var filePath = Path.Combine(projectPath, FileName);
-            var root = File.Exists(filePath) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(filePath) : new DevelopmentConfig();
+            var read = MdExplorer.Utilities.DevelopmentConfigFile.Read(filePath);
+            if (read.IsOff("agentCity"))
+                throw new MdExplorer.Utilities.DevelopmentConfigOffException(read.Check.Describe(MdExplorer.Features.Services.UiText.Say));
+            var root = read.Config;
             var existing = root.AgentCity?.RoomSecret;
             if (!string.IsNullOrWhiteSpace(existing))
                 return (existing.Trim(), false);
@@ -421,14 +425,18 @@ namespace MdExplorer.Services
                 throw new ArgumentException("projectPath is required", nameof(projectPath));
             var filePath = Path.Combine(projectPath, FileName);
             if (!File.Exists(filePath)) return null;
-            var secret = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(filePath).AgentCity?.RoomSecret;
+            // «Spento» non è «non c'è» (23/10): chi riceve null crea o sceglie un altro segreto.
+            var read = MdExplorer.Utilities.DevelopmentConfigFile.Read(filePath);
+            if (read.IsOff("agentCity"))
+                throw new MdExplorer.Utilities.DevelopmentConfigOffException(read.Check.Describe(MdExplorer.Features.Services.UiText.Say));
+            var secret = read.Config.AgentCity?.RoomSecret;
             return string.IsNullOrWhiteSpace(secret) ? null : secret.Trim();
         }
 
         /// <summary>
         /// Il segreto della stanza in un testo di <c>.development.yml</c> che non è sul disco (la versione pubblicata
-        /// sull'origin). Le voci che questa versione non conosce si ignorano: può venire da un MdExplorer più nuovo.
-        /// Null se la voce non c'è; un testo che non è YAML è un errore che dice da dove viene.
+        /// sull'origin). Passa dal controllo dello schema: se lì la città è spenta (scritta da un MDE più nuovo) è un errore che dice di
+        /// aggiornare, perché un segreto letto a metà aprirebbe un'altra stanza. Null se la voce non c'è.
         /// </summary>
         public static string RoomSecretIn(string yaml, string where)
         {
@@ -437,10 +445,12 @@ namespace MdExplorer.Services
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .IgnoreUnmatchedProperties()
                 .Build();
+            var usable = MdExplorer.Features.Configuration.DevelopmentConfigText.Prune(yaml);
+            if (usable.Check.IsOff("agentCity"))
+                throw new MdExplorer.Utilities.DevelopmentConfigOffException(usable.Check.Describe(MdExplorer.Features.Services.UiText.Say));
             try
             {
-                var secret = deserializer.Deserialize<DevelopmentConfig>(
-                    MdExplorer.Features.Configuration.RetiredConfigKeys.Remove(yaml, out _))?.AgentCity?.RoomSecret;
+                var secret = deserializer.Deserialize<DevelopmentConfig>(usable.Text)?.AgentCity?.RoomSecret;
                 return string.IsNullOrWhiteSpace(secret) ? null : secret.Trim();
             }
             catch (YamlDotNet.Core.YamlException ex)

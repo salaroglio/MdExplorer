@@ -205,7 +205,7 @@ namespace MdExplorer.Services.AgentRegistry
         {
             var file = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             if (!File.Exists(file)) return false;
-            try { return MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.Enabled == true; }
+            try { return MdExplorer.Utilities.DevelopmentConfigFile.Config(file).AgentCity?.Enabled == true; }
             catch (InvalidOperationException ex)
             {
                 _logger.LogWarning(ex, "[Registry] {File} non si legge: le schede dei template non si registrano", file);

@@ -1,11 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using MdExplorer.Features.Configuration;
 using MdExplorer.Features.Configuration.Models;
 using MdExplorer.Features.Templates;
 using MdExplorer.Service.Models;
@@ -14,10 +12,10 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace MdExplorer.Utilities
 {
     /// <summary>
-    /// Lo schema di <c>.development.yml</c> che questo MDE porta dentro di sé (sprint
-    /// docs-internal/Sprints/2026-11-07-Schema-Development-Yml.md). Ogni numero ha la sua istantanea incorporata
-    /// (<c>Schemas/development-schema-N.json</c>): il controllo riconosce anche i gruppi scritti con uno schema precedente, e un
-    /// test confronta l'istantanea del numero di oggi con il modello C#, così nessuno cambia il modello senza alzare il numero.
+    /// Lo schema di <c>.development.yml</c> come lo descrive il modello C# di oggi (sprint
+    /// docs-internal/Sprints/2026-11-07-Schema-Development-Yml.md). Le istantanee incorporate stanno in
+    /// <see cref="DevelopmentSchemaSnapshots"/>; un test confronta quella del numero di oggi con <see cref="FromModel"/>, così nessuno
+    /// cambia il modello senza alzare il numero.
     /// <para>
     /// I gruppi sono facoltativi, le voci di un gruppo tutte obbligatorie (D6); lo schema 1 è il file scritto fino al 07/11, che
     /// omette le voci vuote, e quindi le ammette mancanti.
@@ -25,26 +23,8 @@ namespace MdExplorer.Utilities
     /// </summary>
     public static class DevelopmentSchema
     {
-        /// <summary>Il numero di schema di questo MDE. Alzalo, e aggiungi l'istantanea, quando cambia il modello del file.</summary>
-        public const int Current = 1;
-
-        /// <summary>Le istantanee incorporate, dalla 1 a <see cref="Current"/>.</summary>
-        public static IReadOnlyList<SchemaSnapshot> Snapshots => _snapshots.Value;
-
-        private static readonly Lazy<IReadOnlyList<SchemaSnapshot>> _snapshots = new(() =>
-            Enumerable.Range(1, Current).Select(LoadSnapshot).ToList());
-
-        public static string ResourceName(int version) => $"MdExplorer.Service.Schemas.development-schema-{version}.json";
-
-        private static SchemaSnapshot LoadSnapshot(int version)
-        {
-            using var stream = typeof(DevelopmentSchema).Assembly.GetManifestResourceStream(ResourceName(version))
-                ?? throw new InvalidOperationException(
-                    $"Manca l'istantanea dello schema {version} di .development.yml ({ResourceName(version)}): ogni numero fino a {Current} deve averne una. / " +
-                    $"The snapshot of .development.yml schema {version} is missing ({ResourceName(version)}): every number up to {Current} needs one.");
-            using var reader = new StreamReader(stream);
-            return FromJson(reader.ReadToEnd());
-        }
+        /// <summary>Il numero di schema di questo MDE (vedi <see cref="DevelopmentSchemaSnapshots.Current"/>).</summary>
+        public const int Current = DevelopmentSchemaSnapshots.Current;
 
         // ---- dal modello C# ----
 
@@ -106,20 +86,6 @@ namespace MdExplorer.Utilities
             throw new NotSupportedException($"DevelopmentSchema: il tipo {type.Name} di «{where.TrimStart('.')}» non ha una regola di controllo: aggiungila in Describe.");
         }
 
-        // ---- istantanee ----
-
-        private static readonly JsonSerializerOptions Json = new()
-        {
-            WriteIndented = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        };
-
-        public static string ToJson(SchemaSnapshot snapshot) => JsonSerializer.Serialize(snapshot, Json).Replace("\r\n", "\n") + "\n";
-
-        public static SchemaSnapshot FromJson(string json) => JsonSerializer.Deserialize<SchemaSnapshot>(json, Json);
-
         /// <summary>L'istantanea che il modello di oggi produrrebbe con il numero <see cref="Current"/>.</summary>
         public static SchemaSnapshot CurrentFromModel(bool missingKeysAllowed) => new()
         {
@@ -127,34 +93,5 @@ namespace MdExplorer.Utilities
             MissingKeysAllowed = missingKeysAllowed,
             Root = FromModel(),
         };
-    }
-
-    public sealed class SchemaSnapshot
-    {
-        public int Version { get; set; }
-
-        /// <summary>True solo per lo schema 1: fino al 07/11 MDE non scriveva le voci vuote (D6 vale dallo schema 2).</summary>
-        public bool MissingKeysAllowed { get; set; }
-
-        public SchemaNode Root { get; set; }
-    }
-
-    public enum SchemaKind { Group, List, Text, Flag, Number }
-
-    public sealed class SchemaNode
-    {
-        public SchemaKind Kind { get; set; }
-
-        /// <summary>Per un gruppo: le sue voci.</summary>
-        public SortedDictionary<string, SchemaNode> Keys { get; set; }
-
-        /// <summary>Per una lista: com'è fatto un elemento.</summary>
-        public SchemaNode Item { get; set; }
-
-        /// <summary>Per un gruppo che è elemento di una lista: la voce che lo riconosce.</summary>
-        public string ItemKey { get; set; }
-
-        /// <summary>Per un testo a elenco chiuso: i valori ammessi.</summary>
-        public List<string> Choices { get; set; }
     }
 }

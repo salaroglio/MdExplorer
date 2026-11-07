@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MdExplorer.Features.Configuration;
 using MdExplorer.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -34,16 +35,16 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Ship_a_snapshot_of_the_current_number_equal_to_the_model()
         {
-            var expected = DevelopmentSchema.ToJson(DevelopmentSchema.CurrentFromModel(missingKeysAllowed: DevelopmentSchema.Current == 1));
-            var shipped = DevelopmentSchema.ToJson(DevelopmentSchema.Snapshots.Last());
+            var expected = DevelopmentSchemaSnapshots.ToJson(DevelopmentSchema.CurrentFromModel(missingKeysAllowed: DevelopmentSchema.Current == 1));
+            var shipped = DevelopmentSchemaSnapshots.ToJson(DevelopmentSchemaSnapshots.All.Last());
             if (expected != shipped)
             {
                 var file = Path.Combine(Path.GetTempPath(), $"development-schema-{DevelopmentSchema.Current}.json");
                 File.WriteAllText(file, expected);
-                Assert.Fail($"Il modello di .development.yml è cambiato: alza DevelopmentSchema.Current e aggiungi MdExplorer/Schemas/development-schema-N.json " +
+                Assert.Fail($"Il modello di .development.yml è cambiato: alza DevelopmentSchema.Current e aggiungi MdExplorer.bll/Configuration/Schemas/development-schema-N.json " +
                             $"(quella del modello di oggi è in {file}). Un'istantanea già pubblicata non si cambia.");
             }
-            CollectionAssert.AreEqual(Enumerable.Range(1, DevelopmentSchema.Current).ToList(), DevelopmentSchema.Snapshots.Select(s => s.Version).ToList());
+            CollectionAssert.AreEqual(Enumerable.Range(1, DevelopmentSchema.Current).ToList(), DevelopmentSchemaSnapshots.All.Select(s => s.Version).ToList());
         }
 
         [TestMethod]

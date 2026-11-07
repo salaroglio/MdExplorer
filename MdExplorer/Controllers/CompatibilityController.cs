@@ -78,7 +78,7 @@ namespace MdExplorer.Service.Controllers
 
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                    var yamlContent = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(devConfigPath).Text;
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
                         .Build();
@@ -163,7 +163,7 @@ namespace MdExplorer.Service.Controllers
                 {
                     // Load existing config
                     // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
-                    config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
+                    config = MdExplorer.Utilities.DevelopmentConfigFile.Config(devConfigPath);
                 }
                 else
                 {

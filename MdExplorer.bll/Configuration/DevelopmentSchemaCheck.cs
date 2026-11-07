@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using MdExplorer.Features.Configuration;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
-namespace MdExplorer.Utilities
+namespace MdExplorer.Features.Configuration
 {
     public enum SchemaMismatchKind { UnknownGroup, UnknownKey, MissingKey, WrongType, ValueNotAllowed }
 
@@ -32,7 +31,7 @@ namespace MdExplorer.Utilities
         public int FileSchema { get; private set; } = 1;
 
         /// <summary>Il file è stato scritto da un MDE con uno schema più alto di questo: le differenze vogliono dire «aggiorna MDE».</summary>
-        public bool WrittenByNewerMde => FileSchema > DevelopmentSchema.Current;
+        public bool WrittenByNewerMde => FileSchema > DevelopmentSchemaSnapshots.Current;
 
         /// <summary>Non null se il file non si legge come YAML con delle voci: allora è tutto spento.</summary>
         public SchemaMismatch Unreadable { get; private set; }
@@ -55,7 +54,11 @@ namespace MdExplorer.Utilities
             return m.Success && int.TryParse(m.Groups["n"].Value, out var n) ? n : null;
         }
 
-        public static DevelopmentSchemaCheck Run(string text) => Run(text, DevelopmentSchema.Snapshots);
+        /// <summary>Un file che non si può usare per un motivo trovato fuori dal controllo (es. la pulizia delle voci ritirate).</summary>
+        public static DevelopmentSchemaCheck Broken(string text, int line, string detail)
+            => new() { FileSchema = SchemaNumberOf(text) ?? 1, Unreadable = new SchemaMismatch("", line, SchemaMismatchKind.WrongType, detail) };
+
+        public static DevelopmentSchemaCheck Run(string text) => Run(text, DevelopmentSchemaSnapshots.All);
 
         /// <summary>Con le istantanee date: per i test, che provano uno schema 2 prima che esista.</summary>
         public static DevelopmentSchemaCheck Run(string text, IReadOnlyList<SchemaSnapshot> snapshots)
@@ -80,7 +83,7 @@ namespace MdExplorer.Utilities
                 return check;
             }
 
-            // Le voci ritirate le toglie la pulizia all'apertura (RetiredConfigKeys): non sono differenze, come in ReadStrict.
+            // Le voci ritirate le toglie la pulizia all'apertura (RetiredConfigKeys): non sono differenze.
             var retired = new HashSet<string>(
                 RetiredConfigKeys.All.Select(r => r.Section + "." + r.Key).Concat(RetiredConfigKeys.BecameList.Select(r => r.Section + "." + r.Key)),
                 StringComparer.Ordinal);
@@ -218,8 +221,8 @@ namespace MdExplorer.Utilities
                            $".development.yml cannot be read (line {Unreadable.Line}: {Unreadable.Detail}): MDE neither uses nor writes anything in the file until it is fixed.");
             var groups = string.Join(", ", _off.Select(o => o.ItemKey == null ? o.Path : $"{o.Path} ({o.ItemKey})"));
             if (WrittenByNewerMde)
-                return say($"Configurato da un MDE più nuovo (schema {FileSchema}, questo MDE ha il {DevelopmentSchema.Current}): {groups} restano spenti finché non aggiorni MDE. Il resto funziona.",
-                           $"Configured by a newer MDE (schema {FileSchema}, this MDE has {DevelopmentSchema.Current}): {groups} stay off until you update MDE. The rest works.");
+                return say($"Configurato da un MDE più nuovo (schema {FileSchema}, questo MDE ha il {DevelopmentSchemaSnapshots.Current}): {groups} restano spenti finché non aggiorni MDE. Il resto funziona.",
+                           $"Configured by a newer MDE (schema {FileSchema}, this MDE has {DevelopmentSchemaSnapshots.Current}): {groups} stay off until you update MDE. The rest works.");
             var first = _off.SelectMany(o => o.Mismatches).First();
             return say($"In .development.yml {groups} non combaciano con lo schema di questo MDE (riga {first.Line}, «{first.Path}»: {Kind(first.Kind, true)}{Detail(first)}): restano spenti. Se un collega usa un MDE più nuovo, aggiorna MDE.",
                        $"In .development.yml {groups} do not match the schema of this MDE (line {first.Line}, «{first.Path}»: {Kind(first.Kind, false)}{Detail(first)}): they stay off. If a colleague uses a newer MDE, update MDE.");

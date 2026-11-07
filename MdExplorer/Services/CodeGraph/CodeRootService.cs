@@ -489,7 +489,7 @@ namespace MdExplorer.Services.CodeGraph
         private static DevelopmentConfig ReadConfig(string projectPath)
         {
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            return File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path) : new DevelopmentConfig();
+            return File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path) : new DevelopmentConfig();
         }
 
         private static void WriteConfig(string projectPath, DevelopmentConfig config)

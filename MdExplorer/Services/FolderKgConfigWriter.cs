@@ -42,7 +42,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());

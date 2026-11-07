@@ -307,7 +307,7 @@ namespace MdExplorer.Utilities
             if (!File.Exists(filePath)) return null;
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return null;
                 var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
                     .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
@@ -331,7 +331,7 @@ namespace MdExplorer.Utilities
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return false;
 
                 var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()

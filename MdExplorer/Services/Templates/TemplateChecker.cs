@@ -454,7 +454,7 @@ namespace MdExplorer.Services.Templates
             if (manifest.IsZoned || !File.Exists(file)) return created;
             try
             {
-                var configured = DevelopmentConfigCleanup.ReadStrict(file).AgentCity?.OwnershipDoc;
+                var configured = DevelopmentConfigFile.Config(file).AgentCity?.OwnershipDoc;
                 return string.IsNullOrWhiteSpace(configured) ? created : configured.Trim().Replace('\\', '/').TrimStart('/');
             }
             catch (InvalidOperationException ex)

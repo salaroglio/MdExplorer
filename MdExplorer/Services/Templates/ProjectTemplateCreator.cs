@@ -384,7 +384,7 @@ namespace MdExplorer.Services.Templates
         private static List<ProjectTemplateConfig> PresentTemplates(string path)
         {
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            return (File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file).Templates : null) ?? new List<ProjectTemplateConfig>();
+            return (File.Exists(file) ? DevelopmentConfigFile.Config(file).Templates : null) ?? new List<ProjectTemplateConfig>();
         }
 
         /// <summary>
@@ -410,7 +410,7 @@ namespace MdExplorer.Services.Templates
             try
             {
                 var city = cityOn ?? (File.Exists(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName))
-                    && DevelopmentConfigCleanup.ReadStrict(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName)).AgentCity?.Enabled == true);
+                    && DevelopmentConfigFile.Config(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName)).AgentCity?.Enabled == true);
                 await ApplyManifestCoreAsync(path, manifest, row, notes, touched, update, previous, city, ct);
             }
             finally
@@ -426,7 +426,7 @@ namespace MdExplorer.Services.Templates
             bool update, TemplateManifest previous, bool cityOn, CancellationToken ct)
         {
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = File.Exists(file) ? DevelopmentConfigCleanup.ReadStrict(file) : new DevelopmentConfig();
+            var config = File.Exists(file) ? DevelopmentConfigFile.Config(file) : new DevelopmentConfig();
 
             config.Templates ??= new List<ProjectTemplateConfig>();
             var existing = config.Templates.FindIndex(t => t.Id == row.Id);
@@ -717,7 +717,7 @@ namespace MdExplorer.Services.Templates
         {
             if (manifest.Programs == null || manifest.Programs.Count == 0) return;
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = DevelopmentConfigCleanup.ReadStrict(file);
+            var config = DevelopmentConfigFile.Config(file);
             config.Folders ??= new List<DevelopmentFolder>();
             var marked = new List<string>();
             foreach (var program in manifest.Programs)
@@ -752,7 +752,7 @@ namespace MdExplorer.Services.Templates
             {
                 if (feature == TemplateRequires.Code)
                 {
-                    var config = DevelopmentConfigCleanup.ReadStrict(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName));
+                    var config = DevelopmentConfigFile.Config(System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName));
                     var hasProgram = config.Folders?.Any(f => f.CodeGraph?.Languages?.Count > 0
                         && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true) == true;
                     if (!hasProgram)
@@ -779,7 +779,7 @@ namespace MdExplorer.Services.Templates
         private async Task AddRoomSecretAsync(string path, CancellationToken ct)
         {
             var file = System.IO.Path.Combine(path, DevelopmentConfigCleanup.FileName);
-            var config = DevelopmentConfigCleanup.ReadStrict(file);
+            var config = DevelopmentConfigFile.Config(file);
             if (!string.IsNullOrWhiteSpace(config.AgentCity?.RoomSecret)) return;
             config.AgentCity ??= new AgentCityConfig();
             config.AgentCity.RoomSecret = MdExplorer.Services.ProjectMetadataService.GenerateRoomSecret();

@@ -42,7 +42,15 @@ namespace MdExplorer.Utilities
             string raw;
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var usable = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath);
+                // Spento (scritto da un MDE più nuovo o rovinato) non è assente: niente migrazione dal disco, che riscriverebbe la
+                // scelta del gruppo; questo MDE resta senza ambiente agentico finché non si aggiorna (D5).
+                if (usable.Check.IsOff("harness"))
+                {
+                    Console.WriteLine($"[HarnessSettings] harness spento in {filePath}: {usable.Check.Describe((it, en) => en)}");
+                    return HarnessTarget.None;
+                }
+                var yaml = usable.Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return null;
 
                 var deserializer = new DeserializerBuilder()
@@ -80,7 +88,7 @@ namespace MdExplorer.Utilities
             if (!File.Exists(filePath)) return null;
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 if (string.IsNullOrWhiteSpace(yaml)) return null;
                 var model = new DeserializerBuilder()
                     .WithNamingConvention(CamelCaseNamingConvention.Instance)
@@ -128,7 +136,7 @@ namespace MdExplorer.Utilities
                 .IgnoreUnmatchedProperties()
                 .Build();
 
-            var yaml = File.ReadAllText(filePath);
+            var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
             var root = string.IsNullOrWhiteSpace(yaml)
                 ? new DevelopmentConfig()
                 : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());

@@ -409,7 +409,7 @@ namespace MdExplorer.Services.Git
             var yml = Path.Combine(dir, DevelopmentConfigCleanup.FileName);
             try
             {
-                if ((File.Exists(yml) ? DevelopmentConfigCleanup.ReadStrict(yml).Templates : null)?.Count > 0) return null;
+                if ((File.Exists(yml) ? DevelopmentConfigFile.Config(yml).Templates : null)?.Count > 0) return null;
             }
             catch (InvalidOperationException ex)
             {

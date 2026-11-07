@@ -196,7 +196,7 @@ namespace MdExplorer.Services.Templates
                 throw Problem($"{DevelopmentConfigCleanup.FileName} ha modifiche senza commit: fai il commit o annullale, poi staccati dal template.",
                               $"{DevelopmentConfigCleanup.FileName} has uncommitted changes: commit or discard them, then detach from the template.");
 
-            var config = DevelopmentConfigCleanup.ReadStrict(file);
+            var config = DevelopmentConfigFile.Config(file);
             var row = config.Templates?.FirstOrDefault(t => t.Id == id)
                       ?? throw Problem($"Il progetto non ha il template '{id}'.", $"The project does not have the template '{id}'.");
             if (!string.IsNullOrEmpty(row.Detached))
