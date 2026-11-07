@@ -88,7 +88,7 @@ namespace MdExplorer.Services
 
             dev.Atlassian = config;
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, dev);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, dev, new MdExplorer.Utilities.MdeWhy("aggiornato il collegamento a Jira/Confluence", "Jira/Confluence link updated"));
             _logger.LogInformation("Atlassian config updated in {FilePath}", filePath);
         }
     }

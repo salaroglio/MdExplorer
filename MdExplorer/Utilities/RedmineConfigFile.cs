@@ -31,7 +31,7 @@ namespace MdExplorer.Utilities
 
             var dev = DevelopmentConfigCleanup.ReadStrict(file);
             dev.Redmine = config;
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, dev);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, dev, new MdExplorer.Utilities.MdeWhy("aggiornato il collegamento a Redmine", "Redmine link updated"));
         }
     }
 }

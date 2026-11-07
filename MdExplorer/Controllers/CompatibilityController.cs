@@ -180,7 +180,7 @@ namespace MdExplorer.Service.Controllers
 
                 // Save config
                 // Il serializzatore comune (senza voci vuote) e solo se cambia: sprint «File di sistema di MDE», S1.
-                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config);
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config, new MdExplorer.Utilities.MdeWhy("cambiata la modalità di compatibilità del markdown", "markdown compatibility mode changed"));
 
                 _logger.LogInformation($"SetCompatibilityMode - Successfully saved to: {devConfigPath}");
 

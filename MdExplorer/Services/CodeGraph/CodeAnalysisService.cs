@@ -408,7 +408,7 @@ namespace MdExplorer.Services.CodeGraph
                         ?? throw new InvalidOperationException(UiText.Say($"@{alias}/{sub} non è marcata come programma: marcala prima di scegliere i linguaggi.", $"@{alias}/{sub} is not marked as a program: mark it before choosing the languages."));
                     context.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? context.CodeGraph?.Describe };
                 }
-                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config, new MdExplorer.Utilities.MdeWhy("scelti i linguaggi del grafo del codice per una radice esterna", "code graph languages chosen for an external root"));
                 _logger.LogInformation("[CodeGraph] '@{Alias}': linguaggi = {Langs}", alias, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
                 return;
             }
@@ -421,7 +421,7 @@ namespace MdExplorer.Services.CodeGraph
             }
             entry.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? entry.CodeGraph?.Describe };
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config, new MdExplorer.Utilities.MdeWhy("scelti i linguaggi del grafo del codice per una cartella", "code graph languages chosen for a folder"));
             _logger.LogInformation("[CodeGraph] '{Folder}': linguaggi = {Langs}", folderRelative, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
         }
 

@@ -495,7 +495,7 @@ namespace MdExplorer.Services.CodeGraph
         private static void WriteConfig(string projectPath, DevelopmentConfig config)
         {
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config, new MdExplorer.Utilities.MdeWhy("aggiornate le radici di codice esterne", "external code roots updated"));
         }
 
         private static string Combine(string root, string subpath)

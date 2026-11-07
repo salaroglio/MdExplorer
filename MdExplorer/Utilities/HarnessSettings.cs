@@ -140,7 +140,7 @@ namespace MdExplorer.Utilities
             root.Harness = new HarnessConfig { Target = IdOf(target), Model = keptModel };
             ExcludeHarnessFolderFromYamlAutoGeneration(root, target);
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root, new MdExplorer.Utilities.MdeWhy("scelto l'ambiente agentico del progetto", "project agent environment chosen"));
             Console.WriteLine($"[HarnessSettings] harness.target = {IdOf(target)} written in {filePath}");
         }
 

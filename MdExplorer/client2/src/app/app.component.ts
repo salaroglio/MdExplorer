@@ -13,6 +13,7 @@ import { ThemeService } from './services/theme.service';
 import { ExecutionService } from './services/execution.service';
 import { MarkDiagramService } from './mark-assistant/mark-diagram.service';
 import { MdServerMessagesService } from './signalR/services/server-messages.service';
+import { ProjectsService } from './md-explorer/services/projects.service';
 
 @Component({
   selector: 'app-root',
@@ -49,6 +50,7 @@ export class AppComponent {
     private markDiagramService: MarkDiagramService,
     private serverMessages: MdServerMessagesService,
     private snackBar: MatSnackBar,
+    private projectsService: ProjectsService,
     private translate: TranslateService) {
 
     currentFolder.folderName.subscribe((data: any) => {
@@ -73,6 +75,21 @@ export class AppComponent {
         'OK',
         { duration: 6000, panelClass: ['kg-stale-snack'] }
       );
+    });
+
+    // Sprint «File di sistema di MDE», S3: ogni modifica di MDE a un file del repository si dice, con il motivo e con che ne è
+    // del commit/push. L'evento va a tutte le finestre: lo mostra solo quella del progetto dentro quel repository.
+    this.serverMessages.mdeRepoChange$.subscribe(evt => {
+      const norm = (p: string) => (p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      const project = norm(this.projectsService.currentProjects$.getValue()?.path);
+      const root = norm(evt?.repositoryRoot);
+      if (!project || !root || !(project === root || project.startsWith(root + '/'))) return;
+      if (!evt.notices?.length) return;
+      const problem = evt.pending && evt.pending !== 'None' && evt.pending !== 'NothingToSave' && !evt.pushed;
+      this.snackBar.open(evt.notices.join('\n'), 'OK', {
+        duration: problem ? 15000 : 8000,
+        panelClass: problem ? ['kg-stale-snack', 'mde-repo-change-snack'] : ['mde-repo-change-snack'],
+      });
     });
 
     // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):

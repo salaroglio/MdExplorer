@@ -14379,4 +14379,10 @@ app-promptlab {
   -webkit-app-region: no-drag;
 }
 
-/*# sourceMappingURL=styles.0c95f2e7b05d924e.css.map*/
+/* Sprint «File di sistema di MDE», S3: le notifiche delle modifiche di MDE al repository possono essere più righe. */
+.mde-repo-change-snack .mat-simple-snackbar span,
+.mde-repo-change-snack .mat-mdc-snack-bar-label {
+  white-space: pre-line;
+}
+
+/*# sourceMappingURL=styles.eddd6c79d65e42db.css.map*/

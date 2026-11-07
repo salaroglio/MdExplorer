@@ -41,7 +41,7 @@ namespace MdExplorer.Utilities
             var after = Apply(before);
             if (after == before) return false;
             File.WriteAllText(path, after, new UTF8Encoding(encoderShouldEmitUTF8Identifier: bom));
-            MdeRepoWriter.NotifyWritten(path, "frasi di MDE aggiornate alla versione attuale");
+            MdeRepoWriter.NotifyWritten(path, new MdeWhy("frasi di MDE aggiornate alla versione attuale", "MDE sentences updated to the current version"));
             return true;
         }
     }

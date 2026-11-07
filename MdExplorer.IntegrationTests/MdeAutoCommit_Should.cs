@@ -15,7 +15,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.IntegrationTests
 {
     /// <summary>
-    /// S2 dello sprint «File di sistema di MDE»: MDE fa il commit dei suoi file appena li scrive, e il push solo quando è sicuro.
+    /// S2-S3 dello sprint «File di sistema di MDE»: MDE fa il commit dei suoi file appena li scrive, e il push solo quando è sicuro.
     /// Repository veri: un origin nudo, il clone di un collega che pubblica, il progetto. Richiede <c>git</c> nel PATH.
     /// </summary>
     [TestClass]
@@ -86,8 +86,8 @@ namespace MdExplorer.IntegrationTests
             var result = await SaveHarnessAndFlush(ctx, project);
 
             Assert.IsNotNull(result);
-            Assert.IsTrue(result.Committed, result.Pending);
-            Assert.IsTrue(result.Pushed, result.Pending);
+            Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
+            Assert.IsTrue(result.Pushed, string.Join(" | ", result.Notices));
             StringAssert.StartsWith(Git(project, "log -1 --format=%s").Out, "MDE: ");
             Assert.AreEqual(".development.yml", Git(project, "show --name-only --format= HEAD").Out, "nel commit c'è solo il file di MDE");
             Assert.AreEqual(Git(project, "rev-parse HEAD").Out, Git(origin, "rev-parse main").Out, "pubblicato");
@@ -105,7 +105,7 @@ namespace MdExplorer.IntegrationTests
 
             var result = await SaveHarnessAndFlush(ctx, project);
 
-            Assert.IsTrue(result.Committed, result.Pending);
+            Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
             Assert.AreEqual(".development.yml", Git(project, "show --name-only --format= HEAD").Out);
             Assert.AreEqual("M  README.md", Git(project, "status --porcelain -- README.md").Out, "la modifica dell'utente resta in stage");
         }
@@ -122,9 +122,9 @@ namespace MdExplorer.IntegrationTests
 
             var result = await SaveHarnessAndFlush(ctx, project);
 
-            Assert.IsTrue(result.Committed, result.Pending);
+            Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
             Assert.IsFalse(result.Pushed);
-            StringAssert.Contains(result.Pending, "commit tuoi");
+            Assert.AreEqual(MdeCommitPending.UserCommitsToPublish, result.PendingKind);
             Assert.AreEqual(originBefore, Git(origin, "rev-parse main").Out, "niente pubblicato: si porterebbe dietro la nota dell'utente");
         }
 
@@ -140,9 +140,9 @@ namespace MdExplorer.IntegrationTests
 
             var result = await SaveHarnessAndFlush(ctx, project);
 
-            Assert.IsTrue(result.Committed, result.Pending);
+            Assert.IsTrue(result.Committed, string.Join(" | ", result.Notices));
             Assert.IsFalse(result.Pushed);
-            StringAssert.Contains(result.Pending, "il remoto ha novità");
+            Assert.AreEqual(MdeCommitPending.RemoteHasNews, result.PendingKind);
             Assert.AreEqual(originBefore, Git(origin, "rev-parse main").Out);
         }
 
@@ -158,10 +158,70 @@ namespace MdExplorer.IntegrationTests
             {
                 var result = await SaveHarnessAndFlush(ctx, project);
                 Assert.IsFalse(result.Committed);
-                StringAssert.Contains(result.Pending, "unione o un rebase a metà");
+                Assert.AreEqual(MdeCommitPending.MergeInProgress, result.PendingKind);
+                Assert.IsTrue(result.Notices.Any(n => n.Contains("Commit postponed")), "si dice che il commit è rimandato");
                 Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "nessun commit");
             }
             finally { File.Delete(Path.Combine(project, ".git", "MERGE_HEAD")); }
+        }
+        // ---------------------------------------------------------------- S3: notifiche con il motivo
+
+        [TestMethod]
+        public async Task Tell_what_it_changed_why_and_whether_it_was_pushed()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, _) = Setup(ctx, "notifica");
+
+            var result = await SaveHarnessAndFlush(ctx, project);
+
+            // SetHarness scrive anche .gitignore: due notifiche, una per il file di MDE e una per quello dell'utente
+            Assert.AreEqual(2, result.Notices.Count, string.Join(" | ", result.Notices));
+            var notice = result.Notices.Single(n => n.Contains(".development.yml"));
+            StringAssert.Contains(result.Notices.Single(n => n.Contains(".gitignore")), "The file is yours");
+            // senza UiText.Use i testi del servizio sono in inglese (vedi server_texts_follow_ui_language)
+            StringAssert.Contains(notice, ".development.yml");
+            StringAssert.Contains(notice, "project agent environment chosen", "il motivo specifico, non uno generico");
+            StringAssert.Contains(notice, "Committed and pushed");
+            StringAssert.Contains(Git(project, "log -1 --format=%s").Out, "scelto l'ambiente agentico del progetto", "il commit è in italiano");
+        }
+
+        [TestMethod]
+        public async Task Tell_about_gitignore_without_committing_it()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, _) = Setup(ctx, "gitignore");
+            var head = Git(project, "rev-parse HEAD").Out;
+
+            MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(project);
+            var service = ctx.Factory.Services.GetRequiredService<MdeAutoCommit>();
+            await service.FlushAsync();
+            var result = service.RecentResults.LastOrDefault();
+
+            Assert.IsNotNull(result);
+            Assert.IsFalse(result.Committed);
+            Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, ".gitignore è dell'utente: nessun commit");
+            Assert.AreEqual("?? .gitignore", Git(project, "status --porcelain -- .gitignore").Out);
+            Assert.AreEqual(1, result.Notices.Count, string.Join(" | ", result.Notices));
+            StringAssert.Contains(result.Notices[0], ".gitignore");
+            StringAssert.Contains(result.Notices[0], ".md/");
+            StringAssert.Contains(result.Notices[0], "The file is yours");
+        }
+
+        [TestMethod]
+        public async Task Say_nothing_when_nothing_changed()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, _) = Setup(ctx, "silenzio");
+            await SaveHarnessAndFlush(ctx, project);
+            var service = ctx.Factory.Services.GetRequiredService<MdeAutoCommit>();
+            var before = service.RecentResults.Count;
+
+            await SaveHarnessAndFlush(ctx, project); // stessa scelta: il file non si riscrive, nessun avviso
+
+            Assert.AreEqual(before, service.RecentResults.Count, "nessuna scrittura, nessuna notifica");
         }
     }
 }

@@ -7,6 +7,17 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace MdExplorer.Utilities
 {
     /// <summary>
+    /// Il motivo di una scrittura di MDE, nelle due lingue. La lingua si sceglie DOPO, nel servizio che notifica (S3), e mai dentro
+    /// lo scrittore: chi scrive può essere in una transazione, e leggere lì la lingua dell'interfaccia ha già bloccato il DB (03/11).
+    /// L'italiano va anche nel messaggio di commit (contenuto del repository).
+    /// </summary>
+    public sealed record MdeWhy(string It, string En)
+    {
+        public static readonly MdeWhy ConfigUpdated = new("configurazione del progetto aggiornata", "project configuration updated");
+        public static readonly MdeWhy Generic = new("aggiornato da MDE", "updated by MDE");
+    }
+
+    /// <summary>
     /// Il punto unico da cui MDE scrive i suoi file del repository (S1 dello sprint «File di sistema di MDE», 07/11/2026).
     /// <para>
     /// <b>Scrive solo se il contenuto cambia.</b> Prima ogni salvataggio riscriveva il file anche identico, e due scrittori non
@@ -33,27 +44,27 @@ namespace MdExplorer.Utilities
         /// Avvisato dopo ogni scrittura EFFETTIVA di un file del repository (non quando il testo era già uguale), con il motivo:
         /// lo ascolta il commit automatico (S2) e, dopo, le notifiche (S3). Statico perché gli scrittori sono statici e sparsi.
         /// </summary>
-        public static event Action<string, string> Written;
+        public static event Action<string, MdeWhy> Written;
 
         /// <summary>Per le scritture che non passano da <see cref="WriteIfChanged"/> (istruzioni, pulizia delle voci ritirate).</summary>
-        public static void NotifyWritten(string fullPath, string why)
+        public static void NotifyWritten(string fullPath, MdeWhy why)
         {
             try { Written?.Invoke(fullPath, why); }
             catch (Exception ex) { Console.WriteLine($"[MdeRepoWriter] avviso di scrittura fallito per {fullPath}: {ex.Message}"); }
         }
 
         /// <summary>Salva <c>.development.yml</c> se cambia. True = il file è stato scritto.</summary>
-        public static bool WriteDevelopmentConfig(string filePath, object config, string why = null)
-            => WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? "configurazione del progetto aggiornata");
+        public static bool WriteDevelopmentConfig(string filePath, object config, MdeWhy why = null)
+            => WriteIfChanged(filePath, SerializeDevelopmentConfig(config), why ?? MdeWhy.ConfigUpdated);
 
         /// <summary>
         /// Scrive <paramref name="content"/> in <paramref name="fullPath"/> solo se è diverso da quello che c'è (fine riga a parte).
         /// Conserva i fine riga e il BOM del file esistente, così un file CRLF resta CRLF. True = il file è stato scritto.
         /// </summary>
-        public static bool WriteIfChanged(string fullPath, string content, string why = null)
+        public static bool WriteIfChanged(string fullPath, string content, MdeWhy why = null)
         {
             var written = WriteIfChangedCore(fullPath, content);
-            if (written) NotifyWritten(fullPath, why ?? "aggiornato da MDE");
+            if (written) NotifyWritten(fullPath, why ?? MdeWhy.Generic);
             return written;
         }
 

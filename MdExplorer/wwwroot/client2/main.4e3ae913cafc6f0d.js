@@ -12,10 +12,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AppComponent": () => (/* binding */ AppComponent)
 /* harmony export */ });
 /* harmony import */ var _shared_animations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./shared/animations */ 6055);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 /* harmony import */ var _services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./services/app-current-metadata.service */ 1804);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./services/ai-notification.service */ 2843);
 /* harmony import */ var _services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./services/url-handler.service */ 3876);
 /* harmony import */ var _services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./services/file-change-notification.service */ 322);
@@ -24,10 +24,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _services_execution_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./services/execution.service */ 2512);
 /* harmony import */ var _mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./mark-assistant/mark-diagram.service */ 4926);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./md-explorer/services/projects.service */ 9753);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+
 
 
 
@@ -57,7 +59,7 @@ class AppComponent {
   constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService,
   // Instantiated for its side effect: it installs the "Ask to MarkAgent"
   // postMessage listener before any document can be opened.
-  markDiagramService, serverMessages, snackBar, translate) {
+  markDiagramService, serverMessages, snackBar, projectsService, translate) {
     this.titleService = titleService;
     this.currentFolder = currentFolder;
     this.route = route;
@@ -71,6 +73,7 @@ class AppComponent {
     this.markDiagramService = markDiagramService;
     this.serverMessages = serverMessages;
     this.snackBar = snackBar;
+    this.projectsService = projectsService;
     this.translate = translate;
     this.title = 'client2';
     currentFolder.folderName.subscribe(data => {
@@ -92,6 +95,20 @@ class AppComponent {
       }), 'OK', {
         duration: 6000,
         panelClass: ['kg-stale-snack']
+      });
+    });
+    // Sprint «File di sistema di MDE», S3: ogni modifica di MDE a un file del repository si dice, con il motivo e con che ne è
+    // del commit/push. L'evento va a tutte le finestre: lo mostra solo quella del progetto dentro quel repository.
+    this.serverMessages.mdeRepoChange$.subscribe(evt => {
+      const norm = p => (p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      const project = norm(this.projectsService.currentProjects$.getValue()?.path);
+      const root = norm(evt?.repositoryRoot);
+      if (!project || !root || !(project === root || project.startsWith(root + '/'))) return;
+      if (!evt.notices?.length) return;
+      const problem = evt.pending && evt.pending !== 'None' && evt.pending !== 'NothingToSave' && !evt.pushed;
+      this.snackBar.open(evt.notices.join('\n'), 'OK', {
+        duration: problem ? 15000 : 8000,
+        panelClass: problem ? ['kg-stale-snack', 'mde-repo-change-snack'] : ['mde-repo-change-snack']
       });
     });
     // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):
@@ -116,18 +133,18 @@ class AppComponent {
   }
   static {
     this.ɵfac = function AppComponent_Factory(t) {
-      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__.MarkDiagramService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__.TranslateService));
+      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_14__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_15__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_15__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__.MarkDiagramService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_16__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_10__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_17__.TranslateService));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdefineComponent"]({
       type: AppComponent,
       selectors: [["app-root"]],
       hostBindings: function AppComponent_HostBindings(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
             return ctx.unloadHandler($event);
-          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵresolveWindow"]);
+          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵresolveWindow"]);
         }
       },
       decls: 5,
@@ -135,19 +152,19 @@ class AppComponent {
       consts: [[1, "container", "app-content"], ["o", "outlet"]],
       template: function AppComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](0, "app-title-bar");
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementStart"](1, "div", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](2, "router-outlet", null, 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](4, "app-mark-assistant");
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵelement"](0, "app-title-bar");
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵelementStart"](1, "div", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵelement"](2, "router-outlet", null, 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵelement"](4, "app-mark-assistant");
         }
         if (rf & 2) {
-          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵreference"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
+          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵreference"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
         }
       },
-      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_14__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_10__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_11__.TitleBarComponent],
+      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_15__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_11__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_12__.TitleBarComponent],
       styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwic291cmNlc0NvbnRlbnQiOlsiLmZsZXgtY29udGFpbmVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1mbG93OiByb3cgd3JhcDtcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcbiAgZmxleC13cmFwOiB3cmFwOyAgXG59XG5cbi5mbGV4LWl0ZW0ge1xuICBiYWNrZ3JvdW5kOiB0b21hdG87XG59XG5cbi5hcHAtY29udGVudCB7XG4gIG1hcmdpbi10b3A6IDMwcHg7IC8vIFNwYWNlIGZvciB0aXRsZSBiYXJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbn1cblxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"],
       data: {
         animation: [_shared_animations__WEBPACK_IMPORTED_MODULE_0__.slideInAnimation]
@@ -19720,6 +19737,11 @@ class MdServerMessagesService {
     this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
     this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /**
+     * Sprint «File di sistema di MDE», S3: MDE ha modificato file del repository (con il motivo) e che ne è del commit/push.
+     * A tutte le finestre: filtra per progetto chi ascolta. `notices` sono già nella lingua dell'interfaccia.
+     */
+    this.mdeRepoChange$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
     this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
@@ -19862,6 +19884,9 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('codeDescriptionStatus', data => {
           this.codeDescriptionStatus$.next(data);
+        });
+        this.hubConnection.on('mdeRepoChange', data => {
+          this.mdeRepoChange$.next(data);
         });
         this.hubConnection.on('codeScanStatus', data => {
           this.codeScanStatus$.next(data);
@@ -20361,8 +20386,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.06.5',
-  buildTime: '2026.11.06 20:23:02'
+  version: '2026.11.07.1',
+  buildTime: '2026.11.07 11:36:02'
 };
 
 /***/ }),
@@ -20396,4 +20421,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.182c0629f01fde7d.js.map
+//# sourceMappingURL=main.4e3ae913cafc6f0d.js.map

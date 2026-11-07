@@ -46,6 +46,11 @@ export class MdServerMessagesService {
   public codeDocProgress$ = new Subject<any>();
   /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
   public codeDescriptionStatus$ = new Subject<any>();
+  /**
+   * Sprint «File di sistema di MDE», S3: MDE ha modificato file del repository (con il motivo) e che ne è del commit/push.
+   * A tutte le finestre: filtra per progetto chi ascolta. `notices` sono già nella lingua dell'interfaccia.
+   */
+  public mdeRepoChange$ = new Subject<{ repositoryRoot: string; files: string[]; committed: boolean; pushed: boolean; pending: string; notices: string[] }>();
   /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
   public codeScanStatus$ = new Subject<any>();
   /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
@@ -310,6 +315,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('codeDescriptionStatus', (data) => {
         this.codeDescriptionStatus$.next(data);
+      });
+      this.hubConnection.on('mdeRepoChange', (data) => {
+        this.mdeRepoChange$.next(data);
       });
       this.hubConnection.on('codeScanStatus', (data) => {
         this.codeScanStatus$.next(data);

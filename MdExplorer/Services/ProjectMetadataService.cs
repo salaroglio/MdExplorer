@@ -139,7 +139,7 @@ namespace MdExplorer.Services
             var trimmed = description?.Trim();
             config.Project.Description = string.IsNullOrEmpty(trimmed) ? null : trimmed;
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("aggiornata la descrizione del progetto", "project description updated"));
             _logger.LogInformation("Project description updated in {FilePath}", filePath);
         }
 
@@ -228,7 +228,7 @@ namespace MdExplorer.Services
 
             config.Project.Participants = normalized;
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("aggiornati i partecipanti del progetto", "project participants updated"));
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
         }
 
@@ -370,7 +370,7 @@ namespace MdExplorer.Services
                 UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
             };
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root, new MdExplorer.Utilities.MdeWhy("aggiornata la configurazione della città degli agenti", "agent city configuration updated"));
             _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
             return root.AgentCity;
         }
@@ -410,7 +410,7 @@ namespace MdExplorer.Services
             root.AgentCity ??= new AgentCityConfig { Enabled = false };
             root.AgentCity.RoomSecret = GenerateRoomSecret();
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root, new MdExplorer.Utilities.MdeWhy("aggiunto il segreto della chat del progetto: senza, la chat del team non si apre", "added the project chat secret: without it the team chat does not open"));
             _logger.LogInformation("Room secret del progetto creato in {FilePath}: servono commit e push", filePath);
             return (root.AgentCity.RoomSecret, true);
         }
@@ -594,7 +594,7 @@ namespace MdExplorer.Services
                 UpdatedAt = DateTime.UtcNow.ToString("o")
             };
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("aggiornata l'icona del progetto", "project icon updated"));
             _logger.LogInformation("Project icon updated at {IconPath} ({Bytes} bytes)", iconAbs, pngBytes.Length);
         }
 
@@ -661,7 +661,7 @@ namespace MdExplorer.Services
 
                 config.Project.Icon = null;
 
-                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("tolta l'icona del progetto", "project icon removed"));
                 _logger.LogInformation("Project icon reference removed from {FilePath}", filePath);
             }
             catch (Exception ex)

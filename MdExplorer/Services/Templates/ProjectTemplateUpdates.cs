@@ -396,7 +396,7 @@ namespace MdExplorer.Services.Templates
 
         private static void Write(string file, DevelopmentConfig config)
         {
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(file, config, new MdExplorer.Utilities.MdeWhy("aggiornata la configurazione dal template del progetto", "configuration updated from the project template"));
         }
     }
 }

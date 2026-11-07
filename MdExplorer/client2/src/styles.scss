@@ -412,3 +412,9 @@ app-promptlab {
 .cdk-overlay-pane {
   -webkit-app-region: no-drag;
 }
+
+/* Sprint «File di sistema di MDE», S3: le notifiche delle modifiche di MDE al repository possono essere più righe. */
+.mde-repo-change-snack .mat-simple-snackbar span,
+.mde-repo-change-snack .mat-mdc-snack-bar-label {
+  white-space: pre-line;
+}

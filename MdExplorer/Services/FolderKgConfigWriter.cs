@@ -77,7 +77,7 @@ namespace MdExplorer.Services
             }
             entry.KnowledgeGraph = new FolderKnowledgeGraphConfig { Namespace = ns, Enabled = true };
 
-            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config);
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("acceso il grafo della conoscenza su una cartella", "knowledge graph turned on for a folder"));
             _logger.LogInformation(
                 "[FolderKgConfigWriter] auto-created KG namespace '{Namespace}' for folder '{Folder}' in {File}",
                 ns, string.IsNullOrEmpty(relKey) ? "." : relKey, filePath);

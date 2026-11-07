@@ -1180,7 +1180,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                 // Save config
                 // Il serializzatore comune (senza voci vuote) e solo se cambia: sprint «File di sistema di MDE», S1.
-                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config);
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config, new MdExplorer.Utilities.MdeWhy("cambiati i tag di una cartella", "folder tags changed"));
 
                 _logger.LogInformation($"Development tags saved for folder: {relativePath}");
                 Console.WriteLine($"[MdFilesController] SetDevelopmentTags completed successfully");

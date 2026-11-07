@@ -1687,6 +1687,11 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                 File.AppendAllText(gitignorePath, block.ToString());
                 Console.WriteLine($"Ensured MDE per-install .gitignore entries at: {gitignorePath}");
+                // .gitignore è dell'utente (sprint «File di sistema di MDE», Q6): niente commit automatico, ma lo si dice, con il motivo.
+                var added = block.ToString().Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith("#")).ToList();
+                MdeRepoWriter.NotifyWritten(gitignorePath, new MdeWhy(
+                    $"aggiunte le righe {string.Join(", ", added)}: sono file di MDE di questa macchina (skill, configurazione MCP, cache, posti di lavoro degli agenti) e non vanno nel repository",
+                    $"added the lines {string.Join(", ", added)}: they are MDE files of this computer (skills, MCP configuration, cache, agent workspaces) and do not belong in the repository"));
             }
             catch (Exception ex)
             {
@@ -1760,6 +1765,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 {
                     // removeFromWorkingDirectory: false => keep the file on disk (git rm --cached).
                     Commands.Remove(repo, path, false);
+                    MdeRepoWriter.NotifyWritten(Path.Combine(projectPath, path), new MdeWhy(
+                        "tolto dal versionamento (resta sul disco): è un file di MDE di questa macchina, ora escluso da .gitignore",
+                        "removed from version control (it stays on disk): it is an MDE file of this computer, now excluded by .gitignore"));
                 }
 
                 Console.WriteLine($"Untracked {toRemove.Count} per-install MDE artifact(s) in: {projectPath}");
