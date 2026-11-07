@@ -418,3 +418,18 @@ app-promptlab {
 .mde-repo-change-snack .mat-mdc-snack-bar-label {
   white-space: pre-line;
 }
+
+// Sprint «Schema di .development.yml», F4: gruppi del file spenti (scritti da un MDE più nuovo o rovinati), in testa alle
+// impostazioni del progetto e alla finestra «Ambiente di sviluppo». Il testo arriva già nella lingua dell'interfaccia.
+.config-off-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--mde-warning-bg);
+  color: var(--mde-warning-fg);
+  white-space: pre-line;
+  mat-icon { flex: 0 0 auto; }
+}

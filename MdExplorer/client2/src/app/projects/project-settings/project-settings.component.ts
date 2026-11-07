@@ -14,6 +14,7 @@ import { CatalogPickerDialogComponent } from '../dialogs/catalog-picker/catalog-
 import { StoreCatalogApp } from '../../md-explorer/models/app-store.models';
 import { TranslateService } from '@ngx-translate/core';
 import { AgentCityStateService } from '../../md-explorer/services/agent-city-state.service';
+import { DevelopmentConfigStateService } from '../../md-explorer/services/development-config-state.service';
 
 @Component({
   selector: 'app-project-settings',
@@ -219,6 +220,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     private ideConfigService: IdeConfigurationService,
     private serverMessages: MdServerMessagesService,
     private projectsService: ProjectsService,
+    private developmentConfig: DevelopmentConfigStateService,
     private externalAppsService: ExternalAppsService,
     private mdFileService: MdFileService,
     private dialog: MatDialog,
@@ -230,7 +232,16 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectPath = data.projectPath;
   }
 
+  /** Sprint «Schema di .development.yml», F4: l'avviso sui gruppi spenti del file, in testa alle impostazioni (vuoto = tutto bene). */
+  configNotice = '';
+
+  private loadDevelopmentConfigState(): void {
+    if (!this.projectPath) return;
+    this.developmentConfig.get(this.projectPath).subscribe({ next: s => this.configNotice = s?.notice ?? '', error: () => { } });
+  }
+
   ngOnInit(): void {
+    this.loadDevelopmentConfigState();
     this.loadSettings();
     this.loadAppsConfig();
     this.loadKgSettings();

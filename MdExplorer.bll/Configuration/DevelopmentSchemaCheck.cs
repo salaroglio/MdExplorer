@@ -220,13 +220,38 @@ namespace MdExplorer.Features.Configuration
             if (Unreadable != null)
                 return say($".development.yml non si legge (riga {Unreadable.Line}: {Unreadable.Detail}): MDE non usa e non scrive niente del file finché non è corretto.",
                            $".development.yml cannot be read (line {Unreadable.Line}: {Unreadable.Detail}): MDE neither uses nor writes anything in the file until it is fixed.");
-            var groups = string.Join(", ", _off.Select(o => o.ItemKey == null ? o.Path : $"{o.Path} ({o.ItemKey})"));
+            var groupsIt = string.Join(", ", _off.Select(o => Label(o, true)));
+            var groupsEn = string.Join(", ", _off.Select(o => Label(o, false)));
             if (WrittenByNewerMde)
-                return say($"Configurato da un MDE più nuovo (schema {FileSchema}, questo MDE ha il {DevelopmentSchemaSnapshots.Current}): {groups} restano spenti finché non aggiorni MDE. Il resto funziona.",
-                           $"Configured by a newer MDE (schema {FileSchema}, this MDE has {DevelopmentSchemaSnapshots.Current}): {groups} stay off until you update MDE. The rest works.");
+                return say($"Configurato da un MDE più nuovo (schema {FileSchema}, questo MDE ha il {DevelopmentSchemaSnapshots.Current}): {groupsIt} restano spenti finché non aggiorni MDE. Il resto funziona.",
+                           $"Configured by a newer MDE (schema {FileSchema}, this MDE has {DevelopmentSchemaSnapshots.Current}): {groupsEn} stay off until you update MDE. The rest works.");
             var first = _off.SelectMany(o => o.Mismatches).First();
-            return say($"In .development.yml {groups} non combaciano con lo schema di questo MDE (riga {first.Line}, «{first.Path}»: {Kind(first.Kind, true)}{Detail(first)}): restano spenti. Se un collega usa un MDE più nuovo, aggiorna MDE.",
-                       $"In .development.yml {groups} do not match the schema of this MDE (line {first.Line}, «{first.Path}»: {Kind(first.Kind, false)}{Detail(first)}): they stay off. If a colleague uses a newer MDE, update MDE.");
+            return say($"In .development.yml {groupsIt} non combaciano con lo schema di questo MDE (riga {first.Line}, «{first.Path}»: {Kind(first.Kind, true)}{Detail(first)}): restano spenti. Se un collega usa un MDE più nuovo, aggiorna MDE.",
+                       $"In .development.yml {groupsEn} do not match the schema of this MDE (line {first.Line}, «{first.Path}»: {Kind(first.Kind, false)}{Detail(first)}): they stay off. If a colleague uses a newer MDE, update MDE.");
+        }
+
+        /// <summary>Il nome della funzione per chi legge l'avviso, con il percorso nel file fra parentesi.</summary>
+        public static string Label(SwitchedOffGroup o, bool it)
+        {
+            var top = o.Path.Split('.', '[')[0];
+            var key = o.ItemKey == null ? "" : $" «{o.ItemKey}»";
+            var name = (top, o.Path.Contains("participants[")) switch
+            {
+                ("project", true) => it ? "il partecipante" + key : "the participant" + key,
+                ("harness", _) => it ? "l'ambiente agentico" : "the agent environment",
+                ("agentCity", _) => it ? "la città degli agenti e la chat" : "the agent city and the chat",
+                ("atlassian", _) => "Jira/Confluence",
+                ("redmine", _) => "Redmine",
+                ("codeRoots", _) => it ? "la radice di codice" + key : "the code root" + key,
+                ("folders", _) => it ? "la cartella" + key : "the folder" + key,
+                ("templates", _) => it ? "il template" + key : "the template" + key,
+                ("compatibility", _) => it ? "la compatibilità del markdown" : "the markdown compatibility",
+                ("yamlAutoGeneration", _) => it ? "il front matter automatico" : "the automatic front matter",
+                ("externalBrowser", _) => it ? "il browser esterno" : "the external browser",
+                ("project", _) => it ? "i dati del progetto" : "the project data",
+                _ => it ? "una funzione che questo MDE non conosce" : "a feature this MDE does not know",
+            };
+            return $"{name} ({o.Path})";
         }
 
         private static string Detail(SchemaMismatch m) => string.IsNullOrEmpty(m.Detail) ? "" : " " + m.Detail;

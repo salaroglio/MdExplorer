@@ -4,6 +4,10 @@
 </div>
 
 <mat-dialog-content>
+  <div class="config-off-banner" *ngIf="configNotice">
+    <mat-icon>warning</mat-icon>
+    <span>{{ configNotice }}</span>
+  </div>
   <div class="dialog-container">
     <div class="context-info">
       <mat-icon class="context-icon">folder</mat-icon>

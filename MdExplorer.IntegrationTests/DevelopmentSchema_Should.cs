@@ -127,7 +127,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsFalse(check.IsOff("codeRoots[0]"));
             Assert.IsFalse(check.IsOff("codeRoots[0].programs[0]"));
             Assert.IsTrue(check.IsOff("codeRoots[1].programs[0]"), "dentro un elemento spento è spento tutto");
-            StringAssert.Contains(check.Describe(Say), "codeRoots[1] (web)");
+            StringAssert.Contains(check.Describe(Say), "la radice di codice «web» (codeRoots[1])");
 
             var inner = DevelopmentSchemaCheck.Run(Today.Replace("  - path: batch\n", "  - path: batch\n    owner: x\n"));
             Assert.AreEqual("codeRoots[0].programs[0]", inner.SwitchedOff.Single().Path, "anche un elemento di una lista dentro un elemento");

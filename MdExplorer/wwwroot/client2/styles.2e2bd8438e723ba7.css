@@ -14385,4 +14385,19 @@ app-promptlab {
   white-space: pre-line;
 }
 
-/*# sourceMappingURL=styles.eddd6c79d65e42db.css.map*/
+.config-off-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--mde-warning-bg);
+  color: var(--mde-warning-fg);
+  white-space: pre-line;
+}
+.config-off-banner mat-icon {
+  flex: 0 0 auto;
+}
+
+/*# sourceMappingURL=styles.2e2bd8438e723ba7.css.map*/

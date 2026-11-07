@@ -2,7 +2,9 @@ import { TranslateService } from '@ngx-translate/core';
 import { Component, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { MatLegacySnackBar as MatSnackBar, MatLegacySnackBarRef as MatSnackBarRef, LegacyTextOnlySnackBar as TextOnlySnackBar } from '@angular/material/legacy-snack-bar';
+import { of } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, map, switchMap } from 'rxjs/operators';
 import { slideInAnimation } from './shared/animations';
 import { AppCurrentMetadataService } from './services/app-current-metadata.service';
 import { AiNotificationService } from './services/ai-notification.service';
@@ -14,6 +16,7 @@ import { ExecutionService } from './services/execution.service';
 import { MarkDiagramService } from './mark-assistant/mark-diagram.service';
 import { MdServerMessagesService } from './signalR/services/server-messages.service';
 import { ProjectsService } from './md-explorer/services/projects.service';
+import { DevelopmentConfigStateService } from './md-explorer/services/development-config-state.service';
 
 @Component({
   selector: 'app-root',
@@ -51,6 +54,7 @@ export class AppComponent {
     private serverMessages: MdServerMessagesService,
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
+    private developmentConfig: DevelopmentConfigStateService,
     private translate: TranslateService) {
 
     currentFolder.folderName.subscribe((data: any) => {
@@ -92,6 +96,20 @@ export class AppComponent {
       });
     });
 
+    // Sprint «Schema di .development.yml», F4 (D4): a ogni apertura di un progetto, se il suo .development.yml ha gruppi spenti,
+    // l'avviso resta finché l'utente non lo chiude; dopo un pull o un cambio del file arriva dal servizio, e uno vuoto lo chiude.
+    this.projectsService.currentProjects$.pipe(
+      map(p => p?.path ?? ''),
+      distinctUntilChanged(),
+      filter(path => !!path),
+      switchMap(path => this.developmentConfig.get(path).pipe(catchError(() => of(null)))),
+    ).subscribe(state => this.showDevelopmentConfig(state?.notice ?? ''));
+    this.serverMessages.developmentConfigOff$.subscribe(evt => {
+      const norm = (p: string) => (p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      if (!evt || norm(evt.projectPath) !== norm(this.projectsService.currentProjects$.getValue()?.path)) return;
+      this.showDevelopmentConfig(evt.notice ?? '');
+    });
+
     // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):
     // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
     this.serverMessages.agentJobProgress$.subscribe(evt => {
@@ -105,5 +123,16 @@ export class AppComponent {
         );
       }
     });
+  }
+
+  private developmentConfigSnack: MatSnackBarRef<TextOnlySnackBar> | null = null;
+
+  /** L'avviso sui gruppi spenti: resta aperto finché l'utente non lo chiude (D4); un testo vuoto chiude quello aperto. */
+  private showDevelopmentConfig(notice: string): void {
+    this.developmentConfigSnack?.dismiss();
+    this.developmentConfigSnack = null;
+    if (!notice) return;
+    this.developmentConfigSnack = this.snackBar.open(notice, 'OK', { panelClass: ['kg-stale-snack', 'mde-repo-change-snack'] });
+    this.developmentConfigSnack.afterDismissed().subscribe(() => this.developmentConfigSnack = null);
   }
 }

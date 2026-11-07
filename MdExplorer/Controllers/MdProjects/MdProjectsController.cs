@@ -893,6 +893,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Lo stato di <c>.development.yml</c> del progetto (sprint «Schema di .development.yml», F4): l'avviso sui gruppi spenti nella
+        /// lingua dell'interfaccia e i loro percorsi. Il client lo chiede a ogni apertura del progetto e nelle impostazioni.
+        /// </summary>
+        [HttpGet]
+        public IActionResult DevelopmentConfigState([FromQuery] string path, [FromServices] MdExplorer.Services.DevelopmentConfigNotices notices)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !System.IO.Directory.Exists(path)) return BadRequest(new { message = "path is required" });
+            return Ok(notices.Current(path));
+        }
+
         [HttpPost]
         public IActionResult SetFolderProject([FromBody] ProjectCreationRequest request)
         {

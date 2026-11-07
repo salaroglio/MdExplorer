@@ -51,6 +51,11 @@ export class MdServerMessagesService {
    * A tutte le finestre: filtra per progetto chi ascolta. `notices` sono già nella lingua dell'interfaccia.
    */
   public mdeRepoChange$ = new Subject<{ repositoryRoot: string; files: string[]; committed: boolean; pushed: boolean; pending: string; notices: string[] }>();
+  /**
+   * Sprint «Schema di .development.yml», F4: il file del progetto ha gruppi spenti (scritti da un MDE più nuovo o rovinati), dopo un
+   * pull o quando il file cambia. A tutte le finestre: filtra per progetto chi ascolta. `notice` vuoto = il file è tornato a posto.
+   */
+  public developmentConfigOff$ = new Subject<{ projectPath: string; notice: string; off: string[]; writtenByNewerMde: boolean }>();
   /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
   public codeScanStatus$ = new Subject<any>();
   /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
@@ -318,6 +323,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('mdeRepoChange', (data) => {
         this.mdeRepoChange$.next(data);
+      });
+      this.hubConnection.on('developmentConfigOff', (data) => {
+        this.developmentConfigOff$.next(data);
       });
       this.hubConnection.on('codeScanStatus', (data) => {
         this.codeScanStatus$.next(data);

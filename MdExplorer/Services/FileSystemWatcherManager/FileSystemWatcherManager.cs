@@ -129,6 +129,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             }
         }
 
+        private static bool IsProjectConfig(WatcherContext context, string fullPath)
+            => string.Equals(Path.GetFullPath(fullPath), Path.GetFullPath(MdExplorer.Utilities.DevelopmentConfigFile.PathIn(context.ProjectPath)),
+                             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+        private void OnProjectConfigChanged(WatcherContext context)
+        {
+            try { _serviceProvider.GetRequiredService<DevelopmentConfigNotices>().Announce(context.ProjectPath, always: false, "watcher"); }
+            catch (Exception ex) { _logger.LogError(ex, "[{ConnectionId}] avviso su .development.yml non partito", context.ConnectionId); }
+        }
+
         private FoldersIgnoreService GetFoldersIgnoreService()
         {
             _foldersIgnoreService ??= _serviceProvider.GetRequiredService<FoldersIgnoreService>();
@@ -260,6 +270,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 watcher.Created += rulesHandler;
                 watcher.Deleted += rulesHandler;
                 watcher.Renamed += (sender, e) => { if (IsIgnoreRulesFile(e.FullPath) || IsIgnoreRulesFile(e.OldFullPath)) OnIgnoreRulesChanged(context, e.FullPath); };
+                // .development.yml cambiato (un pull da terminale, un collega, MDE stesso): se ha gruppi spenti lo si dice (D4 dello
+                // schema). L'avviso si ripete solo se è cambiato, quindi i salvataggi di MDE e gli eventi doppi non lo ripetono.
+                FileSystemEventHandler configHandler = (sender, e) => { if (IsProjectConfig(context, e.FullPath)) OnProjectConfigChanged(context); };
+                watcher.Changed += configHandler;
+                watcher.Created += configHandler;
+                watcher.Renamed += (sender, e) => { if (IsProjectConfig(context, e.FullPath)) OnProjectConfigChanged(context); };
                 watcher.Start();
                 _logger.LogInformation("📁 [{ConnectionId}] watcher su {Path}: {Count} cartelle sorvegliate", connectionId, normalizedPath, watcher.WatchedDirectories);
 

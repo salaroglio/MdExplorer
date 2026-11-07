@@ -7,6 +7,7 @@ import { ShowFileMetadata } from '../../../../commons/components/show-file-syste
 import { TranslateService } from '@ngx-translate/core';
 import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, SourceControlInfo, SourceControlView, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
+import { DevelopmentConfigStateService } from '../../../services/development-config-state.service';
 
 export interface DevEnvironmentDialogData {
   /** Il fullPath della cartella nell'albero. */
@@ -77,10 +78,16 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     private translate: TranslateService,
     private serverMessages: MdServerMessagesService,
     private aiChat: AiChatService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private developmentConfig: DevelopmentConfigStateService
   ) { }
 
+  /** L'avviso sui gruppi spenti di .development.yml (vuoto se va tutto bene). */
+  public configNotice = '';
+
   ngOnInit(): void {
+    // Sprint «Schema di .development.yml», F4: i gruppi spenti del file, in testa (lo stato «spento: aggiorna MDE»).
+    this.developmentConfig.get(this.data.projectRoot).subscribe({ next: s => this.configNotice = s?.notice ?? '', error: () => { } });
     this.loadLanguages();
     this.loadDescriptionModel();
     this.serverMessages.codeDocProgress$.pipe(takeUntil(this.destroy$)).subscribe(p => this.onDescribeProgress(p));

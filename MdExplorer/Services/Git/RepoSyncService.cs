@@ -134,6 +134,7 @@ namespace MdExplorer.Services.Git
         private readonly IRepoRemoteState _remotes;
         private readonly ILogger<RepoSyncService> _logger;
         private readonly MdeAutoCommit _autoCommit;
+        private readonly MdExplorer.Services.DevelopmentConfigNotices _configNotices;
 
         public RepoSyncService(
             IWorkingChangesService changes,
@@ -144,8 +145,10 @@ namespace MdExplorer.Services.Git
             ISubmoduleAligner aligner,
             IRepoRemoteState remotes,
             MdeAutoCommit autoCommit,
+            MdExplorer.Services.DevelopmentConfigNotices configNotices,
             ILogger<RepoSyncService> logger)
         {
+            _configNotices = configNotices;
             _autoCommit = autoCommit;
             _changes = changes;
             _requests = requests;
@@ -273,6 +276,8 @@ namespace MdExplorer.Services.Git
                 result = await UpdateToLatestAsync(dir, row, ct);
             }
 
+            // Il pull può aver portato un .development.yml scritto da un MDE più nuovo (D4 dello schema): si dice subito.
+            _configNotices.Announce(projectPath, always: false, "pull");
             return await WithChangesAsync(result, view, before, ct);
         }
 
