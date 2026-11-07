@@ -103,7 +103,8 @@
            repository e il suo pulsante. I pulsanti della toolbar NON agiscono: dicono quanto c'e'
            e aprono il pannello. Un'azione sola per tutti i repository direbbe che basta un gesto,
            e con i submodule non e' vero. -->
-      <div class="git-panels">
+      <div class="git-panels" [class.mde-git-busy]="mdeGitBusy"
+           [matTooltip]="mdeGitBusy ? ('GITFLOW.MDE_BUSY' | translate) : ''">
 
         <!-- Il nome di un repository, il suo ramo e l'eventuale HEAD staccato: uguale nei tre pannelli. -->
         <ng-template #repoHead let-r>

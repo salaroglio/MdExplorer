@@ -19822,6 +19822,8 @@ class MdServerMessagesService {
      * pull o quando il file cambia. A tutte le finestre: filtra per progetto chi ascolta. `notice` vuoto = il file è tornato a posto.
      */
     this.developmentConfigOff$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** N6 (QA 07/11): MDE sta facendo le sue operazioni git su quel repository (commit automatico); a tutte le finestre. */
+    this.mdeGitBusy$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
     this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
@@ -19967,6 +19969,9 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('mdeRepoChange', data => {
           this.mdeRepoChange$.next(data);
+        });
+        this.hubConnection.on('mdeGitBusy', data => {
+          this.mdeGitBusy$.next(data);
         });
         this.hubConnection.on('developmentConfigOff', data => {
           this.developmentConfigOff$.next(data);
@@ -20469,8 +20474,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.07.3',
-  buildTime: '2026.11.07 20:08:05'
+  version: '2026.11.07.4',
+  buildTime: '2026.11.07 21:12:18'
 };
 
 /***/ }),
@@ -20504,4 +20509,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.ce872ddd940afe07.js.map
+//# sourceMappingURL=main.f43101a554d25c26.js.map

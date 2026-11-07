@@ -2699,6 +2699,7 @@
     "SUMMARY_SENT_DEDICATED": "Il riepilogo è nel tab MarkAgent come messaggio: le esecuzioni in sessione dedicata non sono nella memoria della sua conversazione."
   },
   "GITFLOW": {
+    "MDE_BUSY": "MDE sta salvando i suoi file in git: i pulsanti tornano attivi tra un attimo.",
     "TO_COMMIT_TITLE": "In attesa di commit",
     "TO_PULL_TITLE": "In attesa di pull",
     "TO_PUSH_TITLE": "In attesa di push",

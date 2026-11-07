@@ -8,6 +8,7 @@ import { ReviewContextService } from '../../services/review-context.service';
 import { MdFileService } from '../../services/md-file.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { MdeGitBusyService } from '../../services/mde-git-busy.service';
 
 /**
  * Il tab delle differenze, fratello dell'albero dei documenti.
@@ -55,9 +56,14 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private diffViewer: DiffViewerService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
+    private mdeGitBusyService: MdeGitBusyService,
   ) {}
 
+  /** N6: MDE sta facendo le sue operazioni git su questo repository: «Scarta» aspetta. */
+  mdeGitBusy = false;
+
   ngOnInit(): void {
+    this.subs.push(this.mdeGitBusyService.busy$.subscribe(b => this.mdeGitBusy = b));
     this.projectPath = this.projects.currentProjects$.value?.path || '';
     this.agent = this.context.agent;
     this.refresh();

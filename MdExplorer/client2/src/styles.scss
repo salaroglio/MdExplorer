@@ -433,3 +433,11 @@ app-promptlab {
   white-space: pre-line;
   mat-icon { flex: 0 0 auto; }
 }
+
+// N6 (QA 07/11): mentre MDE fa le sue operazioni git sul repository del progetto, i pulsanti git dell'utente aspettano.
+// Si guardano ancora i file e le differenze; non si fa commit, pull, push né «Scarta».
+.git-panels.mde-git-busy button,
+ul.files.mde-git-busy button.discard {
+  pointer-events: none;
+  opacity: .45;
+}

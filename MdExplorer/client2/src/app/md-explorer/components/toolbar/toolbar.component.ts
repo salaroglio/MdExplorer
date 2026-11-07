@@ -48,6 +48,7 @@ import { ThemeService } from '../../../services/theme.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
+import { MdeGitBusyService } from '../../services/mde-git-busy.service';
 
 
 /** I tre pannelli git della toolbar: stessa forma, una riga per repository. */
@@ -108,6 +109,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public isCheckingConnection: boolean = false;
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
+  /** N6: MDE sta facendo le sue operazioni git su questo repository: i pulsanti git aspettano. */
+  public mdeGitBusy = false;
+  private mdeGitBusySub: Subscription;
 
   /**
    * Gli aggregati della finestrella, e di CHI sono.
@@ -165,6 +169,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private reviewContext: ReviewContextService,
     private agentWorkspace: AgentWorkspaceService,
     private workingChanges: WorkingChangesService,
+    private mdeGitBusyService: MdeGitBusyService,
     private federationService: FederationService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
@@ -240,6 +245,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.mdeGitBusySub = this.mdeGitBusyService.busy$.subscribe(b => this.mdeGitBusy = b);
     this.slideDeckSubscription = this.documentRefreshService.slideDeckShown$
       .subscribe(shown => this.slideDeckShown = shown);
 
@@ -397,6 +403,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     console.log("ngOnDestroy toolbar");
     this.cancelPanelClose();
     this.subscriptionserverSelectedMdFile.unsubscribe();
+    this.mdeGitBusySub?.unsubscribe();
     this.citySubscriptions.unsubscribe();
     this.slideDeckSubscription?.unsubscribe();
     if (this.agentsRunningClock) clearInterval(this.agentsRunningClock);

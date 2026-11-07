@@ -56,6 +56,8 @@ export class MdServerMessagesService {
    * pull o quando il file cambia. A tutte le finestre: filtra per progetto chi ascolta. `notice` vuoto = il file è tornato a posto.
    */
   public developmentConfigOff$ = new Subject<{ projectPath: string; notice: string; off: string[]; writtenByNewerMde: boolean }>();
+  /** N6 (QA 07/11): MDE sta facendo le sue operazioni git su quel repository (commit automatico); a tutte le finestre. */
+  public mdeGitBusy$ = new Subject<{ repositoryRoot: string; busy: boolean }>();
   /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
   public codeScanStatus$ = new Subject<any>();
   /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
@@ -323,6 +325,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('mdeRepoChange', (data) => {
         this.mdeRepoChange$.next(data);
+      });
+      this.hubConnection.on('mdeGitBusy', (data) => {
+        this.mdeGitBusy$.next(data);
       });
       this.hubConnection.on('developmentConfigOff', (data) => {
         this.developmentConfigOff$.next(data);

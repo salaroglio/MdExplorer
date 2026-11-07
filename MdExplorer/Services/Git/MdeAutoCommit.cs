@@ -79,6 +79,13 @@ namespace MdExplorer.Services.Git
         public const string MessagePrefix = "MDE: ";
         public const string NoticeEvent = "mdeRepoChange";
 
+        /// <summary>
+        /// N6 (QA 07/11), la soluzione semplice scelta dall'utente: mentre MDE fa le sue operazioni git su un repository (commit, fetch,
+        /// push) lo dice a tutte le finestre, che disattivano i pulsanti git di quel progetto; così le due sequenze non si accavallano
+        /// sul blocco di git (<c>.git/index.lock</c>). <c>{ repositoryRoot, busy }</c>.
+        /// </summary>
+        public const string BusyEvent = "mdeGitBusy";
+
         private readonly INativeGitRunner _git;
         private readonly IServiceScopeFactory _scopes;
         private readonly IHubContext<MonitorMDHub> _hub;
@@ -201,10 +208,16 @@ namespace MdExplorer.Services.Git
         private async Task<MdeAutoCommitResult> HandleAsync(string root, Batch batch, bool push = true)
         {
             MdeAutoCommitResult result;
+            var busy = batch.Owned.Count > 0;
+            if (busy) await SayBusyAsync(root, true);
             try { result = batch.Owned.Count > 0 ? await CommitCoreAsync(root, batch.Owned, push) : new MdeAutoCommitResult { RepositoryRoot = root, PendingKind = MdeCommitPending.NothingToSave }; }
             catch (Exception ex)
             {
                 result = new MdeAutoCommitResult { RepositoryRoot = root, Files = batch.Owned.Keys.Select(p => Rel(root, p)).ToList(), Reasons = batch.Owned.Values.Distinct().ToList(), PendingKind = MdeCommitPending.Error, PendingDetail = ex.Message };
+            }
+            finally
+            {
+                if (busy) await SayBusyAsync(root, false);
             }
 
             var userFiles = batch.User.Select(kv => (Rel(root, kv.Key), kv.Value)).ToList();
@@ -281,6 +294,12 @@ namespace MdExplorer.Services.Git
                 _ => UiText.Say("errore", "error"),
             };
             return string.IsNullOrWhiteSpace(detail) ? text + "." : $"{text} ({detail.Trim()}).";
+        }
+
+        private async Task SayBusyAsync(string root, bool busy)
+        {
+            try { await _hub.Clients.All.SendAsync(BusyEvent, new { repositoryRoot = root, busy }); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[MdeAutoCommit] avviso «git occupato» non partito per {Root}", root); }
         }
 
         private async Task<MdeAutoCommitResult> CommitCoreAsync(string root, Dictionary<string, MdeWhy> written, bool push = true)

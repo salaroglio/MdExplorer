@@ -14400,4 +14400,10 @@ app-promptlab {
   flex: 0 0 auto;
 }
 
-/*# sourceMappingURL=styles.2e2bd8438e723ba7.css.map*/
+.git-panels.mde-git-busy button,
+ul.files.mde-git-busy button.discard {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+/*# sourceMappingURL=styles.c6ef77df23f66dc3.css.map*/

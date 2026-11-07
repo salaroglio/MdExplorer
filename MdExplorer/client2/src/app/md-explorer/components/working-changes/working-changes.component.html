@@ -138,7 +138,7 @@
           {{ 'CHANGES.INCOMING_NOTE' | translate:{ count: incomingCount(r), base: r.baseBranch || '—' } }}
         </div>
 
-        <ul class="files" *ngIf="r.files.length > 0">
+        <ul class="files" *ngIf="r.files.length > 0" [class.mde-git-busy]="mdeGitBusy">
           <ng-container *ngFor="let f of r.files; trackBy: trackByPath">
             <li [ngClass]="'f-' + f.change"
                 [class.opened]="openedPath === f.path && openedRepo === r.path"
