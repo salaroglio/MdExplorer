@@ -74,6 +74,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var tree = parser.Parse(text);
                 if (tree == null) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: tree-sitter non ha prodotto un albero", $"{f.LogicalPath}: tree-sitter produced no tree")); continue; }
+                // C6: quello che la grammatica non legge manca dal grafo; lo si dice invece di perderlo in silenzio.
+                if (TreeSitterParseErrors.Describe(tree.RootNode, text, f.LogicalPath, g.DisplayName) is string unread) result.Warnings.Add(unread);
                 parsed.Add(new ParsedFile(f, text, tree));
             }
             var index = new PerimeterIndex();
