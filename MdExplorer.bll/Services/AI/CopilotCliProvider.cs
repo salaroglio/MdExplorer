@@ -37,7 +37,6 @@ namespace MdExplorer.Features.Services.AI
         // the --model flag entirely and let the CLI pick its own default. Hardcoding a
         // model id here breaks on CLI versions where that id does not exist (the CLI
         // exits 1 with "Model ... is not available").
-        private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>
         /// Working directory <b>ambientale</b> per i chiamanti legacy (chat interattiva, commit
@@ -342,7 +341,7 @@ namespace MdExplorer.Features.Services.AI
 
             if (ct.IsCancellationRequested)
             {
-                try { process.Kill(); } catch { }
+                try { process.Kill(entireProcessTree: true); } catch { }
             }
             else
             {
@@ -636,13 +635,13 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
             using var registration = ct.Register(() =>
             {
-                try { process.Kill(); } catch { }
+                try { process.Kill(entireProcessTree: true); } catch { }
             });
 
             var completed = process.WaitForExit(PROCESS_TIMEOUT_MS);
             if (!completed)
             {
-                try { process.Kill(); } catch { }
+                try { process.Kill(entireProcessTree: true); } catch { }
                 throw new TimeoutException("Copilot CLI process timed out after 5 minutes");
             }
 
@@ -652,36 +651,22 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             return new CopilotRunResult(output, process.ExitCode, error);
         }
 
-        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false, CopilotInvocation invocation = null)
+        internal ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
             var useStdin = ShouldUseStdin(prompt);
 
             // Build the argument string first; CopilotProcessLauncher.BuildStartInfo will splice it
             // into the right wrapper (direct copilot.exe, cmd.exe /c copilot.cmd, or powershell -File copilot.ps1).
             var args = new StringBuilder();
-            if (useStdin)
-            {
-                // NIENTE -p: senza quel flag il CLI legge il prompt da stdin ed esce a
-                // risposta finita, che e' esattamente quel che serve.
-                //
-                // Prima qui c'era "-p -", nella convinzione che il trattino significasse
-                // "leggi da stdin". Non e' cosi': il CLI prende "-" come TESTO del prompt,
-                // risponde "I don't see a concrete task in your message" e termina. Il
-                // chiamante intanto scriveva decine di KB nella pipe di un processo gia'
-                // finito, e l'errore che ne usciva era "the pipe is being closed" — che
-                // non nomina ne' il prompt ne' il flag, quindi non porta a questa riga.
-                // Verificato su Copilot CLI 1.0.82 il 04/09/2026, anche con 43 KB.
-            }
-            else
-            {
-                // `--prompt=<testo>`, attaccato, e non `-p <testo>`: un prompt che comincia con '-'
-                // — ogni scheda di agente, che si apre col `---` del front matter — preso come
-                // argomento a sé viene letto dal CLI come un'opzione, e rifiutato con «Invalid
-                // command format … your prompt was not quoted». Misurato il 29/09/2026 su Copilot
-                // CLI 1.0.89: `-p "---\n…"` esce con 1, `--prompt="---\n…"` risponde.
-                var escapedPrompt = prompt.Replace("\"", "\\\"");
-                args.Append($"--prompt=\"{escapedPrompt}\" ");
-            }
+            // Il prompt va SEMPRE su stdin, mai nella riga di comando (R5 della valutazione del 07/11): là era protetto solo
+            // con `"`→`\"`, e un `\` finale o un `\"` nel testo chiudeva le virgolette, così il resto diventava opzioni del
+            // CLI (`--allow-all-paths`, `--allow-all-tools`). In più su Windows la riga passa da cmd.exe o PowerShell, che
+            // hanno regole loro. Su stdin non c'è niente da proteggere.
+            //
+            // NIENTE -p: senza quel flag il CLI legge il prompt da stdin ed esce a risposta finita. "-p -" NON vuol dire
+            // "leggi da stdin": il CLI prende "-" come testo del prompt (CLI 1.0.82, 04/09/2026). Misurato l'08/11/2026 col
+            // CLI 1.0.107: prompt corto da stdin con `--output-format json`, con `--screen-reader --stream off` e con
+            // `--session-id` (la seconda chiamata ricorda la prima).
             args.Append("--no-color ");
             if (outputFormatJson)
             {
@@ -784,10 +769,8 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
         }
 
-        private bool ShouldUseStdin(string prompt)
-        {
-            return prompt != null && prompt.Length > MAX_COMMAND_LINE_CHARS;
-        }
+        /// <summary>Sempre, se c'è un prompt: vedi <see cref="CreateProcessStartInfo"/> (R5).</summary>
+        private static bool ShouldUseStdin(string prompt) => prompt != null;
 
         private async Task WritePromptToStdinAsync(Process process, string prompt)
         {
