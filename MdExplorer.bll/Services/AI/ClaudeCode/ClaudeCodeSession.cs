@@ -53,10 +53,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
         // Timeout per turno: la scadenza di inattività si sposta in avanti a ogni messaggio
         // ricevuto, così un turno lungo ma vivo non viene mai ucciso; il tetto duro è il
-        // limite assoluto. Stessi valori del lato Copilot, per non avere due comportamenti
-        // diversi a parità di attesa dell'utente.
-        private const int PROMPT_IDLE_TIMEOUT_MS = 300000;   // 5 minuti di silenzio
-        private const int PROMPT_HARD_TIMEOUT_MS = 1800000;  // 30 minuti in assoluto
+        // limite assoluto. Gli stessi dei tre motori (AgentTurnLimits, R4 della valutazione del 07/11).
+        private static readonly int PROMPT_IDLE_TIMEOUT_MS = (int)MdExplorer.Features.Agents.AgentTurnLimits.Idle.TotalMilliseconds;
+        private static readonly int PROMPT_HARD_TIMEOUT_MS = (int)MdExplorer.Features.Agents.AgentTurnLimits.Hard.TotalMilliseconds;
         private const int STDERR_RING_SIZE = 20;
 
         private readonly ILogger _logger;
@@ -343,9 +342,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     {
                         string reason;
                         if (idleCts.IsCancellationRequested)
-                            reason = MdExplorer.Features.Services.UiText.Say($"Claude Code fermo da {PROMPT_IDLE_TIMEOUT_MS / 1000}s: turno interrotto", $"Claude Code idle for {PROMPT_IDLE_TIMEOUT_MS / 1000}s: turn interrupted");
+                            reason = MdExplorer.Features.Agents.AgentTurnLimits.Why("Claude Code", idle: true);
                         else if (hardCts.IsCancellationRequested)
-                            reason = MdExplorer.Features.Services.UiText.Say($"Claude Code oltre il tetto di {PROMPT_HARD_TIMEOUT_MS / 60000} minuti: turno interrotto", $"Claude Code over the {PROMPT_HARD_TIMEOUT_MS / 60000}-minute cap: turn interrupted");
+                            reason = MdExplorer.Features.Agents.AgentTurnLimits.Why("Claude Code", idle: false);
                         else
                             reason = MdExplorer.Features.Services.UiText.Say("Turno annullato", "Turn cancelled");
                         channel.Writer.TryComplete(new OperationCanceledException(reason));

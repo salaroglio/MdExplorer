@@ -103,10 +103,25 @@ namespace MdExplorer.Services.AgentRun
             using var server = new OpenCodeServer(_loggerFactory.CreateLogger<OpenCodeServer>(), serverEnvironment);
             await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), server,
                 request.WorkingDirectory ?? request.ProjectPath, model, null, rejectPermissions: true);
+            // Gli stessi limiti degli altri motori (R4 della valutazione del 07/11): fermo da 5 minuti o oltre i 30 si ferma.
+            // Ogni frammento che arriva (risposta, strumenti, ragionamento) dice che è vivo.
+            using var idle = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
+            using var hard = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Hard);
+            using var limits = CancellationTokenSource.CreateLinkedTokenSource(ct, idle.Token, hard.Token);
             try
             {
-                await foreach (var chunk in session.PromptAsync(request.ComposedPrompt, ct).ConfigureAwait(false))
+                await foreach (var chunk in session.PromptAsync(request.ComposedPrompt, limits.Token).ConfigureAwait(false))
+                {
+                    idle.CancelAfter(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
                     if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
+                }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && limits.IsCancellationRequested)
+            {
+                // La sessione ha già fermato il turno sul server (AbortAsync quando il suo token scade).
+                return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
+                    MdExplorer.Features.Agents.AgentTurnLimits.Why($"opencode{(model == null ? "" : $" ({model})")}", idle: idle.IsCancellationRequested && !hard.IsCancellationRequested),
+                    answer.ToString());
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

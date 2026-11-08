@@ -184,8 +184,70 @@ namespace MdExplorer.Features.Services.AI
             if (!IsAvailable())
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
 
-            var run = await RunCopilotProcessCoreAsync(prompt, modelId, streaming: false, ct: ct, invocation: invocation);
-            return new CopilotRunResult(StripUsageMetrics(run.Text), run.ExitCode, run.Error);
+            return await RunAgentTurnProcessAsync(prompt, modelId, invocation, ct);
+        }
+
+        /// <summary>
+        /// Il turno di un agente con gli eventi del CLI (<c>--output-format json</c>): arrivano mentre lavora (chiamate dei
+        /// modelli, strumenti, pezzi di risposta), così il silenzio si misura davvero. Fermo da
+        /// <see cref="MdExplorer.Features.Agents.AgentTurnLimits.Idle"/> o oltre
+        /// <see cref="MdExplorer.Features.Agents.AgentTurnLimits.Hard"/>: si ferma, con tutti i processi figli. Prima il
+        /// turno aveva 5 minuti in tutto, anche vivo (R4 della valutazione del 07/11). Il testo è quello dei messaggi
+        /// dell'assistente, nell'ordine.
+        /// </summary>
+        private async Task<CopilotRunResult> RunAgentTurnProcessAsync(string prompt, string model, CopilotInvocation invocation, CancellationToken ct)
+        {
+            var psi = CreateProcessStartInfo(prompt, model, streaming: false, outputFormatJson: true, invocation);
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            if (ShouldUseStdin(prompt))
+                await WritePromptToStdinAsync(process, prompt);
+
+            var errorTask = process.StandardError.ReadToEndAsync();
+            using var idle = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
+            using var hard = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Hard);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, idle.Token, hard.Token);
+            var messages = new List<string>();
+            try
+            {
+                while (true)
+                {
+                    var line = await process.StandardOutput.ReadLineAsync(linked.Token);
+                    if (line == null) break;
+                    idle.CancelAfter(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
+                    var text = AssistantMessageOf(line);
+                    if (!string.IsNullOrWhiteSpace(text)) messages.Add(text);
+                }
+                await process.WaitForExitAsync(linked.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                if (ct.IsCancellationRequested) throw;
+                throw new TimeoutException(MdExplorer.Features.Agents.AgentTurnLimits.Why("Copilot CLI", idle: idle.IsCancellationRequested && !hard.IsCancellationRequested));
+            }
+            var error = await errorTask;
+            return new CopilotRunResult(string.Join("\n\n", messages), process.ExitCode, error);
+        }
+
+        /// <summary>Il testo di un evento <c>assistant.message</c> del CLI; null per ogni altra riga.</summary>
+        internal static string AssistantMessageOf(string line)
+        {
+            var trimmed = line?.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed[0] != '{') return null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                return doc.RootElement.TryGetProperty("type", out var type) && type.GetString() == "assistant.message"
+                       && doc.RootElement.TryGetProperty("data", out var data)
+                       && data.TryGetProperty("content", out var content) && content.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? content.GetString()
+                    : null;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;   // una riga che non è un evento: rumore del CLI
+            }
         }
 
         /// <summary>

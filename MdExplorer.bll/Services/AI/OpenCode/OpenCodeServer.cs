@@ -114,7 +114,9 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         public async Task<HttpClient> CreateClientAsync(CancellationToken cancellationToken = default)
         {
             var baseAddress = await EnsureRunningAsync(cancellationToken).ConfigureAwait(false);
-            var client = new HttpClient { BaseAddress = baseAddress, Timeout = TimeSpan.FromMinutes(10) };
+            // La risposta di un turno torna quando il turno è finito: l'attesa la governa chi chiama (per un agente, i limiti
+            // di AgentTurnLimits, R4 della valutazione del 07/11). Qui solo un tetto oltre il loro, perché niente resti appeso.
+            var client = new HttpClient { BaseAddress = baseAddress, Timeout = MdExplorer.Features.Agents.AgentTurnLimits.Hard + TimeSpan.FromMinutes(1) };
             client.DefaultRequestHeaders.Authorization = BuildAuthentication(_password);
             return client;
         }

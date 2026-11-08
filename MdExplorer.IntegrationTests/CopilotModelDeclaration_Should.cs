@@ -71,6 +71,27 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(result.Diagnostic.Contains("Nessun ripiego") || result.Diagnostic.Contains("No fallback"), result.Diagnostic);
         }
 
+        /// <summary>
+        /// R4 della valutazione del 07/11: il turno di un agente si legge dagli eventi del CLI (<c>--output-format json</c>),
+        /// che arrivano mentre lavora, così il silenzio si misura. Il testo del turno è quello dei messaggi dell'assistente.
+        /// Costa una richiesta.
+        /// </summary>
+        [TestMethod]
+        public async Task Answer_a_turn_read_from_the_events_of_the_cli()
+        {
+            AgentTurnResult result;
+            try { result = await Runner().RunTurnAsync(Request("copilot", null)); }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Copilot CLI"))
+            {
+                Assert.Inconclusive("Copilot CLI non installato/autenticato in questo ambiente.");
+                return;
+            }
+
+            Assert.AreEqual(AgentTurnOutcome.Completed, result.Outcome, result.Diagnostic);
+            StringAssert.Contains(result.Text.ToLowerInvariant(), "ok");
+            Assert.IsFalse(result.Text.Contains("\"type\""), "il testo, non gli eventi: " + result.Text);
+        }
+
         [TestMethod]
         public async Task Refuse_to_run_an_agent_that_asked_for_another_provider()
         {
