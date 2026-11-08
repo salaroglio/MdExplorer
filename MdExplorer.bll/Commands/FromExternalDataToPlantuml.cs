@@ -71,7 +71,7 @@ namespace MdExplorer.Features.Commands
             // ```plantuml(@json, ./file.json)  [optional body]  ```
             // The directive is captured loosely (@ + word) so that a wrong one gets a readable
             // message instead of falling through to PlantUML as diagram source.
-            Regex rx = new Regex(@"```plantuml\(\s*@([A-Za-z]+)\s*,\s*([^)\r\n]+?)\s*\)[ \t]*\r?\n([\s\S]*?)```",
+            Regex rx = new Regex(@"```plantuml\(\s*@([A-Za-z]+)\s*,\s*([^)\r\n]+?)\s*\)[ \t]*\r?\n" + PlantumlFence.BodyEnd,
                                  RegexOptions.Compiled | RegexOptions.IgnoreCase);
             return rx.Matches(markdown);
         }
@@ -145,13 +145,13 @@ namespace MdExplorer.Features.Commands
                 return ErrorBlock(match, readError);
             }
 
-            // A backtick anywhere inside would close the fence early: the PlantUML command reads
-            // ```plantuml up to the FIRST backtick, so the diagram would silently come out truncated.
-            if (fileContent.IndexOf('`') > -1 || extraDirectives.IndexOf('`') > -1)
+            // Tre backtick di fila chiuderebbero il blocco in anticipo (PlantumlFence): il diagramma uscirebbe troncato
+            // senza spiegazioni. Un backtick singolo invece va bene (C4: prima bastava un backtick).
+            if (ClosesTheFence(fileContent) || ClosesTheFence(extraDirectives))
             {
                 return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say(
-                    "il contenuto include un backtick (`), che chiuderebbe il blocco in anticipo — toglilo dal file oppure incolla il diagramma a mano",
-                    "the content includes a backtick (`), which would close the block early — remove it from the file or paste the diagram by hand"));
+                    "il contenuto ha tre backtick di fila (```), che chiuderebbero il blocco in anticipo — toglili dal file oppure incolla il diagramma a mano",
+                    "the content has three backticks in a row (```), which would close the block early — remove them from the file or paste the diagram by hand"));
             }
 
             if (isWorkflow)
@@ -218,12 +218,15 @@ namespace MdExplorer.Features.Commands
             var trimmedDirectives = extraDirectives.Trim('\r', '\n', ' ', '\t');
             if (trimmedDirectives.Length > 0)
                 diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");
-            if (diagram.IndexOf('`') > -1)
-                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say("il workflow contiene un backtick (`), che chiuderebbe il blocco in anticipo: toglilo dai titoli", "the workflow contains a backtick (`), which would close the block early: remove it from the titles"));
+            if (ClosesTheFence(diagram))
+                return ErrorBlock(match, MdExplorer.Features.Services.UiText.Say("il workflow ha tre backtick di fila (```), che chiuderebbero il blocco in anticipo: toglili dai titoli", "the workflow has three backticks in a row (```), which would close the block early: remove them from the titles"));
 
             _logger.LogInformation("[FromExternalDataToPlantuml] @workflow expanded from {Path}", absolutePath);
             return "\n\n```plantuml\n" + diagram + "```\n\n";
         }
+
+        /// <summary>Tre backtick di fila: per <see cref="PlantumlFence"/> sono la chiusura.</summary>
+        private static bool ClosesTheFence(string text) => text != null && text.Contains("```");
 
         /// <summary>
         /// A visible, self-explaining block: the author has to see WHY the diagram is not there.

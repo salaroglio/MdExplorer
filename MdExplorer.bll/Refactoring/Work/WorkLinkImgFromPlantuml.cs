@@ -17,7 +17,7 @@ namespace MdExplorer.Features.ActionLinkModifiers
         {
             var toReturn = new List<LinkDetail>();
             // Devo prima isolare la quota parte di plantuml
-            Regex rx = new Regex(@"```plantuml([^```]*)```",
+            Regex rx = new Regex(MdExplorer.Features.Commands.PlantumlFence.Body,
                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
 

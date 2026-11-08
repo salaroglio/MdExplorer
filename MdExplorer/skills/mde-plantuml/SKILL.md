@@ -3,7 +3,7 @@ name: mde-plantuml
 description: "Disegna diagrammi PlantUML in MdExplorer con colore sobrio e le convenzioni proprie di ogni tipo di diagramma. Use when: blocco plantuml, diagramma di flusso, workflow, activity diagram, sequence diagram, diagramma di sequenza, class diagram, diagramma delle classi, schema del database, ER, entity relationship, mindmap, mappa mentale, colorare un diagramma, palette, skinparam, style, colore di una freccia, colore di un nodo, il diagramma non si vede in tema scuro."
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -24,13 +24,11 @@ Un diagramma serve a far capire **una cosa sola**. Se dopo averlo disegnato non 
 
 ## Due vincoli di MdExplorer, prima dell'estetica
 
-### 1. Dentro un blocco plantuml non ci va nessun backtick
+### 1. Dentro un blocco plantuml niente tre backtick di fila
 
-MdExplorer riconosce i blocchi con un'espressione regolare che cattura il corpo con una classe di caratteri **negata sul backtick**. Il blocco quindi finisce al primo backtick che incontra, non alla chiusura del fence: basta un nome di metodo scritto fra backtick dentro una nota e il diagramma smette di comparire, senza nessun messaggio di errore.
+MdExplorer chiude il blocco ai primi **tre backtick di fila** (` ``` `), dovunque siano: tre backtick dentro una nota o un'etichetta e il diagramma si interrompe lì, senza nessun messaggio di errore. Un backtick singolo o doppio (`` `x` ``) invece va bene.
 
-(Questa regola vale anche per un documento che *parla* di PlantUML: scrivere per esteso la riga che apre un blocco, dentro un esempio, fa partire un rendering indesiderato lì dove non te lo aspetti.)
-
-Per evidenziare un identificatore dentro il diagramma usa il **corsivo** di PlantUML (`//testo//`) o le doppie virgolette, mai i backtick.
+(Questa regola vale anche per un documento che *parla* di PlantUML: scrivere per esteso, all'inizio di una riga, la riga che apre un blocco fa partire un rendering indesiderato lì dove non te lo aspetti; dentro una frase invece no.)
 
 ### 2. In tema scuro il diagramma viene ribaltato
 
@@ -151,7 +149,7 @@ Per un altro tipo valgono le regole di questo file.
 
 ## Checklist
 
-- [ ] Nessun backtick dentro il blocco plantuml.
+- [ ] Niente tre backtick di fila dentro il blocco plantuml.
 - [ ] Il diagramma dice **una** cosa, e sai dire quale.
 - [ ] Il significato sta nella tinta, non nel chiaro/scuro.
 - [ ] Non più di tre colori con significato; il percorso normale non è colorato.

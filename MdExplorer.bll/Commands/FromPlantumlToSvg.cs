@@ -61,7 +61,7 @@ namespace MdExplorer.Features.Commands
         }
         public MatchCollection GetMatches(string markdown)
         { //```plantuml([^```]*)`{3}(?(?={)|)
-            Regex rx = new Regex(@"```plantuml([^```]*)`{3}(?:(?={){([^{]*)}|)",
+            Regex rx = new Regex(PlantumlFence.Body + @"(?:(?={){([^{]*)}|)",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;

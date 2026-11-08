@@ -56,7 +56,7 @@ namespace MdExplorer.Features.Commands.GitHub
 
         public MatchCollection GetMatches(string markdown)
         {
-            Regex rx = new Regex(@"```plantuml([^```]*)```",
+            Regex rx = new Regex(PlantumlFence.Body,
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;

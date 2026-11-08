@@ -88,25 +88,25 @@ namespace MdExplorer.Features.Diagrams
         }
 
         /// <summary>
-        /// Il caso peggiore in assoluto: per il jar il diagramma e' perfetto, ma MdExplorer chiude
-        /// il blocco al primo backtick e non mostra nulla, senza nessun messaggio. Chi scrive non
-        /// ha modo di accorgersene.
+        /// Tre backtick di fila chiudono il blocco per MdExplorer, dovunque siano (C4 della valutazione del 07/11: prima lo
+        /// chiudeva QUALUNQUE backtick). Per Markdig no, se non sono a inizio riga: il verificatore vedrebbe il diagramma
+        /// intero e la pagina lo troncherebbe lì, senza nessun errore. Un backtick singolo o doppio va bene.
         /// </summary>
         private static void AddBacktickProblem(string[] lines, List<PlantumlProblem> problems)
         {
             for (var i = 0; i < lines.Length; i++)
             {
-                if (!lines[i].Contains('`')) continue;
+                if (!lines[i].Contains("```")) continue;
 
                 problems.Add(new PlantumlProblem
                 {
                     Severity = Error,
                     Line = i + 1,
                     Source = lines[i].Trim(),
-                    Message = "Backtick dentro il blocco.",
-                    Meaning = "MdExplorer riconosce il blocco con un'espressione che si ferma al primo backtick: "
+                    Message = "Tre backtick di fila dentro il blocco.",
+                    Meaning = "MdExplorer chiude il blocco ai primi tre backtick di fila: "
                               + "il diagramma verrebbe troncato qui e non comparirebbe affatto, senza nessun errore.",
-                    Fix = "Togli i backtick: per evidenziare un identificatore usa il corsivo di PlantUML (//testo//) o le virgolette."
+                    Fix = "Togli i tre backtick: un backtick singolo, per esempio `x`, va bene."
                 });
                 return;   // uno basta: la causa e' la stessa per tutti
             }

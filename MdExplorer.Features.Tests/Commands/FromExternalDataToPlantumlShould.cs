@@ -138,13 +138,13 @@ namespace MdExplorer.Features.Tests.Commands
         [TestMethod]
         public void ProduceABlockThePlantumlCommandCanRead()
         {
-            // The contract between the two commands: FromPlantumlToSvg reads ```plantuml up to
-            // the first backtick. If our expansion did not match THAT regex, the diagram would
+            // The contract between the two commands: FromPlantumlToSvg reads ```plantuml with
+            // PlantumlFence. If our expansion did not match THAT regex, the diagram would
             // simply never be generated.
             var transformed = Transform("```plantuml(@json, ./servizi.json)\n#highlight \"nested\"\n```");
 
             var plantumlRegex = new System.Text.RegularExpressions.Regex(
-                @"```plantuml([^```]*)`{3}(?:(?={){([^{]*)}|)",
+                MdExplorer.Features.Commands.PlantumlFence.Body + @"(?:(?={){([^{]*)}|)",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase |
                 System.Text.RegularExpressions.RegexOptions.Singleline);
 
@@ -209,16 +209,28 @@ namespace MdExplorer.Features.Tests.Commands
         }
 
         [TestMethod]
-        public void RefuseContentHoldingABacktick()
+        public void RefuseContentWithALineThatClosesTheFence()
         {
-            // A backtick would close the generated fence early and the diagram would come out
-            // truncated with no explanation — say it instead.
-            File.WriteAllText(Path.Combine(_projectRoot, "docs", "backtick.json"), "{ \"cmd\": \"`ls`\" }");
+            // Three backticks in a row would close the generated fence early and the diagram would
+            // come out truncated with no explanation — say it instead.
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "backtick.json"), "{ \"cmd\": \"```ls```\" }");
 
             var transformed = Transform("```plantuml(@json, ./backtick.json)\n```");
 
             AssertContains(transformed, "mde-plantuml-include-error");
             AssertContains(transformed, "backtick");
+        }
+
+        [TestMethod]
+        public void AcceptABacktickInsideTheText()
+        {
+            // C4: a backtick in the middle of a value no longer closes anything.
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "inline.json"), "{ \"cmd\": \"`ls`\" }");
+
+            var transformed = Transform("```plantuml(@json, ./inline.json)\n```");
+
+            Assert.IsFalse(transformed.Contains("mde-plantuml-include-error"), transformed);
+            AssertContains(transformed, "`ls`");
         }
 
         [TestMethod]
@@ -320,7 +332,7 @@ namespace MdExplorer.Features.Tests.Commands
             var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\n```");
 
             var plantumlRegex = new System.Text.RegularExpressions.Regex(
-                @"```plantuml([^```]*)`{3}(?:(?={){([^{]*)}|)",
+                MdExplorer.Features.Commands.PlantumlFence.Body + @"(?:(?={){([^{]*)}|)",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
             var matches = plantumlRegex.Matches(transformed);
 

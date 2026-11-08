@@ -81,15 +81,27 @@ namespace MdExplorer.Features.Tests.Diagrams
         }
 
         [TestMethod]
-        public async Task ReportTheBacktickThatMakesTheDiagramVanish()
+        public async Task ReportTheLineThatWouldCloseTheBlockForMdExplorer()
         {
             var (verifier, _) = Create();
 
-            var result = await verifier.VerifyAsync(new[] { ("a.md", "```plantuml\n@startuml\n!theme plain\nA -> B : usa `x`\n@enduml\n```\n") });
+            // Per Markdig tre backtick in mezzo a una riga sono testo, per MdExplorer sono la chiusura.
+            var result = await verifier.VerifyAsync(new[] { ("a.md", "```plantuml\n@startuml\n!theme plain\nA -> B : ```x```\n@enduml\n```\n") });
 
             var p = result.Problems.Single();
             Assert.AreEqual(4, p.FileLine);
             StringAssert.Contains(p.Meaning, "troncato");
+        }
+
+        [TestMethod]
+        public async Task AcceptABacktickInsideTheText()
+        {
+            var (verifier, _) = Create();
+
+            // C4: prima era un errore (MdExplorer troncava al primo backtick), ora il diagramma si vede.
+            var result = await verifier.VerifyAsync(new[] { ("a.md", "```plantuml\n@startuml\n!theme plain\nA -> B : usa `x`\n@enduml\n```\n") });
+
+            Assert.AreEqual(0, result.Problems.Count, string.Join("; ", result.Problems.Select(x => x.Meaning)));
         }
 
         [TestMethod]
@@ -125,7 +137,7 @@ namespace MdExplorer.Features.Tests.Diagrams
             var result = await verifier.VerifyAsync(new[]
             {
                 ("docs/uno.md", Valid),
-                ("la tua risposta", "Ecco:\n\n```plantuml\n@startuml\n!theme plain\nA -> B : `x`\n@enduml\n```\n"),
+                ("la tua risposta", "Ecco:\n\n```plantuml\n@startuml\n!theme plain\nA -> B : ```x```\n@enduml\n```\n"),
             });
 
             Assert.AreEqual(2, result.Diagrams);

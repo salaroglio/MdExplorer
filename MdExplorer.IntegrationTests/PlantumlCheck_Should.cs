@@ -29,11 +29,11 @@ namespace MdExplorer.IntegrationTests
             => r.Problems.FirstOrDefault(p => p.Severity == severity);
 
         [TestMethod]
-        public void Catch_the_backtick_that_the_jar_considers_perfectly_valid()
+        public void Catch_the_backticks_that_the_jar_considers_perfectly_valid()
         {
             // Il caso peggiore: per PlantUML il diagramma e' impeccabile, ma MdExplorer chiude il
-            // blocco al primo backtick e non mostra niente, senza nessun messaggio.
-            var src = "@startuml\nAlice -> Bob : chiama `Run`\n@enduml";
+            // blocco ai primi tre backtick di fila e lo tronca, senza nessun messaggio.
+            var src = "@startuml\nAlice -> Bob : chiama ```Run```\n@enduml";
 
             var r = AnalyzeValid(src);
 
@@ -42,6 +42,15 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(2, p.Line);
             StringAssert.Contains(p.Source, "Run");
             StringAssert.Contains(p.Meaning, "troncato");
+        }
+
+        [TestMethod]
+        public void Accept_a_single_backtick()
+        {
+            // C4 della valutazione del 07/11: prima un backtick qualsiasi troncava il diagramma, ora no.
+            var r = AnalyzeValid("@startuml\n!theme plain\nAlice -> Bob : chiama `Run`\n@enduml");
+
+            Assert.IsFalse(r.Problems.Any(p => p.Severity == "error"), string.Join("; ", r.Problems.Select(p => p.Message)));
         }
 
         [TestMethod]
@@ -104,7 +113,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(AnalyzeValid(pulito).Problems.Any(p => p.Severity == "hint"),
                 "senza tema dichiarato e senza errori, l'hint serve");
 
-            var rotto = "@startuml\nAlice -> Bob : chiama `Run`\n@enduml";
+            var rotto = "@startuml\nAlice -> Bob : chiama ```Run```\n@enduml";
             Assert.IsFalse(AnalyzeValid(rotto).Problems.Any(p => p.Severity == "hint"),
                 "con un errore in campo, gli hint tacciono");
         }

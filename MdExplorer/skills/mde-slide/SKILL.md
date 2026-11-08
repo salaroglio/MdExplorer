@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, esportare in HTML, mandare la presentazione a chi non ha MdExplorer, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 17
+  version: 18
   updatePolicy: replace
 ---
 
@@ -178,6 +178,6 @@ danno un messaggio di questo tipo.
 - [ ] Le slide sono separate da `---` su una riga da sola, e nessun `---` di testo divide una slide per sbaglio.
 - [ ] Le opzioni di reveal.js stanno sotto `reveal.config`; `theme` e `highlight_theme` sotto `reveal:`.
 - [ ] Booleani e numeri in `reveal.config` sono senza virgolette.
-- [ ] I diagrammi sono PlantUML, senza backtick dentro il blocco.
+- [ ] I diagrammi sono PlantUML, senza tre backtick di fila dentro il blocco.
 - [ ] Chi presenta parlando ha le sue note (`Note:`); chi manda la presentazione da leggere non usa effetti a
       comparsa, o mette `pdfSeparateFragments: false`.

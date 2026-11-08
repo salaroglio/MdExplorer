@@ -3,7 +3,7 @@ name: mde-features
 description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown", "add an image / GIF found on the internet".
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -241,7 +241,7 @@ The PlantUML source is rendered to SVG. The SVG is **interactive**:
 
 ### Caveats / conservative syntax
 
-- **No backticks inside a `plantuml` block** — the block ends at the first backtick and the diagram silently disappears
+- **No three backticks in a row inside a `plantuml` block** — the block ends at the first ``` and the diagram is silently cut there; a single or double backtick (`` `x` ``) is fine
 - **Avoid escaped quotes** inside labels (`"\"...\""`) — PlantUML does not unescape them: the backslashes are drawn literally
 - **`#fill;line:color` works on `class`, `entity` and `rectangle`, but NOT on a sequence `participant`**: there it fails with "No such color" — color a participant's border through a stereotype
 - **Keep `\`\`\`plantuml` minimal**: simple `-->` arrows, basic shapes (`rectangle`, `class`, `usecase`), and color only what carries meaning
@@ -346,7 +346,7 @@ content: **change the .json, and the diagram is regenerated on its own.**
 The block never stays as it is: when something is wrong you get a bordered message saying what,
 instead of a broken diagram —  file not found (with the path that was looked up), path outside the
 project, file too large, unknown directive, invalid JSON (with the parser message), or content
-holding a backtick (which would close the fence early).
+holding three backticks in a row (which would close the fence early).
 
 ### When to use
 
