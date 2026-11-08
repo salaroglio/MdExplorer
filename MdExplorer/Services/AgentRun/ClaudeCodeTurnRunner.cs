@@ -79,6 +79,10 @@ namespace MdExplorer.Services.AgentRun
             var model = string.IsNullOrWhiteSpace(request.RequestedModel) ? MarkAgentEngines.ClaudeDefaultModel : request.RequestedModel;
             var session = new ClaudeCodeSession(_loggerFactory.CreateLogger<ClaudeCodeSession>(), request.WorkingDirectory ?? request.ProjectPath,
                 model, AgentOptions(configPath, request));
+            // C4: i diagrammi che l'agente scrive si verificano a fine turno, con un turno di correzione (come con Copilot).
+            using (var verifierScope = _scopeFactory.CreateScope())
+                if (verifierScope.ServiceProvider.GetService<MdExplorer.Features.Commands.PlantumlServer>() is { } plantuml)
+                    session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(plantuml.CheckAsync);
             var answer = new StringBuilder();
             try
             {

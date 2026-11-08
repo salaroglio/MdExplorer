@@ -37,11 +37,16 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private readonly Timer _sweepTimer;
         private volatile bool _disposed;
 
-        public OpenCodeSessionPool(ILoggerFactory loggerFactory, ILogger<OpenCodeSessionPool> logger, OpenCodeServer server)
+        // C4: i diagrammi che Mark scrive con opencode si verificano a fine turno (null nei test che non lo passano).
+        private readonly MdExplorer.Features.Commands.PlantumlServer _plantumlServer;
+
+        public OpenCodeSessionPool(ILoggerFactory loggerFactory, ILogger<OpenCodeSessionPool> logger, OpenCodeServer server,
+            MdExplorer.Features.Commands.PlantumlServer plantumlServer = null)
         {
             _loggerFactory = loggerFactory;
             _logger = logger;
             _server = server;
+            _plantumlServer = plantumlServer;
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
         }
 
@@ -97,6 +102,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 var session = new OpenCodeSession(
                     _loggerFactory.CreateLogger<OpenCodeSession>(), _server, workingDirectory, model);
                 session.SetExtraRoots(extraRoots);
+                if (_plantumlServer != null) session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(_plantumlServer.CheckAsync);
 
                 if (!_sessions.TryAdd(connectionId, session))
                 {

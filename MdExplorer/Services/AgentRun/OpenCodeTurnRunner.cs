@@ -116,6 +116,10 @@ namespace MdExplorer.Services.AgentRun
             using var server = new OpenCodeServer(_loggerFactory.CreateLogger<OpenCodeServer>(), serverEnvironment);
             await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), server,
                 request.WorkingDirectory ?? request.ProjectPath, model, null, rejectPermissions: true);
+            // C4: i diagrammi che l'agente scrive si verificano a fine turno, con un turno di correzione (come con Copilot).
+            using (var verifierScope = _scopeFactory.CreateScope())
+                if (verifierScope.ServiceProvider.GetService<MdExplorer.Features.Commands.PlantumlServer>() is { } plantuml)
+                    session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(plantuml.CheckAsync);
             // Gli stessi limiti degli altri motori (R4 della valutazione del 07/11): fermo da 5 minuti o oltre i 30 si ferma.
             // Ogni frammento che arriva (risposta, strumenti, ragionamento) dice che è vivo.
             using var idle = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Idle);

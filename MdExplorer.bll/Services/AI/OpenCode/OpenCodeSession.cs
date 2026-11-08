@@ -215,9 +215,45 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         public void SetModel(string model) => Model = model;
 
         /// <summary>
-        /// Manda un messaggio e restituisce i frammenti mentre arrivano.
+        /// Verifica dei diagrammi dei file .md scritti nel turno (C4 della valutazione del 07/11), come per Claude: errori
+        /// rimandati al modello per UN turno di correzione. Null (il predefinito) = nessun controllo.
+        /// </summary>
+        public MdExplorer.Features.Diagrams.PlantumlBlockVerifier DiagramVerifier
+        {
+            get => _diagramVerifier;
+            set
+            {
+                _diagramVerifier = value;
+                _diagrams = value == null ? null : new MdExplorer.Features.Diagrams.WrittenDiagramsCheck(value, WorkingDirectory, "opencode");
+            }
+        }
+        private MdExplorer.Features.Diagrams.PlantumlBlockVerifier _diagramVerifier;
+        private MdExplorer.Features.Diagrams.WrittenDiagramsCheck _diagrams;
+
+        /// <summary>
+        /// Manda un messaggio e restituisce i frammenti mentre arrivano; con <see cref="DiagramVerifier"/> può seguire un
+        /// turno di correzione dei diagrammi, nello stesso flusso.
         /// </summary>
         public async IAsyncEnumerable<OpenCodeChunk> PromptAsync(
+            string prompt,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var diagrams = _diagrams;
+            diagrams?.Reset();
+            await foreach (var chunk in OneTurnAsync(prompt, cancellationToken).ConfigureAwait(false)) yield return chunk;
+            if (diagrams == null || cancellationToken.IsCancellationRequested) yield break;
+
+            var (notice, forModel) = await diagrams.TakeAsync(lastRound: false, cancellationToken).ConfigureAwait(false);
+            if (notice != null) yield return new OpenCodeChunk(OpenCodeChunk.KindTool, notice);
+            if (forModel == null) yield break;
+
+            await foreach (var chunk in OneTurnAsync(forModel, cancellationToken).ConfigureAwait(false)) yield return chunk;
+            if (cancellationToken.IsCancellationRequested) yield break;
+            var (after, _) = await diagrams.TakeAsync(lastRound: true, cancellationToken).ConfigureAwait(false);
+            if (after != null) yield return new OpenCodeChunk(OpenCodeChunk.KindTool, after);
+        }
+
+        private async IAsyncEnumerable<OpenCodeChunk> OneTurnAsync(
             string prompt,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
@@ -666,6 +702,9 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                     var status = part.TryGetProperty("state", out var st) && st.TryGetProperty("status", out var sv)
                         ? sv.GetString() : null;
                     var callId = part.TryGetProperty("callID", out var cid) ? cid.GetString() : tool;
+                    // Gli argomenti della chiamata, a chiamata finita: i file .md scritti li legge WrittenDiagramsCheck.
+                    if (status == "completed" && part.TryGetProperty("state", out var done) && done.TryGetProperty("input", out var toolInput))
+                        _diagrams?.ToolInput(toolInput);
                     // Lo stesso tool arriva più volte mentre cambia stato: si annuncia una volta
                     // per chiamata e poi solo la fine, altrimenti la riga di stato lampeggia.
                     var key = callId + "|" + status;
@@ -694,6 +733,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             {
                 case "text":
                     turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindMessage, delta));
+                    _diagrams?.AnswerText(delta);
                     break;
                 case "reasoning":
                     turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindThinking, delta));

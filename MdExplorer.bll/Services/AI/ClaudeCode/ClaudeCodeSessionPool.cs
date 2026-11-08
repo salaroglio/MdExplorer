@@ -51,10 +51,15 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         private readonly int _maxSessions;
         private volatile bool _disposed;
 
-        public ClaudeCodeSessionPool(ILoggerFactory loggerFactory, ILogger<ClaudeCodeSessionPool> logger)
+        // C4: i diagrammi che Mark scrive con Claude si verificano a fine turno (null nei test che non lo passano).
+        private readonly MdExplorer.Features.Commands.PlantumlServer _plantumlServer;
+
+        public ClaudeCodeSessionPool(ILoggerFactory loggerFactory, ILogger<ClaudeCodeSessionPool> logger,
+            MdExplorer.Features.Commands.PlantumlServer plantumlServer = null)
         {
             _loggerFactory = loggerFactory;
             _logger = logger;
+            _plantumlServer = plantumlServer;
             _idleTimeout = DefaultIdleTimeout;
             _maxSessions = DefaultMaxSessions;
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
@@ -129,6 +134,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
                 var sessionLogger = _loggerFactory.CreateLogger<ClaudeCodeSession>();
                 var session = new ClaudeCodeSession(sessionLogger, workingDirectory, modelId, options);
+                if (_plantumlServer != null) session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(_plantumlServer.CheckAsync);
                 try
                 {
                     await session.StartAsync(ct).ConfigureAwait(false);
@@ -176,6 +182,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 await ReleaseAsync(connectionId).ConfigureAwait(false);
 
                 var session = new ClaudeCodeSession(_loggerFactory.CreateLogger<ClaudeCodeSession>(), workingDirectory, modelId, options);
+                if (_plantumlServer != null) session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(_plantumlServer.CheckAsync);
                 try
                 {
                     await session.StartAsync(ct).ConfigureAwait(false);

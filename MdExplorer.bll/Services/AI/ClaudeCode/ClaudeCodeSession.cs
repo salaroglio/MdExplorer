@@ -299,10 +299,47 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         }
 
         /// <summary>
+        /// Verifica dei diagrammi dei file .md scritti nel turno (C4 della valutazione del 07/11): con un verificatore, a
+        /// turno finito MdExplorer li controlla e, se ci sono errori, li rimanda a Claude per UN turno di correzione, come
+        /// fa con Copilot. Null (il predefinito) = nessun controllo: le sessioni che non scrivono non lo impostano.
+        /// </summary>
+        public MdExplorer.Features.Diagrams.PlantumlBlockVerifier DiagramVerifier
+        {
+            get => _diagramVerifier;
+            set
+            {
+                _diagramVerifier = value;
+                _diagrams = value == null ? null : new MdExplorer.Features.Diagrams.WrittenDiagramsCheck(value, _workingDirectory, "Claude");
+            }
+        }
+        private MdExplorer.Features.Diagrams.PlantumlBlockVerifier _diagramVerifier;
+        private MdExplorer.Features.Diagrams.WrittenDiagramsCheck _diagrams;
+
+        /// <summary>
         /// Manda un messaggio utente e restituisce i frammenti man mano che arrivano.
-        /// Un solo turno per volta per sessione. Il turno si chiude sul <c>result</c>.
+        /// Un solo turno per volta per sessione. Il turno si chiude sul <c>result</c>; con <see cref="DiagramVerifier"/>
+        /// può seguire un turno di correzione dei diagrammi, che arriva nello stesso flusso.
         /// </summary>
         public async IAsyncEnumerable<ClaudeCodeChunk> PromptAsync(
+            string text,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            var diagrams = _diagrams;
+            diagrams?.Reset();
+            await foreach (var chunk in OneTurnAsync(text, ct).ConfigureAwait(false)) yield return chunk;
+            if (diagrams == null || ct.IsCancellationRequested) yield break;
+
+            var (notice, forModel) = await diagrams.TakeAsync(lastRound: false, ct).ConfigureAwait(false);
+            if (notice != null) yield return new ClaudeCodeChunk(ClaudeCodeChunk.KindTool, notice);
+            if (forModel == null) yield break;
+
+            await foreach (var chunk in OneTurnAsync(forModel, ct).ConfigureAwait(false)) yield return chunk;
+            if (ct.IsCancellationRequested) yield break;
+            var (after, _) = await diagrams.TakeAsync(lastRound: true, ct).ConfigureAwait(false);
+            if (after != null) yield return new ClaudeCodeChunk(ClaudeCodeChunk.KindTool, after);
+        }
+
+        private async IAsyncEnumerable<ClaudeCodeChunk> OneTurnAsync(
             string text,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
@@ -686,6 +723,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 case "text_delta":
                     if (delta.TryGetProperty("text", out var t))
                         Emit(ClaudeCodeChunk.KindMessage, t.GetString());
+                        _diagrams?.AnswerText(t.GetString());
                     break;
                 case "thinking_delta":
                     if (delta.TryGetProperty("thinking", out var th))
@@ -707,6 +745,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             {
                 if (!block.TryGetProperty("type", out var bt) || bt.GetString() != "tool_use") continue;
                 var name = block.TryGetProperty("name", out var n) ? n.GetString() : "?";
+                if (block.TryGetProperty("input", out var toolInput)) _diagrams?.ToolInput(toolInput);
                 var input = block.TryGetProperty("input", out var i) ? Truncate(i.GetRawText(), 160) : string.Empty;
                 Emit(ClaudeCodeChunk.KindTool, $"{name} {input}");
             }
