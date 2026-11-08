@@ -3562,7 +3562,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var engineDB = GetEngineDB();
             try
             {
-                engineDB.BeginTransaction();
+                // Solo lettura: transazione DEFERRED (ReadCommitted), che in WAL non aspetta chi scrive. Quella predefinita di
+                // System.Data.SQLite è IMMEDIATE, cioè chiede il lock di scrittura anche per leggere: con la sessione della
+                // richiesta (C1) aspettava il watcher, e SQLite riprova a passi di un secondo (misurato l'08/11: 1.000 ms).
+                engineDB.BeginTransaction(System.Data.IsolationLevel.ReadCommitted);
                 var rows = engineDB.GetDal<MarkdownFile>().GetList()
                     .Select(m => new { m.Path, m.LinksHash })
                     .ToList();

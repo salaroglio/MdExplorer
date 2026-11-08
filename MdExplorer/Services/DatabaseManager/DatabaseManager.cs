@@ -71,30 +71,24 @@ namespace MdExplorer.Services.DatabaseManager
 
             try
             {
-                // Create database contexts
-                var engineDB = CreateEngineDB(engineDbPath);
-                var projectDB = CreateProjectDB(projectDbPath);
+                // Si aprono e si chiudono subito: un database che non si apre lo dice qui, all'apertura del progetto,
+                // e non alla prima richiesta. Le sessioni vere le apre ognuno per sé (C1).
+                using (CreateEngineDB(engineDbPath)) { }
+                using (CreateProjectDB(projectDbPath)) { }
 
                 var context = new ConnectionDatabaseContext
                 {
                     ConnectionId = connectionId,
                     ProjectPath = normalizedPath,
                     ProjectId = Guid.NewGuid(), // TODO: Get actual project ID from database
-                    EngineDB = engineDB,
-                    ProjectDB = projectDB,
+                    EngineConnectionString = engineDbPath,
+                    ProjectConnectionString = projectDbPath,
                     RegisteredAt = DateTime.UtcNow
                 };
 
                 // C2: la stessa finestra che apre un altro progetto (o rientra dalla copia di un agente) sostituisce il
-                // contesto: il vecchio si chiude, invece di restare aperto accanto al nuovo.
-                ConnectionDatabaseContext previous = null;
-                _contexts.AddOrUpdate(connectionId, context, (_, old) => { previous = old; return context; });
-                if (previous != null && !ReferenceEquals(previous, context))
-                {
-                    _logger.LogInformation($"🔁 Connection {connectionId}: closing the previous databases ({previous.ProjectPath})");
-                    DisposeDatabase(previous.EngineDB, "EngineDB");
-                    DisposeDatabase(previous.ProjectDB, "ProjectDB");
-                }
+                // contesto. Non c'è più niente di aperto da chiudere: le sessioni sono di chi le ha chieste.
+                _contexts[connectionId] = context;
 
                 _logger.LogInformation($"✅ Connection {connectionId} registered successfully");
             }
@@ -135,12 +129,7 @@ namespace MdExplorer.Services.DatabaseManager
 
                 try
                 {
-                    // Dispose databases
-                    DisposeDatabase(context.EngineDB, "EngineDB");
-                    DisposeDatabase(context.ProjectDB, "ProjectDB");
-                    // Do NOT dispose UserSettingsDB as it's shared
-
-                    _logger.LogInformation($"✅ Connection {connectionId} unregistered and resources disposed");
+                    _logger.LogInformation($"✅ Connection {connectionId} unregistered");
                 }
                 catch (Exception ex)
                 {
@@ -174,12 +163,18 @@ namespace MdExplorer.Services.DatabaseManager
             if (!_contexts.TryGetValue(connectionId, out var context))
                 throw new InvalidOperationException($"No database context found for connection {connectionId}");
 
-            var hash = Helper.HGetHashString(context.ProjectPath);
-            var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
+            return CreateEngineDB(context.EngineConnectionString);
+        }
 
-            _logger.LogDebug($"🔧 Creating isolated EngineDB for connection {connectionId}");
+        public IProjectDB CreateIsolatedProjectDB(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+                throw new ArgumentException("ConnectionId cannot be null or empty", nameof(connectionId));
 
-            return CreateEngineDB(engineDbPath);
+            if (!_contexts.TryGetValue(connectionId, out var context))
+                throw new InvalidOperationException($"No database context found for connection {connectionId}");
+
+            return CreateProjectDB(context.ProjectConnectionString);
         }
 
         public IEngineDB CreateIsolatedEngineDBForProjectPath(string projectPath)
@@ -282,22 +277,6 @@ namespace MdExplorer.Services.DatabaseManager
             {
                 _logger.LogError(ex, $"Failed to create ProjectDB with connection: {connectionString}");
                 throw;
-            }
-        }
-
-        private void DisposeDatabase(object database, string dbName)
-        {
-            try
-            {
-                if (database is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                    _logger.LogDebug($"   Disposed {dbName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error disposing {dbName}");
             }
         }
     }

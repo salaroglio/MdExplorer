@@ -27,6 +27,32 @@ namespace Ad.Tools.Dal.Decorators
             _implementation = implementation;
         }
 
+        // Sonda della sessione (C1 della valutazione del 07/11): da quando è aperta e a quanti oggetti in memoria si è
+        // scritto l'ultima volta, per sapere se una sessione lunga quanto il progetto aperto rallenta i commit.
+        private readonly long _openedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+        private int _reportedEntities;
+
+        /// <summary>
+        /// Chiamato da Commit con la sonda accesa: scrive [DB-SESSION] quando gli oggetti in memoria raddoppiano (da 500)
+        /// o quando il commit (che comprende il controllo di tutti gli oggetti in memoria) supera la soglia.
+        /// </summary>
+        internal void ReportCommit(double commitMs)
+        {
+            try
+            {
+                var entities = _implementation.IsOpen ? _implementation.Statistics.EntityCount : 0;
+                var grew = entities >= 500 && entities >= 2 * Math.Max(_reportedEntities, 250);
+                if (!grew && commitMs < DalDiagnostics.SlowMs) return;
+                if (grew) _reportedEntities = entities;
+                var minutes = DalDiagnostics.ElapsedMs(_openedAt) / 60000.0;
+                DalDiagnostics.Write($"[DB-SESSION] {DalDiagnostics.DatabaseName(_implementation.Connection)}: {entities} oggetti in memoria, commit {commitMs:F0} ms, sessione aperta da {minutes:F0} min");
+            }
+            catch
+            {
+                // la sonda non deve mai rompere un commit
+            }
+        }
+
         public FlushMode FlushMode
         {
             get

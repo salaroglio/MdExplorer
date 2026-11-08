@@ -849,13 +849,13 @@ namespace MdExplorer.Services.IndexingPipeline
             {
                 using var checkScope = _serviceScopeFactory.CreateScope();
                 var dbManager = checkScope.ServiceProvider.GetService<IDatabaseManager>();
-                var ctx = dbManager?.GetContext(connectionId);
-                if (ctx?.ProjectDB == null)
+                if (dbManager == null || !dbManager.HasConnection(connectionId))
                 {
                     _logger.LogDebug("[IndexingPipeline] Embed: no ProjectDB context, skipping");
                     return 0;
                 }
-                var settingsDal = ctx.ProjectDB.GetDal<ProjectSetting>();
+                using var projectDB = dbManager.CreateIsolatedProjectDB(connectionId); // C1: sessione di questa lettura
+                var settingsDal = projectDB.GetDal<ProjectSetting>();
                 var ragSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "RagEnabled");
                 if (ragSetting?.ValueBool != true)
                 {

@@ -1257,7 +1257,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     .FirstOrDefault(s => s.Name == "RagEnabled");
                 if (ragSetting?.ValueBool != true) return;
 
-                var engineDB = dbContext.EngineDB;
+                using var engineDB = _databaseManager.CreateIsolatedEngineDB(context.ConnectionId); // C1: sessione di questa operazione
                 // Apertura con FileShare.ReadWrite|Delete: non blocca un'AI esterna
                 // che sta scrivendo/rinominando lo stesso .md (vedi SharedFileReader).
                 var content = SharedFileReader.ReadAllText(fullPath);
@@ -1980,9 +1980,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             MdExplorer.Abstractions.DB.IEngineDB engineDB = null;
             try
             {
-                // Get database context for this connection
+                // Una sessione per questa operazione, chiusa alla fine (C1): la sessione della finestra, usata insieme dalle
+                // richieste della pagina, faceva morire il servizio.
                 var dbContext = _databaseManager.GetContext(context.ConnectionId);
-                engineDB = dbContext.EngineDB;
+                engineDB = _databaseManager.CreateIsolatedEngineDB(context.ConnectionId);
 
                 // Content + fingerprint PRIMA della transazione: servono a link parse,
                 // TLDR, hash e FTS. Lettura fallita → riga upsertata senza fingerprint
@@ -2118,6 +2119,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in ParseNewFileIntoDB");
                 throw;
             }
+            finally
+            {
+                engineDB?.Dispose();
+            }
         }
 
         private void RemoveFileFromDB(WatcherContext context, string fullPath)
@@ -2126,9 +2131,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
             try
             {
-                // Get database context for this connection
+                // Una sessione per questa operazione, chiusa alla fine (C1).
                 var dbContext = _databaseManager.GetContext(context.ConnectionId);
-                var engineDB = dbContext.EngineDB;
+                using var engineDB = _databaseManager.CreateIsolatedEngineDB(context.ConnectionId);
 
                 engineDB.BeginTransaction();
                 var fileDal = engineDB.GetDal<MarkdownFile>();

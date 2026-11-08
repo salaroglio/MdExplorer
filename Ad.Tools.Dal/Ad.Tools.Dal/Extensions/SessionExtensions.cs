@@ -17,8 +17,17 @@ namespace Ad.Tools.Dal.Extensions
 
         public static void Commit (this ISessionDB session)
         {
+            var decorated = session as Ad.Tools.Dal.Decorators.SessionDB;
+            if (decorated == null || !DalDiagnostics.Enabled)
+            {
+                session.GetCurrentTransaction()?.Commit();
+                decorated?.ReportHold("commit");
+                return;
+            }
+            var start = System.Diagnostics.Stopwatch.GetTimestamp();
             session.GetCurrentTransaction()?.Commit();
-            (session as Ad.Tools.Dal.Decorators.SessionDB)?.ReportHold("commit");
+            decorated.ReportCommit(DalDiagnostics.ElapsedMs(start));
+            decorated.ReportHold("commit");
         }
 
         public static void Rollback(this ISessionDB session)

@@ -96,6 +96,14 @@ namespace Ad.Tools.Dal
             }
         }
 
+        /// <summary>Una riga già composta, con il chiamante.</summary>
+        internal static void Write(string text)
+        {
+            var log = Log;
+            if (log == null) return;
+            try { log($"{text} | {Caller()}"); } catch { }
+        }
+
         internal static string DatabaseName(System.Data.Common.DbConnection connection)
         {
             try
