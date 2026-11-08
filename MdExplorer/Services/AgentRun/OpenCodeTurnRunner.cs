@@ -42,11 +42,24 @@ namespace MdExplorer.Services.AgentRun
             // What the agent's manifest (tools:) does not declare is denied, not merely left unmentioned.
             var denyWrite = deniedTools?.Contains("write") == true;
             var denyShell = deniedTools?.Contains("shell") == true;
+            // La regola di Claude (R4 della valutazione del 07/11): tutto vietato, tranne leggere, il web, il server MCP di
+            // MdExplorer e — se il manifesto li dichiara — scrivere e la shell. Prima era «tutto permesso meno questi», compresi
+            // gli strumenti dei server MCP personali dell'utente. «*» per primo: vince l'ultima regola che corrisponde.
             JsonObject Permissions() => new()
             {
+                ["*"] = "deny",
+                ["read"] = "allow",
+                ["glob"] = "allow",
+                ["grep"] = "allow",
+                ["list"] = "allow",
+                ["skill"] = "allow",
+                ["todowrite"] = "allow",
+                ["todoread"] = "allow",
+                ["webfetch"] = "allow",
+                ["websearch"] = "allow",
+                [ClaudeCodeMcp.ServerName + "_*"] = "allow",
                 ["edit"] = denyWrite ? "deny" : "allow",
                 ["bash"] = denyShell ? "deny" : "allow",
-                ["webfetch"] = "allow",
             };
             var config = new JsonObject
             {

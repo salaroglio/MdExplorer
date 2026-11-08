@@ -49,16 +49,31 @@ namespace MdExplorer.Features.Services.AI
         /// </summary>
         public IReadOnlyList<string> DeniedTools { get; }
 
+        /// <summary>
+        /// Il turno di un agente: SOLO questi permessi (<c>--allow-tool</c>, es. <c>read</c>, <c>url</c>, <c>mdexplorer</c>,
+        /// <c>write</c>, <c>shell</c>), senza <c>--allow-all-tools</c>. In modalità non interattiva il CLI rifiuta tutto
+        /// quello che nessuna regola permette: è la regola di Claude (R4 della valutazione del 07/11; prima Copilot permetteva
+        /// tutto meno shell e scrittura, compresi i server MCP personali dell'utente). Null = come prima (la chat dell'utente).
+        /// </summary>
+        public IReadOnlyList<string> AllowedTools { get; }
+
+        /// <summary>Con <see cref="AllowedTools"/>: i server MCP da spegnere per il turno (quelli che non sono di MdExplorer).</summary>
+        public IReadOnlyList<string> DisabledMcpServers { get; }
+
         public CopilotInvocation(
             string workingDirectory,
             IReadOnlyDictionary<string, string> environmentOverrides = null,
             string sessionId = null,
-            IReadOnlyList<string> deniedTools = null)
+            IReadOnlyList<string> deniedTools = null,
+            IReadOnlyList<string> allowedTools = null,
+            IReadOnlyList<string> disabledMcpServers = null)
         {
             WorkingDirectory = workingDirectory;
             EnvironmentOverrides = environmentOverrides;
             SessionId = sessionId;
             DeniedTools = deniedTools;
+            AllowedTools = allowedTools;
+            DisabledMcpServers = disabledMcpServers;
         }
 
         /// <summary>Contesto vuoto: nessuna working dir esplicita, nessun override d'ambiente.</summary>

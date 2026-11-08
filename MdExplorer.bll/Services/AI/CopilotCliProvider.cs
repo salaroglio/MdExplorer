@@ -230,6 +230,10 @@ namespace MdExplorer.Features.Services.AI
             return new CopilotRunResult(string.Join("\n\n", messages), process.ExitCode, error);
         }
 
+        /// <summary>Un nome da mettere in un'opzione del CLI: lettere, cifre, '-', '_' e '.', niente spazi né virgolette.</summary>
+        internal static bool IsPermissionName(string name)
+            => !string.IsNullOrEmpty(name) && name.All(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.');
+
         /// <summary>Il testo di un evento <c>assistant.message</c> del CLI; null per ogni altra riga.</summary>
         internal static string AssistantMessageOf(string line)
         {
@@ -689,7 +693,17 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             {
                 args.Append("--screen-reader ");
             }
-            args.Append("--allow-all-tools");
+            if (invocation?.AllowedTools != null)
+            {
+                // Il turno di un agente: solo ciò che è permesso per nome; nessun server MCP che non sia di MdExplorer.
+                args.Append("--disable-builtin-mcps");
+                foreach (var allowed in invocation.AllowedTools)
+                    if (IsPermissionName(allowed)) args.Append($" --allow-tool={allowed}");
+                foreach (var server in invocation.DisabledMcpServers ?? Array.Empty<string>())
+                    if (IsPermissionName(server)) args.Append($" --disable-mcp-server={server}");
+            }
+            else
+                args.Append("--allow-all-tools");
             // Gli strumenti che il manifesto dell'agente non dichiara: il divieto esplicito prevale
             // su --allow-all-tools. Nomi fissi del nostro vocabolario (shell, write), mai testo libero.
             if (invocation?.DeniedTools != null)

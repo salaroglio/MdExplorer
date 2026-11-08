@@ -61,7 +61,8 @@ namespace MdExplorer.Services.AgentRun
             // Il manifesto `tools:` dell'agente è un limite, non un'intenzione: ciò che non dichiara
             // (shell, scrittura di file) il CLI lo rifiuta anche con --allow-all-tools.
             var denied = AgentToolCatalog.NativeToolsToDeny(request.DeclaredTools);
-            var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment, deniedTools: denied);
+            var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment, deniedTools: denied,
+                allowedTools: AllowedFor(denied), disabledMcpServers: PersonalMcpServers());
 
             // Esito DETTAGLIATO, non solo il testo: `RunHeadlessAsync` solleva solo quando
             // l'uscita è non-zero E stderr non è vuoto, quindi un'uscita non-zero silenziosa
@@ -101,6 +102,41 @@ namespace MdExplorer.Services.AgentRun
             }
 
             return AgentTurnResult.Completed(run.Text);
+        }
+
+        /// <summary>
+        /// Cosa un agente può usare su Copilot, con la stessa regola di Claude (<see cref="ClaudeCodeTurnRunner.ToolsFor"/>, R4
+        /// della valutazione del 07/11): leggere, il web e il server MCP di MdExplorer sempre; scrivere e la shell solo se il
+        /// manifesto <c>tools:</c> li dichiara. Il resto, in modalità non interattiva, il CLI lo rifiuta.
+        /// </summary>
+        public static IReadOnlyList<string> AllowedFor(IReadOnlyList<string> denied)
+        {
+            var allowed = new List<string> { "read", "url", MdExplorer.Utilities.ClaudeCodeMcp.ServerName };
+            if (denied?.Contains(AgentToolCatalog.ManifestWrite) != true) allowed.Add("write");
+            if (denied?.Contains(AgentToolCatalog.ManifestShell) != true) allowed.Add("shell");
+            return allowed;
+        }
+
+        /// <summary>
+        /// I server MCP personali dell'utente nella configurazione di Copilot (<c>~/.copilot/mcp-config.json</c>), meno quello
+        /// di MdExplorer: spenti per il turno di un agente, come su Claude, dove l'agente vede solo il server di MdExplorer.
+        /// </summary>
+        public static IReadOnlyList<string> PersonalMcpServers(string configPath = null)
+        {
+            configPath ??= System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".copilot", "mcp-config.json");
+            try
+            {
+                if (!System.IO.File.Exists(configPath)) return Array.Empty<string>();
+                var servers = System.Text.Json.Nodes.JsonNode.Parse(System.IO.File.ReadAllText(configPath))?["mcpServers"] as System.Text.Json.Nodes.JsonObject;
+                return servers == null ? Array.Empty<string>()
+                    : servers.Select(kv => kv.Key)
+                        .Where(k => !string.Equals(k, MdExplorer.Utilities.ClaudeCodeMcp.ServerName, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            catch (Exception)
+            {
+                // Una configurazione illeggibile: i suoi server restano accesi, ma nessuno è permesso (--allow-tool).
+                return Array.Empty<string>();
+            }
         }
 
         /// <summary>Nomi con cui una card può indicare Copilot CLI.</summary>

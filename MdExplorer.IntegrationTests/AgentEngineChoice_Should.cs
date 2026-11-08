@@ -167,7 +167,7 @@ namespace MdExplorer.IntegrationTests
         // ---- opencode ----
 
         [TestMethod]
-        public void Give_an_opencode_agent_everything_allowed_and_the_turn_environment_to_MdExplorer_MCP()
+        public void Give_an_opencode_agent_that_declares_nothing_writing_the_shell_and_the_turn_environment_to_MdExplorer_MCP()
         {
             var config = JsonNode.Parse(OpenCodeTurnRunner.AgentConfig("/opt/mde/MdExplorer.Mcp", "core,git",
                 new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "token-2" }))!;
@@ -218,6 +218,49 @@ namespace MdExplorer.IntegrationTests
                 Assert.AreEqual("deny", permissions["bash"]!.GetValue<string>());
                 Assert.AreEqual("deny", permissions["edit"]!.GetValue<string>());
             }
+        }
+
+        // ---- la stessa regola sui tre motori: solo ciò che è permesso per nome (R4 della valutazione del 07/11) ----
+
+        [TestMethod]
+        public void Forbid_an_opencode_agent_everything_it_is_not_given_by_name()
+        {
+            var config = JsonNode.Parse(OpenCodeTurnRunner.AgentConfig("/opt/mde/MdExplorer.Mcp", "core",
+                new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "t" }, new[] { "shell", "write" }))!;
+
+            foreach (var permissions in new[] { config["permission"]!.AsObject(), config["agent"]!["build"]!["permission"]!.AsObject() })
+            {
+                Assert.AreEqual("*", permissions.First().Key, "il divieto generale per primo: vince l'ultima regola che corrisponde");
+                Assert.AreEqual("deny", permissions["*"]!.GetValue<string>());
+                foreach (var allowed in new[] { "read", "glob", "grep", "list", "webfetch", "websearch", "mdexplorer_*" })
+                    Assert.AreEqual("allow", permissions[allowed]!.GetValue<string>(), allowed);
+                Assert.IsNull(permissions["task"], "un sotto-agente non è nella lista: resta vietato");
+            }
+        }
+
+        [TestMethod]
+        public void Give_a_Copilot_agent_only_what_a_Claude_agent_gets()
+        {
+            CollectionAssert.AreEqual(new[] { "read", "url", "mdexplorer" },
+                CopilotTurnRunner.AllowedFor(new[] { "shell", "write" }).ToArray(), "solo lettura: niente scrittura né shell");
+            CollectionAssert.AreEqual(new[] { "read", "url", "mdexplorer", "write", "shell" },
+                CopilotTurnRunner.AllowedFor(System.Array.Empty<string>()).ToArray());
+
+            var claude = ClaudeCodeTurnRunner.ToolsFor(new AgentTurnRequest { DeclaredTools = new[] { "read", "search" } });
+            CollectionAssert.DoesNotContain(claude, "Bash", "stessa decisione su Claude");
+        }
+
+        [TestMethod]
+        public void Switch_off_the_personal_MCP_servers_of_Copilot_for_an_agent_turn()
+        {
+            var file = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mcp-" + System.Guid.NewGuid().ToString("N") + ".json");
+            System.IO.File.WriteAllText(file, "{\"mcpServers\":{\"mdexplorer\":{},\"visualize-abox-sparql\":{},\"WorkIQ\":{}}}");
+            try
+            {
+                CollectionAssert.AreEqual(new[] { "visualize-abox-sparql", "WorkIQ" }, CopilotTurnRunner.PersonalMcpServers(file).ToArray());
+                Assert.AreEqual(0, CopilotTurnRunner.PersonalMcpServers(file + ".manca").Count);
+            }
+            finally { System.IO.File.Delete(file); }
         }
 
         // ---- i lanci a mano leggono il manifesto dalla scheda ----
