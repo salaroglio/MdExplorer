@@ -153,15 +153,40 @@ namespace MdExplorer.Features.E2e
         /// </summary>
         public static IEnumerable<string> MissingExpectations(E2eTest test, string script)
         {
+            var literals = StringLiterals(script);
             foreach (var step in test.Steps.Where(s => s.Check != null && s.Check != E2eCheckKind.Judgment))
             {
                 foreach (var literal in new[] { step.Expected, step.Target }.Where(v => !string.IsNullOrEmpty(v)))
                 {
                     if (literal.Contains("{{", StringComparison.Ordinal)) continue;
-                    var csharp = "\"" + literal.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-                    if (!script.Contains(csharp, StringComparison.Ordinal)) yield return UiText.Say($"«{literal}» (passo {step.Number})", $"«{literal}» (step {step.Number})");
+                    if (!literals.Contains(literal)) yield return UiText.Say($"«{literal}» (passo {step.Number})", $"«{literal}» (step {step.Number})");
                 }
             }
+        }
+
+        /// <summary>
+        /// Le stringhe del CODICE dello script, col loro valore (C7 della valutazione del 07/11). Prima si cercava il testo
+        /// fra virgolette in tutto il file, e il commento che la skill fa scrivere sopra ogni passo
+        /// (<c>// 5. ✔ Compare il testo "…"</c>) bastava anche se l'asserzione vera verificava altro. Roslyn e non un taglio
+        /// dei commenti a mano: un URL contiene «//», e le stringhe <c>@"…"</c> e <c>"""…"""</c> si leggono come C#.
+        /// </summary>
+        private static HashSet<string> StringLiterals(string script)
+        {
+            var root = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(script ?? string.Empty).GetRoot();
+            var found = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var token in root.DescendantTokens())
+            {
+                switch ((Microsoft.CodeAnalysis.CSharp.SyntaxKind)token.RawKind)
+                {
+                    case Microsoft.CodeAnalysis.CSharp.SyntaxKind.StringLiteralToken:
+                    case Microsoft.CodeAnalysis.CSharp.SyntaxKind.SingleLineRawStringLiteralToken:
+                    case Microsoft.CodeAnalysis.CSharp.SyntaxKind.MultiLineRawStringLiteralToken:
+                    case Microsoft.CodeAnalysis.CSharp.SyntaxKind.Utf8StringLiteralToken:
+                        found.Add(token.ValueText);
+                        break;
+                }
+            }
+            return found;
         }
 
         /// <summary>The credential values in <paramref name="text"/> replaced by their keys (replay messages).</summary>

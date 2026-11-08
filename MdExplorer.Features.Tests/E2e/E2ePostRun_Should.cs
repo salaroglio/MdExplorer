@@ -82,6 +82,33 @@ namespace MdExplorer.Features.Tests.E2e
         }
 
         [TestMethod]
+        public void Not_count_the_expected_text_written_only_in_a_comment()
+        {
+            // C7 della valutazione del 07/11: la skill fa scrivere sopra ogni passo un commento con il testo atteso, e il
+            // controllo lo trovava lì anche se l'asserzione vera verificava altro.
+            File.WriteAllText(Path.Combine(_scripts, "login.T1.spec.cs"),
+                Script.Replace("Expect(Page.GetByText(\"ok\"));", "/* 2. ✔ Compare il testo \"ok\" */\n// 2. ✔ Compare il testo \"ok\"\nExpect(Page.GetByText(\"OK!\"));"));
+
+            var result = E2ePostRun.Process(Item(), Secrets, LongAgo);
+
+            Assert.AreEqual(0, result.Fingerprinted.Count, "approvato grazie al commento");
+            Assert.IsTrue(E2ePostRun.Scripts(Item()).Single().Stale);
+        }
+
+        [TestMethod]
+        public void Read_the_strings_the_way_csharp_does()
+        {
+            // Un URL ha «//»: togliere i commenti a mano lo spezzerebbe. Stringhe verbatim e raw contano come prima.
+            WriteTest("L'URL contiene \"https://example.org/a\"");
+            File.WriteAllText(Path.Combine(_scripts, "login.T1.spec.cs"),
+                Script.Replace("Expect(Page.GetByText(\"ok\"));", "Expect(Page).ToHaveURLAsync(new Regex(Regex.Escape(@\"https://example.org/a\"))); // fine"));
+
+            var result = E2ePostRun.Process(Item(), Secrets, LongAgo);
+
+            Assert.AreEqual(1, result.Fingerprinted.Count, string.Join("\n", result.Problems));
+        }
+
+        [TestMethod]
         public void Report_a_test_without_its_script()
         {
             File.Delete(Path.Combine(_scripts, "login.T1.spec.cs"));
