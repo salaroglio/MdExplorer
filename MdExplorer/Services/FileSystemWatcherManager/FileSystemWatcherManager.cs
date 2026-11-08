@@ -1569,6 +1569,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                                 OldName = Path.GetFileName(e.OldFullPath),
                                 Name = Path.GetFileName(e.FullPath)
                             };
+                            // C3: anche l'indice, non solo l'albero della pagina.
+                            if (Directory.Exists(e.FullPath))
+                            {
+                                await context.DbSemaphore.WaitAsync();
+                                try { MoveFolderInDB(context, e.OldFullPath, e.FullPath); }
+                                finally { context.DbSemaphore.Release(); }
+                            }
                             await _hubContext.Clients.Client(context.ConnectionId)
                                 .SendAsync("folderRenamed", folderRenamedData);
                             _logger.LogInformation($"✏️ [{context.ConnectionId}] Folder renamed: {e.OldFullPath} → {e.FullPath}");
@@ -2122,6 +2129,55 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             finally
             {
                 engineDB?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Una cartella rinominata o spostata dentro il progetto (C3 della valutazione del 07/11): prima cambiava solo l'albero
+        /// della pagina e nell'indice i file dentro restavano col percorso vecchio fino alla riapertura. Ora i percorsi si
+        /// spostano tenendo gli Id (pezzi della ricerca semantica e collegamenti restano legati), poi ogni file si riprende
+        /// come dopo un salvataggio: i collegamenti relativi (un <c>../altro.md</c>) ora puntano altrove, e la ricerca testuale
+        /// ha la riga col percorso nuovo.
+        /// </summary>
+        private void MoveFolderInDB(WatcherContext context, string oldDir, string newDir)
+        {
+            // GetFullPath: per uno spostamento fra due cartelle il watcher di Linux dà il vecchio come «sotto/../vecchia».
+            oldDir = Path.GetFullPath(oldDir);
+            newDir = Path.GetFullPath(newDir);
+            var oldPrefix = oldDir.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var newPrefix = newDir.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            List<string> moved;
+            try
+            {
+                var dbContext = _databaseManager.GetContext(context.ConnectionId);
+                using (var engineDB = _databaseManager.CreateIsolatedEngineDB(context.ConnectionId))
+                {
+                    engineDB.BeginTransaction();
+                    // Confronto esatto sull'inizio (substr), non LIKE: LIKE in SQLite non distingue maiuscole e ha i caratteri jolly.
+                    moved = engineDB.CreateSQLQuery("SELECT Path FROM MarkdownFile WHERE substr(Path, 1, :len) = :old")
+                        .SetParameter("len", oldPrefix.Length).SetParameter("old", oldPrefix)
+                        .List<string>().ToList();
+                    foreach (var table in new[] { ("MarkdownFile", "Path"), ("DocumentChunk", "FilePath") })
+                        engineDB.CreateSQLQuery($"UPDATE {table.Item1} SET {table.Item2} = :new || substr({table.Item2}, :start) WHERE substr({table.Item2}, 1, :len) = :old")
+                            .SetParameter("new", newPrefix).SetParameter("start", oldPrefix.Length + 1)
+                            .SetParameter("len", oldPrefix.Length).SetParameter("old", oldPrefix)
+                            .ExecuteUpdate();
+                    engineDB.Commit();
+                }
+
+                foreach (var oldPath in moved)
+                {
+                    var newPath = newPrefix + oldPath.Substring(oldPrefix.Length);
+                    _markdownFtsService.DeleteFileByPath(dbContext.ProjectPath, oldPath);
+                    if (File.Exists(newPath))
+                        ParseNewFileIntoDB(context, new FileSystemEventArgs(WatcherChangeTypes.Changed, Path.GetDirectoryName(newPath), Path.GetFileName(newPath)));
+                }
+                _logger.LogInformation($"📁 [{context.ConnectionId}] Folder moved in the index: {moved.Count} files, {oldDir} → {newDir}");
+            }
+            catch (Exception ex)
+            {
+                // L'albero si aggiorna lo stesso; l'indice lo ripara la prossima indicizzazione.
+                _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error moving folder in the index: {oldDir} → {newDir}");
             }
         }
 
