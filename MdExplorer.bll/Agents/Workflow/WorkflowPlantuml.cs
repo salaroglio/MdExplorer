@@ -106,7 +106,7 @@ namespace MdExplorer.Features.Agents.Workflow
                 else
                 {
                     var stereotype = s.Start switch { WorkflowStart.AskOwner => " <<askowner>>", WorkflowStart.Manual => " <<manual>>", _ => "" };
-                    sb.AppendLine($"rectangle \"**{Text(s.Label)}**\\n<size:11>{Text(s.Agent)}</size>\\n<size:10><i>{StartText(s.Start)}</i></size>\"{stereotype} as {Node(s.Id)}{Link(cardPath(s.Agent))}");
+                    sb.AppendLine($"rectangle \"**{Text(s.Label)}**\\n<size:11>{Text(s.Agent)}</size>\\n<size:10><i>{StartText(s.Start)}{(s.Optional ? Say(", facoltativo", ", optional") : "")}</i></size>\"{stereotype} as {Node(s.Id)}{Link(cardPath(s.Agent))}");
                 }
 
                 for (var i = 0; i < s.Outputs.Count; i++)

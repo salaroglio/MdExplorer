@@ -27,8 +27,8 @@ namespace MdExplorer.Features.Agents.Workflow
         public static readonly Regex Placeholder = new(@"\{([^{}\s]+)\}", RegexOptions.Compiled);
 
         private static readonly string[] TopKeys = { "mde_workflow", "title", "description", "variables", "steps", "loops" };
-        private static readonly string[] StepKeys = { "id", "agent", "skill", "person", "title", "trigger", "start", "brief", "task", "inputs", "outcomes", "produces", "approval" };
-        private static readonly string[] AgentOnly = { "skill", "start", "brief", "approval" };
+        private static readonly string[] StepKeys = { "id", "agent", "skill", "person", "title", "trigger", "start", "brief", "task", "inputs", "outcomes", "produces", "approval", "optional" };
+        private static readonly string[] AgentOnly = { "skill", "start", "brief", "approval", "optional" };
         private static readonly string[] PersonOnly = { "task", "outcomes", "produces" };
         private static readonly string[] OutcomeKeys = { "id", "label", "values" };
         private static readonly string[] PersonOutputKeys = { "id", "path", "note" };
@@ -205,6 +205,11 @@ namespace MdExplorer.Features.Agents.Workflow
             step.Agent = RequiredId(r, e, "agent", path + ".agent");
             step.Skill = RequiredId(r, e, "skill", path + ".skill");
             step.Brief = OptionalString(r, e, "brief", path + ".brief");
+            if (e.TryGetProperty("optional", out var optional))
+            {
+                if (optional.ValueKind is JsonValueKind.True or JsonValueKind.False) step.Optional = optional.GetBoolean();
+                else Error(r, path + ".optional", UiText.Say("«optional» è true o false.", "«optional» is true or false."));
+            }
 
             var start = RequiredString(r, e, "start", path + ".start");
             switch (start)

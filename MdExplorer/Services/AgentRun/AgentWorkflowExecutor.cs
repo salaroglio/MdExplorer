@@ -651,6 +651,8 @@ namespace MdExplorer.Services.AgentRun
                 Type = RoundEventType.Declined, At = DateTime.UtcNow, By = Me(message.ProjectPath),
                 Round = message.WorkflowRoundNo ?? 1, Attempt = message.WorkflowAttempt ?? 1, Note = reason,
             }, $"giro {message.WorkflowRound}: «{step.Label}» non avviato"));
+            // Un passo facoltativo scartato lascia partire chi lo aspetta (R7 della valutazione del 07/11).
+            if (step.Optional) Evaluate(message.ProjectPath, message.WorkflowRound);
         }
 
         public void Reconcile(string projectPath, bool refresh = true)

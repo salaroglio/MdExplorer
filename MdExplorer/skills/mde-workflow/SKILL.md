@@ -3,7 +3,7 @@ name: mde-workflow
 description: Plan and change an agents' workflow for MdExplorer's agent city - the `*.workflow.json` that MdExplorer executes as a scheduler (which steps there are, which agent job or which person does each one, what starts it, what it receives, who approves it, which steps repeat), together with the interfaces of the agent cards it connects (inputs, reads, outputs, buttons) and the markdown document that draws it. Use when the user asks to design, describe, review, change or fix how the people and the agents of a project work together, or to add, remove or rewire an input or an output of an agent.
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -63,6 +63,10 @@ agentCity:
   the step** with the reason. With `"wait": "any"` a source that did not finish is skipped: that is wanted.
 - **`ask-owner`**: the step waits in its owner's mail as "To start"; the owner starts it from the launch screen or declines
   it with a reason.
+- **A skipped step** (declined, or discarded from the agent's queue) stops the steps that wait for it, unless it is
+  `"optional": true`: then it counts as passed and they start. An optional step that **fails** still stops them: an error
+  is looked at, not skipped. A skipped step gives no file: an input that takes its outputs gets those of the other steps,
+  and if none is left the step that needs it does not start and says why.
 - **A person's step** arrives in the mail of whoever has its role as "Your turn" (from `workflow`): the task, what they
   receive, the documents to write, and the **outcomes as buttons**. There is no free text: the step closes with an outcome.
   An outcome's values are typed in before pressing. If the step `produces` documents, MdExplorer checks them before
@@ -97,9 +101,11 @@ agentCity:
    `ask-owner`.
 5. **The decisions of the people.** Buttons under an agent's message (declared in its card) and **person steps** with
    outcomes ("Bid" / "Do not bid"). Which values they carry: they become the round's variables.
-6. **Who approves.** The agent's owner (default) or another role (`approval.by`)? Two approvals = two steps in a row: the
+6. **Can a step be skipped?** If its owner does not start it, may the round go on without it (`optional`)? Ask only for
+   steps the round can do without.
+7. **Who approves.** The agent's owner (default) or another role (`approval.by`)? Two approvals = two steps in a row: the
    second is a person step with the document as input and outcomes "Approve" / "Reject".
-7. **Repetitions.** Is some work redone after a rejection, by whom, at most how many times? Is some work done a fixed number
+8. **Repetitions.** Is some work redone after a rejection, by whom, at most how many times? Is some work done a fixed number
    of rounds on purpose?
 
 If you cannot ask, decide, write the decision in the document's text, and tell the user.
@@ -167,6 +173,7 @@ Keys are English, values are free. **Every key that is not listed here is an err
 | `inputs` | when the job has inputs | **one value for each input of the job**, no more, no less (below) |
 | `brief` | no | only what the job's description and inputs do not already say, with `{variables}` |
 | `approval` | no | `{ "by": "<role>" }`: that role approves instead of the agent's owner. The job must have outputs. |
+| `optional` | no | `true`: if a person skips it, the steps after it go on, without its files. Default `false`. |
 
 ### A person's step
 
@@ -179,7 +186,7 @@ Keys are English, values are free. **Every key that is not listed here is an err
 | `inputs` | no | what the person receives: texts or outputs of earlier steps, like an agent's inputs |
 | `produces` | no | `[ { "id", "path", "note"? } ]`: documents the person writes; checked before the outcome is recorded |
 
-A person's step has no `agent`, `skill`, `start`, `brief` or `approval`.
+A person's step has no `agent`, `skill`, `start`, `brief`, `approval` or `optional`.
 
 ### Inputs
 

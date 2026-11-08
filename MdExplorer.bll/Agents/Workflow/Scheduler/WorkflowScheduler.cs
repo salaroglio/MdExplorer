@@ -253,7 +253,14 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// Un giro fermo si può archiviare (prima restava in posta per sempre, 15/10/2026).
         /// </summary>
         public static bool IsStopped(WorkflowDescriptor wf, RoundState round, IReadOnlyDictionary<string, StepView> views)
-            => wf.Steps.All(step => views[step.Id].Status == StepStatus.Finished || !CanStillFinish(wf, round, views, step));
+            => wf.Steps.All(step => Passed(views[step.Id]) || !CanStillFinish(wf, round, views, step));
+
+        /// <summary>
+        /// Chi lo aspetta può partire: il passo è finito, oppure è facoltativo e una persona l'ha scartato (non avviato, o tolto
+        /// dalla coda). Un facoltativo fallito non passa: un errore va guardato, non saltato.
+        /// </summary>
+        public static bool Passed(StepView view)
+            => view.Status == StepStatus.Finished || view.Status == StepStatus.Declined && view.Step?.Optional == true;
 
         /// <summary>
         /// Il passo può ancora finire senza che nessuno lo faccia ripartire? Sì se è finito o è in corso (da avviare, al lavoro,
@@ -270,6 +277,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             switch (views[step.Id].Status)
             {
                 case StepStatus.Finished:
+                case StepStatus.Declined when step.Optional:
                 case StepStatus.Held:
                 case StepStatus.Asked:
                 case StepStatus.Working:
@@ -315,7 +323,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                     return round.EventsOf(t.FromStep).Any(e => e.Type == RoundEventType.Replied
                                                                && string.Equals(e.Reply, t.ReplyId, StringComparison.OrdinalIgnoreCase));
                 case WorkflowTriggerKind.After:
-                    var finished = t.After.Select(a => views.TryGetValue(a, out var v) && v.Status == StepStatus.Finished).ToList();
+                    var finished = t.After.Select(a => views.TryGetValue(a, out var v) && Passed(v)).ToList();
                     return t.Wait == WorkflowWait.Any ? finished.Any(f => f) : finished.All(f => f);
                 default:
                     return false;
@@ -483,6 +491,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             WorkflowInput value, List<AssignmentFile> files)
         {
             var problems = new List<string>();
+            var skipped = new List<string>();
             var firstOnly = step.Trigger?.Kind == WorkflowTriggerKind.After && step.Trigger.Wait == WorkflowWait.Any;
             foreach (var reference in value.From)
             {
@@ -491,6 +500,12 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 var output = source?.Outputs.FirstOrDefault(o => o.Id == reference.Substring(dot + 1));
                 if (output == null)
                     throw new InvalidOperationException($"step '{step.Id}': '{reference}' is not an output of the workflow, but the workflow was bound.");
+                if (views.TryGetValue(source.Id, out var passed) && passed.Status != StepStatus.Finished && Passed(passed))
+                {
+                    // Facoltativo e scartato: non porta file, ed è voluto. Gli altri ingressi arrivano lo stesso.
+                    skipped.Add(source.Label);
+                    continue;
+                }
                 if (!views.TryGetValue(source.Id, out var view) || view.Status != StepStatus.Finished)
                 {
                     if (!(firstOnly && step.Trigger.After.Contains(source.Id)))
@@ -510,6 +525,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                     Path = f, Step = source.Id, StepLabel = source.Label, Output = output.Id, Commit = view.ApprovedCommit,
                 }));
             }
+            if (files.Count == 0 && skipped.Count > 0)
+                problems.Add(UiText.Say($"{string.Join(", ", skipped.Select(l => $"«{l}»"))} è stato scartato", $"{string.Join(", ", skipped.Select(l => $"«{l}»"))} was skipped"));
             return problems.Count == 0 ? null : string.Join("; ", problems);
         }
 

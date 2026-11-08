@@ -74,6 +74,18 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Read_an_optional_agent_step_and_refuse_it_on_a_person_or_with_a_wrong_value()
+        {
+            var ok = ParseGaraWith(@"""start"": ""manual""", @"""start"": ""manual"", ""optional"": true");
+            Assert.IsTrue(ok.IsValid, Issues(ok));
+            Assert.IsTrue(ok.Descriptor.Steps[0].Optional);
+            Assert.IsFalse(WorkflowParser.Parse(GaraV3.Workflow).Descriptor.Steps[0].Optional, "senza la voce: non facoltativo");
+
+            AssertError(ParseGaraWith(@"""start"": ""manual""", @"""start"": ""manual"", ""optional"": ""si"""), "steps[0].optional", "true or false");
+            AssertError(ParseGaraWith(@"""person"": ""Account manager"",", @"""person"": ""Account manager"", ""optional"": true,"), "steps[5].optional", "agent's step");
+        }
+
+        [TestMethod]
         public void Refuse_an_unknown_key_with_its_path()
         {
             var r = ParseGaraWith(@"""start"": ""manual""", @"""strat"": ""manual""");

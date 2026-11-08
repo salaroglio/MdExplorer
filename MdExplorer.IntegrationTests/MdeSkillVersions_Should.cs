@@ -38,7 +38,7 @@ namespace MdExplorer.IntegrationTests
             ["skill/mde-slide"] = (17, "a937abfd06226443"),
             ["skill/mde-tbox"] = (4, "e642e976ab423798"),
             ["skill/mde-template"] = (6, "bb5feb9e6b5332c9"),
-            ["skill/mde-workflow"] = (5, "f75d6582cfb29d3c"),
+            ["skill/mde-workflow"] = (6, "09380831b1ba9886"),
         };
 
         private static Dictionary<string, (int Version, string Hash)> Current()

@@ -67,6 +67,13 @@ namespace MdExplorer.Features.Agents.Workflow
         /// <summary>Passo di un agente: il ruolo che approva al posto del responsabile dell'agente. Null = il responsabile.</summary>
         public string ApprovalBy { get; set; }
         /// <summary>
+        /// Passo di un agente: facoltativo. Se una persona lo scarta (non lo avvia, o lo toglie dalla coda), per i passi che lo
+        /// aspettano conta come passato e il giro prosegue. Un passo facoltativo che FALLISCE ferma lo stesso chi lo aspetta: un
+        /// errore va guardato, non saltato. Scartato, non dà file: chi li prende riceve quelli degli altri passi, e se non ne
+        /// resta nessuno non parte e lo dice (R7 della valutazione del 07/11).
+        /// </summary>
+        public bool Optional { get; set; }
+        /// <summary>
         /// Le uscite del passo. Di un agente: quelle della sua skill, unite dalla scheda. Di una persona: i documenti che
         /// dichiara di scrivere.
         /// </summary>

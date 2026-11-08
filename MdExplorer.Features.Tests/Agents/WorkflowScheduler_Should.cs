@@ -231,6 +231,59 @@ namespace MdExplorer.Features.Tests.Agents
             StringAssert.Contains(blocked.Reason, "is missing the value of {codice}");
         }
 
+        // ---- passi facoltativi (R7 della valutazione del 07/11) ----
+
+        private static string OptionalContract(string json) => json.Replace(
+            @"""skill"": ""scheda-contrattuale"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"",",
+            @"""skill"": ""scheda-contrattuale"", ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""ask-owner"", ""optional"": true,");
+
+        [TestMethod]
+        public void Go_on_without_an_optional_step_that_its_owner_skipped()
+        {
+            var wf = Parse(OptionalContract(Gara));
+            Assert.IsTrue(wf.Step("contratto").Optional);
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Approve(round, "delivery", "responsabile-delivery", "gara/schede/delivery.md");
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Held);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Declined, note: "lo fa lo studio esterno");
+
+            var summary = WorkflowScheduler.Decide(wf, round, Pc("account-manager")).Single();
+            Assert.AreEqual(SchedulerActionKind.Start, summary.Kind, "facoltativo e scartato: la sintesi parte");
+            CollectionAssert.AreEqual(new[] { "gara/schede/tecnica.md", "gara/schede/delivery.md" }, Files(summary, "schede"), "senza la scheda scartata");
+            Assert.IsFalse(WorkflowScheduler.IsStopped(wf, round, WorkflowScheduler.Views(wf, round)));
+        }
+
+        [TestMethod]
+        public void Not_go_on_when_an_optional_step_fails()
+        {
+            var wf = Parse(OptionalContract(Gara));
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Approve(round, "delivery", "responsabile-delivery", "gara/schede/delivery.md");
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Held);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Started);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Failed, note: "provider in errore");
+
+            Assert.AreEqual(0, WorkflowScheduler.Decide(wf, round, Everyone).Count, "un errore si guarda, non si salta");
+            Assert.IsTrue(WorkflowScheduler.IsStopped(wf, round, WorkflowScheduler.Views(wf, round)));
+        }
+
+        [TestMethod]
+        public void Say_why_a_step_cannot_start_when_its_only_source_was_skipped()
+        {
+            var wf = Parse(OptionalContract(Gara).Replace(@"""from"": [""tecnica.scheda"", ""contratto.scheda"", ""delivery.scheda""]", @"""from"": [""contratto.scheda""]"));
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Approve(round, "delivery", "responsabile-delivery", "gara/schede/delivery.md");
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Held);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Declined, note: "no");
+
+            var blocked = WorkflowScheduler.Decide(wf, round, Pc("account-manager")).Single();
+            Assert.AreEqual(SchedulerActionKind.Blocked, blocked.Kind);
+            StringAssert.Contains(blocked.Reason, "was skipped");
+        }
+
         // ---- il registro su disco ----
 
         [TestMethod]

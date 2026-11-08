@@ -24,11 +24,14 @@ namespace MdExplorer.Controllers.A2A
 
         private readonly IUserSettingsDB _session;
         private readonly ILogger<AgentQueueController> _logger;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorkflowExecutor _workflow;
 
-        public AgentQueueController(IUserSettingsDB session, ILogger<AgentQueueController> logger)
+        public AgentQueueController(IUserSettingsDB session, ILogger<AgentQueueController> logger,
+            MdExplorer.Services.AgentRun.IAgentWorkflowExecutor workflow)
         {
             _session = session;
             _logger = logger;
+            _workflow = workflow;
         }
 
         [HttpGet("{name}/queue")]
@@ -146,6 +149,14 @@ namespace MdExplorer.Controllers.A2A
         [HttpPost("queue/{messageId}/discard")]
         public IActionResult Discard(Guid messageId)
         {
+            // Il passo di un giro lo scarta solo chi ne risponde: il registro del giro lo scrive un computer solo. Si chiede
+            // FUORI dalla transazione, come per «Rifiuta» nella posta.
+            _session.BeginTransaction();
+            var peek = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
+            _session.Commit();
+            var notYours = peek?.WorkflowRound != null ? _workflow.NotYours(peek) : null;
+            if (notYours != null)
+                return Conflict(new { error = notYours });
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
@@ -174,6 +185,13 @@ namespace MdExplorer.Controllers.A2A
                 dal.Save(msg);
                 _session.Commit();
                 _logger.LogInformation("[AgentQueue] messaggio {Id} scartato dall'utente", messageId);
+                // R7 della valutazione del 07/11: il passo di un giro scartato va nel registro come «non avviato», come
+                // «Rifiuta» nella posta. Se il passo è facoltativo, chi lo aspetta parte; altrimenti resta fermo e lo si vede.
+                if (msg.WorkflowRound != null)
+                {
+                    try { _workflow.OnOwnerDeclined(msg, UiText.Say("Scartato dalla coda dell'agente.", "Discarded from the agent's queue.")); }
+                    catch (Exception ex) { _logger.LogError(ex, "[AgentQueue] scarto di {Id} non registrato nel giro {Round}", messageId, msg.WorkflowRound); }
+                }
                 return Ok(new { discarded = true });
             }
             catch (Exception ex)

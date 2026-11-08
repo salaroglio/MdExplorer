@@ -31,7 +31,8 @@ namespace MdExplorer.IntegrationTests
   ""steps"": [
     { ""id"": ""incarica"", ""agent"": ""capo"", ""skill"": ""incarica"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
     { ""id"": ""scheda"", ""agent"": ""tecnico"", ""skill"": ""scheda"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
-      ""brief"": ""Scrivi la scheda tecnica."" }
+      ""brief"": ""Scrivi la scheda tecnica."" },
+    { ""id"": ""chiudi"", ""agent"": ""capo"", ""skill"": ""sintesi"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"" }
   ]
 }";
 
@@ -74,9 +75,43 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(StepStatus.Failed, WorkflowScheduler.View(Wf(path), Round(ctx, path, held), Wf(path).Step("scheda")).Status);
         }
 
+        // ---- «Scarta» dalla coda dell'agente ----
+
+        [TestMethod]
+        public async Task Record_a_step_discarded_from_the_queue_and_keep_who_waits_for_it_stopped()
+        {
+            using var ctx = new AgentCityContext();
+            var path = Setup(ctx, "giro-scarta");
+            var held = await LaunchAndWaitForHold(ctx, path);
+
+            var (status, body) = await ctx.PostJson($"/api/A2A/agents/queue/{held.Id}/discard", null);
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            await WaitFor(() => Last(ctx, path, held) == RoundEventType.Declined);
+            StringAssert.Contains(Round(ctx, path, held).EventsOf("scheda").Last().Note, "queue");
+            await Task.Delay(1500);
+            Assert.AreEqual(0, Round(ctx, path, held).EventsOf("chiudi").Count(), "non facoltativo: chi lo aspetta resta fermo");
+            Assert.AreEqual(1, ctx.Runner.Calls);
+        }
+
+        [TestMethod]
+        public async Task Go_on_when_an_optional_step_is_discarded_from_the_queue()
+        {
+            using var ctx = new AgentCityContext();
+            var path = Setup(ctx, "giro-scarta-facoltativo", Workflow.Replace(@"""start"": ""ask-owner"",", @"""start"": ""ask-owner"", ""optional"": true,"));
+            var held = await LaunchAndWaitForHold(ctx, path);
+
+            var (status, body) = await ctx.PostJson($"/api/A2A/agents/queue/{held.Id}/discard", null);
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            await WaitFor(() => Round(ctx, path, held).EventsOf("chiudi").Any(e => e.Type == RoundEventType.Done), 30000);
+            Assert.AreEqual(RoundEventType.Declined, Last(ctx, path, held));
+            Assert.AreEqual(2, ctx.Runner.Calls, "il capo ha chiuso il giro, il tecnico non è partito");
+        }
+
         // ---- appoggi ----
 
-        private static string Setup(AgentCityContext ctx, string name)
+        private static string Setup(AgentCityContext ctx, string name, string workflow = Workflow)
         {
             var (_, path) = ctx.SeedProject(name);
             ctx.SetGitEmail(path, "io@test.local");
@@ -91,7 +126,7 @@ namespace MdExplorer.IntegrationTests
             ctx.OwnAgents(path, "capo", "tecnico");
 
             File.WriteAllText(Path.Combine(path, "workflow.md"), "---\nmde_type: workflow\nworkflow: prova.workflow.json\n---\n# Prova\n");
-            File.WriteAllText(Path.Combine(path, "prova.workflow.json"), Workflow);
+            File.WriteAllText(Path.Combine(path, "prova.workflow.json"), workflow);
             var city = meta.GetAgentCity(path);
             city.WorkflowDocs = new System.Collections.Generic.List<string> { "workflow.md" };
             meta.SetAgentCity(path, city);
