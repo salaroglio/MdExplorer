@@ -1027,6 +1027,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 logPhase("ProjectsManager.SetNewProject (migrations+init)");
 
                 // NOW register database contexts (after migrations are complete)
+                // C2: il watcher del progetto di prima si ferma PRIMA che il database cambi, sennò scriverebbe nel nuovo.
+                if (_fileSystemWatcherManager.HasWatcher(connectionId)) _fileSystemWatcherManager.UnregisterWatcher(connectionId);
                 _databaseManager.RegisterConnection(connectionId, request.Path);
                 logger?.LogInformation($"✅ Database contexts registered for connection {connectionId}");
                 logPhase("DatabaseManager.RegisterConnection");

@@ -121,6 +121,7 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 ProjectsManager.PointAtWorkingCopy(_services, desk.Path, body.ProjectPath);
+                if (_watchers.HasWatcher(body.ConnectionId)) _watchers.UnregisterWatcher(body.ConnectionId); // C2: prima del database
                 _databaseManager.RegisterConnection(body.ConnectionId, desk.Path);
                 _watchers.RegisterWatcher(body.ConnectionId, desk.Path);
             }
@@ -356,6 +357,7 @@ namespace MdExplorer.Controllers.A2A
         private void Back(WorkspaceRequest body)
         {
             ProjectsManager.PointAtWorkingCopy(_services, body.ProjectPath, body.ProjectPath);
+            if (_watchers.HasWatcher(body.ConnectionId)) _watchers.UnregisterWatcher(body.ConnectionId); // C2: prima del database
             _databaseManager.RegisterConnection(body.ConnectionId, body.ProjectPath);
             _watchers.RegisterWatcher(body.ConnectionId, body.ProjectPath);
         }

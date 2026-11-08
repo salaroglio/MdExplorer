@@ -27,6 +27,12 @@ namespace MdExplorer.Services.DatabaseManager
     public class DatabaseManager : IDatabaseManager
     {
         private readonly ConcurrentDictionary<string, ConnectionDatabaseContext> _contexts = new();
+
+        /// <summary>
+        /// Una <see cref="ISessionFactory"/> per file di database, costruita una volta (C2 della valutazione del 07/11): prima
+        /// se ne costruiva una a ogni apertura, e la chiusura della sessione non la chiudeva, quindi restavano tutte in memoria.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Lazy<ISessionFactory>> _factories = new();
         private readonly ILogger<DatabaseManager> _logger;
         private readonly string _appDataPath;
 
@@ -79,7 +85,16 @@ namespace MdExplorer.Services.DatabaseManager
                     RegisteredAt = DateTime.UtcNow
                 };
 
-                _contexts[connectionId] = context;
+                // C2: la stessa finestra che apre un altro progetto (o rientra dalla copia di un agente) sostituisce il
+                // contesto: il vecchio si chiude, invece di restare aperto accanto al nuovo.
+                ConnectionDatabaseContext previous = null;
+                _contexts.AddOrUpdate(connectionId, context, (_, old) => { previous = old; return context; });
+                if (previous != null && !ReferenceEquals(previous, context))
+                {
+                    _logger.LogInformation($"🔁 Connection {connectionId}: closing the previous databases ({previous.ProjectPath})");
+                    DisposeDatabase(previous.EngineDB, "EngineDB");
+                    DisposeDatabase(previous.ProjectDB, "ProjectDB");
+                }
 
                 _logger.LogInformation($"✅ Connection {connectionId} registered successfully");
             }
@@ -219,17 +234,28 @@ namespace MdExplorer.Services.DatabaseManager
             }
         }
 
+        private ISessionFactory FactoryFor(string connectionString, Assembly mappings)
+        {
+            var key = mappings.GetName().Name + "|" + connectionString;
+            var factory = _factories.GetOrAdd(key, _ => new Lazy<ISessionFactory>(() =>
+                Fluently.Configure()
+                    .Database(new DatabaseSQLite().Config(connectionString))
+                    .Mappings(m => m.FluentMappings.AddFromAssembly(mappings))
+                    .BuildSessionFactory()));
+            try { return factory.Value; }
+            catch
+            {
+                // Lazy ricorderebbe l'errore per sempre: la prossima apertura riprova.
+                _factories.TryRemove(key, out _);
+                throw;
+            }
+        }
+
         private IEngineDB CreateEngineDB(string connectionString)
         {
             try
             {
-                var config = new DatabaseSQLite().Config(connectionString);
-                var assembly = typeof(MarkdownFileMap).Assembly;
-
-                var sessionFactory = Fluently.Configure()
-                    .Database(config)
-                    .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly))
-                    .BuildSessionFactory();
+                var sessionFactory = FactoryFor(connectionString, typeof(MarkdownFileMap).Assembly);
 
                 var session = sessionFactory.OpenSession();
                 DatabaseSQLite.ApplyPragmas(session);
@@ -246,13 +272,7 @@ namespace MdExplorer.Services.DatabaseManager
         {
             try
             {
-                var config = new DatabaseSQLite().Config(connectionString);
-                var assembly = typeof(SemanticClusterMap).Assembly;
-
-                var sessionFactory = Fluently.Configure()
-                    .Database(config)
-                    .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly))
-                    .BuildSessionFactory();
+                var sessionFactory = FactoryFor(connectionString, typeof(SemanticClusterMap).Assembly);
 
                 var session = sessionFactory.OpenSession();
                 DatabaseSQLite.ApplyPragmas(session);

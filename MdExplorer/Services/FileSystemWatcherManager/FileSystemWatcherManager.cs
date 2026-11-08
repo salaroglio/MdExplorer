@@ -219,6 +219,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
             var normalizedPath = Path.GetFullPath(projectPath);
 
+            // C2 della valutazione del 07/11: la finestra che apre un altro progetto sostituiva il watcher senza fermare il
+            // vecchio, che continuava a scrivere nel database della connessione, cioè in quello del progetto nuovo.
+            if (_watchers.ContainsKey(connectionId))
+                UnregisterWatcher(connectionId);
+
             _logger.LogInformation($"📁 Registering FileSystemWatcher for connection {connectionId}: {normalizedPath}");
 
             try
