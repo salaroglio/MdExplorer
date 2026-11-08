@@ -930,7 +930,8 @@ namespace MdExplorer.Services.AgentRun
             });
 
         private void MarkFailed(Guid messageId, string error)
-            => UpdateMessage(messageId, m =>
+        {
+            UpdateMessage(messageId, m =>
             {
                 m.State = AgentMessage.StateEnum.Failed;
                 m.ProcessedAt = DateTime.UtcNow;
@@ -938,6 +939,34 @@ namespace MdExplorer.Services.AgentRun
                 m.DeferredReason = null;
                 m.ForcedAt = null;
             });
+            TellRoundIfFailed(messageId);
+        }
+
+        /// <summary>
+        /// R7 della valutazione del 07/11: l'incarico di un passo di un giro è fallito per sempre (prima che l'agente partisse, o
+        /// a tentativi finiti). Il giro lo segnava «in lavorazione» e restava lì: ora riceve «fallito» con il motivo, come quando
+        /// fallisce il turno dell'agente. Finché restano tentativi non si dice niente: il passo riprova da solo.
+        /// </summary>
+        private void TellRoundIfFailed(Guid messageId)
+        {
+            AgentMessage m;
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.BeginTransaction();
+                m = db.GetDal<AgentMessage>().GetList().FirstOrDefault(x => x.Id == messageId);
+                db.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispatcher] lettura del messaggio {Id} fallita: il giro non sa che il passo è fallito", messageId);
+                return;
+            }
+            if (m == null || m.WorkflowRound == null || m.State != AgentMessage.StateEnum.Failed) return;
+            try { _workflow.OnRunEnded(m.ProjectPath, m.ToAgent, null, messageId, null, false, m.Error); }
+            catch (Exception ex) { _logger.LogError(ex, "[Dispatcher] registro del giro {Round} non aggiornato per '{Agent}'", m.WorkflowRound, m.ToAgent); }
+        }
 
         /// <summary>
         /// Parcheggia la consegna (§12.5): torna <c>pending</c> con il motivo, riprovabile solo
@@ -1054,7 +1083,8 @@ namespace MdExplorer.Services.AgentRun
         }
 
         private void RetryOrFail(Guid messageId, string error)
-            => UpdateMessage(messageId, m =>
+        {
+            UpdateMessage(messageId, m =>
             {
                 m.Attempts += 1;
                 if (m.Attempts >= MaxAttempts)
@@ -1073,6 +1103,8 @@ namespace MdExplorer.Services.AgentRun
                     m.Error = error;
                 }
             });
+            TellRoundIfFailed(messageId);
+        }
 
         private void UpdateMessage(Guid messageId, Action<AgentMessage> mutate)
         {
