@@ -214,6 +214,7 @@ namespace MdExplorer.IntegrationTests
         {
             [1] = "217dfd9b9fddc939fe7d95703603cdd044af3b12df05e2dee9d078001e7fc3a3",
             [2] = "a7cd33ba715b2bd78dec6cb45b9589edec7ec8425eaba40e087737adee8e90ad",
+            [3] = "9088b2ab284de70c79d14cb97d7ade77857934eedfe646eb23539309c987ddeb",   // il gruppo agentCards (R8, 08/11)
         };
 
         private static string SnapshotText(int version)

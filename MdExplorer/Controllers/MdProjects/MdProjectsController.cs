@@ -198,6 +198,40 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         /// <summary>
+        /// Le regole delle schede degli agenti (<c>agentCards:</c> in <c>.development.yml</c>, R8 della valutazione del 07/11):
+        /// con <c>requireToolsAndRuntime</c> ogni scheda deve dichiarare <c>tools:</c> e <c>runtime:</c>.
+        /// </summary>
+        [HttpGet]
+        public IActionResult AgentCards([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            return Ok(new { requireToolsAndRuntime = _projectMetadataService.GetAgentCards(path)?.RequireToolsAndRuntime == true });
+        }
+
+        [HttpPost]
+        public IActionResult SetAgentCards([FromQuery] string path, [FromBody] AgentCardsRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            try
+            {
+                var saved = _projectMetadataService.SetAgentCards(path, new AgentCardsConfig { RequireToolsAndRuntime = request?.RequireToolsAndRuntime == true });
+                return Ok(new { requireToolsAndRuntime = saved.RequireToolsAndRuntime });
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException)
+            {
+                // Anche il gruppo spento perché .development.yml è di una versione più alta (DevelopmentConfigOffException).
+                return Conflict(new { message = ex.Message, error = ex.Message });
+            }
+        }
+
+        public class AgentCardsRequest
+        {
+            public bool RequireToolsAndRuntime { get; set; }
+        }
+
+        /// <summary>
         /// Stato di attivazione della città degli agenti (§12.4). Il room secret NON è
         /// esposto (credenziale, vive nel .development.yml condiviso via git): il client
         /// sa solo se esiste.

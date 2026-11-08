@@ -24,6 +24,12 @@ namespace MdExplorer.Services
         AgentCityConfig GetAgentCity(string projectPath);
         AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config);
 
+        /// <summary>Le regole delle schede degli agenti (<c>agentCards:</c>); null se il file o la sezione non ci sono.</summary>
+        AgentCardsConfig GetAgentCards(string projectPath);
+
+        /// <summary>Scrive le regole delle schede degli agenti, per tutto il team (con git).</summary>
+        AgentCardsConfig SetAgentCards(string projectPath, AgentCardsConfig config);
+
         /// <summary>
         /// Il segreto del PROGETTO (<c>agentCity.roomSecret</c>), che apre la sua stanza sul relay per la
         /// città e per la chat. Se manca lo genera e lo scrive in <c>.development.yml</c> senza accendere la
@@ -231,6 +237,45 @@ namespace MdExplorer.Services
 
             MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("aggiornati i partecipanti del progetto", "project participants updated"));
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
+        }
+
+        public AgentCardsConfig GetAgentCards(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath)) return null;
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath)) return null;
+            try
+            {
+                var yaml = ReadConfigText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml)) return null;
+                var deserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).IgnoreUnmatchedProperties().Build();
+                return deserializer.Deserialize<DevelopmentConfig>(yaml)?.AgentCards;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read agentCards config from {FilePath}", filePath);
+                return null;
+            }
+        }
+
+        public AgentCardsConfig SetAgentCards(string projectPath, AgentCardsConfig config)
+        {
+            if (string.IsNullOrEmpty(projectPath)) throw new ArgumentException("projectPath is required", nameof(projectPath));
+            if (!Directory.Exists(projectPath)) throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+            if (config == null) throw new ArgumentNullException(nameof(config));
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).IgnoreUnmatchedProperties().Build();
+            DevelopmentConfig root = new DevelopmentConfig();
+            if (File.Exists(filePath))
+            {
+                var yaml = ReadConfigText(filePath);
+                if (!string.IsNullOrWhiteSpace(yaml)) root = deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig();
+            }
+            root.AgentCards = new AgentCardsConfig { RequireToolsAndRuntime = config.RequireToolsAndRuntime };
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, root,
+                new MdExplorer.Utilities.MdeWhy("aggiornate le regole delle schede degli agenti", "agent card rules updated"));
+            return root.AgentCards;
         }
 
         public AgentCityConfig GetAgentCity(string projectPath)

@@ -45,6 +45,23 @@ namespace MdExplorer.Features.Yaml.Models
         /// </summary>
         public IList<string> Tools { get; set; }
 
+        /// <summary>
+        /// La scheda scrive la voce <c>tools:</c> (anche vuota). Con l'impostazione del progetto
+        /// <c>agentCards.requireToolsAndRuntime</c> accesa una scheda senza non parte (R8 della valutazione del 07/11).
+        /// </summary>
+        public bool DeclaresTools { get; set; }
+
+        /// <summary>La scheda scrive la voce <c>runtime:</c>. Come <see cref="DeclaresTools"/>.</summary>
+        public bool DeclaresRuntime { get; set; }
+
+        /// <summary>
+        /// Una scheda che NON è un cittadino (senza <c>a2a:</c>) scritta male: il blocco iniziale non si legge, o
+        /// <c>runtime:</c> ha una voce sconosciuta. L'agente non parte e questo è il perché. Prima si lanciava lo stesso, senza
+        /// i limiti di <c>tools:</c> e sul motore predefinito (R8 della valutazione del 07/11). Per un cittadino lo stesso
+        /// errore è <see cref="RegistrationError"/>.
+        /// </summary>
+        public string CardError { get; set; }
+
         /// <summary>Card valida, presente e cittadina: pronta ad entrare nel registry.</summary>
         public bool IsCitizen => IsValid && HasA2aBlock && Card != null;
     }

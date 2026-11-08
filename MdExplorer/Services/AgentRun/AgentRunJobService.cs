@@ -288,6 +288,11 @@ namespace MdExplorer.Services.AgentRun
                 }
 
                 var agentContent = await File.ReadAllTextAsync(request.AgentFilePath, cts.Token);
+                // R8: una scheda scritta male non parte (prima partiva più aperta di come era scritta).
+                var cardError = MdExplorer.Features.Agents.AgentCardRules.LaunchError(
+                    new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(agentContent), agentName, RequiresToolsAndRuntime(request.ProjectPath));
+                if (cardError != null)
+                    throw new InvalidOperationException(cardError);
                 // Rubrica (§6): i colleghi fidati del progetto, escluso sé stesso. Contesto
                 // opzionale — il satellite Scheduler NON la inietta (non ha il registry).
                 var roster = BuildRoster(request.ProjectPath, request.AgentFilePath);
@@ -519,6 +524,13 @@ namespace MdExplorer.Services.AgentRun
         /// <c>tools:</c> è in sola lettura, come per i risvegli da messaggio; un agente senza manifesto e non
         /// cittadino (<c>null</c>) gira come prima: il limite vale per chi ha una dichiarazione da far rispettare.
         /// </summary>
+        /// <summary>L'impostazione del progetto <c>agentCards.requireToolsAndRuntime</c> (R8): spenta se non c'è.</summary>
+        private bool RequiresToolsAndRuntime(string projectPath)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            return scope.ServiceProvider.GetService<MdExplorer.Services.IProjectMetadataService>()?.GetAgentCards(projectPath)?.RequireToolsAndRuntime == true;
+        }
+
         public static IReadOnlyList<string> DeclaredToolsOf(string agentContent)
         {
             var parsed = new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(agentContent);

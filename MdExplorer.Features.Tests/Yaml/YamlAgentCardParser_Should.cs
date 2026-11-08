@@ -20,6 +20,66 @@ namespace MdExplorer.Features.Tests.Yaml
             _parser = serviceCollection.BuildServiceProvider().GetService<IYamlAgentCardParser>();
         }
 
+        // ---- R8 della valutazione del 07/11: una scheda scritta male non parte più aperta ----
+
+        [TestMethod]
+        public void Give_the_tools_of_a_card_that_is_not_a_citizen_to_who_launches_it()
+        {
+            var r = _parser.GetDescriptor("---\ndescription: x\ntools: [read]\nruntime:\n  provider: claude\n---\ncorpo");
+            Assert.IsFalse(r.IsCitizen);
+            CollectionAssert.AreEqual(new[] { "read" }, r.Tools.ToArray(), "prima arrivava null: nessun limite");
+            Assert.IsTrue(r.DeclaresTools);
+            Assert.IsTrue(r.DeclaresRuntime);
+            Assert.IsNull(r.CardError);
+        }
+
+        [TestMethod]
+        public void Say_why_a_card_that_is_not_a_citizen_cannot_be_read()
+        {
+            var r = _parser.GetDescriptor("---\ntools: [read\nruntime: claude: x\n---\ncorpo");
+            Assert.IsFalse(r.IsCitizen);
+            Assert.IsNotNull(r.CardError, "prima: nessun errore, e l'agente partiva senza limiti");
+        }
+
+        [TestMethod]
+        public void Refuse_an_unknown_key_in_runtime_on_any_card()
+        {
+            var plain = _parser.GetDescriptor("---\ntools: [read]\nruntime:\n  provder: copilot\n---\ncorpo");
+            StringAssert.Contains(plain.CardError, "runtime.provder");
+
+            var citizen = _parser.GetDescriptor("---\ntools: [read]\nruntime:\n  modle: opus\na2a:\n  name: x-agent\n  role: r\n---\ncorpo");
+            Assert.IsFalse(citizen.IsValid);
+            StringAssert.Contains(citizen.RegistrationError, "runtime.modle");
+        }
+
+        [TestMethod]
+        public void Tell_whether_a_card_declares_tools_and_runtime()
+        {
+            var none = _parser.GetDescriptor("---\ndescription: x\n---\ncorpo");
+            Assert.IsFalse(none.DeclaresTools);
+            Assert.IsFalse(none.DeclaresRuntime);
+            Assert.IsNull(none.CardError, "facoltativi: una scheda senza va bene");
+
+            var empty = _parser.GetDescriptor("---\ntools: []\n---\ncorpo");
+            Assert.IsTrue(empty.DeclaresTools, "vuota è una dichiarazione: niente scrittura né shell");
+        }
+
+        [TestMethod]
+        public void Stop_a_card_without_tools_or_runtime_only_when_the_project_requires_them()
+        {
+            var none = _parser.GetDescriptor("---\ndescription: x\n---\ncorpo");
+            Assert.IsNull(MdExplorer.Features.Agents.AgentCardRules.LaunchError(none, "a", requireToolsAndRuntime: false));
+            var error = MdExplorer.Features.Agents.AgentCardRules.LaunchError(none, "a", requireToolsAndRuntime: true);
+            StringAssert.Contains(error, "tools:");
+            StringAssert.Contains(error, "runtime:");
+
+            var both = _parser.GetDescriptor("---\ntools: [read]\nruntime:\n  provider: claude\n---\ncorpo");
+            Assert.IsNull(MdExplorer.Features.Agents.AgentCardRules.LaunchError(both, "a", requireToolsAndRuntime: true));
+
+            var broken = _parser.GetDescriptor("---\nruntime:\n  provder: x\n---\ncorpo");
+            Assert.IsNotNull(MdExplorer.Features.Agents.AgentCardRules.LaunchError(broken, "a", requireToolsAndRuntime: false), "scritta male: non parte mai");
+        }
+
         // ---- frontmatter valido ----
 
         [TestMethod]

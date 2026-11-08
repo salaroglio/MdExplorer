@@ -331,6 +331,15 @@ export class ProjectSettingsService {
     return this.http.post<{ notes: string[]; agentCity: any }>('../api/MdProjects/EnableAgentCity', { path: projectPath, guide, language });
   }
 
+  /** Le regole delle schede degli agenti, uguali per il team (.development.yml, agentCards). */
+  getAgentCards(projectPath: string): Observable<{ requireToolsAndRuntime: boolean }> {
+    return this.http.get<{ requireToolsAndRuntime: boolean }>('../api/MdProjects/AgentCards', { params: { path: projectPath } });
+  }
+
+  setAgentCards(projectPath: string, requireToolsAndRuntime: boolean): Observable<{ requireToolsAndRuntime: boolean }> {
+    return this.http.post<{ requireToolsAndRuntime: boolean }>('../api/MdProjects/SetAgentCards', { requireToolsAndRuntime }, { params: { path: projectPath } });
+  }
+
   setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; workflowDocs?: string[]; relayUrl?: string; useAgentWorktrees?: boolean }): Observable<any> {
     return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
   }

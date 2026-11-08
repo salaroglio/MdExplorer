@@ -75,6 +75,12 @@ namespace MdExplorer.Service.Models
         public HarnessConfig Harness { get; set; }
 
         /// <summary>
+        /// Le regole delle schede degli agenti (<c>*.agent.md</c>), uguali per il team (R8 della valutazione del 07/11).
+        /// Null = le regole di sempre: <c>tools:</c> e <c>runtime:</c> facoltativi (se ci sono, scritti bene).
+        /// </summary>
+        public AgentCardsConfig AgentCards { get; set; }
+
+        /// <summary>
         /// Le radici di codice ESTERNE alla radice del progetto (sprint 2026-10-12-Radici-Di-Codice-Esterne, R1): qui solo
         /// l'IDENTITÀ (alias, repository, sottocartella), su Git e uguale per il team; dove sta la cartella su ogni
         /// macchina lo dice lo UserDB (<c>CodeRootBinding</c>), mai questo file. Null/assente = nessuna radice esterna.
@@ -186,6 +192,16 @@ namespace MdExplorer.Service.Models
         /// scegliere altro nella sua scelta personale (UserDB), e la scheda di un agente altro ancora.
         /// </summary>
         public string Model { get; set; }
+    }
+
+    /// <summary>Sezione <c>agentCards:</c> di <c>.development.yml</c>.</summary>
+    public class AgentCardsConfig
+    {
+        /// <summary>
+        /// Ogni scheda deve scrivere <c>tools:</c> (cosa può fare l'agente) e <c>runtime:</c> (motore e modello): una scheda
+        /// senza non parte. Spento (il predefinito) = facoltativi, ma se ci sono vanno scritti bene.
+        /// </summary>
+        public bool RequireToolsAndRuntime { get; set; }
     }
 
     /// <summary>

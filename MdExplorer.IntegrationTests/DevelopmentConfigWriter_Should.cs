@@ -49,7 +49,7 @@ namespace MdExplorer.IntegrationTests
 
             var text = DevelopmentConfigWriter.Compose(null, config);
 
-            StringAssert.StartsWith(text, "# mde-schema: 2\n");
+            StringAssert.StartsWith(text, $"# mde-schema: {MdExplorer.Features.Configuration.DevelopmentSchemaSnapshots.Current}\n");
             StringAssert.Contains(text, "harness:\n  target: claude\n  model:\n", "voce non compilata: scritta, senza valore");
             StringAssert.Contains(text, "  description:\n");
             StringAssert.Contains(text, "  knowledgeGraph:\n");
@@ -77,7 +77,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(Block(Old, "folders"), Block(text, "folders"), "uguale: byte per byte, anche senza le voci vuote dello schema 1");
             Assert.AreEqual(Block(Old, "project"), Block(text, "project"));
             Assert.AreEqual("harness:\n  target: claude\n  model:", Block(text, "harness"), "il gruppo che cambia si completa (D6)");
-            StringAssert.StartsWith(text, "# mde-schema: 2\n");
+            StringAssert.StartsWith(text, $"# mde-schema: {MdExplorer.Features.Configuration.DevelopmentSchemaSnapshots.Current}\n");
         }
 
         [TestMethod]
@@ -155,7 +155,7 @@ namespace MdExplorer.IntegrationTests
             item.Folders.Add(new DevelopmentFolder { Path = "nuova" });
             Assert.ThrowsException<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(newer, item));
 
-            Assert.IsTrue(DevelopmentConfigWriter.Compose("# mde-schema: 1\n" + Old, config).StartsWith("# mde-schema: 2\n"), "un numero più basso sale");
+            Assert.IsTrue(DevelopmentConfigWriter.Compose("# mde-schema: 1\n" + Old, config).StartsWith($"# mde-schema: {MdExplorer.Features.Configuration.DevelopmentSchemaSnapshots.Current}\n"), "un numero più basso sale");
         }
 
         [TestMethod]

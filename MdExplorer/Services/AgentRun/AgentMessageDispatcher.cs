@@ -440,6 +440,17 @@ namespace MdExplorer.Services.AgentRun
                 return;
             }
 
+            // R8: una scheda scritta male, o senza tools:/runtime: quando il progetto li chiede, non parte. Ritentare non serve:
+            // va corretta la scheda.
+            var cardError = MdExplorer.Features.Agents.AgentCardRules.LaunchError(
+                new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(agentContent), entry.Name,
+                _projectMetadata.GetAgentCards(snapshot.ProjectPath)?.RequireToolsAndRuntime == true);
+            if (cardError != null)
+            {
+                MarkFailed(messageId, cardError);
+                return;
+            }
+
             var roster = BuildRoster(catalog, entry.Name, snapshot.ProjectPath);
             // Ownership del progetto (§12.3): iniettata come routing hint SOLO se la
             // federazione è attiva e il doc è valido (il servizio ritorna null altrimenti).

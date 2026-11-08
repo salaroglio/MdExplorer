@@ -63,17 +63,41 @@ namespace MdExplorer.Features.Yaml
             }
             catch (Exception ex)
             {
-                // YAML malformato: è un errore fail-loud SOLO se il file rivendica cittadinanza.
+                // YAML malformato. Un cittadino non entra nel registro; una scheda che non lo è non parte, dicendo perché:
+                // prima si lanciava lo stesso, senza tools: né runtime: (R8 della valutazione del 07/11).
                 return declaresA2a
                     ? Invalid($"Blocco 'a2a:' malformato: {ex.Message}")
-                    : NotACitizen();
+                    : new AgentCardParseResult
+                    {
+                        HasA2aBlock = false, IsValid = true,
+                        CardError = MdExplorer.Features.Services.UiText.Say(
+                            $"Il blocco iniziale della scheda (tra i due '---') non si legge: {ex.Message}",
+                            $"The card's header block (between the two '---') cannot be read: {ex.Message}"),
+                    };
             }
 
+            var root = Root(yaml);
             if (declaresA2a)
             {
-                var unknown = UnknownA2aKey(yaml);
+                var unknown = UnknownA2aKey(root);
                 if (unknown != null) return Invalid(unknown);
             }
+            // Se c'è, runtime: va scritto bene: una voce sconosciuta («provder») lo farebbe girare sul motore predefinito.
+            var runtimeError = root != null && root.TryGetValue("runtime", out var runtimeNode) && runtimeNode != null
+                ? UnknownKey(runtimeNode, typeof(AgentRuntimeDescriptor), "runtime")
+                : null;
+            if (runtimeError != null && declaresA2a) return Invalid(runtimeError);
+
+            var declares = (Tools: root?.ContainsKey("tools") == true, Runtime: root?.ContainsKey("runtime") == true);
+            var result = Read(wrapper, declaresA2a);
+            result.DeclaresTools = declares.Tools;
+            result.DeclaresRuntime = declares.Runtime;
+            if (runtimeError != null) result.CardError = runtimeError;
+            return result;
+        }
+
+        private AgentCardParseResult Read(A2aFrontmatterWrapper wrapper, bool declaresA2a)
+        {
 
             if (wrapper.A2a == null)
             {
@@ -82,7 +106,7 @@ namespace MdExplorer.Features.Yaml
                 // pianificazione, gira sul motore che dichiara (sprint 2026-09-29-Motore-LLM-Unico, F5).
                 return declaresA2a
                     ? Invalid("Blocco 'a2a:' presente ma vuoto: manca 'name'.")
-                    : NotACitizen(wrapper.Runtime);
+                    : NotACitizen(wrapper.Runtime, wrapper.Tools);
             }
 
             return Validate(wrapper.A2a, wrapper.Tools, wrapper.Runtime);
@@ -170,11 +194,14 @@ namespace MdExplorer.Features.Yaml
         /// e si confronta, livello per livello, con le proprietà del modello. Il resto del frontmatter (description, tools,
         /// mde…) non è affare della scheda e resta libero.
         /// </summary>
-        private static string UnknownA2aKey(string yaml)
+        private static Dictionary<object, object> Root(string yaml)
         {
-            Dictionary<object, object> root;
-            try { root = new DeserializerBuilder().Build().Deserialize<Dictionary<object, object>>(yaml); }
+            try { return new DeserializerBuilder().Build().Deserialize<Dictionary<object, object>>(yaml); }
             catch (Exception) { return null; }   // il frontmatter malformato lo segnala già la lettura principale
+        }
+
+        private static string UnknownA2aKey(Dictionary<object, object> root)
+        {
             if (root == null || !root.TryGetValue("a2a", out var a2a) || a2a == null) return null;
             return UnknownKey(a2a, typeof(AgentCardDescriptor), "a2a");
         }
@@ -276,8 +303,12 @@ namespace MdExplorer.Features.Yaml
             return null;
         }
 
-        private static AgentCardParseResult NotACitizen(AgentRuntimeDescriptor runtime = null)
-            => new AgentCardParseResult { HasA2aBlock = false, IsValid = true, Runtime = runtime };
+        /// <summary>
+        /// Una scheda che non è un cittadino: lanciata a mano o da una pianificazione, con il suo motore e i suoi limiti.
+        /// <c>tools:</c> prima non arrivava a chi la lancia, e l'agente partiva senza limiti (R8 della valutazione del 07/11).
+        /// </summary>
+        private static AgentCardParseResult NotACitizen(AgentRuntimeDescriptor runtime = null, List<string> tools = null)
+            => new AgentCardParseResult { HasA2aBlock = false, IsValid = true, Runtime = runtime, Tools = tools };
 
         private static AgentCardParseResult Invalid(string reason)
             => new AgentCardParseResult { HasA2aBlock = true, IsValid = false, RegistrationError = reason };

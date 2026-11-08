@@ -45,6 +45,9 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
   agentCityEnabled: boolean = false;
+  /** Le schede degli agenti devono dichiarare tools: e runtime: (agentCards, per tutto il team). */
+  agentCardsRequire: boolean = false;
+  agentCardsError: string | null = null;
   agentCityOwnershipDoc: string = '';
   /** Il documento del workflow degli agenti (mde_type: workflow): quando c'è, MdExplorer lo applica. */
   /** I template da cui viene il progetto (righe «templates:» di .development.yml). */
@@ -659,6 +662,31 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
     this.loadRelaySettings();
     this.loadAgentWorktrees();
+    this.loadAgentCards();
+  }
+
+  loadAgentCards(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentCards(this.projectPath).subscribe({
+      next: (res) => this.agentCardsRequire = !!res?.requireToolsAndRuntime,
+      error: (err) => console.error('Error loading agent card rules:', err)
+    });
+  }
+
+  onAgentCardsChange(): void {
+    this.saving = true;
+    this.agentCardsError = null;
+    this.projectSettingsService.setAgentCards(this.projectPath, this.agentCardsRequire).subscribe({
+      next: (res) => {
+        this.agentCardsRequire = !!res?.requireToolsAndRuntime;
+        this.saving = false;
+      },
+      error: (err) => {
+        this.agentCardsError = err?.error?.message || err?.message || 'error';
+        this.agentCardsRequire = !this.agentCardsRequire;
+        this.saving = false;
+      }
+    });
   }
 
   /** Preferenza locale di isolamento: UserDB, non .development.yml. */

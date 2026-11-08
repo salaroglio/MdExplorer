@@ -86,6 +86,7 @@ namespace MdExplorer.IntegrationTests
         private static readonly Dictionary<int, string> CityFormats = new()
         {
             [2] = "d415107d2c0c4165",
+            [3] = "d415107d2c0c4165",   // la città non è cambiata: lo schema 3 aggiunge solo agentCards
         };
 
         private static readonly Type[] Shared =

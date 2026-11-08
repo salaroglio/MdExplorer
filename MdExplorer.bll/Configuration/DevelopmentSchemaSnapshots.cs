@@ -18,9 +18,9 @@ namespace MdExplorer.Features.Configuration
     {
         /// <summary>
         /// Il numero di schema di questo MDE. Alzalo, e aggiungi l'istantanea, quando cambia il modello del file.
-        /// 1 = il file scritto fino al 07/11 (voci vuote omesse); 2 = le stesse voci, tutte presenti nei gruppi scritti (D6, F3).
+        /// 1 = il file scritto fino al 07/11 (voci vuote omesse); 2 = le stesse voci, tutte presenti nei gruppi scritti (D6, F3); 3 = il gruppo agentCards (R8, 08/11).
         /// </summary>
-        public const int Current = 2;
+        public const int Current = 3;
 
         /// <summary>Le istantanee incorporate, dalla 1 a <see cref="Current"/>.</summary>
         public static IReadOnlyList<SchemaSnapshot> All => _all.Value;

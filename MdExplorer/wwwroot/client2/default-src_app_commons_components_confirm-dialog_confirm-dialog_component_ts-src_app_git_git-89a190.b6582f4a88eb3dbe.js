@@ -4254,6 +4254,23 @@ class ProjectSettingsService {
       language
     });
   }
+  /** Le regole delle schede degli agenti, uguali per il team (.development.yml, agentCards). */
+  getAgentCards(projectPath) {
+    return this.http.get('../api/MdProjects/AgentCards', {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  setAgentCards(projectPath, requireToolsAndRuntime) {
+    return this.http.post('../api/MdProjects/SetAgentCards', {
+      requireToolsAndRuntime
+    }, {
+      params: {
+        path: projectPath
+      }
+    });
+  }
   setAgentCity(projectPath, body) {
     return this.http.post('../api/MdProjects/SetAgentCity', body, {
       params: {
@@ -8783,4 +8800,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.82607efca5f1a4d7.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b6582f4a88eb3dbe.js.map
