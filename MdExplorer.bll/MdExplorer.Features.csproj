@@ -117,6 +117,7 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
     <PackageReference Include="NHibernate" Version="5.3.9" />
     <PackageReference Include="PlantUml.Net" Version="1.4.80" />
+    <PackageReference Include="PuppeteerSharp" Version="25.14.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
     <PackageReference Include="Svg.Skia" Version="2.0.0.4" />

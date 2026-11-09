@@ -80,6 +80,7 @@ Analisi delle licenze delle librerie utilizzate in MdExplorer
 | LibGit2Sharp | 0.27.0-preview-0182 | MIT | No | Binding .NET per libgit2 |
 | Markdig | 0.25.0 | BSD-2-Clause | No | Processore Markdown per .NET |
 | Microsoft.Alm.Authentication | 4.3.0 | MIT | No | Parte di Git Credential Manager |
+| PuppeteerSharp | 25.14.0 | MIT | No | Foto delle pagine `html(file)` nell'esportazione Word/PDF, con il browser già installato (Edge/Chrome); dipendenze WebDriverBiDi e ReactiveExtensionsSharp, MIT |
 | System.Data.SQLite | 1.0.114.4 | Public Domain | No | ADO.NET provider per SQLite |
 | System.IO.FileSystem.AccessControl | 5.0.0 | MIT | No | API Microsoft per controllo accessi file |
 | YamlDotNet | 11.2.1 | MIT | No | Serializzatore YAML per .NET |
