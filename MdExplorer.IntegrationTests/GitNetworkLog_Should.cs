@@ -79,5 +79,23 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(line.Text, "[git-rete] git fetch");
             StringAssert.Contains(line.Text, "GitNetworkLog_Should.GitCli_ComandoDiRete_ScriveRigaConChiamante");
         }
+
+        /// <summary>
+        /// 09/11/2026: il reaper, 60 s dopo l'avvio, chiedeva i rami agent/* fusi per OGNI progetto, e
+        /// senza origin/HEAD il ramo di default lo chiedeva al remoto («ls-remote»): su un repository
+        /// GitHub privato senza accesso si apriva il login a ogni avvio. Senza rami agent/* non si va in rete.
+        /// </summary>
+        [TestMethod]
+        public async Task RamiAgentFusi_SenzaRamiAgent_NonVaInRete()
+        {
+            GitCli.Run(_dir, "init", "-b", "main");
+            GitCli.Run(_dir, "remote", "add", "origin", Path.Combine(_dir, "remoto-che-non-esiste"));
+            var manager = new AgentWorktreeManager(NullLogger<AgentWorktreeManager>.Instance, null, null, null);
+
+            var merged = await manager.ListMergedAgentBranchesAsync(_dir, null);
+
+            Assert.AreEqual(0, merged.Count);
+            Assert.AreEqual(0, _log.Lines.Count, "nessun git in rete: " + string.Join(" | ", _log.Lines.Select(l => l.Text)));
+        }
     }
 }

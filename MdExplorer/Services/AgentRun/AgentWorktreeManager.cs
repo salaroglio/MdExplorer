@@ -1299,6 +1299,13 @@ namespace MdExplorer.Services.AgentRun
 
         public async Task<IReadOnlyList<string>> ListMergedAgentBranchesAsync(string projectPath, string intoBranch, CancellationToken ct = default)
         {
+            // Prima si guarda in locale se c'è almeno un ramo agent/*: senza, non c'è niente da pulire e
+            // NON si va in rete. Il reaper chiama questo metodo per OGNI progetto della lista 60 s dopo
+            // l'avvio, e ResolveDefaultBranchAsync, senza origin/HEAD, fa «git ls-remote»: su un remoto
+            // privato senza accesso apriva il login di GitHub a ogni avvio (09/11/2026).
+            var (lc, local, _) = await GitAsync(projectPath, new[] { "for-each-ref", "--format=%(refname:short)", "refs/heads/agent/" }, ct);
+            if (lc != 0 || string.IsNullOrWhiteSpace(local)) return System.Array.Empty<string>();
+
             var into = string.IsNullOrWhiteSpace(intoBranch) ? await ResolveDefaultBranchAsync(projectPath, ct) : intoBranch.Trim();
             var (code, outp, _) = await GitAsync(projectPath, new[] { "branch", "--merged", into }, ct);
             if (code != 0) return System.Array.Empty<string>();
