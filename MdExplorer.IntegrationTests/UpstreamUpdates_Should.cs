@@ -86,7 +86,9 @@ namespace MdExplorer.IntegrationTests
 
         private static void Publish(string publisher, string file, string content, string message)
         {
-            File.WriteAllText(Path.Combine(publisher, file), content);
+            var full = Path.Combine(publisher, file);
+            Directory.CreateDirectory(Path.GetDirectoryName(full));
+            File.WriteAllText(full, content);
             Git(publisher, "add -A"); Git(publisher, $"commit -q -m \"{message}\""); Git(publisher, "push -q origin HEAD:main");
         }
 
@@ -202,6 +204,34 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(yml, "workflowDoc: gara/workflow.md");
             Assert.AreEqual(string.Empty, Git(project, "status --porcelain").Out);
             Assert.AreEqual(Git(project, "rev-parse HEAD").Out, Git(origin, "rev-parse main").Out, "e origin alla pari, come sempre");
+        }
+
+        /// <summary>
+        /// 09/11/2026: le skill mde-* sono nel repository. Due colleghi con MDE diversi le aggiornano in modo diverso: nel pull vince la
+        /// versione più alta, anche per il file di accompagnamento, che segue il SKILL.md della sua cartella.
+        /// </summary>
+        [TestMethod]
+        public async Task Keep_the_higher_version_of_an_mde_skill_changed_on_both_sides()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (project, _, publisher) = Setup(ctx, "skill-versione");
+            static string Skill(int v) => $"---\nname: mde-doc\nmde:\n  origin: mdexplorer\n  version: {v}\n---\nversione {v}\n";
+            Publish(publisher, ".github/skills/mde-doc/SKILL.md", Skill(1), "v1");
+            Publish(publisher, ".github/skills/mde-doc/regole.md", "regole 1\n", "v1 regole");
+            Git(project, "pull -q upstream main");
+            Publish(publisher, ".github/skills/mde-doc/SKILL.md", Skill(3), "v3");
+            Publish(publisher, ".github/skills/mde-doc/regole.md", "regole 3\n", "v3 regole");
+            File.WriteAllText(Path.Combine(project, ".github", "skills", "mde-doc", "SKILL.md"), Skill(2));
+            File.WriteAllText(Path.Combine(project, ".github", "skills", "mde-doc", "regole.md"), "regole 2\n");
+            Git(project, "add -A"); Git(project, "commit -q -m v2");
+
+            var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
+
+            Assert.IsTrue(pulled.Success, pulled.Message);
+            Assert.AreEqual(Skill(3), File.ReadAllText(Path.Combine(project, ".github", "skills", "mde-doc", "SKILL.md")));
+            Assert.AreEqual("regole 3\n", File.ReadAllText(Path.Combine(project, ".github", "skills", "mde-doc", "regole.md")), "il file di accompagnamento segue la sua skill");
+            Assert.AreEqual(string.Empty, Git(project, "status --porcelain").Out);
         }
 
         [TestMethod]

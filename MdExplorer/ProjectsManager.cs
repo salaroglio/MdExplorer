@@ -487,6 +487,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 perf.Mark("InstallHarnessAssets (skill, agenti, istruzioni)");
                 AlignTemplateSkills(projectPath, harness);
                 perf.Mark("AlignTemplateSkills");
+                AlignMdeAssets(projectPath, harness);
+                perf.Mark("AlignMdeAssets");
 
                 RegisterMcpServerForHarness(projectPath, harness, mcpGroupsArgument);
                 perf.Mark("RegisterMcpServerForHarness");
@@ -503,10 +505,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// instructions and the three catalogs where the new harness wants them, registers the MCP
         /// server and updates the .gitignore.
         /// <para>
-        /// What it deliberately does NOT do is delete the previous harness folder. Those files are
-        /// in someone's repository, possibly customised, possibly committed: removing them on a
-        /// settings change would be a destructive act nobody asked for. They stay, and
-        /// <c>IsPerInstallArtifact</c> keeps recognising them so they never get committed.
+        /// The previous harness folder keeps the group's own files (instructions, their skills), but
+        /// loses the copies MDE made there: the <c>mde-*</c> skills, agents and prompts and the
+        /// template skills (09/11/2026, the user's decision: no doubt about which harness is in use).
+        /// MDE can remake those whenever it wants; the removal is committed like the rest.
         /// </para>
         /// </summary>
         public static void ApplyHarness(IServiceProvider serviceProvider, string projectPath, HarnessTarget harness,
@@ -522,8 +524,77 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, projectPath);
             InstallHarnessAssets(projectPath, harness, fusekiEnabled);
             AlignTemplateSkills(projectPath, harness);
+            AlignMdeAssets(projectPath, harness);
             RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
             EnsureGitignoreEntries(projectPath);
+        }
+
+        /// <summary>
+        /// Le skill, gli agenti e i prompt <c>mde-*</c> fanno parte del repository (09/11/2026, decisione dell'utente). All'apertura e al
+        /// cambio di motore:
+        /// <list type="number">
+        /// <item>le copie nelle cartelle di un motore che il progetto non usa si tolgono (un progetto passato da Copilot a Claude aveva
+        /// ancora <c>.github/skills/mde-*</c>, prima nascoste da <c>.gitignore</c>); quelle di un motore personale, escluse da git
+        /// su questa macchina, restano;</item>
+        /// <item>quelle del motore del progetto non ancora salvate (nuove, cambiate, o escluse dalla riga che MDE scriveva nel
+        /// <c>.gitignore</c>) si segnalano al commit automatico: un progetto aperto per la prima volta con questo MDE le ha già sul
+        /// disco, aggiornate, e MdeSkillUpdater non le riscrive.</item>
+        /// </list>
+        /// </summary>
+        private static void AlignMdeAssets(string projectPath, HarnessTarget harness)
+        {
+            if (harness == HarnessTarget.None) return;
+            try
+            {
+                var layout = HarnessLayout.For(harness);
+                var why = new MdeWhy($"skill, agenti e prompt di MDE nel repository, nella cartella di {layout.Id}; tolte le copie dei motori che il progetto non usa",
+                                     $"MDE skills, agents and prompts in the repository, in the {layout.Id} folder; removed the copies of the engines the project does not use");
+                var excludeFile = Path.Combine(projectPath, ".git", "info", "exclude");
+                var excluded = File.Exists(excludeFile)
+                    ? File.ReadAllLines(excludeFile).Select(l => l.Trim()).ToHashSet(StringComparer.Ordinal)
+                    : new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (var other in HarnessLayout.All.Where(l => l.Target != layout.Target))
+                {
+                    if (other.GitignorePatterns.Any(p => IsMdeAssetPattern(p) && excluded.Contains(p))) continue;   // motore personale
+                    foreach (var folder in new[] { other.SkillsFolder, other.AgentsFolder, other.PromptsFolder })
+                    {
+                        var dir = Path.Combine(projectPath, folder.Replace('/', Path.DirectorySeparatorChar));
+                        if (!Directory.Exists(dir)) continue;
+                        foreach (var entry in Directory.EnumerateFileSystemEntries(dir, "mde-*").ToList())
+                        {
+                            if (Directory.Exists(entry)) Directory.Delete(entry, recursive: true); else File.Delete(entry);
+                            MdeRepoWriter.NotifyWritten(entry, why);
+                            Console.WriteLine($"[ProjectsManager] {projectPath}: tolto {Path.GetRelativePath(projectPath, entry)} (motore {other.Id}, il progetto usa {layout.Id})");
+                        }
+                        if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+                    }
+                    var root = Path.Combine(projectPath, other.RootFolder);
+                    if (Directory.Exists(root) && !Directory.EnumerateFileSystemEntries(root).Any()) Directory.Delete(root);
+                }
+
+                if (!Repository.IsValid(projectPath)) return;
+                using var repo = new Repository(projectPath);
+                var folders = new[] { layout.SkillsFolder, layout.AgentsFolder, layout.PromptsFolder };
+                var status = repo.RetrieveStatus(new StatusOptions
+                {
+                    IncludeIgnored = true, RecurseIgnoredDirs = true, RecurseUntrackedDirs = true, PathSpec = folders.Select(f => f + "/").ToArray(),
+                });
+                var pending = status
+                    .Where(e => e.State != FileStatus.Unaltered && e.State != FileStatus.Nonexistent)
+                    .Select(e => e.FilePath.Replace('\\', '/'))
+                    .Where(MdeOwnedFiles.IsMdeAsset)
+                    .ToList();
+                foreach (var file in pending)
+                    MdeRepoWriter.NotifyWritten(Path.Combine(projectPath, file.Replace('/', Path.DirectorySeparatorChar)), why);
+                if (pending.Count > 0)
+                    Console.WriteLine($"[ProjectsManager] {projectPath}: {pending.Count} file mde-* di {layout.Id} da salvare nel repository");
+            }
+            catch (Exception ex)
+            {
+                // Come l'installazione dell'harness: il progetto si apre lo stesso, il motivo resta nel log.
+                Console.WriteLine($"[ProjectsManager] {projectPath}: file mde-* non riallineati: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -1668,6 +1739,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 var gitignorePath = Path.Combine(projectPath, ".gitignore");
                 var existing = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : string.Empty;
 
+                // Le skill, gli agenti e i prompt mde-* sono nel repository dal 09/11/2026 (decisione dell'utente): le righe
+                // <motore>/**/mde-* che MDE scriveva qui, con il loro commento, se ne vanno.
+                existing = RemoveMdeAssetLines(gitignorePath, existing);
+
                 var block = new StringBuilder();
 
                 // Un progetto che non dichiara un harness non genera artefatti per-install:
@@ -1677,14 +1752,13 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 {
                     var layout = HarnessLayout.For(declaredHarness);
                     var missing = layout.GitignorePatterns
-                        .Where(pattern => !existing.Contains(pattern))
+                        .Where(pattern => !IsMdeAssetPattern(pattern))
+                        .Where(pattern => !existing.Split('\n').Any(l => l.Trim() == pattern))
                         .ToList();
 
                     if (missing.Count > 0)
                     {
-                        block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
-                        block.AppendLine($"# (skill/prompt/agent files generated under {layout.RootFolder} vary by the");
-                        block.AppendLine("#  installed MDE version, and the MCP config is instance-specific)");
+                        block.AppendLine("# MDE — configurazione MCP di questa macchina (percorsi locali)");
                         foreach (var pattern in missing)
                         {
                             block.AppendLine(pattern);
@@ -1752,6 +1826,32 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 Console.WriteLine($"Error ensuring .gitignore entries: {ex.Message}");
                 // Non-critical: the project can continue without the .gitignore update.
             }
+        }
+
+        /// <summary>Una riga <c>&lt;motore&gt;/**/mde-*</c>: oggi serve solo all'esclusione locale del motore personale.</summary>
+        private static bool IsMdeAssetPattern(string pattern) => pattern.Contains("mde-", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Toglie dal <c>.gitignore</c> le righe <c>&lt;motore&gt;/**/mde-*</c> e il commento che MDE scriveva con loro. Le altre righe
+        /// restano come sono. Restituisce il testo di adesso; se è cambiato lo scrive e lo dice (è un file dell'utente: niente commit).
+        /// </summary>
+        private static string RemoveMdeAssetLines(string gitignorePath, string existing)
+        {
+            if (string.IsNullOrEmpty(existing)) return existing;
+            var patterns = HarnessLayout.All.SelectMany(l => l.GitignorePatterns).Where(IsMdeAssetPattern).ToHashSet(StringComparer.Ordinal);
+            var comments = new[] { "# MDE per-install artifacts", "# (skill/prompt/agent files generated under", "#  installed MDE version" };
+            var newline = existing.Contains("\r\n") ? "\r\n" : "\n";
+            var lines = existing.Replace("\r\n", "\n").Split('\n').ToList();
+            var kept = lines.Where(l => !patterns.Contains(l.Trim()) && !comments.Any(c => l.TrimEnd().StartsWith(c, StringComparison.Ordinal))).ToList();
+            if (kept.Count == lines.Count) return existing;
+            var removed = lines.Where(l => patterns.Contains(l.Trim())).Select(l => l.Trim()).ToList();
+            var text = string.Join(newline, kept);
+            File.WriteAllText(gitignorePath, text);
+            if (removed.Count > 0)
+                MdeRepoWriter.NotifyWritten(gitignorePath, new MdeWhy(
+                    $"tolte le righe {string.Join(", ", removed)}: le skill, gli agenti e i prompt di MDE ora fanno parte del repository",
+                    $"removed the lines {string.Join(", ", removed)}: MDE skills, agents and prompts are now part of the repository"));
+            return text;
         }
 
         /// <summary>
@@ -1834,16 +1934,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
-        /// True when a repo-relative path is a per-install MDE artifact: the instance-specific
-        /// <c>.vscode/mcp.json</c>, or anything under a harness root (<c>.github/</c>,
-        /// <c>.opencode/</c>) with a path segment named <c>mde-*</c> (covers both <c>mde-*</c>
-        /// files and files inside <c>mde-*</c> directories).
-        /// Mirrors the <c>&lt;root&gt;/**/mde-*</c> + <c>.vscode/mcp.json</c> .gitignore patterns.
-        /// <para>
-        /// Deliberately NOT limited to the harness the project currently declares: a project that
-        /// switched harness leaves the old folder behind, and those files stay per-install
-        /// artifacts that must not be committed.
-        /// </para>
+        /// True when a repo-relative path is a per-install MDE artifact: only the instance-specific
+        /// <c>.vscode/mcp.json</c>. Until 09/11/2026 the <c>mde-*</c> skills, agents and prompts were too;
+        /// now they belong to the repository (the user's decision), and an older MDE is asked to update.
         /// </summary>
         private static bool IsPerInstallArtifact(string relativePath)
         {
@@ -1854,30 +1947,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             var p = relativePath.Replace('\\', '/');
 
-            if (string.Equals(p, ".vscode/mcp.json", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            foreach (var layout in HarnessLayout.All)
-            {
-                if (!p.StartsWith(layout.RootFolder + "/", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                // Skip segment [0] (the harness root); any later segment starting with "mde-" matches.
-                var segments = p.Split('/');
-                for (int i = 1; i < segments.Length; i++)
-                {
-                    if (segments[i].StartsWith("mde-", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            // Le skill, gli agenti e i prompt mde-* NON sono più artefatti di questa macchina (09/11/2026, decisione dell'utente):
+            // fanno parte del repository. Resta solo la configurazione MCP, che ha i percorsi locali.
+            return string.Equals(p, ".vscode/mcp.json", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

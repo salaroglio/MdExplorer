@@ -372,7 +372,7 @@
     "TEMPLATE_ADD_LANGUAGE": "Lingua del metodo",
     "TEMPLATE_ADD_EXAMPLE": "Con l'esempio compilato",
     "TEMPLATE_ADD": "Aggiungi un metodo",
-    "TEMPLATE_ADD_DESC": "Un metodo porta solo la sua cartella (.mde-template/<id>/) e le sue skill (.claude/skills/<id>-*). MdExplorer aggiunge per lui i ruoli, i workflow e le istruzioni nei file del progetto e fa un commit, da pubblicare con la barra di git. Il progetto non deve avere modifiche senza commit.",
+    "TEMPLATE_ADD_DESC": "Un metodo porta solo la sua cartella (.mde-template/<id>/) e le sue skill, che MdExplorer copia nella cartella delle skill del motore del progetto. MdExplorer aggiunge per lui i ruoli, i workflow e le istruzioni nei file del progetto e fa un commit, da pubblicare con la barra di git. Il progetto non deve avere modifiche senza commit.",
     "TEMPLATE_ADDED": "Aggiunto «{{title}}» {{version}}.",
     "TEMPLATE_DETACHED": "staccato il {{date}}",
     "TEMPLATE_DETACH": "Staccati",

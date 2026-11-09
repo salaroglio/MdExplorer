@@ -14,6 +14,11 @@ namespace MdExplorer.Utilities
         Block,
         /// <summary>Copia di MDE da una sorgente che sta nel progetto (le skill dei template): si rifà dalla sorgente.</summary>
         Copy,
+        /// <summary>
+        /// Skill, agente o prompt <c>mde-*</c> distribuito da MDE, con <c>mde: version</c>: in un conflitto vince la versione più alta
+        /// (09/11/2026, decisione dell'utente); chi ha un MDE più vecchio riceve l'invito ad aggiornarlo.
+        /// </summary>
+        Versioned,
     }
 
     /// <summary>Un file del repository che MDE scrive da sé.</summary>
@@ -24,8 +29,9 @@ namespace MdExplorer.Utilities
     /// lasciati modificati senza commit bloccavano il pull (progetto A, progetto B). Da qui li prendono la scrittura
     /// (<see cref="MdeRepoWriter"/>), il commit automatico e la risoluzione dei conflitti nel pull.
     /// <para>
-    /// NON ci sono: <c>.gitignore</c> (resta dell'utente: MDE può aggiungere righe ma lo notifica), le skill/agenti <c>mde-*</c> e
-    /// <c>.vscode/mcp.json</c> (già esclusi da git con <c>.gitignore</c>, vedi <see cref="HarnessLayout.GitignorePatterns"/>).
+    /// NON ci sono: <c>.gitignore</c> (resta dell'utente: MDE può aggiungere righe ma lo notifica) e <c>.vscode/mcp.json</c> (escluso
+    /// da git: ha i percorsi di questa macchina). Le skill, gli agenti e i prompt <c>mde-*</c> nelle cartelle dei motori ci sono dal
+    /// 09/11/2026 (<see cref="MdeMergeKind.Versioned"/>): prima erano esclusi da git come «file di questa macchina».
     /// </para>
     /// </summary>
     public static class MdeOwnedFiles
@@ -60,7 +66,26 @@ namespace MdExplorer.Utilities
                 return p.TrimStart('/');
             }
             var normalized = Norm(relativePath);
-            return All.FirstOrDefault(f => string.Equals(Norm(f.RelativePath), normalized, StringComparison.OrdinalIgnoreCase));
+            return All.FirstOrDefault(f => string.Equals(Norm(f.RelativePath), normalized, StringComparison.OrdinalIgnoreCase))
+                   ?? (IsMdeAsset(normalized)
+                       ? new MdeOwnedFile(normalized, MdeMergeKind.Versioned, "una skill, un agente o un prompt di MDE (mde-*)")
+                       : null);
+        }
+
+        /// <summary>
+        /// True se il percorso (relativo, con <c>/</c>) è una skill, un agente o un prompt <c>mde-*</c> nelle cartelle di un motore:
+        /// <c>.github/skills/mde-doc/SKILL.md</c>, <c>.claude/agents/mde-skillcreator.md</c>, <c>.github/prompts/mde-code-doc.prompt.md</c>.
+        /// </summary>
+        public static bool IsMdeAsset(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath)) return false;
+            var p = relativePath.Replace('\\', '/').TrimStart('/');
+            foreach (var layout in HarnessLayout.All)
+                foreach (var folder in new[] { layout.SkillsFolder, layout.AgentsFolder, layout.PromptsFolder })
+                    if (p.StartsWith(folder + "/", StringComparison.OrdinalIgnoreCase)
+                        && p.Substring(folder.Length + 1).StartsWith("mde-", StringComparison.Ordinal))
+                        return true;
+            return false;
         }
 
         /// <summary>Il file di MDE per un percorso assoluto dentro il progetto, o null.</summary>

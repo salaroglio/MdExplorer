@@ -735,6 +735,19 @@ namespace MdExplorer.Services.Git
                     merged[file] = text;
                     tookSource.AddRange(took);
                 }
+                else if (MdeOwnedFiles.Find(file).Kind == MdeMergeKind.Versioned)
+                {
+                    // Una skill, un agente o un prompt mde-*: vince la versione più alta, a parità quella di qui (09/11/2026). Un file
+                    // di accompagnamento senza blocco mde: segue la versione del SKILL.md della sua cartella.
+                    var mine = await MdeVersionAsync(dir, "HEAD", file, ours.Stdout, ct);
+                    var source = await MdeVersionAsync(dir, "MERGE_HEAD", file, theirs.Stdout, ct);
+                    merged[file] = source > mine ? theirs.Stdout : ours.Stdout;
+                }
+                else if (MdeOwnedFiles.Find(file).Kind == MdeMergeKind.Copy)
+                {
+                    // La copia di una skill di un template: la si rifà dalla zona del template a ogni apertura; qui vale quella pubblicata.
+                    merged[file] = theirs.Stdout;
+                }
                 else
                 {
                     var layout = HarnessLayout.All.FirstOrDefault(l => string.Equals(l.InstructionsFile, file, StringComparison.OrdinalIgnoreCase));
@@ -758,6 +771,21 @@ namespace MdExplorer.Services.Git
             if (!commit.Ok) return MdeConflictResolution.None with { Problem = UiText.Say($"{string.Join(", ", resolved)} uniti, ma l'unione non si chiude: {commit.Describe()}", $"{string.Join(", ", resolved)} merged, but the merge does not close: {commit.Describe()}") };
             _logger.LogInformation("[Flusso] file di MDE uniti da MDE in {Dir}: {Files}", dir, string.Join(", ", resolved));
             return new MdeConflictResolution(true, commit, null, tookSource, resolved, Array.Empty<string>());
+        }
+
+        /// <summary>
+        /// La <c>mde: version</c> di un file <c>mde-*</c> su un lato dell'unione (<paramref name="side"/>: HEAD o MERGE_HEAD). Se il file
+        /// non ha il blocco (un file di accompagnamento di una skill), quella del <c>SKILL.md</c> della sua cartella su quel lato. 0 se
+        /// non si trova.
+        /// </summary>
+        private async Task<int> MdeVersionAsync(string dir, string side, string file, string text, CancellationToken ct)
+        {
+            var own = MdeSkillUpdater.ExtractMdeMarker(text ?? string.Empty).Version;
+            if (own != null) return own.Value;
+            var slash = file.LastIndexOf('/');
+            if (slash < 0) return 0;
+            var skill = await _runner.RunAsync(dir, new[] { "show", $"{side}:{file.Substring(0, slash)}/SKILL.md" }, ct);
+            return skill.Ok ? MdeSkillUpdater.ExtractMdeMarker(skill.Stdout).Version ?? 0 : 0;
         }
 
         /// <summary>

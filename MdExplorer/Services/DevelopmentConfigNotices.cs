@@ -42,8 +42,30 @@ namespace MdExplorer.Services
         public static DevelopmentConfigState StateOf(string projectPath)
         {
             var check = DevelopmentConfigText.ReadFile(DevelopmentConfigFile.PathIn(projectPath)).Check;
-            return new DevelopmentConfigState(projectPath, check.Describe(UiText.Say), check.SwitchedOff.Select(o => o.Path).ToArray(),
-                check.WrittenByNewerMde, check.FileSchema, DevelopmentSchemaSnapshots.Current);
+            var notice = check.Describe(UiText.Say);
+            var newer = NewerMdeAssets(projectPath);
+            if (newer.Count > 0)
+                notice = (notice.Length > 0 ? notice + " " : "") + UiText.Say(
+                    $"Il progetto ha skill di MDE più nuove di quelle del tuo MDE ({string.Join(", ", newer)}): aggiorna MDE all'ultima versione. Fino ad allora MDE non le tocca.",
+                    $"The project has MDE skills newer than your MDE's ({string.Join(", ", newer)}): update MDE to the latest version. Until then MDE leaves them alone.");
+            return new DevelopmentConfigState(projectPath, notice, check.SwitchedOff.Select(o => o.Path).ToArray(),
+                check.WrittenByNewerMde || newer.Count > 0, check.FileSchema, DevelopmentSchemaSnapshots.Current);
+        }
+
+        /// <summary>
+        /// Le skill, gli agenti e i prompt <c>mde-*</c> del motore del progetto scritti da un MDE più nuovo (09/11/2026: sono nel
+        /// repository, e chi è indietro va invitato ad aggiornare). Vuoto senza motore o se non si leggono.
+        /// </summary>
+        private static System.Collections.Generic.IReadOnlyList<string> NewerMdeAssets(string projectPath)
+        {
+            try
+            {
+                var harness = HarnessSettings.Read(projectPath) ?? HarnessTarget.None;
+                return harness == HarnessTarget.None
+                    ? Array.Empty<string>()
+                    : MdeSkillUpdater.NewerInProject(projectPath, HarnessLayout.For(harness));
+            }
+            catch (Exception) { return Array.Empty<string>(); }
         }
 
         /// <summary>

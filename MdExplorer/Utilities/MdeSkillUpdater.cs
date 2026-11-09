@@ -416,6 +416,7 @@ namespace MdExplorer.Utilities
             {
                 File.WriteAllText(targetPath, embeddedContent);
                 Console.WriteLine($"[MdeSkillUpdater] Installed {kind} '{name}' v{embeddedVersion} ({layout.Id}): {targetPath}");
+                MdeRepoWriter.NotifyWritten(targetPath, Why);
                 return InstallOutcome.Written;
             }
 
@@ -447,7 +448,46 @@ namespace MdExplorer.Utilities
             File.WriteAllText(targetPath, embeddedContent);
             Console.WriteLine(
                 $"[MdeSkillUpdater] Updated {kind} '{name}' v{existingVersion} → v{embeddedVersion} ({layout.Id}): {targetPath}");
+            MdeRepoWriter.NotifyWritten(targetPath, Why);
             return InstallOutcome.Written;
+        }
+
+        /// <summary>
+        /// Il motivo del commit automatico (09/11/2026, decisione dell'utente): le skill, gli agenti e i prompt <c>mde-*</c> fanno parte
+        /// del repository, come le skill dei template; chi ha un MDE più vecchio riceve l'invito ad aggiornarlo.
+        /// </summary>
+        private static readonly MdeWhy Why = new(
+            "skill, agenti e prompt di MDE alla versione di questo MDE",
+            "MDE skills, agents and prompts at this MDE's version");
+
+        /// <summary>
+        /// I file di MDE del progetto (cartelle di <paramref name="layout"/>) scritti da un MDE più nuovo di questo: questo MDE non li
+        /// tocca, e l'avviso del progetto invita ad aggiornarlo (come per la città degli agenti). Nomi come <c>skill mde-doc v9</c>.
+        /// </summary>
+        public static IReadOnlyList<string> NewerInProject(string projectPath, HarnessLayout layout)
+        {
+            var found = new List<string>();
+            if (string.IsNullOrWhiteSpace(projectPath) || layout == null) return found;
+            foreach (var (kind, catalog, pathFor) in new (string, CatalogEntry[], Func<string, string>)[]
+            {
+                ("skill", BuiltInSkills, n => layout.SkillFullPath(projectPath, n)),
+                ("agent", BuiltInAgents, n => layout.AgentFullPath(projectPath, n)),
+                ("prompt", BuiltInPrompts, n => layout.PromptFullPath(projectPath, n)),
+            })
+                foreach (var entry in catalog)
+                {
+                    var path = pathFor(entry.Name);
+                    if (!File.Exists(path)) continue;
+                    try
+                    {
+                        var onDisk = ExtractMdeMarker(File.ReadAllText(path));
+                        if (!string.Equals(onDisk.Origin, OriginMarker, StringComparison.OrdinalIgnoreCase)) continue;
+                        var shipped = ExtractMdeMarker(entry.SourceFor(layout.Target).Read() ?? string.Empty).Version ?? 0;
+                        if ((onDisk.Version ?? 0) > shipped) found.Add($"{entry.Name} v{onDisk.Version}");
+                    }
+                    catch (IOException) { /* un file che non si legge non è una prova */ }
+                }
+            return found;
         }
 
         private enum InstallOutcome { Written, UpToDate, UserOwned, Missing }
@@ -466,7 +506,9 @@ namespace MdExplorer.Utilities
                 if (outcome == InstallOutcome.UpToDate && File.Exists(path)) continue;
                 var content = ReadEmbeddedText(resource)
                     ?? throw new InvalidOperationException($"Embedded resource not found: {resource} (companion '{file}' of '{entry.Name}').");
+                if (File.Exists(path) && File.ReadAllText(path) == content) continue;
                 File.WriteAllText(path, content);
+                MdeRepoWriter.NotifyWritten(path, Why);
             }
         }
 

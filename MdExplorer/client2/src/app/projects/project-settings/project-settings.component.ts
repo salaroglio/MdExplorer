@@ -1058,10 +1058,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error saving Agent City settings:', err);
         this.saving = false;
-        this.agentCityError = err?.error?.message || err?.message || '';
+        this.agentCityError = err?.error?.message || err?.error?.title || err?.message || '';
         // Un rifiuto del servizio (400: per esempio lo stesso workflow due volte): le righe restano come le ha scritte la
-        // persona, da correggere; il file non è cambiato.
-        if (err?.status === 400) return;
+        // persona, da correggere; il file non è cambiato, quindi la spunta torna com'è nel file (09/11/2026: restava tolta
+        // con la città ancora accesa, e la toolbar sembrava sbagliare).
+        if (err?.status === 400) { this.agentCityEnabled = this.agentCityWasEnabled; return; }
         // Il salvataggio è fallito: riallinea la UI allo stato PERSISTITO rileggendolo
         // dal server. Niente inversione cieca del checkbox: questo handler è agganciato
         // anche al blur del campo ownership-doc, e lì il toggle non è stato toccato.

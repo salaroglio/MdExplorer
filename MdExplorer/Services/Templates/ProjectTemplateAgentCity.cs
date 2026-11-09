@@ -109,7 +109,20 @@ namespace MdExplorer.Services.Templates
             // motore MDE non installa niente, come sempre.
             var harness = HarnessSettings.Read(path);
             if (harness != null && harness != HarnessTarget.None)
-                MdeSkillUpdater.EnsureCatalogsInstalled(path, HarnessLayout.For(harness.Value), agentCityEnabled: true);
+            {
+                var layout = HarnessLayout.For(harness.Value);
+                MdeSkillUpdater.EnsureCatalogsInstalled(path, layout, agentCityEnabled: true);
+                // Sono nel repository (09/11/2026): entrano nello stesso commit della città. Solo i file mde-*, mai altri file del gruppo
+                // che stanno nelle stesse cartelle.
+                var mde = new[] { layout.SkillsFolder, layout.AgentsFolder, layout.PromptsFolder }
+                    .Select(f => System.IO.Path.Combine(path, f.Replace('/', System.IO.Path.DirectorySeparatorChar)))
+                    .Where(Directory.Exists)
+                    .SelectMany(d => Directory.EnumerateFiles(d, "*", SearchOption.AllDirectories))
+                    .Select(f => System.IO.Path.GetRelativePath(path, f).Replace('\\', '/'))
+                    .Where(MdeOwnedFiles.IsMdeAsset)
+                    .ToList();
+                if (mde.Count > 0) await _git.RunAsync(path, new[] { "add", "--" }.Concat(mde).ToArray(), ct);
+            }
 
             notes.Add(UiText.Say(
                 $"Città degli agenti accesa, con il workflow d'esempio {starter.WorkflowDoc}: prendi il ruolo «{starter.Role}» in {ownership}, dichiara tuo l'agente {starter.Agent} («È mio») e lancialo.",

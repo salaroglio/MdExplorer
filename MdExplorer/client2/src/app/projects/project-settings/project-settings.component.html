@@ -217,6 +217,8 @@
               <ul class="setting-description" *ngIf="agentCityNotes.length">
                 <li *ngFor="let n of agentCityNotes">{{ n }}</li>
               </ul>
+              <!-- Fuori dal blocco della città accesa: se spegnerla non riesce, l'errore si vede anche con la spunta tolta. -->
+              <p class="setting-description setting-error" *ngIf="agentCityError">{{ agentCityError }}</p>
             </div>
 
             <div class="setting-item" *ngIf="agentCityEnabled">
@@ -254,7 +256,6 @@
               <p class="setting-description">
                 {{ 'PROJECT_SETTINGS.AGENT_CITY_WORKFLOW_DOCS_DESC' | translate }}
               </p>
-              <p class="setting-description setting-error" *ngIf="agentCityError">{{ agentCityError }}</p>
               <p class="setting-description" *ngIf="agentCityHasRoomSecret">
                 🔑 {{ 'PROJECT_SETTINGS.AGENT_CITY_ROOM_SECRET_SET' | translate }}
               </p>

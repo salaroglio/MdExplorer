@@ -10,9 +10,8 @@ namespace MdExplorer.Utilities
 {
     /// <summary>
     /// Le skill dei pacchetti di linguaggio (<c>.mde-languages/&lt;id&gt;/skills/&lt;id&gt;-…/</c>, B6c) nelle cartelle del motore,
-    /// accanto alle <c>mde-*</c>. Si installano col nome <c>mde-lang-&lt;skill&gt;</c>: così ricadono nei pattern
-    /// <c>**/mde-*</c> che MdExplorer esclude da git (<see cref="HarnessLayout.GitignorePatterns"/>) — la fonte è il pacchetto,
-    /// che sta in git; la copia si rifà su ogni macchina. Il blocco <c>mde:</c> (<c>origin: mde-language</c>,
+    /// accanto alle <c>mde-*</c>. Si installano col nome <c>mde-lang-&lt;skill&gt;</c>: come le <c>mde-*</c> sono file di MDE nel
+    /// repository (dal 09/11/2026; prima erano esclusi da git), salvati dal commit automatico. Il blocco <c>mde:</c> (<c>origin: mde-language</c>,
     /// <c>language: &lt;id&gt;</c>) dice che la copia è di MdExplorer: si riscrive quando è diversa dal pacchetto, e si toglie
     /// quando il pacchetto o la skill spariscono. Un pacchetto rotto non tocca le sue copie (un errore di battitura non
     /// cancella niente); una cartella <c>mde-lang-*</c> senza quel blocco è dell'utente e non si tocca.
@@ -65,10 +64,14 @@ namespace MdExplorer.Utilities
                     // un pacchetto che c'è ma non si legge: le sue copie restano finché non lo si corregge
                     if (language != null && catalog.Errors.ContainsKey(language)) continue;
                     Directory.Delete(folder, recursive: true);
+                    MdeRepoWriter.NotifyWritten(folder, Why);
                     log.Add($"{layout.SkillsFolder}/{name}: tolta, il pacchetto {(language == null ? "" : language + " ")}non la porta più");
                 }
             return log;
         }
+
+        /// <summary>Le copie delle skill dei pacchetti sono nel repository (09/11/2026): il commit automatico le salva.</summary>
+        private static readonly MdeWhy Why = new("skill dei pacchetti di linguaggio allineate al pacchetto", "language package skills aligned with the package");
 
         /// <summary>Il <c>SKILL.md</c> del pacchetto con il nome installato e il blocco <c>mde:</c> in fondo all'intestazione.</summary>
         public static string Mark(string skillMd, string installedName, string languageId)
@@ -103,6 +106,7 @@ namespace MdExplorer.Utilities
                 if (File.Exists(path) && File.ReadAllText(path, Encoding.UTF8) == text) continue;
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 File.WriteAllText(path, text, new UTF8Encoding(false));
+                MdeRepoWriter.NotifyWritten(path, Why);
                 changed = true;
             }
             foreach (var path in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToList())
@@ -110,6 +114,7 @@ namespace MdExplorer.Utilities
                 var rel = Path.GetRelativePath(folder, path).Replace('\\', '/');
                 if (files.ContainsKey(rel)) continue;
                 File.Delete(path);
+                MdeRepoWriter.NotifyWritten(path, Why);
                 changed = true;
             }
             return changed;

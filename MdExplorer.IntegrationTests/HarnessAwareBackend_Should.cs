@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using MdExplorer.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -79,32 +80,61 @@ namespace MdExplorer.IntegrationTests
                 "l'errore deve dire qual e' l'impostazione da sistemare");
         }
 
+        /// <summary>
+        /// 09/11/2026 (utente): le skill, gli agenti e i prompt mde-* fanno parte del repository. Il .gitignore non li esclude più, e la
+        /// riga che MDE scriveva prima, con il suo commento, se ne va; le righe del gruppo restano.
+        /// </summary>
         [TestMethod]
-        public void Exclude_the_opencode_artifacts_from_git_and_not_the_copilot_ones()
+        public void Keep_the_mde_skills_in_the_repository_and_remove_the_old_line()
         {
             Directory.CreateDirectory(Path.Combine(_project, ".git"));
             CreateProjectFor(HarnessTarget.OpenCode);
+            File.WriteAllText(Path.Combine(_project, ".gitignore"),
+                "bin/\n# MDE per-install artifacts — managed by MdExplorer, do not commit\n# (skill/prompt/agent files generated under .opencode vary by the\n#  installed MDE version, and the MCP config is instance-specific)\n.opencode/**/mde-*\n.md/\n.worktrees/\n");
 
+            MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(_project);
             MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(_project);
 
             var gitignore = File.ReadAllText(Path.Combine(_project, ".gitignore"));
-            StringAssert.Contains(gitignore, ".opencode/**/mde-*");
-            Assert.IsFalse(gitignore.Contains(".github/**/mde-*"),
-                "un progetto opencode non genera artefatti sotto .github: escluderli sarebbe rumore");
+            Assert.IsFalse(gitignore.Contains("mde-*"), gitignore);
+            Assert.IsFalse(gitignore.Contains("per-install"), "nemmeno il commento:\n" + gitignore);
+            StringAssert.StartsWith(gitignore, "bin/\n", "le righe del gruppo restano");
+            Assert.AreEqual(1, gitignore.Split(".md/").Length - 1, "riaperto, non si moltiplica niente:\n" + gitignore);
         }
 
         [TestMethod]
-        public void Not_repeat_the_gitignore_entries_at_every_open()
+        public void Exclude_only_the_machine_mcp_configuration_of_a_copilot_project()
         {
             Directory.CreateDirectory(Path.Combine(_project, ".git"));
-            CreateProjectFor(HarnessTarget.OpenCode);
+            CreateProjectFor(HarnessTarget.Copilot);
 
             MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(_project);
             MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(_project);
 
             var gitignore = File.ReadAllText(Path.Combine(_project, ".gitignore"));
-            Assert.AreEqual(1, gitignore.Split(".opencode/**/mde-*").Length - 1,
-                "il progetto si riapre tutti i giorni: la riga non deve moltiplicarsi");
+            Assert.AreEqual(1, gitignore.Split('\n').Count(l => l.Trim() == ".vscode/mcp.json"), gitignore);
+            Assert.IsFalse(gitignore.Contains("mde-*"), gitignore);
+        }
+
+        /// <summary>
+        /// 09/11/2026: una skill mde-* del repository scritta da un MDE più nuovo non si tocca, e l'avviso del progetto invita ad
+        /// aggiornare MDE, come per la città degli agenti.
+        /// </summary>
+        [TestMethod]
+        public void Ask_to_update_MDE_when_the_repository_has_a_newer_mde_skill()
+        {
+            CreateProjectFor(HarnessTarget.Copilot);
+            var skill = Path.Combine(_project, ".github", "skills", "mde-doc", "SKILL.md");
+            const string newer = "---\nname: mde-doc\nmde:\n  origin: mdexplorer\n  version: 999\n---\ndi un MDE più nuovo\n";
+            File.WriteAllText(skill, newer);
+
+            CreateProjectFor(HarnessTarget.Copilot);   // riaperto
+            Assert.AreEqual(newer, File.ReadAllText(skill), "questo MDE non la tocca");
+            CollectionAssert.AreEqual(new[] { "mde-doc v999" }, MdeSkillUpdater.NewerInProject(_project, HarnessLayout.Copilot).ToArray());
+            var state = MdExplorer.Services.DevelopmentConfigNotices.StateOf(_project);
+            StringAssert.Contains(state.Notice, "mde-doc v999");
+            StringAssert.Contains(state.Notice, "update MDE");
+            Assert.IsTrue(state.WrittenByNewerMde);
         }
     }
 }

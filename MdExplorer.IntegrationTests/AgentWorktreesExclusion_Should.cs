@@ -146,7 +146,7 @@ namespace MdExplorer.IntegrationTests
             var project = Path.Combine(Path.GetTempPath(), "mde-dotmd-ok-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(project, ".git"));
             var gitignore = Path.Combine(project, ".gitignore");
-            File.WriteAllText(gitignore, ".github/**/mde-*\n.vscode/mcp.json\n.md/\n.worktrees/\n");
+            File.WriteAllText(gitignore, ".vscode/mcp.json\n.md/\n.worktrees/\n");
             var before = File.ReadAllText(gitignore);
 
             try

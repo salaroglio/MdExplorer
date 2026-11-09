@@ -335,6 +335,43 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "la seconda apertura non cambia niente");
         }
 
+        /// <summary>
+        /// 09/11/2026 (utente): le skill, gli agenti e i prompt mde-* fanno parte del repository. Un progetto Copilot di prima, con la
+        /// riga .github/**/mde-* nel .gitignore e le mde-* di un motore che non usa più (.claude/), alla prima apertura: le mde-* di
+        /// Copilot entrano in un commit di MDE, quelle di .claude se ne vanno, la riga sparisce. La seconda apertura non fa niente.
+        /// </summary>
+        [TestMethod]
+        public async Task Commit_the_mde_skills_of_the_project_engine_on_the_first_opening()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, colleague) = Setup(ctx, "skill-mde");
+            void W(string rel, string text)
+            {
+                var full = Path.Combine(colleague, rel.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(full));
+                File.WriteAllText(full, text);
+            }
+            W(".development.yml", "# mde-schema: 3\nharness:\n  target: copilot\n");
+            W(".gitignore", "# MDE per-install artifacts — managed by MdExplorer, do not commit\n.github/**/mde-*\n.vscode/mcp.json\n.md/\n.worktrees/\n");
+            W(".claude/skills/mde-doc/SKILL.md", "---\nname: mde-doc\nmde:\n  origin: mdexplorer\n  version: 1\n---\nvecchia\n");
+            Git(colleague, "add -A"); Git(colleague, "commit -q -m prima"); Git(colleague, "push -q origin HEAD:main");
+            Git(project, "pull -q");
+
+            await OpenAndFlush(ctx, project, "mde-uno");
+
+            Assert.IsTrue(File.Exists(Path.Combine(project, ".github", "skills", "mde-doc", "SKILL.md")), "le skill di MDE nella cartella di Copilot");
+            StringAssert.Contains(Git(project, "ls-files .github/skills").Out, ".github/skills/mde-doc/SKILL.md", "e nel repository");
+            Assert.AreEqual(string.Empty, Git(project, "ls-files .claude").Out, "quelle del motore vecchio se ne vanno dal repository");
+            Assert.IsFalse(Directory.Exists(Path.Combine(project, ".claude")), "e dal disco");
+            Assert.AreEqual(string.Empty, Git(project, "status --porcelain -- .github .claude").Out, "niente lasciato a metà");
+            Assert.IsFalse(File.ReadAllText(Path.Combine(project, ".gitignore")).Contains("mde-*"), "la riga del .gitignore se ne va");
+
+            var head = Git(project, "rev-parse HEAD").Out;
+            await OpenAndFlush(ctx, project, "mde-due");
+            Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "la seconda apertura non cambia niente");
+        }
+
         [TestMethod]
         public async Task Leave_no_mde_file_out_of_a_commit_after_the_first_opening()
         {
