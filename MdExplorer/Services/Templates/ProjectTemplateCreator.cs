@@ -187,7 +187,8 @@ namespace MdExplorer.Services.Templates
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
                 var (harness, engineChosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
-                await Run(path, ct, "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName);
+                await Run(path, ct, new[] { "add", "--", ".gitignore", DevelopmentConfigCleanup.FileName }
+                    .Concat(File.Exists(System.IO.Path.Combine(path, ".gitattributes")) ? new[] { ".gitattributes" } : Array.Empty<string>()).ToArray());
 
                 var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, request.TemplateUrl, request.Language, tookExample, WantsTheory(request.TemplateUrl)), ct,
                     cityOn: request.AgentCity)).ToList();

@@ -136,5 +136,35 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(state.Notice, "update MDE");
             Assert.IsTrue(state.WrittenByNewerMde);
         }
+
+        /// <summary>
+        /// 09/11/2026: le mde-* sono nel repository e MDE le segna come generate nel .gitattributes, solo per il motore del progetto.
+        /// Le righe del gruppo restano; cambiando motore le righe di MDE seguono; riaperto, niente si moltiplica.
+        /// </summary>
+        [TestMethod]
+        public void Mark_the_mde_files_of_the_project_engine_as_generated()
+        {
+            Directory.CreateDirectory(Path.Combine(_project, ".git"));
+            CreateProjectFor(HarnessTarget.Copilot);
+            var path = Path.Combine(_project, ".gitattributes");
+            File.WriteAllText(path, "*.sh text eol=lf\n");
+
+            MdExplorer.Service.ProjectsManager.EnsureGitattributesEntries(_project);
+            MdExplorer.Service.ProjectsManager.EnsureGitattributesEntries(_project);
+
+            var text = File.ReadAllText(path);
+            StringAssert.StartsWith(text, "*.sh text eol=lf\n", "le righe del gruppo restano");
+            Assert.AreEqual(1, text.Split('\n').Count(l => l == ".github/skills/mde-*/** linguist-generated=true"), text);
+            StringAssert.Contains(text, ".github/agents/mde-* linguist-generated=true");
+            Assert.IsFalse(text.Contains(".claude/"), text);
+
+            HarnessSettings.Write(_project, HarnessTarget.Claude);
+            MdExplorer.Service.ProjectsManager.EnsureGitattributesEntries(_project);
+            text = File.ReadAllText(path);
+            StringAssert.Contains(text, ".claude/skills/mde-*/** linguist-generated=true");
+            Assert.IsFalse(text.Contains(".github/"), "le righe di MDE per Copilot se ne vanno:\n" + text);
+            StringAssert.StartsWith(text, "*.sh text eol=lf\n");
+            Assert.AreEqual(1, text.Split('\n').Count(l => l.StartsWith("# MDE")), text);
+        }
     }
 }

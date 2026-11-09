@@ -186,7 +186,7 @@ namespace MdExplorer.IntegrationTests
             // SetHarness scrive anche .gitignore: due notifiche, una per il file di MDE e una per quello dell'utente
             Assert.AreEqual(2, result.Notices.Count, string.Join(" | ", result.Notices));
             var notice = result.Notices.Single(n => n.Contains(".development.yml"));
-            StringAssert.Contains(result.Notices.Single(n => n.Contains(".gitignore")), "The change will go into your next commit");
+            StringAssert.Contains(result.Notices.Single(n => n.Contains(".gitignore")), "will go into your next commit");   // .gitignore e .gitattributes
             // senza UiText.Use i testi del servizio sono in inglese (vedi server_texts_follow_ui_language)
             StringAssert.Contains(notice, ".development.yml");
             // 09/11/2026: la notifica non si giustifica, il motivo sta nel commit (e nel log)

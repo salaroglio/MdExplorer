@@ -117,6 +117,8 @@ namespace MdExplorer.Service
             // across clients), unlike InitializeGitRepository which bails out when .git exists.
             EnsureGitignoreEntries(pathFromParameter);
             perf.Mark("EnsureGitignoreEntries");
+            EnsureGitattributesEntries(pathFromParameter);
+            perf.Mark("EnsureGitattributesEntries");
 
             // For repositories where those artifacts were already committed (the typical
             // shared-docs case), .gitignore alone is not enough — stop tracking them so they
@@ -527,6 +529,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             AlignMdeAssets(projectPath, harness);
             RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
             EnsureGitignoreEntries(projectPath);
+            EnsureGitattributesEntries(projectPath);
         }
 
         /// <summary>
@@ -718,6 +721,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             var harness = declared ?? requested ?? HarnessTarget.None;
             if (declared == null) HarnessSettings.Write(projectPath, harness);
             EnsureGitignoreEntries(projectPath);
+            EnsureGitattributesEntries(projectPath);
 
             // I tre file di configurazione di questa installazione: git li ignora, come nella demo.
             var gitignore = Path.Combine(projectPath, ".gitignore");
@@ -1826,6 +1830,54 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error ensuring .gitignore entries: {ex.Message}");
                 // Non-critical: the project can continue without the .gitignore update.
+            }
+        }
+
+        /// <summary>Il commento che precede le righe di MDE nel <c>.gitattributes</c>.</summary>
+        private const string GitattributesHeader = "# MDE — skill, agenti e prompt di MDE: file generati, GitHub li comprime nelle pull request";
+
+        /// <summary>Le righe del <c>.gitattributes</c> per le <c>mde-*</c> di un motore: i file e il contenuto delle cartelle.</summary>
+        private static IEnumerable<string> GitattributesLines(HarnessLayout layout)
+            => new[] { layout.SkillsFolder, layout.AgentsFolder, layout.PromptsFolder }.Distinct()
+                .SelectMany(f => new[] { $"{f}/mde-* linguist-generated=true", $"{f}/mde-*/** linguist-generated=true" });
+
+        /// <summary>
+        /// Le skill, gli agenti e i prompt <c>mde-*</c> sono nel repository (09/11/2026): nel <c>.gitattributes</c> MDE li segna come
+        /// generati (<c>linguist-generated=true</c>), così GitHub li comprime nelle pull request e chi rivede vede le modifiche del
+        /// gruppo. Solo per il motore del progetto: le righe di MDE per gli altri motori se ne vanno, quelle del gruppo restano. È un
+        /// file dell'utente, come il <c>.gitignore</c>: niente commit automatico, solo l'avviso.
+        /// </summary>
+        public static void EnsureGitattributesEntries(string projectPath)
+        {
+            try
+            {
+                if (!Directory.Exists(Path.Combine(projectPath, ".git"))) return;
+                var harness = HarnessSettings.Read(projectPath) ?? HarnessTarget.None;
+                var wanted = harness == HarnessTarget.None ? new List<string>() : GitattributesLines(HarnessLayout.For(harness)).ToList();
+                var ours = HarnessLayout.All.SelectMany(GitattributesLines).Append(GitattributesHeader).ToHashSet(StringComparer.Ordinal);
+
+                var path = Path.Combine(projectPath, ".gitattributes");
+                var existing = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
+                var newline = existing.Contains("\r\n") ? "\r\n" : "\n";
+                var lines = existing.Length == 0 ? new List<string>() : existing.Replace("\r\n", "\n").TrimEnd('\n').Split('\n').ToList();
+                var group = lines.Where(l => !ours.Contains(l.Trim())).ToList();          // le righe del gruppo, com'erano
+                var kept = lines.Where(l => ours.Contains(l.Trim()) && (wanted.Contains(l.Trim()) || l.Trim() == GitattributesHeader)).Select(l => l.Trim()).ToList();
+                if (wanted.Count == 0) kept.Clear();
+                var block = wanted.Count == 0 ? new List<string>() : new[] { GitattributesHeader }.Concat(wanted).ToList();
+                if (kept.SequenceEqual(block)) return;                                       // già come deve essere
+
+                var all = group.Concat(group.Count > 0 && block.Count > 0 && group[^1].Trim().Length > 0 ? new[] { "" } : Array.Empty<string>()).Concat(block).ToList();
+                var text = all.Count == 0 ? string.Empty : string.Join(newline, all) + newline;
+                if (text == existing) return;
+                File.WriteAllText(path, text);
+                Console.WriteLine($"[ProjectsManager] {projectPath}: .gitattributes allineato ({block.Count - (block.Count > 0 ? 1 : 0)} righe di MDE)");
+                MdeRepoWriter.NotifyWritten(path, new MdeWhy(
+                    "segnate come generate le skill, gli agenti e i prompt di MDE: GitHub li comprime nelle pull request",
+                    "marked MDE skills, agents and prompts as generated: GitHub collapses them in pull requests"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProjectsManager] {projectPath}: .gitattributes non aggiornato: {ex.Message}");
             }
         }
 
