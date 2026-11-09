@@ -258,6 +258,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
             try
             {
                 var notes = await city.EnableAgentCityAsync(request?.Path, request?.Language, request?.Guide == true, ct);
+                // Gli strumenti degli agenti seguono la città (09/11/2026).
+                ProjectsManager.RefreshMcpRegistration(request.Path, ProjectsManager.McpGroupsArgument(_services, request.Path));
                 return Ok(new { notes, agentCity = ToAgentCityDto(_projectMetadataService.GetAgentCity(request.Path), request.Path) });
             }
             catch (InvalidOperationException ex)
@@ -297,6 +299,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     // per questo campo.
                     UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees,
                 });
+                // Gli strumenti degli agenti seguono la città (09/11/2026): la registrazione MCP si riscrive subito, non alla prossima apertura.
+                if ((current?.Enabled ?? false) != saved.Enabled)
+                    ProjectsManager.RefreshMcpRegistration(path, ProjectsManager.McpGroupsArgument(_services, path));
                 return Ok(ToAgentCityDto(saved, path));
             }
             catch (InvalidOperationException ex)

@@ -78,7 +78,7 @@ namespace MdExplorer.Features.Templates
                 problems.Add(UiText.Say($"l'id '{twin.Key}' compare più volte", $"the id '{twin.Key}' appears more than once"));
             // Lo strato comune è uno: c'è in ogni progetto fatto di metodi (MC2).
             if (entries.Count(e => e.Kind == TemplateManifest.Foundation) > 1)
-                problems.Add(UiText.Say("c'è più di un template foundation: lo strato comune è uno solo", "there is more than one foundation template: the common layer is one only"));
+                problems.Add(UiText.Say("c'è più di un template foundation: il template base è uno solo", "there is more than one foundation template: the base template is one only"));
             if (problems.Count > 0)
                 throw Problem($"l'elenco dei template non è in regola: {string.Join("; ", problems)}.", $"the template list is not right: {string.Join("; ", problems)}.");
             return entries;

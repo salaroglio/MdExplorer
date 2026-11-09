@@ -175,15 +175,15 @@ namespace MdExplorer.Services.Templates
                     new HashSet<string>(StringComparer.Ordinal), ct, exampleIfAny: true);
                 // Un progetto nasce dallo strato comune, con i metodi sopra, o dalla demo (M5: l'elenco ha lo strato comune).
                 if (manifest.IsMethod)
-                    throw Problem($"«{manifest.Title}» è un metodo: un progetto nasce dallo strato comune, e il metodo ci si aggiunge sopra.",
-                                  $"«{manifest.Title}» is a method: a project starts from the common layer, and the method is added on top of it.");
+                    throw Problem($"«{manifest.Title}» è una metodologia: un progetto nasce dal template base, e la metodologia ci si aggiunge sopra.",
+                                  $"«{manifest.Title}» is a methodology: a project starts from the base template, and the methodology is added on top of it.");
                 // La demo ha tutto incluso e sta per conto suo (MC6).
                 if (manifest.Kind == TemplateManifest.Project && request.AgentCity)
                     throw Problem($"«{manifest.Title}» ha già la sua città degli agenti: non le si aggiunge quella di MDE.",
                                   $"«{manifest.Title}» already has its own agent city: MDE's is not added to it.");
                 if (manifest.Kind == TemplateManifest.Project && request.Methods?.Count > 0)
-                    throw Problem($"«{manifest.Title}» ha già tutto incluso: non gli si aggiungono metodi. Scegli lei da sola, o lo strato comune con i metodi.",
-                                  $"«{manifest.Title}» already has everything included: methods are not added to it. Choose it alone, or the common layer with the methods.");
+                    throw Problem($"«{manifest.Title}» ha già tutto incluso: non gli si aggiungono metodologie. Scegli lei da sola, o il template base con le metodologie.",
+                                  $"«{manifest.Title}» already has everything included: methodologies are not added to it. Choose it alone, or the base template with the methodologies.");
                 await Run(path, ct, "checkout", "-q", "--no-track", "-b", ProjectBranch, tip);
 
                 var (harness, engineChosen) = MdExplorer.Service.ProjectsManager.PrepareTemplateProject(path, requested);
@@ -253,24 +253,24 @@ namespace MdExplorer.Services.Templates
         {
             if (string.IsNullOrWhiteSpace(request?.ProjectPath) || !Directory.Exists(request.ProjectPath))
                 throw Problem($"Il progetto '{request?.ProjectPath}' non esiste.", $"The project '{request?.ProjectPath}' does not exist.");
-            if (string.IsNullOrWhiteSpace(request.TemplateUrl)) throw Problem("Manca l'indirizzo del metodo.", "The method address is missing.");
-            if (string.IsNullOrWhiteSpace(request.Language)) throw Problem("Manca la lingua del metodo.", "The method language is missing.");
+            if (string.IsNullOrWhiteSpace(request.TemplateUrl)) throw Problem("Manca l'indirizzo della metodologia.", "The methodology address is missing.");
+            if (string.IsNullOrWhiteSpace(request.Language)) throw Problem("Manca la lingua della metodologia.", "The methodology language is missing.");
             if (!TemplateManifestReader.IsAppVersion(request.MdeVersion))
-                throw Problem($"La versione di MdExplorer '{request.MdeVersion}' non si legge: serve per sapere se il metodo ci gira.",
-                              $"The MdExplorer version '{request.MdeVersion}' cannot be read: it is needed to know whether the method runs here.");
+                throw Problem($"La versione di MdExplorer '{request.MdeVersion}' non si legge: serve per sapere se la metodologia ci gira.",
+                              $"The MdExplorer version '{request.MdeVersion}' cannot be read: it is needed to know whether the methodology runs here.");
             var path = System.IO.Path.GetFullPath(request.ProjectPath).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
 
             var top = await _git.RunAsync(path, new[] { "rev-parse", "--show-toplevel" }, ct);
             if (!top.Ok || !SamePath(top.Stdout.Trim(), path))
-                throw Problem("Il progetto non è un repository git (o ne è una sottocartella): un metodo si unisce con git.",
-                              "The project is not a git repository (or is a subfolder of one): a method is merged with git.");
+                throw Problem("Il progetto non è un repository git (o ne è una sottocartella): una metodologia si unisce con git.",
+                              "The project is not a git repository (or is a subfolder of one): a methodology is merged with git.");
             if (File.Exists(System.IO.Path.Combine(path, ".git", "MERGE_HEAD")) || (await _git.RunAsync(path, new[] { "rev-parse", "-q", "--verify", "MERGE_HEAD" }, ct)).Ok)
-                throw Problem("Nel progetto c'è un'unione rimasta a metà: chiudila o annullala prima di aggiungere un metodo.",
-                              "The project has a merge left half done: finish or abort it before adding a method.");
+                throw Problem("Nel progetto c'è un'unione rimasta a metà: chiudila o annullala prima di aggiungere una metodologia.",
+                              "The project has a merge left half done: finish or abort it before adding a methodology.");
             var dirty = (await Run(path, ct, "status", "--porcelain", "--untracked-files=no")).Trim();
             if (dirty.Length > 0)
-                throw Problem($"Il progetto ha modifiche senza commit ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): fai il commit o annullale, poi aggiungi il metodo. Il metodo arriva con un commit suo, che non deve portarsi dietro il tuo lavoro.",
-                              $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them, then add the method. The method comes with its own commit, which must not carry your work.");
+                throw Problem($"Il progetto ha modifiche senza commit ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): fai il commit o annullale, poi aggiungi la metodologia. La metodologia arriva con un commit suo, che non deve portarsi dietro il tuo lavoro.",
+                              $"The project has uncommitted changes ({string.Join(", ", dirty.Split('\n').Take(5).Select(l => l.Trim()))}): commit or discard them, then add the methodology. The methodology comes with its own commit, which must not carry your work.");
 
             var head = (await Run(path, ct, "rev-parse", "HEAD")).Trim();
             try
@@ -284,7 +284,7 @@ namespace MdExplorer.Services.Templates
                 _logger.LogError(ex, "[Template] '{Path}': il metodo da '{Url}' non si aggiunge; il progetto torna com'era.", path, request.TemplateUrl);
                 await UndoAsync(path, head, ct);
                 if (ex is InvalidOperationException) throw;
-                throw Problem($"Il metodo non è stato aggiunto: {ex.Message}", $"The method was not added: {ex.Message}");
+                throw Problem($"La metodologia non è stata aggiunta: {ex.Message}", $"The methodology was not added: {ex.Message}");
             }
         }
 
@@ -302,8 +302,8 @@ namespace MdExplorer.Services.Templates
             var present = PresentTemplates(path);
             var (tip, _, manifest, tookExample) = await PrepareAsync(path, url, language, example, mdeVersion, present.Select(t => t.Id).ToHashSet(StringComparer.Ordinal), ct, exampleIfAny);
             if (manifest.IsFoundation)
-                throw Problem($"«{manifest.Title}» è lo strato comune: un progetto lo prende alla creazione, come primo template, non lo aggiunge dopo.",
-                              $"«{manifest.Title}» is the common layer: a project takes it at creation, as the first template, it does not add it later.");
+                throw Problem($"«{manifest.Title}» è il template base: un progetto lo prende alla creazione, come primo template, non lo aggiunge dopo.",
+                              $"«{manifest.Title}» is the base template: a project takes it at creation, as the first template, it does not add it later.");
             if (!manifest.IsMethod)
                 throw Problem($"«{manifest.Title}» è un template di progetto (la base di un progetto intero): si sceglie solo alla creazione, non si aggiunge.",
                               $"«{manifest.Title}» is a project template (the base of a whole project): it is chosen only at creation, it is not added.");
@@ -313,17 +313,17 @@ namespace MdExplorer.Services.Templates
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
             var taken = tracked.Where(f => TemplateManifestReader.OutsideZone(manifest.Id, new[] { f }).Count == 0).ToList();
             if (taken.Count > 0)
-                throw Problem($"Il progetto ha già file nella zona del metodo '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): non li sovrascrivo.",
-                              $"The project already has files in the zone of method '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): I will not overwrite them.");
+                throw Problem($"Il progetto ha già file nella zona della metodologia '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): non li sovrascrivo.",
+                              $"The project already has files in the zone of methodology '{manifest.Id}' ({string.Join(", ", taken.Take(5))}): I will not overwrite them.");
 
             var merge = await _git.RunAsync(path, new[] { "merge", "--no-ff", "--no-commit", "--allow-unrelated-histories", tip }, ct);
             if (!merge.Ok)
-                throw Problem($"Il metodo non si unisce al progetto: {merge.Describe()}", $"The method does not merge into the project: {merge.Describe()}");
+                throw Problem($"La metodologia non si unisce al progetto: {merge.Describe()}", $"The methodology does not merge into the project: {merge.Describe()}");
 
             var notes = (await ApplyManifestAsync(path, manifest, Row(manifest, url, language, tookExample, theory), ct, cityOn: cityOn)).ToList();
             if (example && !tookExample) notes.Add(NoExampleNote(manifest, language));
             await Run(path, ct, "commit", "-q", "-m",
-                UiText.Say($"Metodo «{manifest.Title}» {manifest.Version} aggiunto dal template", $"Method «{manifest.Title}» {manifest.Version} added from the template"));
+                UiText.Say($"Metodologia «{manifest.Title}» {manifest.Version} aggiunta dal template", $"Methodology «{manifest.Title}» {manifest.Version} added from the template"));
             return new TemplateAddOutcome { Id = manifest.Id, Title = manifest.Title, Version = manifest.Version, Notes = notes };
         }
 
@@ -511,8 +511,8 @@ namespace MdExplorer.Services.Templates
                 var own = HarnessLayout.All.FirstOrDefault(l => string.Equals(l.Id, harness, StringComparison.OrdinalIgnoreCase))?.InstructionsFile;
                 if (own != null && !targets.Contains(own)) targets.Add(own);
                 if (targets.Count == 0)
-                    notes.Add(UiText.Say($"Le istruzioni del metodo ({manifest.Instructions}) non sono in nessun file d'istruzioni: il progetto non ne ha e non ha un motore. Scegline uno nelle impostazioni e aggiungi di nuovo il blocco.",
-                                         $"The method's instructions ({manifest.Instructions}) are in no instructions file: the project has none and no engine. Choose one in the settings and add the block again."));
+                    notes.Add(UiText.Say($"Le istruzioni della metodologia ({manifest.Instructions}) non sono in nessun file d'istruzioni: il progetto non ne ha e non ha un motore. Scegline uno nelle impostazioni e aggiungi di nuovo il blocco.",
+                                         $"The methodology's instructions ({manifest.Instructions}) are in no instructions file: the project has none and no engine. Choose one in the settings and add the block again."));
                 foreach (var target in targets)
                 {
                     var full = System.IO.Path.Combine(path, target.Replace('/', System.IO.Path.DirectorySeparatorChar));
@@ -522,7 +522,7 @@ namespace MdExplorer.Services.Templates
                     touched.Add(target);
                 }
                 if (targets.Count > 0)
-                    notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
+                    notes.Add(UiText.Say($"Istruzioni della metodologia in {string.Join(", ", targets)}.", $"Methodology instructions in {string.Join(", ", targets)}."));
             }
 
             await ApplySkillsAsync(path, manifest, cityOn, notes, touched, ct);
@@ -563,8 +563,8 @@ namespace MdExplorer.Services.Templates
                 notes.Add(UiText.Say($"«{manifest.Title}» ha agenti, ruoli e workflow per la città degli agenti: arrivano quando la accendi.",
                                      $"«{manifest.Title}» has agents, roles and workflows for the agent city: they arrive when you turn it on."));
             if (manifest.RolesFor(cityOn).Any(r => r.Agents?.Count > 0))
-                notes.Add(UiText.Say("Gli agenti del metodo partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
-                                     "The method's agents start once someone declares them theirs («It is mine») and trusts them."));
+                notes.Add(UiText.Say("Gli agenti della metodologia partono quando qualcuno li dichiara suoi («È mio») e li autorizza.",
+                                     "The methodology's agents start once someone declares them theirs («It is mine») and trusts them."));
 
         }
 
@@ -618,7 +618,7 @@ namespace MdExplorer.Services.Templates
                     ? string.Join(", ", created)
                     : UiText.Say($"{created.Count} file in ", $"{created.Count} files in ") +
                       string.Join(", ", created.Select(c => c.Split('/')[0] + (c.Contains('/') ? "/" : "")).Distinct());
-                notes.Add(UiText.Say($"File iniziali del metodo, ora del gruppo: {list}.", $"The method's starting files, now the group's: {list}."));
+                notes.Add(UiText.Say($"File iniziali della metodologia, ora del gruppo: {list}.", $"The methodology's starting files, now the group's: {list}."));
             }
             KeptAndChangedNotes(manifest, kept, changed, notes);
         }
@@ -865,8 +865,8 @@ namespace MdExplorer.Services.Templates
             {
                 var outside = TemplateManifestReader.OutsideZone(manifest.Id, files, skillsInZone: manifest.IsFormat2);
                 if (outside.Count > 0)
-                    throw Problem($"Il metodo «{manifest.Title}» ha file fuori dalla sua cartella ({string.Join(", ", outside.Take(5))}): non lo unisco.",
-                                  $"The method «{manifest.Title}» has files outside its folder ({string.Join(", ", outside.Take(5))}): I will not merge it.");
+                    throw Problem($"La metodologia «{manifest.Title}» ha file fuori dalla sua cartella ({string.Join(", ", outside.Take(5))}): non la unisco.",
+                                  $"The methodology «{manifest.Title}» has files outside its folder ({string.Join(", ", outside.Take(5))}): I will not merge it.");
             }
             var missing = manifest.AllWorkflows.Append(manifest.Instructions)
                 .Concat(manifest.SkillsFor(cityOn: true).Select(f => f + "/SKILL.md"))

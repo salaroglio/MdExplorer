@@ -455,7 +455,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                         summary = g.Summary,
                         toolCount = g.Tools.Length,
                         approxTokens = g.ApproxTokens,
-                        enabled = enabled.Contains(g.Id)
+                        enabled = enabled.Contains(g.Id),
+                        // Non si sceglie: lo accendono la città degli agenti o gli agenti registrati (09/11/2026).
+                        bound = g.Id == McpToolGroupsSettings.AgentsGroup
                     })
                 });
             }

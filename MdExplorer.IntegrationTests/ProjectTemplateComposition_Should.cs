@@ -102,7 +102,7 @@ theory:
             {
                 Path = NewFolder(ctx, "demo-e-ddd"), TemplateUrl = Template(ctx, "demo", Base()), Methods = new[] { ddd }, Language = "it", MdeVersion = Mde,
             }));
-            StringAssert.Contains(demo.Message, "already has everything included: methods are not added to it");
+            StringAssert.Contains(demo.Message, "already has everything included: methodologies are not added to it");
             Assert.IsFalse(Directory.Exists(NewFolder(ctx, "demo-e-ddd")), "niente lasciato indietro");
 
             var second = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
@@ -110,14 +110,14 @@ theory:
                 Path = NewFolder(ctx, "strato-dopo"), TemplateUrl = ddd, Methods = new[] { Template(ctx, "documenti", Foundation()) },
                 Language = "it", MdeVersion = Mde, Harness = "claude",
             }));
-            StringAssert.Contains(second.Message, "is a method: a project starts from the common layer");
+            StringAssert.Contains(second.Message, "is a methodology: a project starts from the base template");
 
             var foundationLater = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "strato-come-metodo"), TemplateUrl = Template(ctx, "documenti", Foundation()),
                 Methods = new[] { Template(ctx, "documenti-bis", Foundation("documenti-bis")) }, Language = "it", MdeVersion = Mde, Harness = "claude",
             }));
-            StringAssert.Contains(foundationLater.Message, "is the common layer: a project takes it at creation, as the first template");
+            StringAssert.Contains(foundationLater.Message, "is the base template: a project takes it at creation, as the first template");
         }
 
         [TestMethod]

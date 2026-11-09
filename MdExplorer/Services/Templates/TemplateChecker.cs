@@ -252,8 +252,8 @@ namespace MdExplorer.Services.Templates
                 var allowedEn = manifest.IsFormat2 ? zone : $"{zone} and .claude/skills/{manifest.Id}-*/";
                 foreach (var f in outside.Take(MaxListed))
                     issues.Add(Err(branch, f,
-                        UiText.Say($"Il file è fuori dalla zona del metodo ({allowed}): MDE non unisce il metodo.",
-                                   $"The file is outside the method's zone ({allowedEn}): MDE will not merge the method."),
+                        UiText.Say($"Il file è fuori dalla zona della metodologia ({allowed}): MDE non unisce la metodologia.",
+                                   $"The file is outside the methodology's zone ({allowedEn}): MDE will not merge the methodology."),
                         manifest.IsFormat2 && f.StartsWith(".claude/skills/", StringComparison.Ordinal)
                             ? UiText.Say($"Nel formato 2 le skill stanno in {zone}: spostala lì e dichiarala in skills o in agent_city.skills, MDE la copia nella cartella delle skill del motore del progetto.",
                                          $"In format 2 the skills live in {zone}: move it there and declare it in skills or agent_city.skills, MDE copies it into the skills folder of the project's engine.")
@@ -341,8 +341,8 @@ namespace MdExplorer.Services.Templates
                                                             $"The card is named '{parsed.Card.Name}', the file '{name}': MDE looks it up by file name."), null));
                 if (manifest.IsZoned && !name.StartsWith(manifest.Id + "-", StringComparison.Ordinal))
                     issues.Add(Err(branch, card,
-                        UiText.Say($"L'agente '{name}' non comincia con l'id del metodo: un altro metodo potrebbe portarne uno con lo stesso nome.",
-                                   $"The agent '{name}' does not start with the method's id: another method could carry one with the same name."),
+                        UiText.Say($"L'agente '{name}' non comincia con l'id della metodologia: un'altra metodologia potrebbe portarne uno con lo stesso nome.",
+                                   $"The agent '{name}' does not start with the methodology's id: another methodology could carry one with the same name."),
                         UiText.Say($"Chiamalo '{manifest.Id}-…', nel file e in a2a.name.", $"Name it '{manifest.Id}-…', in the file and in a2a.name.")));
                 if (!names.Add(name))
                     issues.Add(Err(branch, card, UiText.Say($"Due schede '{name}': MDE non sa quale usare.", $"Two cards '{name}': MDE does not know which to use."), null));

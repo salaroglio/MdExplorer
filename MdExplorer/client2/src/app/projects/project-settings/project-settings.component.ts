@@ -1018,6 +1018,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityNotes = res?.notes || [];
         this.agentCityState.set(this.projectPath, true);
         this.loadAgentCity();
+        this.loadMcpToolGroups();
         this.loadTemplates();
       },
       error: err => {
@@ -1054,6 +1055,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
         // Il service ignora il salvataggio se riguarda un progetto non aperto.
         this.agentCityState.set(this.projectPath, !!res?.enabled);
+        // Gli strumenti degli agenti seguono la città: la loro casella si rilegge.
+        this.loadMcpToolGroups();
       },
       error: (err) => {
         console.error('Error saving Agent City settings:', err);

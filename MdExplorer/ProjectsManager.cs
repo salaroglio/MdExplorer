@@ -1001,8 +1001,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                     chosenGroups = project.McpToolGroups;
                     path = project.Path;
-                    if (string.IsNullOrWhiteSpace(chosenGroups))
-                        inputs = McpToolGroupsSettings.ReadDefaultInputs(project, db, perf);
+                    inputs = string.IsNullOrWhiteSpace(chosenGroups)
+                        ? McpToolGroupsSettings.ReadDefaultInputs(project, db, perf)
+                        : McpToolGroupsSettings.ReadAgentsInputs(project, db);   // gli strumenti degli agenti non seguono la scelta
                 }
                 finally
                 {

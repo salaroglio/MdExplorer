@@ -207,7 +207,7 @@ instructions: .mde-template/ddd/istruzioni.md
             var report = await scope.ServiceProvider.GetRequiredService<ITemplateChecker>().CheckAsync(work);
             var all = string.Join("\n", report.Issues.Select(i => $"{i.Severity} {i.File}: {i.Message} {i.Fix}"));
 
-            StringAssert.Contains(all, "error .claude/skills/ddd-vecchia/SKILL.md: The file is outside the method's zone (.mde-template/ddd/)");
+            StringAssert.Contains(all, "error .claude/skills/ddd-vecchia/SKILL.md: The file is outside the methodology's zone (.mde-template/ddd/)");
             StringAssert.Contains(all, "In format 2 the skills live in .mde-template/ddd/");
             StringAssert.Contains(all, "error .mde-template/ddd/skills/ddd-base/SKILL.md: The skill's front matter must have «name: ddd-base»");
             Assert.IsFalse(all.Contains("workflow"), "il workflow di agent_city si legge, con il suo agente: " + all);

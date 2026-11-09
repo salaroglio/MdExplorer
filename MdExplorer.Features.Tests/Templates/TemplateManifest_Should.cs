@@ -122,7 +122,7 @@ workflows: [citta-degli-agenti/gara/workflow.md]
                 "  - { from: .mde-template/gara-iso/semi/e.md, to: gare/A.md }\n", "gara-iso", out problems);
             var all = string.Join("\n", problems);
             Assert.AreEqual(5, problems.Count, all);
-            StringAssert.Contains(problems[0], "'semi/profilo.md' is outside the method's folder");
+            StringAssert.Contains(problems[0], "'semi/profilo.md' is outside the methodology's folder");
             StringAssert.Contains(problems[1], "'.mde-template/gara-iso/b.md' is not a file of the group");
             StringAssert.Contains(problems[2], "'.development.yml' is not a file of the group");
             StringAssert.Contains(problems[3], "'../fuori.md' must be a path from the project root");
@@ -217,7 +217,7 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             var all = string.Join("\n", problems);
             Assert.AreEqual(3, problems.Count, all);
             StringAssert.Contains(all, "slides: 'ita' is not a language code");
-            StringAssert.Contains(all, "slides.en: 'docs/p.md' is outside the method's folder");
+            StringAssert.Contains(all, "slides.en: 'docs/p.md' is outside the methodology's folder");
             StringAssert.Contains(all, "slides.it: '.mde-template/gara-iso/p.pdf' must be a markdown presentation");
         }
 
@@ -246,7 +246,7 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             var all = string.Join("\n", problems);
             Assert.AreEqual(3, problems.Count, all);
             StringAssert.Contains(all, "theory.de: the template is not in 'de'");
-            StringAssert.Contains(all, "theory.en.from: 'docs/t' is outside the method's folder");
+            StringAssert.Contains(all, "theory.en.from: 'docs/t' is outside the methodology's folder");
             StringAssert.Contains(all, "theory.en.to: '.claude/skills/t' must be a folder of the group");
         }
 
@@ -305,7 +305,7 @@ agent_city:
             TemplateManifestReader.Read(Format2.Replace("ddd-scrittura", "scrittura").Replace("skills/ddd-redazione", "fuori/ddd-redazione").Replace(".mde-template/ddd/fuori", "docs"), "ddd", out problems);
             all = string.Join("\n", problems);
             StringAssert.Contains(all, "the skill 'scrittura' does not start with 'ddd-'");
-            StringAssert.Contains(all, "agent_city.skills: 'docs/ddd-redazione' is outside the method's folder");
+            StringAssert.Contains(all, "agent_city.skills: 'docs/ddd-redazione' is outside the methodology's folder");
         }
     }
 }

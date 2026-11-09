@@ -133,10 +133,10 @@ seeds:
             var all = Describe(report);
 
             Assert.IsFalse(report.Ok, all);
-            StringAssert.Contains(all, "error [main] gare/fuori.md: The file is outside the method's zone");
+            StringAssert.Contains(all, "error [main] gare/fuori.md: The file is outside the methodology's zone");
             StringAssert.Contains(all, "error [main] .mde-template/ddd/CHANGELOG.md:");
             StringAssert.Contains(all, "warning [main] .mde-template/ddd/README.md: The template's README is missing");
-            StringAssert.Contains(all, "error [main] .mde-template/ddd/agents/analista.agent.md: The agent 'analista' does not start with the method's id");
+            StringAssert.Contains(all, "error [main] .mde-template/ddd/agents/analista.agent.md: The agent 'analista' does not start with the methodology's id");
             StringAssert.Contains(all, "error [main] .claude/skills/ddd-contesti/SKILL.md: The skill's front matter must have «name: ddd-contesti»");
             StringAssert.Contains(all, "The role «Analista DDD» names the agent 'ddd-fantasma', which has no card in the branch.");
             StringAssert.Contains(all, "error [main] .mde-template/ddd/workflows/ddd.workflow.json:");
@@ -164,7 +164,7 @@ seeds:
             var report = await Check(ctx, work);
             var all = Describe(report);
 
-            StringAssert.Contains(all, "error [esempio] fuori.md: The file is outside the method's zone");
+            StringAssert.Contains(all, "error [esempio] fuori.md: The file is outside the methodology's zone");
             StringAssert.Contains(all, "warning [esempio] .mde-template/ddd/mde-template.yml: The structure 'main' is at 1.1.0, the example 'esempio' at 1.0.0");
             StringAssert.Contains(all, "warning [esempio] : The example 'esempio' does not contain the last commit of the structure 'main'");
             StringAssert.Contains(all, "The tag v1.1.0 of the version 1.1.0 is missing.");

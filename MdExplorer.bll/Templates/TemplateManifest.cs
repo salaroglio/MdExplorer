@@ -281,8 +281,8 @@ namespace MdExplorer.Features.Templates
                     problems.Add(UiText.Say($"roles: '{r.Role}' compare due volte", $"roles: '{r.Role}' appears twice"));
                 foreach (var a in r.Agents ?? new List<string>())
                     if (m.IsZoned && m.Id != null && !(a ?? string.Empty).StartsWith(m.Id + "-", StringComparison.Ordinal))
-                        problems.Add(UiText.Say($"roles: l'agente '{a}' non comincia con '{m.Id}-': gli agenti di un metodo portano il suo id",
-                                                $"roles: the agent '{a}' does not start with '{m.Id}-': a method's agents carry its id"));
+                        problems.Add(UiText.Say($"roles: l'agente '{a}' non comincia con '{m.Id}-': gli agenti di una metodologia portano il suo id",
+                                                $"roles: the agent '{a}' does not start with '{m.Id}-': a methodology's agents carry its id"));
             }
 
             foreach (var w in m.Workflows ?? new List<string>()) CheckPath(m, "workflows", w, problems);
@@ -310,8 +310,8 @@ namespace MdExplorer.Features.Templates
             if (m.Instructions != null) CheckPath(m, "instructions", m.Instructions, problems);
 
             if (m.Theory?.Count > 0 && m.Kind == TemplateManifest.Project)
-                problems.Add(UiText.Say("theory: un template di progetto ha già tutto incluso; la teoria è di un metodo o dello strato comune",
-                                        "theory: a project template already has everything included; theory belongs to a method or the common layer"));
+                problems.Add(UiText.Say("theory: un template di progetto ha già tutto incluso; la teoria è di una metodologia o del template base",
+                                        "theory: a project template already has everything included; theory belongs to a methodology or the base template"));
             foreach (var (code, theory) in m.Theory ?? new Dictionary<string, TemplateTheory>())
             {
                 if (!LanguageCode.IsMatch(code ?? string.Empty))
@@ -376,8 +376,8 @@ namespace MdExplorer.Features.Templates
             if (!m.IsZoned)
             {
                 if (m.Skills != null || m.AgentCity != null)
-                    problems.Add(UiText.Say("skills e agent_city sono di un metodo o dello strato comune: un template di progetto ha tutto incluso",
-                                            "skills and agent_city belong to a method or the common layer: a project template has everything included"));
+                    problems.Add(UiText.Say("skills e agent_city sono di una metodologia o del template base: un template di progetto ha tutto incluso",
+                                            "skills and agent_city belong to a methodology or the base template: a project template has everything included"));
                 return;
             }
             if (m.Roles != null)
@@ -418,8 +418,8 @@ namespace MdExplorer.Features.Templates
                 return;
             }
             if (m.IsZoned && m.Id != null && !path.StartsWith(TemplateManifest.ZoneOf(m.Id), StringComparison.Ordinal))
-                problems.Add(UiText.Say($"{key}: '{path}' è fuori dalla cartella del metodo {TemplateManifest.ZoneOf(m.Id)}",
-                                        $"{key}: '{path}' is outside the method's folder {TemplateManifest.ZoneOf(m.Id)}"));
+                problems.Add(UiText.Say($"{key}: '{path}' è fuori dalla cartella della metodologia {TemplateManifest.ZoneOf(m.Id)}",
+                                        $"{key}: '{path}' is outside the methodology's folder {TemplateManifest.ZoneOf(m.Id)}"));
         }
 
         /// <summary>

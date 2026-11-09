@@ -47,6 +47,8 @@ export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'none';
 export interface McpToolGroup {
   id: string;
   mandatory: boolean;
+  /** Non si sceglie: lo accendono la città degli agenti o gli agenti registrati nel progetto. */
+  bound?: boolean;
   summary: string;
   toolCount: number;
   approxTokens: number;

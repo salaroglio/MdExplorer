@@ -38,8 +38,8 @@ namespace MdExplorer.Features.Templates
             var to = text.IndexOf(End(id), StringComparison.Ordinal);
             if (starts != 1 || ends != 1 || to < from)
                 throw new InvalidOperationException(UiText.Say(
-                    $"Il blocco del metodo '{id}' non è intero: serve una riga {Start(id)} e, dopo, una riga {End(id)}. Correggilo a mano e riprova.",
-                    $"The block of method '{id}' is not whole: it needs a line {Start(id)} and, after it, a line {End(id)}. Fix it by hand and try again."));
+                    $"Il blocco della metodologia '{id}' non è intero: serve una riga {Start(id)} e, dopo, una riga {End(id)}. Correggilo a mano e riprova.",
+                    $"The block of methodology '{id}' is not whole: it needs a line {Start(id)} and, after it, a line {End(id)}. Fix it by hand and try again."));
             return text.Substring(0, from) + block + text.Substring(to + End(id).Length);
         }
     }

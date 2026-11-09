@@ -133,8 +133,24 @@ namespace MdExplorer.Utilities
         {
             if (project == null) throw new ArgumentNullException(nameof(project));
             chosen = !string.IsNullOrWhiteSpace(project.McpToolGroups);
-            return Resolve(project.McpToolGroups, chosen ? null : ReadDefaultInputs(project, db), project.Path);
+            return Resolve(project.McpToolGroups, chosen ? ReadAgentsInputs(project, db) : ReadDefaultInputs(project, db), project.Path);
         }
+
+        /// <summary>Il gruppo degli strumenti degli agenti: non si sceglie, lo decidono la città e gli agenti registrati (09/11/2026).</summary>
+        public const string AgentsGroup = "agents";
+
+        /// <summary>
+        /// Gli strumenti degli agenti (messaggi, richieste di intervento, memoria, verifiche) servono quando la città è accesa
+        /// OPPURE quando il progetto ha agenti registrati, che si lanciano a mano anche a città spenta (09/11/2026, decisione
+        /// dell'utente). Non si spuntano a mano: la casella si confondeva con l'interruttore della città, e toglierla lasciava gli
+        /// agenti senza i loro strumenti.
+        /// </summary>
+        public static bool AgentsOn(DefaultInputs inputs, string projectPath)
+            => AgentCityEnabled(projectPath) || inputs?.HasLlmAgents == true;
+
+        /// <summary>Solo quello che serve a <see cref="AgentsOn"/>, quando c'è già una scelta salvata. Dentro la transazione.</summary>
+        public static DefaultInputs ReadAgentsInputs(Project project, IUserSettingsDB db)
+            => new() { HasLlmAgents = HasLlmAgents(project, db) };
 
         /// <summary>
         /// <see cref="Resolve(Project, IUserSettingsDB, out bool)"/> in due tempi, per chi tiene una transazione:
@@ -152,6 +168,9 @@ namespace MdExplorer.Utilities
                 : DefaultFor(inputs ?? throw new ArgumentNullException(nameof(inputs),
                         "Senza una scelta salvata servono le righe del DB utente: leggile con ReadDefaultInputs nella transazione."),
                     projectPath, perf).ToHashSet();
+            // Gli strumenti degli agenti non seguono la scelta salvata: li decidono la città e gli agenti registrati.
+            wanted.Remove(AgentsGroup);
+            if (AgentsOn(inputs, projectPath)) wanted.Add(AgentsGroup);
 
             return Catalog()
                 .Where(g => g.Mandatory || wanted.Contains(g.Id))
@@ -204,15 +223,7 @@ namespace MdExplorer.Utilities
             // `string.Equals(a, b, StringComparison)` né `TrimEnd`, e solleva NotSupportedException
             // invece di restituire niente (misurato il 22/09/2026). La tabella degli agenti è piccola.
             var projectPath = (project.Path ?? string.Empty).TrimEnd('/', '\\');
-            // ⚠️ Solo gli agenti `llm`, cioè quelli che qualcuno ha scritto: MdExplorer registra da
-            // sé l'algoritmico `a2a-ping` in OGNI progetto, quindi «ha agenti» sarebbe sempre vero e
-            // il gruppo resterebbe acceso ovunque (misurato il 22/09/2026 su un progetto appena nato).
-            var hasLlmAgents = db.GetDal<AgentIdentity>().GetList().ToList()
-                .Any(a => string.Equals(a.Kind, "llm", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(
-                        (a.ProjectPath ?? string.Empty).TrimEnd('/', '\\'),
-                        projectPath,
-                        StringComparison.OrdinalIgnoreCase));
+            var hasLlmAgents = HasLlmAgents(project, db);
             perf?.Mark("AgentIdentity (DB)");
 
             // Le radici di codice collegate su QUESTA macchina (UserDB, non .development.yml).
@@ -231,6 +242,19 @@ namespace MdExplorer.Utilities
                 HasLlmAgents = hasLlmAgents,
                 BindingLocalPaths = bindingLocalPaths,
             };
+        }
+
+        /// <summary>
+        /// Il progetto ha agenti <c>llm</c>, cioè scritti da qualcuno. ⚠️ Solo quelli: MdExplorer registra da sé l'algoritmico
+        /// <c>a2a-ping</c> in OGNI progetto, quindi «ha agenti» sarebbe sempre vero (misurato il 22/09/2026 su un progetto appena
+        /// nato). ⚠️ <c>.ToList()</c> prima del confronto: NHibernate non traduce <c>string.Equals(…, StringComparison)</c> né <c>TrimEnd</c>.
+        /// </summary>
+        private static bool HasLlmAgents(Project project, IUserSettingsDB db)
+        {
+            var projectPath = (project.Path ?? string.Empty).TrimEnd('/', '\\');
+            return db.GetDal<AgentIdentity>().GetList().ToList()
+                .Any(a => string.Equals(a.Kind, "llm", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals((a.ProjectPath ?? string.Empty).TrimEnd('/', '\\'), projectPath, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>I gruppi proposti da <paramref name="inputs"/> e dal <c>.development.yml</c>. Legge file: fuori dalla transazione.</summary>
