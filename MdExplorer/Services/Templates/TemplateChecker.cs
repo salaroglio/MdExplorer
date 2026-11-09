@@ -255,8 +255,8 @@ namespace MdExplorer.Services.Templates
                         UiText.Say($"Il file è fuori dalla zona del metodo ({allowed}): MDE non unisce il metodo.",
                                    $"The file is outside the method's zone ({allowedEn}): MDE will not merge the method."),
                         manifest.IsFormat2 && f.StartsWith(".claude/skills/", StringComparison.Ordinal)
-                            ? UiText.Say($"Nel formato 2 le skill stanno in {zone}: spostala lì e dichiarala in skills o in agent_city.skills, MDE la copia in .claude/skills/.",
-                                         $"In format 2 the skills live in {zone}: move it there and declare it in skills or agent_city.skills, MDE copies it into .claude/skills/.")
+                            ? UiText.Say($"Nel formato 2 le skill stanno in {zone}: spostala lì e dichiarala in skills o in agent_city.skills, MDE la copia nella cartella delle skill del motore del progetto.",
+                                         $"In format 2 the skills live in {zone}: move it there and declare it in skills or agent_city.skills, MDE copies it into the skills folder of the project's engine.")
                             : UiText.Say($"Spostalo in {zone}; se deve finire nel progetto, dichiaralo in seeds.", $"Move it into {zone}; if it must end up in the project, declare it in seeds.")));
                 if (outside.Count > MaxListed)
                     issues.Add(Err(branch, null, UiText.Say($"E altri {outside.Count - MaxListed} file fuori dalla zona.", $"And {outside.Count - MaxListed} more files outside the zone."), null));

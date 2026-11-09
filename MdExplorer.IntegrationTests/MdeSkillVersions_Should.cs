@@ -37,7 +37,7 @@ namespace MdExplorer.IntegrationTests
             ["skill/mde-shacl"] = (4, "c97abad91e46c688"),
             ["skill/mde-slide"] = (18, "27ffa0ab64a1128e"),
             ["skill/mde-tbox"] = (4, "e642e976ab423798"),
-            ["skill/mde-template"] = (6, "bb5feb9e6b5332c9"),
+            ["skill/mde-template"] = (7, "7feca705c2e8cb23"),
             ["skill/mde-workflow"] = (6, "09380831b1ba9886"),
         };
 

@@ -211,7 +211,7 @@ namespace MdExplorer.Services.Templates
             if (newDocs.Count > 0)
                 notes.Add(UiText.Say($"Workflow di «{manifest.Title}»: {string.Join(", ", newDocs)}.", $"Workflows of «{manifest.Title}»: {string.Join(", ", newDocs)}."));
             Write(configFile, config);
-            ApplySkills(path, manifest, cityOn: true, notes, touched);
+            await ApplySkillsAsync(path, manifest, cityOn: true, notes, touched, ct);
             await _git.RunAsync(path, new[] { "add", "--" }.Concat(touched.Distinct()).ToArray(), ct);
             return notes;
         }

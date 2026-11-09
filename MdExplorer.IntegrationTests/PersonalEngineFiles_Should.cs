@@ -57,5 +57,42 @@ namespace MdExplorer.IntegrationTests
                 .Select(e => e.FilePath).Where(p => p.StartsWith(".claude", StringComparison.Ordinal)).ToList();
             CollectionAssert.AreEqual(Array.Empty<string>(), untracked, "niente da committare sotto .claude");
         }
+
+        /// <summary>
+        /// 09/11/2026: anche le skill dei template seguono il motore personale, escluse da git con la loro riga; la copia nella
+        /// cartella del motore del progetto resta, e la riapertura (che riallinea) non tocca quella personale.
+        /// </summary>
+        [TestMethod]
+        public void Give_the_personal_engine_the_template_skills_too_out_of_git()
+        {
+            void W(string rel, string text)
+            {
+                var full = Path.Combine(_project, rel.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(full));
+                File.WriteAllText(full, text);
+            }
+            const string skill = "---\nname: documenti-wiki\ndescription: il wiki\n---\n# Wiki\n";
+            W(".development.yml", "harness:\n  target: copilot\ntemplates:\n- id: documenti\n  url: x\n  kind: foundation\n  version: 2.0.0\n");
+            W(".mde-template/documenti/mde-template.yml",
+                "mde_template: 2\nid: documenti\nkind: foundation\ntitle: Documenti\nversion: 2.0.0\nlanguages:\n  it: { structure: main }\nskills:\n  - .mde-template/documenti/skills/documenti-wiki\n");
+            W(".mde-template/documenti/skills/documenti-wiki/SKILL.md", skill);
+            W(".github/skills/documenti-wiki/SKILL.md", skill);
+
+            ProjectsManager.PreparePersonalEngineFiles(_project, HarnessLayout.Claude, fusekiEnabled: false);
+
+            Assert.AreEqual(skill, File.ReadAllText(Path.Combine(_project, ".claude", "skills", "documenti-wiki", "SKILL.md")), "la skill per il motore personale");
+            Assert.IsTrue(File.Exists(Path.Combine(_project, ".github", "skills", "documenti-wiki", "SKILL.md")), "quella del progetto resta");
+            var exclude = File.ReadAllLines(Path.Combine(_project, ".git", "info", "exclude"));
+            Assert.AreEqual(1, exclude.Count(l => l.Trim() == ".claude/skills/documenti-wiki/"), "esclusa da git");
+            using (var repo = new Repository(_project))
+                Assert.IsFalse(repo.RetrieveStatus(new StatusOptions()).Untracked.Any(e => e.FilePath.StartsWith(".claude", StringComparison.Ordinal)),
+                    "niente da committare sotto .claude");
+
+            // La riapertura riallinea per il motore del progetto: la copia personale resta.
+            var placement = MdExplorer.Services.Templates.TemplateSkillFolders.Place(_project,
+                MdExplorer.Services.Templates.TemplateSkillFolders.Declared(_project), HarnessLayout.Copilot);
+            Assert.AreEqual(0, placement.Removed.Count, string.Join(", ", placement.Removed));
+            Assert.IsTrue(File.Exists(Path.Combine(_project, ".claude", "skills", "documenti-wiki", "SKILL.md")));
+        }
     }
 }

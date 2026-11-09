@@ -3,7 +3,7 @@ name: mde-template
 description: Write, change and publish an MdExplorer project template - a git repository with `.mde-template/<id>/mde-template.yml` that brings a method (agents, workflows, skills, starting files) into a project, or a whole starting project like the demo. Use when the user asks to create a template or a method, to package a way of working so that other projects can add it, to change, version or publish a template, or to fix what `check_template` reports.
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -55,7 +55,7 @@ layer; for a `project` the zone rule does not apply.
 ├── presentazione.md        the slides of the «Create new project» showcase, one file per language (mde-slide skill)
 ├── teoria/                 the theory, one folder per language: documents to learn the method, copied on request
 ├── istruzioni.md           instructions for the project's agents (MDE puts them in CLAUDE.md / AGENTS.md / copilot-instructions.md)
-├── skills/<id>-<name>/     the skills (SKILL.md + files): MDE copies the declared ones into .claude/skills/
+├── skills/<id>-<name>/     the skills (SKILL.md + files): MDE copies the declared ones into the skills folder of the project's engine
 ├── agents/                 the agent cards  <id>-<name>.agent.md   (mde-agent skill)  — agent city only
 ├── workflows/              the workflow document + *.workflow.json  (mde-workflow skill)  — agent city only
 └── semi/                   models of the starting files (seeds), copied once into the project
@@ -88,7 +88,7 @@ requires:
   features: [fuseki]              # MDE features it uses: fuseki, code (see below)
 languages:                        # language → branches; at least one
   it: { structure: main, example: esempio }
-skills:                           # skills that serve always: folders in the zone, copied into .claude/skills/
+skills:                           # skills that serve always: folders in the zone, copied into the engine's skills folder
   - .mde-template/ontologie/skills/ontologie-domande
 agent_city:                       # what serves the agents: applied ONLY when the project's agent city is on
   roles:                          # added to the project's responsibilities document as OPEN roles
@@ -113,7 +113,9 @@ theory:                           # the method's theory, one folder per language
 - **Quote every value that contains `:` or `,`** (`description: "a: b, c"`). Unquoted, YAML reads something else or
   refuses the file. It is the most frequent mistake.
 - `skills` / `agent_city.skills`: folders `.mde-template/<id>/…/<id>-<name>` with their `SKILL.md` (`name:` = the folder
-  name). MDE copies them into `.claude/skills/<id>-<name>/` and rewrites them on every update: they are the method's.
+  name). MDE copies them into the skills folder of the project's engine only (`.github/skills/` with Copilot, `.opencode/skills/`
+  with opencode, `.claude/skills/` with Claude Code), never into another engine's folder, and rewrites them on every update:
+  they are the method's.
 - `agent_city`: roles, workflows and skills that only make sense with agents. With the city off MDE leaves them in the
   zone, does not register the agent cards there, and says in a note that they arrive when the city is turned on.
   In format 2 top-level `roles` and `workflows` are errors: they go here.
@@ -121,7 +123,8 @@ theory:                           # the method's theory, one folder per language
   agents theirs («It's mine»). The role names are what the workflow's `person` and `approval.by` use.
 - `workflows`: MDE adds them to the project's list (`agentCity.workflowDocs`); in format 1 it also turns the agent city on. They must
   read together with the project's other workflows: an agent opens the rounds of one workflow only.
-- `seeds`: `from` is in the zone, `to` is a group path, never under `.mde-template/`, `.claude/skills/`, `.git/`, `.md/`.
+- `seeds`: `from` is in the zone, `to` is a group path, never under `.mde-template/`, an engine's skills folder (`.github/skills/`,
+  `.opencode/skills/`, `.claude/skills/`), `.git/`, `.md/`.
   A file that is already there is never touched; on update a changed model is only a note. Use them for registers,
   profiles and folders the method's agents write in, and for the example's documents.
 - `requires.features`: MDE never turns a feature on by itself. With `fuseki` off, or with `code` and no code folder,

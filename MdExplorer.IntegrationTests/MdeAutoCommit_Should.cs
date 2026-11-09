@@ -296,6 +296,45 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "la seconda apertura non cambia niente");
         }
 
+        /// <summary>
+        /// 09/11/2026: un progetto Copilot creato quando MDE copiava le skill del template in <c>.claude/skills/</c> (come «test del
+        /// ddd»). All'apertura la skill passa in <c>.github/skills/</c>, la cartella <c>.claude/</c> sparisce, e il commit di MDE
+        /// salva tutte e due le cose; la seconda apertura non fa niente.
+        /// </summary>
+        [TestMethod]
+        public async Task Move_the_template_skill_out_of_the_claude_folder_on_opening_and_commit_it()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, colleague) = Setup(ctx, "skill-template");
+            void W(string rel, string text)
+            {
+                var full = Path.Combine(colleague, rel.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(full));
+                File.WriteAllText(full, text);
+            }
+            const string skill = "---\nname: documenti-wiki\ndescription: il wiki\n---\n# Wiki\n";
+            W(".development.yml", "# mde-schema: 3\nharness:\n  target: copilot\ntemplates:\n- id: documenti\n  url: x\n  kind: foundation\n  version: 2.0.0\n");
+            W(".mde-template/documenti/mde-template.yml",
+                "mde_template: 2\nid: documenti\nkind: foundation\ntitle: Documenti\nversion: 2.0.0\nlanguages:\n  it: { structure: main }\nskills:\n  - .mde-template/documenti/skills/documenti-wiki\n");
+            W(".mde-template/documenti/skills/documenti-wiki/SKILL.md", skill);
+            W(".claude/skills/documenti-wiki/SKILL.md", skill);
+            Git(colleague, "add -A"); Git(colleague, "commit -q -m prima"); Git(colleague, "push -q origin HEAD:main");
+            Git(project, "pull -q");
+
+            await OpenAndFlush(ctx, project, "skill-uno");
+
+            Assert.AreEqual(skill, File.ReadAllText(Path.Combine(project, ".github", "skills", "documenti-wiki", "SKILL.md")));
+            Assert.IsFalse(Directory.Exists(Path.Combine(project, ".claude")), "niente cartella di un altro motore");
+            Assert.AreEqual(string.Empty, Git(project, "ls-files .claude").Out, "e niente .claude nel repository");
+            Assert.AreEqual(string.Empty, Git(project, "status --porcelain -- .claude .github/skills/documenti-wiki").Out, "salvato in un commit");
+            StringAssert.Contains(Git(project, "log --format=%B -5").Out, "le skill dei template nella cartella delle skill di copilot");
+
+            var head = Git(project, "rev-parse HEAD").Out;
+            await OpenAndFlush(ctx, project, "skill-due");
+            Assert.AreEqual(head, Git(project, "rev-parse HEAD").Out, "la seconda apertura non cambia niente");
+        }
+
         [TestMethod]
         public async Task Leave_no_mde_file_out_of_a_commit_after_the_first_opening()
         {

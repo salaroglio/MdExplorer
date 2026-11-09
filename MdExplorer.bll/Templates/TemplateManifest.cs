@@ -39,7 +39,8 @@ namespace MdExplorer.Features.Templates
         public List<string> Workflows { get; set; }
         /// <summary>
         /// Formato 2 (sprint 2026-10-20-Citta-Degli-Agenti-Come-Funzione.md, C3): le cartelle delle skill del template, nella
-        /// zona (<c>.mde-template/&lt;id&gt;/…/&lt;id&gt;-nome</c>), che MDE copia in <c>.claude/skills/</c>. Servono sempre.
+        /// zona (<c>.mde-template/&lt;id&gt;/…/&lt;id&gt;-nome</c>), che MDE copia nella cartella delle skill del motore del progetto
+        /// (<c>.github/skills/</c>, <c>.opencode/skills/</c> o <c>.claude/skills/</c>, mai in quella di un altro motore). Servono sempre.
         /// </summary>
         public List<string> Skills { get; set; }
         /// <summary>Formato 2: tutto ciò che serve agli agenti, applicato solo se il progetto ha la città accesa (CF5).</summary>
@@ -333,8 +334,8 @@ namespace MdExplorer.Features.Templates
                     problems.Add(UiText.Say($"seeds.to: '{s.To}' deve essere un percorso dalla radice del progetto, con «/»",
                                             $"seeds.to: '{s.To}' must be a path from the project root, with «/»"));
                 else if (!IsGroupPath(s.To))
-                    problems.Add(UiText.Say($"seeds.to: '{s.To}' non è un file del gruppo: un seme non nasce in {TemplateManifest.Folder}/, .claude/skills/, .git/, .md/ né in {DevelopmentFile}",
-                                            $"seeds.to: '{s.To}' is not a file of the group: a seed is not born in {TemplateManifest.Folder}/, .claude/skills/, .git/, .md/ or {DevelopmentFile}"));
+                    problems.Add(UiText.Say($"seeds.to: '{s.To}' non è un file del gruppo: un seme non nasce in {TemplateManifest.Folder}/, nelle cartelle delle skill dei motori, in .git/, .md/ né in {DevelopmentFile}",
+                                            $"seeds.to: '{s.To}' is not a file of the group: a seed is not born in {TemplateManifest.Folder}/, in the engines' skills folders, in .git/, .md/ or {DevelopmentFile}"));
                 else if (!targets.Add(s.To))
                     problems.Add(UiText.Say($"seeds.to: '{s.To}' compare due volte", $"seeds.to: '{s.To}' appears twice"));
             }
@@ -405,7 +406,7 @@ namespace MdExplorer.Features.Templates
 
         /// <summary>Un seme nasce fra i file del gruppo: mai nella cartella di un template, fra le skill, in git o nei file di MDE.</summary>
         private static bool IsGroupPath(string path)
-            => !new[] { TemplateManifest.Folder + "/", ".claude/skills/", ".git/", ".md/" }.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            => !new[] { TemplateManifest.Folder + "/", ".claude/skills/", ".github/skills/", ".opencode/skills/", ".git/", ".md/" }.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
                && !string.Equals(path, DevelopmentFile, StringComparison.OrdinalIgnoreCase);
 
         private static void CheckPath(TemplateManifest m, string key, string path, List<string> problems)

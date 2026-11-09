@@ -525,7 +525,7 @@ namespace MdExplorer.Services.Templates
                     notes.Add(UiText.Say($"Istruzioni del metodo in {string.Join(", ", targets)}.", $"Method instructions in {string.Join(", ", targets)}."));
             }
 
-            ApplySkills(path, manifest, cityOn, notes, touched);
+            await ApplySkillsAsync(path, manifest, cityOn, notes, touched, ct);
             await ApplySeedsAsync(path, manifest, notes, touched, update, previous, ct);
             await ApplyTheoryAsync(path, manifest, row, notes, touched, update, previous, ct);
             ApplyPrograms(path, manifest, notes);
@@ -575,32 +575,34 @@ namespace MdExplorer.Services.Templates
         /// che c'era già nella versione di prima non rinasce: se manca, il gruppo l'ha tolto.
         /// </summary>
         /// <summary>
-        /// Le skill del template nel formato 2 (C3): ogni cartella dichiarata si copia dalla zona in <c>.claude/skills/</c>, dove
-        /// i motori la leggono — quelle di <c>agent_city</c> solo con la città accesa. Sono del metodo, come le skill di MDE: a
-        /// ogni aggiornamento si riscrivono con quelle della versione nuova.
+        /// Le skill del template nel formato 2 (C3): ogni cartella dichiarata si copia dalla zona nella cartella delle skill del
+        /// motore del progetto (<c>.github/skills/</c> con Copilot, <c>.opencode/skills/</c>, <c>.claude/skills/</c>), e le copie
+        /// nelle cartelle degli altri motori si tolgono (<see cref="TemplateSkillFolders"/>, decisione dell'utente del 09/11/2026);
+        /// quelle di <c>agent_city</c> solo con la città accesa. Sono del metodo, come le skill di MDE: a ogni aggiornamento si
+        /// riscrivono con quelle della versione nuova. Senza motore non si copiano: lo dice la nota.
         /// </summary>
-        private void ApplySkills(string path, TemplateManifest manifest, bool cityOn, List<string> notes, List<string> touched)
+        private async Task ApplySkillsAsync(string path, TemplateManifest manifest, bool cityOn, List<string> notes, List<string> touched, CancellationToken ct)
         {
-            var copied = new List<string>();
-            foreach (var folder in manifest.SkillsFor(cityOn))
+            // Formato 1: le skill arrivano con il ramo del template (<cartella delle skill>/<id>-*): si spostano anche loro.
+            var skills = manifest.IsFormat2
+                ? manifest.SkillsFor(cityOn).Select(f => new TemplateSkill(manifest.Id, f.TrimEnd('/').Split('/').Last(), f.TrimEnd('/'))).ToList()
+                : TemplateSkillFolders.Format1(path, manifest.Id).ToList();
+            if (skills.Count == 0) return;
+            var harness = HarnessSettings.Read(path) ?? HarnessTarget.None;
+            if (harness == HarnessTarget.None)
             {
-                var source = System.IO.Path.Combine(path, folder.Replace('/', System.IO.Path.DirectorySeparatorChar));
-                if (!File.Exists(System.IO.Path.Combine(source, "SKILL.md")))
-                    throw Problem($"La skill {folder} del template «{manifest.Title}» non ha il suo SKILL.md.", $"The skill {folder} of the template «{manifest.Title}» has no SKILL.md.");
-                var name = folder.Split('/').Last();
-                foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
-                {
-                    var relative = System.IO.Path.GetRelativePath(source, file).Replace('\\', '/');
-                    var target = $".claude/skills/{name}/{relative}";
-                    var full = System.IO.Path.Combine(path, target.Replace('/', System.IO.Path.DirectorySeparatorChar));
-                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full));
-                    File.Copy(file, full, overwrite: true);
-                    touched.Add(target);
-                }
-                copied.Add(name);
+                notes.Add(UiText.Say($"Le skill del template ({string.Join(", ", skills.Select(s => s.Name))}) non sono installate: il progetto non ha un motore. Arrivano quando ne scegli uno nelle impostazioni.",
+                                     $"The template skills ({string.Join(", ", skills.Select(s => s.Name))}) are not installed: the project has no engine. They arrive when you choose one in the settings."));
+                return;
             }
-            if (copied.Count > 0)
-                notes.Add(UiText.Say($"Skill del template in .claude/skills/: {string.Join(", ", copied)}.", $"Template skills in .claude/skills/: {string.Join(", ", copied)}."));
+            var layout = HarnessLayout.For(harness);
+            var placement = TemplateSkillFolders.Place(path, skills, layout);
+            touched.AddRange(placement.Written);
+            // Le copie tolte (e i file che la versione nuova non ha più): nell'indice come cancellazioni.
+            var gone = placement.Removed.Concat(placement.Written.Where(f => !File.Exists(System.IO.Path.Combine(path, f.Replace('/', System.IO.Path.DirectorySeparatorChar))))).ToList();
+            if (gone.Count > 0) await _git.RunAsync(path, new[] { "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--" }.Concat(gone).ToArray(), ct);
+            notes.Add(UiText.Say($"Skill del template in {layout.SkillsFolder}/: {string.Join(", ", placement.Names)}.",
+                                 $"Template skills in {layout.SkillsFolder}/: {string.Join(", ", placement.Names)}."));
         }
 
         private async Task ApplySeedsAsync(string path, TemplateManifest manifest, List<string> notes, List<string> touched, bool update,

@@ -485,6 +485,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 perf.Mark("HarnessSettings.Resolve");
                 InstallHarnessAssets(projectPath, harness, fusekiEnabled);
                 perf.Mark("InstallHarnessAssets (skill, agenti, istruzioni)");
+                AlignTemplateSkills(projectPath, harness);
+                perf.Mark("AlignTemplateSkills");
 
                 RegisterMcpServerForHarness(projectPath, harness, mcpGroupsArgument);
                 perf.Mark("RegisterMcpServerForHarness");
@@ -519,8 +521,40 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, projectPath);
             InstallHarnessAssets(projectPath, harness, fusekiEnabled);
+            AlignTemplateSkills(projectPath, harness);
             RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
             EnsureGitignoreEntries(projectPath);
+        }
+
+        /// <summary>
+        /// Le skill dei template nella cartella del motore del progetto, e nessuna copia nelle cartelle degli altri motori
+        /// (09/11/2026, decisione dell'utente: nessun dubbio su quale harness si usa). Vale all'apertura e al cambio di motore: un
+        /// progetto creato quando MDE le copiava in <c>.claude/skills/</c> si sistema da solo, con il commit automatico «MDE: …».
+        /// Le copie di un motore personale (escluse da git) restano. Senza motore non si tocca niente.
+        /// </summary>
+        private static void AlignTemplateSkills(string projectPath, HarnessTarget harness)
+        {
+            if (harness == HarnessTarget.None) return;
+            try
+            {
+                var skills = MdExplorer.Services.Templates.TemplateSkillFolders.Declared(projectPath);
+                if (skills.Count == 0) return;
+                var layout = HarnessLayout.For(harness);
+                var placement = MdExplorer.Services.Templates.TemplateSkillFolders.Place(projectPath, skills, layout);
+                if (!placement.Changed) return;
+                var why = new MdeWhy($"le skill dei template nella cartella delle skill di {layout.Id} ({layout.SkillsFolder}/), tolte dalle cartelle degli altri motori",
+                                     $"the template skills in the {layout.Id} skills folder ({layout.SkillsFolder}/), removed from the other engines' folders");
+                foreach (var file in placement.Written)
+                    MdeRepoWriter.NotifyWritten(Path.Combine(projectPath, file.Replace('/', Path.DirectorySeparatorChar)), why);
+                foreach (var folder in placement.Removed)
+                    MdeRepoWriter.NotifyWritten(Path.Combine(projectPath, folder.Replace('/', Path.DirectorySeparatorChar)), why);
+                Console.WriteLine($"[ProjectsManager] {projectPath}: skill dei template in {layout.SkillsFolder}/ ({string.Join(", ", placement.Names)}); tolte: {string.Join(", ", placement.Removed)}");
+            }
+            catch (Exception ex)
+            {
+                // Come l'installazione dell'harness: il progetto si apre lo stesso, il motivo resta nel log.
+                Console.WriteLine($"[ProjectsManager] {projectPath}: skill dei template non riallineate: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -562,6 +596,15 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         {
             ExcludeLocally(projectPath, layout.GitignorePatterns);
             MdeSkillUpdater.EnsureCatalogsInstalled(projectPath, layout, fusekiEnabled);
+
+            // Le skill dei template anche per il motore personale (09/11/2026), escluse da git come le mde-*: il repository del
+            // gruppo non cambia. Prima l'esclusione, poi la copia; la copia del motore del progetto resta.
+            var skills = MdExplorer.Services.Templates.TemplateSkillFolders.Declared(projectPath);
+            if (skills.Count == 0) return;
+            ExcludeLocally(projectPath, skills.Select(s => MdExplorer.Services.Templates.TemplateSkillFolders.ExcludeLine(layout, s.Name)));
+            var declared = HarnessSettings.Read(projectPath) ?? HarnessTarget.None;
+            var keep = declared == HarnessTarget.None ? Array.Empty<HarnessLayout>() : new[] { HarnessLayout.For(declared) };
+            MdExplorer.Services.Templates.TemplateSkillFolders.Place(projectPath, skills, layout, keep);
         }
 
         /// <summary>Aggiunge a <c>.git/info/exclude</c> i pattern che mancano. Niente <c>.git</c> come cartella = niente da fare.</summary>
@@ -582,7 +625,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             var block = new StringBuilder();
             if (existing.Length > 0 && !existing.EndsWith("\n")) block.AppendLine();
-            block.AppendLine("# MdExplorer: skill mde-* del motore scelto su questa macchina (non del progetto)");
+            block.AppendLine("# MdExplorer: skill mde-* e dei template del motore scelto su questa macchina (non del progetto)");
             foreach (var p in missing) block.AppendLine(p);
             File.AppendAllText(excludePath, block.ToString());
         }

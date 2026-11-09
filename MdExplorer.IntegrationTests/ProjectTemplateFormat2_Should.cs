@@ -109,6 +109,77 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
         }
 
+        /// <summary>
+        /// 09/11/2026 (utente): in un progetto Copilot le skill del template stanno in <c>.github/skills/</c> e non nasce nessuna
+        /// cartella <c>.claude/</c>: non ci deve essere alcun dubbio su quale harness si usa.
+        /// </summary>
+        [TestMethod]
+        public async Task Put_the_template_skills_only_in_the_folder_of_the_project_engine()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
+            var path = NewFolder(ctx, "copilot");
+
+            var outcome = await Create(ctx, new TemplateCreateRequest
+            {
+                Path = path, TemplateUrl = Strato(ctx), Methods = new[] { Template(ctx, "ddd", Method()) }, AgentCity = true,
+                Language = "it", MdeVersion = Mde, Harness = "copilot",
+            });
+
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".github", "skills", "ddd-base", "SKILL.md")), "la skill di base nella cartella di Copilot");
+            Assert.AreEqual("un esempio\n", Read(path, ".github/skills/ddd-modella/esempio.md"), "tutta la cartella della skill degli agenti");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude")), "nessuna cartella di un altro motore: " + (Directory.Exists(Path.Combine(path, ".claude")) ? string.Join(", ", Directory.EnumerateFileSystemEntries(Path.Combine(path, ".claude"), "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(path, f))) : ""));
+            Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Template skills in .github/skills/")), string.Join("\n", outcome.Notes));
+            Assert.AreEqual("", Git(path, "ls-files .claude").Out, "niente .claude nel repository");
+            Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
+        }
+
+        /// <summary>
+        /// Un progetto creato quando MDE copiava le skill in <c>.claude/skills/</c>: il riallineamento (all'apertura e al cambio di
+        /// motore) le porta nella cartella del motore e toglie la copia vecchia; quella di un motore personale, esclusa da git, resta.
+        /// Le copie sono file di MDE, che il commit automatico salva.
+        /// </summary>
+        [TestMethod]
+        public void Move_the_template_skills_of_an_old_project_into_the_engine_folder()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "mde-skill-align-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                void W(string rel, string text)
+                {
+                    var full = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(full));
+                    File.WriteAllText(full, text);
+                }
+                foreach (var (rel, text) in Method()["main"]) W(rel, text);
+                W(".development.yml", "# mde-schema: 3\nharness:\n  target: copilot\nagentCity:\n  enabled: true\ntemplates:\n- id: ddd\n  url: x\n  kind: method\n  version: 2.0.0\n");
+                W(".claude/skills/ddd-base/SKILL.md", "vecchia\n");
+                W(".opencode/skills/ddd-modella/SKILL.md", "personale\n");
+                W(".git/info/exclude", "# MdExplorer\n.opencode/skills/ddd-modella/\n");
+
+                var skills = TemplateSkillFolders.Declared(root);
+                CollectionAssert.AreEquivalent(new[] { "ddd-base", "ddd-modella" }, skills.Select(s => s.Name).ToArray());
+                Assert.IsTrue(MdExplorer.Utilities.MdeOwnedFiles.Find(root, Path.Combine(root, ".claude", "skills", "ddd-base")) != null, "la copia vecchia è di MDE");
+                Assert.IsNull(MdExplorer.Utilities.MdeOwnedFiles.Find(root, Path.Combine(root, ".github", "skills", "mia", "SKILL.md")), "una skill del gruppo no");
+
+                var placement = TemplateSkillFolders.Place(root, skills, MdExplorer.Utilities.HarnessLayout.Copilot);
+
+                Assert.AreEqual("---\nname: ddd-base\ndescription: scrive il dominio\n---\n# Base\n", File.ReadAllText(Path.Combine(root, ".github", "skills", "ddd-base", "SKILL.md")));
+                Assert.IsTrue(File.Exists(Path.Combine(root, ".github", "skills", "ddd-modella", "esempio.md")));
+                Assert.IsFalse(Directory.Exists(Path.Combine(root, ".claude", "skills", "ddd-base")), "la copia in .claude/ è tolta");
+                Assert.AreEqual("personale\n", File.ReadAllText(Path.Combine(root, ".opencode", "skills", "ddd-modella", "SKILL.md")), "la copia del motore personale resta");
+                CollectionAssert.AreEqual(new[] { ".claude/skills/ddd-base" }, placement.Removed);
+
+                var again = TemplateSkillFolders.Place(root, TemplateSkillFolders.Declared(root), MdExplorer.Utilities.HarnessLayout.Copilot);
+                Assert.IsFalse(again.Changed, "la seconda volta non c'è niente da fare");
+            }
+            finally
+            {
+                try { Directory.Delete(root, recursive: true); } catch { /* cartella temporanea */ }
+            }
+        }
+
         [TestMethod]
         public async Task Refuse_a_format_2_method_that_keeps_its_skills_outside_its_folder()
         {

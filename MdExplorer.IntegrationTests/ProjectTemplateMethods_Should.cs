@@ -96,7 +96,11 @@ instructions: .mde-template/ddd/istruzioni.md
 
             Assert.AreEqual("ddd", outcome.Id);
             Assert.IsTrue(File.Exists(Path.Combine(path, ".mde-template", "ddd", "agents", "ddd-analista.agent.md")), "la zona del metodo è nel progetto");
-            Assert.IsTrue(File.Exists(Path.Combine(path, ".claude", "skills", "ddd-modella", "SKILL.md")), "le skill del metodo, lette da tutti i motori");
+            // 09/11/2026: le skill del metodo (qui formato 1, arrivate con il ramo in .claude/skills/) vanno solo nella cartella
+            // del motore del progetto, che è Copilot; nessuna cartella .claude/ resta, né su disco né nel repository.
+            Assert.IsTrue(File.Exists(Path.Combine(path, ".github", "skills", "ddd-modella", "SKILL.md")), "le skill del metodo, nella cartella di Copilot");
+            Assert.IsFalse(Directory.Exists(Path.Combine(path, ".claude", "skills")), "nessuna cartella delle skill di un motore che il progetto non usa");
+            Assert.AreEqual("", Git(path, "ls-files .claude/skills").Out, "e niente nel repository");
 
             var yml = Read(path, ".development.yml");
             StringAssert.Contains(yml, "- id: ddd\n");

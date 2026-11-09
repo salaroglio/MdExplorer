@@ -12,6 +12,8 @@ namespace MdExplorer.Utilities
         YamlEntries,
         /// <summary>File misto: di MDE è solo un blocco, il resto è del gruppo.</summary>
         Block,
+        /// <summary>Copia di MDE da una sorgente che sta nel progetto (le skill dei template): si rifà dalla sorgente.</summary>
+        Copy,
     }
 
     /// <summary>Un file del repository che MDE scrive da sé.</summary>
@@ -66,7 +68,13 @@ namespace MdExplorer.Utilities
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(fullPath)) return null;
             var relative = Path.GetRelativePath(projectPath, fullPath);
-            return relative.StartsWith("..") ? null : Find(relative);
+            if (relative.StartsWith("..")) return null;
+            var found = Find(relative);
+            if (found != null) return found;
+            // La copia di una skill di un template (09/11/2026): MDE la mette nella cartella del motore e la toglie dalle altre.
+            return MdExplorer.Services.Templates.TemplateSkillFolders.IsTemplateSkillPath(projectPath, relative)
+                ? new MdeOwnedFile(relative.Replace('\\', '/'), MdeMergeKind.Copy, "la copia di una skill di un template nella cartella del motore del progetto")
+                : null;
         }
     }
 }
