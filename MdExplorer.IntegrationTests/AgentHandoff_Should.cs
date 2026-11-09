@@ -153,6 +153,31 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(string.Empty, after, "il branch fuso è stato cancellato");
         }
 
+        /// <summary>
+        /// 09/11/2026: la pulizia passava su TUTTI i progetti della lista ogni 30 minuti, lanciando git anche
+        /// verso il remoto. Rami agent/* e posti di lavoro li crea solo la città: con la città spenta non si tocca niente.
+        /// </summary>
+        [TestMethod]
+        public async Task Reaper_cleans_only_projects_with_the_agent_city_on()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var path = SetupGitProject(ctx, "hd-reaper-city");
+            Git(path, "branch agent/test/merged");
+            var reaper = ctx.Factory.Services.GetServices<Microsoft.Extensions.Hosting.IHostedService>().OfType<AgentWorktreeReaper>().Single();
+            var sweep = typeof(AgentWorktreeReaper).GetMethod("SweepAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var metadata = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
+
+            metadata.SetAgentCity(path, new AgentCityConfig { Enabled = false });
+            await (Task)sweep.Invoke(reaper, new object[] { System.Threading.CancellationToken.None });
+            Assert.AreEqual("agent/test/merged", Git(path, "branch --list agent/test/merged").Out.Trim(' ', '*', '\n', '\r'),
+                "città spenta: la pulizia non tocca il progetto");
+
+            metadata.SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            await (Task)sweep.Invoke(reaper, new object[] { System.Threading.CancellationToken.None });
+            Assert.AreEqual(string.Empty, Git(path, "branch --list agent/test/merged").Out.Trim(), "città accesa: il ramo fuso viene tolto");
+        }
+
         [TestMethod]
         public async Task Attach_handoff_ref_to_the_intervention_when_worktrees_are_on()
         {

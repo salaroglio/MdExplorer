@@ -34,14 +34,17 @@ namespace MdExplorer.Services.AgentRun
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentWorktreeManager _worktree;
         private readonly IAgentWorktreePreference _preference;
+        private readonly IProjectMetadataService _metadata;
         private readonly ILogger<AgentWorktreeReaper> _logger;
 
         public AgentWorktreeReaper(
             IServiceScopeFactory scopeFactory,
             IAgentWorktreeManager worktree,
             IAgentWorktreePreference preference,
+            IProjectMetadataService metadata,
             ILogger<AgentWorktreeReaper> logger)
         {
+            _metadata = metadata;
             _scopeFactory = scopeFactory;
             _worktree = worktree;
             _preference = preference;
@@ -95,10 +98,13 @@ namespace MdExplorer.Services.AgentRun
                 }
             }
 
-            // 2) Per ogni progetto vivo: branch fusi e posti eccedenti.
+            // 2) Per ogni progetto con la città degli agenti ATTIVA: branch fusi e posti eccedenti.
+            // Rami agent/* e posti di lavoro li crea solo la città: sugli altri progetti non c'è niente da
+            // pulire, e passarci voleva dire lanciare git su tutta la lista dei progetti ogni 30 minuti.
             foreach (var project in projects)
             {
                 ct.ThrowIfCancellationRequested();
+                if (!IsCityActive(project.Path)) continue;
 
                 // Fase 7d.4 — cleanup per raggiungibilità: i branch agent/* già fusi nel default
                 // possono sparire (solo main persiste, §7ter). Locale-only: la cancellazione dei
@@ -138,6 +144,17 @@ namespace MdExplorer.Services.AgentRun
                     try { await _worktree.RemoveSlotAsync(project.Path, slot.Index, ct); }
                     catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] rimozione del posto {Index} fallita.", slot.Index); }
                 }
+            }
+        }
+
+        private bool IsCityActive(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath)) return false;
+            try { return _metadata.GetAgentCity(projectPath) is { Enabled: true }; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[WorktreeReaper] stato della città non leggibile per '{Project}': salto la pulizia.", projectPath);
+                return false;
             }
         }
 
