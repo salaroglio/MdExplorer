@@ -10,8 +10,13 @@ namespace MdExplorer.Utilities
     /// Il motivo di una scrittura di MDE, nelle due lingue. La lingua si sceglie DOPO, nel servizio che notifica (S3), e mai dentro
     /// lo scrittore: chi scrive può essere in una transazione, e leggere lì la lingua dell'interfaccia ha già bloccato il DB (03/11).
     /// L'italiano va anche nel messaggio di commit (contenuto del repository).
+    /// <para>
+    /// Il motivo va nel messaggio di commit e nel log, MAI nella notifica: la notifica dice solo che cosa MDE ha aggiornato e che ne è
+    /// del commit (09/11/2026, l'utente: «non deve giustificarsi»). Nella notifica arriva soltanto <paramref name="NoteIt"/>, quando
+    /// c'è un comportamento futuro di MDE che conviene sapere (per esempio: i colleghi con un MDE più vecchio dovranno aggiornarlo).
+    /// </para>
     /// </summary>
-    public sealed record MdeWhy(string It, string En)
+    public sealed record MdeWhy(string It, string En, string NoteIt = null, string NoteEn = null)
     {
         public static readonly MdeWhy ConfigUpdated = new("configurazione del progetto aggiornata", "project configuration updated");
         public static readonly MdeWhy Generic = new("aggiornato da MDE", "updated by MDE");

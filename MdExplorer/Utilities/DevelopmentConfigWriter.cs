@@ -58,7 +58,9 @@ namespace MdExplorer.Utilities
             var aligned = Header(current) + "\n" + HeaderLine.Replace(lf, string.Empty, 1);
             return MdeRepoWriter.WriteIfChanged(path, aligned, new MdeWhy(
                 $"portata alla versione {current} la versione di .development.yml: la città degli agenti lavora solo tra MDE che gestiscono la stessa, chi è indietro riceve l'invito ad aggiornare",
-                $"raised .development.yml to version {current}: the agent city works only among MDEs handling the same one, whoever is behind is asked to update"));
+                $"raised .development.yml to version {current}: the agent city works only among MDEs handling the same one, whoever is behind is asked to update",
+                "Nella città degli agenti, chi ha un MDE più vecchio dovrà aggiornarlo.",
+                "In the agent city, whoever has an older MDE will have to update it."));
         }
 
         private static readonly Regex TopKey = new(@"^(?<key>[A-Za-z_][\w-]*)\s*:", RegexOptions.Compiled);

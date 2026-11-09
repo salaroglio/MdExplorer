@@ -175,7 +175,7 @@ namespace MdExplorer.IntegrationTests
         // ---------------------------------------------------------------- S3: notifiche con il motivo
 
         [TestMethod]
-        public async Task Tell_what_it_changed_why_and_whether_it_was_pushed()
+        public async Task Tell_what_it_changed_and_whether_it_was_pushed()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext(On);
@@ -186,10 +186,11 @@ namespace MdExplorer.IntegrationTests
             // SetHarness scrive anche .gitignore: due notifiche, una per il file di MDE e una per quello dell'utente
             Assert.AreEqual(2, result.Notices.Count, string.Join(" | ", result.Notices));
             var notice = result.Notices.Single(n => n.Contains(".development.yml"));
-            StringAssert.Contains(result.Notices.Single(n => n.Contains(".gitignore")), "The file is yours");
+            StringAssert.Contains(result.Notices.Single(n => n.Contains(".gitignore")), "The change will go into your next commit");
             // senza UiText.Use i testi del servizio sono in inglese (vedi server_texts_follow_ui_language)
             StringAssert.Contains(notice, ".development.yml");
-            StringAssert.Contains(notice, "project agent environment chosen", "il motivo specifico, non uno generico");
+            // 09/11/2026: la notifica non si giustifica, il motivo sta nel commit (e nel log)
+            Assert.IsFalse(notice.Contains("project agent environment chosen"), "il motivo non va nella notifica: " + notice);
             StringAssert.Contains(notice, "Committed and pushed");
             StringAssert.Contains(Git(project, "log -1 --format=%s").Out, "scelto l'ambiente agentico del progetto", "il commit è in italiano");
         }
@@ -213,8 +214,31 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("?? .gitignore", Git(project, "status --porcelain -- .gitignore").Out);
             Assert.AreEqual(1, result.Notices.Count, string.Join(" | ", result.Notices));
             StringAssert.Contains(result.Notices[0], ".gitignore");
-            StringAssert.Contains(result.Notices[0], ".md/");
-            StringAssert.Contains(result.Notices[0], "The file is yours");
+            StringAssert.Contains(result.Notices[0], "The change will go into your next commit");
+            Assert.IsFalse(result.Notices[0].Contains(".md/"), "le righe aggiunte sono il motivo: non vanno nella notifica");
+        }
+
+        /// <summary>
+        /// 09/11/2026: nella notifica, al posto del motivo, ci va solo ciò che MDE farà dopo e che conviene sapere: qui, che i
+        /// colleghi con un MDE più vecchio dovranno aggiornarlo.
+        /// </summary>
+        [TestMethod]
+        public async Task Tell_only_the_future_behaviour_when_the_schema_rises()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext(On);
+            var (project, _, _) = Setup(ctx, "schema-nota");
+            var path = Path.Combine(project, ".development.yml");
+            File.WriteAllText(path, "agentCity:\n  enabled: true\n");
+
+            Assert.IsTrue(MdExplorer.Utilities.DevelopmentConfigWriter.AlignForCity(path), "il file vecchio va portato al formato di oggi");
+            var service = ctx.Factory.Services.GetRequiredService<MdeAutoCommit>();
+            await service.FlushAsync();
+            var notice = service.RecentResults.Last().Notices.Single(n => n.Contains(".development.yml"));
+
+            StringAssert.StartsWith(notice, "MDE updated .development.yml.");
+            StringAssert.Contains(notice, "whoever has an older MDE will have to update it");
+            Assert.IsFalse(notice.Contains("raised .development.yml"), "il motivo non va nella notifica: " + notice);
         }
 
         [TestMethod]

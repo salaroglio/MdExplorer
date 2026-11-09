@@ -255,6 +255,9 @@ namespace MdExplorer.Services.Git
             while (_results.Count > 50) _results.TryDequeue(out _);
 
             foreach (var notice in notices) _logger.LogInformation("[MdeAutoCommit] {Root}: {Notice}", root, notice);
+            // Il motivo non va più nella notifica (Compose): resta qui, per la diagnosi.
+            foreach (var why in result.Reasons.Concat(userFiles.Select(u => u.Value)).Distinct())
+                _logger.LogInformation("[MdeAutoCommit] {Root}: motivo: {Why}", root, why.It);
             if (notices.Count > 0)
             {
                 try
@@ -274,28 +277,34 @@ namespace MdExplorer.Services.Git
             return result;
         }
 
-        /// <summary>Le notifiche del giro, nella lingua dell'interfaccia. «Niente da salvare» non si dice.</summary>
+        /// <summary>
+        /// Le notifiche del giro, nella lingua dell'interfaccia. «Niente da salvare» non si dice. Dicono che cosa MDE ha aggiornato e
+        /// dove finisce la modifica, senza il motivo (che sta nel commit e nel log): in coda solo le note sul comportamento futuro di MDE.
+        /// </summary>
         private static List<string> Compose(MdeAutoCommitResult r, IReadOnlyList<(string File, MdeWhy Why)> userFiles)
         {
-            static string Why(IEnumerable<MdeWhy> whys) => string.Join("; ", whys.Select(w => UiText.Say(w.It, w.En)).Distinct());
+            static string Notes(IEnumerable<MdeWhy> whys) => string.Concat(whys
+                .Where(w => !string.IsNullOrWhiteSpace(w.NoteIt))
+                .Select(w => " " + UiText.Say(w.NoteIt, w.NoteEn)).Distinct());
             var notices = new List<string>();
             if (r.Files.Count > 0 && r.PendingKind != MdeCommitPending.NothingToSave)
             {
                 var files = string.Join(", ", r.Files);
-                var head = UiText.Say($"MDE ha aggiornato {files}: {Why(r.Reasons)}.", $"MDE updated {files}: {Why(r.Reasons)}.");
+                var head = UiText.Say($"MDE ha aggiornato {files}.", $"MDE updated {files}.");
                 var tail = r.Pushed
                     ? UiText.Say(" Commit fatto e pubblicato.", " Committed and pushed.")
                     : r.Committed
                         ? UiText.Say(" Commit fatto, non pubblicato: ", " Committed, not pushed: ") + PendingText(r.PendingKind, r.PendingDetail)
                         : UiText.Say(" Commit rimandato: ", " Commit postponed: ") + PendingText(r.PendingKind, r.PendingDetail);
-                notices.Add(head + tail);
+                notices.Add(head + tail + Notes(r.Reasons));
             }
-            foreach (var group in userFiles.GroupBy(u => u.Why))
+            if (userFiles.Count > 0)
             {
-                var files = string.Join(", ", group.Select(u => u.File));
-                notices.Add(UiText.Say(
-                    $"MDE ha modificato {files}: {group.Key.It}. Il file è tuo: fai il commit quando vuoi.",
-                    $"MDE changed {files}: {group.Key.En}. The file is yours: commit it when you want."));
+                var files = string.Join(", ", userFiles.Select(u => u.File).Distinct());
+                var next = userFiles.Select(u => u.File).Distinct().Count() == 1
+                    ? UiText.Say(" La modifica entrerà nel tuo prossimo commit.", " The change will go into your next commit.")
+                    : UiText.Say(" Le modifiche entreranno nel tuo prossimo commit.", " The changes will go into your next commit.");
+                notices.Add(UiText.Say($"MDE ha aggiornato {files}.", $"MDE updated {files}.") + next + Notes(userFiles.Select(u => u.Why)));
             }
             return notices;
         }
