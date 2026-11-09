@@ -60,7 +60,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 Git(projectPath, "worktree", "prune");
                 if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
-                if (HasRemote(projectPath)) Git(projectPath, "fetch", "--quiet", "origin", Branch);
+                if (HasRemote(projectPath)) FetchLedger(projectPath);
 
                 var hasLocal = Git(projectPath, "rev-parse", "--verify", "--quiet", "refs/heads/" + Branch).Code == 0;
                 var hasRemote = Git(projectPath, "rev-parse", "--verify", "--quiet", RemoteRef).Code == 0;
@@ -84,8 +84,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var root = Root(projectPath);
             if (!HasRemote(projectPath)) return;
-            var fetch = Git(root, "fetch", "--quiet", "origin", Branch);
-            if (fetch.Code != 0) return;   // il ramo su origin non c'è ancora: nasce con la prima pubblicazione
+            if (!FetchLedger(root)) return;   // il ramo su origin non c'è ancora: nasce con la prima pubblicazione
             Rebase(root);
         }
 
@@ -107,7 +106,7 @@ namespace MdExplorer.Services.AgentRun
                 var push = Git(root, "push", "--quiet", "origin", Branch);
                 if (push.Code == 0) return null;
                 last = push.Err.Trim();
-                if (Git(root, "fetch", "--quiet", "origin", Branch).Code != 0) break;
+                if (!FetchLedger(root)) break;
                 var problem = Rebase(root);
                 if (problem != null) return problem;
             }
@@ -123,6 +122,21 @@ namespace MdExplorer.Services.AgentRun
             var why = MdExplorer.Features.Services.UiText.Say($"il registro dei giri non si allinea con origin ({rebase.Err.Trim()}): due computer hanno scritto lo stesso file", $"the round log cannot be aligned with origin ({rebase.Err.Trim()}): two computers wrote the same file");
             _logger.LogError("[Giri] {Why}", why);
             return why;
+        }
+
+        /// <summary>
+        /// Scarica il ramo del registro da origin. Vero se ora c'è <see cref="RemoteRef"/>.
+        /// <para>
+        /// Con il refspec a modello, un ramo che su origin non c'è è «niente da scaricare» (exit 0), non un errore:
+        /// è il caso normale di un progetto con la città accesa dove nessun giro è ancora partito, e
+        /// «git fetch origin mde/giri» lo diceva come errore ogni minuto (09/11/2026, 441 volte in un giorno).
+        /// Il modello prende anche eventuali rami «mde/giri…» con un nome più lungo: solo riferimenti in più, innocui.
+        /// </para>
+        /// </summary>
+        private static bool FetchLedger(string cwd)
+        {
+            if (Git(cwd, "fetch", "--quiet", "origin", $"+refs/heads/{Branch}*:refs/remotes/origin/{Branch}*").Code != 0) return false;
+            return Git(cwd, "rev-parse", "--verify", "--quiet", RemoteRef).Code == 0;
         }
 
         private static bool HasRemote(string projectPath) => Git(projectPath, "remote", "get-url", "origin").Code == 0;

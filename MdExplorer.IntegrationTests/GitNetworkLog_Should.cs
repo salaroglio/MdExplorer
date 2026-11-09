@@ -97,5 +97,30 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, merged.Count);
             Assert.AreEqual(0, _log.Lines.Count, "nessun git in rete: " + string.Join(" | ", _log.Lines.Select(l => l.Text)));
         }
+
+        /// <summary>
+        /// 09/11/2026: città accesa ma nessun giro ancora partito → su origin il ramo mde/giri non c'è, ed è normale.
+        /// «git fetch origin mde/giri» lo diceva come errore ogni minuto; ora è «niente da scaricare».
+        /// </summary>
+        [TestMethod]
+        public void RegistroDeiGiri_RamoNonAncoraSulServer_NessunErrore()
+        {
+            var origin = Path.Combine(_dir, "origin.git");
+            var work = Path.Combine(_dir, "lavoro");
+            Directory.CreateDirectory(origin);
+            Directory.CreateDirectory(work);
+            GitCli.Run(origin, "init", "--bare");
+            GitCli.Run(work, "init", "-b", "main");
+            GitCli.Run(work, "config", "user.email", "test@test.local");
+            GitCli.Run(work, "config", "user.name", "Test");
+            GitCli.Run(work, "remote", "add", "origin", origin);
+            var store = new RoundStore(NullLogger<RoundStore>.Instance);
+
+            store.Refresh(work);
+
+            Assert.IsTrue(_log.Lines.Count > 0, "il registro deve comunque chiedere al server");
+            Assert.IsFalse(_log.Lines.Any(l => l.Level >= LogLevel.Warning),
+                "ramo assente = normale, non un errore: " + string.Join(" | ", _log.Lines.Select(l => l.Text)));
+        }
     }
 }
