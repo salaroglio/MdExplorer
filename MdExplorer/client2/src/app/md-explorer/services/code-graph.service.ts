@@ -19,6 +19,47 @@ export interface DetectedLanguage {
 
 /** Una definizione di linguaggio del progetto che non si può usare: la finestra la mostra col motivo. */
 /** Esito di «Importa linguaggio…»: il pacchetto copiato in `.mde-languages/<id>/` e le skill installate. */
+/** «Analizza questo programma» (F3, 10/11/2026): un file della chiusura di un seme. */
+export interface SeedClosureFile {
+  path: string;
+  depth: number;
+  from: string | null;
+  written: string | null;
+  whole: boolean;
+  lines: number;
+  symbolCount: number;
+  symbols: string[];
+}
+
+/** Un riferimento che la scoperta non ha seguito, una volta sola con quante volte compare. */
+export interface SeedClosureMiss {
+  kind: 'unresolved' | 'ambiguous' | 'pruned' | 'frontier';
+  written: string | null;
+  uses: number;
+  from: string[];
+  candidates: string[];
+}
+
+export interface SeedPreview {
+  seed: string;
+  language: string;
+  budgetReached: boolean;
+  lines: number;
+  files: SeedClosureFile[];
+  misses: SeedClosureMiss[];
+}
+
+export interface SeedAnalysis {
+  seed: string;
+  needsConfirmation: boolean;
+  added: string[];
+  removed: string[];
+  budgetReached: boolean;
+  outcome: { files: number; reparsed: number; scriptsRemoved: number; crossLinked: number; loaded: number | null; failed: number | null; firstError: string | null; warnings: string[] } | null;
+}
+
+export interface SeedEntry { seed: string; pruned: string[]; language: string | null; files: number | null; confirmedAt: string | null; }
+
 /** «Esporta linguaggio…» (10/11/2026): dove è finito lo zip; unchanged = c'era già, identico. */
 export interface LanguagePackageExported {
   id: string;
@@ -435,6 +476,28 @@ export class CodeGraphService {
   /** Importa un pacchetto di linguaggio da una cartella o da uno .zip; 409 = c'è già (`existingVersion`, `importedVersion`): si rimanda con `replace`. */
   importLanguagePackage(projectPath: string, sourcePath: string, replace: boolean): Observable<LanguagePackageImported> {
     return this.http.post<LanguagePackageImported>('../api/codegraph/language-packages/import', { projectPath, sourcePath, replace });
+  }
+
+  /** F3: la chiusura di un file, senza scrivere niente. */
+  previewSeed(projectPath: string, seed: string, pruned: string[]): Observable<SeedPreview> {
+    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned });
+  }
+
+  /** F3: salva il seme con le sue potature e analizza i soli file della chiusura (confirm = accetta la differenza). */
+  applySeed(projectPath: string, seed: string, pruned: string[], confirm: boolean): Observable<SeedAnalysis> {
+    return this.http.post<SeedAnalysis>('../api/codegraph/seeds/apply', { projectPath, seed, pruned, confirm });
+  }
+
+  analyzeSeed(projectPath: string, seed: string, confirm: boolean): Observable<SeedAnalysis> {
+    return this.http.post<SeedAnalysis>('../api/codegraph/seeds/analyze', { projectPath, seed, confirm });
+  }
+
+  removeSeed(projectPath: string, seed: string): Observable<SeedAnalysis> {
+    return this.http.post<SeedAnalysis>('../api/codegraph/seeds/remove', { projectPath, seed });
+  }
+
+  listSeeds(projectPath: string): Observable<SeedEntry[]> {
+    return this.http.get<SeedEntry[]>('../api/codegraph/seeds', { params: { projectPath } });
   }
 
   exportLanguagePackage(projectPath: string, id: string, destinationFolder: string): Observable<LanguagePackageExported> {

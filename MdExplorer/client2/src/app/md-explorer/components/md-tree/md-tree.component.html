@@ -137,6 +137,15 @@
       <mat-icon>create_new_folder</mat-icon>
       <span>{{ 'REMOTE_TREE.NEW_FOLDER' | translate }}</span>
     </button>
+    <!-- «Analizza questo programma» (F3c, 10/11/2026): la chiusura delle dipendenze di questo file, poi la sua struttura -->
+    <button *ngIf="item.type==='codeRootFile' && item.isTextFile" mat-menu-item (click)="analyzeProgram(item)">
+      <mat-icon>account_tree</mat-icon>
+      <span>{{ 'MD_TREE.ANALYZE_PROGRAM' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='codeRootFile' && isSeedFile(item)" mat-menu-item (click)="removeProgram(item)">
+      <mat-icon>remove_circle_outline</mat-icon>
+      <span>{{ 'MD_TREE.REMOVE_PROGRAM' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='codeRootFile' && item.isTextFile" mat-menu-item (click)="codeRootEdit(item)">
       <mat-icon>edit_note</mat-icon>
       <span>{{ 'REMOTE_TREE.EDIT' | translate }}</span>
@@ -384,6 +393,8 @@
       <mat-icon class="mat-icon-rtl-mirror generic-file-icon">{{ node.isTextFile ? 'description' : 'insert_drive_file' }}</mat-icon>
     </button>
     <div class="node-text generic-file-name" [style.cursor]="node.isTextFile ? 'pointer' : 'default'" style="padding: 2px;">{{node.name}}</div>
+    <!-- F3d: un seme del grafo del codice («Analizza questo programma») -->
+    <mat-icon *ngIf="isSeedFile(node)" class="seed-mark" style="font-size: 16px; width: 16px; height: 16px; margin-left: 4px; color: var(--mde-accent, #1976d2);">account_tree</mat-icon>
   </mat-tree-node>
 
   <!-- This is the tree node template for expandable nodes -->

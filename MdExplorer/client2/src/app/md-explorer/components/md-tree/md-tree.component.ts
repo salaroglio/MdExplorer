@@ -15,6 +15,7 @@ import { MdServerMessagesService } from '../../../signalR/services/server-messag
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
+import { SeedDialogComponent, SeedDialogData } from '../dialogs/seed-analysis/seed-dialog.component';
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
 import { CodeRoot, CodeRootsService, RemoteFileOp } from '../../services/code-roots.service';
@@ -2598,6 +2599,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.codeRootsByAlias = new Map(roots.map(r => [r.alias, r] as [string, CodeRoot]));
         this.codeRootNodes = roots.map(r => this.codeRootNode(r));
         this.renderCodeRootNodes();
+        this.loadSeeds(projectRoot);
       },
       error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
     });
@@ -2871,6 +2873,44 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         // i linguaggi scelti cambiano la radice (anche quelli di un contesto): la si rilegge
         this.codeRootsService.list(root).subscribe({ next: roots => roots.forEach(r => this.codeRootsByAlias.set(r.alias, r)) });
       });
+  }
+
+  /** I file seme del progetto (F3d): hanno un segno nell'albero e «Togli dal grafo del codice» nel menu. */
+  private seedPaths = new Set<string>();
+
+  private loadSeeds(projectRoot: string): void {
+    this.http.get<{ seed: string }[]>('../api/codegraph/seeds', { params: { projectPath: projectRoot } }).subscribe({
+      next: list => {
+        if (this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+        this.seedPaths = new Set(list.map(s => s.seed));
+        this.changeDetectorRef.markForCheck();
+      },
+      error: () => { /* senza grafo del codice nessun seme: niente da segnare */ },
+    });
+  }
+
+  isSeedFile(item: MdFile): boolean { return this.seedPaths.has((item?.path || '').replace(/\\/g, '/')); }
+
+  /** «Analizza questo programma» (F3c): la finestra con l'anteprima della chiusura del file, poi l'analisi. */
+  analyzeProgram(item: MdFile): void {
+    const root = this.getProjectRoot();
+    if (!root) { return; }
+    const data: SeedDialogData = { projectRoot: root, seed: (item.path || '').replace(/\\/g, '/') };
+    this.dialog.open(SeedDialogComponent, { width: '760px', maxHeight: '90vh', data, disableClose: false })
+      .afterClosed().subscribe(() => this.loadSeeds(root));
+  }
+
+  /** «Togli dal grafo del codice» (F3d): via il seme e i file della sua chiusura che nessun altro contesto vuole. */
+  removeProgram(item: MdFile): void {
+    const root = this.getProjectRoot();
+    if (!root) { return; }
+    this.http.post<{ removed: string[] }>('../api/codegraph/seeds/remove', { projectPath: root, seed: (item.path || '').replace(/\\/g, '/') }).subscribe({
+      next: r => {
+        this.loadSeeds(root);
+        this.snackBar.open(this.translate.instant('MD_TREE.PROGRAM_REMOVED', { count: r.removed?.length ?? 0 }), 'OK', { duration: 6000 });
+      },
+      error: err => this.snackBar.open(err?.error?.error || err?.message || String(err), 'OK', { duration: 8000 }),
+    });
   }
 
   openCodeRootGraph(item: MdFile): void {

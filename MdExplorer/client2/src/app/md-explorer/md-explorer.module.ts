@@ -18,6 +18,7 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent } from './components/dialogs/dev-environment/dev-environment-dialog.component';
+import { SeedDialogComponent } from './components/dialogs/seed-analysis/seed-dialog.component';
 import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
 import { RemoteFolderPickerDialogComponent } from './components/dialogs/code-roots/remote-folder-picker-dialog.component';
 import { CodeRootNameDialogComponent } from './components/dialogs/code-roots/code-root-name-dialog.component';
@@ -115,6 +116,7 @@ const routes: Routes = [
     NewMarkdownComponent,
     NewDirectoryComponent,
     DevEnvironmentDialogComponent,
+    SeedDialogComponent,
     CodeRootsDialogComponent,
     RemoteFolderPickerDialogComponent,
     CodeRootNameDialogComponent,
