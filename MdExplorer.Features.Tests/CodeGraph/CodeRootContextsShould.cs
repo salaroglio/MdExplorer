@@ -6,8 +6,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
 {
     /// <summary>
     /// I contesti di una radice (P2 di 2026-10-27-Grafo-Di-Progetti-Enormi), con le regole decise il 28/10: A — la radice
-    /// intera O i contesti; B — un contesto mai dentro un altro. I messaggi si controllano per i percorsi che nominano: la
-    /// lingua è quella dell'interfaccia.
+    /// intera O i contesti; B — un contesto mai dentro un altro, tolta il 10/11/2026 (F1b: i contesti si annidano). I messaggi
+    /// si controllano per i percorsi che nominano: la lingua è quella dell'interfaccia.
     /// </summary>
     [TestClass]
     public class CodeRootContextsShould
@@ -23,11 +23,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public void Refuse_a_context_inside_or_around_another()
+        public void Accept_a_context_inside_or_around_another()
         {
             var contexts = new[] { "fatturazione/core", "anagrafica" };
-            StringAssert.Contains(CodeRootContexts.MarkProblem("globo", false, contexts, "fatturazione/core/dao"), "@globo/fatturazione/core.", "B: dentro");
-            StringAssert.Contains(CodeRootContexts.MarkProblem("globo", false, contexts, "fatturazione"), "@globo/fatturazione/core:", "B: intorno");
+            Assert.IsNull(CodeRootContexts.MarkProblem("globo", false, contexts, "fatturazione/core/dao"), "F1b: dentro un altro");
+            Assert.IsNull(CodeRootContexts.MarkProblem("globo", false, contexts, "fatturazione"), "F1b: intorno a un altro");
             Assert.IsNull(CodeRootContexts.MarkProblem("globo", false, contexts, "fatturazione/web"), "accanto, non dentro");
             Assert.IsNull(CodeRootContexts.MarkProblem("globo", false, contexts, "anagrafica-old"), "il prefisso conta per cartelle intere");
             Assert.IsNull(CodeRootContexts.MarkProblem("globo", false, contexts, "/anagrafica/"), "già marcato, scritto in un altro modo");

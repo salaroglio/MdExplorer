@@ -671,6 +671,13 @@ namespace MdExplorer.Services.CodeGraph
                 var bridgesChanged = !string.Equals(previous?.Bridges ?? string.Empty, bridgeSet.Signature, StringComparison.Ordinal);
                 if (bridgesChanged) outcome.Warnings.Add(UiText.Say($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto", $"bridges changed ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "none" : bridgeSet.Signature)}): the whole program is rewritten"));
 
+                // 1c) F1b: gli script orfani si decidono PRIMA (sorgente sparito, o fuori dai linguaggi di questo contesto e non
+                // voluto da nessun altro contesto): escono dall'indice del ricollegamento e chi li usava torna esterno.
+                var contexts = (await ListProgramsAsync(projectPath, ct)).Select(c => (c.Folder, (IReadOnlyCollection<string>)c.Languages)).ToList();
+                var (orphans, claimed) = FindOrphanScripts(projectPath, folderRelative, inPerimeter, contexts);
+                var orphanSources = new HashSet<string>(orphans.Select(o => o.Source), StringComparer.Ordinal);
+                var orphanLanguages = new HashSet<string>(orphans.Select(o => o.Language).Where(l => l != null), StringComparer.OrdinalIgnoreCase);
+
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
                 var written = new List<string>();
                 var renames = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -700,7 +707,13 @@ namespace MdExplorer.Services.CodeGraph
                     var toEmit = bridgesChanged
                         ? all
                         : toCheck.Where(f => NeedsReparse(projectPath, f, extractor, sources)).ToList();
-                    if (toEmit.Count == 0) continue;
+                    if (toEmit.Count == 0)
+                    {
+                        // niente da riestrarre, ma file spariti: chi li usava dagli altri contesti va ricollegato (F1b)
+                        if (CrossLinkable(lang) && orphanLanguages.Contains(lang.Id))
+                            CrossLink(projectPath, lang, new List<(string, CodeScript)>(), new HashSet<string>(StringComparer.Ordinal), written, outcome, orphanSources);
+                        continue;
+                    }
                     var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
                     // G4: l'estrattore legge tutti i file del programma; per una radice remota arrivano ora dal server
                     if (remote != null) await remote.LoadAsync(all, ct);
@@ -737,10 +750,8 @@ namespace MdExplorer.Services.CodeGraph
                         outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
                         pending.Add((file, script, scriptPath, onDisk, fromSource));
                     }
-                    var crossLinkable = (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
-                        || string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase);
-                    if (crossLinkable && pending.Count > 0)
-                        CrossLink(projectPath, lang, pending.Select(x => (x.File.LogicalPath, x.Script)).ToList(), untouched, written, outcome);
+                    if (CrossLinkable(lang) && (pending.Count > 0 || orphanLanguages.Contains(lang.Id)))
+                        CrossLink(projectPath, lang, pending.Select(x => (x.File.LogicalPath, x.Script)).ToList(), untouched, written, outcome, orphanSources);
                     foreach (var (file, script, scriptPath, onDisk, fromSource) in pending)
                     {
                         // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
@@ -774,13 +785,14 @@ namespace MdExplorer.Services.CodeGraph
                 }
 
                 // 3) Script AST di sorgenti spariti (o usciti dai linguaggi scelti): via.
-                var removed = RemoveOrphanScripts(projectPath, folderRelative, inPerimeter);
+                var removed = RemoveOrphanScripts(projectPath, orphans);
                 outcome.ScriptsRemoved = removed.Count;
 
                 // 3b) File spostati o rinominati: le loro descrizioni passano al file nuovo (stesso nome qualificato = stessa chiave).
                 if (declared.Count > 0)
                 {
-                    var alive = new HashSet<string>(inPerimeter.Select(f => f.LogicalPath), StringComparer.Ordinal);
+                    // vivi: i file di questo contesto e quelli che un altro contesto vuole (F1b: non sono spariti, sono suoi)
+                    var alive = new HashSet<string>(inPerimeter.Select(f => f.LogicalPath).Concat(claimed), StringComparer.Ordinal);
                     var (moved, emptied) = CodeDocMigration.Relocate(projectPath, folderRelative, alive, declared, out var left);
                     outcome.DocsMigrated += moved.Count;
                     outcome.OrphanDescriptions = left;
@@ -940,9 +952,14 @@ namespace MdExplorer.Services.CodeGraph
         /// altri contesti che cambiano (una funzione che ora c'è, o che non c'è più) si riscrivono qui e si ricaricano.
         /// <paramref name="untouched"/>: file di questa analisi con lo script di un'altra versione, che resta com'è.
         /// </summary>
+        private static bool CrossLinkable(CodeLanguage lang)
+            => (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
+               || string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase);
+
         private void CrossLink(string projectPath, CodeLanguage lang, List<(string Path, CodeScript Script)> own, HashSet<string> untouched,
-            List<string> written, CodeFolderAnalysisOutcome outcome)
+            List<string> written, CodeFolderAnalysisOutcome outcome, HashSet<string> orphanSources)
         {
+            var gone = new List<(string Path, CodeScript Script)>();
             var mine = new HashSet<string>(own.Select(o => o.Path), StringComparer.Ordinal);
             var others = new List<(string Path, CodeScript Script, string ScriptPath)>();
             var root = CodeGraphPaths.GetScriptsRoot(projectPath);
@@ -952,13 +969,19 @@ namespace MdExplorer.Services.CodeGraph
                     var header = CodeScriptTurtle.ReadHeaderLine(scriptPath);
                     if (header == null || header.Schema != CodeScriptParser.CurrentSchema || !string.Equals(header.Language, lang.Id, StringComparison.OrdinalIgnoreCase)
                         || header.Source == null || mine.Contains(header.Source)) continue;
+                    // lo script di un file sparito: fuori dall'indice; i suoi simboli sono «spariti» per chi li usava
+                    if (orphanSources.Contains(header.Source))
+                    {
+                        try { gone.Add((header.Source, CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath))); } catch (CodeScriptFormatException) { }
+                        continue;
+                    }
                     try { others.Add((header.Source, CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath), scriptPath)); }
                     catch (Exception ex) { outcome.Warnings.Add(UiText.Say($"{header.Source}: script non leggibile per il ricollegamento ({ex.Message})", $"{header.Source}: script not readable for relinking ({ex.Message})")); }
                 }
             var otherScripts = others.Select(o => (o.Path, o.Script)).ToList();
             var changed = lang.Definition != null
                 ? CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, otherScripts)
-                : CodeCrossLinker.LinkAllJava(lang.Id, own, otherScripts, VanishedSymbols(projectPath, own));
+                : CodeCrossLinker.LinkAllJava(lang.Id, own, otherScripts, VanishedSymbols(projectPath, own, gone));
             foreach (var path in changed)
             {
                 if (untouched.Contains(path)) continue;
@@ -977,9 +1000,12 @@ namespace MdExplorer.Services.CodeGraph
         /// I simboli che lo script di prima di questi file aveva e quello nuovo no (Java, F1a): chi li usava da un altro contesto
         /// torna esterno col loro nome. Lo script di prima si legge dal disco, prima che si riscriva.
         /// </summary>
-        private static Dictionary<string, CodeCrossLinker.Vanished> VanishedSymbols(string projectPath, List<(string Path, CodeScript Script)> own)
+        private static Dictionary<string, CodeCrossLinker.Vanished> VanishedSymbols(string projectPath, List<(string Path, CodeScript Script)> own,
+            List<(string Path, CodeScript Script)> removedFiles)
         {
             var gone = new Dictionary<string, CodeCrossLinker.Vanished>(StringComparer.Ordinal);
+            // i file che spariscono: tutti i loro simboli
+            foreach (var (_, old) in removedFiles) Remember(old, new HashSet<string>(StringComparer.Ordinal), gone);
             foreach (var (path, script) in own)
             {
                 var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, path, CodeScriptKind.Ast);
@@ -987,31 +1013,60 @@ namespace MdExplorer.Services.CodeGraph
                 CodeScript old;
                 try { old = CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath); }
                 catch (CodeScriptFormatException) { continue; }   // di un altro schema: lo rifà l'estrazione, niente da ricordare
-                var now = new HashSet<string>(script.Symbols.Where(x => x.Id != null).Select(x => x.Id), StringComparer.Ordinal);
-                var byId = old.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
-                foreach (var x in old.Symbols.Where(x => x.Id != null && x.Kind != "external" && !now.Contains(x.Id)))
-                {
-                    var owner = x.ParentId != null && byId.TryGetValue(x.ParentId, out var p) ? p.QualifiedName : null;
-                    gone[x.Id] = new CodeCrossLinker.Vanished(x.Kind, x.Name, x.QualifiedName, owner, old.Parameters.Count(pp => pp.SymbolId == x.Id));
-                }
+                Remember(old, new HashSet<string>(script.Symbols.Where(x => x.Id != null).Select(x => x.Id), StringComparer.Ordinal), gone);
             }
             return gone;
         }
 
-        private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)
+        private static void Remember(CodeScript old, HashSet<string> now, Dictionary<string, CodeCrossLinker.Vanished> gone)
         {
-            var removed = new List<string>();
+            var byId = old.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            foreach (var x in old.Symbols.Where(x => x.Id != null && x.Kind != "external" && !now.Contains(x.Id)))
+            {
+                var owner = x.ParentId != null && byId.TryGetValue(x.ParentId, out var p) ? p.QualifiedName : null;
+                gone[x.Id] = new CodeCrossLinker.Vanished(x.Kind, x.Name, x.QualifiedName, owner, old.Parameters.Count(pp => pp.SymbolId == x.Id));
+            }
+        }
+
+        /// <summary>
+        /// Gli script AST sotto la cartella di questo contesto che nessuno vuole più (F1b, 10/11/2026): il sorgente non è fra i
+        /// file di questo contesto E nessun altro contesto lo vuole (<see cref="CodeRootContexts.ClaimedByOther"/>), oppure il
+        /// sorgente di un file del progetto non c'è più sul disco. Prima (regola B) bastava non essere fra i file di questo
+        /// contesto: l'analisi di una cartella cancellava gli script di un contesto annidato con un altro linguaggio.
+        /// Torna anche i file vivi perché un altro contesto li vuole: le loro descrizioni non sono orfane.
+        /// </summary>
+        private (List<(string ScriptPath, string Source, string Language)> Orphans, HashSet<string> Claimed) FindOrphanScripts(string projectPath, string folderRelative,
+            List<CodeSourceFile> inPerimeter, List<(string Folder, IReadOnlyCollection<string> Languages)> contexts)
+        {
+            var orphans = new List<(string, string, string)>();
+            var claimed = new HashSet<string>(StringComparer.Ordinal);
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), folderRelative.Replace('/', Path.DirectorySeparatorChar));
-            if (!Directory.Exists(scriptsFolder)) return removed;
+            if (!Directory.Exists(scriptsFolder)) return (orphans, claimed);
             var alive = new HashSet<string>(inPerimeter.Select(f => f.LogicalPath), StringComparer.Ordinal);
             foreach (var script in Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories))
             {
                 var rel = CodeGraphPaths.ToProjectRelative(projectPath, script);
                 var source = rel.Substring(CodeGraphPaths.ScriptsFolderName.Length + 1, rel.Length - CodeGraphPaths.ScriptsFolderName.Length - 1 - CodeGraphPaths.AstScriptSuffix.Length);
                 if (alive.Contains(source)) continue;
+                var language = CodeScriptTurtle.ReadHeaderLine(script)?.Language;
+                // un file del progetto (non @alias) che non c'è più è sparito per tutti; uno di una radice lo controlla chi lo vuole
+                var vanished = !source.StartsWith("@", StringComparison.Ordinal) && !File.Exists(Path.Combine(projectPath, source.Replace('/', Path.DirectorySeparatorChar)));
+                if (!vanished && CodeRootContexts.ClaimedByOther(source, language, folderRelative, contexts)) { claimed.Add(source); continue; }
+                orphans.Add((script, source, language));
+            }
+            return (orphans, claimed);
+        }
+
+        private List<string> RemoveOrphanScripts(string projectPath, List<(string ScriptPath, string Source, string Language)> orphans)
+        {
+            var removed = new List<string>();
+            foreach (var (script, source, _) in orphans)
+            {
+                if (!File.Exists(script)) continue;
                 File.Delete(script);
                 removed.Add(script);
-                _logger.LogInformation("[CodeGraph] script orfano tolto: {Script} (sorgente '{Source}' sparito o fuori dai linguaggi scelti)", rel, source);
+                _logger.LogInformation("[CodeGraph] script orfano tolto: {Script} (sorgente '{Source}' sparito, o fuori dai linguaggi di ogni contesto che lo contiene)",
+                    CodeGraphPaths.ToProjectRelative(projectPath, script), source);
             }
             return removed;
         }

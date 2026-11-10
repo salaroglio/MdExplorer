@@ -188,7 +188,10 @@ namespace MdExplorer.IntegrationTests
             state = (await service.ListAsync(_project)).Single();
             CollectionAssert.AreEqual(new[] { "src", "web" }, state.Programs.Select(p => p.Path).ToArray());
 
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo/src/Api", true))).Message, "@globo/src.", "B");
+            // F1b (10/11/2026): la regola B è tolta, un contesto può stare dentro un altro
+            await service.SetProgramAsync(_project, "@globo/src/Api", true);
+            CollectionAssert.AreEqual(new[] { "src", "src/Api", "web" }, (await service.ListAsync(_project)).Single().Programs.Select(p => p.Path).ToArray(), "annidato");
+            await service.SetProgramAsync(_project, "@globo/src/Api", false);
             StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo", true))).Message, "(src, web)", "A, dall'altra parte");
             await Assert.ThrowsExceptionAsync<DirectoryNotFoundException>(() => service.SetProgramAsync(_project, "@globo/non-c-e", true));
 

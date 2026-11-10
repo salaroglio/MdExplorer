@@ -130,3 +130,29 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
     }
 }
+
+namespace MdExplorer.Features.Tests.CodeGraph
+{
+    /// <summary>F1b (10/11/2026): uno script lo toglie solo chi non lo vuole, se nessun altro contesto lo vuole.</summary>
+    [TestClass]
+    public class CodeRootContextsClaimShould
+    {
+        private static readonly List<(string Folder, IReadOnlyCollection<string> Languages)> Contexts = new()
+        {
+            ("legacy", new[] { "java" }),
+            ("legacy/core", new[] { "toy" }),
+            ("@srv/so", new[] { "toy", "java" }),
+        };
+
+        [TestMethod]
+        public void Keep_the_scripts_another_context_wants()
+        {
+            Assert.IsTrue(CodeRootContexts.ClaimedByOther("legacy/core/A.toy", "toy", "legacy", Contexts), "il padre Java non toglie il Toy del figlio");
+            Assert.IsTrue(CodeRootContexts.ClaimedByOther("legacy/core/B.java", "java", "legacy/core", Contexts), "il figlio Toy non toglie il Java del padre");
+            Assert.IsFalse(CodeRootContexts.ClaimedByOther("legacy/core/C.py", "python", "legacy", Contexts), "nessuno vuole il Python: si toglie");
+            Assert.IsFalse(CodeRootContexts.ClaimedByOther("legacy/X.java", "java", "legacy", Contexts), "il contesto che analizza non conta: decide lui");
+            Assert.IsFalse(CodeRootContexts.ClaimedByOther("legacy-old/X.java", "java", "legacy/core", Contexts), "«legacy» non contiene «legacy-old»");
+            Assert.IsTrue(CodeRootContexts.ClaimedByOther("@srv/so/lib.tos", "TOY", "@srv", Contexts), "radici e maiuscole del linguaggio");
+        }
+    }
+}

@@ -10,7 +10,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <c>program</c> per analizzare a pezzi una radice enorme. Decise dall'utente il 28/10/2026:
     /// <list type="bullet">
     /// <item>A — o la radice intera è un programma (com'era, e resta così per chi l'ha già) o ha dei contesti, non tutti e due;</item>
-    /// <item>B — un contesto non sta dentro un altro: lo stato della scansione e la ricarica in Fuseki sono per cartella.</item>
+    /// <item><s>B — un contesto non sta dentro un altro</s>: tolta il 10/11/2026 (F1b). I contesti si annidano e si sovrappongono:
+    /// uno script si toglie solo se nessun contesto lo vuole più (<see cref="ClaimedByOther"/>), e grazie al ricollegamento
+    /// fra contesti (F1a) lo script di un file è lo stesso qualunque contesto lo analizzi.</item>
     /// </list>
     /// </summary>
     public static class CodeRootContexts
@@ -39,14 +41,18 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (rootIsProgram)
                 return UiText.Say($"Tutta la radice @{alias} è già un programma: per analizzarla a pezzi smarca prima la radice.",
                     $"The whole root @{alias} is already a program: to analyse it in parts, unmark the root first.");
-            if (existing.Contains(path, StringComparer.Ordinal)) return null;
-            var outer = existing.FirstOrDefault(c => path.StartsWith(c + "/", StringComparison.Ordinal));
-            if (outer != null)
-                return UiText.Say($"@{alias}/{path} sta già dentro il contesto @{alias}/{outer}.", $"@{alias}/{path} is already inside the context @{alias}/{outer}.");
-            var inner = existing.FirstOrDefault(c => c.StartsWith(path + "/", StringComparison.Ordinal));
-            if (inner != null)
-                return UiText.Say($"@{alias}/{path} contiene già il contesto @{alias}/{inner}: smarcalo prima.", $"@{alias}/{path} already contains the context @{alias}/{inner}: unmark it first.");
             return null;
         }
+
+        /// <summary>
+        /// F1b (10/11/2026): uno script del file <paramref name="source"/> (percorso logico), del linguaggio
+        /// <paramref name="language"/>, lo vuole un contesto diverso da <paramref name="current"/>? Sì se un altro contesto
+        /// segnato contiene il file e ha scelto quel linguaggio. Allora l'analisi di <paramref name="current"/> non lo toglie:
+        /// se il file sparisce, lo toglie l'analisi di chi lo vuole.
+        /// </summary>
+        public static bool ClaimedByOther(string source, string language, string current, IEnumerable<(string Folder, IReadOnlyCollection<string> Languages)> contexts)
+            => source != null && language != null && contexts.Any(c => !string.Equals(c.Folder, current, StringComparison.Ordinal)
+                && source.StartsWith(c.Folder.TrimEnd('/') + "/", StringComparison.Ordinal)
+                && c.Languages.Contains(language, StringComparer.OrdinalIgnoreCase));
     }
 }
