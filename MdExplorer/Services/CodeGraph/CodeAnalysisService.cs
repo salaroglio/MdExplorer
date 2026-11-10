@@ -31,6 +31,8 @@ namespace MdExplorer.Services.CodeGraph
         /// dal file): una classe spostata, un nome che compare o sparisce in un altro file.
         /// </summary>
         public int Relinked { get; set; }
+        /// <summary>F1a: script di altri contesti riscritti perché un loro riferimento per nome ora si risolve (o non più).</summary>
+        public int CrossLinked { get; set; }
         /// <summary>Nomi dichiarati in più file (partial, duplicati): restano un nodo solo per nome, e l'esito lo dice.</summary>
         public int SharedNames { get; set; }
         /// <summary>Destinazioni né dichiarate in un file né esterne: archi verso nodi che non esistono, contati.</summary>
@@ -720,6 +722,9 @@ namespace MdExplorer.Services.CodeGraph
                     var own = new HashSet<string>(all.Select(f => f.LogicalPath), StringComparer.Ordinal);
                     var reemit = new HashSet<string>(toEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
                     var emitter = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
+                    // prima gli id per file su tutti gli script da scrivere, poi (F1a) il ricollegamento con gli altri contesti, poi la scrittura
+                    var pending = new List<(CodeSourceFile File, CodeScript Script, string ScriptPath, CodeScriptHeader OnDisk, bool FromSource)>();
+                    var untouched = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var (file, script) in extracted.Scripts)
                     {
                         if (!own.Contains(file.LogicalPath)) continue; // file di un ponte: serviva a risolvere, lo scrive il suo programma
@@ -727,9 +732,15 @@ namespace MdExplorer.Services.CodeGraph
                         var onDisk = CodeScriptTurtle.ReadHeaderLine(scriptPath);
                         var fromSource = reemit.Contains(file.LogicalPath);
                         // non cambiato e di un'altra versione, fuori da questa analisi (all'apertura): resta com'è, è già contato
-                        if (!fromSource && (onDisk == null || onDisk.Extractor != extractor.ExtractorName || onDisk.ExtractorVersion != emitter)) continue;
+                        if (!fromSource && (onDisk == null || onDisk.Extractor != extractor.ExtractorName || onDisk.ExtractorVersion != emitter)) { untouched.Add(file.LogicalPath); continue; }
                         var legacy = onDisk != null && onDisk.Schema == CodeScriptParser.CurrentSchema && CodeFileScope.IsLegacy(onDisk.ExtractorVersion) ? folderRelative : null;
                         outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
+                        pending.Add((file, script, scriptPath, onDisk, fromSource));
+                    }
+                    if (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null && pending.Count > 0)
+                        CrossLink(projectPath, lang, pending.Select(x => (x.File.LogicalPath, x.Script)).ToList(), untouched, written, outcome);
+                    foreach (var (file, script, scriptPath, onDisk, fromSource) in pending)
+                    {
                         // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
                         // (CodeSourceText: un CP-850 letto in UTF-8 non vedrebbe un'accentata cambiata)
                         var sourceText = sources.Read(file);
@@ -919,6 +930,42 @@ namespace MdExplorer.Services.CodeGraph
             var header = CodeScriptTurtle.ReadHeaderLine(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast));
             if (header == null || header.Extractor != extractor.ExtractorName || header.ExtractorVersion != CodeBodyHash.EmitterVersion(extractor.ExtractorVersion)) return true;
             return !string.Equals(header.SourceHash, CodeSourceText.Hash(sources.Read(file)), StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// F1a (10/11/2026): i riferimenti per nome di un linguaggio a regole si risolvono sugli script di tutti i contesti già
+        /// analizzati (<see cref="CodeCrossLinker"/>): <paramref name="own"/> si ricollega prima di essere scritto; gli script degli
+        /// altri contesti che cambiano (una funzione che ora c'è, o che non c'è più) si riscrivono qui e si ricaricano.
+        /// <paramref name="untouched"/>: file di questa analisi con lo script di un'altra versione, che resta com'è.
+        /// </summary>
+        private void CrossLink(string projectPath, CodeLanguage lang, List<(string Path, CodeScript Script)> own, HashSet<string> untouched,
+            List<string> written, CodeFolderAnalysisOutcome outcome)
+        {
+            var mine = new HashSet<string>(own.Select(o => o.Path), StringComparer.Ordinal);
+            var others = new List<(string Path, CodeScript Script, string ScriptPath)>();
+            var root = CodeGraphPaths.GetScriptsRoot(projectPath);
+            if (Directory.Exists(root))
+                foreach (var scriptPath in Directory.EnumerateFiles(root, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories))
+                {
+                    var header = CodeScriptTurtle.ReadHeaderLine(scriptPath);
+                    if (header == null || header.Schema != CodeScriptParser.CurrentSchema || !string.Equals(header.Language, lang.Id, StringComparison.OrdinalIgnoreCase)
+                        || header.Source == null || mine.Contains(header.Source)) continue;
+                    try { others.Add((header.Source, CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath), scriptPath)); }
+                    catch (Exception ex) { outcome.Warnings.Add(UiText.Say($"{header.Source}: script non leggibile per il ricollegamento ({ex.Message})", $"{header.Source}: script not readable for relinking ({ex.Message})")); }
+                }
+            var changed = CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, others.Select(o => (o.Path, o.Script)).ToList());
+            foreach (var path in changed)
+            {
+                if (untouched.Contains(path)) continue;
+                var other = others.First(o => o.Path == path);
+                if (CodeScriptWriter.WriteIfChanged(other.ScriptPath, CodeScriptWriter.Serialize(other.Script)))
+                {
+                    written.Add(other.ScriptPath);
+                    outcome.CrossLinked++;
+                }
+            }
+            if (outcome.CrossLinked > 0)
+                _logger.LogInformation("[CodeGraph] {Count} script di altri contesti ricollegati ({Language})", outcome.CrossLinked, lang.Id);
         }
 
         private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)

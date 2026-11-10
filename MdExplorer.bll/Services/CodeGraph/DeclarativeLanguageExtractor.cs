@@ -39,7 +39,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class DeclarativeLanguageExtractor : ICodeExtractor
     {
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le regole, non le regole.</summary>
-        public const string EngineVersion = "2";
+        /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
+        public const string EngineVersion = "3";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -578,7 +579,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly CodeScript _script = new();
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
             private readonly Dictionary<string, ScriptEdge> _edges = new(StringComparer.Ordinal);
-            private readonly List<(Sym Source, string Target, string Relation, string Confidence, int Line)> _pending = new();
+            private readonly List<(Sym Source, string Target, string Relation, string Confidence, int Line, string Written)> _pending = new();
             private readonly HashSet<Sym> _referenced = new();
 
             public FileEmitter(DeclarativeLanguageExtractor owner, FileModel model, PerimeterIndex index)
@@ -613,8 +614,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     foreach (var p in s.Parameters) { p.SymbolId = s.Id; _script.Parameters.Add(p); }
                 }
                 CollectJumps();
-                foreach (var (source, target, relation, confidence, line) in _pending)
-                    Edge(Visible(source).Id, target, relation, confidence, line);
+                foreach (var (source, target, relation, confidence, line, written) in _pending)
+                    Edge(Visible(source).Id, target, relation, confidence, line, written);
                 return _script;
             }
 
@@ -643,8 +644,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                             if (rule.Strip != null) target = rule.Strip.Replace(target, string.Empty);
                             target = target.Trim();
                             if (target.Length == 0) continue;
+                            var written = WrittenOf(rule, target);
                             foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i]))
-                                _pending.Add((_m.Owner[i], id, rule.Relation, Cap(confidence, rule.Confidence), line.Start));
+                                _pending.Add((_m.Owner[i], id, rule.Relation, Cap(confidence, rule.Confidence), line.Start, written));
                         }
                     }
                     if (!string.IsNullOrWhiteSpace(line.Code)) previous = line.Code;
@@ -672,7 +674,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         foreach (Match j in rule.Jump.Matches(line.Code))
                         {
                             var target = j.Groups["target"].Value.Trim();
-                            if (byKey.TryGetValue(target, out var to)) _pending.Add((_m.Owner[i], to.Id, DeclarativeLanguage.JumpsRelation, "extracted", line.Start));
+                            if (byKey.TryGetValue(target, out var to)) _pending.Add((_m.Owner[i], to.Id, DeclarativeLanguage.JumpsRelation, "extracted", line.Start, null));
                             else _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line.Start}: salto verso '{target}', che in {block.Name} non c'è", $"{_m.File.LogicalPath}:{line.Start}: jump to '{target}', which is not in {block.Name}"));
                         }
                     }
@@ -681,12 +683,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                         {
                             if (_m.Block[j] != block || string.IsNullOrWhiteSpace(_m.Lines[j].Code)) continue;
                             if (rule.Stop == null || !rule.Stop.IsMatch(_m.Lines[j].Code))
-                                _pending.Add((_m.Owner[j], f.Id, DeclarativeLanguage.JumpsRelation, "inferred", f.Start));
+                                _pending.Add((_m.Owner[j], f.Id, DeclarativeLanguage.JumpsRelation, "inferred", f.Start, null));
                             break;
                         }
                     foreach (var b in block.Branches)
-                        _pending.Add((b.DispatchedBy, b.Id, DeclarativeLanguage.JumpsRelation, "inferred", b.Start));
+                        _pending.Add((b.DispatchedBy, b.Id, DeclarativeLanguage.JumpsRelation, "inferred", b.Start, null));
                 }
+            }
+
+            /// <summary>
+            /// Il riferimento scritto (F1a): solo per le regole che si risolvono fra file diversi (per file, per modulo, per nome senza
+            /// <c>scope</c>); le etichette di un blocco e i segmenti di un modulo restano dentro il file e non si ricollegano.
+            /// </summary>
+            private static string WrittenOf(DeclarativeLanguage.ReferenceRule rule, string target)
+            {
+                var what = rule.Resolve switch
+                {
+                    DeclarativeLanguage.ResolveKind.Module => "module",
+                    DeclarativeLanguage.ResolveKind.File => "file",
+                    _ => rule.Scope == DeclarativeLanguage.ScopeKind.Perimeter ? "symbol" : null,
+                };
+                if (what == null || rule.Ignore.Contains(target)) return null;
+                return CodeCrossLinker.Written(what, target, rule.Confidence);
             }
 
             private IEnumerable<(string Id, string Confidence)> Resolve(DeclarativeLanguage.ReferenceRule rule, string target, Sym block)
@@ -751,7 +769,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private static string Cap(string confidence, string max)
                 => max != null && Rank(max) < Rank(confidence) ? max : confidence;
 
-            private void Edge(string source, string target, string relation, string confidence, int? line)
+            private void Edge(string source, string target, string relation, string confidence, int? line, string written = null)
             {
                 if (source == null || target == null || source == target) return;
                 // Come per gli altri estrattori: un arco per (sorgente, destinazione, relazione); vince la confidenza migliore.
@@ -759,9 +777,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_edges.TryGetValue(key, out var existing))
                 {
                     if (Rank(confidence) > Rank(existing.Confidence)) { existing.Confidence = confidence; existing.Line = line; }
+                    existing.Written ??= written;
                     return;
                 }
-                var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line };
+                var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line, Written = written };
                 _edges[key] = edge;
                 _script.Edges.Add(edge);
             }

@@ -114,6 +114,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:path ").Append(Lit(h.Source));
                 if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
                 if (e.Guard != null) sb.Append(" ; code:guard ").Append(Lit(e.Guard));
+                if (e.Written != null) sb.Append(" ; code:written ").Append(Lit(e.Written));
                 FromScript(sb, fromScriptLit).Append(" .\n");
             }
 

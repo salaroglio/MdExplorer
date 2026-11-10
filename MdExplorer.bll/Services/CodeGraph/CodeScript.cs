@@ -101,6 +101,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Path { get; set; }
         /// <summary>La condizione sotto cui l'arco vale (una pagina inclusa dentro <c>$if[…]$</c>, D42 passo 2); null = sempre.</summary>
         public string Guard { get; set; }
+        /// <summary>
+        /// Il riferimento com'è scritto nel sorgente (F1a, 10/11/2026): <c>symbol:NOME</c>, <c>file:x.bh</c>, <c>module:LIB</c>, con
+        /// <c>|inferred</c> in coda se la regola non permette più di così. Lo scrive l'estrattore sugli archi che si risolvono per
+        /// nome fra file diversi, così il ricollegamento fra contesti (<see cref="CodeCrossLinker"/>) sa che cosa cercare e, se
+        /// la destinazione sparisce, riporta l'arco a esterno col suo nome. Null sugli archi che non si ricollegano.
+        /// </summary>
+        public string Written { get; set; }
     }
 
     /// <summary>

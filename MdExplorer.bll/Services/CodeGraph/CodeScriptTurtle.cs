@@ -102,7 +102,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
-            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard"),
+            ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard", "written"),
             ["RuleSet"] = Set("ruleId", "description", "writtenBy", "writtenAt", "schema"),
             ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver", "receiverSite"),
             ["StringArgument"] = Set("argumentOf", "position", "value"),
@@ -213,7 +213,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     SourceId = SymbolId(n.IriValue("source", path)), TargetId = SymbolId(n.IriValue("target", path)),
                     Relation = n.Enum("relation", CodeScriptParser.Relations, path), Confidence = n.Enum("confidence", CodeScriptParser.Confidences, path),
-                    Line = n.OptInt("line", path), Guard = n.OptStr("guard"),
+                    Line = n.OptInt("line", path), Guard = n.OptStr("guard"), Written = n.OptStr("written"),
                 });
             var sites = new Dictionary<string, ScriptCallSite>(StringComparer.Ordinal);
             foreach (var n in nodes.Where(n => n.Class == "CallSite"))
