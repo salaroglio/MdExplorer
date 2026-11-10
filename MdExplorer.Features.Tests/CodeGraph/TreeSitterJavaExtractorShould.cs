@@ -378,7 +378,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(((string)null, (string)null), T("delegate"), "un delegante lo descrive l'LLM");
             Assert.AreEqual(((string)null, (string)null), T("twice"), "due istruzioni");
             Assert.IsNull(script.Symbols.Single(x => x.Kind == "constructor" && x.Name == "Shapes").Trivial, "i costruttori no");
-            Assert.AreEqual("7", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
+            Assert.AreEqual("8", script.Header.ExtractorVersion, "versione nuova: gli script vecchi si rifanno da soli");
         }
 
         [TestMethod]

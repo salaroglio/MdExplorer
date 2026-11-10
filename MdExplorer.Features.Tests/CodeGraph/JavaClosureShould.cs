@@ -67,6 +67,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(Of(c, "Deep.java").Symbols.Contains("go"), "dal corpo di run(String)");
         }
 
+        /// <summary>F4b: un ricevente che viene da un altro file (a().b()) si deduce rileggendo insieme i file della chiusura.</summary>
+        [TestMethod]
+        public void Follow_a_call_on_a_receiver_that_comes_from_another_file()
+        {
+            Write("util/src/main/java/com/acme/util/Factory.java", "package com.acme.util;\n\npublic class Factory {\n    public static Builder builder() { return new Builder(); }\n}\n");
+            Write("util/src/main/java/com/acme/util/Builder.java", "package com.acme.util;\n\npublic class Builder {\n    public void build() { Deep.go(); }\n    public void unused() { Other.x(); }\n}\n");
+            Write("app/src/main/java/com/acme/app/Main.java", "package com.acme.app;\n\nimport com.acme.util.Factory;\n\npublic class Main {\n    void start() {\n        Factory.builder().build();\n    }\n}\n");
+            var c = Run(new CodeClosureRequest { Seeds = new[] { "app/src/main/java/com/acme/app/Main.java" } });
+            Assert.IsTrue(Of(c, "Builder.java")?.Symbols.Contains("build") == true, "build() su ciò che builder() restituisce. Mancati: " + string.Join("; ", c.Misses.Select(m => m.Written)));
+            Assert.IsNotNull(Of(c, "Deep.java"), "e da lì Deep.go(). Mancati: " + string.Join("; ", c.Misses.Select(m => m.Kind + " " + m.Written)));
+            Assert.IsNull(Of(c, "Other.java"), "Builder.unused() non lo chiama nessuno");
+            Assert.IsFalse(c.Misses.Any(m => m.Written == "method:?.build"), "il ricevente non è più sconosciuto");
+        }
+
         [TestMethod]
         public void Pick_the_overload_by_argument_count()
         {

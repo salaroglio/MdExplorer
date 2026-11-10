@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "7";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a)
+        public string ExtractorVersion => "8";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -1200,7 +1200,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                         {
                             var asType = _index.Resolve(_ctx, obj.Text);
                             if (asType.Kind == TypeRefKind.Platform) return new TypeRef(TypeRefKind.Platform, new[] { obj.Text }, "extracted");
-                            return asType.Kind == TypeRefKind.External && asType.Confidence != "extracted" ? null : asType;
+                            // F4b (10/11/2026): un tipo non importato, non di java.lang, fuori dal perimetro, per Java sta nello stesso
+                            // package (o in un import con *): la deduzione resta, «inferred», invece di «?.metodo». Così la chiusura e il
+                            // ricollegamento fra contesti trovano la classe. Solo l'ambiguo (più import con *) resta sconosciuto.
+                            return asType.Kind == TypeRefKind.External && asType.Fqns[0].StartsWith("?.", StringComparison.Ordinal) ? null : asType;
                         }
                         return null;
                     }

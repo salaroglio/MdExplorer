@@ -22,9 +22,13 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public JavaClosure(ICodeExtractor javaExtractor, ICodeWorkspace workspace) { _extractor = javaExtractor; _ws = workspace; }
 
+        /// <summary>Quante volte al più si rileggono insieme i file della chiusura (F4b): di solito bastano due o tre giri.</summary>
+        public const int MaxRounds = 5;
+
         private sealed class State
         {
             public CodeClosureFile Node;
+            public string Text;
             public CodeScript Script;
             public Dictionary<string, ScriptSymbol> ById;
             public HashSet<string> Followed = new(StringComparer.Ordinal);
@@ -82,6 +86,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var script = extracted.Scripts.Single().Script;
                 st = states[path] = new State
                 {
+                    Text = text,
                     Script = script,
                     ById = script.Symbols.Where(s => s.Id != null).GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal),
                     Node = new CodeClosureFile { Path = path, Depth = depth, From = from, Written = written, Lines = lines },
@@ -91,6 +96,42 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return st;
             }
 
+            // simbolo → il file che lo dichiara, fra quelli già letti insieme (giri «tutti insieme»); null nella discesa file per file
+            Dictionary<string, State> owners = null;
+            Discover();
+            // F4b (10/11/2026): letti da soli, i file non sanno il tipo di un ricevente che viene da un altro file (a().b()). Ora i
+            // file della chiusura si rileggono INSIEME, come un piccolo contesto: l'estrattore deduce i riceventi, le madri, le
+            // implementazioni che stanno nel perimetro; gli id dei simboli non cambiano, quindi il già raggiunto resta raggiunto.
+            // Si ripassano gli archi dei simboli raggiunti, entra ciò che è nuovo, e si rifà finché non entra più niente.
+            for (var round = 0; round < MaxRounds && result.Files.Count > 1; round++)
+            {
+                var paths = result.Files.Select(f => f.Path).ToList();
+                var sources = paths.Select(_ws.Source).ToList();
+                var together = _extractor.Extract(new CodeExtractionRequest { ProjectPath = "", AllFiles = sources, FilesToEmit = sources,
+                    Sources = new Texts(states.ToDictionary(kv => kv.Key, kv => kv.Value.Text, StringComparer.Ordinal)) });
+                foreach (var (file, script) in together.Scripts)
+                {
+                    var st = states[file.LogicalPath];
+                    st.Script = script;
+                    st.ById = script.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                }
+                owners = new Dictionary<string, State>(StringComparer.Ordinal);
+                foreach (var st in states.Values)
+                    foreach (var x in st.Script.Symbols.Where(x => x.Id != null && x.Kind != "external")) owners.TryAdd(x.Id, st);
+                var filesBefore = result.Files.Count;
+                var followedBefore = states.Values.Sum(v => v.Followed.Count);
+                // i non trovati si ricalcolano sugli script di adesso; potature e frontiera restano
+                foreach (var key in misses.Where(kv => kv.Value.Kind is "unresolved" or "ambiguous").Select(kv => kv.Key).ToList()) misses.Remove(key);
+                foreach (var st in states.Values.ToList())
+                    foreach (var id in st.Followed.ToList()) Follow(st, id, rescan: true);
+                Discover();
+                if (result.Files.Count == filesBefore && states.Values.Sum(v => v.Followed.Count) == followedBefore) break;
+            }
+            result.Misses.AddRange(misses.Values.OrderByDescending(m => m.Uses).ThenBy(m => m.Written, StringComparer.Ordinal));
+            return result;
+
+            void Discover()
+            {
             while (true)
             {
                 while (work.Count > 0)
@@ -131,29 +172,35 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!progress && work.Count == 0)
                 {
                     foreach (var (_, _, _, w, from, _) in pendingMethods) Miss("unresolved", w, from);
+                    pendingMethods.Clear();
                     break;
                 }
             }
-            result.Misses.AddRange(misses.Values.OrderByDescending(m => m.Uses).ThenBy(m => m.Written, StringComparer.Ordinal));
-            return result;
+            }
 
             // un simbolo raggiunto: i suoi figli che sono codice suo (lambda, classi anonime no: i figli metodo restano per chiamata),
             // ciò che usa nel file, e fuori i tipi e i metodi
-            void Follow(State st, string symbolId)
+            // rescan: il simbolo è già raggiunto, ma il suo script è nuovo (giro «tutti insieme»): se ne ripassano gli archi
+            void Follow(State st, string symbolId, bool rescan = false)
             {
-                var stack = new Stack<string>(new[] { symbolId });
+                var stack = new Stack<(string Id, bool Force)>(new[] { (symbolId, rescan) });
                 while (stack.Count > 0)
                 {
-                    var id = stack.Pop();
-                    if (id == null || !st.Followed.Add(id)) continue;
+                    var (id, force) = stack.Pop();
+                    if (id == null || (!st.Followed.Add(id) && !force)) continue;
                     if (st.ById.TryGetValue(id, out var sym) && sym.Name != null && sym.Kind != "module") st.Node.Symbols.Add(sym.Name);
                     // un import Java da solo non usa niente: contano i riferimenti veri (campi, new, chiamate, madri)
                     foreach (var e in st.Script.Edges.Where(e => e.SourceId == id && e.Relation != "contains" && e.Relation != "imports"))
                     {
                         var target = e.TargetId != null && st.ById.TryGetValue(e.TargetId, out var t) ? t : null;
-                        if (target == null) continue;
+                        if (target == null)
+                        {
+                            // letti insieme: un arco verso un simbolo di un altro file della chiusura (ricevente dedotto, implementazione)
+                            if (owners != null && e.TargetId != null && owners.TryGetValue(e.TargetId, out var other) && other != st) Follow(other, e.TargetId);
+                            continue;
+                        }
                         var from = $"{st.Node.Path}:{e.Line}";
-                        if (target.Kind != "external") { stack.Push(target.Id); continue; }
+                        if (target.Kind != "external") { stack.Push((target.Id, false)); continue; }
                         if (target.QualifiedName == null) continue;
                         if (e.Relation == "calls")
                         {
@@ -214,6 +261,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (st.ById.TryGetValue(e.TargetId ?? "", out var sup) && sup.QualifiedName != null) queue.Enqueue(sup.QualifiedName);
             }
             return new List<(string, string)>();
+        }
+
+        private sealed class Texts : ICodeSources
+        {
+            private readonly Dictionary<string, string> _texts;
+            public Texts(Dictionary<string, string> texts) { _texts = texts; }
+            public string Read(CodeSourceFile file) => _texts.TryGetValue(file.LogicalPath, out var t) ? t : throw new InvalidOperationException(file.LogicalPath);
+            public bool Exists(CodeSourceFile file) => _texts.ContainsKey(file.LogicalPath);
         }
 
         private sealed class OneText : ICodeSources
