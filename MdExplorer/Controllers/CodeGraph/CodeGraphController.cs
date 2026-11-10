@@ -527,6 +527,32 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         }
 
+        public class LanguagePackageExportRequest { public string ProjectPath { get; set; } public string Id { get; set; } public string DestinationFolder { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/language-packages/export {projectPath, id, destinationFolder} — «Esporta linguaggio…» (10/11/2026):
+        /// il pacchetto <c>.mde-languages/&lt;id&gt;/</c> del progetto in <c>mde-language-&lt;id&gt;-v&lt;versione&gt;.zip</c> nella cartella
+        /// scelta, come lo legge l'import. 400 = pacchetto rotto o cartella sbagliata; 409 = lo zip c'è già con un contenuto
+        /// diverso (stessa versione, pacchetto cambiato): si alza la versione o si sceglie un'altra cartella.
+        /// </summary>
+        [HttpPost("language-packages/export")]
+        public IActionResult ExportLanguagePackage([FromBody] LanguagePackageExportRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            MdExplorer.Features.Services.CodeGraph.LanguagePackageExport.Result result;
+            try { result = MdExplorer.Features.Services.CodeGraph.LanguagePackageExport.Export(request.ProjectPath, request.Id, request.DestinationFolder); }
+            catch (MdExplorer.Features.Services.CodeGraph.LanguagePackageExportExistsException ex) { return Conflict(new { error = ex.Message, zipPath = ex.ZipPath }); }
+            catch (MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            _logger.LogInformation("[CodeGraph] pacchetto di linguaggio '{Id}' v{Version} esportato in {Zip}{Unchanged}",
+                result.Id, result.Version, result.ZipPath, result.Unchanged ? " (c'era già, identico)" : "");
+            return Ok(new { id = result.Id, displayName = result.DisplayName, version = result.Version, zipPath = result.ZipPath, files = result.Files, unchanged = result.Unchanged });
+        }
+
         /// <summary>
         /// GET /api/codegraph/languages?projectPath=…&amp;folderPath=… — per la finestra «Ambiente di sviluppo» (D16):
         /// i linguaggi rilevati nella cartella (con quanti file e se l'estrattore è pronto) e quelli già scelti.

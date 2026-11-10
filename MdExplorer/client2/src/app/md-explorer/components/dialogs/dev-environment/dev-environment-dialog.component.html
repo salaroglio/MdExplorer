@@ -73,6 +73,13 @@
               {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
               <span class="definition-path" *ngIf="isReady(d) && d.definitionPath">· {{ 'DEV_ENV.DEFINED_IN' | translate: { path: d.definitionPath } }}</span>
             </ng-container>
+            <!-- «Esporta…» (10/11/2026): solo un linguaggio che viene da un pacchetto del progetto -->
+            <button mat-button class="export" *ngIf="d.definitionPath" (click)="exportLanguage(d)"
+                    [disabled]="exporting !== null || importing || saving || analyzing" [title]="'DEV_ENV.EXPORT_HINT' | translate">
+              <mat-spinner diameter="16" *ngIf="exporting === d.id"></mat-spinner>
+              <mat-icon *ngIf="exporting !== d.id">ios_share</mat-icon>
+              {{ 'DEV_ENV.EXPORT_LANGUAGE' | translate }}
+            </button>
             <button mat-stroked-button color="primary" class="download" *ngIf="canDownload(d)"
                     (click)="download(d)" [disabled]="downloading !== null || saving || analyzing">
               <mat-spinner diameter="16" *ngIf="downloading === d.grammarId"></mat-spinner>

@@ -5,7 +5,7 @@ import { MatLegacyDialog as MatDialog, MatLegacyDialogRef as MatDialogRef, MAT_L
 import { ShowFileSystemComponent } from '../../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../../commons/components/show-file-system/show-file-metadata';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, SourceControlInfo, SourceControlView, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported } from '../../../services/code-graph.service';
+import { CodeGraphService, CodeFolderAnalysisOutcome, DescribePreview, DescriptionModelInfo, SourceControlInfo, SourceControlView, FolderWeight, DescriptionRun, DetectedLanguage, OutdatedScripts, LanguageDefinitionProblem, LanguagePackageImported, LanguagePackageExported } from '../../../services/code-graph.service';
 import { AiChatService } from '../../../../services/ai-chat.service';
 import { DevelopmentConfigStateService } from '../../../services/development-config-state.service';
 
@@ -501,6 +501,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public importing = false;
   public pendingReplace: { sourcePath: string; message: string } | null = null;
   public importDone: string | null = null;
+  /** L'id del linguaggio che si sta esportando (null = nessuno). */
+  public exporting: string | null = null;
 
   /**
    * «Importa linguaggio…» (B6d): si sceglie, sul file system del servizio, la cartella di un pacchetto o uno .zip; il
@@ -517,6 +519,34 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       .afterClosed().subscribe(result => {
         const path = typeof result?.data === 'string' ? result.data : null;
         if (path) { this.runImport(path, false); }
+      });
+  }
+
+  /** «Esporta…» (10/11/2026): il pacchetto del progetto in uno zip, nella cartella scelta; lo zip si reimporta così com'è. */
+  exportLanguage(d: DetectedLanguage): void {
+    const picker = new ShowFileMetadata();
+    picker.title = this.translate.instant('DEV_ENV.EXPORT_PICK_FOLDER', { name: d.displayName });
+    picker.typeOfSelection = 'Folders';
+    picker.buttonText = this.translate.instant('DEV_ENV.EXPORT_BUTTON');
+    picker.start = 'root';
+    this.dialog.open(ShowFileSystemComponent, { width: '900px', height: '700px', panelClass: 'resizable-dialog-container', data: picker })
+      .afterClosed().subscribe(result => {
+        const folder = typeof result?.data === 'string' ? result.data : null;
+        if (!folder) { return; }
+        this.exporting = d.id;
+        this.errorMessage = '';
+        this.importDone = null;
+        this.codeGraph.exportLanguagePackage(this.data.projectRoot, d.id, folder).subscribe({
+          next: (r: LanguagePackageExported) => {
+            this.exporting = null;
+            this.importDone = this.translate.instant(r.unchanged ? 'DEV_ENV.EXPORT_UNCHANGED' : 'DEV_ENV.EXPORT_DONE',
+              { name: r.displayName, version: r.version, path: r.zipPath, files: r.files });
+          },
+          error: (err) => {
+            this.exporting = null;
+            this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+          }
+        });
       });
   }
 
