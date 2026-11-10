@@ -15,6 +15,8 @@ namespace MdExplorer.Services.CodeGraph
         public string Seed { get; init; }
         public string Language { get; init; }
         public CodeClosure Closure { get; init; }
+        /// <summary>Dove stanno i file (disco o server): l'analisi del seme li legge da qui.</summary>
+        [System.Text.Json.Serialization.JsonIgnore] public ICodeWorkspace Workspace { get; init; }
     }
 
     /// <summary>
@@ -63,7 +65,7 @@ namespace MdExplorer.Services.CodeGraph
                     $"{lang.DisplayName}: analysing a program from one file is available for rule-based languages and for Java"));
             // il parser è CPU (e per una radice SSH aspetta MDE Remote): fuori dal thread della richiesta
             var closure = await Task.Run(discover, ct);
-            return new CodeSeedPreview { Seed = seed, Language = lang.Id, Closure = closure };
+            return new CodeSeedPreview { Seed = seed, Language = lang.Id, Closure = closure, Workspace = workspace };
         }
 
         /// <summary>

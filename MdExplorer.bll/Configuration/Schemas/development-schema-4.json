@@ -1,0 +1,408 @@
+{
+  "version": 4,
+  "missingKeysAllowed": false,
+  "root": {
+    "kind": "group",
+    "keys": {
+      "agentCards": {
+        "kind": "group",
+        "keys": {
+          "requireToolsAndRuntime": {
+            "kind": "flag"
+          }
+        }
+      },
+      "agentCity": {
+        "kind": "group",
+        "keys": {
+          "enabled": {
+            "kind": "flag"
+          },
+          "maintenance": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          },
+          "ownershipDoc": {
+            "kind": "text"
+          },
+          "relayUrl": {
+            "kind": "text"
+          },
+          "roomSecret": {
+            "kind": "text"
+          },
+          "useAgentWorktrees": {
+            "kind": "flag"
+          },
+          "workflowDocs": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          }
+        }
+      },
+      "atlassian": {
+        "kind": "group",
+        "keys": {
+          "confluenceBaseUrl": {
+            "kind": "text"
+          },
+          "confluenceSpaceKeys": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          },
+          "jiraBaseUrl": {
+            "kind": "text"
+          },
+          "jiraProjectKeys": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          }
+        }
+      },
+      "codeRoots": {
+        "kind": "list",
+        "item": {
+          "kind": "group",
+          "keys": {
+            "alias": {
+              "kind": "text"
+            },
+            "codeGraph": {
+              "kind": "group",
+              "keys": {
+                "describe": {
+                  "kind": "text",
+                  "choices": [
+                    "all",
+                    "onDemand"
+                  ]
+                },
+                "languages": {
+                  "kind": "list",
+                  "item": {
+                    "kind": "text"
+                  }
+                }
+              }
+            },
+            "description": {
+              "kind": "text"
+            },
+            "encodings": {
+              "kind": "list",
+              "item": {
+                "kind": "group",
+                "keys": {
+                  "encoding": {
+                    "kind": "text"
+                  },
+                  "extensions": {
+                    "kind": "list",
+                    "item": {
+                      "kind": "text"
+                    }
+                  }
+                }
+              }
+            },
+            "programs": {
+              "kind": "list",
+              "item": {
+                "kind": "group",
+                "keys": {
+                  "codeGraph": {
+                    "kind": "group",
+                    "keys": {
+                      "describe": {
+                        "kind": "text",
+                        "choices": [
+                          "all",
+                          "onDemand"
+                        ]
+                      },
+                      "languages": {
+                        "kind": "list",
+                        "item": {
+                          "kind": "text"
+                        }
+                      }
+                    }
+                  },
+                  "path": {
+                    "kind": "text"
+                  }
+                },
+                "itemKey": "path"
+              }
+            },
+            "repository": {
+              "kind": "text"
+            },
+            "subpath": {
+              "kind": "text"
+            },
+            "tags": {
+              "kind": "list",
+              "item": {
+                "kind": "text"
+              }
+            }
+          },
+          "itemKey": "alias"
+        }
+      },
+      "compatibility": {
+        "kind": "group",
+        "keys": {
+          "gitHubOptions": {
+            "kind": "group",
+            "keys": {
+              "embedImages": {
+                "kind": "flag"
+              },
+              "preserveEmoji": {
+                "kind": "flag"
+              },
+              "stripInteractive": {
+                "kind": "flag"
+              }
+            }
+          },
+          "mode": {
+            "kind": "text",
+            "choices": [
+              "commonmark",
+              "github",
+              "mdexplorer"
+            ]
+          }
+        }
+      },
+      "externalBrowser": {
+        "kind": "group",
+        "keys": {
+          "enabled": {
+            "kind": "flag"
+          },
+          "openAllExternal": {
+            "kind": "flag"
+          },
+          "urlPatterns": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          }
+        }
+      },
+      "folders": {
+        "kind": "list",
+        "item": {
+          "kind": "group",
+          "keys": {
+            "codeGraph": {
+              "kind": "group",
+              "keys": {
+                "describe": {
+                  "kind": "text",
+                  "choices": [
+                    "all",
+                    "onDemand"
+                  ]
+                },
+                "languages": {
+                  "kind": "list",
+                  "item": {
+                    "kind": "text"
+                  }
+                }
+              }
+            },
+            "description": {
+              "kind": "text"
+            },
+            "knowledgeGraph": {
+              "kind": "group",
+              "keys": {
+                "enabled": {
+                  "kind": "flag"
+                },
+                "namespace": {
+                  "kind": "text"
+                }
+              }
+            },
+            "path": {
+              "kind": "text"
+            },
+            "tags": {
+              "kind": "list",
+              "item": {
+                "kind": "text"
+              }
+            }
+          },
+          "itemKey": "path"
+        }
+      },
+      "harness": {
+        "kind": "group",
+        "keys": {
+          "model": {
+            "kind": "text"
+          },
+          "target": {
+            "kind": "text",
+            "choices": [
+              "claude",
+              "copilot",
+              "none",
+              "opencode"
+            ]
+          }
+        }
+      },
+      "project": {
+        "kind": "group",
+        "keys": {
+          "description": {
+            "kind": "text"
+          },
+          "icon": {
+            "kind": "group",
+            "keys": {
+              "file": {
+                "kind": "text"
+              },
+              "updatedAt": {
+                "kind": "text"
+              }
+            }
+          },
+          "participants": {
+            "kind": "list",
+            "item": {
+              "kind": "group",
+              "keys": {
+                "chatEmail": {
+                  "kind": "text"
+                },
+                "displayName": {
+                  "kind": "text"
+                },
+                "gitEmail": {
+                  "kind": "text"
+                },
+                "gitName": {
+                  "kind": "text"
+                },
+                "manual": {
+                  "kind": "flag"
+                }
+              },
+              "itemKey": "gitEmail"
+            }
+          }
+        }
+      },
+      "redmine": {
+        "kind": "group",
+        "keys": {
+          "baseUrl": {
+            "kind": "text"
+          },
+          "projects": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          },
+          "textFormatting": {
+            "kind": "text",
+            "choices": [
+              "markdown",
+              "textile"
+            ]
+          }
+        }
+      },
+      "seeds": {
+        "kind": "list",
+        "item": {
+          "kind": "group",
+          "keys": {
+            "path": {
+              "kind": "text"
+            },
+            "pruned": {
+              "kind": "list",
+              "item": {
+                "kind": "text"
+              }
+            }
+          }
+        }
+      },
+      "templates": {
+        "kind": "list",
+        "item": {
+          "kind": "group",
+          "keys": {
+            "detached": {
+              "kind": "text"
+            },
+            "example": {
+              "kind": "flag"
+            },
+            "id": {
+              "kind": "text"
+            },
+            "kind": {
+              "kind": "text",
+              "choices": [
+                "foundation",
+                "method",
+                "project"
+              ]
+            },
+            "language": {
+              "kind": "text"
+            },
+            "theory": {
+              "kind": "flag"
+            },
+            "url": {
+              "kind": "text"
+            },
+            "version": {
+              "kind": "text"
+            }
+          },
+          "itemKey": "id"
+        }
+      },
+      "yamlAutoGeneration": {
+        "kind": "group",
+        "keys": {
+          "enabled": {
+            "kind": "flag"
+          },
+          "excludePaths": {
+            "kind": "list",
+            "item": {
+              "kind": "text"
+            }
+          }
+        }
+      }
+    }
+  }
+}

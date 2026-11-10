@@ -564,6 +564,82 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         });
 
+        public class SeedApplyRequest
+        {
+            public string ProjectPath { get; set; }
+            public string Seed { get; set; }
+            public System.Collections.Generic.List<string>? Pruned { get; set; }
+            public bool Confirm { get; set; }
+        }
+
+        private static object SeedView(MdExplorer.Services.CodeGraph.CodeSeedAnalysisOutcome r) => new
+        {
+            seed = r.Seed, needsConfirmation = r.NeedsConfirmation, added = r.Added, removed = r.Removed, budgetReached = r.BudgetReached,
+            outcome = r.Outcome == null ? null : new
+            {
+                files = r.Outcome.FilesInPerimeter, reparsed = r.Outcome.Reparsed, scriptsRemoved = r.Outcome.ScriptsRemoved, crossLinked = r.Outcome.CrossLinked,
+                loaded = r.Outcome.Load?.Loaded, failed = r.Outcome.Load?.Failed, firstError = r.Outcome.Load?.FirstError, warnings = r.Outcome.Warnings,
+            },
+        };
+
+        /// <summary>
+        /// POST /api/codegraph/seeds/apply {projectPath, seed, pruned?, confirm?} — conferma dell'anteprima (F3b): il seme e le sue
+        /// potature nel .development.yml (schema 4), poi la struttura dei soli file della chiusura. Se la chiusura è cambiata da
+        /// quella confermata e confirm è falso, niente si scrive oltre al seme: needsConfirmation con added/removed.
+        /// </summary>
+        [HttpPost("seeds/apply")]
+        public Task<IActionResult> ApplySeed([FromBody] SeedApplyRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            try
+            {
+                _analysis.SaveSeed(request.ProjectPath, request.Seed, request.Pruned);
+                return Ok(SeedView(await _analysis.AnalyzeSeedAsync(request.ProjectPath, request.Seed, request.Confirm, ct)));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        });
+
+        /// <summary>POST /api/codegraph/seeds/analyze {projectPath, seed, confirm?} — rilancia un seme già salvato (F3b).</summary>
+        [HttpPost("seeds/analyze")]
+        public Task<IActionResult> AnalyzeSeed([FromBody] SeedApplyRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            try { return Ok(SeedView(await _analysis.AnalyzeSeedAsync(request.ProjectPath, request.Seed, request.Confirm, ct))); }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        });
+
+        /// <summary>POST /api/codegraph/seeds/remove {projectPath, seed} — toglie un seme e i file che nessun altro vuole (F3b).</summary>
+        [HttpPost("seeds/remove")]
+        public Task<IActionResult> RemoveSeed([FromBody] SeedApplyRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            return Ok(SeedView(await _analysis.RemoveSeedAsync(request.ProjectPath, request.Seed, ct)));
+        });
+
+        /// <summary>GET /api/codegraph/seeds?projectPath=… — i semi del progetto, con la chiusura confermata su questa macchina.</summary>
+        [HttpGet("seeds")]
+        public IActionResult Seeds([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath);
+            if (bad != null) return bad;
+            var store = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedStore>().All(projectPath);
+            return Ok(MdExplorer.Services.CodeGraph.CodeAnalysisService.SeedsOf(projectPath).Select(s => new
+            {
+                seed = s.Path, pruned = s.Pruned,
+                language = store.TryGetValue(s.Path, out var c) ? c.Language : null,
+                files = c?.Files.Count, confirmedAt = c?.ConfirmedAt,
+            }));
+        }
+
         public class LanguagePackageExportRequest { public string ProjectPath { get; set; } public string Id { get; set; } public string DestinationFolder { get; set; } }
 
         /// <summary>

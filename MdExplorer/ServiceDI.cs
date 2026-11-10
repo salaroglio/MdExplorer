@@ -65,6 +65,7 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Services.RemoteFolders.RemoteCodeRootFiles>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.RemoteCodeScanner>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.CodeSeedService>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.CodeSeedStore>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeGraphTurnRefresher, MdExplorer.Services.CodeGraph.CodeGraphTurnRefresher>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();

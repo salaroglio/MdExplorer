@@ -120,6 +120,12 @@ namespace MdExplorer.Services.CodeGraph
         /// l'utente; no all'apertura del progetto, dove si contano e la pagina del grafo avvisa).
         /// </summary>
         Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default);
+        /// <summary>Scrive (o toglie) un seme nel <c>.development.yml</c> con le sue potature (F3b).</summary>
+        void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false);
+        /// <summary>Analizza un seme: chiusura ricalcolata, differenza da confermare, struttura dei soli suoi file (F3b).</summary>
+        Task<CodeSeedAnalysisOutcome> AnalyzeSeedAsync(string projectPath, string seed, bool confirm, CancellationToken ct = default);
+        /// <summary>Toglie un seme e i file della sua chiusura che nessun altro vuole (F3b).</summary>
+        Task<CodeSeedAnalysisOutcome> RemoveSeedAsync(string projectPath, string seed, CancellationToken ct = default);
         /// <summary>Tutte le cartelle <c>program</c> con dei linguaggi scelti.</summary>
         Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default);
         /// <summary>
@@ -151,6 +157,18 @@ namespace MdExplorer.Services.CodeGraph
         public string ProjectPath { get; set; }
         public string Folder { get; set; }
         public string StartedAt { get; set; }
+    }
+
+    /// <summary>L'esito dell'analisi di un seme (F3b): la differenza da confermare, o l'analisi fatta.</summary>
+    public sealed class CodeSeedAnalysisOutcome
+    {
+        public string Seed { get; set; }
+        /// <summary>La chiusura è cambiata rispetto a quella confermata: niente scritto, l'utente conferma (S14).</summary>
+        public bool NeedsConfirmation { get; set; }
+        public List<string> Added { get; } = new();
+        public List<string> Removed { get; } = new();
+        public bool BudgetReached { get; set; }
+        public CodeFolderAnalysisOutcome Outcome { get; set; }
     }
 
     public sealed class CodeProgramFolder
@@ -673,7 +691,7 @@ namespace MdExplorer.Services.CodeGraph
 
                 // 1c) F1b: gli script orfani si decidono PRIMA (sorgente sparito, o fuori dai linguaggi di questo contesto e non
                 // voluto da nessun altro contesto): escono dall'indice del ricollegamento e chi li usava torna esterno.
-                var contexts = (await ListProgramsAsync(projectPath, ct)).Select(c => (c.Folder, (IReadOnlyCollection<string>)c.Languages)).ToList();
+                var contexts = await ClaimsAsync(projectPath, null, ct);
                 var (orphans, claimed) = FindOrphanScripts(projectPath, folderRelative, inPerimeter, contexts);
                 var orphanSources = new HashSet<string>(orphans.Select(o => o.Source), StringComparer.Ordinal);
                 var orphanLanguages = new HashSet<string>(orphans.Select(o => o.Language).Where(l => l != null), StringComparer.OrdinalIgnoreCase);
@@ -952,6 +970,180 @@ namespace MdExplorer.Services.CodeGraph
         /// altri contesti che cambiano (una funzione che ora c'è, o che non c'è più) si riscrivono qui e si ricaricano.
         /// <paramref name="untouched"/>: file di questa analisi con lo script di un'altra versione, che resta com'è.
         /// </summary>
+        /// <summary>
+        /// Chi vuole quali file (F1b, F3b): le cartelle e le radici segnate con i loro linguaggi, e i file delle chiusure confermate
+        /// dei semi (tranne <paramref name="exceptSeed"/>).
+        /// </summary>
+        private async Task<List<(string Folder, IReadOnlyCollection<string> Languages)>> ClaimsAsync(string projectPath, string exceptSeed, CancellationToken ct)
+        {
+            var list = (await ListProgramsAsync(projectPath, ct)).Select(c => (c.Folder, (IReadOnlyCollection<string>)c.Languages)).ToList();
+            var store = _services.GetService(typeof(CodeSeedStore)) as CodeSeedStore;
+            if (store != null)
+                foreach (var closure in store.All(projectPath).Values.Where(c => c.Seed != exceptSeed && c.Language != null))
+                    list.AddRange(closure.Files.Select(f => (f, (IReadOnlyCollection<string>)new[] { closure.Language })));
+            return list;
+        }
+
+        /// <summary>I semi del <c>.development.yml</c> (F3b), col percorso logico normalizzato.</summary>
+        public static List<CodeSeedConfig> SeedsOf(string projectPath)
+        {
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            var seeds = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path).Seeds : null;
+            return (seeds ?? new List<CodeSeedConfig>()).Where(s => !string.IsNullOrWhiteSpace(s.Path))
+                .Select(s => new CodeSeedConfig { Path = NormalizeSeed(s.Path), Pruned = (s.Pruned ?? new List<string>()).Select(NormalizeSeed).ToList() }).ToList();
+        }
+
+        public static string NormalizeSeed(string path) => (path ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+
+        /// <summary>Scrive (o toglie, con <paramref name="pruned"/> null e <paramref name="remove"/>) un seme nel <c>.development.yml</c>.</summary>
+        public void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false)
+        {
+            seed = NormalizeSeed(seed);
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            var config = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path) : new DevelopmentConfig();
+            var seeds = (config.Seeds ?? new List<CodeSeedConfig>()).Where(s => NormalizeSeed(s.Path) != seed).ToList();
+            if (!remove) seeds.Add(new CodeSeedConfig { Path = seed, Pruned = (pruned ?? Enumerable.Empty<string>()).Select(NormalizeSeed).Distinct().OrderBy(p => p, StringComparer.Ordinal).ToList() });
+            config.Seeds = seeds.Count == 0 ? null : seeds.OrderBy(s => s.Path, StringComparer.Ordinal).ToList();
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config, new MdExplorer.Utilities.MdeWhy(
+                remove ? "tolto un seme del grafo del codice" : "aggiornati i semi del grafo del codice", remove ? "a code graph seed removed" : "code graph seeds updated"));
+        }
+
+        /// <summary>
+        /// L'analisi di un seme (F3b, S13-S15): la chiusura si ricalcola dai semi; se è cambiata rispetto a quella confermata e
+        /// <paramref name="confirm"/> è falso, niente si scrive e l'esito dice che cosa entrerebbe e che cosa uscirebbe. Poi la
+        /// struttura dei SOLI file della chiusura (parser, niente LLM), il ricollegamento con gli altri contesti (F1a), via gli
+        /// script dei file usciti che nessun altro vuole (F1b), il caricamento, e la chiusura ricordata come confermata.
+        /// </summary>
+        public async Task<CodeSeedAnalysisOutcome> AnalyzeSeedAsync(string projectPath, string seed, bool confirm, CancellationToken ct = default)
+        {
+            seed = NormalizeSeed(seed);
+            var result = new CodeSeedAnalysisOutcome { Seed = seed };
+            var entry = SeedsOf(projectPath).FirstOrDefault(s => s.Path == seed)
+                ?? throw new InvalidOperationException(UiText.Say($"{seed} non è un seme del progetto: prima «Analizza questo programma».", $"{seed} is not a seed of the project: use «Analyse this program» first."));
+            var seeds = (CodeSeedService)_services.GetService(typeof(CodeSeedService));
+            var store = (CodeSeedStore)_services.GetService(typeof(CodeSeedStore));
+            var preview = await seeds.PreviewAsync(projectPath, seed, entry.Pruned, null, null, ct);
+            var files = preview.Closure.Files.Select(f => f.Path).ToList();
+            var before = store.Get(projectPath, seed);
+            if (before != null)
+            {
+                result.Added.AddRange(files.Except(before.Files, StringComparer.Ordinal));
+                result.Removed.AddRange(before.Files.Except(files, StringComparer.Ordinal));
+            }
+            result.BudgetReached = preview.Closure.BudgetReached;
+            if (before != null && (result.Added.Count > 0 || result.Removed.Count > 0) && !confirm)
+            {
+                result.NeedsConfirmation = true;   // S14: la chiusura non si allarga né si stringe in silenzio
+                return result;
+            }
+
+            await _gate.WaitAsync(ct);
+            try
+            {
+                var outcome = new CodeFolderAnalysisOutcome { Folder = "seed:" + seed, Languages = new List<string> { preview.Language }, Mode = "seed" };
+                var catalog = CodeLanguageCatalog.ForProject(projectPath);
+                var lang = catalog.Require(preview.Language);
+                var extractor = _extractors.ForProject(catalog).Get(lang.Id)
+                    ?? throw new InvalidOperationException(UiText.Say($"{lang.DisplayName}: estrattore non disponibile", $"{lang.DisplayName}: extractor not available"));
+                var ws = preview.Workspace;
+                var sources = new WorkspaceSources(ws);
+                var all = files.Select(ws.Source).ToList();
+                outcome.FilesInPerimeter = outcome.Candidates = all.Count;
+
+                // i file usciti dalla chiusura che nessun altro vuole: fuori dall'indice del ricollegamento, poi via (F1b)
+                var claims = await ClaimsAsync(projectPath, seed, ct);
+                var orphans = result.Removed.Where(p => !CodeRootContexts.ClaimedByOther(p, lang.Id, "seed:" + seed, claims))
+                    .Select(p => (Script: CodeScriptWriter.ScriptPathFor(projectPath, p, CodeScriptKind.Ast), Source: p, Language: lang.Id)).Where(o => File.Exists(o.Script)).ToList();
+                var orphanSources = new HashSet<string>(orphans.Select(o => o.Source), StringComparer.Ordinal);
+
+                var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = all, FilesToEmit = all, Sources = sources }, ct);
+                outcome.Warnings.AddRange(extracted.Warnings);
+                var declarations = new CodeDeclarations();
+                foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
+                var pending = new List<(CodeSourceFile File, CodeScript Script, string ScriptPath, CodeScriptHeader OnDisk)>();
+                foreach (var (file, script) in extracted.Scripts)
+                {
+                    var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
+                    outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations);
+                    pending.Add((file, script, scriptPath, CodeScriptTurtle.ReadHeaderLine(scriptPath)));
+                }
+                var written = new List<string>();
+                if (CrossLinkable(lang))
+                    CrossLink(projectPath, lang, pending.Select(p => (p.File.LogicalPath, p.Script)).ToList(), new HashSet<string>(StringComparer.Ordinal), written, outcome, orphanSources);
+                var emitter = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
+                foreach (var (file, script, scriptPath, onDisk) in pending)
+                {
+                    var text = sources.Read(file);
+                    CodeBodyHash.Apply(script, text);
+                    script.Header.SourceHash = CodeSourceText.Hash(text);
+                    script.Header.ExtractorVersion = emitter;
+                    // sorgente e estrattore fermi: lo script cambia solo se cambia un collegamento, e tiene la sua data
+                    var same = onDisk != null && onDisk.SourceHash == script.Header.SourceHash && onDisk.ExtractorVersion == emitter;
+                    if (same) script.Header.GeneratedAt = onDisk.GeneratedAt; else outcome.Reparsed++;
+                    if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
+                }
+                var removed = RemoveOrphanScripts(projectPath, orphans);
+                outcome.ScriptsRemoved = removed.Count;
+                outcome.Load = new CodeScriptLoadOutcome();
+                foreach (var gone in removed) outcome.Load.Results.Add(await _store.RemoveScriptAsync(projectPath, gone, ct));
+                foreach (var script in written.Distinct()) outcome.Load.Results.Add(await _store.LoadScriptAsync(projectPath, script, ct));
+                store.Save(projectPath, new CodeSeedClosure { Seed = seed, Language = lang.Id, Files = files, ConfirmedAt = DateTime.UtcNow.ToString("o") });
+                _logger.LogInformation("[CodeGraph] seme '{Seed}': {Files} file, {Rep} riparsati, {Rem} script tolti, {Cross} ricollegati altrove",
+                    seed, files.Count, outcome.Reparsed, outcome.ScriptsRemoved, outcome.CrossLinked);
+                result.Outcome = outcome;
+                return result;
+            }
+            finally { _gate.Release(); }
+        }
+
+        /// <summary>
+        /// Togliere un seme (F3b): via dal <c>.development.yml</c>; i file della sua chiusura che nessun altro vuole escono dal grafo,
+        /// e chi li usava dagli altri contesti torna esterno (F1a).
+        /// </summary>
+        public async Task<CodeSeedAnalysisOutcome> RemoveSeedAsync(string projectPath, string seed, CancellationToken ct = default)
+        {
+            seed = NormalizeSeed(seed);
+            var result = new CodeSeedAnalysisOutcome { Seed = seed };
+            var store = (CodeSeedStore)_services.GetService(typeof(CodeSeedStore));
+            SaveSeed(projectPath, seed, null, remove: true);
+            var closure = store.Get(projectPath, seed);
+            if (closure == null) return result;
+            await _gate.WaitAsync(ct);
+            try
+            {
+                var outcome = new CodeFolderAnalysisOutcome { Folder = "seed:" + seed, Mode = "seed" };
+                var claims = await ClaimsAsync(projectPath, seed, ct);
+                var orphans = closure.Files.Where(p => !CodeRootContexts.ClaimedByOther(p, closure.Language, "seed:" + seed, claims))
+                    .Select(p => (Script: CodeScriptWriter.ScriptPathFor(projectPath, p, CodeScriptKind.Ast), Source: p, Language: closure.Language)).Where(o => File.Exists(o.Script)).ToList();
+                var written = new List<string>();
+                var catalog = CodeLanguageCatalog.ForProject(projectPath);
+                var lang = catalog.ById(closure.Language);
+                if (lang != null && CrossLinkable(lang) && orphans.Count > 0)
+                    CrossLink(projectPath, lang, new List<(string, CodeScript)>(), new HashSet<string>(StringComparer.Ordinal), written, outcome,
+                        new HashSet<string>(orphans.Select(o => o.Source), StringComparer.Ordinal));
+                var removed = RemoveOrphanScripts(projectPath, orphans);
+                outcome.ScriptsRemoved = removed.Count;
+                outcome.Load = new CodeScriptLoadOutcome();
+                foreach (var gone in removed) outcome.Load.Results.Add(await _store.RemoveScriptAsync(projectPath, gone, ct));
+                foreach (var script in written.Distinct()) outcome.Load.Results.Add(await _store.LoadScriptAsync(projectPath, script, ct));
+                store.Remove(projectPath, seed);
+                result.Removed.AddRange(orphans.Select(o => o.Source));
+                result.Outcome = outcome;
+                return result;
+            }
+            finally { _gate.Release(); }
+        }
+
+        /// <summary>I testi dal workspace del seme (disco o server).</summary>
+        private sealed class WorkspaceSources : ICodeSources
+        {
+            private readonly ICodeWorkspace _ws;
+            private readonly Dictionary<string, string> _texts = new(StringComparer.Ordinal);
+            public WorkspaceSources(ICodeWorkspace ws) { _ws = ws; }
+            public string Read(CodeSourceFile file) => _texts.TryGetValue(file.LogicalPath, out var t) ? t : _texts[file.LogicalPath] = _ws.Read(file.LogicalPath);
+            public bool Exists(CodeSourceFile file) => true;
+        }
+
         private static bool CrossLinkable(CodeLanguage lang)
             => (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
                || string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase);

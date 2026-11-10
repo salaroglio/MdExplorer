@@ -89,6 +89,13 @@ namespace MdExplorer.Service.Models
         public List<CodeRootConfig> CodeRoots { get; set; }
 
         /// <summary>
+        /// I semi del grafo del codice (F3b del piano 2026-11-10-Analisi-Di-Programmi-Singoli, S14-S15): i file da cui l'utente
+        /// analizza un programma, ognuno con le potature scelte nell'anteprima. Su Git, uguali per il team. La chiusura non si
+        /// scrive qui: si ricalcola dai semi, e cambia solo con la conferma dell'utente. Null/assente = nessun seme.
+        /// </summary>
+        public List<CodeSeedConfig> Seeds { get; set; }
+
+        /// <summary>
         /// I template da cui viene il progetto (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md): in git, così tutto il
         /// gruppo sa da dove arriva il metodo di lavoro; i remoti <c>template-&lt;id&gt;</c> invece MDE li ricrea su ogni computer
         /// da qui. Null/assente = un progetto che non viene da un template.
@@ -121,6 +128,14 @@ namespace MdExplorer.Service.Models
     /// Una radice di codice esterna in <c>.development.yml</c>. Il percorso logico dei suoi file è <c>@alias/…</c>,
     /// relativo alla sottocartella <see cref="Subpath"/> del repository: lo stesso su ogni macchina.
     /// </summary>
+    /// <summary>Un seme (sezione <c>seeds:</c>): il file, col percorso logico come le cartelle (<c>@alias/…</c> o del progetto).</summary>
+    public class CodeSeedConfig
+    {
+        public string Path { get; set; }
+        /// <summary>I file che l'utente ha tolto dalla chiusura nell'anteprima (percorsi logici).</summary>
+        public List<string> Pruned { get; set; }
+    }
+
     public class CodeRootConfig
     {
         /// <summary>Il nome della radice nei percorsi logici (<c>@backend/…</c>): minuscole, cifre, «.», «_», «-».</summary>

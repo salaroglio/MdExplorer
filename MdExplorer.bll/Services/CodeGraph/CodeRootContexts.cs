@@ -52,7 +52,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public static bool ClaimedByOther(string source, string language, string current, IEnumerable<(string Folder, IReadOnlyCollection<string> Languages)> contexts)
             => source != null && language != null && contexts.Any(c => !string.Equals(c.Folder, current, StringComparison.Ordinal)
-                && source.StartsWith(c.Folder.TrimEnd('/') + "/", StringComparison.Ordinal)
+                && (source == c.Folder || source.StartsWith(c.Folder.TrimEnd('/') + "/", StringComparison.Ordinal))
                 && c.Languages.Contains(language, StringComparer.OrdinalIgnoreCase));
     }
 }
