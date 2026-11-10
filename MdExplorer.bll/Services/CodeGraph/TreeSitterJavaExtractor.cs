@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "6";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43)
+        public string ExtractorVersion => "7";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -1097,7 +1097,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (implicitTargets != null) { MethodEdges(ownerId, implicitTargets, "extracted", line); return; }
                     if (holder != null) { CallOnType(ownerId, holder, name, argc, line); return; }
                     if (inheritedFrom == PerimeterIndex.PlatformAncestor || ObjectMethods.Contains(name)) return;   // ereditato dalla piattaforma, o di Object
-                    if (inheritedFrom != null) { Edge(ownerId, External("method", inheritedFrom + "." + name, name), "calls", "inferred", line); return; }
+                    if (inheritedFrom != null) { ExternalCall(ownerId, inheritedFrom + "." + name, name, argc, "inferred", line); return; }
                     CallByName(ownerId, name, line);
                     return;
                 }
@@ -1105,7 +1105,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     string ext = null;
                     if (ownerFqn != null && _index.FindMethod(ownerFqn, name, argc, out ext, skipSelf: true) is List<MethodEntry> sup) { MethodEdges(ownerId, sup, "extracted", line); return; }
-                    if (ext != null && ext != PerimeterIndex.PlatformAncestor) { Edge(ownerId, External("method", ext + "." + name, name), "calls", "inferred", line); return; }
+                    if (ext != null && ext != PerimeterIndex.PlatformAncestor) { ExternalCall(ownerId, ext + "." + name, name, argc, "inferred", line); return; }
                     return;   // super di Object (toString, equals…): piattaforma
                 }
                 var receiver = ReceiverType(obj, ownerFqn, locals, 0);
@@ -1393,7 +1393,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     case TypeRefKind.Platform: return;
                     case TypeRefKind.Unknown: CallByName(ownerId, name, line); return;
                     case TypeRefKind.External:
-                        Edge(ownerId, External("method", receiver.Fqns[0] + "." + name, name), "calls", receiver.Confidence, line);
+                        ExternalCall(ownerId, receiver.Fqns[0] + "." + name, name, argc, receiver.Confidence, line);
                         return;
                 }
                 if (receiver.IsArray) return;   // clone(), length: dell'array, piattaforma
@@ -1417,7 +1417,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     else if (extAncestor != null)
                     {
                         found = true;
-                        if (extAncestor != PerimeterIndex.PlatformAncestor) Edge(ownerId, External("method", extAncestor + "." + name, name), "calls", "inferred", line);
+                        if (extAncestor != PerimeterIndex.PlatformAncestor) ExternalCall(ownerId, extAncestor + "." + name, name, argc, "inferred", line);
                     }
                 }
                 // un tipo del perimetro senza quel metodo né madri esterne: è di Object (toString, equals…) → piattaforma
@@ -1492,6 +1492,17 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private void Reference(string sourceId, string simpleType, int line) => TypeEdges(sourceId, simpleType, "references", line);
 
+            /// <summary>
+            /// Una chiamata a un metodo di un tipo che non è nel perimetro (F1a, 10/11/2026): l'arco porta quanti argomenti ha la
+            /// chiamata (<c>method:a.b.C.nome/2</c>, più numeri se più chiamate dello stesso chiamante si uniscono nell'arco), così il
+            /// ricollegamento fra contesti (<see cref="CodeCrossLinker"/>) sceglie fra i metodi sovraccarichi come farebbe l'estrattore.
+            /// </summary>
+            private void ExternalCall(string ownerId, string qualifiedName, string name, int argc, string confidence, int line)
+            {
+                var edge = Edge(ownerId, External("method", qualifiedName, name), "calls", confidence, line);
+                if (edge != null) edge.Written = CodeCrossLinker.WithArity(edge.Written, qualifiedName, argc, line);
+            }
+
             private string External(string what, string qualifiedName, string name)
             {
                 var id = StableId("external", what + ":" + qualifiedName);
@@ -1512,9 +1523,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return id;
             }
 
-            private void Edge(string source, string target, string relation, string confidence, int? line)
+            private ScriptEdge Edge(string source, string target, string relation, string confidence, int? line)
             {
-                if (source == null || target == null || source == target) return;
+                if (source == null || target == null || source == target) return null;
                 // Un arco per (sorgente, destinazione, relazione): mille chiamate allo stesso metodo nello stesso corpo non
                 // sono mille fatti (PlantUML: 29.000 archi in un file, provato il 10/10). Se lo stesso arco torna con una
                 // confidenza migliore (this.run() dopo helper.run()), vince la migliore e la sua riga.
@@ -1522,11 +1533,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_edges.TryGetValue(key, out var existing))
                 {
                     if (ConfidenceRank(confidence) > ConfidenceRank(existing.Confidence)) { existing.Confidence = confidence; existing.Line = line; }
-                    return;
+                    return existing;
                 }
                 var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line };
                 _edges[key] = edge;
                 _script.Edges.Add(edge);
+                return edge;
             }
             private static int ConfidenceRank(string confidence) => confidence switch { "extracted" => 2, "inferred" => 1, _ => 0 };
         }

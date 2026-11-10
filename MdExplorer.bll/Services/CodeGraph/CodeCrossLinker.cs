@@ -95,6 +95,195 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public static class CodeCrossLinker
     {
+        // ------------------------------------------------------------------ Java (nome qualificato esatto)
+
+        /// <summary>
+        /// Il riferimento di una chiamata a un metodo esterno con quanti argomenti e da che riga: <c>method:a.b.C.nome/1@12,2@13</c>.
+        /// Più chiamate dello stesso chiamante si uniscono in un arco, ma dentro un contesto andrebbero a metodi diversi (un
+        /// sovraccarico per numero di argomenti), ognuno con la sua riga: le si ricorda tutte, la prima riga per ognuna.
+        /// </summary>
+        public static string WithArity(string written, string qualifiedName, int argc, int line)
+        {
+            var arities = new SortedDictionary<int, int>();
+            foreach (var (a, l) in ParseArities(written)) arities[a] = l;
+            if (!arities.TryGetValue(argc, out var first) || line < first) arities[argc] = line;
+            return "method:" + qualifiedName + "/" + string.Join(",", arities.Select(kv => $"{kv.Key}@{kv.Value}"));
+        }
+
+        internal static IReadOnlyList<(int Argc, int Line)> ParseArities(string written)
+        {
+            if (written == null || !written.StartsWith("method:", StringComparison.Ordinal)) return Array.Empty<(int, int)>();
+            var slash = written.LastIndexOf('/');
+            if (slash < 0) return Array.Empty<(int, int)>();
+            return written[(slash + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x =>
+            {
+                var at = x.IndexOf('@');
+                var argc = int.TryParse(at < 0 ? x : x[..at], out var n) ? n : -1;
+                var line = at > 0 && int.TryParse(x[(at + 1)..], out var l) ? l : 0;
+                return (argc, line);
+            }).ToList();
+        }
+
+        /// <summary>Un simbolo che c'era nello script di prima di un file e non c'è più: per riportare a esterno chi lo usava.</summary>
+        public sealed record Vanished(string Kind, string Name, string QualifiedName, string OwnerQualifiedName, int Arity);
+
+        private static readonly HashSet<string> MemberKinds = new(StringComparer.Ordinal) { "method", "constructor", "field", "module", "external", "fragment", "function", "namespace", "package", "file", "parameter" };
+        internal static bool IsJavaType(ScriptSymbol s) => s.Kind != null && !MemberKinds.Contains(s.Kind) && s.QualifiedName != null && !s.QualifiedName.Contains('(');
+
+        private sealed class JavaIndex
+        {
+            public readonly Dictionary<string, List<string>> TypesByFqn = new(StringComparer.Ordinal);
+            public readonly Dictionary<string, string> FqnOfType = new(StringComparer.Ordinal);
+            public readonly Dictionary<string, Dictionary<string, List<(string Id, int Arity, bool Varargs)>>> Methods = new(StringComparer.Ordinal);
+            public readonly Dictionary<string, List<string>> Supers = new(StringComparer.Ordinal);
+
+            public JavaIndex(IEnumerable<CodeScript> scripts)
+            {
+                var list = scripts.ToList();
+                foreach (var script in list)
+                    foreach (var t in script.Symbols.Where(IsJavaType))
+                    {
+                        if (!TypesByFqn.TryGetValue(t.QualifiedName, out var ids)) TypesByFqn[t.QualifiedName] = ids = new();
+                        ids.Add(t.Id); FqnOfType[t.Id] = t.QualifiedName;
+                    }
+                foreach (var script in list)
+                {
+                    var arity = script.Parameters.GroupBy(p => p.SymbolId).ToDictionary(g => g.Key ?? "", g => g.Count(), StringComparer.Ordinal);
+                    foreach (var m in script.Symbols.Where(m => m.Kind == "method" && m.ParentId != null && FqnOfType.ContainsKey(m.ParentId)))
+                    {
+                        var owner = FqnOfType[m.ParentId];
+                        if (!Methods.TryGetValue(owner, out var byName)) Methods[owner] = byName = new(StringComparer.Ordinal);
+                        if (!byName.TryGetValue(m.Name ?? "", out var ms)) byName[m.Name ?? ""] = ms = new();
+                        ms.Add((m.Id, arity.TryGetValue(m.Id, out var a) ? a : 0, m.Signature?.Contains("...") == true));
+                    }
+                    var byId = script.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                    foreach (var e in script.Edges.Where(e => (e.Relation == "inherits" || e.Relation == "implements") && FqnOfType.ContainsKey(e.SourceId ?? "")))
+                    {
+                        var super = FqnOfType.TryGetValue(e.TargetId ?? "", out var f) ? f
+                            : byId.TryGetValue(e.TargetId ?? "", out var x) && x.Kind == "external" ? x.QualifiedName : null;
+                        if (super == null) continue;
+                        var sub = FqnOfType[e.SourceId];
+                        if (!Supers.TryGetValue(sub, out var ss)) Supers[sub] = ss = new();
+                        if (!ss.Contains(super)) ss.Add(super);
+                    }
+                }
+            }
+
+            /// <summary>Come <c>PerimeterIndex.FindMethod</c> dell'estrattore: il tipo, poi le madri; il primo che ha il nome, per numero di argomenti.</summary>
+            public List<(string Id, int Arity, bool Varargs)> FindMethod(string fqn, string name, int argc)
+            {
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>(new[] { fqn });
+                while (queue.Count > 0)
+                {
+                    var t = queue.Dequeue();
+                    if (!visited.Add(t)) continue;
+                    if (Methods.TryGetValue(t, out var byName) && byName.TryGetValue(name, out var ms) && ms.Count > 0)
+                    {
+                        if (argc < 0) return ms;
+                        var fit = ms.Where(m => m.Arity == argc || (m.Varargs && argc >= m.Arity - 1)).ToList();
+                        return fit.Count > 0 ? fit : ms;
+                    }
+                    if (Supers.TryGetValue(t, out var ss)) foreach (var x in ss) queue.Enqueue(x);
+                }
+                return null;
+            }
+        }
+
+        private static string Weaker(string a, string b) => Rank(a) <= Rank(b) ? a : b;
+
+        /// <summary>
+        /// Java (F1a, 10/11/2026): si ricollegano solo gli ESTERNI, perché gli archi che l'estrattore ha risolto dentro il suo
+        /// contesto sanno di più (tipo del ricevente, implementazioni). Un tipo esterno va alla classe con quel nome qualificato,
+        /// se è una sola; una chiamata esterna al metodo del tipo (o delle madri già analizzate) con lo stesso numero di
+        /// argomenti, con la confidenza che darebbe l'estrattore. Chi puntava a un simbolo sparito (<paramref name="vanished"/>)
+        /// torna esterno. Le implementazioni di un'interfaccia di un altro contesto non si aggiungono (F4). Torna i percorsi di
+        /// <paramref name="others"/> cambiati.
+        /// </summary>
+        public static List<string> LinkAllJava(string languageId, IReadOnlyList<(string Path, CodeScript Script)> own,
+            IReadOnlyList<(string Path, CodeScript Script)> others, IReadOnlyDictionary<string, Vanished> vanished)
+        {
+            var all = own.Concat(others).ToList();
+            var index = new JavaIndex(all.Select(a => a.Script));
+            var before = others.ToDictionary(o => o.Path, o => Fingerprint(o.Script), StringComparer.Ordinal);
+            string Ext(string what, string qn) => RoslynCSharpExtractor.StableId(languageId, "external", what + ":" + qn);
+            var known = new HashSet<string>(all.SelectMany(a => a.Script.Symbols).Where(x => x.Id != null).Select(x => x.Id), StringComparer.Ordinal);
+            foreach (var (_, script) in all) RelinkJava(script, index, Ext, known, vanished ?? new Dictionary<string, Vanished>());
+            return others.Where(o => Fingerprint(o.Script) != before[o.Path]).Select(o => o.Path).ToList();
+        }
+
+        private static void RelinkJava(CodeScript script, JavaIndex index, Func<string, string, string> ext, HashSet<string> known, IReadOnlyDictionary<string, Vanished> vanished)
+        {
+            var byId = new Dictionary<string, ScriptSymbol>(StringComparer.Ordinal);
+            foreach (var x in script.Symbols.Where(x => x.Id != null)) byId.TryAdd(x.Id, x);
+            var result = new List<ScriptEdge>();
+            var newExternals = new List<ScriptSymbol>();
+            ScriptSymbol External(string what, string qn, string name)
+            {
+                var id = ext(what, qn);
+                if (!byId.TryGetValue(id, out var x))
+                {
+                    x = new ScriptSymbol { Id = id, Kind = "external", Name = name, QualifiedName = qn };
+                    byId[id] = x; newExternals.Add(x);
+                }
+                return x;
+            }
+            foreach (var e in script.Edges)
+            {
+                var target = e.TargetId == null ? null : byId.TryGetValue(e.TargetId, out var t) ? t : null;
+                if (target?.Kind == "external" && target.QualifiedName != null)
+                {
+                    if (target.Id == ext("type", target.QualifiedName) && index.TypesByFqn.TryGetValue(target.QualifiedName, out var types) && types.Count == 1)
+                    {
+                        result.Add(new ScriptEdge { SourceId = e.SourceId, TargetId = types[0], Relation = e.Relation, Confidence = e.Confidence, Line = e.Line, Guard = e.Guard });
+                        continue;
+                    }
+                    if (e.Relation == "calls" && target.Id == ext("method", target.QualifiedName))
+                    {
+                        var dot = target.QualifiedName.LastIndexOf('.');
+                        var owner = dot > 0 ? target.QualifiedName[..dot] : null;
+                        var name = dot > 0 ? target.QualifiedName[(dot + 1)..] : null;
+                        var arities = ParseArities(e.Written);
+                        var linked = new List<ScriptEdge>();
+                        if (owner != null && index.TypesByFqn.TryGetValue(owner, out var ot) && ot.Count == 1)
+                            foreach (var (argc, at) in arities.Count == 0 ? new[] { (-1, e.Line ?? 0) } : arities)
+                            {
+                                var ms = index.FindMethod(owner, name, argc);
+                                if (ms == null) continue;
+                                // come CallOnType + MethodEdges dell'estrattore
+                                var confidence = Weaker(e.Confidence, ms.Count == 1 ? "extracted" : "inferred");
+                                if (ms.Count > 1) confidence = Weaker(confidence, "inferred");
+                                linked.AddRange(ms.Select(m => new ScriptEdge { SourceId = e.SourceId, TargetId = m.Id, Relation = e.Relation, Confidence = confidence, Line = at > 0 ? at : e.Line, Guard = e.Guard }));
+                            }
+                        if (linked.Count > 0) { result.AddRange(linked); continue; }
+                    }
+                    result.Add(e);
+                    continue;
+                }
+                // la destinazione non c'è più in nessuno script: era un simbolo del file appena rianalizzato, torna esterno
+                if (target == null && e.TargetId != null && !known.Contains(e.TargetId) && vanished.TryGetValue(e.TargetId, out var gone))
+                {
+                    if (gone.Kind == "method" && gone.OwnerQualifiedName != null)
+                    {
+                        var qn = gone.OwnerQualifiedName + "." + gone.Name;
+                        var x = External("method", qn, gone.Name);
+                        result.Add(new ScriptEdge { SourceId = e.SourceId, TargetId = x.Id, Relation = e.Relation, Confidence = e.Confidence, Line = e.Line, Guard = e.Guard, Written = WithArity(null, qn, gone.Arity, e.Line ?? 0) });
+                        continue;
+                    }
+                    if (gone.QualifiedName != null && gone.Kind != "method")
+                    {
+                        var x = External("type", gone.QualifiedName, gone.Name);
+                        result.Add(new ScriptEdge { SourceId = e.SourceId, TargetId = x.Id, Relation = e.Relation, Confidence = e.Confidence, Line = e.Line, Guard = e.Guard });
+                        continue;
+                    }
+                }
+                result.Add(e);
+            }
+            Finish(script, result, newExternals);
+        }
+
+        // ------------------------------------------------------------------ linguaggi a regole (per nome, con gli import)
+
         public static string Written(string what, string name, string maxConfidence)
             => what + ":" + name + (maxConfidence == null ? string.Empty : "|" + maxConfidence);
 
@@ -203,7 +392,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     result.Add(new ScriptEdge { SourceId = e.SourceId, TargetId = t, Relation = e.Relation, Confidence = confidence, Line = line, Written = w, Guard = e.Guard });
             }
 
-            // un arco per (sorgente, destinazione, relazione), come l'estrattore: vince la confidenza migliore
+            Finish(script, result, newExternals);
+        }
+
+        /// <summary>Un arco per (sorgente, destinazione, relazione), come gli estrattori; i nuovi esterni dentro, quelli senza archi fuori.</summary>
+        private static void Finish(CodeScript script, List<ScriptEdge> result, List<ScriptSymbol> newExternals)
+        {
             var merged = new List<ScriptEdge>();
             var seen = new Dictionary<string, ScriptEdge>(StringComparer.Ordinal);
             foreach (var e in result)

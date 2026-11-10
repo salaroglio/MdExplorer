@@ -737,7 +737,9 @@ namespace MdExplorer.Services.CodeGraph
                         outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
                         pending.Add((file, script, scriptPath, onDisk, fromSource));
                     }
-                    if (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null && pending.Count > 0)
+                    var crossLinkable = (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
+                        || string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase);
+                    if (crossLinkable && pending.Count > 0)
                         CrossLink(projectPath, lang, pending.Select(x => (x.File.LogicalPath, x.Script)).ToList(), untouched, written, outcome);
                     foreach (var (file, script, scriptPath, onDisk, fromSource) in pending)
                     {
@@ -953,7 +955,10 @@ namespace MdExplorer.Services.CodeGraph
                     try { others.Add((header.Source, CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath), scriptPath)); }
                     catch (Exception ex) { outcome.Warnings.Add(UiText.Say($"{header.Source}: script non leggibile per il ricollegamento ({ex.Message})", $"{header.Source}: script not readable for relinking ({ex.Message})")); }
                 }
-            var changed = CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, others.Select(o => (o.Path, o.Script)).ToList());
+            var otherScripts = others.Select(o => (o.Path, o.Script)).ToList();
+            var changed = lang.Definition != null
+                ? CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, otherScripts)
+                : CodeCrossLinker.LinkAllJava(lang.Id, own, otherScripts, VanishedSymbols(projectPath, own));
             foreach (var path in changed)
             {
                 if (untouched.Contains(path)) continue;
@@ -966,6 +971,31 @@ namespace MdExplorer.Services.CodeGraph
             }
             if (outcome.CrossLinked > 0)
                 _logger.LogInformation("[CodeGraph] {Count} script di altri contesti ricollegati ({Language})", outcome.CrossLinked, lang.Id);
+        }
+
+        /// <summary>
+        /// I simboli che lo script di prima di questi file aveva e quello nuovo no (Java, F1a): chi li usava da un altro contesto
+        /// torna esterno col loro nome. Lo script di prima si legge dal disco, prima che si riscriva.
+        /// </summary>
+        private static Dictionary<string, CodeCrossLinker.Vanished> VanishedSymbols(string projectPath, List<(string Path, CodeScript Script)> own)
+        {
+            var gone = new Dictionary<string, CodeCrossLinker.Vanished>(StringComparer.Ordinal);
+            foreach (var (path, script) in own)
+            {
+                var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, path, CodeScriptKind.Ast);
+                if (!File.Exists(scriptPath)) continue;
+                CodeScript old;
+                try { old = CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath); }
+                catch (CodeScriptFormatException) { continue; }   // di un altro schema: lo rifà l'estrazione, niente da ricordare
+                var now = new HashSet<string>(script.Symbols.Where(x => x.Id != null).Select(x => x.Id), StringComparer.Ordinal);
+                var byId = old.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                foreach (var x in old.Symbols.Where(x => x.Id != null && x.Kind != "external" && !now.Contains(x.Id)))
+                {
+                    var owner = x.ParentId != null && byId.TryGetValue(x.ParentId, out var p) ? p.QualifiedName : null;
+                    gone[x.Id] = new CodeCrossLinker.Vanished(x.Kind, x.Name, x.QualifiedName, owner, old.Parameters.Count(pp => pp.SymbolId == x.Id));
+                }
+            }
+            return gone;
         }
 
         private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)
