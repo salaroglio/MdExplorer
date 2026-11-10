@@ -63,23 +63,21 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private DeclarationIndex(bool ignoreCase) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; }
 
-        public static DeclarationIndex Build(DeclarativeLanguage lang, IEnumerable<(string Path, string Text)> files)
+        /// <summary>Un <c>grep</c> per espressione: su un server tornano solo le righe che dichiarano qualcosa, non i file.</summary>
+        public static DeclarationIndex Build(DeclarativeLanguage lang, ICodeWorkspace workspace)
         {
             var index = new DeclarationIndex(lang.IgnoreCase);
             // di primo livello: senza «in», o «in: [module]» (il valore che il lettore della definizione dà per default)
             var blocks = lang.Blocks.Where(b => b.In == null || b.In.Count == 0 || b.In.Contains("module")).ToList();
             var declarations = lang.Declarations.Where(d => d.Emit && (d.In == null || d.In.Count == 0 || d.In.Contains("module"))).ToList();
-            foreach (var (path, text) in files)
-                foreach (var line in text.Split('\n'))
-                {
-                    if (lang.ModuleName != null && lang.ModuleName.Match(line) is { Success: true } m && m.Groups["name"].Success) index.Add(index._programs, m.Groups["name"].Value, path);
-                    foreach (var b in blocks)
-                        if (b.Begin.Match(line) is { Success: true } bm && bm.Groups["name"].Success)
-                            index.Add(index._symbols, Apply(b.NameTemplate, bm.Groups["name"].Value), path);
-                    foreach (var d in declarations)
-                        if (d.At.Match(line) is { Success: true } dm && dm.Groups["name"].Success)
-                            index.Add(index._symbols, Apply(d.NameTemplate, dm.Groups["name"].Value), path);
-                }
+            var patterns = new List<(Regex Pattern, Dictionary<string, List<string>> Map, string Template)>();
+            if (lang.ModuleName != null) patterns.Add((lang.ModuleName, index._programs, null));
+            patterns.AddRange(blocks.Select(b => (b.Begin, index._symbols, b.NameTemplate)));
+            patterns.AddRange(declarations.Select(d => (d.At, index._symbols, d.NameTemplate)));
+            foreach (var (pattern, map, template) in patterns)
+                foreach (var (path, _, text) in workspace.Grep(pattern, lang.Extensions.ToList()))
+                    if (pattern.Match(text) is { Success: true } m && m.Groups["name"].Success)
+                        index.Add(map, Apply(template, m.Groups["name"].Value), path);
             return index;
         }
 
@@ -138,7 +136,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             var byName = files.GroupBy(p => _norm(CodeLinkIndex.LastSegment(p))).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             var texts = new Dictionary<string, string>(StringComparer.Ordinal);
             string Text(string p) => texts.TryGetValue(p, out var t) ? t : texts[p] = _ws.Read(p);
-            var index = DeclarationIndex.Build(_lang, files.Select(p => (p, Text(p))));
+            // l'indice con un grep per espressione; per intero si leggono solo i file che entrano
+            var index = DeclarationIndex.Build(_lang, _ws);
 
             var states = new Dictionary<string, State>(StringComparer.Ordinal);
             var misses = new Dictionary<string, CodeClosureMiss>(StringComparer.Ordinal);

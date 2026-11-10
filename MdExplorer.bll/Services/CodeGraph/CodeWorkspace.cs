@@ -17,6 +17,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         string Read(string logicalPath);
         /// <summary>Il file su disco (o l'indirizzo sul server) di un percorso logico, per l'estrattore.</summary>
         CodeSourceFile Source(string logicalPath);
+        /// <summary>
+        /// Le righe dei file con quelle estensioni che <paramref name="pattern"/> trova (su un server lo cerca il server: tornano solo
+        /// le righe, non i file). Per l'indice delle dichiarazioni (S11), senza leggere tutto.
+        /// </summary>
+        IEnumerable<(string Path, int Line, string Text)> Grep(System.Text.RegularExpressions.Regex pattern, IReadOnlyCollection<string> extensions);
     }
 
     /// <summary>Una cartella su disco: <paramref name="logicalPrefix"/> è il suo percorso logico (<c>""</c> = la radice del progetto).</summary>
@@ -67,5 +72,18 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Read(string logicalPath) => CodeSourceText.Read(Absolute(logicalPath), _encodings);
 
         public CodeSourceFile Source(string logicalPath) => new(Absolute(logicalPath), logicalPath);
+
+        public IEnumerable<(string Path, int Line, string Text)> Grep(System.Text.RegularExpressions.Regex pattern, IReadOnlyCollection<string> extensions)
+        {
+            foreach (var path in Files().Where(p => extensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase)))
+            {
+                var n = 0;
+                foreach (var line in Read(path).Split('\n'))
+                {
+                    n++;
+                    if (pattern.IsMatch(line)) yield return (path, n, line.TrimEnd('\r'));
+                }
+            }
+        }
     }
 }

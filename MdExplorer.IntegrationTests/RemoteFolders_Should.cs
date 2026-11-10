@@ -147,6 +147,69 @@ namespace MdExplorer.IntegrationTests
                 "un contesto: la sottocartella, con i percorsi logici della radice");
         }
 
+        /// <summary>Un linguaggio a regole inventato, per la chiusura sulle radici remote (F2c): moduli, procedure, include e librerie.</summary>
+        private const string ToyRules = @"schema: 1
+id: toy
+name: Toy
+version: 1
+extensions: [.toy, .toh, .tos]
+ignoreCase: true
+lexical:
+  lineComment: '--'
+  string: '""'
+module:
+  name: '^\s*MODULE\s+""(?<name>[^""]+)""'
+blocks:
+  - id: proc
+    kind: function
+    begin: '^\s*PROC\s+(?<name>\w+)\s*\((?<params>.*)\)'
+    end: '^\s*ENDPROC\b'
+references:
+  - relation: imports
+    pattern: '^\s*USE\s+""(?<target>[^""]+)""'
+    text: raw
+    resolve: file
+    unresolved: external
+  - relation: imports
+    pattern: '^\s*LIB\s+""(?<target>[^""]+)""'
+    text: raw
+    resolve: module
+    unresolved: external
+  - relation: calls
+    pattern: '\b(?<target>[A-Za-z_]\w*)\s*\('
+    resolve: symbol
+    rules: [proc]
+    unresolved: external
+";
+
+        /// <summary>
+        /// F2c (10/11/2026): la chiusura di un seme su una radice remota — elenco con tree, indice con grep sul server, testo solo
+        /// dei file che entrano — è la stessa che sugli stessi file su disco.
+        /// </summary>
+        [TestMethod]
+        public async Task Discover_the_same_closure_on_a_remote_root_as_on_disk()
+        {
+            var clone = await CloneOf("server-chiusura", "https://github.com/acme/chiusura.git");
+            File.WriteAllText(Path.Combine(clone, "src", "main.toy"), "MODULE \"MAIN\"\nLIB \"LIBA\"\nPROC START()\n   HELPER(1)\n   NOWHERE(2)\nENDPROC\n");
+            File.WriteAllText(Path.Combine(clone, "src", "liba.tos"), "MODULE \"LIBA\"\nPROC HELPER(X)\nENDPROC\nPROC NOTUSED()\n   OTHER()\nENDPROC\n");
+            File.WriteAllText(Path.Combine(clone, "src", "unrelated.tos"), "MODULE \"ZZZ\"\nPROC OTHER()\nENDPROC\n");
+            var roots = Roots(new MemoryStore());
+            Assert.AreEqual(CodeRootStatus.Linked, (await roots.LinkAsync(_project, "legacy", "ssh://server" + clone)).Status);
+            var root = (await roots.CreateResolverAsync(_project)).LinkedRemote.Single();
+            var lang = DeclarativeLanguage.Parse(ToyRules, Path.Combine(_project, ".mde-languages", "toy", "language.yml"));
+            var request = new CodeClosureRequest { Seeds = new[] { "@legacy/src/main.toy" } };
+
+            var remote = new DeclarativeClosure(lang, new MdExplorer.Services.CodeGraph.RemoteCodeWorkspace(new RemoteCodeRootFiles(_sessions), root, "")).Compute(request);
+            var local = new DeclarativeClosure(lang, new LocalCodeWorkspace(clone, "@legacy")).Compute(request);
+
+            string Show(CodeClosure c) => string.Join("\n", c.Files.OrderBy(f => f.Path, StringComparer.Ordinal).Select(f => $"{f.Path}|{f.Depth}|{f.Written}|{string.Join(",", f.Symbols)}"))
+                + "\n#" + string.Join(";", c.Misses.Select(m => m.Kind + " " + m.Written));
+            CollectionAssert.AreEquivalent(new[] { "@legacy/src/main.toy", "@legacy/src/liba.tos" }, remote.Files.Select(f => f.Path).ToList(), Show(remote));
+            Assert.AreEqual(Show(local), Show(remote), "via MDE Remote come su disco");
+            Assert.IsTrue(remote.Misses.Any(m => m.Kind == "unresolved" && m.Written == "symbol:NOWHERE"));
+            Assert.AreEqual(0, Directory.GetFiles(_project, "*.toy", SearchOption.AllDirectories).Length, "niente sorgenti copiati nel progetto");
+        }
+
         /// <summary>
         /// 10/11/2026: le cartelle di una radice remota si segnano come contesti program come quelle di una locale (prima
         /// «solo su questo disco», anche se l'analisi le sapeva già leggere dal server); la cartella la conferma MDE Remote.
