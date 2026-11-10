@@ -527,6 +527,43 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         }
 
+        public class SeedPreviewRequest
+        {
+            public string ProjectPath { get; set; }
+            public string Seed { get; set; }
+            public System.Collections.Generic.List<string>? Pruned { get; set; }
+            public int? MaxFiles { get; set; }
+            public long? MaxLines { get; set; }
+        }
+
+        /// <summary>
+        /// POST /api/codegraph/seeds/preview {projectPath, seed, pruned?, maxFiles?, maxLines?} — «Analizza questo programma» (F3a,
+        /// 10/11/2026): la chiusura delle dipendenze di un file, scoperta col parser e senza scrivere niente. Per la finestra
+        /// dell'anteprima: i file con profondità, da dove arrivano e che cosa se ne usa; i riferimenti non seguiti, una volta
+        /// sola con gli usi; se il budget di sicurezza è scattato. 400 = file o linguaggio che non va, col motivo.
+        /// </summary>
+        [HttpPost("seeds/preview")]
+        public Task<IActionResult> PreviewSeed([FromBody] SeedPreviewRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            var seeds = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedService>();
+            MdExplorer.Services.CodeGraph.CodeSeedPreview preview;
+            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct); }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            var c = preview.Closure;
+            return Ok(new
+            {
+                seed = preview.Seed, language = preview.Language, budgetReached = c.BudgetReached, lines = c.Lines,
+                files = c.Files.Select(f => new { path = f.Path, depth = f.Depth, from = f.From, written = f.Written, whole = f.Whole, lines = f.Lines,
+                    symbolCount = f.Symbols.Count, symbols = f.Symbols.Take(20) }),
+                misses = c.Misses.Select(m => new { kind = m.Kind, written = m.Written, uses = m.Uses, from = m.From, candidates = m.Candidates }),
+            });
+        });
+
         public class LanguagePackageExportRequest { public string ProjectPath { get; set; } public string Id { get; set; } public string DestinationFolder { get; set; } }
 
         /// <summary>
