@@ -319,10 +319,15 @@ namespace MdExplorer.Services.CodeGraph
                     if (path.Length > 0)
                     {
                         var state = await StateOfAsync(projectPath, root, ct);
-                        if (state.Status != CodeRootStatus.Linked || state.IsRemote)
-                            throw new InvalidOperationException(UiText.Say($"@{alias}: si marcano solo le cartelle di una radice collegata su questo disco.", $"@{alias}: only the folders of a root linked on this disk can be marked."));
-                        var abs = Path.Combine(state.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
-                        if (!Directory.Exists(abs)) throw new DirectoryNotFoundException(UiText.Say($"La cartella non esiste: {abs}", $"The folder does not exist: {abs}"));
+                        if (state.Status != CodeRootStatus.Linked)
+                            throw new InvalidOperationException(UiText.Say($"@{alias}: si marcano solo le cartelle di una radice collegata.", $"@{alias}: only the folders of a linked root can be marked."));
+                        // una radice remota: la cartella l'utente l'ha presa dall'albero, che la legge dal server; se sparisce lo dice
+                        // MDE Remote alla scansione, come per l'analisi (CodeAnalysisService)
+                        if (!state.IsRemote)
+                        {
+                            var abs = Path.Combine(state.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
+                            if (!Directory.Exists(abs)) throw new DirectoryNotFoundException(UiText.Say($"La cartella non esiste: {abs}", $"The folder does not exist: {abs}"));
+                        }
                     }
                 }
                 if (path.Length == 0)

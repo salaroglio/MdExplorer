@@ -42,7 +42,7 @@
           <mat-icon>link_off</mat-icon> {{ 'CODE_ROOTS.UNLINK' | translate }}
         </button>
         <!-- con i contesti (P2) i linguaggi si scelgono sul contesto, dal menu della sua cartella nell'albero -->
-        <button mat-stroked-button *ngIf="r.status === 'Linked' && !r.remote && (r.tags || []).includes('program')" (click)="openLanguages(r)" [disabled]="!!busy">
+        <button mat-stroked-button *ngIf="r.status === 'Linked' && (r.tags || []).includes('program')" (click)="openLanguages(r)" [disabled]="!!busy">
           <mat-icon>code</mat-icon> {{ 'CODE_ROOTS.LANGUAGES_AND_ANALYSIS' | translate }}
         </button>
         <button mat-stroked-button (click)="openGraph(r)" [disabled]="!!busy">

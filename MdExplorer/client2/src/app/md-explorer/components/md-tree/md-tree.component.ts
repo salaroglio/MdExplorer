@@ -2830,8 +2830,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const logical = (item.path || '').replace(/\\/g, '/');
     const m = /^@([^/]+)\/?(.*)$/.exec(logical);
     const root = m ? this.codeRootsByAlias.get(m[1]) : undefined;
-    // il grafo si fa sui file di questo disco: una radice remota o non collegata non si analizza (lo dice la finestra delle radici)
-    if (!root || root.status !== 'Linked' || root.remote) { return null; }
+    // una radice non collegata non si analizza (lo dice la finestra delle radici); una remota sì, dal 29/10/2026: i sorgenti li legge MDE Remote
+    if (!root || root.status !== 'Linked') { return null; }
     return { root, path: m![2].replace(/\/+$/, '') };
   }
 

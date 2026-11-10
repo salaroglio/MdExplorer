@@ -147,6 +147,33 @@ namespace MdExplorer.IntegrationTests
                 "un contesto: la sottocartella, con i percorsi logici della radice");
         }
 
+        /// <summary>
+        /// 10/11/2026: le cartelle di una radice remota si segnano come contesti program come quelle di una locale (prima
+        /// «solo su questo disco», anche se l'analisi le sapeva già leggere dal server); la cartella la conferma MDE Remote.
+        /// </summary>
+        [TestMethod]
+        public async Task Mark_the_folders_of_a_remote_root_as_program_contexts()
+        {
+            var clone = await CloneOf("server-contesti", "https://github.com/acme/contesti.git");
+            var roots = Roots(new MemoryStore());
+            Assert.AreEqual(CodeRootStatus.Linked, (await roots.LinkAsync(_project, "legacy", "ssh://server" + clone)).Status);
+            Assert.IsTrue((await roots.ListAsync(_project)).Single().Tags.Contains("program"), "collegata = programma intero, come in locale");
+
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => roots.SetProgramAsync(_project, "@legacy/src/Api", true))).Message,
+                "@legacy", "radice intera e contesti insieme no, come in locale");
+            await roots.SetProgramAsync(_project, "@legacy", false);
+            var state = await roots.SetProgramAsync(_project, "@legacy/src/Api", true);
+            Assert.IsFalse(state.Tags.Contains("program"));
+            CollectionAssert.AreEqual(new[] { "src/Api" }, state.Programs.Select(p => p.Path).ToArray());
+
+            var root = (await roots.CreateResolverAsync(_project)).LinkedRemote.Single();
+            var scan = await new RemoteCodeScanner(new RemoteCodeRootFiles(_sessions)).ScanAsync(root, "src/Api", null, CodeLanguageCatalog.ForProject(_project), default);
+            CollectionAssert.AreEqual(new[] { "@legacy/src/Api/Foo.cs" }, scan.Scan.AllFiles.Select(f => f.LogicalPath).ToArray(), "il contesto si legge dal server");
+
+            await roots.SetProgramAsync(_project, "@legacy/src/Api", false);
+            Assert.IsNull((await roots.ListAsync(_project)).Single().Programs?.FirstOrDefault(), "smarcata, il contesto sparisce");
+        }
+
         [TestMethod]
         public async Task Upload_the_agent_once_into_the_home_and_reuse_the_open_channel()
         {

@@ -21423,7 +21423,7 @@ function CodeRootsDialogComponent_div_13_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", r_r4.localPath);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", r_r4.status === "Linked" && !r_r4.remote && (r_r4.tags || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpureFunction0"](28, _c0)).includes("program"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", r_r4.status === "Linked" && (r_r4.tags || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpureFunction0"](28, _c0)).includes("program"));
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", !!ctx_r2.busy);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
@@ -40230,8 +40230,8 @@ class MdTreeComponent {
     const logical = (item.path || '').replace(/\\/g, '/');
     const m = /^@([^/]+)\/?(.*)$/.exec(logical);
     const root = m ? this.codeRootsByAlias.get(m[1]) : undefined;
-    // il grafo si fa sui file di questo disco: una radice remota o non collegata non si analizza (lo dice la finestra delle radici)
-    if (!root || root.status !== 'Linked' || root.remote) {
+    // una radice non collegata non si analizza (lo dice la finestra delle radici); una remota sì, dal 29/10/2026: i sorgenti li legge MDE Remote
+    if (!root || root.status !== 'Linked') {
       return null;
     }
     return {
@@ -55345,4 +55345,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.3b5eecd7841fd001.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.438dde053263557b.js.map
