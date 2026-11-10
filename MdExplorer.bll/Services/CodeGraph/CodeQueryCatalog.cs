@@ -39,7 +39,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 Name = UnknownExternals,
                 Question = "Which external types/calls does the code use that the graph knows only by name (libraries, programs not scanned)? Grouped by type and package, most used first, with the members called and an example point. `?` = calls whose type is not even known.",
-                Parameters = new Dictionary<string, string>(FolderParam) { ["limit"] = "optional: how many types (1-200, default 30)" },
+                Parameters = new Dictionary<string, string>(FolderParam)
+                {
+                    ["limit"] = "optional: how many types (1-200, default 30)",
+                    // 10/11/2026: un linguaggio senza tipi (un linguaggio da pacchetto) mette TUTTE le chiamate esterne nel gruppo `?`
+                    ["members"] = "optional: how many members (called names) per type (1-2000, default 10); `membersTotal` says how many there are. Raise it for a language without types, where every external call is a member of `?`",
+                },
             },
             new CodeQueryInfo
             {

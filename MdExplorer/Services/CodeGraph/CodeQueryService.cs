@@ -60,7 +60,7 @@ namespace MdExplorer.Services.CodeGraph
             var prefix = folder == null ? null : folder + "/";
             return name switch
             {
-                UnknownExternals => await UnknownExternalsAsync(projectPath, prefix, Int("limit", 1, 200, 30), ct),
+                UnknownExternals => await UnknownExternalsAsync(projectPath, prefix, Int("limit", 1, 200, 30), Int("members", 1, 2000, 10), ct),
                 WhereIsIt => await WhereIsItAsync(projectPath, prefix, P("type"), Int("limit", 1, 50, 10), ct),
                 NotAnalyzed => await NotAnalyzedAsync(projectPath, folder, ct),
                 CodeQueryCatalog.ProgramOutline => await ProgramOutlineAsync(projectPath, folder ?? throw Required("folder"), Int("limit", 1, 200, 40), ct),
@@ -169,16 +169,20 @@ namespace MdExplorer.Services.CodeGraph
             };
         }
 
-        private async Task<object> UnknownExternalsAsync(string projectPath, string prefix, int limit, CancellationToken ct)
+        private async Task<object> UnknownExternalsAsync(string projectPath, string prefix, int limit, int members, CancellationToken ct)
         {
             var types = CodeExternals.Group(await _store.ExternalUsesAsync(projectPath, prefix, ct));
+            var cut = types.Take(limit).Any(t => t.Members.Count > members);
             return new
             {
                 totalTypes = types.Count(t => t.Type != CodeExternals.UnknownOwner),
                 callsWithUnknownType = types.FirstOrDefault(t => t.Type == CodeExternals.UnknownOwner)?.Uses ?? 0,
                 packages = types.Where(t => t.Package != null).GroupBy(t => t.Package).Select(g => new { package = g.Key, types = g.Count(), uses = g.Sum(t => t.Uses) })
                     .OrderByDescending(p => p.uses).ThenBy(p => p.package, StringComparer.Ordinal).Take(limit),
-                types = types.Take(limit).Select(t => new { t.Type, t.Package, t.Uses, t.Callers, members = t.Members.Take(10).Select(m => new { m.Name, m.Uses }), t.Example }),
+                types = types.Take(limit).Select(t => new { t.Type, t.Package, t.Uses, t.Callers, membersTotal = t.Members.Count, members = t.Members.Take(members).Select(m => new { m.Name, m.Uses }), t.Example }),
+                // 10/11/2026: prima i membri erano 10 fissi, e per un linguaggio senza tipi (tutto in `?`) la lista restava tronca senza dirlo
+                membersCut = cut ? UiText.Say($"membri tagliati a {members} per tipo (membersTotal dice quanti sono): alza «members» fino a 2000 per averli tutti",
+                    $"members cut at {members} per type (membersTotal says how many there are): raise «members» up to 2000 to get them all") : null,
                 next = UiText.Say("where-is-it dice dove, nel repository, sta quello che il grafo non ha analizzato", "where-is-it tells where, in the repository, what the graph did not analyse is"),
             };
         }

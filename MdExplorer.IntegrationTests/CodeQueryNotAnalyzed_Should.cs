@@ -68,6 +68,44 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(await Refusal("hotspots", new() { ["limit"] = "9999" }), "200");
             StringAssert.Contains(await Refusal("flow-from", new()), "symbol");
             StringAssert.Contains(await Refusal("program-outline", new()), "folder");
+            StringAssert.Contains(await Refusal("unknown-externals", new() { ["members"] = "5000" }), "2000");
+        }
+
+        /// <summary>Il grafo finto: solo gli usi degli esterni, il resto non deve servire.</summary>
+        public class ExternalsOnlyStore : System.Reflection.DispatchProxy
+        {
+            public System.Collections.Generic.List<MdExplorer.Features.Services.CodeGraph.CodeExternalUse> Uses { get; set; }
+            protected override object Invoke(System.Reflection.MethodInfo targetMethod, object[] args)
+                => targetMethod.Name == nameof(MdExplorer.Features.Services.CodeGraph.ICodeGraphStore.ExternalUsesAsync)
+                    ? System.Threading.Tasks.Task.FromResult(Uses)
+                    : throw new System.NotSupportedException(targetMethod.Name);
+        }
+
+        /// <summary>
+        /// 10/11/2026: un linguaggio senza tipi (un linguaggio da pacchetto) mette tutte le chiamate esterne nel gruppo `?`; prima se ne
+        /// vedevano 10 fisse, senza dirlo. Ora 10 per default con l'avviso e il totale, tutte con «members».
+        /// </summary>
+        [TestMethod]
+        public async System.Threading.Tasks.Task Give_every_external_call_of_a_language_without_types_when_asked()
+        {
+            var store = System.Reflection.DispatchProxy.Create<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore, ExternalsOnlyStore>();
+            ((ExternalsOnlyStore)(object)store).Uses = System.Linq.Enumerable.Range(1, 25)
+                .Select(i => new MdExplorer.Features.Services.CodeGraph.CodeExternalUse { QualifiedName = $"PRIM{i:00}", Relation = "calls", Uses = 100 - i, Callers = 1, Example = $"@legacy/a.toy:{i}" })
+                .ToList();
+            var service = new CodeQueryService(store, null, null);
+            System.Text.Json.JsonElement Run(System.Collections.Generic.Dictionary<string, string> p)
+                => System.Text.Json.JsonSerializer.SerializeToElement(service.RunAsync("/x", "unknown-externals", p).GetAwaiter().GetResult());
+
+            var cut = Run(new()).GetProperty("types")[0];
+            Assert.AreEqual("?", cut.GetProperty("Type").GetString());
+            Assert.AreEqual(25, cut.GetProperty("membersTotal").GetInt32());
+            Assert.AreEqual(10, cut.GetProperty("members").GetArrayLength(), "per default come prima");
+            StringAssert.Contains(Run(new()).GetProperty("membersCut").GetString(), "members", "e lo dice");
+
+            var all = Run(new() { ["members"] = "2000" });
+            Assert.AreEqual(25, all.GetProperty("types")[0].GetProperty("members").GetArrayLength());
+            Assert.AreEqual(System.Text.Json.JsonValueKind.Null, all.GetProperty("membersCut").ValueKind, "niente tagliato, niente avviso");
+            Assert.AreEqual("PRIM01", all.GetProperty("types")[0].GetProperty("members")[0].GetProperty("Name").GetString(), "dal più usato");
         }
     }
 }
