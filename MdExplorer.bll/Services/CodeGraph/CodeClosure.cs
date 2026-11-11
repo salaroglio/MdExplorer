@@ -37,7 +37,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public sealed class CodeClosureMiss
     {
-        public string Kind { get; init; }   // unresolved, ambiguous, pruned, frontier
+        public string Kind { get; init; }   // unresolved, ambiguous, pruned, frontier, dynamic (F4e: un nome in una variabile che non si sa)
         public string Written { get; init; }
         public int Uses { get; set; }
         public List<string> From { get; } = new();
@@ -287,6 +287,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                             break;
                         case "symbol":
                             pendingCalls.Add((path, name, e.Written, from, depth));
+                            break;
+                        case "dynamic":
+                            // F4e: si chiama per nome una funzione il cui nome arriva da fuori (file, messaggio, parametro)
+                            miss("dynamic", e.Written, from, null);
                             break;
                     }
                 }

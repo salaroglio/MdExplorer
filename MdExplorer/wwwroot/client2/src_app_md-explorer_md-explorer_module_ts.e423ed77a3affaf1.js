@@ -28608,7 +28608,7 @@ class SeedDialogComponent {
         }
         this.implChoices = (p.implementations ?? []).filter(i => !i.auto && i.candidates.length > 1).sort((a, b) => b.created.length - a.created.length || a.contract.localeCompare(b.contract));
         this.implAuto = (p.implementations ?? []).filter(i => i.auto);
-        this.missGroups = ['frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k)).map(kind => ({
+        this.missGroups = ['dynamic', 'frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k)).map(kind => ({
           kind,
           items: byKind.get(kind),
           uses: byKind.get(kind).reduce((n, m) => n + m.uses, 0)
@@ -56600,4 +56600,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.dd3a062d47d53e3e.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.e423ed77a3affaf1.js.map

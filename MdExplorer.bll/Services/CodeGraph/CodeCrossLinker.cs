@@ -355,7 +355,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var group = groups[key];
                 var (what, name, max) = Parse(w);
                 var isCall = what == "symbol";
-                if (what == null || isCall == importsOnly) { result.AddRange(group.Select(x => x.Edge)); continue; }
+                // un punto di uscita per nome in una variabile (F4e) non si ricollega: non si sa dove va
+                if (what is not ("symbol" or "file" or "module") || isCall == importsOnly) { result.AddRange(group.Select(x => x.Edge)); continue; }
                 // nello stesso file l'estrattore ha già scelto, e vince
                 if (isCall && local.Contains(index.Normalize(name))) { result.AddRange(group.Select(x => x.Edge)); continue; }
                 var line = group.Min(x => x.Edge.Line);

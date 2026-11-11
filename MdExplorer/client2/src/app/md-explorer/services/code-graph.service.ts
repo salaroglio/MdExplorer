@@ -33,7 +33,7 @@ export interface SeedClosureFile {
 
 /** Un riferimento che la scoperta non ha seguito, una volta sola con quante volte compare. */
 export interface SeedClosureMiss {
-  kind: 'unresolved' | 'ambiguous' | 'pruned' | 'frontier';
+  kind: 'unresolved' | 'ambiguous' | 'pruned' | 'frontier' | 'dynamic';
   written: string | null;
   uses: number;
   from: string[];

@@ -69,6 +69,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(pruned.Misses.Any(m => m.Kind == "pruned" && m.Candidates.Contains("src/liba.tos")));
         }
 
+        /// <summary>F4e: la chiamata per nome in una variabile si segue se il blocco le assegna il nome; altrimenti è un punto di uscita «dynamic».</summary>
+        [TestMethod]
+        public void Follow_a_call_by_name_when_the_block_assigns_the_name()
+        {
+            var rules = DeclarativeLanguageExtractorShould.ToyFullDefinition +
+                "  - relation: dispatches\n    pattern: '\\bCALLBYNAME\\s*\\(\\s*(?<var>\\w+\\$?)'\n    assign: '^\\s*{var}\\s*=\\s*\"\"(?<name>[^\"\"]+)\"\"'\n" +
+                "    resolve: symbol\n    rules: [proc]\n    unresolved: external\n";
+            _lang = DeclarativeLanguage.Parse(rules.Replace("\"\"", "\""), Path.Combine(_dir, ".mde-languages", "toy", "language.yml"));
+            Write("main.toy", "MODULE \"MAIN\"\nLIB \"LIBA\"\nPROC START()\n   SVC$ = \"HELPER\"\n   CALLBYNAME(SVC$)\n   CALLBYNAME(ALTRO$)\nENDPROC\n" +
+                              "PROC LATER()\n   CALLBYNAME(SVC2$)\nENDPROC\nPROC EARLIER()\n   SVC2$ = \"DEEP\"\nENDPROC\n");
+            var c = Run(new CodeClosureRequest { Seeds = new[] { "src/main.toy" } });
+            CollectionAssert.Contains(File_(c, "liba.tos")?.Symbols.ToList() ?? new List<string>(), "HELPER", "SVC$ = \"HELPER\" e poi CALLBYNAME(SVC$). Mancati: " + string.Join("; ", c.Misses.Select(m => m.Kind + " " + m.Written)));
+            Assert.IsTrue(c.Misses.Any(m => m.Kind == "dynamic" && m.Written == "dynamic:ALTRO$"), "senza assegnazione: un punto di uscita che non si sa");
+            Assert.IsTrue(c.Misses.Any(m => m.Kind == "dynamic" && m.Written == "dynamic:SVC2$"), "l'assegnazione di un altro blocco non vale");
+        }
+
         [TestMethod]
         public void Report_each_missing_reference_once_with_its_uses()
         {

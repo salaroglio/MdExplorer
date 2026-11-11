@@ -40,7 +40,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le regole, non le regole.</summary>
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
-        public const string EngineVersion = "3";
+        /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
+        public const string EngineVersion = "4";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -640,6 +641,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var text = rule.Text == DeclarativeLanguage.TextKind.Code ? line.Code : line.Raw;
                         foreach (Match match in rule.Pattern.Matches(text))
                         {
+                            if (rule.AssignTemplate != null) { Dispatch(rule, match.Groups["var"].Value, i, line); continue; }
                             var target = match.Groups["target"].Value;
                             if (rule.Strip != null) target = rule.Strip.Replace(target, string.Empty);
                             target = target.Trim();
@@ -689,6 +691,33 @@ namespace MdExplorer.Features.Services.CodeGraph
                     foreach (var b in block.Branches)
                         _pending.Add((b.DispatchedBy, b.Id, DeclarativeLanguage.JumpsRelation, "inferred", b.Start, null));
                 }
+            }
+
+            /// <summary>
+            /// F4e: una chiamata per nome in una variabile. Si cerca all'indietro, nello stesso blocco, l'ultima assegnazione con il
+            /// nome scritto per intero: trovata, il nome si risolve come una chiamata (dedotta, non scritta), con il riferimento
+            /// scritto per il ricollegamento; non trovata (il nome arriva da un file, da un messaggio, da un parametro), un punto di
+            /// uscita che non si sa dove va — un esterno <c>dynamic:</c> con la variabile, che l'anteprima di un seme mostra.
+            /// </summary>
+            private void Dispatch(DeclarativeLanguage.ReferenceRule rule, string variable, int lineIndex, LogicalLine line)
+            {
+                if (string.IsNullOrWhiteSpace(variable)) return;
+                var assign = new Regex(rule.AssignTemplate.Replace("{var}", Regex.Escape(variable)), Lang.IgnoreCase ? RegexOptions.IgnoreCase | RegexOptions.CultureInvariant : RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+                var block = _m.Block[lineIndex];
+                for (var j = lineIndex - 1; j >= 0 && _m.Block[j] == block; j--)
+                {
+                    var m = assign.Match(_m.Lines[j].Raw);
+                    if (!m.Success) continue;
+                    var name = m.Groups["name"].Value.Trim();
+                    if (name.Length == 0) break;
+                    // dedotta, non scritta: anche il ricollegamento fra contesti non la alza oltre «inferred»
+                    var written = CodeCrossLinker.Written("symbol", name, "inferred");
+                    foreach (var (id, confidence) in Resolve(rule, name, block))
+                        _pending.Add((_m.Owner[lineIndex], id, rule.Relation, Cap(Cap(confidence, rule.Confidence), "inferred"), line.Start, written));
+                    return;
+                }
+                if (!rule.ExternalWhenUnresolved) return;
+                _pending.Add((_m.Owner[lineIndex], External("dynamic", variable), rule.Relation, "ambiguous", line.Start, "dynamic:" + variable));
             }
 
             /// <summary>

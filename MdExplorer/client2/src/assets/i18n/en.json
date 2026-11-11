@@ -1,5 +1,6 @@
 {
   "SEED": {
+    "MISS_DYNAMIC": "Calls by name that go nobody knows where (the name comes from outside): {{count}}, {{uses}} uses — if you know which, analyse it as another program",
     "IMPLEMENTATIONS": "Implementations",
     "IMPLEMENTATIONS_HINT": "The code calls an interface and does not say which class is used: tick the ones to follow. On top, the ones the program creates.",
     "CANDIDATES_COUNT": "{{count}} classes, {{created}} created here",

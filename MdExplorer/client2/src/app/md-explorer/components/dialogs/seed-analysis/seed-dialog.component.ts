@@ -75,7 +75,7 @@ export class SeedDialogComponent implements OnInit {
         this.implChoices = (p.implementations ?? []).filter(i => !i.auto && i.candidates.length > 1)
           .sort((a, b) => b.created.length - a.created.length || a.contract.localeCompare(b.contract));
         this.implAuto = (p.implementations ?? []).filter(i => i.auto);
-        this.missGroups = ['frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
+        this.missGroups = ['dynamic', 'frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
           .map(kind => ({ kind, items: byKind.get(kind)!, uses: byKind.get(kind)!.reduce((n, m) => n + m.uses, 0) }));
       },
       error: err => { this.loading = false; this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }

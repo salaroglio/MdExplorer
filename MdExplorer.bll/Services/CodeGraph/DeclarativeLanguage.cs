@@ -244,6 +244,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>La confidenza massima che la regola può dare (null = quella che dice la risoluzione).</summary>
             public string Confidence { get; init; }
             public bool ExternalWhenUnresolved { get; init; }
+            /// <summary>
+            /// F4e (11/11/2026): una chiamata per nome in una variabile. Il <see cref="Pattern"/> cattura la variabile (<c>(?&lt;var&gt;…)</c>);
+            /// questo modello, con <c>{var}</c> al posto della variabile, è l'assegnazione con il nome (<c>(?&lt;name&gt;…)</c>) che si
+            /// cerca all'indietro nello stesso blocco. Null = una regola di sempre.
+            /// </summary>
+            public string AssignTemplate { get; init; }
         }
 
         // ------------------------------------------------------------------ catalogo del progetto
@@ -588,9 +594,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     throw Fail($"{where}.confidence: '{r.Confidence}' — ammesse: {string.Join(", ", CodeScriptParser.Confidences)}", $"{where}.confidence: '{r.Confidence}' — allowed: {string.Join(", ", CodeScriptParser.Confidences)}");
                 var unresolved = r.Unresolved ?? "ignore";
                 if (unresolved != "ignore" && unresolved != "external") throw Fail($"{where}.unresolved: '{unresolved}' — ammessi: ignore, external", $"{where}.unresolved: '{unresolved}' — allowed: ignore, external");
+                if (r.Assign != null)
+                {
+                    if (resolve != ResolveKind.Symbol) throw Fail($"{where}.assign: vale solo con resolve: symbol", $"{where}.assign: only with resolve: symbol");
+                    if (!r.Assign.Contains("{var}")) throw Fail($"{where}.assign: manca {{var}}, il posto della variabile", $"{where}.assign: {{var}} is missing, where the variable goes");
+                    Rx(where + ".assign", r.Assign.Replace("{var}", "X"), "name");
+                }
                 return new ReferenceRule
                 {
-                    Relation = r.Relation, Pattern = Rx(where + ".pattern", r.Pattern, "target"),
+                    AssignTemplate = r.Assign,
+                    Relation = r.Relation, Pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : Rx(where + ".pattern", r.Pattern, "target"),
                     Text = Enum(where + ".text", r.Text, TextKind.Code),
                     After = r.After == null ? null : Rx(where + ".after", r.After), NotAfter = r.NotAfter == null ? null : Rx(where + ".notAfter", r.NotAfter),
                     Strip = r.Strip == null ? null : Rx(where + ".strip", r.Strip),
@@ -753,6 +766,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Scope { get; set; }
                 public string Confidence { get; set; }
                 public string Unresolved { get; set; }
+                public string Assign { get; set; }
             }
         }
     }
