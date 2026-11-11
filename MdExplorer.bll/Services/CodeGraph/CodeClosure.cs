@@ -51,9 +51,14 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class CodeClosureImplementations
     {
         public string Contract { get; init; }
+        /// <summary>Tutte le classi della radice che implementano il contratto, prima quelle create nella chiusura.</summary>
         public List<string> Candidates { get; } = new();
+        /// <summary>Le candidate che i file della chiusura creano con <c>new</c>: le probabili.</summary>
+        public List<string> Created { get; } = new();
         public List<string> Followed { get; } = new();
         public bool Auto { get; set; }
+        /// <summary>Perché si è seguita da sola: <c>unique</c> (una sola nella radice), <c>created</c> (la sola creata nella chiusura).</summary>
+        public string Reason { get; set; }
     }
 
     public sealed class CodeClosure

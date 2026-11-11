@@ -117,6 +117,43 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsNull(Of(chosen, "MemoryRepository.java"), "l'altra no");
         }
 
+        /// <summary>F4c: dove l'oggetto è creato con new (variabile, campo, fabbrica) la chiamata va alla classe concreta, senza proposte.</summary>
+        [TestMethod]
+        public void Follow_the_class_created_with_new_instead_of_proposing_implementations()
+        {
+            Implementations();
+            Write("app/com/acme/app/Local.java", "package com.acme.app;\n\nimport com.acme.api.Repository;\nimport com.acme.impl.JdbcRepository;\nimport com.acme.impl.MemoryRepository;\n\npublic class Local {\n" +
+                  "    private Repository other = new MemoryRepository();\n\n    void run() {\n        Repository r = new JdbcRepository();\n        r.save(\"a\");\n        other.save(\"b\");\n    }\n}\n");
+            var local = Run(new CodeClosureRequest { Seeds = new[] { "app/com/acme/app/Local.java" } });
+            Assert.IsTrue(Of(local, "JdbcRepository.java")?.Symbols.Contains("save") == true, "la variabile creata con new JdbcRepository()");
+            Assert.IsNotNull(Of(local, "Db.java"));
+            Assert.IsTrue(Of(local, "MemoryRepository.java")?.Symbols.Contains("save") == true, "il campo inizializzato con new MemoryRepository()");
+            Assert.IsFalse(local.Implementations.Any(i => i.Contract == "com.acme.api.Repository.save"), "le chiamate vanno alle classi create: niente da scegliere");
+
+            Write("app/com/acme/app/RepoFactory.java", "package com.acme.app;\n\nimport com.acme.api.Repository;\nimport com.acme.impl.JdbcRepository;\n\npublic class RepoFactory {\n    public static Repository create() { return new JdbcRepository(); }\n}\n");
+            Write("app/com/acme/app/ViaFactory.java", "package com.acme.app;\n\npublic class ViaFactory {\n    void run() {\n        RepoFactory.create().save(\"a\");\n    }\n}\n");
+            var factory = Run(new CodeClosureRequest { Seeds = new[] { "app/com/acme/app/ViaFactory.java" } });
+            Assert.IsTrue(Of(factory, "JdbcRepository.java")?.Symbols.Contains("save") == true, "create() fa return new JdbcRepository()");
+            Assert.IsNull(Of(factory, "MemoryRepository.java"), "l'altra implementazione no");
+        }
+
+        /// <summary>F4c: fra più implementazioni, se i file della chiusura ne creano una sola, si segue quella («created»).</summary>
+        [TestMethod]
+        public void Follow_the_only_implementation_the_closure_creates()
+        {
+            Implementations();
+            Write("app/com/acme/app/Wiring.java", "package com.acme.app;\n\nimport com.acme.api.Repository;\nimport com.acme.impl.JdbcRepository;\n\npublic class Wiring {\n    public static Repository repository() { Repository r = make(); return r; }\n" +
+                  "    private static Repository make() { Object o = new JdbcRepository(); return (Repository) o; }\n}\n");
+            Write("app/com/acme/app/Wired.java", "package com.acme.app;\n\nimport com.acme.api.Repository;\n\npublic class Wired {\n    private Repository repo = Wiring.repository();\n\n    void run() {\n        repo.save(\"a\");\n    }\n}\n");
+            var c = Run(new CodeClosureRequest { Seeds = new[] { "app/com/acme/app/Wired.java" } });
+            var save = c.Implementations.Single(i => i.Contract == "com.acme.api.Repository.save");
+            Assert.AreEqual(("created", true), (save.Reason, save.Auto), "la sola creata nella chiusura");
+            CollectionAssert.AreEqual(new[] { "lib/com/acme/impl/JdbcRepository.java" }, save.Created);
+            Assert.AreEqual("lib/com/acme/impl/JdbcRepository.java", save.Candidates[0], "le create per prime");
+            Assert.IsTrue(Of(c, "JdbcRepository.java")?.Symbols.Contains("save") == true);
+            Assert.IsNull(Of(c, "MemoryRepository.java"), "mai creata qui: resta da scegliere");
+        }
+
         [TestMethod]
         public void Pick_the_overload_by_argument_count()
         {

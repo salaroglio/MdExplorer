@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "9";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b); 9: archi verso le implementazioni segnati impl: (F4c)
+        public string ExtractorVersion => "10";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b); 9: archi verso le implementazioni segnati impl: (F4c); 10: la classe concreta dove l'oggetto è creato con new (F4c)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -286,7 +286,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (!MethodsByOwner.TryGetValue(fqn, out var byName)) MethodsByOwner[fqn] = byName = new(StringComparer.Ordinal);
                         if (!byName.TryGetValue(mname, out var ol)) byName[mname] = ol = new();
                         var (arity, varargs) = Arity(m);
-                        ol.Add(new MethodEntry(mid, arity, varargs, ReturnTypeOf(m)?.Text, fqn, info.TypeParams.Concat(TypeParamsOf(m)).ToHashSet(StringComparer.Ordinal)));
+                        ol.Add(new MethodEntry(mid, arity, varargs, FileEmitter.Concrete(ReturnTypeOf(m)?.Text, FileEmitter.CreatedByEveryReturn(m)), fqn, info.TypeParams.Concat(TypeParamsOf(m)).ToHashSet(StringComparer.Ordinal)));
                     }
                     else if (m.Type == "constructor_declaration" && NameOf(m) is string cname)
                     {
@@ -299,7 +299,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var typeText = m.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
                         if (typeText == null) continue;
                         foreach (var v in m.NamedChildren.Where(c => c.Type == "variable_declarator"))
-                            if (NameOf(v) is string fname) info.FieldTypes[fname] = typeText + (v.NamedChildren.Any(c => c.Type == "dimensions") ? "[]" : "");
+                            if (NameOf(v) is string fname)
+                                info.FieldTypes[fname] = FileEmitter.Concrete(typeText, v.NamedChildren.FirstOrDefault(c => c.Type == "object_creation_expression")?.NamedChildren.FirstOrDefault(IsTypeNode)?.Text)
+                                    + (v.NamedChildren.Any(c => c.Type == "dimensions") ? "[]" : "");
                     }
                     else if (TypeDeclarations.Contains(m.Type)) CollectType(pf, ctx, m, fqn);
                 }
@@ -871,6 +873,37 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public IEnumerable<string> Names => _byName.Keys;
             }
 
+            /// <summary>
+            /// F4c (11/11/2026): dove l'oggetto viene creato, il codice dice la classe concreta — <c>Repository r = new JdbcRepository()</c>,
+            /// un campo inizializzato così, una fabbrica che fa <c>return new JdbcRepository()</c>. La si tiene al posto del tipo
+            /// dichiarato (un'interfaccia), così la chiamata va alla classe vera e non a tutte le implementazioni. Solo se è un'altra
+            /// classe e non un generico col diamante (<c>List&lt;String&gt; l = new ArrayList&lt;&gt;()</c> resta List&lt;String&gt;:
+            /// il tipo degli elementi serve ai riceventi dopo).
+            /// </summary>
+            internal static string Concrete(string declared, string created)
+            {
+                if (declared == null || string.IsNullOrWhiteSpace(created) || created.Contains("<>")) return declared;
+                static string Head(string t) { var lt = t.IndexOf('<'); return (lt < 0 ? t : t[..lt]).Trim(); }
+                return Head(created) == Head(declared) ? declared : created.Trim();
+            }
+
+            /// <summary>Il tipo che ogni <c>return</c> del metodo crea con <c>new</c>, se è sempre lo stesso; null altrimenti.</summary>
+            internal static string CreatedByEveryReturn(Node method)
+            {
+                var body = method.NamedChildren.FirstOrDefault(c => c.Type == "block");
+                if (body == null) return null;
+                string type = null;
+                foreach (var r in Walk(body).Where(n => n.Type == "return_statement"))
+                {
+                    var created = r.NamedChildren.FirstOrDefault();
+                    if (created?.Type != "object_creation_expression" || created.NamedChildren.Any(c => c.Type == "class_body")) return null;   // una classe anonima no
+                    var t = created.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
+                    if (t == null || (type != null && t != type)) return null;
+                    type = t;
+                }
+                return type;
+            }
+
             private static LocalScope Locals(Node scope)
             {
                 var locals = new LocalScope();
@@ -891,8 +924,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                         {
                             var declared = n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
                             foreach (var v in n.NamedChildren.Where(c => c.Type == "variable_declarator"))
-                                // var x = new T(): il tipo è quello creato; altrimenti non si sa
-                                locals.Add(NameOf(v), declared == "var" ? Created(v) : declared == null ? null : declared + Dims(v), n.Parent, n);
+                                // var x = new T(): il tipo è quello creato; I x = new T() (F4c): la classe concreta, se è un'altra
+                                locals.Add(NameOf(v), declared == "var" ? Created(v) : declared == null ? null : Concrete(declared, Created(v)) + Dims(v), n.Parent, n);
                             break;
                         }
                         case "enhanced_for_statement":

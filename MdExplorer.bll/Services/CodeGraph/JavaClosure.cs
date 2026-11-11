@@ -104,6 +104,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             var implementorsCache = new Dictionary<string, List<(string Path, string TypeFqn)>>(StringComparer.Ordinal);
             // le righe con implements/extends di tutta la radice, lette UNA volta (un grep): poi ogni tipo si cerca in memoria
             List<(string Path, string Text)> heritage = null;
+            // i nomi delle classi create con new nei file della chiusura (per file, letti una volta)
+            var createdByFile = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             Discover();
             // F4b (10/11/2026): letti da soli, i file non sanno il tipo di un ricevente che viene da un altro file (a().b()). Ora i
             // file della chiusura si rileggono INSIEME, come un piccolo contesto: l'estrattore deduce i riceventi, le madri, le
@@ -164,6 +166,18 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return implementorsCache[contractType] = found;
             }
 
+            HashSet<string> Instantiated()
+            {
+                var all = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var (path, st) in states)
+                {
+                    if (!createdByFile.TryGetValue(path, out var names))
+                        createdByFile[path] = names = new HashSet<string>(System.Text.RegularExpressions.Regex.Matches(st.Text, @"\bnew\s+([A-Z]\w*)\s*[(<]").Select(m => m.Groups[1].Value), StringComparer.Ordinal);
+                    all.UnionWith(names);
+                }
+                return all;
+            }
+
             void DecideImplementations()
             {
                 // una copia: seguire un'implementazione può far scoprire altri metodi di interfaccia, decisi al giro dopo
@@ -176,9 +190,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!decided.TryGetValue(contract, out var d)) decided[contract] = d = new CodeClosureImplementations { Contract = contract };
                     var inRoot = ImplementorsInRoot(type);
                     var candidates = seen.Keys.Concat(inRoot.Select(i => i.Path)).Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToList();
-                    d.Candidates.Clear(); d.Candidates.AddRange(candidates);
-                    d.Auto = candidates.Count == 1;
-                    foreach (var path in candidates.Where(p => (d.Auto || request.Included.Contains(p)) && !d.Followed.Contains(p)))
+                    // le probabili: quelle che i file della chiusura creano con new (una classe mai creata qui difficilmente ci arriva)
+                    var instantiated = Instantiated();
+                    var created = candidates.Where(p => instantiated.Contains(System.IO.Path.GetFileNameWithoutExtension(p))).ToList();
+                    d.Candidates.Clear(); d.Candidates.AddRange(created.Concat(candidates.Except(created)));
+                    d.Created.Clear(); d.Created.AddRange(created);
+                    d.Reason = candidates.Count == 1 ? "unique" : created.Count == 1 ? "created" : null;
+                    d.Auto = d.Reason != null;
+                    var auto = d.Reason == "unique" ? candidates : d.Reason == "created" ? created : new List<string>();
+                    foreach (var path in candidates.Where(p => (auto.Contains(p) || request.Included.Contains(p)) && !d.Followed.Contains(p)))
                     {
                         d.Followed.Add(path);
                         if (seen.TryGetValue(path, out var methodId) && states.TryGetValue(path, out var st)) { Follow(st, methodId); continue; }
