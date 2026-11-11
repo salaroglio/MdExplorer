@@ -358,6 +358,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             }).ToList();
         }
 
+        public async Task<List<CodeOwnerMember>> SymbolsOfLanguagesAsync(string projectPath, IReadOnlyCollection<string> languages, CancellationToken ct = default)
+        {
+            if (languages == null || languages.Count == 0) return new List<CodeOwnerMember>();
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?s ?name ?qn WHERE {{ GRAPH {g.DataIri} {{ VALUES ?lang {{ {string.Join(" ", languages.Select(Lit))} }} " +
+                "?s a code:Symbol ; code:language ?lang ; code:kind ?k ; code:name ?name ; code:qualifiedName ?qn . " +
+                "FILTER(?k NOT IN (\"external\", \"fragment\", \"module\")) } } ORDER BY ?qn", ct);
+            return rows.Select(r => new CodeOwnerMember
+            {
+                OwnerId = SymbolId(r["s"]), MemberId = SymbolId(r["s"]), OwnerQualifiedName = Str(r, "qn"), MemberQualifiedName = Str(r, "qn"),
+                OwnerName = Str(r, "name"), MemberName = Str(r, "name"),
+            }).ToList();
+        }
+
         public async Task<List<CodePageLink>> AngularLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
         {
             var links = new List<CodePageLink>();

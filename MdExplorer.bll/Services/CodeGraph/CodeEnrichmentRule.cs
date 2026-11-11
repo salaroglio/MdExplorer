@@ -108,7 +108,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 case CodeRuleOwnerSource.Class:
                     if (string.IsNullOrWhiteSpace(Owner.Class)) throw Bad("owner.from = class vuole class.", "owner.from = class needs class.");
                     break;
+                case CodeRuleOwnerSource.Symbol:
+                    if (Owner.Languages == null || Owner.Languages.Count == 0 || Owner.Languages.Any(string.IsNullOrWhiteSpace))
+                        throw Bad("owner.from = symbol vuole languages: in quali linguaggi cercare il simbolo che la stringa nomina.", "owner.from = symbol needs languages: in which languages to look for the symbol the string names.");
+                    if (Split != null || Owner.AliasMap != null)
+                        throw Bad("owner.from = symbol: la stringa intera è il nome del simbolo, split e aliasMap non valgono.", "owner.from = symbol: the whole string is the symbol's name, split and aliasMap do not apply.");
+                    break;
             }
+            if (Owner.From != CodeRuleOwnerSource.Symbol && (Owner.Languages != null || Owner.IgnoreCase))
+                throw Bad("languages e ignoreCase valgono solo con owner.from = symbol.", "languages and ignoreCase are only for owner.from = symbol.");
             if (Owner.AliasMap != null && (Path.IsPathRooted(Owner.AliasMap) || Owner.AliasMap.Contains("..")))
                 throw Bad($"aliasMap '{Owner.AliasMap}' deve essere un percorso relativo alla radice del progetto.", $"aliasMap '{Owner.AliasMap}' must be a path relative to the project root.");
         }
@@ -230,6 +238,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// senza estensione) o per percorso che finisce così (<c>ordini/elenco</c>).
         /// </summary>
         Page,
+        /// <summary>
+        /// La stringa nomina un SIMBOLO di un altro linguaggio (11/11/2026): la procedura di un database chiamata dal codice
+        /// (<c>cmd.CommandText = "PKG_ORDINI.ELENCO"</c>), la query di un file. Si cerca fra i simboli dei linguaggi di
+        /// <c>languages</c>, per nome o per fine del nome qualificato (<c>PKG.PROC</c>); con <c>ignoreCase</c> senza badare
+        /// alle maiuscole.
+        /// </summary>
+        Symbol,
     }
 
     public sealed class CodeRuleOwner
@@ -239,6 +254,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Class { get; set; }
         /// <summary>Un file <c>.properties</c> (relativo al progetto) che traduce l'alias in classe: <c>alias=com.x.Classe</c>.</summary>
         public string AliasMap { get; set; }
+        /// <summary>Solo <c>symbol</c>: gli id dei linguaggi in cui cercare il simbolo (<c>plsql</c>…), come in <c>.mde-languages/</c> o fra quelli di MdExplorer.</summary>
+        public List<string> Languages { get; set; }
+        /// <summary>Solo <c>symbol</c>: il nome si confronta senza badare alle maiuscole (SQL, Visual Basic).</summary>
+        public bool IgnoreCase { get; set; }
     }
 
     /// <summary>Gli enum delle regole in JSON come nel file: <c>pairedCall</c>, non 1 né <c>PairedCall</c> (anche nelle risposte delle API).</summary>

@@ -294,7 +294,8 @@ public sealed class CodeTools : McpToolsBase
         "Rule JSON: {\"id\": \"lowercase-dashes\", \"description\": \"what it does, plain words for the user\", " +
         "\"call\": {\"callee\": \"methodName\", \"argument\": 0}, " +
         "\"split\": {\"separator\": \".\", \"at\": \"last\"|\"first\"} (optional: the string is owner+separator+method), " +
-        "\"owner\": {\"from\": \"string\" (the part before the separator) | \"pairedCall\" (the string of another call in the same method, " +
+        "\"owner\": {\"from\": \"symbol\" ({\"languages\": [\"plsql\"], \"ignoreCase\": true}: the WHOLE string names a symbol of another language — a database procedure, " +
+        "a query of a file — found by name or by the qualified name after the file, e.g. PKG.PROC; no split, no aliasMap) | \"string\" (the part before the separator) | \"pairedCall\" (the string of another call in the same method, " +
         "written before it or in its receiver: {\"pairedCall\": {\"callee\": \"x\", \"argument\": 0}}) | \"class\" ({\"class\": \"qualified.Name\"}) | " +
         "\"page\" (the string names a PAGE of the project's page dialect, not a method: e.g. the page shown after the call; matched by file name or path end), " +
         "\"aliasMap\": \"project-relative/path.properties\" (optional: alias=qualified.ClassName)}, " +

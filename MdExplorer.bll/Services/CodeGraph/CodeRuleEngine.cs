@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     [System.Text.Json.Serialization.JsonConverter(typeof(CamelCaseEnumConverter))]
     public enum CodeRuleMiss
     {
-        NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets, PageNotFound,
+        NoSeparator, NoPairedCall, AliasNotInMap, ClassNotFound, TooManyClasses, MethodNotFound, TooManyTargets, PageNotFound, SymbolNotFound,
         // regole di registrazione (D43): il fatto che manca, o il capo che il grafo non ha
         NoTypeArgument, NoChain, ChainAmbiguous, NoReturnType, AbstractionNotInGraph, ImplementationNotInGraph,
     }
@@ -127,6 +127,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var rows = owners.ToList();
             var byQualified = rows.GroupBy(o => o.OwnerQualifiedName, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             var byName = rows.GroupBy(o => o.OwnerName, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+            Dictionary<string, List<CodeOwnerMember>> symbolsByName = null;
             var resolved = new List<CodeRuleSiteResult>();
             var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
             var contexts = new Dictionary<string, CodeRuleContext>(StringComparer.Ordinal);
@@ -137,7 +138,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var r = Prepare(rule, site, pairedByCaller, aliasMap, out var skip);
                 if (skip == Skip.NotLiteral) { preview.NotLiteral++; continue; }
                 if (skip == Skip.Excluded) { preview.Excluded++; continue; }
-                if (rule.Owner.From == CodeRuleOwnerSource.Page) ResolvePage(r, rows); else Resolve(r, byQualified, byName);
+                if (rule.Owner.From == CodeRuleOwnerSource.Page) ResolvePage(r, rows);
+                else if (rule.Owner.From == CodeRuleOwnerSource.Symbol) ResolveSymbol(r, symbolsByName ??= SymbolIndex(rows, rule.Owner.IgnoreCase));
+                else Resolve(r, byQualified, byName);
                 var siteContexts = ContextsOf(site.Path, contexts);
                 foreach (var c in siteContexts) { c.CallSites++; if (r.Miss == null) c.Resolved++; }
                 if (scope.Count > 0 && !scope.Any(s => (site.Path ?? string.Empty).StartsWith(s, StringComparison.Ordinal))) { preview.OutOfScope++; continue; }
@@ -221,6 +224,38 @@ namespace MdExplorer.Features.Services.CodeGraph
             else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
         }
 
+        /// <summary>
+        /// I simboli di altri linguaggi per come una stringa li può nominare: il nome, e la parte del nome qualificato dopo il
+        /// file (<c>db/ordini.pks:PKG_ORDINI.ELENCO</c> → <c>PKG_ORDINI.ELENCO</c>).
+        /// </summary>
+        private static Dictionary<string, List<CodeOwnerMember>> SymbolIndex(List<CodeOwnerMember> symbols, bool ignoreCase)
+        {
+            var index = new Dictionary<string, List<CodeOwnerMember>>(ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            void Add(string key, CodeOwnerMember s)
+            {
+                if (string.IsNullOrEmpty(key)) return;
+                if (!index.TryGetValue(key, out var list)) index[key] = list = new List<CodeOwnerMember>();
+                list.Add(s);
+            }
+            foreach (var s in symbols)
+            {
+                Add(s.MemberName, s);
+                var qualified = s.MemberQualifiedName ?? string.Empty;
+                var local = qualified[(qualified.LastIndexOf(':') + 1)..];
+                if (!string.Equals(local, s.MemberName, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) Add(local, s);
+            }
+            return index;
+        }
+
+        private static void ResolveSymbol(CodeRuleSiteResult r, Dictionary<string, List<CodeOwnerMember>> index)
+        {
+            if (r.Miss != null) return;
+            if (index.TryGetValue(r.Value.Trim(), out var found))
+                r.Targets.AddRange(found.GroupBy(s => s.MemberId, StringComparer.Ordinal).Select(g => g.First()));
+            if (r.Targets.Count == 0) r.Miss = CodeRuleMiss.SymbolNotFound;
+            else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
+        }
+
         /// <summary>Le cartelle che contengono il file, fino a <see cref="MaxContextDepth"/> livelli: <c>a/</c>, <c>a/b/</c>, <c>a/b/c/</c>.</summary>
         internal static IEnumerable<CodeRuleContext> ContextsOf(string path, Dictionary<string, CodeRuleContext> contexts)
         {
@@ -269,6 +304,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 case CodeRuleOwnerSource.Page:
                     // la pagina è il nome (dopo il separatore, se c'è); la mappa, se c'è, traduce quello
                     r.OwnerKey = r.MemberName;
+                    break;
+                case CodeRuleOwnerSource.Symbol:
+                    r.OwnerKey = value;
                     break;
             }
             if (rule.Owner.AliasMap != null)

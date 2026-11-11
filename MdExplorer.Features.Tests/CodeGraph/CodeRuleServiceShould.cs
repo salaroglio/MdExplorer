@@ -346,6 +346,79 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "argument e generic insieme: una posizione sola");
         }
 
+        /// <summary>
+        /// 11/11/2026: dal codice alla procedura del database. Il nome sta in una stringa assegnata a una proprietà (o in una
+        /// costante passata a un costruttore) e il bersaglio è un simbolo di un ALTRO linguaggio, scritto con altre maiuscole.
+        /// </summary>
+        [TestMethod]
+        public async Task Link_a_name_assigned_in_code_to_a_symbol_of_another_language()
+        {
+            var vb = Path.Combine(_project, "program", "vb");
+            var db = Path.Combine(_project, "program", "db");
+            Directory.CreateDirectory(vb); Directory.CreateDirectory(db);
+            File.WriteAllText(Path.Combine(vb, "Ordini.vb"),
+                "Public Class Comando\n  Public Property CommandText As String\n  Public Sub New(Optional testo As String = Nothing)\n  End Sub\nEnd Class\n" +
+                "Public Class OrdiniDb\n" +
+                "  Private Const SP_TOTALE As String = \"TOTALE\"\n" +
+                "  Public Sub Elenco()\n" +
+                "    Dim cmd As New Comando()\n" +
+                "    cmd.CommandText = \"elenco\"\n" +            // riga 10: minuscolo nel codice, maiuscolo nel database
+                "  End Sub\n" +
+                "  Public Sub Totale()\n" +
+                "    Dim cmd As New Comando(SP_TOTALE)\n" +         // riga 13: costante passata al costruttore
+                "    cmd.CommandText = \"NON_ESISTE\"\n" +
+                "  End Sub\n" +
+                "  Public Sub Ancora()\n" +
+                "    Dim cmd As New Comando()\n" +
+                "    cmd.CommandText = \"Totale\"\n" +
+                "  End Sub\n" +
+                "End Class\n");
+            File.WriteAllText(Path.Combine(db, "ordini.toy"), "PROC ELENCO()\nENDPROC\nPROC TOTALE()\nENDPROC\n");
+            void Emit(ICodeExtractor extractor, string folder, string pattern)
+            {
+                var files = Directory.GetFiles(folder, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                }
+            }
+            Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), vb, "*.vb");
+            Emit(new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(DeclarativeLanguageExtractorShould.ToyDefinition, "toy/language.yml")), db, "*.toy");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            var byProperty = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-testo"", ""description"": ""CommandText nomina la procedura eseguita."",
+                ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ], ""ignoreCase"": true } }");
+            var preview = await _rules.PreviewAsync(_project, byProperty);
+            Assert.AreEqual((3, 2, 1), (preview.CallSites, preview.Resolved, preview.Unresolved));
+            Assert.AreEqual(1, preview.MissCounts["symbolNotFound"], "NON_ESISTE non c'è: si dice, non si inventa");
+            CollectionAssert.Contains(preview.Sample.Select(x => x.Site.Line).ToList(), 10);
+            await _rules.ApplyAsync(_project, byProperty, "MarkAgent / test");
+            var elencoVb = (await _store.ResolveAsync(_project, "OrdiniDb.Elenco")).Single(x => x.Kind == "method").Id;
+            var edge = (await _store.NeighborsAsync(_project, elencoVb, "dispatches", "out", 1, 10)).Single();
+            Assert.AreEqual(("ELENCO", "rule"), (edge.Other.Name, edge.Confidence), "dal metodo VB alla procedura dell'altro linguaggio");
+
+            var byConstructor = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-nuovo"", ""description"": ""New Comando(nome): la procedura eseguita."",
+                ""call"": { ""callee"": ""Comando"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ] } }");
+            Assert.AreEqual((1, 1), ((await _rules.PreviewAsync(_project, byConstructor)).CallSites, (await _rules.PreviewAsync(_project, byConstructor)).Resolved), "la costante vale come la stringa scritta");
+
+            var wrong = CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""cobol"" ] } }");
+            StringAssert.Contains((await Assert.ThrowsExceptionAsync<CodeRuleException>(() => _rules.PreviewAsync(_project, wrong))).Message, "cobol");
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""c"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"" } }"), "senza languages");
+
+            // il nome qualificato dopo il file: «PKG.PROC» trova il simbolo «db/ordini.pks:PKG.PROC»
+            var site = new CodeCallSiteView { CallerId = "c", Callee = "CommandText", Path = "a.vb", Line = 1, Iri = "urn:x" };
+            site.Arguments[0] = "pkg_ordini.elenco";
+            var qualified = CodeRuleEngine.Evaluate(byProperty, new[] { site }, null, null, new[]
+            {
+                new CodeOwnerMember { OwnerId = "p", MemberId = "p", OwnerName = "ELENCO", MemberName = "ELENCO", OwnerQualifiedName = "db/ordini.pks:PKG_ORDINI.ELENCO", MemberQualifiedName = "db/ordini.pks:PKG_ORDINI.ELENCO" },
+                new CodeOwnerMember { OwnerId = "q", MemberId = "q", OwnerName = "ELENCO", MemberName = "ELENCO", OwnerQualifiedName = "db/altro.pks:PKG_ALTRO.ELENCO", MemberQualifiedName = "db/altro.pks:PKG_ALTRO.ELENCO" },
+            });
+            Assert.AreEqual(1, qualified.Resolved, "PKG_ORDINI.ELENCO, non l'omonima di un altro package");
+        }
+
         [TestMethod]
         public void Refuse_a_registration_rule_that_reads_a_fact_its_anchor_does_not_have()
         {

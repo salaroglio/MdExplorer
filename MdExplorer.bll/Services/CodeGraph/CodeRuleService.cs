@@ -49,6 +49,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                         "owner.from = page: the project has no page dialect (.mde-languages/<id>/ with template), so there are no pages in the graph."));
                 owners = await _store.PagesAsync(projectPath, pageLanguages, ct);
             }
+            else if (rule.Owner.From == CodeRuleOwnerSource.Symbol)
+            {
+                // la stringa nomina un simbolo di un altro linguaggio (la procedura di un database, la query di un file)
+                owners = await _store.SymbolsOfLanguagesAsync(projectPath, rule.Owner.Languages, ct);
+                if (owners.Count == 0)
+                    throw new CodeRuleException(UiText.Say($"owner.from = symbol: nel grafo non c'è nessun simbolo dei linguaggi {string.Join(", ", rule.Owner.Languages)}. O l'id è sbagliato (guarda code_inventory), o quei sorgenti non sono ancora analizzati.",
+                        $"owner.from = symbol: the graph has no symbol of the languages {string.Join(", ", rule.Owner.Languages)}. Either the id is wrong (see code_inventory), or those sources are not analysed yet."));
+            }
             else owners = await _store.OwnersWithMembersAsync(projectPath, CodeRuleEngine.OwnerKeys(rule, sites, paired, aliasMap), ct);
             return CodeRuleEngine.Evaluate(rule, sites, paired, aliasMap, owners);
         }

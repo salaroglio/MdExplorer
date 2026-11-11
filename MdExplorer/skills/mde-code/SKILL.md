@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 21
+  version: 22
   updatePolicy: replace
 ---
 
@@ -104,6 +104,16 @@ callers and impact.
   registration file). `implements` says who could run; `resolvesTo` says who is registered to run: a class that
   implements but is not registered is not loaded by that mechanism. A call that ends on an abstract method continues
   through `resolvesTo`; `code_impact` of an implementation climbs back to whoever calls the interface.
+- **Events** (C#, Visual Basic): an event is a node (kind `field`); who raises it (`RaiseEvent`, `X?.Invoke(…)`) `calls`
+  it, and it `calls` its handlers (`Handles`, `AddHandler`, `+=`) with confidence `inferred`. In VB the `WithEvents` field
+  (the control of a page or a form) also `calls` its handler, so «control → handler → …» can be followed. An event of a
+  library (`Button.Click`) is ONE external node shared by every control of that type: follow the field, not the event.
+  A handler wired only in the markup (`OnClick="…"` in an `.aspx`) or by naming convention (`Page_Load` with
+  `AutoEventWireup`) has no such edge.
+- **.NET projects**: C# and VB are read one project file at a time (`.csproj`, `.vbproj`: root namespace, project
+  imports, referenced libraries and projects). For a .NET Framework project the framework libraries must be on the
+  computer; when they are not, the scan warns and what the code inherits or calls from the framework stays an
+  `ambiguous` external written as in the source — say so instead of treating those names as resolved types.
 - **Pages** (when the project has a page dialect): a page is a `module`; its `control` symbols are the elements with an
   event (`onclick`…); `includes` links a page to the pages it includes; `guard` on a control or an `includes` edge is the
   condition in the page (`$if[ROLE==S]$`): the control exists only then. Visibility in the page is not authorisation on the
@@ -157,6 +167,18 @@ candidates only) are for change analyses and reviews. Cite every claim with `pat
 Some programs pick the method to run from a STRING: `setTarget("readData")`, `sendPage('ordersController.list')`,
 a dispatcher with a map. The parser sees text, not a call, so the chain breaks there. Only for a concrete question of the
 user (never a systematic search):
+
+In C# and Visual Basic a name is recorded as a string fact also when it is not an argument of a call: **assigned to a
+property or a field** (`cmd.CommandText = "PKG_ORDERS.LIST"`, `With {.ReportPath = "orders.rdlc"}`) — it is a call site
+whose callee is the property name and whose argument 0 is the string; **passed to a constructor**
+(`New OleDbCommand("PKG_ORDERS.LIST", cn)`: callee = the type name); and through a **constant** (`Const SP = "…"` used as
+the argument). Sentences (text with spaces, such as an SQL statement) are never recorded.
+
+When the string names something of ANOTHER language — a database procedure, a query in a file, a report — the target is
+`"owner": {"from": "symbol", "languages": ["<id>"], "ignoreCase": true}`: the whole string is searched among the symbols
+of those languages, by name or by the qualified name after the file (`PKG_ORDERS.LIST`). The language must be in the
+graph (a built-in one or a package in `.mde-languages/`): if the database sources or the reports are not analysed yet,
+that comes first (`code_language_try` / `code_language_propose`).
 
 1. Answer the question anyway, reading the source; tell the user the graph stops at that point.
 2. Write the convention as a rule and dry-run it with `code_rule_try`; read `missCounts` and `missExamples`, fix and retry

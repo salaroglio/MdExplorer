@@ -86,6 +86,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         /// <summary>Le pagine dei dialetti dati (moduli), per le regole di tipo 3: id in <c>OwnerId</c>/<c>MemberId</c>, percorso logico in <c>OwnerQualifiedName</c>.</summary>
         Task<List<CodeOwnerMember>> PagesAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
+        /// <summary>I simboli (non esterni, non frammenti) di quei linguaggi: ciò che una stringa in un altro linguaggio può nominare.</summary>
+        Task<List<CodeOwnerMember>> SymbolsOfLanguagesAsync(string projectPath, IReadOnlyCollection<string> languages, CancellationToken ct = default);
         /// <summary>
         /// I collegamenti fra le pagine e i componenti Angular (D42 B): il componente che ha la pagina come <c>templateUrl</c>
         /// la «renders»; una chiamata senza ricevente della pagina va al metodo con quel nome del componente; un punto di
