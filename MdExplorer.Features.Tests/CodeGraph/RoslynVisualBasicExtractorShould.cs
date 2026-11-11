@@ -213,6 +213,35 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Record_attributes_with_their_type_and_string_arguments_and_the_return_type()
+        {
+            File.WriteAllText(Path.Combine(_src, "Parti.vb"),
+                "Namespace Demo\n" +
+                "  <Serializable>\n" +
+                "  <Export(GetType(IFoo)), ExportMetadata(\"Nome\", \"pdf\")>\n" +
+                "  Public Class Parte\n" +
+                "    <Import(ContractType:=GetType(IFoo))> Private _altro As IFoo\n" +
+                "    <Provides>\n" +
+                "    Public Function Crea() As Baz\n" +
+                "      Return New Baz()\n" +
+                "    End Function\n" +
+                "    <Tipi({GetType(Foo), GetType(Baz)})>\n" +
+                "    Public Property Nome As String\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Parti.vb").Script;
+            string Of(string symbol) => string.Join(" | ", s.Annotations.Where(a => a.SymbolId == s.Symbols.Single(x => x.Name == symbol && x.Kind != "external").Id).OrderBy(a => a.Ordinal)
+                .Select(a => a.Name + "(" + string.Join(", ", a.Arguments.OrderBy(x => x.Index).Select(x => $"{x.Element}={x.TypeName ?? "'" + x.Value + "'"}")) + ")"));
+
+            Assert.AreEqual("Export(value=Demo.IFoo) | ExportMetadata(value='Nome', arg1='pdf')", Of("Parte"));
+            Assert.AreEqual("Import(ContractType=Demo.IFoo)", Of("_altro"));
+            Assert.AreEqual("Provides()", Of("Crea"));
+            Assert.AreEqual("Tipi(value=Demo.Foo, value=Demo.Baz)", Of("Nome"));
+            Assert.AreEqual("Demo.Baz", s.Symbols.Single(x => x.Name == "Crea").ReturnTypeName);
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Parti.vb").RecordCount);
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.vb"),

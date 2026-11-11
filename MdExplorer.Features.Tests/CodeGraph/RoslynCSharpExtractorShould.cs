@@ -138,6 +138,31 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Record_attributes_with_their_type_and_string_arguments_and_the_return_type()
+        {
+            // MEF non è fra le reference: la classe dell'attributo non si risolve, il fatto si legge lo stesso
+            File.WriteAllText(Path.Combine(_src, "Parti.cs"),
+                "using System;\nnamespace Demo {\n" +
+                "  [Serializable]\n" +
+                "  [Export(typeof(IFoo)), ExportMetadata(\"Nome\", \"pdf\")]\n" +
+                "  public class Parte : IFoo {\n" +
+                "    [Import(ContractType = typeof(IFoo), AllowDefault = true)] private IFoo _altro;\n" +
+                "    [Provides] public Baz Crea() => new Baz();\n" +
+                "    [Tipi(new[] { typeof(Foo), typeof(Baz) })] public System.Threading.Tasks.Task<int> Bar(string path, int retries = 3) => null;\n" +
+                "  }\n}\n");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Parti.cs").Script;
+            string Of(string symbol) => string.Join(" | ", s.Annotations.Where(a => a.SymbolId == s.Symbols.Single(x => x.Name == symbol && x.Kind != "external").Id).OrderBy(a => a.Ordinal)
+                .Select(a => a.Name + "(" + string.Join(", ", a.Arguments.OrderBy(x => x.Index).Select(x => $"{x.Element}={x.TypeName ?? "'" + x.Value + "'"}")) + ")"));
+
+            Assert.AreEqual("Export(value=Demo.IFoo) | ExportMetadata(value='Nome', arg1='pdf')", Of("Parte"), "Serializable non dice niente al grafo");
+            Assert.AreEqual("Import(ContractType=Demo.IFoo)", Of("_altro"), "l'attributo di un campo; AllowDefault non è né un tipo né un nome");
+            Assert.AreEqual("Provides()", Of("Crea"));
+            Assert.AreEqual("Tipi(value=Demo.Foo, value=Demo.Baz)", Of("Bar"), "un vettore: un argomento per elemento");
+            Assert.AreEqual("Demo.Baz", s.Symbols.Single(x => x.Name == "Crea").ReturnTypeName, "per le regole «il metodo annotato fornisce ciò che restituisce»");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Parti.cs").RecordCount);
+        }
+
+        [TestMethod]
         public async System.Threading.Tasks.Task Write_scripts_the_parser_reads_back_and_the_loader_puts_in_fuseki()
         {
             var extractor = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance);

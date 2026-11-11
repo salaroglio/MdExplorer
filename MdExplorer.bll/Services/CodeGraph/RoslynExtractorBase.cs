@@ -41,6 +41,36 @@ namespace MdExplorer.Features.Services.CodeGraph
             public SyntaxNode ReceiverNode { get; init; }
         }
 
+        /// <summary>Un argomento di un attributo: una stringa o un tipo (<c>typeof(X)</c> / <c>GetType(X)</c>); un vettore dà un argomento per elemento.</summary>
+        protected readonly struct AttributeArgumentShape
+        {
+            /// <summary>Il nome scritto (<c>Name = …</c>, <c>Name:=…</c>); null per un argomento per posizione.</summary>
+            public string Element { get; init; }
+            /// <summary>La posizione fra gli argomenti senza nome, da 0; -1 per uno con nome.</summary>
+            public int Position { get; init; }
+            public string Value { get; init; }
+            public SyntaxNode TypeNode { get; init; }
+        }
+
+        /// <summary>Un attributo come è scritto su una dichiarazione (D43 per .NET): <c>[Export(typeof(IFoo))]</c>, <c>&lt;Export(GetType(IFoo))&gt;</c>.</summary>
+        protected readonly struct AttributeShape
+        {
+            /// <summary>Il nome scritto, per risolvere la classe dell'attributo.</summary>
+            public SyntaxNode NameNode { get; init; }
+            public IReadOnlyList<AttributeArgumentShape> Arguments { get; init; }
+        }
+
+        /// <summary>Gli attributi scritti sulla dichiarazione di un tipo o di un membro, nell'ordine.</summary>
+        protected abstract IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration);
+
+        /// <summary>Gli attributi che non dicono niente al grafo: non si registrano (come <c>@Override</c> in Java).</summary>
+        private static readonly HashSet<string> SilentAttributes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Serializable", "NonSerialized", "Obsolete", "Flags", "CompilerGenerated", "GeneratedCode", "DesignerGenerated", "DebuggerStepThrough",
+            "DebuggerNonUserCode", "DebuggerDisplay", "DebuggerBrowsable", "DebuggerHidden", "SuppressMessage", "MethodImpl", "StructLayout", "FieldOffset",
+            "Extension", "ParamArray", "CLSCompliant", "ComVisible", "Conditional", "EditorBrowsable", "Browsable", "STAThread", "MTAThread", "ThreadStatic",
+        };
+
         protected abstract SyntaxTree Parse(string text, string path);
         protected abstract Compilation Compile(IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references);
         /// <summary>Le dichiarazioni di tipo del file, col nodo INTERO (le sue righe sono quelle del simbolo).</summary>
@@ -142,6 +172,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var type = TypeSymbol(model, typeDecl);
                 if (type == null) continue;
                 var typeId = ctx.Declare(type, typeDecl, KindOf(type), signature: type.ToDisplayString(SignatureFormat), returnType: null);
+                ctx.Annotate(typeId, typeDecl);
 
                 if (type.ContainingType != null) ctx.Edge(ctx.IdOf(type.ContainingType), typeId, "contains", "extracted", Line(typeDecl));
                 if (type.BaseType != null && type.BaseType.SpecialType != SpecialType.System_Object && type.BaseType.SpecialType != SpecialType.System_ValueType && type.BaseType.SpecialType != SpecialType.System_Enum)
@@ -162,6 +193,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 var kind = IsPlainMethod(m) ? "method" : "constructor";
                                 var id = ctx.Declare(m, decl, kind, m.ToDisplayString(SignatureFormat), IsPlainMethod(m) ? m.ReturnType.ToDisplayString(TypeFormat) : null, typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
+                                ctx.Annotate(id, decl);
                                 if (IsPlainMethod(m)) ctx.Reference(id, m.ReturnType, Line(decl));
                                 var pos = 0;
                                 foreach (var p in m.Parameters)
@@ -181,6 +213,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             {
                                 var id = ctx.Declare(prop, decl, PropertyKind(prop), prop.ToDisplayString(SignatureFormat), prop.Type.ToDisplayString(TypeFormat), typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
+                                ctx.Annotate(id, decl);
                                 ctx.Reference(id, prop.Type, Line(decl));
                                 ctx.WalkBody(decl, id);
                                 break;
@@ -189,6 +222,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             {
                                 var id = ctx.Declare(field, decl, "field", field.ToDisplayString(SignatureFormat), field.Type.ToDisplayString(TypeFormat), typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
+                                if (type.TypeKind != TypeKind.Enum) ctx.Annotate(id, decl);
                                 if (type.TypeKind != TypeKind.Enum) ctx.Reference(id, field.Type, Line(decl));
                                 ctx.WalkBody(decl, id);
                                 break;
@@ -340,8 +374,44 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Visibility = symbol.DeclaredAccessibility.ToString().ToLowerInvariant(),
                     IsStatic = symbol.IsStatic || symbol is INamedTypeSymbol { TypeKind: TypeKind.Module }, IsAsync = symbol is IMethodSymbol { IsAsync: true },
                     ParentId = parentId ?? (symbol.ContainingType != null ? IdOf(symbol.ContainingType) : null),
+                    // D43: il tipo restituito col nome che ha nel grafo, per le regole «il metodo annotato fornisce ciò che restituisce»
+                    ReturnTypeName = symbol is IMethodSymbol { ReturnsVoid: false } method && IsPlainMethod(method) ? GraphTypeName(method.ReturnType) : null,
                 });
                 return id;
+            }
+
+            /// <summary>Il nome qualificato di un tipo com'è nel grafo; null per i tipi del linguaggio, i parametri di tipo, i vettori e ciò che non si risolve.</summary>
+            private static string GraphTypeName(ITypeSymbol type)
+                => type is INamedTypeSymbol { SpecialType: SpecialType.None, TypeKind: not TypeKind.Error } named ? named.OriginalDefinition.ToDisplayString(QualifiedFormat) : null;
+
+            /// <summary>
+            /// Gli attributi della dichiarazione (D43 per .NET), letti da come sono scritti: i pacchetti dei contenitori non sono
+            /// fra le reference, quindi la classe dell'attributo spesso non si risolve e <c>typeName</c> resta vuoto. Il nome è
+            /// l'ultima parola senza <c>Attribute</c> (<c>Export</c>); l'argomento per posizione 0 è l'elemento <c>value</c>, i
+            /// successivi <c>arg1</c>, <c>arg2</c>; quelli con nome hanno il loro.
+            /// </summary>
+            public void Annotate(string symbolId, SyntaxNode declaration)
+            {
+                var ordinal = 0;
+                foreach (var a in _x.AttributesOf(declaration))
+                {
+                    var written = a.NameNode.ToString();
+                    var name = written[(written.LastIndexOf('.') + 1)..];
+                    if (name.EndsWith("Attribute", StringComparison.Ordinal) && name.Length > "Attribute".Length) name = name[..^"Attribute".Length];
+                    if (SilentAttributes.Contains(name)) continue;
+                    var attributeClass = (_model.GetSymbolInfo(a.NameNode).Symbol as IMethodSymbol)?.ContainingType ?? _model.GetTypeInfo(a.NameNode).Type as INamedTypeSymbol;
+                    var annotation = new ScriptAnnotation { SymbolId = symbolId, Ordinal = ordinal++, Name = name, Line = Line(a.NameNode), TypeName = attributeClass == null ? null : GraphTypeName(attributeClass) };
+                    var index = 0;
+                    foreach (var arg in a.Arguments)
+                    {
+                        var text = CodeCallSites.IsNameLike(arg.Value) ? arg.Value : null;
+                        var type = arg.TypeNode == null ? null : TypeArgument(arg.TypeNode, 0);
+                        if (text == null && type == null) continue;
+                        var element = arg.Element ?? (arg.Position == 0 ? "value" : "arg" + arg.Position);
+                        annotation.Arguments.Add(new ScriptAnnotationArgument { Element = element, Index = index++, Value = text, TypeName = type?.TypeName });
+                    }
+                    Script.Annotations.Add(annotation);
+                }
             }
 
             public void Edge(string source, string target, string relation, string confidence, int? line)

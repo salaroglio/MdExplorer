@@ -32,7 +32,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>
         /// 2 = i punti di chiamata con stringhe (D42 passo 2, 24/10/2026: <c>return View("Ordini")</c>, <c>RedirectToAction(nameof(Elenco))</c>).
         /// <para>3 = i fatti per le regole di registrazione (D43 per .NET, 11/11/2026): <c>typeof(X)</c>, gli argomenti generici
-        /// scritti nella chiamata e le catene (<c>services.AddScoped&lt;IFoo, Foo&gt;()</c>, <c>RegisterType&lt;Foo&gt;().As&lt;IFoo&gt;()</c>).</para>
+        /// scritti nella chiamata e le catene (<c>services.AddScoped&lt;IFoo, Foo&gt;()</c>, <c>RegisterType&lt;Foo&gt;().As&lt;IFoo&gt;()</c>),
+        /// gli attributi (<c>[Export(typeof(IFoo))]</c>) e il tipo restituito dai metodi.</para>
         /// </summary>
         public override string ExtractorVersion => "3";
 
@@ -49,6 +50,40 @@ namespace MdExplorer.Features.Services.CodeGraph
         protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root) => root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>();
 
         protected override bool IsCreation(SyntaxNode node) => node is BaseObjectCreationExpressionSyntax;
+
+        /// <summary>Gli attributi stanno sulla dichiarazione del membro; per un campo Roslyn dà il solo nome, la dichiarazione è più su.</summary>
+        protected override IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration)
+        {
+            var member = declaration as MemberDeclarationSyntax ?? declaration.Ancestors().OfType<MemberDeclarationSyntax>().FirstOrDefault();
+            if (member == null) yield break;
+            foreach (var a in member.AttributeLists.Where(l => l.Target == null).SelectMany(l => l.Attributes))
+            {
+                var args = new List<AttributeArgumentShape>();
+                var position = 0;
+                foreach (var arg in a.ArgumentList?.Arguments ?? default)
+                {
+                    var element = arg.NameEquals?.Name.Identifier.ValueText ?? arg.NameColon?.Name.Identifier.ValueText;
+                    var at = element == null ? position++ : -1;
+                    foreach (var e in Elements(arg.Expression))
+                        args.Add(new AttributeArgumentShape
+                        {
+                            Element = element, Position = at,
+                            Value = e is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression) ? lit.Token.ValueText : null,
+                            TypeNode = (e as TypeOfExpressionSyntax)?.Type,
+                        });
+                }
+                yield return new AttributeShape { NameNode = a.Name, Arguments = args };
+            }
+        }
+
+        /// <summary>Un vettore scritto nell'argomento vale un elemento alla volta: <c>new[] { typeof(A), typeof(B) }</c>, <c>[typeof(A)]</c>.</summary>
+        private static IEnumerable<ExpressionSyntax> Elements(ExpressionSyntax e) => e switch
+        {
+            ImplicitArrayCreationExpressionSyntax i => i.Initializer.Expressions,
+            ArrayCreationExpressionSyntax { Initializer: { } init } => init.Expressions,
+            CollectionExpressionSyntax c => c.Elements.OfType<ExpressionElementSyntax>().Select(x => x.Expression),
+            _ => new[] { e },
+        };
 
         /// <summary>
         /// Il punto di chiamata con le stringhe letterali (D42): il nome del metodo, il ricevente scritto prima del punto e,

@@ -64,6 +64,41 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         protected override bool IsCreation(SyntaxNode node) => node is ObjectCreationExpressionSyntax;
 
+        /// <summary>In VB gli attributi stanno sulla riga che apre il blocco (<c>&lt;Export(GetType(IFoo))&gt; Public Class Foo</c>).</summary>
+        protected override IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration)
+        {
+            var lists = declaration switch
+            {
+                TypeBlockSyntax t => t.BlockStatement.AttributeLists,
+                EnumBlockSyntax e => e.EnumStatement.AttributeLists,
+                MethodBlockBaseSyntax m => m.BlockStatement.AttributeLists,
+                MethodBaseSyntax m => m.AttributeLists,
+                PropertyBlockSyntax p => p.PropertyStatement.AttributeLists,
+                FieldDeclarationSyntax f => f.AttributeLists,
+                _ => default,
+            };
+            foreach (var a in lists.SelectMany(l => l.Attributes).Where(a => a.Target == null))
+            {
+                var args = new List<AttributeArgumentShape>();
+                var position = 0;
+                foreach (var arg in a.ArgumentList?.Arguments ?? default)
+                {
+                    var element = (arg as SimpleArgumentSyntax)?.NameColonEquals?.Name.Identifier.ValueText;
+                    var at = element == null ? position++ : -1;
+                    var expression = arg.GetExpression();
+                    var elements = expression is CollectionInitializerSyntax c ? c.Initializers.ToList() : new List<ExpressionSyntax> { expression };
+                    foreach (var e in elements)
+                        args.Add(new AttributeArgumentShape
+                        {
+                            Element = element, Position = at,
+                            Value = e is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression) ? lit.Token.ValueText : null,
+                            TypeNode = (e as GetTypeExpressionSyntax)?.Type,
+                        });
+                }
+                yield return new AttributeShape { NameNode = a.Name, Arguments = args };
+            }
+        }
+
         protected override bool IsInvocation(SyntaxNode node, SemanticModel model, out InvocationShape shape)
         {
             shape = default;

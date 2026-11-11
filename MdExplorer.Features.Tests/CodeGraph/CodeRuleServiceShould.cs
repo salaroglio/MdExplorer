@@ -278,11 +278,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public class PdfExporter : IExporter { public void Export(string doc) { } }\n" +
                 "  public class CsvExporter : IExporter { public void Export(string doc) { } }\n" +
                 "  public interface IStore { }\n  public class FileStore : IStore { }\n" +
+                "  public interface IMailer { }\n  [Export(typeof(IMailer))] public class SmtpMailer : IMailer { }\n" +
                 "  public class Runner { public void Run(IExporter e) { e.Export(\"x\"); } }\n" +
                 "  public class Startup {\n" +
                 "    public void Configure(dynamic services, dynamic builder) {\n" +
-                "      services.AddScoped<IExporter, PdfExporter>();\n" +                    // riga 10
-                "      builder.RegisterType<FileStore>().SingleInstance().As<IStore>();\n" +  // riga 11
+                "      services.AddScoped<IExporter, PdfExporter>();\n" +                    // riga 12
+                "      builder.RegisterType<FileStore>().SingleInstance().As<IStore>();\n" +  // riga 13
                 "    }\n  }\n}\n");
             File.WriteAllText(Path.Combine(vb, "Servizi.vb"),
                 "Namespace Acme\n" +
@@ -317,7 +318,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             var exporter = (await _store.ResolveAsync(_project, "Acme.IExporter")).Single(x => x.Kind == "interface").Id;
             var edge = (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single();
-            Assert.AreEqual(("Acme.PdfExporter", "rule", 10), (edge.Other.QualifiedName, edge.Confidence, edge.Line), "delle due implementazioni, quella REGISTRATA");
+            Assert.AreEqual(("Acme.PdfExporter", "rule", 12), (edge.Other.QualifiedName, edge.Confidence, edge.Line), "delle due implementazioni, quella REGISTRATA");
             var clock = (await _store.ResolveAsync(_project, "Acme.IClock")).Single(x => x.Kind == "interface").Id;
             Assert.AreEqual("Acme.SystemClock", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName, "Visual Basic: (Of IClock, SystemClock)");
             var pdfExport = (await _store.ResolveAsync(_project, "Acme.PdfExporter.Export")).Single(x => x.Kind == "method").Id;
@@ -331,6 +332,14 @@ namespace MdExplorer.Features.Tests.CodeGraph
             await _rules.ApplyAsync(_project, autofac, "MarkAgent / test");
             var store = (await _store.ResolveAsync(_project, "Acme.IStore")).Single(x => x.Kind == "interface").Id;
             Assert.AreEqual("Acme.FileStore", (await _store.NeighborsAsync(_project, store, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+
+            // MEF: [Export(typeof(I))] sulla classe — l'attributo si legge anche se il suo pacchetto non è fra le reference
+            var export = CodeEnrichmentRule.Parse(@"{ ""id"": ""mef-export"", ""kind"": ""registration"", ""description"": ""[Export(typeof(I))] su C."",
+                ""anchor"": { ""annotation"": ""Export"" }, ""abstraction"": { ""from"": ""annotationArgument"" }, ""implementation"": { ""from"": ""annotated"" } }");
+            Assert.IsTrue((await _rules.PreviewAsync(_project, export)).Accepted);
+            await _rules.ApplyAsync(_project, export, "MarkAgent / test");
+            var mailer = (await _store.ResolveAsync(_project, "Acme.IMailer")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.SmtpMailer", (await _store.NeighborsAsync(_project, mailer, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
 
             Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
                 ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0, ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }"),
