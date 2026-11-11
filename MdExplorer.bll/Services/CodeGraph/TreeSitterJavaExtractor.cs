@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "10";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b); 9: archi verso le implementazioni segnati impl: (F4c); 10: la classe concreta dove l'oggetto è creato con new (F4c)
+        public string ExtractorVersion => "11";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b); 9: archi verso le implementazioni segnati impl: (F4c); 10: la classe concreta dove l'oggetto è creato con new (F4c); 11: i riferimenti a metodo Foo::bar e Foo::new (F4d)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -1003,6 +1003,26 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         var head = TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
                         if (head != null) TypeEdges(ownerId, head, "instantiates", Line(n));
+                    }
+                    else if (n.Type == "method_reference")
+                    {
+                        // F4d (11/11/2026): Foo::bar, helper::run, this::run sono chiamate (quante argomenti le dice l'interfaccia
+                        // funzionale, qui non scritte: tutti i sovraccarichi col nome); Foo::new è una creazione. Prima non c'era
+                        // nessun arco: il metodo passato per riferimento risultava mai chiamato.
+                        var recv = n.NamedChildren.FirstOrDefault();
+                        if (recv == null) continue;
+                        if (n.Text.TrimEnd().EndsWith("::new", StringComparison.Ordinal))
+                        {
+                            var created = TypeNames(recv).FirstOrDefault() ?? recv.Text;
+                            if (created != null) TypeEdges(ownerId, created, "instantiates", Line(n));
+                            continue;
+                        }
+                        var name = n.NamedChildren.LastOrDefault(c => c.Type == "identifier" && c != recv)?.Text;
+                        if (name == null) continue;
+                        if (recv.Type is "identifier" or "field_access" or "this" or "super" or "method_invocation" or "parenthesized_expression")
+                            ResolveCall(ownerId, ownerFqn, recv.Type == "this" ? null : recv, name, -1, locals, Line(n), n);
+                        else if (TypeNames(recv).FirstOrDefault() is string typeName)
+                            CallOnType(ownerId, _index.Resolve(_ctx, typeName), name, -1, Line(n));
                     }
                 }
                 foreach (var (site, receiver) in chained) LinkReceiver(site, receiver, sitesHere);

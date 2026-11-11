@@ -154,6 +154,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsNull(Of(c, "MemoryRepository.java"), "mai creata qui: resta da scegliere");
         }
 
+        /// <summary>F4d: un metodo passato per riferimento (Foo::bar, this::bar) è chiamato; Foo::new crea Foo.</summary>
+        [TestMethod]
+        public void Follow_method_references()
+        {
+            Write("lib/com/acme/util/Logger.java", "package com.acme.util;\n\npublic class Logger {\n    public static void log(String s) { Deep.go(); }\n    public static void unused() { Other.x(); }\n}\n");
+            Write("lib/com/acme/util/Thing.java", "package com.acme.util;\n\npublic class Thing {\n    public Thing() { }\n}\n");
+            Write("app/com/acme/app/Refs.java", "package com.acme.app;\n\nimport java.util.List;\nimport java.util.function.Supplier;\nimport com.acme.util.Logger;\nimport com.acme.util.Thing;\n\npublic class Refs {\n" +
+                  "    void run(List<String> names) {\n        names.forEach(Logger::log);\n        names.stream().map(this::shout);\n        Supplier<Thing> s = Thing::new;\n    }\n" +
+                  "    private String shout(String s) { return s; }\n}\n");
+            var c = Run(new CodeClosureRequest { Seeds = new[] { "app/com/acme/app/Refs.java" } });
+            Assert.IsTrue(Of(c, "Logger.java")?.Symbols.Contains("log") == true, "Logger::log è una chiamata");
+            Assert.IsNotNull(Of(c, "Deep.java"), "e da lì la sua catena");
+            Assert.IsNotNull(Of(c, "Thing.java"), "Thing::new crea Thing");
+            Assert.IsNull(Of(c, "Other.java"), "Logger.unused() non lo chiama nessuno");
+        }
+
         [TestMethod]
         public void Pick_the_overload_by_argument_count()
         {
