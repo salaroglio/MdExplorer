@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 20
+  version: 21
   updatePolicy: replace
 ---
 
@@ -216,12 +216,15 @@ These are facts for the user, not tasks: propose the remedy, do not apply it.
 
 ### Registration rules (`kind: registration`)
 
-The facts they read, recorded by the Java extractor: `X.class` arguments of calls (type resolved through the imports),
-the chain of a call (`bind(X.class).annotatedWith(…).to(Y.class)`: `to` reaches `bind`), annotations with their
+The facts they read, recorded by the Java, C# and Visual Basic extractors: type arguments of calls — `X.class` in Java,
+`typeof(X)` in C#, `GetType(X)` in VB (type resolved through the imports) — and, for C# and VB, the GENERIC arguments
+written in the call (`AddScoped<IFoo, Foo>()`, `AddScoped(Of IFoo, Foo)()`), the chain of a call (`bind(X.class).annotatedWith(…).to(Y.class)`: `to` reaches `bind`), annotations with their
 arguments (`@ImplementedBy(Y.class)`, `@Named("x")`), the resolved return type of a method. One rule = an `anchor` (a call
 or an annotation) and where to read the two ends: `argument` (an `X.class` of the anchor call), `chain` (an `X.class` of a
 call further down the chain), `annotated` (the annotated symbol), `returnType` (of the annotated method),
-`annotationArgument` (an `X.class` of the annotation, `element` default `value`). Guice is three rules:
+`annotationArgument` (an `X.class` of the annotation, `element` default `value`). In `argument` and `chain` the position
+is `"argument": n` for a type between the parentheses, or `"generic": n` for a generic argument (one of the two). C# and
+VB record no annotations (attributes) yet. Guice is three rules:
 
 ```json
 {"id": "guice-bind", "kind": "registration", "description": "bind(X).to(Y): Guice gives Y where X is asked",
@@ -232,6 +235,24 @@ call further down the chain), `annotated` (the annotated symbol), `returnType` (
 {"id": "guice-provides", "kind": "registration", "description": "@Provides: the method provides the type it returns",
  "anchor": {"annotation": "Provides"}, "abstraction": {"from": "returnType"}, "implementation": {"from": "annotated"}}
 ```
+
+.NET dependency injection is the same mechanism (one rule serves C# and VB; write one per registration method the code
+really uses — `code_schema` lists the callees with type arguments):
+
+```json
+{"id": "di-add-scoped", "kind": "registration", "description": "AddScoped<I, C>(): the container gives C where I is asked",
+ "anchor": {"call": "AddScoped"}, "abstraction": {"from": "argument", "generic": 0},
+ "implementation": {"from": "argument", "generic": 1}}
+{"id": "di-add-scoped-typeof", "kind": "registration", "description": "AddScoped(typeof(I), typeof(C))",
+ "anchor": {"call": "AddScoped"}, "abstraction": {"from": "argument", "argument": 0},
+ "implementation": {"from": "argument", "argument": 1}}
+{"id": "autofac-as", "kind": "registration", "description": "RegisterType<C>().As<I>()",
+ "anchor": {"call": "As"}, "abstraction": {"from": "argument", "generic": 0},
+ "implementation": {"from": "chain", "callee": "RegisterType", "generic": 0}}
+```
+
+A registration through a factory (`AddScoped<IFoo>(sp => new Foo(…))`), by convention (assembly scanning) or in a
+configuration file has no such fact: say so to the user instead of forcing a rule.
 
 MdExplorer writes `resolvesTo` from the abstraction to the implementation and method → method with the same name; for
 `@Provides` the implementation is the method itself. A point whose class is outside the graph (a library) is read

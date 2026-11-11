@@ -60,11 +60,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             switch (end.From)
             {
                 case CodeRuleEndSource.Argument:
-                    return site.TypeArguments.TryGetValue(end.Argument!.Value, out var t) ? (new List<string> { t.TypeName }, null) : (null, CodeRuleMiss.NoTypeArgument);
+                    return site.TypeArguments.TryGetValue(end.FactPosition, out var t) ? (new List<string> { t.TypeName }, null) : (null, CodeRuleMiss.NoTypeArgument);
                 case CodeRuleEndSource.Chain:
                     if (site.Iri == null || !chains.TryGetValue(site.Iri, out var down) || down.Count == 0) return (null, CodeRuleMiss.NoChain);
                     if (down.Count > 1) return (null, CodeRuleMiss.ChainAmbiguous);
-                    return down[0].TypeArguments.TryGetValue(end.Argument!.Value, out var d) ? (new List<string> { d.TypeName }, null) : (null, CodeRuleMiss.NoTypeArgument);
+                    return down[0].TypeArguments.TryGetValue(end.FactPosition, out var d) ? (new List<string> { d.TypeName }, null) : (null, CodeRuleMiss.NoTypeArgument);
                 default:
                     throw new InvalidOperationException($"{end.From} su una chiamata: la regola andava respinta da Validate");
             }

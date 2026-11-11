@@ -301,7 +301,8 @@ public sealed class CodeTools : McpToolsBase
         "\"excludePrefixes\": [\"redirect:\"] (optional)}. " +
         "REGISTRATION rule (an abstraction resolved elsewhere: DI binding, @ImplementedBy, @Provides, a registry with X.class): " +
         "{\"id\": \"…\", \"kind\": \"registration\", \"description\": \"…\", \"anchor\": {\"call\": \"to\"} | {\"annotation\": \"ImplementedBy\"}, " +
-        "\"abstraction\": {\"from\": …}, \"implementation\": {\"from\": …}} with from = \"argument\" ({\"argument\": 0}: an X.class of the anchor call) | " +
+        "\"abstraction\": {\"from\": …}, \"implementation\": {\"from\": …}} with from = \"argument\" ({\"argument\": 0}: an X.class / typeof(X) / GetType(X) of the anchor call; " +
+        "or {\"generic\": 0}: a generic argument written in the call, C# AddScoped<IFoo, Foo>() / VB AddScoped(Of IFoo, Foo)(); in chain too) | " +
         "\"chain\" ({\"callee\": \"bind\", \"argument\": 0}: an X.class of a call further down the anchor's chain) | \"annotated\" (the annotated symbol) | " +
         "\"returnType\" (of the annotated method) | \"annotationArgument\" ({\"element\": \"value\"}); edges `resolvesTo`. " +
         "ANY rule may add \"describe\": \"one specific question\" that MdExplorer asks the LLM for each linked point during «Describe with Mark»; " +

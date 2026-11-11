@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("2", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("3", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");
@@ -106,6 +106,35 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(("this", 2), (redirect.Receiver, redirect.ArgumentCount));
             CollectionAssert.AreEqual(new[] { "Elenco", "Ordini" }, redirect.Arguments.Select(a => a.Value).ToArray(), "nameof(Elenco) è la costante 'Elenco'");
             Assert.IsFalse(s.CallSites.Any(c => c.Callee == "Log"), "una frase o una variabile non bastano a registrare la chiamata");
+        }
+
+        [TestMethod]
+        public void Record_the_types_of_a_registration_typeof_generic_and_chained()
+        {
+            // i contenitori non sono fra le reference (pacchetti NuGet): i fatti si leggono lo stesso, da come è scritta la chiamata
+            File.WriteAllText(Path.Combine(_src, "Startup.cs"),
+                "namespace Demo { public class Startup {\n" +
+                "  public void Configure(dynamic services, dynamic builder) {\n" +
+                "    services.AddScoped<IFoo, Foo>();\n" +
+                "    services.AddScoped(typeof(IFoo), typeof(Foo));\n" +
+                "    builder.RegisterType<Foo>().SingleInstance().As<IFoo>();\n" +
+                "    services.AddSingleton<string>();\n" +
+                "  }\n} }");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Startup.cs").Script;
+            string Types(ScriptCallSite c) => string.Join(" ", c.TypeArguments.OrderBy(t => t.Position).Select(t => $"{t.Position}={t.TypeName}/{t.Confidence}"));
+
+            Assert.AreEqual("1000=Demo.IFoo/extracted 1001=Demo.Foo/extracted", Types(s.CallSites.Single(c => c.Line == 3)), "gli argomenti generici, da 1000");
+            Assert.AreEqual("0=Demo.IFoo/extracted 1=Demo.Foo/extracted", Types(s.CallSites.Single(c => c.Line == 4)), "typeof per posizione, come X.class");
+            var register = s.CallSites.Single(c => c.Callee == "RegisterType");
+            var asCall = s.CallSites.Single(c => c.Callee == "As");
+            Assert.AreEqual("1000=Demo.Foo/extracted", Types(register));
+            Assert.AreEqual("1000=Demo.IFoo/extracted", Types(asCall));
+            Assert.AreEqual((register.Line, register.Ordinal), (asCall.ReceiverLine, asCall.ReceiverOrdinal), "As → RegisterType, saltando SingleInstance() che non porta niente");
+            Assert.AreEqual("1000=string/platform", Types(s.CallSites.Single(c => c.Callee == "AddSingleton")));
+            Assert.IsTrue(s.CallSites.All(c => c.Ordinal >= CodeCallSites.TypeOnlyOrdinalBase), "punti con soli tipi: i numeri dei punti con stringhe non si spostano");
+
+            var reparsed = CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Startup.cs");
+            Assert.AreEqual(s.RecordCount, reparsed.RecordCount, "gli script con i fatti nuovi si rileggono");
         }
 
         [TestMethod]

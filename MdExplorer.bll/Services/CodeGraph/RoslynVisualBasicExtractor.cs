@@ -91,7 +91,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 NameOfExpressionSyntax n => n.Argument.ToString().Split('.').Last(),
                 _ => null,
             }).ToList();
-            shape = new InvocationShape { Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args };
+            var arguments = inv.ArgumentList?.Arguments ?? default;
+            var name = inv.Expression switch { MemberAccessExpressionSyntax ma => ma.Name, SimpleNameSyntax n => n, _ => null };
+            shape = new InvocationShape
+            {
+                Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args,
+                TypeNodes = arguments.Select(a => a.GetExpression() is GetTypeExpressionSyntax t ? (SyntaxNode)t.Type : null).ToList(),
+                GenericNodes = name is GenericNameSyntax g ? g.TypeArgumentList.Arguments.ToList<SyntaxNode>() : new List<SyntaxNode>(),
+                ReceiverNode = (inv.Expression as MemberAccessExpressionSyntax)?.Expression,
+            };
             return true;
         }
 

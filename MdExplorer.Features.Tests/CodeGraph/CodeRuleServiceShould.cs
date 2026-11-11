@@ -262,6 +262,81 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("Con quale qualificatore e durata?", _rules.List(_project).Single(r => r.Id == "guice-bind").Describe);
         }
 
+        /// <summary>
+        /// D43 per .NET (11/11/2026): la dependency injection scritta come regole di registrazione, in C# e in Visual Basic.
+        /// <c>AddScoped&lt;IFoo, Foo&gt;()</c> si legge dagli argomenti generici (<c>generic</c>), Autofac dalla catena.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_dotnet_dependency_injection_written_as_registration_rules()
+        {
+            var cs = Path.Combine(_project, "program", "cs");
+            var vb = Path.Combine(_project, "program", "vb");
+            Directory.CreateDirectory(cs); Directory.CreateDirectory(vb);
+            File.WriteAllText(Path.Combine(cs, "Servizi.cs"),
+                "namespace Acme {\n" +
+                "  public interface IExporter { void Export(string doc); }\n" +
+                "  public class PdfExporter : IExporter { public void Export(string doc) { } }\n" +
+                "  public class CsvExporter : IExporter { public void Export(string doc) { } }\n" +
+                "  public interface IStore { }\n  public class FileStore : IStore { }\n" +
+                "  public class Runner { public void Run(IExporter e) { e.Export(\"x\"); } }\n" +
+                "  public class Startup {\n" +
+                "    public void Configure(dynamic services, dynamic builder) {\n" +
+                "      services.AddScoped<IExporter, PdfExporter>();\n" +                    // riga 10
+                "      builder.RegisterType<FileStore>().SingleInstance().As<IStore>();\n" +  // riga 11
+                "    }\n  }\n}\n");
+            File.WriteAllText(Path.Combine(vb, "Servizi.vb"),
+                "Namespace Acme\n" +
+                "  Public Interface IClock\n  End Interface\n" +
+                "  Public Class SystemClock\n    Implements IClock\n  End Class\n" +
+                "  Public Class Avvio\n" +
+                "    Public Sub Configura(services As Object)\n" +
+                "      services.AddScoped(Of IClock, SystemClock)()\n" +                      // riga 9
+                "    End Sub\n  End Class\nEnd Namespace\n");
+            void Emit(ICodeExtractor extractor, string folder, string pattern)
+            {
+                var files = Directory.GetFiles(folder, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                }
+            }
+            Emit(new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance), cs, "*.cs");
+            Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), vb, "*.vb");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            // Microsoft.Extensions.DependencyInjection: AddScoped<Astrazione, Implementazione>() — C# e VB con la stessa regola
+            var addScoped = CodeEnrichmentRule.Parse(@"{ ""id"": ""di-add-scoped"", ""kind"": ""registration"", ""description"": ""AddScoped<I, C>(): il contenitore dà C quando serve I."",
+                ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }");
+            var preview = await _rules.PreviewAsync(_project, addScoped);
+            Assert.IsTrue(preview.Accepted, string.Join(" ", preview.RejectReasons));
+            Assert.AreEqual((2, 2, 0), (preview.CallSites, preview.Resolved, preview.Unresolved));
+            await _rules.ApplyAsync(_project, addScoped, "MarkAgent / test");
+
+            var exporter = (await _store.ResolveAsync(_project, "Acme.IExporter")).Single(x => x.Kind == "interface").Id;
+            var edge = (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single();
+            Assert.AreEqual(("Acme.PdfExporter", "rule", 10), (edge.Other.QualifiedName, edge.Confidence, edge.Line), "delle due implementazioni, quella REGISTRATA");
+            var clock = (await _store.ResolveAsync(_project, "Acme.IClock")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.SystemClock", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName, "Visual Basic: (Of IClock, SystemClock)");
+            var pdfExport = (await _store.ResolveAsync(_project, "Acme.PdfExporter.Export")).Single(x => x.Kind == "method").Id;
+            CollectionAssert.Contains((await _store.ImpactAsync(_project, pdfExport, 2, 20)).Select(e => e.Other.QualifiedName).ToList(), "Acme.Runner.Run(Acme.IExporter)",
+                "l'impatto dell'implementazione risale a chi chiama l'interfaccia");
+
+            // Autofac: RegisterType<C>()…As<I>() — l'astrazione sull'àncora, l'implementazione più giù nella catena
+            var autofac = CodeEnrichmentRule.Parse(@"{ ""id"": ""autofac-as"", ""kind"": ""registration"", ""description"": ""RegisterType<C>().As<I>()."",
+                ""anchor"": { ""call"": ""As"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0 }, ""implementation"": { ""from"": ""chain"", ""callee"": ""RegisterType"", ""generic"": 0 } }");
+            Assert.IsTrue((await _rules.PreviewAsync(_project, autofac)).Accepted);
+            await _rules.ApplyAsync(_project, autofac, "MarkAgent / test");
+            var store = (await _store.ResolveAsync(_project, "Acme.IStore")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.FileStore", (await _store.NeighborsAsync(_project, store, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0, ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }"),
+                "argument e generic insieme: una posizione sola");
+        }
+
         [TestMethod]
         public void Refuse_a_registration_rule_that_reads_a_fact_its_anchor_does_not_have()
         {

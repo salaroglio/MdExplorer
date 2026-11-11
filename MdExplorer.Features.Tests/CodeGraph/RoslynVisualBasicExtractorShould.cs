@@ -188,6 +188,31 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Record_the_types_of_a_registration_gettype_generic_and_chained()
+        {
+            File.WriteAllText(Path.Combine(_src, "Avvio.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Avvio\n" +
+                "    Public Sub Configura(services As Object, builder As Object)\n" +
+                "      services.AddScoped(Of IFoo, Foo)()\n" +
+                "      services.AddScoped(GetType(IFoo), GetType(Foo))\n" +
+                "      builder.RegisterType(Of Foo)().SingleInstance().As(Of IFoo)()\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Avvio.vb").Script;
+            string Types(ScriptCallSite c) => string.Join(" ", c.TypeArguments.OrderBy(t => t.Position).Select(t => $"{t.Position}={t.TypeName}"));
+
+            Assert.AreEqual("1000=Demo.IFoo 1001=Demo.Foo", Types(s.CallSites.Single(c => c.Line == 4)), "(Of IFoo, Foo)");
+            Assert.AreEqual("0=Demo.IFoo 1=Demo.Foo", Types(s.CallSites.Single(c => c.Line == 5)), "GetType(X) come typeof(X)");
+            var register = s.CallSites.Single(c => c.Callee == "RegisterType");
+            var asCall = s.CallSites.Single(c => c.Callee == "As");
+            Assert.AreEqual(("1000=Demo.Foo", "1000=Demo.IFoo"), (Types(register), Types(asCall)));
+            Assert.AreEqual((register.Line, register.Ordinal), (asCall.ReceiverLine, asCall.ReceiverOrdinal), "la catena scende fino a RegisterType");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Avvio.vb").RecordCount);
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.vb"),

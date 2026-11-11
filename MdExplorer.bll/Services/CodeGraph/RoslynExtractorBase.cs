@@ -33,6 +33,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Callee { get; init; }
             public string Receiver { get; init; }
             public List<string> Arguments { get; init; }
+            /// <summary>Per posizione, il tipo scritto dentro <c>typeof(X)</c> / <c>GetType(X)</c>; null dove l'argomento è altro.</summary>
+            public IReadOnlyList<SyntaxNode> TypeNodes { get; init; }
+            /// <summary>Gli argomenti generici SCRITTI nella chiamata (<c>AddScoped&lt;IFoo, Foo&gt;()</c>); vuoto se non ce ne sono.</summary>
+            public IReadOnlyList<SyntaxNode> GenericNodes { get; init; }
+            /// <summary>L'espressione prima del punto, per seguire una catena (<c>RegisterType&lt;Foo&gt;().As&lt;IFoo&gt;()</c>); null senza ricevente.</summary>
+            public SyntaxNode ReceiverNode { get; init; }
         }
 
         protected abstract SyntaxTree Parse(string text, string path);
@@ -360,13 +366,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>Dentro un corpo: chiamate (calls) e costruzioni (instantiates).</summary>
             public void WalkBody(SyntaxNode decl, string ownerId)
             {
+                // i punti registrati di questo corpo, per nodo: una catena lega una chiamata a quella che le fa da ricevente (D43)
+                var sites = new Dictionary<SyntaxNode, ScriptCallSite>();
+                var chained = new List<(ScriptCallSite Site, SyntaxNode Receiver)>();
                 foreach (var node in decl.DescendantNodes())
                 {
                     if (_x.IsInvocation(node, _model, out var shape))
                     {
                         var info = _model.GetSymbolInfo(node);
                         var line = Line(node);
-                        if (shape.Callee != null) _callSites.Add(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments);
+                        if (shape.Callee != null && _callSites.Add(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments, types: TypesOf(shape)) is { } site)
+                        {
+                            sites[node] = site;
+                            if (shape.ReceiverNode != null) chained.Add((site, shape.ReceiverNode));
+                        }
                         if (info.Symbol is IMethodSymbol m) Call(ownerId, m, line);
                         else if (info.CandidateSymbols.Length > 0)
                         {
@@ -394,6 +407,39 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (_model.GetSymbolInfo(node).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary or MethodKind.ReducedExtension } m) Call(ownerId, m, Line(node));
                     }
                 }
+                foreach (var (site, receiver) in chained)
+                {
+                    // scendendo la catena, la prima chiamata registrata: quelle in mezzo senza tipi né nomi si saltano
+                    for (var x = receiver; x != null;)
+                    {
+                        if (sites.TryGetValue(x, out var down)) { site.ReceiverLine = down.Line; site.ReceiverOrdinal = down.Ordinal; break; }
+                        x = _x.IsInvocation(x, _model, out var inner) ? inner.ReceiverNode : null;
+                    }
+                }
+            }
+
+            /// <summary>I fatti per le regole di registrazione (D43): i tipi fra le parentesi per posizione, poi quelli generici.</summary>
+            private List<ScriptTypeArgument> TypesOf(InvocationShape shape)
+            {
+                var list = new List<ScriptTypeArgument>();
+                for (var i = 0; i < (shape.TypeNodes?.Count ?? 0); i++)
+                    if (shape.TypeNodes[i] != null && TypeArgument(shape.TypeNodes[i], i) is { } t) list.Add(t);
+                for (var i = 0; i < (shape.GenericNodes?.Count ?? 0); i++)
+                    if (TypeArgument(shape.GenericNodes[i], ScriptTypeArgument.GenericPositionBase + i) is { } t) list.Add(t);
+                return list;
+            }
+
+            /// <summary>Il tipo scritto, col nome qualificato che ha nel grafo; null se non si risolve o è un parametro di tipo.</summary>
+            private ScriptTypeArgument TypeArgument(SyntaxNode typeNode, int position)
+            {
+                var type = _model.GetSymbolInfo(typeNode).Symbol as ITypeSymbol ?? _model.GetTypeInfo(typeNode).Type;
+                if (type == null || type.TypeKind is TypeKind.Error or TypeKind.TypeParameter) return null;
+                if (type is IArrayTypeSymbol or IPointerTypeSymbol) return null;
+                return new ScriptTypeArgument
+                {
+                    Position = position, TypeName = type.OriginalDefinition.ToDisplayString(QualifiedFormat),
+                    Confidence = type.SpecialType != SpecialType.None ? "platform" : "extracted",
+                };
             }
 
             /// <summary>La chiamata risolta; su un'interfaccia, in più, ogni implementazione nel perimetro (inferred).</summary>

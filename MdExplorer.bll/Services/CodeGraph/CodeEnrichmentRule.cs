@@ -136,10 +136,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     case CodeRuleEndSource.ReturnType when onCall:
                     case CodeRuleEndSource.AnnotationArgument when onCall:
                         throw Bad($"{name}.from = {Name(end.From)} vale solo con anchor.annotation.", $"{name}.from = {Name(end.From)} is only for anchor.annotation.");
-                    case CodeRuleEndSource.Argument when end.Argument is null or < 0:
-                        throw Bad($"{name}.from = argument vuole argument (la posizione di X.class, da 0).", $"{name}.from = argument needs argument (the position of X.class, from 0).");
-                    case CodeRuleEndSource.Chain when string.IsNullOrWhiteSpace(end.Callee) || end.Argument is null or < 0:
-                        throw Bad($"{name}.from = chain vuole callee (la chiamata più giù nella catena) e argument.", $"{name}.from = chain needs callee (the call further down the chain) and argument.");
+                    case CodeRuleEndSource.Argument when !end.HasOnePosition:
+                        throw Bad($"{name}.from = argument vuole argument (la posizione del tipo fra le parentesi, da 0) oppure generic (la posizione fra gli argomenti generici, da 0).", $"{name}.from = argument needs argument (the position of the type between the parentheses, from 0) or generic (the position among the generic arguments, from 0).");
+                    case CodeRuleEndSource.Chain when string.IsNullOrWhiteSpace(end.Callee) || !end.HasOnePosition:
+                        throw Bad($"{name}.from = chain vuole callee (la chiamata più giù nella catena) e argument oppure generic.", $"{name}.from = chain needs callee (the call further down the chain) and argument or generic.");
                 }
             }
             if (Abstraction.From == CodeRuleEndSource.Chain && Implementation.From == CodeRuleEndSource.Chain && Abstraction.Callee != Implementation.Callee)
@@ -182,6 +182,18 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public CodeRuleEndSource From { get; set; }
         public int? Argument { get; set; }
+        /// <summary>
+        /// Al posto di <see cref="Argument"/> (11/11/2026): la posizione, da 0, fra gli argomenti GENERICI della chiamata
+        /// (<c>AddScoped&lt;IFoo, Foo&gt;()</c>: 0 = IFoo, 1 = Foo).
+        /// </summary>
+        public int? Generic { get; set; }
+
+        /// <summary>La posizione come sta nei fatti (<see cref="ScriptTypeArgument.Position"/>).</summary>
+        [JsonIgnore]
+        public int FactPosition => Generic != null ? ScriptTypeArgument.GenericPositionBase + Generic.Value : Argument!.Value;
+        /// <summary>Una e una sola fra <see cref="Argument"/> e <see cref="Generic"/>, non negativa.</summary>
+        [JsonIgnore]
+        public bool HasOnePosition => (Argument != null) != (Generic != null) && (Argument ?? Generic) >= 0;
         public string Callee { get; set; }
         public string Element { get; set; }
     }

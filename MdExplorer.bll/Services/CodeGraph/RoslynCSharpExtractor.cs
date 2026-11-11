@@ -29,8 +29,12 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class RoslynCSharpExtractor : RoslynExtractorBase
     {
         public override string LanguageId => CodeLanguages.CSharp;
-        /// <summary>2 = i punti di chiamata con stringhe (D42 passo 2, 24/10/2026: <c>return View("Ordini")</c>, <c>RedirectToAction(nameof(Elenco))</c>).</summary>
-        public override string ExtractorVersion => "2";
+        /// <summary>
+        /// 2 = i punti di chiamata con stringhe (D42 passo 2, 24/10/2026: <c>return View("Ordini")</c>, <c>RedirectToAction(nameof(Elenco))</c>).
+        /// <para>3 = i fatti per le regole di registrazione (D43 per .NET, 11/11/2026): <c>typeof(X)</c>, gli argomenti generici
+        /// scritti nella chiamata e le catene (<c>services.AddScoped&lt;IFoo, Foo&gt;()</c>, <c>RegisterType&lt;Foo&gt;().As&lt;IFoo&gt;()</c>).</para>
+        /// </summary>
+        public override string ExtractorVersion => "3";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -61,6 +65,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 MemberBindingExpressionSyntax mb => (mb.Name.Identifier.ValueText, (string)null),
                 _ => (null, null),
             };
+            var name = inv.Expression switch { MemberAccessExpressionSyntax ma => ma.Name, SimpleNameSyntax n => n, MemberBindingExpressionSyntax mb => mb.Name, _ => null };
             List<string> args = null;
             if (callee == "nameof") callee = null;
             if (callee != null)
@@ -71,7 +76,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                         => n.ArgumentList.Arguments[0].Expression.ToString().Split('.').Last(),
                     _ => null,
                 }).ToList();
-            shape = new InvocationShape { Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args };
+            shape = new InvocationShape
+            {
+                Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args,
+                TypeNodes = inv.ArgumentList.Arguments.Select(a => a.Expression is TypeOfExpressionSyntax t ? (SyntaxNode)t.Type : null).ToList(),
+                GenericNodes = name is GenericNameSyntax g ? g.TypeArgumentList.Arguments.Where(a => a is not OmittedTypeArgumentSyntax).ToList<SyntaxNode>() : new List<SyntaxNode>(),
+                ReceiverNode = (inv.Expression as MemberAccessExpressionSyntax)?.Expression,
+            };
             return true;
         }
 

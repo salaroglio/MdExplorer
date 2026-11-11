@@ -67,7 +67,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly IReadOnlyDictionary<string, string> RuleFacts = new Dictionary<string, string>
         {
             ["stringArguments"] = "calls with string arguments shaped like names (setTarget(\"read\")): dispatch rules (call.callee, call.argument)",
-            ["typeArguments"] = "calls with X.class arguments, type resolved through the imports: registration rules (anchor.call, from argument)",
+            ["typeArguments"] = "calls with type arguments — X.class (Java), typeof(X) (C#), GetType(X) (VB), type resolved through the imports — and, for C# and VB, with generic arguments written in the call (AddScoped<IFoo, Foo>()): registration rules (anchor.call, from argument with `argument` or `generic`)",
             ["chains"] = "a call reaches the recorded call further down its receiver chain (to → bind): registration rules (from chain)",
             ["annotations"] = "annotations with their string or X.class arguments: registration rules (anchor.annotation, from annotated / annotationArgument)",
             ["returnTypes"] = "methods whose return type resolves to a type of the project or a library: registration rules (from returnType)",

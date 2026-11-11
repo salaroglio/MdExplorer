@@ -155,9 +155,20 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string PromptVersion { get; set; }
     }
 
-    /// <summary>Un argomento <c>X.class</c> (D43, 30/10/2026).</summary>
+    /// <summary>
+    /// Un argomento che è un tipo (D43, 30/10/2026): <c>X.class</c> in Java, <c>typeof(X)</c> in C#, <c>GetType(X)</c> in VB;
+    /// e, dall'11/11/2026, un argomento generico scritto nella chiamata (<c>AddScoped&lt;IFoo, Foo&gt;()</c>,
+    /// <c>AddScoped(Of IFoo, Foo)()</c>).
+    /// </summary>
     public sealed class ScriptTypeArgument
     {
+        /// <summary>
+        /// Da qui si numerano gli argomenti generici (il primo è 1000, il secondo 1001): così stanno accanto a quelli fra
+        /// parentesi senza un campo nuovo negli script, come i punti di chiamata con soli tipi (<see cref="CodeCallSites.TypeOnlyOrdinalBase"/>).
+        /// </summary>
+        public const int GenericPositionBase = 1000;
+
+        /// <summary>La posizione fra gli argomenti, da 0; per un argomento generico <see cref="GenericPositionBase"/> + la sua posizione.</summary>
         public int Position { get; set; }
         /// <summary>Il nome qualificato (<c>com.acme.Exporter</c>); per un tipo della piattaforma com'è scritto (<c>String</c>).</summary>
         public string TypeName { get; set; }
