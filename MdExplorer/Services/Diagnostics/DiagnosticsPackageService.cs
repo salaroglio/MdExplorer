@@ -79,7 +79,11 @@ namespace MdExplorer.Services.Diagnostics
             };
         }
 
-        public IReadOnlyList<DiagnosticsFile> Collect()
+        /// <summary>
+        /// I log e, con <paramref name="findingsOf"/> (i progetti), le rilevazioni di MarkAgent (<see cref="DiagnosticsFindings"/>):
+        /// oscurate come i log, e nell'anteprima come tutto il resto.
+        /// </summary>
+        public IReadOnlyList<DiagnosticsFile> Collect(IEnumerable<string> findingsOf = null)
         {
             var context = _context();
             var files = new List<DiagnosticsFile>();
@@ -112,6 +116,15 @@ namespace MdExplorer.Services.Diagnostics
                 Add("electron/electron_main.log", Path.Combine(_electronUserData, "electron_main.log"), ElectronLogTail);
                 Add("electron/main.log", Path.Combine(_electronUserData, "logs", "main.log"), ElectronLogTail);
             }
+
+            if (findingsOf != null)
+                foreach (var f in DiagnosticsFindings.Collect(findingsOf))
+                {
+                    var text = File.ReadAllText(f.Path, Encoding.UTF8);
+                    var r = DiagnosticsRedactor.Redact(text, context);
+                    // la provenienza non si scrive: è la cartella del progetto, cioè spesso il nome del cliente
+                    files.Add(new DiagnosticsFile { Name = f.Name, Source = "", OriginalBytes = new FileInfo(f.Path).Length, Text = r.Text, Redactions = r.Counts });
+                }
 
             var info = DiagnosticsRedactor.Redact(InfoJson(), context);
             files.Insert(0, new DiagnosticsFile { Name = "info.json", Source = "", OriginalBytes = info.Text.Length, Text = info.Text, Redactions = info.Counts });

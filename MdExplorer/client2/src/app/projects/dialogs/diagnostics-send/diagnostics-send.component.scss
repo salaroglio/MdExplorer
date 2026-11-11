@@ -45,3 +45,20 @@
   user-select: text;
 }
 .sent-note { color: var(--mde-text-secondary); font-size: 0.85em; }
+
+.findings {
+  margin: 4px 0 12px;
+
+  .findings-note {
+    margin: 2px 0 0 32px;
+    font-size: 12px;
+    opacity: 0.75;
+  }
+}
+
+.finding-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+}

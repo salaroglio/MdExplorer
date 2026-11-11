@@ -1,3 +1,4 @@
+using Ad.Tools.Dal.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Linq;
@@ -100,15 +101,19 @@ namespace MdExplorer.Controllers.Diagnostics
         /// oscurata, quante sostituzioni per tipo e il peso dello zip. Lo zip completo è <see cref="PackageZip"/>.
         /// </summary>
         [HttpGet("Package")]
-        public IActionResult Package([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package)
+        public IActionResult Package([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings, [FromQuery] bool findings = false)
         {
             const int previewLines = 300;
-            var files = package.Collect();
+            var projects = ProjectPaths(userSettings);
+            var files = package.Collect(findings ? projects : null);
             var zipBytes = package.Zip(files).Length;
             var totals = files.SelectMany(f => f.Redactions).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
             return Ok(new
             {
                 zipBytes,
+                // quante rilevazioni di MarkAgent ci sono da allegare: la finestra mostra la casella solo se ce ne sono
+                findingsAvailable = MdExplorer.Features.Diagnostics.DiagnosticsFindings.Collect(projects).Count,
                 redactions = totals,
                 files = files.Select(f =>
                 {
@@ -125,9 +130,10 @@ namespace MdExplorer.Controllers.Diagnostics
 
         /// <summary>GET api/Diagnostics/Package/zip — lo stesso pacchetto dell'anteprima, intero, come zip da salvare.</summary>
         [HttpGet("Package/zip")]
-        public IActionResult PackageZip([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package)
+        public IActionResult PackageZip([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings, [FromQuery] bool findings = false)
         {
-            var bytes = package.Zip(package.Collect());
+            var bytes = package.Zip(package.Collect(findings ? ProjectPaths(userSettings) : null));
             return File(bytes, "application/zip", $"mde-diagnostica-{DateTime.Now:yyyy-MM-dd-HHmm}.zip");
         }
 
@@ -135,7 +141,13 @@ namespace MdExplorer.Controllers.Diagnostics
         {
             /// <summary>La versione di MDE vista dal client (versionInfo): quella dell'assembly del servizio è ferma.</summary>
             public string Version { get; set; }
+            /// <summary>Allegare le rilevazioni di MarkAgent (11/11/2026): solo se chi invia l'ha chiesto, dopo averle viste nell'anteprima.</summary>
+            public bool Findings { get; set; }
         }
+
+        /// <summary>Le cartelle dei progetti che MdExplorer conosce: dove cercare le rilevazioni.</summary>
+        private static System.Collections.Generic.List<string> ProjectPaths(MdExplorer.Abstractions.DB.IUserSettingsDB userSettings)
+            => userSettings.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>().GetList().Select(p => p.Path).ToList();
 
         /// <summary>
         /// POST api/Diagnostics/Package/send — spedisce al relay (Diagnostics:UploadUrl, errantia) lo stesso pacchetto
@@ -145,6 +157,7 @@ namespace MdExplorer.Controllers.Diagnostics
         public async System.Threading.Tasks.Task<IActionResult> SendPackage(
             [FromBody] SendPackageRequest request,
             [FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings,
             [FromServices] System.Net.Http.IHttpClientFactory http,
             [FromServices] Microsoft.Extensions.Configuration.IConfiguration configuration,
             [FromServices] Microsoft.Extensions.Logging.ILogger<DiagnosticsController> logger)
@@ -155,7 +168,7 @@ namespace MdExplorer.Controllers.Diagnostics
                     "Manca Diagnostics:UploadUrl nella configurazione del servizio: non so dove inviare.",
                     "Diagnostics:UploadUrl is missing from the service configuration: I do not know where to send.") });
 
-            var zip = package.Zip(package.Collect());
+            var zip = package.Zip(package.Collect(request?.Findings == true ? ProjectPaths(userSettings) : null));
             using var content = new System.Net.Http.ByteArrayContent(zip);
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
             using var message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url) { Content = content };

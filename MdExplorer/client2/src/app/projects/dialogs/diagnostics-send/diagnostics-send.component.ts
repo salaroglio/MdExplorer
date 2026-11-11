@@ -16,6 +16,8 @@ interface PackageFile {
 
 interface PackagePreview {
   zipBytes: number;
+  /** Quante rilevazioni di MarkAgent ci sono da allegare (0 = la casella non si mostra). */
+  findingsAvailable: number;
   redactions: { [kind: string]: number };
   files: PackageFile[];
 }
@@ -24,6 +26,8 @@ interface PackagePreview {
  * «Invia diagnostica» (sprint 2026-11-06-Invia-Diagnostica, D1): l'anteprima del pacchetto di log, già oscurato, prima di
  * qualsiasi invio. Chi invia vede quali file partono, da dove vengono, cosa è stato tolto, e la coda di ciascuno.
  * D3: «Invia» spedisce lo stesso pacchetto al relay (errantia) e mostra il codice da dire a chi aiuta.
+ * 11/11/2026: a richiesta partono anche le rilevazioni di MarkAgent (ciò che ha trovato sul codice, in forme e numeri):
+ * con la casella spuntata l'anteprima si rifà e le mostra, come tutto il resto.
  */
 @Component({
   selector: 'app-diagnostics-send',
@@ -33,6 +37,8 @@ interface PackagePreview {
 export class DiagnosticsSendDialogComponent implements OnInit {
   preview: PackagePreview | null = null;
   loading = true;
+  /** Allegare le rilevazioni di MarkAgent: lo sceglie chi invia, mai da solo. */
+  withFindings = false;
   saving = false;
   sending = false;
   sent: { code: string; expiresAt: string } | null = null;
@@ -46,13 +52,24 @@ export class DiagnosticsSendDialogComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.http.get<PackagePreview>('../api/Diagnostics/Package').subscribe({
+    this.load();
+  }
+
+  /** L'anteprima di ciò che parte: si rifà quando cambia la casella delle rilevazioni. */
+  load(): void {
+    this.loading = true;
+    this.error = '';
+    this.http.get<PackagePreview>('../api/Diagnostics/Package', { params: { findings: String(this.withFindings) } }).subscribe({
       next: p => { this.preview = p; this.loading = false; },
       error: err => {
         this.error = this.translate.instant('DIAGNOSTICS.LOAD_FAILED', { error: err?.error?.error || err?.message || err });
         this.loading = false;
       }
     });
+  }
+
+  isFinding(f: PackageFile): boolean {
+    return f.name.startsWith('rilevazioni/');
   }
 
   kb(bytes: number): string {
@@ -66,7 +83,7 @@ export class DiagnosticsSendDialogComponent implements OnInit {
   send(): void {
     this.sending = true;
     this.error = '';
-    this.http.post<{ code: string; expiresAt: string }>('../api/Diagnostics/Package/send', { version: versionInfo.version }).subscribe({
+    this.http.post<{ code: string; expiresAt: string }>('../api/Diagnostics/Package/send', { version: versionInfo.version, findings: this.withFindings }).subscribe({
       next: r => { this.sent = r; this.sending = false; },
       error: err => {
         this.error = this.translate.instant('DIAGNOSTICS.SEND_FAILED', { error: err?.error?.error || err?.message || err });
@@ -87,7 +104,7 @@ export class DiagnosticsSendDialogComponent implements OnInit {
 
   saveZip(): void {
     this.saving = true;
-    this.http.get('../api/Diagnostics/Package/zip', { responseType: 'blob', observe: 'response' }).subscribe({
+    this.http.get('../api/Diagnostics/Package/zip', { params: { findings: String(this.withFindings) }, responseType: 'blob', observe: 'response' }).subscribe({
       next: res => {
         const disposition = res.headers.get('content-disposition') || '';
         const name = /filename=([^;]+)/.exec(disposition)?.[1]?.trim() || 'mde-diagnostica.zip';

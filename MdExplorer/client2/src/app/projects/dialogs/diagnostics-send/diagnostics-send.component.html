@@ -33,10 +33,20 @@
     </div>
     <p class="note">{{ 'DIAGNOSTICS.NOT_INCLUDED' | translate }}</p>
 
+    <div class="findings" *ngIf="preview.findingsAvailable > 0">
+      <mat-checkbox color="primary" [(ngModel)]="withFindings" [disabled]="loading || sending || !!sent" (change)="load()">
+        {{ 'DIAGNOSTICS.ATTACH_FINDINGS' | translate: { count: preview.findingsAvailable } }}
+      </mat-checkbox>
+      <div class="findings-note">{{ 'DIAGNOSTICS.ATTACH_FINDINGS_NOTE' | translate }}</div>
+    </div>
+
     <mat-accordion multi>
       <mat-expansion-panel *ngFor="let f of preview.files">
         <mat-expansion-panel-header>
-          <mat-panel-title class="file-name">{{ f.name }}</mat-panel-title>
+          <mat-panel-title class="file-name">
+            <mat-icon *ngIf="isFinding(f)" class="finding-icon" [matTooltip]="'DIAGNOSTICS.FINDING' | translate">fact_check</mat-icon>
+            {{ f.name }}
+          </mat-panel-title>
           <mat-panel-description>
             {{ kb(f.bytes) }} · {{ 'DIAGNOSTICS.LINES' | translate: { count: f.lines } }}
             <span *ngIf="f.truncated">&nbsp;· {{ 'DIAGNOSTICS.TRUNCATED' | translate }}</span>
@@ -52,11 +62,11 @@
 
 <mat-dialog-actions align="end">
   <button mat-button mat-dialog-close>{{ 'COMMON.CLOSE' | translate }}</button>
-  <button mat-stroked-button color="primary" [disabled]="!preview || saving" (click)="saveZip()">
+  <button mat-stroked-button color="primary" [disabled]="!preview || loading || saving" (click)="saveZip()">
     <mat-icon>download</mat-icon>
     {{ 'DIAGNOSTICS.SAVE_ZIP' | translate }}
   </button>
-  <button mat-flat-button color="primary" [disabled]="!preview || sending || !!sent" (click)="send()">
+  <button mat-flat-button color="primary" [disabled]="!preview || loading || sending || !!sent" (click)="send()">
     <mat-icon>{{ sending ? 'hourglass_top' : 'send' }}</mat-icon>
     {{ (sending ? 'DIAGNOSTICS.SENDING' : 'DIAGNOSTICS.SEND') | translate }}
   </button>

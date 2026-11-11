@@ -22,6 +22,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string RuleScriptSuffix = ".rules.ttl";
         public const string RuleDefinitionSuffix = ".rule.json";
         public const string RulesFolderName = "_rules";
+        /// <summary>
+        /// Le rilevazioni di MarkAgent sul grafo (11/11/2026), in <c>.mde-code/_findings/*.md</c>: che cosa al grafo è mancato,
+        /// in forme e numeri, per chi mantiene MdExplorer. «Invia diagnostica» le allega se chi invia lo chiede.
+        /// </summary>
+        public const string FindingsFolderName = "_findings";
         /// <summary>Il vecchio formato JSON Lines: si riconosce solo per cancellarlo (<see cref="ICodeGraphStore.RetireOldScriptsAsync"/>).</summary>
         public const string LegacyAstSuffix = ".ast.jsonl";
         public const string LegacyDocSuffix = ".doc.jsonl";

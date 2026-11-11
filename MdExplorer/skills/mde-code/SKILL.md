@@ -1,6 +1,6 @@
 ---
 name: mde-code
-description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
+description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
   version: 21
@@ -198,6 +198,40 @@ line; do not start it unasked.
    proposal per rule. Tell the user the proposals wait in the MarkAgent tab («Migliora il grafo») and that the link
    descriptions are written by «Descrivi con Mark» on the folder (its preview counts them). Never write `.mde-code/`.
 
+### Findings for who maintains MdExplorer: `.mde-code/_findings/`
+
+Who maintains MdExplorer cannot see this code. What only MdExplorer can fix — a fact the extractors do not record, a
+construct read wrongly, a convention no rule can express — goes back to them as a **finding**: a markdown file
+`.mde-code/_findings/rilevazione-YYYY-MM-DD.md`. It is the ONE place under `.mde-code/` you write yourself (create the
+folder if missing, `.md` only). Write it when the user asks («scrivi la rilevazione», «che cosa manca a MdExplorer?»),
+or offer it in one line when step 2 found facts that are not recorded.
+
+**Nothing of the customer goes in it**: no source code, no names of classes, methods, tables, servers, people or of
+the customer; no queries, connection strings or configuration values. Describe SHAPES (a regular expression, or a 5-15
+line skeleton with placeholders: `IServizio1`, `Classe1`, `Metodo1`) and NUMBERS. Names of public libraries and
+frameworks (the DI container, the UI toolkit) are not the customer's: write them exactly, with the version.
+
+What to put in it (TL;DR on top, as in every MdExplorer document), measured with `code_schema`, `code_query` and the
+search tools, not estimated:
+
+1. **Perimeter**: languages, number of files and lines per language, kinds of project (web, desktop, service, library).
+2. **How objects are wired**: which dependency-injection container (name, version) or none; each form of registration
+   with its count — generic arguments, `typeof`/`GetType`, chained calls, factories (a lambda that creates the object),
+   attributes on classes, scanning by convention, configuration files (XML/JSON: the element and attribute names);
+   which forms a registration rule already links (the rule, the numbers of `code_rule_try`) and which it cannot, and why.
+3. **Events and callbacks**: the forms that connect a handler to an event (`Handles`, `AddHandler`, `+=`, designer
+   files, markup attributes), each with its count; how many methods have no caller in the graph because of them.
+4. **Attributes / annotations that carry meaning** (routing, injection, export, serialization, transactions): the
+   attribute names as written, the count, what they connect.
+5. **What the graph knows only by name**: the groups of `code_query unknown-externals` with their counts, and for the
+   largest what they are (framework, generated code, another repository).
+6. **Constructs read wrongly or not at all**: the shape, the count, what the graph says and what the source says.
+7. **Open questions** for the maintainers.
+
+Read it again before closing: if a real name, a query or a value slipped in, replace it. Then tell the user: «Invia
+diagnostica» (in the list of projects), tick «Allega le rilevazioni di MarkAgent», check the preview, send — or
+«Salva lo zip» there, if the network does not allow sending.
+
 ### Blind spots: what the graph knows only by name
 
 Before writing that something «is not known», ask the graph where it stops — and say it in the answer or document:
@@ -223,8 +257,10 @@ arguments (`@ImplementedBy(Y.class)`, `@Named("x")`), the resolved return type o
 or an annotation) and where to read the two ends: `argument` (an `X.class` of the anchor call), `chain` (an `X.class` of a
 call further down the chain), `annotated` (the annotated symbol), `returnType` (of the annotated method),
 `annotationArgument` (an `X.class` of the annotation, `element` default `value`). In `argument` and `chain` the position
-is `"argument": n` for a type between the parentheses, or `"generic": n` for a generic argument (one of the two). C# and
-VB record no annotations (attributes) yet. Guice is three rules:
+is `"argument": n` for a type between the parentheses, or `"generic": n` for a generic argument (one of the two). In C#
+and VB the annotations are the ATTRIBUTES (`[Export(typeof(IFoo))]`, `<Export(GetType(IFoo))>`): the name is the last
+word without `Attribute`; the first positional argument is the element `value`, the next ones `arg1`, `arg2`, a named
+one has its name (`ContractType`). Guice is three rules:
 
 ```json
 {"id": "guice-bind", "kind": "registration", "description": "bind(X).to(Y): Guice gives Y where X is asked",
@@ -249,6 +285,8 @@ really uses — `code_schema` lists the callees with type arguments):
 {"id": "autofac-as", "kind": "registration", "description": "RegisterType<C>().As<I>()",
  "anchor": {"call": "As"}, "abstraction": {"from": "argument", "generic": 0},
  "implementation": {"from": "chain", "callee": "RegisterType", "generic": 0}}
+{"id": "mef-export", "kind": "registration", "description": "[Export(typeof(I))] on C: MEF gives C where I is imported",
+ "anchor": {"annotation": "Export"}, "abstraction": {"from": "annotationArgument"}, "implementation": {"from": "annotated"}}
 ```
 
 A registration through a factory (`AddScoped<IFoo>(sp => new Foo(…))`), by convention (assembly scanning) or in a
