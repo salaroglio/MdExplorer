@@ -40,6 +40,16 @@ export interface SeedClosureMiss {
   candidates: string[];
 }
 
+/** F4c: un metodo di interfaccia raggiunto e le classi che lo implementano; auto = seguita da sola (reason). */
+export interface SeedImplementations {
+  contract: string;
+  candidates: string[];
+  created: string[];
+  followed: string[];
+  auto: boolean;
+  reason: 'unique' | 'created' | null;
+}
+
 export interface SeedPreview {
   seed: string;
   language: string;
@@ -47,6 +57,7 @@ export interface SeedPreview {
   lines: number;
   files: SeedClosureFile[];
   misses: SeedClosureMiss[];
+  implementations: SeedImplementations[];
 }
 
 export interface SeedAnalysis {
@@ -58,7 +69,7 @@ export interface SeedAnalysis {
   outcome: { files: number; reparsed: number; scriptsRemoved: number; crossLinked: number; loaded: number | null; failed: number | null; firstError: string | null; warnings: string[] } | null;
 }
 
-export interface SeedEntry { seed: string; pruned: string[]; language: string | null; files: number | null; confirmedAt: string | null; }
+export interface SeedEntry { seed: string; pruned: string[]; included: string[]; language: string | null; files: number | null; confirmedAt: string | null; }
 
 /** «Esporta linguaggio…» (10/11/2026): dove è finito lo zip; unchanged = c'era già, identico. */
 export interface LanguagePackageExported {
@@ -479,13 +490,13 @@ export class CodeGraphService {
   }
 
   /** F3: la chiusura di un file, senza scrivere niente. */
-  previewSeed(projectPath: string, seed: string, pruned: string[]): Observable<SeedPreview> {
-    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned });
+  previewSeed(projectPath: string, seed: string, pruned: string[], included: string[] = []): Observable<SeedPreview> {
+    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned, included });
   }
 
   /** F3: salva il seme con le sue potature e analizza i soli file della chiusura (confirm = accetta la differenza). */
-  applySeed(projectPath: string, seed: string, pruned: string[], confirm: boolean): Observable<SeedAnalysis> {
-    return this.http.post<SeedAnalysis>('../api/codegraph/seeds/apply', { projectPath, seed, pruned, confirm });
+  applySeed(projectPath: string, seed: string, pruned: string[], confirm: boolean, included: string[] = []): Observable<SeedAnalysis> {
+    return this.http.post<SeedAnalysis>('../api/codegraph/seeds/apply', { projectPath, seed, pruned, confirm, included });
   }
 
   analyzeSeed(projectPath: string, seed: string, confirm: boolean): Observable<SeedAnalysis> {

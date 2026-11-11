@@ -134,6 +134,11 @@ namespace MdExplorer.Service.Models
         public string Path { get; set; }
         /// <summary>I file che l'utente ha tolto dalla chiusura nell'anteprima (percorsi logici).</summary>
         public List<string> Pruned { get; set; }
+        /// <summary>
+        /// Le implementazioni scelte dall'utente (F4c): classi da seguire quando un metodo di interfaccia ne ha più d'una e il
+        /// codice non dice quale (percorsi logici).
+        /// </summary>
+        public List<string> Included { get; set; }
     }
 
     public class CodeRootConfig

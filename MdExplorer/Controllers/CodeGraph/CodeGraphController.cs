@@ -532,6 +532,7 @@ namespace MdExplorer.Controllers.CodeGraph
             public string ProjectPath { get; set; }
             public string Seed { get; set; }
             public System.Collections.Generic.List<string>? Pruned { get; set; }
+            public System.Collections.Generic.List<string>? Included { get; set; }
             public int? MaxFiles { get; set; }
             public long? MaxLines { get; set; }
         }
@@ -549,7 +550,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             var seeds = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedService>();
             MdExplorer.Services.CodeGraph.CodeSeedPreview preview;
-            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct); }
+            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct, request.Included); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
             {
                 return BadRequest(new { error = ex.Message });
@@ -561,6 +562,7 @@ namespace MdExplorer.Controllers.CodeGraph
                 files = c.Files.Select(f => new { path = f.Path, depth = f.Depth, from = f.From, written = f.Written, whole = f.Whole, lines = f.Lines,
                     symbolCount = f.Symbols.Count, symbols = f.Symbols.Take(20) }),
                 misses = c.Misses.Select(m => new { kind = m.Kind, written = m.Written, uses = m.Uses, from = m.From, candidates = m.Candidates }),
+                implementations = c.Implementations.Select(i => new { contract = i.Contract, candidates = i.Candidates, created = i.Created, followed = i.Followed, auto = i.Auto, reason = i.Reason }),
             });
         });
 
@@ -569,6 +571,7 @@ namespace MdExplorer.Controllers.CodeGraph
             public string ProjectPath { get; set; }
             public string Seed { get; set; }
             public System.Collections.Generic.List<string>? Pruned { get; set; }
+            public System.Collections.Generic.List<string>? Included { get; set; }
             public bool Confirm { get; set; }
         }
 
@@ -594,7 +597,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             try
             {
-                _analysis.SaveSeed(request.ProjectPath, request.Seed, request.Pruned);
+                _analysis.SaveSeed(request.ProjectPath, request.Seed, request.Pruned, included: request.Included);
                 return Ok(SeedView(await _analysis.AnalyzeSeedAsync(request.ProjectPath, request.Seed, request.Confirm, ct)));
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
@@ -634,7 +637,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var store = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedStore>().All(projectPath);
             return Ok(MdExplorer.Services.CodeGraph.CodeAnalysisService.SeedsOf(projectPath).Select(s => new
             {
-                seed = s.Path, pruned = s.Pruned,
+                seed = s.Path, pruned = s.Pruned, included = s.Included,
                 language = store.TryGetValue(s.Path, out var c) ? c.Language : null,
                 files = c?.Files.Count, confirmedAt = c?.ConfirmedAt,
             }));

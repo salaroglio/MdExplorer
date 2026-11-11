@@ -1,5 +1,12 @@
 {
   "SEED": {
+    "IMPLEMENTATIONS": "Implementazioni",
+    "IMPLEMENTATIONS_HINT": "Il codice chiama un'interfaccia e non dice quale classe si usa: spunta quelle da seguire. In cima quelle che il programma crea.",
+    "CANDIDATES_COUNT": "{{count}} classi, {{created}} create qui",
+    "CREATED_HERE": "creata qui",
+    "IMPLEMENTATIONS_AUTO": "Seguite da sole: {{count}}",
+    "REASON_UNIQUE": "l'unica implementazione",
+    "REASON_CREATED": "l'unica creata dal programma",
     "TITLE": "Analizza questo programma",
     "INTRO": "I file che servono per capire questo programma: quelli che usa, e quelli che usano loro. Togli la spunta a quelli che non ti interessano. È il parser: niente LLM, niente token.",
     "LOADING": "Cerco le dipendenze…",

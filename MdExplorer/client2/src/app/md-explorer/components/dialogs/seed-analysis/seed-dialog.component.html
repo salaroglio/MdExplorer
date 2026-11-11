@@ -44,6 +44,30 @@
       </div>
     </div>
 
+    <div class="implementations" *ngIf="implChoices.length > 0 || implAuto.length > 0">
+      <label class="field-label">{{ 'SEED.IMPLEMENTATIONS' | translate }}</label>
+      <p class="hint" *ngIf="implChoices.length > 0">{{ 'SEED.IMPLEMENTATIONS_HINT' | translate }}</p>
+      <div class="contract" *ngFor="let i of implChoices">
+        <div class="contract-name"><code>{{ contractName(i.contract) }}</code> <span class="file-meta">{{ 'SEED.CANDIDATES_COUNT' | translate: { count: i.candidates.length, created: i.created.length } }}</span></div>
+        <div class="file-row" *ngFor="let c of i.candidates | slice:0:12">
+          <mat-checkbox [checked]="included.has(c)" [disabled]="applying" (change)="toggleImplementation(c, $event.checked)">
+            <span class="file-name">{{ name(c) }}</span>
+          </mat-checkbox>
+          <span class="file-meta" *ngIf="i.created.includes(c)">{{ 'SEED.CREATED_HERE' | translate }}</span>
+        </div>
+        <div class="file-meta" *ngIf="i.candidates.length > 12">{{ 'SEED.MORE' | translate: { count: i.candidates.length - 12 } }}</div>
+      </div>
+      <button mat-button class="miss-head" *ngIf="implAuto.length > 0" (click)="showAuto = !showAuto">
+        <mat-icon>{{ showAuto ? 'expand_less' : 'expand_more' }}</mat-icon>{{ 'SEED.IMPLEMENTATIONS_AUTO' | translate: { count: implAuto.length } }}
+      </button>
+      <div class="miss-list" *ngIf="showAuto">
+        <div class="miss-row" *ngFor="let i of implAuto">
+          <code>{{ contractName(i.contract) }}</code> → {{ name(i.followed[0] || i.candidates[0]) }}
+          <span class="file-meta">· {{ ('SEED.REASON_' + (i.reason || '').toUpperCase()) | translate }}</span>
+        </div>
+      </div>
+    </div>
+
     <div class="misses" *ngIf="missGroups.length > 0">
       <label class="field-label">{{ 'SEED.MISSES' | translate }}</label>
       <div *ngFor="let g of missGroups">

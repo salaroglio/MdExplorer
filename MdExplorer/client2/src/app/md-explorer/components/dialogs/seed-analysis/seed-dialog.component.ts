@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { CodeGraphService, SeedAnalysis, SeedClosureFile, SeedClosureMiss, SeedPreview } from '../../../services/code-graph.service';
+import { CodeGraphService, SeedAnalysis, SeedClosureFile, SeedClosureMiss, SeedImplementations, SeedPreview } from '../../../services/code-graph.service';
 
 export interface SeedDialogData {
   projectRoot: string;
@@ -30,6 +30,11 @@ export class SeedDialogComponent implements OnInit {
   public openMisses: string | null = null;
   /** I file tolti dall'utente; dirty = tolti o rimessi dopo l'ultima anteprima. */
   public pruned = new Set<string>();
+  /** F4c: le implementazioni scelte (classi da seguire quando un metodo di interfaccia ne ha più d'una). */
+  public included = new Set<string>();
+  public implChoices: SeedImplementations[] = [];
+  public implAuto: SeedImplementations[] = [];
+  public showAuto = false;
   public dirty = false;
   public confirmation: SeedAnalysis | null = null;
   public done: SeedAnalysis | null = null;
@@ -46,7 +51,7 @@ export class SeedDialogComponent implements OnInit {
     this.codeGraph.listSeeds(this.data.projectRoot).subscribe({
       next: list => {
         const saved = list.find(s => s.seed === this.data.seed);
-        if (saved) { this.pruned = new Set(saved.pruned); this.prunedList = [...this.pruned].sort(); }
+        if (saved) { this.pruned = new Set(saved.pruned); this.prunedList = [...this.pruned].sort(); this.included = new Set(saved.included ?? []); }
         this.load();
       },
       error: () => this.load(),
@@ -57,7 +62,7 @@ export class SeedDialogComponent implements OnInit {
     this.loading = true;
     this.errorMessage = '';
     this.confirmation = null;
-    this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned]).subscribe({
+    this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned], [...this.included]).subscribe({
       next: p => {
         this.loading = false;
         this.dirty = false;
@@ -67,6 +72,9 @@ export class SeedDialogComponent implements OnInit {
         this.levels = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, files]) => ({ depth, files }));
         const byKind = new Map<string, SeedClosureMiss[]>();
         for (const m of p.misses.filter(x => x.kind !== 'pruned')) { byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m]); }
+        this.implChoices = (p.implementations ?? []).filter(i => !i.auto && i.candidates.length > 1)
+          .sort((a, b) => b.created.length - a.created.length || a.contract.localeCompare(b.contract));
+        this.implAuto = (p.implementations ?? []).filter(i => i.auto);
         this.missGroups = ['frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
           .map(kind => ({ kind, items: byKind.get(kind)!, uses: byKind.get(kind)!.reduce((n, m) => n + m.uses, 0) }));
       },
@@ -85,6 +93,15 @@ export class SeedDialogComponent implements OnInit {
 
   restore(path: string): void { this.toggle(path, true); }
 
+  /** F4c: una spunta su un'implementazione = seguila (entra con la sua catena alla prossima anteprima). */
+  toggleImplementation(path: string, chosen: boolean): void {
+    if (chosen) { this.included.add(path); } else { this.included.delete(path); }
+    this.dirty = true;
+  }
+
+  /** «Repository.save» da «com.acme.api.Repository.save». */
+  contractName(contract: string): string { const parts = contract.split('.'); return parts.slice(-2).join('.'); }
+
   /** Un campo, non un getter: un getter che crea una lista in un *ngFor fa lavorare a vuoto il rilevamento dei cambi. */
   public prunedList: string[] = [];
 
@@ -98,7 +115,7 @@ export class SeedDialogComponent implements OnInit {
   analyze(confirm: boolean): void {
     this.applying = true;
     this.errorMessage = '';
-    this.codeGraph.applySeed(this.data.projectRoot, this.data.seed, [...this.pruned], confirm).subscribe({
+    this.codeGraph.applySeed(this.data.projectRoot, this.data.seed, [...this.pruned], confirm, [...this.included]).subscribe({
       next: r => {
         this.applying = false;
         if (r.needsConfirmation) { this.confirmation = r; return; }

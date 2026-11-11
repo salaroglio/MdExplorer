@@ -1,5 +1,12 @@
 {
   "SEED": {
+    "IMPLEMENTATIONS": "Implementations",
+    "IMPLEMENTATIONS_HINT": "The code calls an interface and does not say which class is used: tick the ones to follow. On top, the ones the program creates.",
+    "CANDIDATES_COUNT": "{{count}} classes, {{created}} created here",
+    "CREATED_HERE": "created here",
+    "IMPLEMENTATIONS_AUTO": "Followed on their own: {{count}}",
+    "REASON_UNIQUE": "the only implementation",
+    "REASON_CREATED": "the only one the program creates",
     "TITLE": "Analyse this program",
     "INTRO": "The files needed to understand this program: the ones it uses, and the ones they use. Untick the ones you are not interested in. This is the parser: no LLM, no tokens.",
     "LOADING": "Looking for the dependencies…",

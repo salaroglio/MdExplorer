@@ -339,6 +339,12 @@
         "item": {
           "kind": "group",
           "keys": {
+            "included": {
+              "kind": "list",
+              "item": {
+                "kind": "text"
+              }
+            },
             "path": {
               "kind": "text"
             },

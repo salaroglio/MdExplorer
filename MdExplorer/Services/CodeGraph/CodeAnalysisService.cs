@@ -121,7 +121,7 @@ namespace MdExplorer.Services.CodeGraph
         /// </summary>
         Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default);
         /// <summary>Scrive (o toglie) un seme nel <c>.development.yml</c> con le sue potature (F3b).</summary>
-        void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false);
+        void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false, IEnumerable<string> included = null);
         /// <summary>Analizza un seme: chiusura ricalcolata, differenza da confermare, struttura dei soli suoi file (F3b).</summary>
         Task<CodeSeedAnalysisOutcome> AnalyzeSeedAsync(string projectPath, string seed, bool confirm, CancellationToken ct = default);
         /// <summary>Toglie un seme e i file della sua chiusura che nessun altro vuole (F3b).</summary>
@@ -990,19 +990,25 @@ namespace MdExplorer.Services.CodeGraph
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             var seeds = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path).Seeds : null;
             return (seeds ?? new List<CodeSeedConfig>()).Where(s => !string.IsNullOrWhiteSpace(s.Path))
-                .Select(s => new CodeSeedConfig { Path = NormalizeSeed(s.Path), Pruned = (s.Pruned ?? new List<string>()).Select(NormalizeSeed).ToList() }).ToList();
+                .Select(s => new CodeSeedConfig { Path = NormalizeSeed(s.Path), Pruned = (s.Pruned ?? new List<string>()).Select(NormalizeSeed).ToList(),
+                    Included = (s.Included ?? new List<string>()).Select(NormalizeSeed).ToList() }).ToList();
         }
 
         public static string NormalizeSeed(string path) => (path ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
 
         /// <summary>Scrive (o toglie, con <paramref name="pruned"/> null e <paramref name="remove"/>) un seme nel <c>.development.yml</c>.</summary>
-        public void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false)
+        public void SaveSeed(string projectPath, string seed, IEnumerable<string> pruned, bool remove = false, IEnumerable<string> included = null)
         {
             seed = NormalizeSeed(seed);
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             var config = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigFile.Config(path) : new DevelopmentConfig();
             var seeds = (config.Seeds ?? new List<CodeSeedConfig>()).Where(s => NormalizeSeed(s.Path) != seed).ToList();
-            if (!remove) seeds.Add(new CodeSeedConfig { Path = seed, Pruned = (pruned ?? Enumerable.Empty<string>()).Select(NormalizeSeed).Distinct().OrderBy(p => p, StringComparer.Ordinal).ToList() });
+            if (!remove) seeds.Add(new CodeSeedConfig
+            {
+                Path = seed,
+                Pruned = (pruned ?? Enumerable.Empty<string>()).Select(NormalizeSeed).Distinct().OrderBy(p => p, StringComparer.Ordinal).ToList(),
+                Included = (included ?? Enumerable.Empty<string>()).Select(NormalizeSeed).Distinct().OrderBy(p => p, StringComparer.Ordinal).ToList(),
+            });
             config.Seeds = seeds.Count == 0 ? null : seeds.OrderBy(s => s.Path, StringComparer.Ordinal).ToList();
             MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(path, config, new MdExplorer.Utilities.MdeWhy(
                 remove ? "tolto un seme del grafo del codice" : "aggiornati i semi del grafo del codice", remove ? "a code graph seed removed" : "code graph seeds updated"));
@@ -1022,7 +1028,7 @@ namespace MdExplorer.Services.CodeGraph
                 ?? throw new InvalidOperationException(UiText.Say($"{seed} non è un seme del progetto: prima «Analizza questo programma».", $"{seed} is not a seed of the project: use «Analyse this program» first."));
             var seeds = (CodeSeedService)_services.GetService(typeof(CodeSeedService));
             var store = (CodeSeedStore)_services.GetService(typeof(CodeSeedStore));
-            var preview = await seeds.PreviewAsync(projectPath, seed, entry.Pruned, null, null, ct);
+            var preview = await seeds.PreviewAsync(projectPath, seed, entry.Pruned, null, null, ct, entry.Included);
             var files = preview.Closure.Files.Select(f => f.Path).ToList();
             var before = store.Get(projectPath, seed);
             if (before != null)

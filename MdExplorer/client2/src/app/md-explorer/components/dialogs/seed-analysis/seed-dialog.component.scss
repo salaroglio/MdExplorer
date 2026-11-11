@@ -21,3 +21,7 @@
 .miss-row code { font-size: 12px; }
 .confirm { align-items: flex-start; padding: 8px 10px; border-radius: 6px; background: var(--mde-surface-2, rgba(0,0,0,0.04)); }
 .confirm code { margin-right: 4px; }
+.implementations { display: flex; flex-direction: column; gap: 4px; }
+.contract { padding: 4px 6px; border-radius: 6px; background: var(--mde-surface-2, rgba(0,0,0,0.03)); }
+.contract-name { margin-bottom: 2px; }
+.hint { margin: 0; font-size: 12px; opacity: 0.75; }

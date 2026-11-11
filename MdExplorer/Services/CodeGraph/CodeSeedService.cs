@@ -35,7 +35,8 @@ namespace MdExplorer.Services.CodeGraph
             _roots = roots; _extractors = extractors; _remoteFiles = remoteFiles;
         }
 
-        public async Task<CodeSeedPreview> PreviewAsync(string projectPath, string seed, IEnumerable<string> pruned, int? maxFiles, long? maxLines, CancellationToken ct = default)
+        public async Task<CodeSeedPreview> PreviewAsync(string projectPath, string seed, IEnumerable<string> pruned, int? maxFiles, long? maxLines, CancellationToken ct = default,
+            IEnumerable<string> included = null)
         {
             seed = (seed ?? throw new ArgumentException(UiText.Say("seed è obbligatorio: il file da cui partire", "seed is required: the file to start from"))).Replace('\\', '/').Trim('/');
             var catalog = CodeLanguageCatalog.ForProject(projectPath);
@@ -46,6 +47,7 @@ namespace MdExplorer.Services.CodeGraph
             {
                 Seeds = new[] { seed },
                 Pruned = new HashSet<string>((pruned ?? Enumerable.Empty<string>()).Select(p => p.Replace('\\', '/').Trim('/')), StringComparer.Ordinal),
+                Included = new HashSet<string>((included ?? Enumerable.Empty<string>()).Select(p => p.Replace('\\', '/').Trim('/')), StringComparer.Ordinal),
                 MaxFiles = maxFiles ?? new CodeClosureRequest().MaxFiles,
                 MaxLines = maxLines ?? new CodeClosureRequest().MaxLines,
             };
