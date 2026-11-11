@@ -10,6 +10,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public IReadOnlyList<string> Seeds { get; init; } = Array.Empty<string>();
         public ISet<string> Pruned { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+        /// <summary>Le implementazioni scelte dall'utente (F4c): file che entrano quando un metodo di interfaccia ne ha più d'una.</summary>
+        public ISet<string> Included { get; init; } = new HashSet<string>(StringComparer.Ordinal);
         public int MaxFiles { get; init; } = 300;
         public long MaxLines { get; init; } = 1_000_000;
     }
@@ -42,9 +44,22 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyList<string> Candidates { get; init; } = Array.Empty<string>();
     }
 
+    /// <summary>
+    /// Un metodo di interfaccia (o di classe astratta) raggiunto e le classi che lo implementano (F4c): quale si usa davvero il
+    /// codice non lo dice. Una sola in tutta la radice si segue da sola (<see cref="Auto"/>); le altre le sceglie l'utente.
+    /// </summary>
+    public sealed class CodeClosureImplementations
+    {
+        public string Contract { get; init; }
+        public List<string> Candidates { get; } = new();
+        public List<string> Followed { get; } = new();
+        public bool Auto { get; set; }
+    }
+
     public sealed class CodeClosure
     {
         public List<CodeClosureFile> Files { get; } = new();
+        public List<CodeClosureImplementations> Implementations { get; } = new();
         public List<CodeClosureMiss> Misses { get; } = new();
         public bool BudgetReached { get; set; }
         public long Lines => Files.Sum(f => (long)f.Lines);

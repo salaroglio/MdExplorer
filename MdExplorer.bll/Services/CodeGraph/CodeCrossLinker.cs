@@ -284,6 +284,9 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ linguaggi a regole (per nome, con gli import)
 
+        /// <summary>Il segno di un arco verso un'implementazione possibile (F4c): <c>impl:a.b.Interfaccia.metodo</c>.</summary>
+        public const string ImplementationPrefix = "impl:";
+
         public static string Written(string what, string name, string maxConfidence)
             => what + ":" + name + (maxConfidence == null ? string.Empty : "|" + maxConfidence);
 

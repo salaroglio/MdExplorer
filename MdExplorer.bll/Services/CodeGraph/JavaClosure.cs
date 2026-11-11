@@ -98,6 +98,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // simbolo → il file che lo dichiara, fra quelli già letti insieme (giri «tutti insieme»); null nella discesa file per file
             Dictionary<string, State> owners = null;
+            // F4c: per ogni metodo di interfaccia raggiunto, le implementazioni viste nei file letti insieme (file → metodo)
+            var contracts = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+            var decided = new Dictionary<string, CodeClosureImplementations>(StringComparer.Ordinal);
+            var implementorsCache = new Dictionary<string, List<(string Path, string TypeFqn)>>(StringComparer.Ordinal);
+            // le righe con implements/extends di tutta la radice, lette UNA volta (un grep): poi ogni tipo si cerca in memoria
+            List<(string Path, string Text)> heritage = null;
             Discover();
             // F4b (10/11/2026): letti da soli, i file non sanno il tipo di un ricevente che viene da un altro file (a().b()). Ora i
             // file della chiusura si rileggono INSIEME, come un piccolo contesto: l'estrattore deduce i riceventi, le madri, le
@@ -125,10 +131,64 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var st in states.Values.ToList())
                     foreach (var id in st.Followed.ToList()) Follow(st, id, rescan: true);
                 Discover();
+                // F4c: le implementazioni — una sola nella radice o scelta dall'utente si segue, le altre si propongono
+                DecideImplementations();
+                Discover();
                 if (result.Files.Count == filesBefore && states.Values.Sum(v => v.Followed.Count) == followedBefore) break;
             }
+            result.Implementations.AddRange(decided.Values.Where(d => d.Candidates.Count > 0).OrderBy(d => d.Contract, StringComparer.Ordinal));
             result.Misses.AddRange(misses.Values.OrderByDescending(m => m.Uses).ThenBy(m => m.Written, StringComparer.Ordinal));
             return result;
+
+            // le classi della radice che implementano (o estendono) il tipo: il nome semplice nelle righe, poi il parser conferma il nome qualificato
+            List<(string Path, string TypeFqn)> ImplementorsInRoot(string contractType)
+            {
+                if (implementorsCache.TryGetValue(contractType, out var known)) return known;
+                heritage ??= _ws.Grep(new System.Text.RegularExpressions.Regex(@"\b(implements|extends)\b"), new[] { ".java" }).Select(h => (h.Path, h.Text)).ToList();
+                var simple = contractType[(contractType.LastIndexOf('.') + 1)..];
+                var pattern = new System.Text.RegularExpressions.Regex(@"\b(implements|extends)\b[^{]*\b" + System.Text.RegularExpressions.Regex.Escape(simple) + @"\b");
+                var found = new List<(string, string)>();
+                foreach (var path in heritage.Where(h => pattern.IsMatch(h.Text)).Select(h => h.Path).Distinct())
+                {
+                    string text;
+                    try { text = states.TryGetValue(path, out var st) ? st.Text : _ws.Read(path); } catch (Exception) { continue; }
+                    var source = _ws.Source(path);
+                    var one = _extractor.Extract(new CodeExtractionRequest { ProjectPath = "", AllFiles = new[] { source }, FilesToEmit = new[] { source }, Sources = new OneText(path, text) });
+                    var script = one.Scripts.FirstOrDefault().Script;
+                    if (script == null) continue;
+                    var byId = script.Symbols.Where(x => x.Id != null).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+                    foreach (var e in script.Edges.Where(e => e.Relation is "inherits" or "implements"))
+                        if (byId.TryGetValue(e.TargetId ?? "", out var sup) && sup.QualifiedName == contractType && byId.TryGetValue(e.SourceId ?? "", out var sub) && CodeCrossLinker.IsJavaType(sub))
+                            found.Add((path, sub.QualifiedName));
+                }
+                return implementorsCache[contractType] = found;
+            }
+
+            void DecideImplementations()
+            {
+                // una copia: seguire un'implementazione può far scoprire altri metodi di interfaccia, decisi al giro dopo
+                foreach (var (contract, seen) in contracts.ToList())
+                {
+                    var dot = contract.LastIndexOf('.');
+                    if (dot <= 0) continue;
+                    var type = contract[..dot];
+                    var name = contract[(dot + 1)..];
+                    if (!decided.TryGetValue(contract, out var d)) decided[contract] = d = new CodeClosureImplementations { Contract = contract };
+                    var inRoot = ImplementorsInRoot(type);
+                    var candidates = seen.Keys.Concat(inRoot.Select(i => i.Path)).Distinct(StringComparer.Ordinal).OrderBy(p => p, StringComparer.Ordinal).ToList();
+                    d.Candidates.Clear(); d.Candidates.AddRange(candidates);
+                    d.Auto = candidates.Count == 1;
+                    foreach (var path in candidates.Where(p => (d.Auto || request.Included.Contains(p)) && !d.Followed.Contains(p)))
+                    {
+                        d.Followed.Add(path);
+                        if (seen.TryGetValue(path, out var methodId) && states.TryGetValue(path, out var st)) { Follow(st, methodId); continue; }
+                        var impl = inRoot.FirstOrDefault(i => i.Path == path);
+                        if (impl.TypeFqn == null) continue;
+                        work.Enqueue((path, impl.TypeFqn, false, 1, "impl:" + contract, CodeCrossLinker.ImplementationPrefix + contract));
+                        pendingMethods.Add((impl.TypeFqn, name, -1, "method:" + impl.TypeFqn + "." + name, "impl:" + contract, 1));
+                    }
+                }
+            }
 
             void Discover()
             {
@@ -189,9 +249,23 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var (id, force) = stack.Pop();
                     if (id == null || (!st.Followed.Add(id) && !force)) continue;
                     if (st.ById.TryGetValue(id, out var sym) && sym.Name != null && sym.Kind != "module") st.Node.Symbols.Add(sym.Name);
+                    // F4c: un metodo di interfaccia raggiunto: il codice vero sta in chi la implementa, da cercare anche fuori dalla chiusura
+                    if (sym?.Kind == "method" && sym.ParentId != null && st.ById.TryGetValue(sym.ParentId, out var holder) && holder.Kind == "interface" && holder.QualifiedName != null)
+                        contracts.TryAdd(holder.QualifiedName + "." + sym.Name, new Dictionary<string, string>(StringComparer.Ordinal));
                     // un import Java da solo non usa niente: contano i riferimenti veri (campi, new, chiamate, madri)
                     foreach (var e in st.Script.Edges.Where(e => e.SourceId == id && e.Relation != "contains" && e.Relation != "imports"))
                     {
+                        // F4c: un'implementazione possibile non si segue da sola: si raccoglie, e la decide DecideImplementations
+                        if (e.Written != null && e.Written.StartsWith(CodeCrossLinker.ImplementationPrefix, StringComparison.Ordinal))
+                        {
+                            var contract = e.Written[CodeCrossLinker.ImplementationPrefix.Length..];
+                            if (owners != null && e.TargetId != null && owners.TryGetValue(e.TargetId, out var implOwner))
+                            {
+                                if (!contracts.TryGetValue(contract, out var seen)) contracts[contract] = seen = new Dictionary<string, string>(StringComparer.Ordinal);
+                                seen.TryAdd(implOwner.Node.Path, e.TargetId);
+                            }
+                            continue;
+                        }
                         var target = e.TargetId != null && st.ById.TryGetValue(e.TargetId, out var t) ? t : null;
                         if (target == null)
                         {

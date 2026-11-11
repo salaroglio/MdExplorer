@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "8";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b)
+        public string ExtractorVersion => "9";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38); 4: metodi banali (D41); 5: punti di chiamata con stringhe (D42); 6: argomenti X.class, catene, annotazioni, tipo restituito risolto (D43); 7: quanti argomenti sulle chiamate a metodi esterni (F1a); 8: chiamata statica su un tipo dello stesso package fuori dal perimetro (F4b); 9: archi verso le implementazioni segnati impl: (F4c)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -1415,7 +1415,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             .SelectMany(impl => _index.MethodsByOwner.TryGetValue(impl, out var byName) && byName.TryGetValue(name, out var im) ? PerimeterIndex.ByArity(im, argc) : Enumerable.Empty<MethodEntry>())
                             .Take(MaxAmbiguousCandidates + 1).ToList();
                         if (impls.Count <= MaxAmbiguousCandidates)
-                            foreach (var im in impls) Edge(ownerId, im.Id, "calls", "inferred", line);
+                            foreach (var im in impls) ImplementationEdge(ownerId, im.Id, fqn + "." + name, line);
                     }
                     else if (extAncestor != null)
                     {
@@ -1445,7 +1445,25 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void MethodEdges(string ownerId, List<MethodEntry> ms, string confidence, int line)
             {
                 var conf = ms.Count == 1 ? confidence : Weaker(confidence, "inferred");
-                foreach (var m in ms) Edge(ownerId, m.Id, "calls", conf, line);
+                foreach (var m in ms)
+                {
+                    var e = Edge(ownerId, m.Id, "calls", conf, line);
+                    // chiamato anche direttamente: non è più solo un'implementazione possibile
+                    if (e?.Written != null && e.Written.StartsWith(CodeCrossLinker.ImplementationPrefix, StringComparison.Ordinal)) e.Written = null;
+                }
+            }
+
+            /// <summary>
+            /// F4c (11/11/2026): un'implementazione nel perimetro di un metodo di interfaccia (o di classe astratta) chiamato: un
+            /// arco «inferred» segnato <c>impl:a.b.Interfaccia.metodo</c>, perché quale implementazione si usa davvero il codice qui
+            /// non lo dice. La chiusura di un seme non le segue da sole: le propone. Il segno lo mette solo un arco nuovo; una
+            /// chiamata diretta allo stesso metodo lo toglie (<see cref="MethodEdges"/>).
+            /// </summary>
+            private void ImplementationEdge(string ownerId, string implId, string contract, int line)
+            {
+                if (ownerId == null || implId == null || ownerId == implId || _edges.ContainsKey($"{ownerId}|{implId}|calls")) return;
+                var e = Edge(ownerId, implId, "calls", "inferred", line);
+                if (e != null) e.Written = CodeCrossLinker.ImplementationPrefix + contract;
             }
 
             private static string Weaker(string a, string b) => ConfidenceRank(a) <= ConfidenceRank(b) ? a : b;

@@ -81,6 +81,42 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(c.Misses.Any(m => m.Written == "method:?.build"), "il ricevente non è più sconosciuto");
         }
 
+        private void Implementations()
+        {
+            Write("lib/com/acme/api/Repository.java", "package com.acme.api;\n\npublic interface Repository {\n    void save(String x);\n}\n");
+            Write("lib/com/acme/api/Notifier.java", "package com.acme.api;\n\npublic interface Notifier {\n    void send();\n}\n");
+            Write("lib/com/acme/impl/JdbcRepository.java", "package com.acme.impl;\n\nimport com.acme.api.Repository;\n\npublic class JdbcRepository implements Repository {\n    public void save(String x) { Db.write(); }\n}\n");
+            Write("lib/com/acme/impl/MemoryRepository.java", "package com.acme.impl;\n\nimport com.acme.api.Repository;\n\npublic class MemoryRepository implements Repository {\n    public void save(String x) { Cache.put(); }\n}\n");
+            Write("lib/com/acme/impl/SmsNotifier.java", "package com.acme.impl;\n\nimport com.acme.api.Notifier;\n\npublic class SmsNotifier implements Notifier {\n    public void send() { Sms.go(); }\n}\n");
+            foreach (var n in new[] { "Db", "Cache", "Sms" })
+                Write($"lib/com/acme/impl/{n}.java", $"package com.acme.impl;\n\npublic class {n} {{\n    public static void write() {{ }}\n    public static void put() {{ }}\n    public static void go() {{ }}\n}}\n");
+            Write("app/com/acme/app/Service.java", "package com.acme.app;\n\nimport com.acme.api.Repository;\nimport com.acme.api.Notifier;\n\npublic class Service {\n" +
+                  "    private Repository repo;\n    private Notifier notifier;\n\n    void run() {\n        repo.save(\"a\");\n        notifier.send();\n    }\n}\n");
+        }
+
+        /// <summary>F4c: un'implementazione unica nella radice si segue da sola; con più d'una si propongono, e si segue quella scelta.</summary>
+        [TestMethod]
+        public void Follow_the_only_implementation_and_propose_the_others()
+        {
+            Implementations();
+            var seed = "app/com/acme/app/Service.java";
+            var c = Run(new CodeClosureRequest { Seeds = new[] { seed } });
+            string Files(CodeClosure x) => string.Join(",", x.Files.Select(f => Path.GetFileNameWithoutExtension(f.Path)).OrderBy(n => n));
+            Assert.IsNotNull(Of(c, "SmsNotifier.java"), "l'unica implementazione di Notifier entra da sola: " + Files(c));
+            Assert.IsNotNull(Of(c, "Sms.java"), "con la sua catena");
+            Assert.IsNull(Of(c, "JdbcRepository.java"), "due implementazioni di Repository: nessuna da sola");
+            Assert.IsNull(Of(c, "MemoryRepository.java"));
+            var repo = c.Implementations.Single(i => i.Contract == "com.acme.api.Repository.save");
+            Assert.IsFalse(repo.Auto);
+            CollectionAssert.AreEquivalent(new[] { "lib/com/acme/impl/JdbcRepository.java", "lib/com/acme/impl/MemoryRepository.java" }, repo.Candidates, "trovate nella radice col grep e confermate");
+            Assert.IsTrue(c.Implementations.Single(i => i.Contract == "com.acme.api.Notifier.send").Auto);
+
+            var chosen = Run(new CodeClosureRequest { Seeds = new[] { seed }, Included = new HashSet<string> { "lib/com/acme/impl/JdbcRepository.java" } });
+            Assert.IsNotNull(Of(chosen, "JdbcRepository.java"), "scelta: entra");
+            Assert.IsNotNull(Of(chosen, "Db.java"), "con la sua catena: " + Files(chosen));
+            Assert.IsNull(Of(chosen, "MemoryRepository.java"), "l'altra no");
+        }
+
         [TestMethod]
         public void Pick_the_overload_by_argument_count()
         {
