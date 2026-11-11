@@ -341,7 +341,9 @@ namespace MdExplorer.Features.Services.CodeGraph
               // un componente mostra il suo template (Angular, D42 B)
               "renders",
               // un'astrazione si risolve in un'implementazione registrata altrove (ServiceLoader…, 30/10/2026)
-              "resolvesTo" };
+              "resolvesTo",
+              // l'SQL scritto nel codice: la tabella che una frase legge o scrive (11/11/2026)
+              "reads", "writes" };
         /// <summary><c>rule</c>: l'arco l'ha prodotto una regola di arricchimento (D42), mai il parser.</summary>
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous", "rule" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };

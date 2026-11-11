@@ -37,8 +37,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>4 = una compilazione per <c>.csproj</c>, con
         /// le librerie che il progetto riferisce e quelle di .NET Framework se punta lì; gli eventi (nodo, chi li solleva, i
         /// gestori agganciati con <c>+=</c>), i nomi assegnati a una proprietà o passati a un costruttore, le costanti stringa.</para>
+        /// <para>5 = l'SQL scritto nelle stringhe: le tabelle lette e scritte e le procedure chiamate (<see cref="EmbeddedSql"/>).</para>
         /// </summary>
-        public override string ExtractorVersion => "4";
+        public override string ExtractorVersion => "5";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -77,6 +78,39 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (name == null) return false;
             shape = new AssignmentShape { Name = name, Receiver = receiver, Target = a.Left, Value = a.Right };
             return true;
+        }
+
+        protected override bool IsWholeString(SyntaxNode node, out IReadOnlyList<StringPart> parts)
+        {
+            parts = null;
+            if (!IsStringLike(node)) return false;
+            var above = node.Parent;
+            while (above is ParenthesizedExpressionSyntax) above = above.Parent;
+            if (above is BinaryExpressionSyntax up && up.IsKind(SyntaxKind.AddExpression)) return false;   // un pezzo: si legge dall'alto
+            var list = new List<StringPart>();
+            Flatten(node, list);
+            if (!list.Any(p => p.Text != null)) return false;   // a + b fra numeri
+            parts = list;
+            return true;
+        }
+
+        private static bool IsStringLike(SyntaxNode node) => node is InterpolatedStringExpressionSyntax
+            || (node is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression))
+            || (node is BinaryExpressionSyntax b && b.IsKind(SyntaxKind.AddExpression));
+
+        private static void Flatten(SyntaxNode node, List<StringPart> parts)
+        {
+            switch (node)
+            {
+                case ParenthesizedExpressionSyntax p: Flatten(p.Expression, parts); break;
+                case BinaryExpressionSyntax b when b.IsKind(SyntaxKind.AddExpression): Flatten(b.Left, parts); Flatten(b.Right, parts); break;
+                case LiteralExpressionSyntax lit when lit.IsKind(SyntaxKind.StringLiteralExpression): parts.Add(new StringPart { Text = lit.Token.ValueText }); break;
+                case InterpolatedStringExpressionSyntax i:
+                    foreach (var c in i.Contents)
+                        parts.Add(c is InterpolatedStringTextSyntax t ? new StringPart { Text = t.TextToken.ValueText } : new StringPart { Hole = (SyntaxNode)(c as InterpolationSyntax)?.Expression ?? c });
+                    break;
+                default: parts.Add(new StringPart { Hole = node }); break;
+            }
         }
 
         /// <summary><c>Click(this, e)</c>, <c>Click.Invoke(…)</c>, <c>Click?.Invoke(…)</c>: il nodo che nomina l'evento, se lo è.</summary>

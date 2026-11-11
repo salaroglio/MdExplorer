@@ -241,6 +241,39 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Parti.vb").RecordCount);
         }
 
+        [TestMethod]
+        public void Link_a_method_to_the_tables_of_the_sql_it_writes_wherever_the_string_goes()
+        {
+            File.WriteAllText(Path.Combine(_src, "Dati.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Dati\n" +
+                "    Private Const SQL_CLIENTI As String = \"SELECT * FROM CLIENTI\"\n" +
+                "    Public Function Elenco(cliente As String, tabella As String) As String\n" +
+                "      Dim sql As String = \"SELECT O.* FROM ORDINI O\" &\n" +                          // riga 5: concatenazione su più righe
+                "          \" JOIN RIGHE R ON R.ORD = O.ID WHERE O.CLI = '\" & cliente & \"'\"\n" +
+                "      sql &= \" ORDER BY O.ID\"\n" +
+                "      Dim sb As New System.Text.StringBuilder()\n" +
+                "      sb.Append(\" FROM STORICO S \")\n" +                                            // riga 9: un pezzo in uno StringBuilder
+                "      Dim altro = $\"DELETE FROM {tabella} WHERE ID = 1\"\n" +                          // riga 10: la tabella arriva da una variabile
+                "      Esegui(\"UPDATE ORDINI SET STATO = 1\")\n" +
+                "      Esegui(\"BEGIN PKG_ORDINI.CHIUDI(:id); END;\")\n" +
+                "      Console.WriteLine(\"Select a file from the list.\")\n" +
+                "      Return sql & SQL_CLIENTI\n" +
+                "    End Function\n" +
+                "    Private Sub Esegui(testo As String)\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Dati.vb").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Sql(string member) => string.Join(" ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && (e.Relation is "reads" or "writes" || names[e.TargetId].StartsWith("PKG_")))
+                .OrderBy(e => e.Line).ThenBy(e => e.Relation).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{e.Relation}:{names[e.TargetId]}:{e.Confidence}"));
+
+            Assert.AreEqual("5:reads:ORDINI:inferred 5:reads:RIGHE:inferred 9:reads:STORICO:inferred 10:writes:?:ambiguous 11:writes:ORDINI:inferred 12:calls:PKG_ORDINI.CHIUDI:inferred", Sql("Elenco"));
+            Assert.AreEqual("3:reads:CLIENTI:inferred", Sql("SQL_CLIENTI"), "la costante porta la sua tabella");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Dati.vb").RecordCount);
+        }
+
         private CodeExtractionResult ExtractAll(string folder)
         {
             var files = Directory.GetFiles(folder, "*.vb", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();

@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 24
+  version: 25
   updatePolicy: replace
 ---
 
@@ -111,6 +111,15 @@ callers and impact.
   library (`Button.Click`) is ONE external node shared by every control of that type: follow the field, not the event.
   A handler wired only in the markup (`OnClick="…"` in an `.aspx`) or by naming convention (`Page_Load` with
   `AutoEventWireup`) has no such edge.
+- **SQL written in the code** (C#, Visual Basic): the method (or constant) whose string holds SQL `reads` the tables
+  after `FROM` / `JOIN`, `writes` those of `INSERT INTO`, `UPDATE`, `DELETE FROM`, `MERGE INTO`, `TRUNCATE`, and `calls`
+  the procedures of `CALL x(…)`, `BEGIN x(…); END;`, `EXEC x`. It is where the SQL is WRITTEN, wherever the string then
+  goes (a variable, a parameter, a `StringBuilder`); pieces of a statement count too (`" FROM ORDERS O "`). Tables and
+  procedures are `external` nodes, one per name: «who writes ORDERS?» is `code_neighbors` on that node with `writes`,
+  direction in. Confidence `inferred`: read from the text, not by an SQL parser. The node `?` (`ambiguous`) means the
+  name comes from a variable (`"SELECT * FROM " & table`): the graph cannot know which table — read the source and say
+  so. Not seen: SQL kept outside the code (configuration, XML files, the database), views and synonyms behind a name.
+  The same table written with and without its schema is two nodes.
 - **.NET projects**: C# and VB are read one project file at a time (`.csproj`, `.vbproj`: root namespace, project
   imports, referenced libraries and projects). For a .NET Framework project the framework libraries must be on the
   computer; when they are not, the scan warns and what the code inherits or calls from the framework stays an
@@ -173,7 +182,8 @@ In C# and Visual Basic a name is recorded as a string fact also when it is not a
 property or a field** (`cmd.CommandText = "PKG_ORDERS.LIST"`, `With {.ReportPath = "orders.rdlc"}`) — it is a call site
 whose callee is the property name and whose argument 0 is the string; **passed to a constructor**
 (`New OleDbCommand("PKG_ORDERS.LIST", cn)`: callee = the type name); and through a **constant** (`Const SP = "…"` used as
-the argument). Sentences (text with spaces, such as an SQL statement) are never recorded.
+the argument). Sentences (text with spaces) are never recorded as names; an SQL statement is read by MdExplorer itself
+(«SQL written in the code», above), no rule is needed for it.
 
 When the string names something of ANOTHER language — a database procedure, a query in a file, a report — the target is
 `"owner": {"from": "symbol", "languages": ["<id>"], "ignoreCase": true}`: the whole string is searched among the symbols

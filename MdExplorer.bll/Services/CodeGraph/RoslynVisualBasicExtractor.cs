@@ -23,8 +23,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class RoslynVisualBasicExtractor : RoslynExtractorBase
     {
         public override string LanguageId => CodeLanguages.VisualBasic;
-        /// <summary>2 = file di progetto (RootNamespace, Imports, librerie, .NET Framework), eventi, nomi assegnati e costanti (11/11/2026).</summary>
-        public override string ExtractorVersion => "2";
+        /// <summary>2 = file di progetto (RootNamespace, Imports, librerie, .NET Framework), eventi, nomi assegnati e costanti (11/11/2026).
+        /// 3 = l'SQL scritto nelle stringhe: tabelle lette e scritte, procedure chiamate (<see cref="EmbeddedSql"/>).</summary>
+        public override string ExtractorVersion => "3";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -94,6 +95,39 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary><c>cmd.CommandText = "…"</c> e, in un inizializzatore, <c>With {.CommandText = "…"}</c>.</summary>
+        /// <summary><c>"SELECT … " &amp; filtro</c> (o <c>+</c>), <c>$"… {x}"</c>: la stringa intera, letta dal nodo più alto.</summary>
+        protected override bool IsWholeString(SyntaxNode node, out IReadOnlyList<StringPart> parts)
+        {
+            parts = null;
+            if (!(node is InterpolatedStringExpressionSyntax || IsStringLiteral(node) || IsConcatenation(node))) return false;
+            var above = node.Parent;
+            while (above is ParenthesizedExpressionSyntax) above = above.Parent;
+            if (IsConcatenation(above)) return false;
+            var list = new List<StringPart>();
+            Flatten(node, list);
+            if (!list.Any(p => p.Text != null)) return false;
+            parts = list;
+            return true;
+        }
+
+        private static bool IsStringLiteral(SyntaxNode node) => node is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression);
+        private static bool IsConcatenation(SyntaxNode node) => node is BinaryExpressionSyntax b && (b.IsKind(SyntaxKind.ConcatenateExpression) || b.IsKind(SyntaxKind.AddExpression));
+
+        private static void Flatten(SyntaxNode node, List<StringPart> parts)
+        {
+            switch (node)
+            {
+                case ParenthesizedExpressionSyntax p: Flatten(p.Expression, parts); break;
+                case BinaryExpressionSyntax b when IsConcatenation(b): Flatten(b.Left, parts); Flatten(b.Right, parts); break;
+                case LiteralExpressionSyntax lit when IsStringLiteral(lit): parts.Add(new StringPart { Text = lit.Token.ValueText }); break;
+                case InterpolatedStringExpressionSyntax i:
+                    foreach (var c in i.Contents)
+                        parts.Add(c is InterpolatedStringTextSyntax t ? new StringPart { Text = t.TextToken.ValueText } : new StringPart { Hole = (SyntaxNode)(c as InterpolationSyntax)?.Expression ?? c });
+                    break;
+                default: parts.Add(new StringPart { Hole = node }); break;
+            }
+        }
+
         protected override bool IsAssignment(SyntaxNode node, out AssignmentShape shape)
         {
             shape = default;

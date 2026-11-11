@@ -51,6 +51,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["dispatches"] = "a STRING names the method that runs (enrichment rule)",
             ["includes"] = "a page includes another page",
             ["renders"] = "a component shows its template",
+            ["reads"] = "the SQL written in a string of this method (or constant) reads the table: FROM, JOIN (C#, Visual Basic; inferred from the text; the table is an external node, `?` when its name comes from a variable)",
+            ["writes"] = "the SQL written in a string of this method (or constant) writes the table: INSERT INTO, UPDATE, DELETE FROM, MERGE INTO, TRUNCATE",
             ["resolvesTo"] = "an abstraction resolves into the implementation REGISTERED to run (META-INF/services, or a registration rule: DI binding, @ImplementedBy, @Provides)",
         };
 

@@ -140,6 +140,23 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         protected abstract bool IsAssignment(SyntaxNode node, out AssignmentShape shape);
+
+        /// <summary>Il linguaggio dei nodi esterni che l'SQL nelle stringhe nomina: lo stesso per tutti gli estrattori, così la tabella è un nodo solo.</summary>
+        public const string SqlLanguage = "sql";
+
+        /// <summary>Un pezzo di una stringa scritta nel codice: il testo, o il nodo di una parte non scritta (una variabile concatenata).</summary>
+        protected readonly struct StringPart
+        {
+            public string Text { get; init; }
+            public SyntaxNode Hole { get; init; }
+        }
+
+        /// <summary>
+        /// La stringa intera che comincia in questo nodo — un letterale, una stringa interpolata, o tutta una concatenazione
+        /// (<c>"SELECT … " &amp; filtro &amp; " ORDER BY …"</c>) — con i suoi pezzi in ordine. Falso per un nodo che è solo una
+        /// parte di una concatenazione più grande (la si legge una volta, dall'alto) e per ciò che non è una stringa.
+        /// </summary>
+        protected abstract bool IsWholeString(SyntaxNode node, out IReadOnlyList<StringPart> parts);
         /// <summary>Un evento sollevato: <c>RaiseEvent Click(…)</c>, <c>Click?.Invoke(…)</c>. Il nodo è ciò che nomina l'evento; la base controlla che lo sia.</summary>
         protected abstract bool IsRaise(SyntaxNode node, out SyntaxNode eventNode);
         /// <summary>Un gestore agganciato a un evento nel codice: <c>AddHandler x.Click, AddressOf H</c>, <c>x.Click += H</c>.</summary>
@@ -593,6 +610,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var chained = new List<(ScriptCallSite Site, SyntaxNode Receiver)>();
                 foreach (var node in decl.DescendantNodes())
                 {
+                    if (_x.IsWholeString(node, out var parts)) Sql(ownerId, node, parts);
                     if (_x.IsInvocation(node, _model, out var shape))
                     {
                         var info = _model.GetSymbolInfo(node);
@@ -682,6 +700,31 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 if (_model.GetSymbolInfo(containerNode).Symbol is { } control and (IPropertySymbol or IFieldSymbol) && _perimeter.IsInPerimeter(control))
                     Edge(IdOf(control), handlerId, "calls", "inferred", line);
+            }
+
+            /// <summary>
+            /// L'SQL scritto in una stringa (11/11/2026): il simbolo che la contiene legge o scrive le tabelle che nomina e chiama
+            /// le procedure, dovunque la stringa vada a finire (una variabile, un parametro, un <c>StringBuilder</c>). Archi
+            /// <c>inferred</c> verso nodi esterni del linguaggio <see cref="SqlLanguage"/>, gli stessi per C# e Visual Basic; un nome
+            /// che arriva da una variabile è il nodo <c>?</c>, <c>ambiguous</c>.
+            /// </summary>
+            private void Sql(string ownerId, SyntaxNode node, IReadOnlyList<StringPart> parts)
+            {
+                var text = new StringBuilder();
+                foreach (var p in parts)
+                {
+                    var piece = p.Text ?? ConstantString(p.Hole);
+                    if (piece != null) text.Append(piece); else text.Append(EmbeddedSql.Hole);
+                    if (text.Length > EmbeddedSql.MaxLength) return;
+                }
+                var line = Line(node);
+                foreach (var o in EmbeddedSql.Analyze(text.ToString()))
+                {
+                    var key = o.Dynamic ? "dynamic:?" : (o.Access == SqlAccess.Call ? "symbol:" : "table:") + o.Name.ToUpperInvariant();
+                    var id = RoslynCSharpExtractor.StableId(SqlLanguage, "external", key);
+                    if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = o.Name.Split('.').Last(), QualifiedName = o.Name });
+                    Edge(ownerId, id, o.Access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, o.Dynamic ? "ambiguous" : "inferred", line);
+                }
             }
 
             /// <summary>Una stringa scritta o una costante che vale una stringa; null per tutto il resto.</summary>

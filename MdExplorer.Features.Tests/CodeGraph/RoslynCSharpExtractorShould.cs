@@ -88,6 +88,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Link_a_method_to_the_tables_of_the_sql_written_in_its_strings()
+        {
+            File.WriteAllText(Path.Combine(_src, "Dati.cs"),
+                "namespace Demo {\npublic class Dati {\n" +
+                "  const string SqlClienti = \"SELECT * FROM CLIENTI\";\n" +
+                "  public string Elenco(string cliente, string tabella) {\n" +
+                "    var sql = \"SELECT O.* FROM ORDINI O\" +\n" +                       // riga 5
+                "        \" JOIN RIGHE R ON R.ORD = O.ID WHERE O.CLI = '\" + cliente + \"'\";\n" +
+                "    sql += \" ORDER BY O.ID\";\n" +
+                "    var sb = new System.Text.StringBuilder().Append(\" FROM STORICO S \");\n" +
+                "    var altro = $\"INSERT INTO {tabella} (ID) VALUES (1)\";\n" +          // riga 9: la tabella arriva da una variabile
+                "    var testo = @\"UPDATE ORDINI\n       SET STATO = 1\";\n" +             // riga 10: su più righe
+                "    System.Console.WriteLine(\"Update available from server\");\n" +
+                "    return sql + SqlClienti;\n  }\n} }");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Dati.cs").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Sql(string member) => string.Join(" ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation is "reads" or "writes")
+                .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{e.Relation}:{names[e.TargetId]}:{e.Confidence}"));
+            Assert.AreEqual("5:reads:ORDINI:inferred 5:reads:RIGHE:inferred 8:reads:STORICO:inferred 9:writes:?:ambiguous 10:writes:ORDINI:inferred", Sql("Elenco"));
+            Assert.AreEqual("3:reads:CLIENTI:inferred", Sql("SqlClienti"));
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Dati.cs").RecordCount);
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.cs"),
@@ -97,7 +121,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("4", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("5", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");
