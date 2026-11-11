@@ -46,6 +46,7 @@ namespace MdExplorer.Service
             });
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader, MdExplorer.Features.Services.CodeGraph.Grammars.GrammarDownloader>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.RoslynCSharpExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.RoslynVisualBasicExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterTypeScriptExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterPythonExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaExtractor>();

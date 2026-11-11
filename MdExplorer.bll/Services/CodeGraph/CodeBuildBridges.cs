@@ -17,7 +17,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// I ponti fra programmi letti dai file di build (punto 3b del 14/10/2026): lo sviluppatore li ha già scritti e li
     /// tiene aggiornati, ridichiararli in MdExplorer sarebbe un doppione che invecchia. Deterministico, niente LLM.
     /// Maven (<c>pom.xml</c>: dipendenze per groupId:artifactId), Gradle (<c>settings.gradle</c> + <c>project(':x')</c>
-    /// nei <c>build.gradle</c>), .NET (<c>ProjectReference</c> nei <c>.csproj</c>). Mai un ponte per solo nome di classe:
+    /// nei <c>build.gradle</c>), .NET (<c>ProjectReference</c> nei <c>.csproj</c> e <c>.vbproj</c>). Mai un ponte per solo nome di classe:
     /// rifarebbe il calderone di prima del 3a. Quello che non si riesce a leggere finisce negli avvisi, non si salta zitto.
     /// </summary>
     public static class CodeBuildBridges
@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         continue;
                     }
                     if (name == "pom.xml" || name.StartsWith("settings.gradle", StringComparison.Ordinal) || name.StartsWith("build.gradle", StringComparison.Ordinal)
-                        || name.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase))
+                        || name.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase))
                         yield return e;
                 }
             }
@@ -199,8 +199,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static void DotNet(List<CodeProgramLocation> programs, Dictionary<string, List<string>> files, List<CodeBridge> bridges, List<string> warnings)
         {
             foreach (var p in programs)
-                foreach (var csproj in files[p.Key].Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)))
+                foreach (var csproj in files[p.Key].Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase)))
                 {
+                    // il linguaggio del ponte è quello del progetto che chiede: un .vbproj può riferire un .csproj e viceversa
+                    var language = csproj.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ? CodeLanguages.VisualBasic : CodeLanguages.CSharp;
                     XDocument doc;
                     try { doc = XDocument.Load(csproj); }
                     catch (Exception ex) { warnings.Add($"{p.Key}: {csproj} non si legge come XML ({ex.Message}): i suoi ponti .NET non ci sono"); continue; }
@@ -210,7 +212,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (string.IsNullOrWhiteSpace(include)) continue;
                         var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(csproj), include.Replace('\\', Path.DirectorySeparatorChar)));
                         var to = OwnerOf(programs, target);
-                        if (to != null && to != p.Key) bridges.Add(new CodeBridge(p.Key, to, CodeLanguages.CSharp, $"{Rel(csproj)}: ProjectReference {include}"));
+                        if (to != null && to != p.Key) bridges.Add(new CodeBridge(p.Key, to, language, $"{Rel(csproj)}: ProjectReference {include}"));
                     }
                 }
         }

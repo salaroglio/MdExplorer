@@ -33,6 +33,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     public static class CodeLanguages
     {
         public const string CSharp = "csharp";
+        public const string VisualBasic = "visualbasic";
         public const string TypeScript = "typescript";
         public const string JavaScript = "javascript";
         public const string Python = "python";
@@ -44,6 +45,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly IReadOnlyList<CodeLanguage> All = new[]
         {
             new CodeLanguage { Id = CSharp, DisplayName = "C#", Extensions = new[] { ".cs" }, ExtractorKind = CodeExtractorKind.Roslyn },
+            new CodeLanguage { Id = VisualBasic, DisplayName = "Visual Basic .NET", Extensions = new[] { ".vb" }, ExtractorKind = CodeExtractorKind.Roslyn },
             new CodeLanguage { Id = TypeScript, DisplayName = "TypeScript", Extensions = new[] { ".ts", ".tsx", ".mts", ".cts" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "typescript" },
             new CodeLanguage { Id = JavaScript, DisplayName = "JavaScript", Extensions = new[] { ".js", ".jsx", ".mjs", ".cjs" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "javascript" },
             new CodeLanguage { Id = Python, DisplayName = "Python", Extensions = new[] { ".py" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "python" },

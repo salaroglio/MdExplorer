@@ -82,6 +82,19 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Read_visual_basic_project_references()
+        {
+            Put("src/Acme.Core/Acme.Core.vbproj", "<Project Sdk=\"Microsoft.NET.Sdk\"></Project>");
+            Put("src/Acme.Win/Acme.Win.vbproj", "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><ProjectReference Include=\"..\\Acme.Core\\Acme.Core.vbproj\" /></ItemGroup></Project>");
+            var warnings = new List<string>();
+
+            var bridges = CodeBuildBridges.Find(Programs("src/Acme.Core", "src/Acme.Win"), warnings);
+
+            Assert.AreEqual(1, bridges.Count);
+            Assert.AreEqual(("src/Acme.Win", "src/Acme.Core", CodeLanguages.VisualBasic), (bridges[0].From, bridges[0].To, bridges[0].Language));
+        }
+
+        [TestMethod]
         public void Make_no_bridge_inside_one_program_nor_towards_folders_that_are_not_programs()
         {
             // un multi-modulo dentro UNA cartella program è un programma solo; un modulo fuori dai program non fa ponte
