@@ -168,7 +168,22 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "The MODEL of the project's code graph, explained: what each symbol kind, relation and confidence means, with this project's counts; " +
+        "The ONTOLOGY (TBox) of the code graph: how the data is organised. `tbox` is Turtle (OWL): every class of node (File, Symbol, Parameter, Edge, " +
+        "CallSite, Annotation, Description…), every property with its domain, range and meaning, the relations between symbols, and the allowed values of " +
+        "kind and confidence. It is the same for every parser. `parsers` says, per language of THIS project, which parser wrote the graph (name, version, " +
+        "files) and which symbol kinds and relations it actually produced, with counts — a kind or relation absent there does not exist for that language. " +
+        "CALL IT ONCE, FIRST, before any other code_* tool in a conversation: it tells exactly what a node and an edge carry, so you neither look for " +
+        "what the graph does not record nor miss what it does. You still never write SPARQL: the other code_* tools read the graph for you.")]
+    public async Task<string> code_ontology(
+        [Description("Project name.")] string project)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await GetAsync(client, Q(path, "ontology"), "code_ontology", project, "");
+    }
+
+    [McpServerTool, Description(
+        "What the project's code graph CONTAINS, in words and numbers: what each symbol kind, relation and confidence means, with the project's counts; " +
         "the facts enrichment rules can read (calls with X.class arguments, calls with string arguments, annotations — most frequent first — chains, " +
         "resolved return types); the active rules with how many edges they make; the catalog of ready-made questions for code_query. " +
         "Call it before writing a rule, before answering «what would you have needed in the graph?», and when you are unsure what a relation means.")]

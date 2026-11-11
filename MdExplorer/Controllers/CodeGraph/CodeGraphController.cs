@@ -1095,6 +1095,19 @@ namespace MdExplorer.Controllers.CodeGraph
         /// vogliono dire tipi, relazioni e certezze, con i numeri del progetto; i fatti che le regole possono leggere, dai
         /// più frequenti; le regole attive con quanto collegano; il catalogo delle domande pronte (<c>code_query</c>).
         /// </summary>
+        [HttpGet("ontology")]
+        public Task<IActionResult> Ontology([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            // il TBox (uguale per tutti i parser) e, per linguaggio, che cosa il suo parser ha scritto in QUESTO progetto (MCP code_ontology)
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var parsers = await _store.ParserProfilesAsync(projectPath, ct);
+            return Ok(new
+            {
+                tbox = CodeTBox.Turtle(),
+                parsers = parsers.Select(p => new { p.Language, p.Extractor, p.ExtractorVersion, p.Files, symbolKinds = p.SymbolKinds.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value), relations = p.Relations.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value) }),
+            });
+        });
+
         [HttpGet("schema")]
         public Task<IActionResult> Schema([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {

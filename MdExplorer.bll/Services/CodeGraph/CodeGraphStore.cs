@@ -55,6 +55,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default);
         /// <summary>I fatti per le regole presenti nel grafo, i <paramref name="top"/> più frequenti per tipo (D43, <c>code_schema</c>).</summary>
         Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default);
+        /// <summary>Per linguaggio, che cosa il suo parser ha scritto nel grafo del progetto (MCP <c>code_ontology</c>).</summary>
+        Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Gli usi degli esterni (D43 F3): per esterno e relazione, quanti archi, quanti chiamanti, un esempio; solo dai file sotto <paramref name="pathPrefix"/> (null = tutto).</summary>
         Task<List<CodeExternalUse>> ExternalUsesAsync(string projectPath, string pathPrefix, CancellationToken ct = default);
         /// <summary>Quanti simboli descrivibili (non banali) sotto <paramref name="pathPrefix"/> e quanti con una descrizione (D43 F3).</summary>

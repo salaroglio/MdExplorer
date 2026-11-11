@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly string Ns = CodeOntology.Namespace;
         private const string RdfType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
-        private static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
+        internal static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
             ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount"),
             ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName" }

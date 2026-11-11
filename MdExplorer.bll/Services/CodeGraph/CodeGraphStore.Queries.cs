@@ -193,6 +193,30 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result;
         }
 
+        public async Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var byLanguage = new Dictionary<string, CodeParserProfile>(StringComparer.Ordinal);
+            CodeParserProfile Of(string language)
+            {
+                language ??= "?";
+                if (!byLanguage.TryGetValue(language, out var p)) byLanguage[language] = p = new CodeParserProfile { Language = language };
+                return p;
+            }
+            foreach (var r in await RowsAsync($"SELECT ?lang ?x ?v (COUNT(?f) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:language ?lang ; code:extractor ?x ; code:extractorVersion ?v }} }} GROUP BY ?lang ?x ?v ORDER BY ?lang DESC(?n)", ct))
+            {
+                var p = Of(Str(r, "lang"));
+                p.Files += Count(r, "n");
+                p.Extractor ??= Str(r, "x");            // il più frequente: dopo un aggiornamento di MDE possono convivere due versioni
+                p.ExtractorVersion ??= Str(r, "v");
+            }
+            foreach (var r in await RowsAsync($"SELECT ?lang ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang ?k", ct))
+                Of(Str(r, "lang")).SymbolKinds[Str(r, "k") ?? "?"] = Count(r, "n");
+            foreach (var r in await RowsAsync($"SELECT ?lang ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel ; code:source ?s . ?s code:language ?lang }} }} GROUP BY ?lang ?rel", ct))
+                Of(Str(r, "lang")).Relations[Str(r, "rel") ?? "?"] = Count(r, "n");
+            return byLanguage.Values.OrderByDescending(p => p.Files).ThenBy(p => p.Language, StringComparer.Ordinal).ToList();
+        }
+
         public async Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);

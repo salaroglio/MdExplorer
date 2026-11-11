@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 25
+  version: 26
   updatePolicy: replace
 ---
 
@@ -65,6 +65,22 @@ A root that `code_roots` lists with no `languages` and no `programs` has no grap
 before searching the files with your own tools, and tell the user that marking the folder they need (as above) gives you
 callers and impact.
 
+## First: learn how the graph is made
+
+Before the first `code_*` question of a conversation, call **`code_ontology`** once and read it. It returns the graph's
+TBox — every class of node, every property with its domain, range and meaning, the relations, the allowed values — and,
+per language of this project, which parser wrote the graph and which kinds and relations it really produced. From then
+on you know exactly what a symbol, an edge, a call site or a description carries. Two things follow:
+
+- do not look for what is not there: a relation absent from a language's `parsers` entry (`reads`/`writes` exist only
+  where the parser reads SQL, `resolvesTo` only where registrations are read) cannot answer for that language — say
+  so, and read the source;
+- do not miss what is there: an edge has a `confidence`, a `line`, maybe a `rule` and a `guard`; a symbol has `bodyHash`,
+  `signature`, `visibility`; an `external` has only a name. Use them in the answer.
+
+`code_ontology` is the structure; `code_schema` is the content of this project (counts, facts for rules, active rules,
+ready-made questions). The structure does not change during a conversation: once is enough.
+
 ## Which tool
 
 | The user asks | Tool |
@@ -72,6 +88,7 @@ callers and impact.
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
+| How the graph is organised: classes of nodes, their properties, what each parser of this project produces | `code_ontology` (once, first) |
 | What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
 | A ready-made question (the catalog is in `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |

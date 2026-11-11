@@ -389,6 +389,13 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var loaded = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
 
+            // che cosa ha scritto ogni parser in questo grafo (MCP code_ontology)
+            var parsers = await _store.ParserProfilesAsync(_project);
+            var vbParser = parsers.Single(x => x.Language == CodeLanguages.VisualBasic);
+            Assert.AreEqual((1, 2, 3), (vbParser.Files, vbParser.SymbolKinds["class"], vbParser.SymbolKinds["method"]));
+            Assert.IsTrue(vbParser.Relations["contains"] > 0 && !vbParser.Relations.ContainsKey("jumps") && vbParser.ExtractorVersion != null);
+            Assert.AreEqual(2, parsers.Single(x => x.Language == "toy").SymbolKinds["function"]);
+
             var byProperty = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-testo"", ""description"": ""CommandText nomina la procedura eseguita."",
                 ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ], ""ignoreCase"": true } }");
             var preview = await _rules.PreviewAsync(_project, byProperty);
