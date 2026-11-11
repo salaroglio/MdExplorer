@@ -166,6 +166,28 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Keep_declare_functions_and_withevents_fields_as_what_they_are()
+        {
+            File.WriteAllText(Path.Combine(_src, "Nativo.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Nativo\n" +
+                "    Private Declare Function GetTickCount Lib \"kernel32\" () As Integer\n" +
+                "    Private WithEvents _baz As New Baz\n" +
+                "    Public Function Ora() As Integer\n" +
+                "      Return GetTickCount()\n" +
+                "    End Function\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Nativo.vb").Script;
+
+            var tick = s.Symbols.Single(x => x.Name == "GetTickCount");
+            Assert.AreEqual(("method", "Integer"), (tick.Kind, tick.ReturnType), "Declare … Lib è un metodo, con il suo simbolo");
+            var ora = s.Symbols.Single(x => x.Name == "Ora");
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == ora.Id && e.TargetId == tick.Id && e.Relation == "calls" && e.Confidence == "extracted"), "la chiamata arriva a un simbolo che esiste");
+            Assert.AreEqual("field", s.Symbols.Single(x => x.Name == "_baz").Kind, "WithEvents resta un campo");
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.vb"),

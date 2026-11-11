@@ -151,12 +151,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var decl = Whole(declared);
                     switch (member)
                     {
-                        case IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.Constructor or MethodKind.StaticConstructor:
+                        case IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod or MethodKind.Constructor or MethodKind.StaticConstructor:
                             {
-                                var kind = m.MethodKind == MethodKind.Ordinary ? "method" : "constructor";
-                                var id = ctx.Declare(m, decl, kind, m.ToDisplayString(SignatureFormat), m.MethodKind == MethodKind.Ordinary ? m.ReturnType.ToDisplayString(TypeFormat) : null, typeId);
+                                var kind = IsPlainMethod(m) ? "method" : "constructor";
+                                var id = ctx.Declare(m, decl, kind, m.ToDisplayString(SignatureFormat), IsPlainMethod(m) ? m.ReturnType.ToDisplayString(TypeFormat) : null, typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
-                                if (m.MethodKind == MethodKind.Ordinary) ctx.Reference(id, m.ReturnType, Line(decl));
+                                if (IsPlainMethod(m)) ctx.Reference(id, m.ReturnType, Line(decl));
                                 var pos = 0;
                                 foreach (var p in m.Parameters)
                                 {
@@ -173,7 +173,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             }
                         case IPropertySymbol prop:
                             {
-                                var id = ctx.Declare(prop, decl, "property", prop.ToDisplayString(SignatureFormat), prop.Type.ToDisplayString(TypeFormat), typeId);
+                                var id = ctx.Declare(prop, decl, PropertyKind(prop), prop.ToDisplayString(SignatureFormat), prop.Type.ToDisplayString(TypeFormat), typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
                                 ctx.Reference(id, prop.Type, Line(decl));
                                 ctx.WalkBody(decl, id);
@@ -202,6 +202,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             TypeKind.Delegate => "class",
             _ => "class",
         };
+
+        /// <summary>Un metodo con un nome: anche <c>Declare Function … Lib</c> di VB (una funzione di una DLL nativa).</summary>
+        private static bool IsPlainMethod(IMethodSymbol m) => m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod;
+
+        /// <summary>Un campo <c>WithEvents</c> di VB è per Roslyn una proprietà: nel grafo resta il campo che chi legge ha scritto.</summary>
+        private static string PropertyKind(IPropertySymbol p) => p.IsWithEvents ? "field" : "property";
 
         private static string Direction(IParameterSymbol p)
         {
@@ -302,8 +308,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var kind = original switch
                 {
                     INamedTypeSymbol t when _perimeter.IsInPerimeter(t) => KindOf(t),
-                    IMethodSymbol m when _perimeter.IsInPerimeter(m) => m.MethodKind == MethodKind.Ordinary ? "method" : "constructor",
-                    IPropertySymbol when _perimeter.IsInPerimeter(original) => "property",
+                    IMethodSymbol m when _perimeter.IsInPerimeter(m) => IsPlainMethod(m) ? "method" : "constructor",
+                    IPropertySymbol p when _perimeter.IsInPerimeter(original) => PropertyKind(p),
                     IFieldSymbol when _perimeter.IsInPerimeter(original) => "field",
                     _ => "external",
                 };
