@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 22
+  version: 23
   updatePolicy: replace
 ---
 
@@ -176,9 +176,12 @@ the argument). Sentences (text with spaces, such as an SQL statement) are never 
 
 When the string names something of ANOTHER language — a database procedure, a query in a file, a report — the target is
 `"owner": {"from": "symbol", "languages": ["<id>"], "ignoreCase": true}`: the whole string is searched among the symbols
-of those languages, by name or by the qualified name after the file (`PKG_ORDERS.LIST`). The language must be in the
-graph (a built-in one or a package in `.mde-languages/`): if the database sources or the reports are not analysed yet,
-that comes first (`code_language_try` / `code_language_propose`).
+of those languages, by name or by the qualified name after the file (`PKG_ORDERS.LIST`). A name the graph does not have
+(the database sources are not analysed yet, or only partly) still gets its edge, to an `external` node carrying that
+name: the preview counts these as `outsideGraph` and lists some in `outsideGraphNames`, and they do not lower the linked
+share. When those sources enter the graph the rule is applied again and the edge moves to the real symbol. Read
+`outsideGraphNames` before proposing: names that are not procedures (or a wrong language id in `languages`, which puts
+every name outside) mean the rule is wrong.
 
 1. Answer the question anyway, reading the source; tell the user the graph stops at that point.
 2. Write the convention as a rule and dry-run it with `code_rule_try`; read `missCounts` and `missExamples`, fix and retry

@@ -283,6 +283,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                 WrittenBy = set.OptStr("writtenBy"), WrittenAt = set.OptStr("writtenAt"),
             };
             script.RuleDescription = set.OptStr("description");
+            foreach (var n in nodes.Where(n => n.Class == "Symbol"))
+            {
+                if (n.Str("kind", path) != "external")
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: in uno script di regola un simbolo può essere solo external", $"<{n.Iri}>: in a rule script a symbol can only be external"));
+                script.Header.Language = n.Str("language", path);
+                script.Symbols.Add(new ScriptSymbol { Id = SymbolId(n.Iri), Kind = "external", Name = n.Str("name", path), QualifiedName = n.Str("qualifiedName", path) });
+            }
             foreach (var n in nodes.Where(n => n.Class == "Edge"))
             {
                 if (n.IriValue("rule", path) != set.Iri)

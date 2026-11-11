@@ -392,20 +392,29 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var byProperty = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-testo"", ""description"": ""CommandText nomina la procedura eseguita."",
                 ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ], ""ignoreCase"": true } }");
             var preview = await _rules.PreviewAsync(_project, byProperty);
-            Assert.AreEqual((3, 2, 1), (preview.CallSites, preview.Resolved, preview.Unresolved));
-            Assert.AreEqual(1, preview.MissCounts["symbolNotFound"], "NON_ESISTE non c'è: si dice, non si inventa");
+            Assert.AreEqual((3, 2, 0, 1), (preview.CallSites, preview.Resolved, preview.Unresolved, preview.OutsideGraph));
+            CollectionAssert.AreEqual(new[] { "NON_ESISTE" }, preview.OutsideGraphNames, "NON_ESISTE non è nel grafo: l'anteprima lo nomina");
             CollectionAssert.Contains(preview.Sample.Select(x => x.Site.Line).ToList(), 10);
             await _rules.ApplyAsync(_project, byProperty, "MarkAgent / test");
             var elencoVb = (await _store.ResolveAsync(_project, "OrdiniDb.Elenco")).Single(x => x.Kind == "method").Id;
             var edge = (await _store.NeighborsAsync(_project, elencoVb, "dispatches", "out", 1, 10)).Single();
             Assert.AreEqual(("ELENCO", "rule"), (edge.Other.Name, edge.Confidence), "dal metodo VB alla procedura dell'altro linguaggio");
+            // la procedura che il grafo non ha: l'arco si fa lo stesso, verso un nodo external col suo nome
+            var totaleVb = (await _store.ResolveAsync(_project, "OrdiniDb.Totale")).Single(x => x.Kind == "method").Id;
+            var outside = (await _store.NeighborsAsync(_project, totaleVb, "dispatches", "out", 1, 10)).Single();
+            Assert.AreEqual(("NON_ESISTE", "external", "rule"), (outside.Other.Name, outside.Other.Kind, outside.Confidence));
+            var onDisk = CodeRuleService.ReadScript(_project, "comando-testo");
+            Assert.AreEqual(("NON_ESISTE", "toy"), (onDisk.Symbols.Single().Name, onDisk.Header.Language), "il nodo external sta nello script, e si rilegge");
 
             var byConstructor = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-nuovo"", ""description"": ""New Comando(nome): la procedura eseguita."",
                 ""call"": { ""callee"": ""Comando"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ] } }");
             Assert.AreEqual((1, 1), ((await _rules.PreviewAsync(_project, byConstructor)).CallSites, (await _rules.PreviewAsync(_project, byConstructor)).Resolved), "la costante vale come la stringa scritta");
 
             var wrong = CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""cobol"" ] } }");
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<CodeRuleException>(() => _rules.PreviewAsync(_project, wrong))).Message, "cobol");
+            // un linguaggio che nel grafo non c'è ancora (il database si analizza dopo): tutti i nomi su nodi external, regola valida
+            var later = await _rules.PreviewAsync(_project, wrong);
+            Assert.AreEqual((0, 3, true), (later.Resolved, later.OutsideGraph, later.Accepted));
+            Assert.AreEqual(3, later.Edges.Count);
             Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""c"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"" } }"), "senza languages");
 
             // il nome qualificato dopo il file: «PKG.PROC» trova il simbolo «db/ordini.pks:PKG.PROC»

@@ -203,6 +203,13 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty))
               .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema));
             FromScript(sb, fromScriptLit).Append(" .\n");
+            // i bersagli che il grafo non ha (owner.from = symbol): nodi external, condivisi come quelli degli ast
+            foreach (var s in script.Symbols.Where(s => s.IsExternal))
+                sb.Append(Iri(Symbol(s.Id))).Append(" a ").Append(CodeOntology.ClassSymbol)
+                  .Append(" ; code:kind ").Append(Lit(s.Kind))
+                  .Append(" ; code:name ").Append(Lit(s.Name ?? string.Empty))
+                  .Append(" ; code:qualifiedName ").Append(Lit(s.QualifiedName ?? string.Empty))
+                  .Append(" ; code:language ").Append(Lit(h.Language ?? string.Empty)).Append(" .\n");
             foreach (var e in script.Edges)
             {
                 var src = Iri(Symbol(e.SourceId));

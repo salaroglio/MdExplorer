@@ -33,6 +33,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeRuleMiss? Miss { get; set; }
         /// <summary>I metodi trovati (più di uno = overload della stessa classe, o la stessa classe in più programmi).</summary>
         public List<CodeOwnerMember> Targets { get; } = new();
+        /// <summary>Il bersaglio è un nodo <c>external</c>: il nome non è fra i simboli del grafo.</summary>
+        public bool Outside { get; set; }
     }
 
     /// <summary>Una cartella in cui la regola trova chiamate: per scegliere la portata, dalla più impegnativa.</summary>
@@ -65,6 +67,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Non pesano sulla quota collegata: la convenzione è letta giusta, è il bersaglio che sta fuori. Il motivo è in <see cref="MissCounts"/>.
         /// </summary>
         public int OutsideGraph { get; set; }
+        /// <summary>
+        /// Regole <c>owner.from = symbol</c> (11/11/2026): i nomi che nel grafo non ci sono ancora (la procedura di un database
+        /// non analizzato) come nodi <c>external</c>, uno per nome: l'arco si fa lo stesso e, quando quei sorgenti entrano
+        /// nel grafo, la regola riapplicata lo porta al simbolo vero.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public List<ScriptSymbol> Externals { get; } = new();
+        /// <summary>Fino a <see cref="CodeRuleEngine.MaxMissExamples"/> nomi fuori dal grafo, per chi legge l'anteprima.</summary>
+        public List<string> OutsideGraphNames { get; } = new();
         /// <summary>
         /// Le cartelle con chiamate da risolvere, su tutto il grafo (anche fuori portata), dalla più grande alla più piccola:
         /// l'impegno di calcolo di ciascuna è il numero di chiamate (fino a 3 livelli, al più <see cref="CodeRuleEngine.MaxContexts"/>).
@@ -123,6 +134,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             IReadOnlyDictionary<string, string> aliasMap, IEnumerable<CodeOwnerMember> owners)
         {
             var preview = new CodeRulePreview { RuleId = rule.Id, CallSites = sites.Count };
+            var externals = new Dictionary<string, ScriptSymbol>(StringComparer.Ordinal);
             var pairedByCaller = PairedByCaller(paired);
             var rows = owners.ToList();
             var byQualified = rows.GroupBy(o => o.OwnerQualifiedName, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
@@ -139,7 +151,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (skip == Skip.NotLiteral) { preview.NotLiteral++; continue; }
                 if (skip == Skip.Excluded) { preview.Excluded++; continue; }
                 if (rule.Owner.From == CodeRuleOwnerSource.Page) ResolvePage(r, rows);
-                else if (rule.Owner.From == CodeRuleOwnerSource.Symbol) ResolveSymbol(r, symbolsByName ??= SymbolIndex(rows, rule.Owner.IgnoreCase));
+                else if (rule.Owner.From == CodeRuleOwnerSource.Symbol) ResolveSymbol(r, symbolsByName ??= SymbolIndex(rows, rule.Owner.IgnoreCase), rule.Owner, externals);
                 else Resolve(r, byQualified, byName);
                 var siteContexts = ContextsOf(site.Path, contexts);
                 foreach (var c in siteContexts) { c.CallSites++; if (r.Miss == null) c.Resolved++; }
@@ -152,8 +164,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (preview.MissExamples.Count < MaxMissExamples) preview.MissExamples.Add(r);
                     continue;
                 }
-                preview.Resolved++;
-                resolved.Add(r);
+                if (r.Outside)
+                {
+                    // il nome è letto giusto, è il bersaglio che non è (ancora) nel grafo: l'arco va a un nodo external
+                    preview.OutsideGraph++;
+                    if (preview.OutsideGraphNames.Count < MaxMissExamples && !preview.OutsideGraphNames.Contains(r.Targets[0].MemberName)) preview.OutsideGraphNames.Add(r.Targets[0].MemberName);
+                }
+                else
+                {
+                    preview.Resolved++;
+                    resolved.Add(r);
+                }
                 foreach (var t in r.Targets)
                 {
                     if (t.MemberId == site.CallerId || !edgeKeys.Add($"{site.CallerId}|{t.MemberId}|{site.Line}")) continue;
@@ -165,13 +186,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
 
+            preview.Externals.AddRange(externals.Values.Where(x => preview.Edges.Any(e => e.TargetId == x.Id)).OrderBy(x => x.QualifiedName, StringComparer.Ordinal));
             preview.Contexts.AddRange(contexts.Values.OrderByDescending(c => c.CallSites).ThenBy(c => c.Prefix, StringComparer.Ordinal).Take(MaxContexts));
 
             // il campione lungo tutto l'elenco, non i primi cinque dello stesso file
             for (var i = 0; i < Math.Min(SampleSize, resolved.Count); i++)
                 preview.Sample.Add(resolved[(int)((long)i * resolved.Count / Math.Min(SampleSize, resolved.Count))]);
 
-            if (preview.Resolved + preview.Unresolved == 0)
+            if (preview.Resolved + preview.Unresolved == 0 && preview.OutsideGraph > 0) { }   // tutti i nomi fuori dal grafo: la regola vale, i bersagli arriveranno
+            else if (preview.Resolved + preview.Unresolved == 0)
                 preview.RejectReasons.Add(UiText.Say($"Nessuna chiamata a «{rule.Call.Callee}» con una stringa in posizione {rule.Call.Argument}: la regola non collega niente.",
                     $"No call to «{rule.Call.Callee}» with a string at position {rule.Call.Argument}: the rule links nothing."));
             else if (preview.ResolvedShare < MinResolvedShare)
@@ -247,12 +270,24 @@ namespace MdExplorer.Features.Services.CodeGraph
             return index;
         }
 
-        private static void ResolveSymbol(CodeRuleSiteResult r, Dictionary<string, List<CodeOwnerMember>> index)
+        private static void ResolveSymbol(CodeRuleSiteResult r, Dictionary<string, List<CodeOwnerMember>> index, CodeRuleOwner owner, Dictionary<string, ScriptSymbol> externals)
         {
             if (r.Miss != null) return;
-            if (index.TryGetValue(r.Value.Trim(), out var found))
+            var name = r.Value.Trim();
+            if (index.TryGetValue(name, out var found))
                 r.Targets.AddRange(found.GroupBy(s => s.MemberId, StringComparer.Ordinal).Select(g => g.First()));
-            if (r.Targets.Count == 0) r.Miss = CodeRuleMiss.SymbolNotFound;
+            if (r.Targets.Count == 0)
+            {
+                if (name.Length == 0) { r.Miss = CodeRuleMiss.SymbolNotFound; return; }
+                // Fuori dal grafo: un nodo external col nome scritto nel codice, uno solo per nome (senza badare alle maiuscole
+                // se la regola non ci bada). Il linguaggio è il primo di languages: è lì che il simbolo vero comparirà.
+                var language = owner.Languages[0];
+                var key = owner.IgnoreCase ? name.ToUpperInvariant() : name;
+                if (!externals.TryGetValue(key, out var x))
+                    externals[key] = x = new ScriptSymbol { Id = RoslynCSharpExtractor.StableId(language, "external", key), Kind = "external", Name = name, QualifiedName = name };
+                r.Targets.Add(new CodeOwnerMember { MemberId = x.Id, MemberName = x.Name, MemberQualifiedName = x.QualifiedName });
+                r.Outside = true;
+            }
             else if (r.Targets.Count > MaxTargetsPerSite) r.Miss = CodeRuleMiss.TooManyTargets;
         }
 
