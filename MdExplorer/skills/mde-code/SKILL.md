@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias".
 mde:
   origin: mdexplorer
-  version: 19
+  version: 20
   updatePolicy: replace
 ---
 
@@ -187,6 +187,13 @@ line; do not start it unasked.
      `code_rule_propose`, or tell the user plainly.
    - **It is not in the code** (production configuration, plugins actually deployed, runtime data) → say so: no rule
      can help, it needs evidence from the deployment.
+   - **The code is not analysed** (the chain goes into a caller, a library, a service, a header that no program folder
+     or seed covers: `code_query not-analyzed`, `where-is-it`, an external you read in the source) → propose the files
+     with `code_analysis_propose`: the 1-5 files that carry the answer, lowest level first, logical paths
+     (`@alias/dir/file` or project-relative), and the reason in plain words. The user gets «Analyse these programs» in
+     the MarkAgent tab: a preview of each file's dependency closure, where they prune and choose implementations, then
+     the structure is extracted (parser, no LLM). You never analyse yourself; after they confirm, ask the same question
+     again and compare.
 3. For each rule: `code_rule_try` until `accepted` → open every `sample` point in the source → `code_rule_propose`, one
    proposal per rule. Tell the user the proposals wait in the MarkAgent tab («Migliora il grafo») and that the link
    descriptions are written by «Descrivi con Mark» on the folder (its preview counts them). Never write `.mde-code/`.

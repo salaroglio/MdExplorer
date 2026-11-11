@@ -16,6 +16,17 @@ namespace MdExplorer.Services.CodeGraph
     /// riavvia, Mark la ripropone. A ogni cambio parte a tutte le finestre l'evento <c>codeRuleProposals</c>
     /// {projectPath, count} (regole + linguaggi): il tab del progetto aperto accende la striscia.
     /// </summary>
+    /// <summary>Programmi che MarkAgent propone di analizzare (F5): i semi e il perché, in parole per l'utente.</summary>
+    public sealed class CodeSeedProposal
+    {
+        public string Id { get; set; }
+        public string ProjectPath { get; set; }
+        public List<string> Seeds { get; set; } = new();
+        public string Reason { get; set; }
+        public string ProposedBy { get; set; }
+        public string ProposedAt { get; set; }
+    }
+
     public sealed class CodeRulePending
     {
         private const string Event = "codeRuleProposals";
@@ -82,8 +93,53 @@ namespace MdExplorer.Services.CodeGraph
             return removed > 0;
         }
 
-        /// <summary>Quante proposte aspettano nel progetto, regole e linguaggi.</summary>
-        public int Count(string projectPath) => List(projectPath).Count + Languages(projectPath).Count;
+        /// <summary>Quante proposte aspettano nel progetto: regole, linguaggi e programmi da analizzare (F5).</summary>
+        public int Count(string projectPath) => List(projectPath).Count + Languages(projectPath).Count + Seeds(projectPath).Count;
+
+        // ---- F5 (11/11/2026): i programmi che MarkAgent propone di analizzare (code_analysis_propose)
+
+        private readonly ConcurrentDictionary<string, List<CodeSeedProposal>> _seeds = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// MarkAgent propone dei semi (dopo «che cosa ti sarebbe servito nel grafo?»): restano qui finché l'utente non li
+        /// analizza o li scarta; li lancia sempre l'utente, dalla finestra «Analizza questo programma». Un seme già proposto non
+        /// si ripete: vince la proposta nuova, col suo motivo.
+        /// </summary>
+        public CodeSeedProposal AddSeeds(CodeSeedProposal proposal)
+        {
+            proposal.Id = Guid.NewGuid().ToString("N");
+            var list = _seeds.GetOrAdd(Key(proposal.ProjectPath), _ => new List<CodeSeedProposal>());
+            lock (list)
+            {
+                foreach (var old in list) old.Seeds.RemoveAll(s => proposal.Seeds.Contains(s));
+                list.RemoveAll(p => p.Seeds.Count == 0);
+                list.Add(proposal);
+            }
+            var count = Count(proposal.ProjectPath);
+            _logger.LogInformation("[CodeRules] '{Project}': proposti {Seeds} programmi da analizzare ({Count} in attesa)", proposal.ProjectPath, proposal.Seeds.Count, count);
+            Notify(proposal.ProjectPath, count);
+            return proposal;
+        }
+
+        public List<CodeSeedProposal> Seeds(string projectPath)
+        {
+            if (!_seeds.TryGetValue(Key(projectPath), out var list)) return new List<CodeSeedProposal>();
+            lock (list) return list.Select(p => new CodeSeedProposal { Id = p.Id, ProjectPath = p.ProjectPath, Seeds = p.Seeds.ToList(), Reason = p.Reason, ProposedBy = p.ProposedBy, ProposedAt = p.ProposedAt }).ToList();
+        }
+
+        /// <summary>Un seme proposto è stato aperto (analizzato o no): esce dalla proposta; una proposta vuota se ne va.</summary>
+        public bool RemoveSeed(string projectPath, string seed)
+        {
+            if (!_seeds.TryGetValue(Key(projectPath), out var list)) return false;
+            int removed = 0;
+            lock (list)
+            {
+                foreach (var p in list) removed += p.Seeds.RemoveAll(s => s == seed);
+                list.RemoveAll(p => p.Seeds.Count == 0);
+            }
+            if (removed > 0) Notify(projectPath, Count(projectPath));
+            return removed > 0;
+        }
 
         public List<CodeRuleProposal> List(string projectPath)
         {

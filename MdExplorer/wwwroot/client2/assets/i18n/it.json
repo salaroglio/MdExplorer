@@ -1,5 +1,7 @@
 {
   "SEED": {
+    "BANNER": "MarkAgent propone di analizzare {{count}} programmi per rispondere meglio",
+    "BANNER_BUTTON": "Analizza questi programmi",
     "MISS_DYNAMIC": "Chiamate per nome che non si sa dove vanno (il nome arriva da fuori): {{count}}, {{uses}} usi — se sai qual è, analizzala come un altro programma",
     "IMPLEMENTATIONS": "Implementazioni",
     "IMPLEMENTATIONS_HINT": "Il codice chiama un'interfaccia e non dice quale classe si usa: spunta quelle da seguire. In cima quelle che il programma crea.",

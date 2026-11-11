@@ -69,6 +69,9 @@ export interface SeedAnalysis {
   outcome: { files: number; reparsed: number; scriptsRemoved: number; crossLinked: number; loaded: number | null; failed: number | null; firstError: string | null; warnings: string[] } | null;
 }
 
+/** F5: i programmi che MarkAgent propone di analizzare (code_analysis_propose). */
+export interface SeedProposal { id: string; projectPath: string; seeds: string[]; reason: string; proposedBy: string; proposedAt: string; }
+
 export interface SeedEntry { seed: string; pruned: string[]; included: string[]; language: string | null; files: number | null; confirmedAt: string | null; }
 
 /** «Esporta linguaggio…» (10/11/2026): dove è finito lo zip; unchanged = c'era già, identico. */
@@ -505,6 +508,14 @@ export class CodeGraphService {
 
   removeSeed(projectPath: string, seed: string): Observable<SeedAnalysis> {
     return this.http.post<SeedAnalysis>('../api/codegraph/seeds/remove', { projectPath, seed });
+  }
+
+  seedProposals(projectPath: string): Observable<SeedProposal[]> {
+    return this.http.get<SeedProposal[]>('../api/codegraph/seeds/proposals', { params: { projectPath } });
+  }
+
+  seedProposalDone(projectPath: string, seed: string): Observable<{ removed: boolean }> {
+    return this.http.post<{ removed: boolean }>('../api/codegraph/seeds/proposals/done', { projectPath, seed });
   }
 
   listSeeds(projectPath: string): Observable<SeedEntry[]> {

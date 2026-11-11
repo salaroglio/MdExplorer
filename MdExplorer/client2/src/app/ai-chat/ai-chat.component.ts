@@ -13,7 +13,8 @@ import { SpeechService, VoiceRecording } from '../services/speech.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
-import { CodeGraphService, CodeLanguageProposal, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
+import { CodeGraphService, SeedProposal, CodeLanguageProposal, CodeRuleProposal } from '../md-explorer/services/code-graph.service';
+import { SeedDialogComponent, SeedDialogData } from '../md-explorer/components/dialogs/seed-analysis/seed-dialog.component';
 import { CodeRuleWizardComponent, CodeRuleWizardData } from './code-rule-wizard/code-rule-wizard.component';
 import { CodeLanguageWizardComponent, CodeLanguageWizardData } from './code-language-wizard/code-language-wizard.component';
 
@@ -161,9 +162,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   ruleProposals: CodeRuleProposal[] = [];
   /** Linguaggi (dialetti delle pagine) proposti da MarkAgent (D42 passo 2): accendono la stessa striscia. */
   languageProposals: CodeLanguageProposal[] = [];
+  /** F5: programmi che MarkAgent propone di analizzare (code_analysis_propose): accendono la stessa striscia. */
+  seedProposals: SeedProposal[] = [];
+
+  get seedCount(): number { return this.seedProposals.reduce((n, p) => n + p.seeds.length, 0); }
 
   get proposalCount(): number {
-    return this.ruleProposals.length + this.languageProposals.length;
+    return this.ruleProposals.length + this.languageProposals.length + this.seedCount;
   }
 
   private static samePath(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -173,7 +178,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private loadRuleProposals(): void {
     const projectPath = this.projectsService.currentProjects$.getValue()?.path;
-    if (!projectPath) { this.ruleProposals = []; this.languageProposals = []; return; }
+    if (!projectPath) { this.ruleProposals = []; this.languageProposals = []; this.seedProposals = []; return; }
+    this.codeGraph.seedProposals(projectPath).subscribe({
+      next: list => this.seedProposals = list ?? [],
+      error: () => this.seedProposals = []
+    });
     this.codeGraph.ruleProposals(projectPath).subscribe({
       next: list => this.ruleProposals = list ?? [],
       error: () => this.ruleProposals = []
@@ -202,7 +211,17 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
     const proposal = this.ruleProposals[0];
-    if (!proposal) return;
+    if (!proposal) {
+      // F5: un programma proposto da MarkAgent → la finestra «Analizza questo programma»; chiusa, esce dalle proposte
+      const seed = this.seedProposals[0]?.seeds[0];
+      if (!seed) return;
+      this.dialog.open<SeedDialogComponent, SeedDialogData>(SeedDialogComponent, {
+        data: { projectRoot: projectPath, seed }, width: '760px', maxHeight: '90vh'
+      }).afterClosed().subscribe(() => this.codeGraph.seedProposalDone(projectPath, seed).subscribe({
+        next: () => this.loadRuleProposals(), error: () => this.loadRuleProposals()
+      }));
+      return;
+    }
     this.dialog.open<CodeRuleWizardComponent, CodeRuleWizardData>(CodeRuleWizardComponent, {
       data: { projectPath, proposal },
       width: '760px',

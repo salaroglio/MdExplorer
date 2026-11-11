@@ -643,6 +643,70 @@ namespace MdExplorer.Controllers.CodeGraph
             }));
         }
 
+        public class SeedProposeRequest
+        {
+            public string ProjectPath { get; set; }
+            public System.Collections.Generic.List<string>? Seeds { get; set; }
+            public string? Reason { get; set; }
+            public string? ProposedBy { get; set; }
+        }
+
+        /// <summary>
+        /// POST /api/codegraph/seeds/propose {projectPath, seeds[], reason, proposedBy} — MarkAgent propone dei programmi da
+        /// analizzare (MCP <c>code_analysis_propose</c>, F5). Ogni seme deve essere un file di un linguaggio che la chiusura sa
+        /// seguire, nel progetto o in una radice collegata; altrimenti 422 col motivo, perché Mark corregga. Li lancia l'utente.
+        /// </summary>
+        [HttpPost("seeds/propose")]
+        public async Task<IActionResult> ProposeSeeds([FromBody] SeedProposeRequest request, CancellationToken ct)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                return StatusCode(422, new { error = UiText.Say("reason è obbligatorio: perché servono, in parole semplici per l'utente.", "reason is required: why they are needed, in plain words for the user.") });
+            var seeds = (request.Seeds ?? new System.Collections.Generic.List<string>()).Select(MdExplorer.Services.CodeGraph.CodeAnalysisService.NormalizeSeed).Where(s => s.Length > 0).Distinct().ToList();
+            if (seeds.Count == 0) return StatusCode(422, new { error = UiText.Say("seeds è vuoto: i file da cui partire, coi percorsi logici (@alias/… o del progetto).", "seeds is empty: the files to start from, with logical paths (@alias/… or of the project).") });
+            var catalog = MdExplorer.Features.Services.CodeGraph.CodeLanguageCatalog.ForProject(request.ProjectPath);
+            var roots = await HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeRootService>().ListAsync(request.ProjectPath, ct);
+            var problems = new System.Collections.Generic.List<string>();
+            foreach (var seed in seeds)
+            {
+                var lang = catalog.ForFile(seed);
+                if (lang == null) { problems.Add(UiText.Say($"{seed}: nessun linguaggio del progetto ha questa estensione", $"{seed}: no language of the project has this extension")); continue; }
+                string abs = null;
+                if (seed.StartsWith("@", StringComparison.Ordinal))
+                {
+                    var (alias, rest) = MdExplorer.Features.Services.CodeGraph.CodeRootPaths.Parse(seed);
+                    var root = roots.FirstOrDefault(r => r.Alias == alias);
+                    if (root == null || root.Status != MdExplorer.Features.Services.CodeGraph.CodeRootStatus.Linked) { problems.Add(UiText.Say($"{seed}: la radice @{alias} non è collegata", $"{seed}: the root @{alias} is not linked")); continue; }
+                    if (!root.IsRemote) abs = Path.Combine(root.RootPath, rest.Replace('/', Path.DirectorySeparatorChar));
+                }
+                else abs = Path.Combine(request.ProjectPath, seed.Replace('/', Path.DirectorySeparatorChar));
+                if (abs != null && !System.IO.File.Exists(abs)) problems.Add(UiText.Say($"{seed}: il file non c'è", $"{seed}: the file does not exist"));
+            }
+            if (problems.Count > 0) return StatusCode(422, new { error = string.Join("; ", problems) });
+            var proposal = Pending.AddSeeds(new MdExplorer.Services.CodeGraph.CodeSeedProposal
+            {
+                ProjectPath = request.ProjectPath, Seeds = seeds, Reason = request.Reason.Trim(),
+                ProposedBy = string.IsNullOrWhiteSpace(request.ProposedBy) ? "MarkAgent" : request.ProposedBy, ProposedAt = DateTime.UtcNow.ToString("o"),
+            });
+            return Ok(new { proposalId = proposal.Id, seeds = proposal.Seeds });
+        }
+
+        /// <summary>GET /api/codegraph/seeds/proposals?projectPath — i programmi proposti da MarkAgent che aspettano l'utente (F5).</summary>
+        [HttpGet("seeds/proposals")]
+        public IActionResult SeedProposals([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            return Ok(Pending.Seeds(projectPath));
+        }
+
+        /// <summary>POST /api/codegraph/seeds/proposals/done {projectPath, seed} — l'utente ha aperto il seme proposto: esce dalle proposte.</summary>
+        [HttpPost("seeds/proposals/done")]
+        public IActionResult SeedProposalDone([FromBody] SeedApplyRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            return Ok(new { removed = Pending.RemoveSeed(request.ProjectPath, MdExplorer.Services.CodeGraph.CodeAnalysisService.NormalizeSeed(request.Seed)) });
+        }
+
         public class LanguagePackageExportRequest { public string ProjectPath { get; set; } public string Id { get; set; } public string DestinationFolder { get; set; } }
 
         /// <summary>

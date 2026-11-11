@@ -327,6 +327,24 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "Propose to the USER the programs (source files) to analyse so the graph can answer: a button «Analyse these programs» appears " +
+        "in the MarkAgent tab, and each opens the preview of the file's dependency closure (the files it uses, and those they use), where " +
+        "the user prunes, chooses implementations and confirms. Use it after «what would you have needed in the graph?» when the gap is " +
+        "code that is NOT analysed yet (a caller, a library, a service in another folder): propose the 1-5 files that carry the answer, " +
+        "lowest level first, with logical paths ('@alias/dir/file' or project-relative). You never analyse yourself. Refused if a file " +
+        "does not exist or has no language of the project. Tell the user the proposal is waiting in the tab.")]
+    public async Task<string> code_analysis_propose(
+        [Description("Project name.")] string project,
+        [Description("The files to start from (logical paths), 1-5.")] List<string> seeds,
+        [Description("Why they are needed, in plain words for the user (the question they answer).")] string reason)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await PostAsync(client, "/api/codegraph/seeds/propose", new { projectPath = path, seeds = seeds ?? new List<string>(), reason, proposedBy = "MarkAgent" },
+            "code_analysis_propose", project, string.Join(", ", seeds ?? new List<string>()));
+    }
+
+    [McpServerTool, Description(
         "Propose an enrichment rule (already accepted by code_rule_try) to the USER: they see «Improve the graph» in the MarkAgent tab, a wizard " +
         "with the problem, where to apply it, the checks and a yes/no. You never apply it yourself and never write files under .mde-code. " +
         "Refused unless every call in code_rule_try's `sample` is in `sampleChecks` with ok=true (you opened it in the source). " +
