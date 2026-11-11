@@ -241,6 +241,132 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Parti.vb").RecordCount);
         }
 
+        private CodeExtractionResult ExtractAll(string folder)
+        {
+            var files = Directory.GetFiles(folder, "*.vb", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            return Extractor().Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files });
+        }
+
+        private const string LegacyProject = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n";
+
+        /// <summary>Il VB di una volta: i file non hanno Namespace, i tipi prendono il RootNamespace del .vbproj; gli Imports sono del progetto.</summary>
+        [TestMethod]
+        public void Read_root_namespace_imports_and_project_references_from_the_vbproj()
+        {
+            var legacy = Path.Combine(_project, "legacy");
+            Directory.CreateDirectory(Path.Combine(legacy, "Core")); Directory.CreateDirectory(Path.Combine(legacy, "Web", "Pagine"));
+            File.WriteAllText(Path.Combine(legacy, "Core", "Core.vbproj"), LegacyProject +
+                "  <PropertyGroup><RootNamespace>Acme.Core</RootNamespace></PropertyGroup>\n" +
+                "  <ItemGroup><Reference Include=\"Terzi\"><HintPath>..\\lib\\Terzi.dll</HintPath></Reference></ItemGroup>\n</Project>\n");
+            File.WriteAllText(Path.Combine(legacy, "Core", "Ordini.vb"),
+                "Public Interface IOrdini\n  Function Conta() As Integer\nEnd Interface\n" +
+                "Public Class Strumenti\n  Public Shared Function Doppio(n As Integer) As Integer\n    Return n * 2\n  End Function\nEnd Class\n");
+            File.WriteAllText(Path.Combine(legacy, "Web", "Web.vbproj"), LegacyProject +
+                "  <PropertyGroup><RootNamespace>Acme.Web</RootNamespace></PropertyGroup>\n" +
+                "  <ItemGroup><Import Include=\"System\" /><Import Include=\"Acme.Core\" /></ItemGroup>\n" +
+                "  <ItemGroup><ProjectReference Include=\"..\\Core\\Core.vbproj\" /></ItemGroup>\n</Project>\n");
+            File.WriteAllText(Path.Combine(legacy, "Web", "Pagine", "Elenco.vb"),
+                "Public Class OrdiniWeb\n  Implements IOrdini\n  Public Function Conta() As Integer Implements IOrdini.Conta\n    Return Strumenti.Doppio(1)\n  End Function\nEnd Class\n" +
+                "Public Class Elenco\n  Public Function Quanti(o As IOrdini) As Integer\n    Return o.Conta()\n  End Function\nEnd Class\n");
+
+            var result = ExtractAll(legacy);
+            StringAssert.Contains(string.Join(" | ", result.Warnings), "Terzi.dll", "una libreria riferita che qui non c'è si dice");
+            var web = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("Elenco.vb")).Script;
+            var core = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("Ordini.vb")).Script;
+
+            Assert.IsNotNull(core.Symbols.SingleOrDefault(s => s.QualifiedName == "Acme.Core.IOrdini" && s.Kind == "interface"), "il RootNamespace sta davanti ai tipi");
+            var conta = web.Symbols.Single(s => s.QualifiedName == "Acme.Web.OrdiniWeb.Conta()");
+            var doppio = core.Symbols.Single(s => s.Name == "Doppio");
+            Assert.IsTrue(web.Edges.Any(e => e.SourceId == conta.Id && e.TargetId == doppio.Id && e.Relation == "calls" && e.Confidence == "extracted"), "Imports di progetto + ProjectReference: la chiamata arriva nell'altro progetto");
+            var quanti = web.Symbols.Single(s => s.Name == "Quanti");
+            var ifaceConta = core.Symbols.Single(s => s.QualifiedName == "Acme.Core.IOrdini.Conta()");
+            Assert.IsTrue(web.Edges.Any(e => e.SourceId == quanti.Id && e.TargetId == ifaceConta.Id && e.Confidence == "extracted"));
+            Assert.IsTrue(web.Edges.Any(e => e.SourceId == quanti.Id && e.TargetId == conta.Id && e.Confidence == "inferred"), "l'implementazione sta in un altro progetto di chi dichiara l'interfaccia");
+            Assert.IsFalse(web.Symbols.Any(s => s.Kind == "external" && s.QualifiedName.Contains("IOrdini")), "niente doppioni esterni dei tipi dell'altro progetto");
+        }
+
+        [TestMethod]
+        public void Resolve_dotnet_framework_classes_or_say_that_its_libraries_are_missing()
+        {
+            var web = Path.Combine(_project, "webforms");
+            Directory.CreateDirectory(web);
+            File.WriteAllText(Path.Combine(web, "Web.vbproj"), LegacyProject + "  <PropertyGroup><RootNamespace>Acme.Web</RootNamespace><TargetFrameworkVersion>v4.8</TargetFrameworkVersion></PropertyGroup>\n</Project>\n");
+            File.WriteAllText(Path.Combine(web, "Elenco.aspx.vb"),
+                "Partial Class Elenco\n  Inherits System.Web.UI.Page\n" +
+                "  Protected WithEvents btnCerca As Global.System.Web.UI.WebControls.Button\n" +
+                "  Protected Sub btnCerca_Click(sender As Object, e As System.EventArgs) Handles btnCerca.Click\n" +
+                "    Response.Redirect(\"Dettaglio.aspx\")\n" +
+                "  End Sub\nEnd Class\n");
+
+            var before = Environment.GetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable);
+            try
+            {
+                Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, Path.Combine(_root, "non-c-e"));
+                var missing = ExtractAll(web);
+                StringAssert.Contains(string.Join(" | ", missing.Warnings), ".NET Framework 4.8", "senza le librerie del framework lo dice, non tace");
+                var s0 = missing.Scripts.Single().Script;
+                var click0 = s0.Symbols.Single(x => x.Name == "btnCerca_Click");
+                Assert.IsTrue(s0.Edges.Any(e => e.TargetId == click0.Id && e.Relation == "calls" && e.Confidence == "ambiguous"), "Handles resta, con l'evento come nome scritto");
+            }
+            finally { Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, before); }
+
+            if (NetFrameworkLibraries.FindDirectory("4.8") == null) Assert.Inconclusive("le librerie di riferimento di .NET Framework non sono su questa macchina");
+            var result = ExtractAll(web);
+            Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
+            var s = result.Scripts.Single().Script;
+            var click = s.Symbols.Single(x => x.Name == "btnCerca_Click");
+            Assert.IsNotNull(s.Symbols.SingleOrDefault(x => x.Kind == "external" && x.QualifiedName == "System.Web.HttpResponse.Redirect(String)"), "Response è di Page: si risolve");
+            var evento = s.Symbols.Single(x => x.Kind == "external" && x.QualifiedName == "System.Web.UI.WebControls.Button.Click");
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == evento.Id && e.TargetId == click.Id && e.Relation == "calls" && e.Confidence == "inferred"));
+            var campo = s.Symbols.Single(x => x.Kind == "field" && x.Name == "btnCerca");
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == campo.Id && e.TargetId == click.Id && e.Relation == "calls" && e.Confidence == "inferred"), "il controllo della pagina porta al suo gestore");
+            Assert.IsFalse(s.Edges.Any(e => e.Confidence == "ambiguous"), "niente resta un nome scritto");
+        }
+
+        [TestMethod]
+        public void Link_events_to_who_raises_them_and_to_their_handlers_and_record_assigned_names()
+        {
+            File.WriteAllText(Path.Combine(_src, "Eventi.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Sorgente\n" +
+                "    Public Event Fatto(sender As Object, e As EventArgs)\n" +
+                "    Public Property Comando As String\n" +
+                "    Public Sub New(Optional nome As String = Nothing)\n    End Sub\n" +
+                "    Public Sub Lavora()\n" +
+                "      RaiseEvent Fatto(Me, EventArgs.Empty)\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "  Public Class Ascolto\n" +
+                "    Private Const SP_TOTALE As String = \"PKG_ORDINI.TOTALE\"\n" +
+                "    Private WithEvents _s As New Sorgente\n" +
+                "    Private Sub Quando(sender As Object, e As EventArgs) Handles _s.Fatto\n" +
+                "    End Sub\n" +
+                "    Private Sub Anche(sender As Object, e As EventArgs)\n" +
+                "    End Sub\n" +
+                "    Public Sub Aggancia(altro As Sorgente)\n" +
+                "      AddHandler altro.Fatto, AddressOf Anche\n" +
+                "      altro.Comando = \"PKG_ORDINI.ELENCO\"\n" +
+                "      Dim t As New Sorgente(SP_TOTALE) With {.Comando = \"PKG_ORDINI.CHIUDI\"}\n" +
+                "      Dim frase = \"due parole\"\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Eventi.vb").Script;
+            string Id(string name) => s.Symbols.Single(x => x.Name == name && x.Kind != "external").Id;
+            bool Calls(string from, string to, string confidence) => s.Edges.Any(e => e.SourceId == Id(from) && e.TargetId == Id(to) && e.Relation == "calls" && e.Confidence == confidence);
+
+            Assert.AreEqual("field", s.Symbols.Single(x => x.Name == "Fatto").Kind, "l'evento è un nodo");
+            Assert.IsTrue(Calls("Lavora", "Fatto", "extracted"), "RaiseEvent");
+            Assert.IsTrue(Calls("Fatto", "Quando", "inferred"), "Handles");
+            Assert.IsTrue(Calls("_s", "Quando", "inferred"), "il campo WithEvents porta al gestore");
+            Assert.IsTrue(Calls("Fatto", "Anche", "inferred"), "AddHandler");
+
+            CollectionAssert.AreEquivalent(new[] { "altro.Comando(PKG_ORDINI.ELENCO)", ".Sorgente(PKG_ORDINI.TOTALE)", ".Comando(PKG_ORDINI.CHIUDI)" },
+                s.CallSites.Select(c => $"{c.Receiver}.{c.Callee}({string.Join(",", c.Arguments.Select(a => a.Value))})").ToArray(),
+                "un nome assegnato a una proprietà, passato a un costruttore (anche da una costante) o in un inizializzatore; le variabili locali e le frasi no");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Eventi.vb").RecordCount);
+        }
+
         [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {

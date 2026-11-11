@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -12,9 +13,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// Roslyn. Stessi simboli e stessi archi; i nomi qualificati e le firme sono scritti come li scrive VB
     /// (<c>Demo.Foo.Bar(String, Integer)</c>). Un <c>Module</c> è una classe statica.
     /// <list type="bullet">
-    /// <item>Niente <c>.vbproj</c>: gli <c>Imports</c> di progetto sono quelli che Visual Studio mette in un progetto nuovo,
-    /// <c>Option Infer On</c>. Il <c>RootNamespace</c> del progetto non si legge: i nomi qualificati partono dal
-    /// <c>Namespace</c> scritto nei file.</item>
+    /// <item>Dal <c>.vbproj</c> si prendono <c>RootNamespace</c>, <c>Imports</c>, <c>Option</c>, <c>MyType</c>, le librerie e i
+    /// progetti riferiti; senza un file di progetto valgono gli <c>Imports</c> di un progetto nuovo e <c>Option Infer On</c>.</item>
     /// <item>In VB le parentesi di una chiamata sono facoltative e <c>a(1)</c> è anche l'accesso a un vettore: una chiamata è
     /// ciò che Roslyn risolve in un metodo, comunque sia scritta; <c>AddressOf Metodo</c> è una chiamata (come i
     /// riferimenti a metodo di Java, F4d).</item>
@@ -23,7 +23,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class RoslynVisualBasicExtractor : RoslynExtractorBase
     {
         public override string LanguageId => CodeLanguages.VisualBasic;
-        public override string ExtractorVersion => "1";
+        /// <summary>2 = file di progetto (RootNamespace, Imports, librerie, .NET Framework), eventi, nomi assegnati e costanti (11/11/2026).</summary>
+        public override string ExtractorVersion => "2";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -34,11 +35,32 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public RoslynVisualBasicExtractor(ILogger<RoslynVisualBasicExtractor> logger) : base(logger) { }
 
-        protected override SyntaxTree Parse(string text, string path) => VisualBasicSyntaxTree.ParseText(text, ParseOptions, path: path);
+        protected override string ProjectExtension => ".vbproj";
 
-        protected override Compilation Compile(IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references)
-            => VisualBasicCompilation.Create("mde-codegraph", trees, references,
-                new VisualBasicCompilationOptions(OutputKind.DynamicallyLinkedLibrary, globalImports: ProjectImports, optionInfer: true));
+        /// <summary><c>MyType</c> del progetto accende lo spazio dei nomi <c>My</c> (<c>My.Computer</c>, <c>My.Application</c>…), che il compilatore si porta dentro.</summary>
+        private static VisualBasicParseOptions OptionsOf(DotNetProject project)
+            => string.IsNullOrEmpty(project?.MyType) ? ParseOptions : ParseOptions.WithPreprocessorSymbols(new KeyValuePair<string, object>("_MyType", project.MyType));
+
+        protected override SyntaxTree Parse(string text, string path, DotNetProject project) => VisualBasicSyntaxTree.ParseText(text, OptionsOf(project), path: path);
+
+        /// <summary>
+        /// Con un <c>.vbproj</c>: il suo <c>RootNamespace</c> (nel VB di una volta i file non hanno <c>Namespace</c>, i tipi
+        /// prendono quello del progetto), i suoi <c>Imports</c> e le sue <c>Option</c>. Senza, quelli di un progetto nuovo.
+        /// </summary>
+        protected override Compilation Compile(string name, IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references, DotNetProject project)
+        {
+            var imports = project is { Imports.Count: > 0 } ? GlobalImport.Parse(project.Imports).ToList() : ProjectImports;
+            var options = new VisualBasicCompilationOptions(OutputKind.DynamicallyLinkedLibrary, globalImports: imports,
+                rootNamespace: IsNamespace(project?.RootNamespace) ? project.RootNamespace : string.Empty,
+                optionInfer: project?.OptionInfer ?? true, optionExplicit: project?.OptionExplicit ?? true,
+                optionStrict: project?.OptionStrict == true ? OptionStrict.On : OptionStrict.Off,
+                parseOptions: OptionsOf(project));
+            return VisualBasicCompilation.Create(name, trees, references, options);
+        }
+
+        /// <summary>Un nome di spazio dei nomi valido: uno sbagliato nel file di progetto fermerebbe la compilazione.</summary>
+        private static bool IsNamespace(string name)
+            => !string.IsNullOrWhiteSpace(name) && name.Split('.').All(part => SyntaxFacts.IsValidIdentifier(part));
 
         protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root)
             => root.DescendantNodes().Where(n => n is TypeBlockSyntax or EnumBlockSyntax);
@@ -62,7 +84,59 @@ namespace MdExplorer.Features.Services.CodeGraph
             _ => memberDeclaration,
         };
 
-        protected override bool IsCreation(SyntaxNode node) => node is ObjectCreationExpressionSyntax;
+        protected override bool IsCreation(SyntaxNode node, out string typeName, out IReadOnlyList<SyntaxNode> arguments)
+        {
+            typeName = null; arguments = Array.Empty<SyntaxNode>();
+            if (node is not ObjectCreationExpressionSyntax creation) return false;
+            typeName = creation.Type.DescendantNodesAndSelf().OfType<SimpleNameSyntax>().LastOrDefault(n => n.Parent is not TypeArgumentListSyntax)?.Identifier.ValueText;
+            arguments = creation.ArgumentList?.Arguments.Select(a => (SyntaxNode)a.GetExpression()).ToList() ?? (IReadOnlyList<SyntaxNode>)Array.Empty<SyntaxNode>();
+            return true;
+        }
+
+        /// <summary><c>cmd.CommandText = "…"</c> e, in un inizializzatore, <c>With {.CommandText = "…"}</c>.</summary>
+        protected override bool IsAssignment(SyntaxNode node, out AssignmentShape shape)
+        {
+            shape = default;
+            if (node is NamedFieldInitializerSyntax init)
+            {
+                shape = new AssignmentShape { Name = init.Name.Identifier.ValueText, Receiver = null, Target = init.Name, Value = init.Expression };
+                return true;
+            }
+            if (node is not AssignmentStatementSyntax a || !a.IsKind(SyntaxKind.SimpleAssignmentStatement)) return false;
+            var (name, receiver) = a.Left switch
+            {
+                MemberAccessExpressionSyntax ma => (ma.Name.Identifier.ValueText, ma.Expression?.ToString()),
+                IdentifierNameSyntax id => (id.Identifier.ValueText, (string)null),
+                _ => (null, null),
+            };
+            if (name == null) return false;
+            shape = new AssignmentShape { Name = name, Receiver = receiver, Target = a.Left, Value = a.Right };
+            return true;
+        }
+
+        protected override bool IsRaise(SyntaxNode node, out SyntaxNode eventNode)
+        {
+            eventNode = (node as RaiseEventStatementSyntax)?.Name;
+            return eventNode != null;
+        }
+
+        /// <summary><c>AddHandler x.Click, AddressOf Gestore</c>: è scritto che è un evento, anche quando la sua libreria manca.</summary>
+        protected override bool IsSubscription(SyntaxNode node, out SyntaxNode eventNode, out SyntaxNode handlerNode, out bool certain)
+        {
+            eventNode = handlerNode = null; certain = true;
+            if (node is not AddRemoveHandlerStatementSyntax a || !a.IsKind(SyntaxKind.AddHandlerStatement)) return false;
+            eventNode = a.EventExpression is MemberAccessExpressionSyntax ma ? ma.Name : a.EventExpression;
+            handlerNode = a.DelegateExpression is UnaryExpressionSyntax u && u.IsKind(SyntaxKind.AddressOfExpression) ? u.Operand : a.DelegateExpression;
+            return true;
+        }
+
+        /// <summary><c>Handles btnCerca.Click, Me.Load</c> sulla riga del metodo.</summary>
+        protected override IEnumerable<(SyntaxNode Event, SyntaxNode Container)> HandledEvents(SyntaxNode methodDeclaration)
+        {
+            var statement = methodDeclaration switch { MethodBlockSyntax block => block.SubOrFunctionStatement, MethodStatementSyntax s => s, _ => null };
+            return statement?.HandlesClause?.Events.Select(e => ((SyntaxNode)e.EventMember, e.EventContainer is KeywordEventContainerSyntax ? null : (SyntaxNode)e.EventContainer))
+                   ?? Enumerable.Empty<(SyntaxNode, SyntaxNode)>();
+        }
 
         /// <summary>In VB gli attributi stanno sulla riga che apre il blocco (<c>&lt;Export(GetType(IFoo))&gt; Public Class Foo</c>).</summary>
         protected override IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration)
@@ -131,6 +205,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             shape = new InvocationShape
             {
                 Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args,
+                ArgumentNodes = callee == null ? null : arguments.Select(a => (SyntaxNode)a.GetExpression()).ToList(),
                 TypeNodes = arguments.Select(a => a.GetExpression() is GetTypeExpressionSyntax t ? (SyntaxNode)t.Type : null).ToList(),
                 GenericNodes = name is GenericNameSyntax g ? g.TypeArgumentList.Arguments.ToList<SyntaxNode>() : new List<SyntaxNode>(),
                 ReceiverNode = (inv.Expression as MemberAccessExpressionSyntax)?.Expression,

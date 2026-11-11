@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("3", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("4", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");
@@ -160,6 +160,65 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("Tipi(value=Demo.Foo, value=Demo.Baz)", Of("Bar"), "un vettore: un argomento per elemento");
             Assert.AreEqual("Demo.Baz", s.Symbols.Single(x => x.Name == "Crea").ReturnTypeName, "per le regole «il metodo annotato fornisce ciò che restituisce»");
             Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Parti.cs").RecordCount);
+        }
+
+        [TestMethod]
+        public void Link_events_to_who_raises_them_and_to_their_handlers_and_record_assigned_names()
+        {
+            File.WriteAllText(Path.Combine(_src, "Eventi.cs"),
+                "using System;\nnamespace Demo {\n" +
+                "  public class Sorgente {\n" +
+                "    public event EventHandler Fatto;\n" +
+                "    public string Comando { get; set; }\n" +
+                "    public Sorgente(string nome = null) { }\n" +
+                "    public void Lavora() { Fatto?.Invoke(this, EventArgs.Empty); }\n" +
+                "  }\n" +
+                "  public class Ascolto {\n" +
+                "    const string SpTotale = \"PKG_ORDINI.TOTALE\";\n" +
+                "    void Quando(object sender, EventArgs e) { }\n" +
+                "    void Anche(object sender, EventArgs e) { }\n" +
+                "    public void Aggancia(Sorgente altro) {\n" +
+                "      altro.Fatto += Quando;\n" +
+                "      altro.Fatto += new EventHandler(Anche);\n" +
+                "      altro.Comando = \"PKG_ORDINI.ELENCO\";\n" +
+                "      var t = new Sorgente(SpTotale) { Comando = \"PKG_ORDINI.CHIUDI\" };\n" +
+                "      var n = 1; n += 2; var frase = \"due parole\";\n" +
+                "    }\n" +
+                "  }\n}\n");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Eventi.cs").Script;
+            string Id(string name) => s.Symbols.Single(x => x.Name == name && x.Kind != "external").Id;
+            bool Calls(string from, string to, string confidence) => s.Edges.Any(e => e.SourceId == Id(from) && e.TargetId == Id(to) && e.Relation == "calls" && e.Confidence == confidence);
+
+            Assert.AreEqual("field", s.Symbols.Single(x => x.Name == "Fatto").Kind, "l'evento è un nodo");
+            Assert.IsTrue(Calls("Lavora", "Fatto", "extracted"), "Fatto?.Invoke(…)");
+            Assert.IsTrue(Calls("Fatto", "Quando", "inferred"), "+= Quando");
+            Assert.IsTrue(Calls("Fatto", "Anche", "inferred"), "+= new EventHandler(Anche)");
+            CollectionAssert.AreEquivalent(new[] { "altro.Comando(PKG_ORDINI.ELENCO)", ".Sorgente(PKG_ORDINI.TOTALE)", ".Comando(PKG_ORDINI.CHIUDI)" },
+                s.CallSites.Select(c => $"{c.Receiver}.{c.Callee}({string.Join(",", c.Arguments.Select(a => a.Value))})").ToArray());
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Eventi.cs").RecordCount);
+        }
+
+        [TestMethod]
+        public void Compile_each_csproj_on_its_own_and_follow_project_references()
+        {
+            var sol = Path.Combine(_project, "soluzione");
+            Directory.CreateDirectory(Path.Combine(sol, "Core")); Directory.CreateDirectory(Path.Combine(sol, "App"));
+            File.WriteAllText(Path.Combine(sol, "Core", "Core.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>");
+            File.WriteAllText(Path.Combine(sol, "Core", "IOrdini.cs"), "namespace Acme.Core { public interface IOrdini { int Conta(); } }");
+            File.WriteAllText(Path.Combine(sol, "App", "App.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><ProjectReference Include=\"..\\Core\\Core.csproj\" /></ItemGroup></Project>");
+            File.WriteAllText(Path.Combine(sol, "App", "Ordini.cs"),
+                "using Acme.Core;\nnamespace Acme.App { public class Ordini : IOrdini { public int Conta() => 1; }\n public class Uso { public int Quanti(IOrdini o) => o.Conta(); } }");
+            var files = Directory.GetFiles(sol, "*.cs", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files });
+
+            Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
+            var app = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("/Ordini.cs")).Script;
+            var quanti = app.Symbols.Single(x => x.Name == "Quanti");
+            var iface = RoslynCSharpExtractor.StableId("csharp", "method", "Acme.Core.IOrdini.Conta()");
+            Assert.IsTrue(app.Edges.Any(e => e.SourceId == quanti.Id && e.TargetId == iface && e.Confidence == "extracted"), "il tipo dell'altro progetto è del perimetro, non un esterno");
+            Assert.IsTrue(app.Edges.Any(e => e.SourceId == quanti.Id && e.TargetId == app.Symbols.Single(x => x.QualifiedName == "Acme.App.Ordini.Conta()").Id && e.Confidence == "inferred"));
+            Assert.AreEqual("net8.0 non è .NET Framework", DotNetProject.Load(Path.Combine(sol, "Core", "Core.csproj")).IsNetFramework ? "framework" : "net8.0 non è .NET Framework");
+            Assert.AreEqual("4.7.2", DotNetProject.NetFrameworkVersion(null, "net472"));
         }
 
         [TestMethod]

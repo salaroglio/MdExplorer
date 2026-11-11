@@ -33,6 +33,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Callee { get; init; }
             public string Receiver { get; init; }
             public List<string> Arguments { get; init; }
+            /// <summary>Gli argomenti come nodi, per posizione: una costante (<c>Const SP = "PKG.X"</c>) vale come la stringa scritta.</summary>
+            public IReadOnlyList<SyntaxNode> ArgumentNodes { get; init; }
             /// <summary>Per posizione, il tipo scritto dentro <c>typeof(X)</c> / <c>GetType(X)</c>; null dove l'argomento è altro.</summary>
             public IReadOnlyList<SyntaxNode> TypeNodes { get; init; }
             /// <summary>Gli argomenti generici SCRITTI nella chiamata (<c>AddScoped&lt;IFoo, Foo&gt;()</c>); vuoto se non ce ne sono.</summary>
@@ -71,15 +73,82 @@ namespace MdExplorer.Features.Services.CodeGraph
             "Extension", "ParamArray", "CLSCompliant", "ComVisible", "Conditional", "EditorBrowsable", "Browsable", "STAThread", "MTAThread", "ThreadStatic",
         };
 
-        protected abstract SyntaxTree Parse(string text, string path);
-        protected abstract Compilation Compile(IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references);
+        /// <summary><c>.csproj</c> o <c>.vbproj</c>: il file di progetto di questo linguaggio.</summary>
+        protected abstract string ProjectExtension { get; }
+        /// <param name="project">Il progetto del file, o null se non ne ha uno (o i sorgenti non stanno su questo disco).</param>
+        protected abstract SyntaxTree Parse(string text, string path, DotNetProject project);
+        protected abstract Compilation Compile(string name, IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references, DotNetProject project);
+
+        /// <summary>I file di un progetto (o quelli senza progetto) e la loro compilazione.</summary>
+        private sealed class ProjectGroup
+        {
+            public DotNetProject Project { get; init; }
+            public List<SyntaxTree> Trees { get; } = new();
+            public Compilation Compilation { get; set; }
+        }
+
+        /// <summary>Prima i progetti riferiti, poi chi li riferisce: così la compilazione di uno vede i tipi dell'altro.</summary>
+        private static IEnumerable<ProjectGroup> InReferenceOrder(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey)
+        {
+            var done = new HashSet<ProjectGroup>();
+            var open = new HashSet<ProjectGroup>();
+            var ordered = new List<ProjectGroup>();
+            void Visit(ProjectGroup g)
+            {
+                if (done.Contains(g) || !open.Add(g)) return;   // un giro di riferimenti (non dovrebbe esistere) non ferma l'analisi
+                foreach (var r in g.Project?.ProjectReferences ?? Array.Empty<string>())
+                    if (byKey.TryGetValue(r, out var other)) Visit(other);
+                open.Remove(g);
+                done.Add(g);
+                ordered.Add(g);
+            }
+            foreach (var g in groups) Visit(g);
+            return ordered;
+        }
+
+        private static readonly Dictionary<string, MetadataReference> FileReferences = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Una libreria su disco come reference, una volta sola per percorso; null se non si legge.</summary>
+        private static MetadataReference FileReference(string path)
+        {
+            lock (FileReferences)
+            {
+                if (FileReferences.TryGetValue(path, out var known)) return known;
+                MetadataReference reference = null;
+                try { reference = MetadataReference.CreateFromFile(path); }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is BadImageFormatException) { }
+                return FileReferences[path] = reference;
+            }
+        }
         /// <summary>Le dichiarazioni di tipo del file, col nodo INTERO (le sue righe sono quelle del simbolo).</summary>
         protected abstract IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root);
         protected virtual INamedTypeSymbol TypeSymbol(SemanticModel model, SyntaxNode typeDeclaration) => model.GetDeclaredSymbol(typeDeclaration) as INamedTypeSymbol;
         /// <summary>Dal nodo che Roslyn dà per un membro al nodo che ne contiene anche il corpo (in VB sono due nodi diversi).</summary>
         protected virtual SyntaxNode Whole(SyntaxNode memberDeclaration) => memberDeclaration;
         protected abstract bool IsInvocation(SyntaxNode node, SemanticModel model, out InvocationShape shape);
-        protected abstract bool IsCreation(SyntaxNode node);
+        /// <param name="typeName">Il nome del tipo com'è scritto (ultima parola); null se non è scritto (<c>new("x")</c>).</param>
+        protected abstract bool IsCreation(SyntaxNode node, out string typeName, out IReadOnlyList<SyntaxNode> arguments);
+
+        /// <summary>Un valore assegnato a qualcosa che ha un nome: <c>cmd.CommandText = "…"</c>, <c>With {.Nome = "…"}</c>.</summary>
+        protected readonly struct AssignmentShape
+        {
+            public string Name { get; init; }
+            /// <summary>Il testo prima del punto; null senza ricevente.</summary>
+            public string Receiver { get; init; }
+            public SyntaxNode Target { get; init; }
+            public SyntaxNode Value { get; init; }
+        }
+
+        protected abstract bool IsAssignment(SyntaxNode node, out AssignmentShape shape);
+        /// <summary>Un evento sollevato: <c>RaiseEvent Click(…)</c>, <c>Click?.Invoke(…)</c>. Il nodo è ciò che nomina l'evento; la base controlla che lo sia.</summary>
+        protected abstract bool IsRaise(SyntaxNode node, out SyntaxNode eventNode);
+        /// <summary>Un gestore agganciato a un evento nel codice: <c>AddHandler x.Click, AddressOf H</c>, <c>x.Click += H</c>.</summary>
+        protected abstract bool IsSubscription(SyntaxNode node, out SyntaxNode eventNode, out SyntaxNode handlerNode, out bool certain);
+        /// <summary>
+        /// Gli eventi che la dichiarazione di un metodo dice di gestire (VB <c>Handles btnCerca.Click, Me.Load</c>): il nodo che
+        /// nomina l'evento e quello che nomina chi lo solleva (<c>btnCerca</c>; null per <c>Me</c>).
+        /// </summary>
+        protected virtual IEnumerable<(SyntaxNode Event, SyntaxNode Container)> HandledEvents(SyntaxNode methodDeclaration) => Enumerable.Empty<(SyntaxNode, SyntaxNode)>();
         /// <summary>Un nome di metodo usato senza la forma della chiamata (VB: parentesi facoltative, <c>AddressOf</c>).</summary>
         protected virtual bool IsMethodNameOutsideInvocation(SyntaxNode node) => false;
 
@@ -115,9 +184,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             var result = new CodeExtractionResult();
             if (request.FilesToEmit.Count == 0) return result;
 
-            // 1) La compilazione: tutti i file della cartella, così i nomi si risolvono anche fra file diversi.
+            // 1) Le compilazioni: una per file di progetto (.csproj/.vbproj), con ciò che il progetto dice — spazio dei nomi di
+            //    radice, Imports, framework, librerie, progetti riferiti; i file senza progetto stanno insieme, come prima.
+            var local = request.Sources == null || request.Sources is LocalCodeSources;
+            var projects = local ? new DotNetProjectMap(ProjectExtension, request.ProjectPath) : null;
             var contents = new Dictionary<string, string>(StringComparer.Ordinal);
-            var trees = new List<SyntaxTree>(request.AllFiles.Count);
+            var groups = new List<ProjectGroup>();
+            var groupByKey = new Dictionary<string, ProjectGroup>(StringComparer.OrdinalIgnoreCase);
             foreach (var f in request.AllFiles)
             {
                 ct.ThrowIfCancellationRequested();
@@ -125,14 +198,50 @@ namespace MdExplorer.Features.Services.CodeGraph
                 try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 contents[f.LogicalPath] = text;
-                trees.Add(Parse(text, f.LogicalPath));
+                var project = projects?.Of(f.AbsolutePath);
+                var key = project?.File ?? string.Empty;
+                if (!groupByKey.TryGetValue(key, out var group)) { groupByKey[key] = group = new ProjectGroup { Project = project }; groups.Add(group); }
+                group.Trees.Add(Parse(text, f.LogicalPath, project));
             }
-            var compilation = Compile(trees, RuntimeReferences());
-            var perimeter = new PerimeterIndex(compilation);
+            if (projects != null) result.Warnings.AddRange(projects.Problems);
+
+            var trees = new List<(SyntaxTree Tree, Compilation Compilation)>();
+            var compilations = new List<Compilation>();
+            var missingFrameworks = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var group in InReferenceOrder(groups, groupByKey))
+            {
+                ct.ThrowIfCancellationRequested();
+                var p = group.Project;
+                var references = new List<MetadataReference>();
+                var frameworkDirectory = p is { IsNetFramework: true } ? NetFrameworkLibraries.FindDirectory(p.FrameworkVersion) : null;
+                if (frameworkDirectory != null) references.AddRange(NetFrameworkLibraries.Assemblies(frameworkDirectory).Select(FileReference).Where(r => r != null));
+                else
+                {
+                    references.AddRange(RuntimeReferences());
+                    if (p is { IsNetFramework: true } && missingFrameworks.Add(p.FrameworkVersion))
+                        result.Warnings.Add(UiText.Say(
+                            $"{Path.GetFileName(p.File)}: il progetto è .NET Framework {p.FrameworkVersion} ma su questo computer non ci sono le sue librerie: ciò che eredita o chiama dal framework (System.Web, Windows Forms…) resta un nome non risolto. Le porta il «Developer Pack» di .NET Framework, o indica una cartella con {NetFrameworkLibraries.OverrideVariable}.",
+                            $"{Path.GetFileName(p.File)}: the project targets .NET Framework {p.FrameworkVersion} but its libraries are not on this computer: what it inherits or calls from the framework (System.Web, Windows Forms…) stays an unresolved name. The .NET Framework «Developer Pack» brings them, or point {NetFrameworkLibraries.OverrideVariable} to a folder."));
+                }
+                if (p != null)
+                {
+                    references.AddRange(p.Libraries.Select(FileReference).Where(r => r != null));
+                    if (p.MissingLibraries.Count > 0)
+                        result.Warnings.Add(UiText.Say(
+                            $"{Path.GetFileName(p.File)}: {p.MissingLibraries.Count} librerie riferite non ci sono su questo computer ({string.Join(", ", p.MissingLibraries.Take(3).Select(Path.GetFileName))}{(p.MissingLibraries.Count > 3 ? "…" : "")}): ciò che ne usa resta un nome non risolto.",
+                            $"{Path.GetFileName(p.File)}: {p.MissingLibraries.Count} referenced libraries are not on this computer ({string.Join(", ", p.MissingLibraries.Take(3).Select(Path.GetFileName))}{(p.MissingLibraries.Count > 3 ? "…" : "")}): what uses them stays an unresolved name."));
+                    foreach (var referenced in p.ProjectReferences)
+                        if (groupByKey.TryGetValue(referenced, out var other) && other.Compilation != null) references.Add(other.Compilation.ToMetadataReference());
+                }
+                group.Compilation = Compile("mde-codegraph" + (p == null ? "" : "-" + Path.GetFileNameWithoutExtension(p.File)), group.Trees, references, p);
+                compilations.Add(group.Compilation);
+                trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
+            }
+            var perimeter = new PerimeterIndex(compilations);
 
             // 2) Un script per file da emettere.
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
-            foreach (var tree in trees)
+            foreach (var (tree, compilation) in trees)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!toEmit.Contains(tree.FilePath)) continue;
@@ -194,6 +303,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 var id = ctx.Declare(m, decl, kind, m.ToDisplayString(SignatureFormat), IsPlainMethod(m) ? m.ReturnType.ToDisplayString(TypeFormat) : null, typeId);
                                 ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
                                 ctx.Annotate(id, decl);
+                                foreach (var (handled, container) in HandledEvents(decl))
+                                {
+                                    ctx.Handler(handled, id, Line(handled), certain: true);
+                                    // il controllo della pagina (un campo WithEvents del perimetro) porta al suo gestore: l'evento di
+                                    // libreria da solo è lo stesso nodo per tutti i pulsanti
+                                    if (container != null) ctx.ControlHandler(container, id, Line(handled));
+                                }
                                 if (IsPlainMethod(m)) ctx.Reference(id, m.ReturnType, Line(decl));
                                 var pos = 0;
                                 foreach (var p in m.Parameters)
@@ -216,6 +332,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 ctx.Annotate(id, decl);
                                 ctx.Reference(id, prop.Type, Line(decl));
                                 ctx.WalkBody(decl, id);
+                                break;
+                            }
+                        case IEventSymbol ev:
+                            {
+                                // un evento è un nodo (kind field: è un campo di tipo delegato): chi lo solleva lo chiama, lui chiama i gestori
+                                var id = ctx.Declare(ev, decl, "field", ev.ToDisplayString(SignatureFormat), ev.Type.ToDisplayString(TypeFormat), typeId);
+                                ctx.Edge(typeId, id, "contains", "extracted", Line(decl));
+                                ctx.Reference(id, ev.Type, Line(decl));
                                 break;
                             }
                         case IFieldSymbol field when !field.IsImplicitlyDeclared:
@@ -295,33 +419,60 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ helpers
 
-        /// <summary>I tipi dichiarati nella compilazione, per il dispatch per interfaccia e per sapere chi è in perimetro.</summary>
+        /// <summary>
+        /// I tipi dichiarati nei sorgenti, di tutte le compilazioni: per sapere chi è in perimetro e per il dispatch per
+        /// interfaccia. L'implementazione può stare in un progetto che chi chiama non riferisce, quindi le interfacce si
+        /// riconoscono per nome qualificato, non per identità del simbolo.
+        /// </summary>
         private sealed class PerimeterIndex
         {
-            private readonly List<INamedTypeSymbol> _types = new();
-            public PerimeterIndex(Compilation compilation)
+            private readonly Dictionary<string, List<INamedTypeSymbol>> _implementers = new(StringComparer.Ordinal);
+
+            public PerimeterIndex(IEnumerable<Compilation> compilations)
             {
-                var stack = new Stack<INamespaceOrTypeSymbol>();
-                stack.Push(compilation.Assembly.GlobalNamespace);
-                while (stack.Count > 0)
+                foreach (var compilation in compilations)
                 {
-                    var s = stack.Pop();
-                    foreach (var m in s.GetMembers())
+                    var stack = new Stack<INamespaceOrTypeSymbol>();
+                    stack.Push(compilation.Assembly.GlobalNamespace);
+                    while (stack.Count > 0)
                     {
-                        if (m is INamespaceSymbol ns) stack.Push(ns);
-                        else if (m is INamedTypeSymbol t) { _types.Add(t); stack.Push(t); }
+                        var s = stack.Pop();
+                        foreach (var m in s.GetMembers())
+                        {
+                            if (m is INamespaceSymbol ns) stack.Push(ns);
+                            else if (m is INamedTypeSymbol t)
+                            {
+                                stack.Push(t);
+                                if (t.TypeKind == TypeKind.Interface) continue;
+                                foreach (var key in t.AllInterfaces.Select(Key).Distinct(StringComparer.Ordinal))
+                                {
+                                    if (!_implementers.TryGetValue(key, out var list)) _implementers[key] = list = new List<INamedTypeSymbol>();
+                                    list.Add(t);
+                                }
+                            }
+                        }
                     }
                 }
             }
+
+            private static string Key(ISymbol symbol) => symbol.OriginalDefinition.ToDisplayString(QualifiedFormat);
+
             public bool IsInPerimeter(ISymbol s) => s.Locations.Any(l => l.IsInSource);
+
             public IEnumerable<ISymbol> ImplementationsOf(ISymbol interfaceMember)
             {
-                var iface = interfaceMember.ContainingType;
-                foreach (var t in _types)
+                if (!_implementers.TryGetValue(Key(interfaceMember.ContainingType), out var types)) yield break;
+                var interfaceKey = Key(interfaceMember.ContainingType);
+                var memberKey = Key(interfaceMember);
+                foreach (var t in types)
                 {
-                    if (t.TypeKind == TypeKind.Interface || !t.AllInterfaces.Contains(iface, SymbolEqualityComparer.Default)) continue;
-                    var impl = t.FindImplementationForInterfaceMember(interfaceMember);
-                    if (impl != null && IsInPerimeter(impl)) yield return impl;
+                    // l'interfaccia e il membro come li vede la compilazione del tipo che implementa
+                    foreach (var iface in t.AllInterfaces.Where(i => Key(i) == interfaceKey))
+                    {
+                        var member = iface.GetMembers(interfaceMember.Name).FirstOrDefault(m => Key(m) == memberKey);
+                        var impl = member == null ? null : t.FindImplementationForInterfaceMember(member);
+                        if (impl != null && IsInPerimeter(impl)) { yield return impl; break; }
+                    }
                 }
             }
         }
@@ -351,6 +502,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     IMethodSymbol m when _perimeter.IsInPerimeter(m) => IsPlainMethod(m) ? "method" : "constructor",
                     IPropertySymbol p when _perimeter.IsInPerimeter(original) => PropertyKind(p),
                     IFieldSymbol when _perimeter.IsInPerimeter(original) => "field",
+                    IEventSymbol when _perimeter.IsInPerimeter(original) => "field",
                     _ => "external",
                 };
                 var qualified = original.ToDisplayString(QualifiedFormat);
@@ -445,7 +597,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         var info = _model.GetSymbolInfo(node);
                         var line = Line(node);
-                        if (shape.Callee != null && _callSites.Add(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments, types: TypesOf(shape)) is { } site)
+                        if (_x.IsRaise(node, out var raised) && _model.GetSymbolInfo(raised).Symbol is IEventSymbol raisedEvent)
+                            Edge(ownerId, IdOf(raisedEvent), "calls", "extracted", line);
+                        if (shape.Callee != null && _callSites.Add(ownerId, line, shape.Callee, shape.Receiver, Strings(shape.Arguments, shape.ArgumentNodes), types: TypesOf(shape)) is { } site)
                         {
                             sites[node] = site;
                             if (shape.ReceiverNode != null) chained.Add((site, shape.ReceiverNode));
@@ -463,14 +617,36 @@ namespace MdExplorer.Features.Services.CodeGraph
                             Edge(ownerId, id, "calls", "ambiguous", line);
                         }
                     }
-                    else if (_x.IsCreation(node))
+                    else if (_x.IsCreation(node, out var createdName, out var createdArguments))
                     {
                         var info = _model.GetSymbolInfo(node);
                         var line = Line(node);
+                        // New OleDbCommand("PKG.PROC", cn): il nome passato al costruttore è un punto di chiamata come gli altri
+                        createdName ??= (_model.GetTypeInfo(node).Type as INamedTypeSymbol)?.Name;
+                        if (createdName != null && createdArguments.Count > 0)
+                            _callSites.Add(ownerId, line, createdName, null, Strings(null, createdArguments));
                         if (info.Symbol is IMethodSymbol ctor && ctor.ContainingType != null)
                             Edge(ownerId, IdOf(ctor.ContainingType), "instantiates", "extracted", line);
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
                             Edge(ownerId, IdOf(t), "instantiates", "extracted", line);
+                    }
+                    else if (_x.IsRaise(node, out var raisedNode))
+                    {
+                        if (_model.GetSymbolInfo(raisedNode).Symbol is IEventSymbol e) Edge(ownerId, IdOf(e), "calls", "extracted", Line(node));
+                    }
+                    else if (_x.IsSubscription(node, out var eventNode, out var handlerNode, out var certain))
+                    {
+                        if (_model.GetSymbolInfo(handlerNode).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary } handler)
+                            Handler(eventNode, IdOf(handler.OriginalDefinition), Line(node), certain);
+                    }
+                    else if (_x.IsAssignment(node, out var assigned))
+                    {
+                        // cmd.CommandText = "PKG.PROC": un nome assegnato a una proprietà o a un campo si registra come una chiamata
+                        // con quel nome e un argomento, così le regole sulle stringhe lo leggono (11/11/2026)
+                        var target = _model.GetSymbolInfo(assigned.Target).Symbol;
+                        var named = target is IPropertySymbol or IFieldSymbol || (target == null && assigned.Receiver != null);
+                        if (named && ConstantString(assigned.Value) is { } value)
+                            _callSites.Add(ownerId, Line(node), assigned.Name, assigned.Receiver, new[] { value });
                     }
                     else if (_x.IsMethodNameOutsideInvocation(node))
                     {
@@ -486,6 +662,44 @@ namespace MdExplorer.Features.Services.CodeGraph
                         x = _x.IsInvocation(x, _model, out var inner) ? inner.ReceiverNode : null;
                     }
                 }
+            }
+
+            /// <summary>
+            /// Un gestore legato a un evento: l'evento «chiama» il gestore, dedotto (chi solleva l'evento arriva lì). Se l'evento
+            /// non si risolve (libreria che manca) resta un nodo esterno col nome scritto, e il legame è ambiguo.
+            /// </summary>
+            public void Handler(SyntaxNode eventNode, string handlerId, int line, bool certain)
+            {
+                if (_model.GetSymbolInfo(eventNode).Symbol is IEventSymbol ev) { Edge(IdOf(ev), handlerId, "calls", "inferred", line); return; }
+                if (!certain) return;   // x += y senza un evento riconosciuto può essere una somma
+                var text = eventNode.Parent is { } p && p.ToString().Length <= CodeCallSites.MaxReceiverLength && p.ToString().EndsWith(eventNode.ToString(), StringComparison.Ordinal) && p.ToString().Contains('.') ? p.ToString() : eventNode.ToString();
+                var id = RoslynCSharpExtractor.StableId(_x.LanguageId, "external", text);
+                if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = text.Split('.').Last(), QualifiedName = text });
+                Edge(id, handlerId, "calls", "ambiguous", line);
+            }
+
+            public void ControlHandler(SyntaxNode containerNode, string handlerId, int line)
+            {
+                if (_model.GetSymbolInfo(containerNode).Symbol is { } control and (IPropertySymbol or IFieldSymbol) && _perimeter.IsInPerimeter(control))
+                    Edge(IdOf(control), handlerId, "calls", "inferred", line);
+            }
+
+            /// <summary>Una stringa scritta o una costante che vale una stringa; null per tutto il resto.</summary>
+            private string ConstantString(SyntaxNode node)
+            {
+                if (node == null) return null;
+                var constant = _model.GetConstantValue(node);
+                return constant.HasValue ? constant.Value as string : null;
+            }
+
+            /// <summary>Le stringhe degli argomenti per posizione: quelle che il linguaggio ha letto, e dove non ne ha lette le costanti.</summary>
+            private List<string> Strings(IReadOnlyList<string> written, IReadOnlyList<SyntaxNode> nodes)
+            {
+                var count = Math.Max(written?.Count ?? 0, nodes?.Count ?? 0);
+                var list = new List<string>(count);
+                for (var i = 0; i < count; i++)
+                    list.Add((written != null && i < written.Count ? written[i] : null) ?? (nodes != null && i < nodes.Count ? ConstantString(nodes[i]) : null));
+                return list;
             }
 
             /// <summary>I fatti per le regole di registrazione (D43): i tipi fra le parentesi per posizione, poi quelli generici.</summary>

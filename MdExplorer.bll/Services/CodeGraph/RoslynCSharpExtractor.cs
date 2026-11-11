@@ -34,22 +34,74 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 = i fatti per le regole di registrazione (D43 per .NET, 11/11/2026): <c>typeof(X)</c>, gli argomenti generici
         /// scritti nella chiamata e le catene (<c>services.AddScoped&lt;IFoo, Foo&gt;()</c>, <c>RegisterType&lt;Foo&gt;().As&lt;IFoo&gt;()</c>),
         /// gli attributi (<c>[Export(typeof(IFoo))]</c>) e il tipo restituito dai metodi.</para>
+        /// <para>4 = una compilazione per <c>.csproj</c>, con
+        /// le librerie che il progetto riferisce e quelle di .NET Framework se punta lì; gli eventi (nodo, chi li solleva, i
+        /// gestori agganciati con <c>+=</c>), i nomi assegnati a una proprietà o passati a un costruttore, le costanti stringa.</para>
         /// </summary>
-        public override string ExtractorVersion => "3";
+        public override string ExtractorVersion => "4";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
         public RoslynCSharpExtractor(ILogger<RoslynCSharpExtractor> logger) : base(logger) { }
 
-        protected override SyntaxTree Parse(string text, string path) => CSharpSyntaxTree.ParseText(text, ParseOptions, path: path);
+        protected override string ProjectExtension => ".csproj";
 
-        protected override Compilation Compile(IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references)
-            => CSharpCompilation.Create("mde-codegraph", trees, references,
+        protected override SyntaxTree Parse(string text, string path, DotNetProject project) => CSharpSyntaxTree.ParseText(text, ParseOptions, path: path);
+
+        protected override Compilation Compile(string name, IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references, DotNetProject project)
+            => CSharpCompilation.Create(name, trees, references,
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
         protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root) => root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>();
 
-        protected override bool IsCreation(SyntaxNode node) => node is BaseObjectCreationExpressionSyntax;
+        protected override bool IsCreation(SyntaxNode node, out string typeName, out IReadOnlyList<SyntaxNode> arguments)
+        {
+            typeName = null; arguments = Array.Empty<SyntaxNode>();
+            if (node is not BaseObjectCreationExpressionSyntax creation) return false;
+            if (creation is ObjectCreationExpressionSyntax written)
+                typeName = written.Type.DescendantNodesAndSelf().OfType<SimpleNameSyntax>().LastOrDefault(n => n.Parent is not TypeArgumentListSyntax)?.Identifier.ValueText;
+            arguments = creation.ArgumentList?.Arguments.Select(a => (SyntaxNode)a.Expression).ToList() ?? (IReadOnlyList<SyntaxNode>)Array.Empty<SyntaxNode>();
+            return true;
+        }
+
+        protected override bool IsAssignment(SyntaxNode node, out AssignmentShape shape)
+        {
+            shape = default;
+            if (node is not AssignmentExpressionSyntax a || !a.IsKind(SyntaxKind.SimpleAssignmentExpression)) return false;
+            var (name, receiver) = a.Left switch
+            {
+                MemberAccessExpressionSyntax ma => (ma.Name.Identifier.ValueText, ma.Expression.ToString()),
+                IdentifierNameSyntax id => (id.Identifier.ValueText, (string)null),
+                _ => (null, null),
+            };
+            if (name == null) return false;
+            shape = new AssignmentShape { Name = name, Receiver = receiver, Target = a.Left, Value = a.Right };
+            return true;
+        }
+
+        /// <summary><c>Click(this, e)</c>, <c>Click.Invoke(…)</c>, <c>Click?.Invoke(…)</c>: il nodo che nomina l'evento, se lo è.</summary>
+        protected override bool IsRaise(SyntaxNode node, out SyntaxNode eventNode)
+        {
+            eventNode = node switch
+            {
+                InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Invoke" } ma } => ma.Expression,
+                InvocationExpressionSyntax { Expression: MemberBindingExpressionSyntax { Name.Identifier.ValueText: "Invoke" }, Parent: ConditionalAccessExpressionSyntax c } => c.Expression,
+                InvocationExpressionSyntax { Expression: IdentifierNameSyntax id } => id,
+                InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax ma } => ma,
+                _ => null,
+            };
+            return eventNode != null;
+        }
+
+        /// <summary><c>x.Click += Gestore</c> o <c>+= new EventHandler(Gestore)</c>; senza un evento riconosciuto potrebbe essere una somma.</summary>
+        protected override bool IsSubscription(SyntaxNode node, out SyntaxNode eventNode, out SyntaxNode handlerNode, out bool certain)
+        {
+            eventNode = handlerNode = null; certain = false;
+            if (node is not AssignmentExpressionSyntax a || !a.IsKind(SyntaxKind.AddAssignmentExpression)) return false;
+            eventNode = a.Left;
+            handlerNode = a.Right is ObjectCreationExpressionSyntax { ArgumentList.Arguments: { Count: 1 } args } ? args[0].Expression : a.Right;
+            return true;
+        }
 
         /// <summary>Gli attributi stanno sulla dichiarazione del membro; per un campo Roslyn dà il solo nome, la dichiarazione è più su.</summary>
         protected override IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration)
@@ -114,6 +166,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             shape = new InvocationShape
             {
                 Text = inv.Expression.ToString(), Callee = callee, Receiver = receiver, Arguments = args,
+                ArgumentNodes = callee == null ? null : inv.ArgumentList.Arguments.Select(a => (SyntaxNode)a.Expression).ToList(),
                 TypeNodes = inv.ArgumentList.Arguments.Select(a => a.Expression is TypeOfExpressionSyntax t ? (SyntaxNode)t.Type : null).ToList(),
                 GenericNodes = name is GenericNameSyntax g ? g.TypeArgumentList.Arguments.Where(a => a is not OmittedTypeArgumentSyntax).ToList<SyntaxNode>() : new List<SyntaxNode>(),
                 ReceiverNode = (inv.Expression as MemberAccessExpressionSyntax)?.Expression,
