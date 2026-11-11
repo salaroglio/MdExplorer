@@ -314,6 +314,7 @@
     <EmbeddedResource Include="skills\mde-e2e\file-di-supporto.md" />
     <EmbeddedResource Include="skills\mde-e2e-signals\SKILL.md" />
     <EmbeddedResource Include="skills\mde-code\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-code-check\SKILL.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.body.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.copilot.yml" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.opencode.yml" />

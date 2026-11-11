@@ -329,6 +329,22 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "Withdraw an enrichment rule that the check against the source proved wrong and that cannot be corrected: the rule and ALL the edges it made " +
+        "leave the graph (the edges of the parser stay). Only after the user agreed in this conversation, and only for a rule listed by code_rules. " +
+        "To CORRECT a rule do not remove it: propose it again with the same id (code_rule_try, code_rule_propose). The rule file travels with Git, " +
+        "so it can be recovered from the history. Tell the user which rule was withdrawn and why.")]
+    public async Task<string> code_rule_remove(
+        [Description("Project name.")] string project,
+        [Description("The id of the rule, as in code_rules.")] string ruleId,
+        [Description("Why it is wrong: what the source does at the points you opened, in plain words.")] string reason)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        if (string.IsNullOrWhiteSpace(reason)) return "reason is required: say what the source does at the points you opened.";
+        return await PostAsync(client, "/api/codegraph/rules/remove", new { projectPath = path, ruleId, reason, removedBy = "MarkAgent" }, "code_rule_remove", project, ruleId);
+    }
+
+    [McpServerTool, Description(
         "Propose to the USER the programs (source files) to analyse so the graph can answer: a button «Analyse these programs» appears " +
         "in the MarkAgent tab, and each opens the preview of the file's dependency closure (the files it uses, and those they use), where " +
         "the user prunes, chooses implementations and confirms. Use it after «what would you have needed in the graph?» when the gap is " +

@@ -205,6 +205,9 @@ namespace MdExplorer.Utilities
             // Sempre installata, anche senza cartelle program: il gruppo `code` si accende a caldo quando si scelgono i
             // linguaggi (D28) e la skill dice che cosa fare quando i tool code_* non ci sono (punto 4a del 14/10).
             new CatalogEntry("mde-code", Shared("MdExplorer.Service.skills.mde_code.SKILL.md")),
+            // Il confronto fra il grafo e il sorgente (11/11/2026): una skill a sé perché è un altro mestiere, mettere in
+            // dubbio un collegamento invece di usarlo; installata come mde-code.
+            new CatalogEntry("mde-code-check", Shared("MdExplorer.Service.skills.mde_code_check.SKILL.md")),
         };
 
         /// <summary>

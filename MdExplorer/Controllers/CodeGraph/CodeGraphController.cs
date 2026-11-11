@@ -276,7 +276,14 @@ namespace MdExplorer.Controllers.CodeGraph
             public string? ProposedBy { get; set; }
         }
         public class RuleProposalRequest { public string ProjectPath { get; set; } public string ProposalId { get; set; } public System.Collections.Generic.List<string>? Scope { get; set; } }
-        public class RuleRemoveRequest { public string ProjectPath { get; set; } public string RuleId { get; set; } }
+        public class RuleRemoveRequest
+        {
+            public string ProjectPath { get; set; }
+            public string RuleId { get; set; }
+            /// <summary>Chi la ritira e perché, quando è MarkAgent (MCP <c>code_rule_remove</c>): finisce nel log.</summary>
+            public string Reason { get; set; }
+            public string RemovedBy { get; set; }
+        }
 
         private CodeRuleService Rules => HttpContext.RequestServices.GetRequiredService<CodeRuleService>();
         private MdExplorer.Services.CodeGraph.CodeRulePending Pending => HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeRulePending>();
@@ -381,12 +388,15 @@ namespace MdExplorer.Controllers.CodeGraph
             catch (CodeRuleException ex) { return StatusCode(422, new { error = ex.Message }); }
         }
 
-        /// <summary>POST /api/codegraph/rules/remove {projectPath, ruleId} — «Annulla questa regola»: via la regola e i suoi archi.</summary>
+        /// <summary>POST /api/codegraph/rules/remove {projectPath, ruleId} — «Annulla questa regola», e MarkAgent quando il confronto col sorgente la dà per sbagliata (MCP <c>code_rule_remove</c>): via la regola e i suoi archi.</summary>
         [HttpPost("rules/remove")]
         public Task<IActionResult> RemoveRule([FromBody] RuleRemoveRequest request, CancellationToken ct) => RuleGuarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            return Ok(new { removed = await Rules.RemoveAsync(request.ProjectPath, request.RuleId, ct) });
+            var removed = await Rules.RemoveAsync(request.ProjectPath, request.RuleId, ct);
+            if (removed && !string.IsNullOrWhiteSpace(request.RemovedBy))
+                _logger.LogInformation("[CodeRules] '{Project}': regola '{Rule}' ritirata da {By}: {Reason}", request.ProjectPath, request.RuleId, request.RemovedBy, request.Reason);
+            return Ok(new { removed });
         });
 
         // ------------------------------------------------------------------ linguaggi scritti da MarkAgent (D42 passo 2)

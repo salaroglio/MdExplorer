@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 23
+  version: 24
   updatePolicy: replace
 ---
 
@@ -87,6 +87,7 @@ callers and impact.
 | A description is wrong or missing | read the source, then `code_set_description` |
 | A chain stops at a STRING that names a method (`setX("method")`, `submit('alias.method')`): the graph cannot follow it | answer from the source, then `code_rule_try` → check the sample in the source → `code_rule_propose` |
 | Which enrichment rules are active, which further analyses were proposed | `code_rules` |
+| Is this link of the graph TRUE? Is a rule, a package or a kind of relation right? How far can the graph be trusted? | the skill `mde-code-check`: a sample opened in the source, a verdict, and the correction of what made the link |
 | The answer needs the PAGES (server-side HTML templates with directives, e.g. `.template`) and the graph has no node for them | read a few pages, then `code_language_try` → check the sample files → `code_language_propose` |
 
 ## Reading the answers right
