@@ -71,6 +71,7 @@ namespace MdExplorer.Services.CodeGraph
             var previous = File.Exists(file) ? File.ReadAllText(file, Encoding.UTF8) : null;
             Directory.CreateDirectory(folder);
             File.WriteAllText(file, proposal.Definition, new UTF8Encoding(false));
+            LanguageTBox.Write(folder);   // che cosa questo linguaggio scrive nel grafo: segue le regole
             var readme = Path.Combine(folder, LanguagePackage.ReadmeFile);
             if (!File.Exists(readme))
                 File.WriteAllText(readme, $"# {preview.DisplayName}\n\n{proposal.Problem}\n\n" +
@@ -105,7 +106,11 @@ namespace MdExplorer.Services.CodeGraph
                          .Where(p => applied.AddedTo.Contains(p.Folder, StringComparer.OrdinalIgnoreCase) && p.Languages.Contains(languageId, StringComparer.OrdinalIgnoreCase)))
                 _analysis.SaveLanguages(projectPath, p.Folder, p.Languages.Where(l => !string.Equals(l, languageId, StringComparison.OrdinalIgnoreCase)).ToList());
             var folder = Path.Combine(DeclarativeLanguage.FolderOf(projectPath), languageId);
-            if (applied.PreviousDefinition != null) File.WriteAllText(Path.Combine(folder, LanguagePackage.DefinitionFile), applied.PreviousDefinition, new UTF8Encoding(false));
+            if (applied.PreviousDefinition != null)
+            {
+                File.WriteAllText(Path.Combine(folder, LanguagePackage.DefinitionFile), applied.PreviousDefinition, new UTF8Encoding(false));
+                LanguageTBox.Write(folder);
+            }
             else if (applied.CreatedFolder && Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
             _logger.LogInformation("[CodeGraph] linguaggio '{Id}' annullato dall'utente", languageId);
             Reanalyze(projectPath, applied.Folders);

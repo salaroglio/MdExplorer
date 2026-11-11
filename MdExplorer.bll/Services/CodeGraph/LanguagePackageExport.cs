@@ -57,6 +57,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"il progetto non ha il pacchetto di linguaggio '{id}' ({DeclarativeLanguage.FolderName}/{id}/)",
                     $"the project has no language package '{id}' ({DeclarativeLanguage.FolderName}/{id}/)"));
 
+            // il TBox del linguaggio viaggia nello zip, sempre quello delle regole di adesso
+            LanguageTBox.Write(folder);
             var package = LanguagePackage.Load(folder);
             var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
                 .Select(f => (Abs: f, Rel: Path.GetRelativePath(folder, f).Replace('\\', '/')))

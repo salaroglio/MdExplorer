@@ -52,7 +52,7 @@ namespace MdExplorer.Features.Diagnostics
                         {
                             var rel = System.IO.Path.GetRelativePath(package, f).Replace('\\', '/');
                             if (rel.Split('/').Any(p => p.StartsWith('.'))) continue;
-                            if (!rel.EndsWith(".md", StringComparison.OrdinalIgnoreCase) && !rel.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (!rel.EndsWith(".md", StringComparison.OrdinalIgnoreCase) && !rel.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) && rel != LanguageTBox.FileName) continue;
                             mine.Add(($"linguaggi/{id}/{rel}", f));
                         }
                     }

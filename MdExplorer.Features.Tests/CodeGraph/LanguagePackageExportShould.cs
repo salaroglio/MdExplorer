@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var result = LanguagePackageExport.Export(_project, "toy", _out);
             Assert.AreEqual(Path.Combine(_out, "mde-language-toy-v1.zip"), result.ZipPath);
-            Assert.AreEqual(5, result.Files);
+            Assert.AreEqual(6, result.Files, "i cinque file scritti più tbox.ttl, che MdExplorer ricava dalle regole");
             Assert.IsFalse(result.Unchanged);
             using (var zip = ZipFile.OpenRead(result.ZipPath))
                 Assert.IsTrue(zip.Entries.All(e => e.FullName.StartsWith("toy/")), "il pacchetto in una cartella toy/, come lo zip distribuito");
@@ -92,12 +92,43 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(1, package.Skills.Count, "una rilevazione non è una skill");
 
             var result = LanguagePackageExport.Export(_project, "toy", _out);
-            Assert.AreEqual(6, result.Files);
+            Assert.AreEqual(7, result.Files);
             var imported = LanguagePackageImport.Import(_other, result.ZipPath, replace: false);
             CollectionAssert.AreEqual(FilesOf(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy")), FilesOf(imported.Folder));
 
             Write("toy/findings/sorgente.txt", "non è una rilevazione");
             StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out)).Message, "findings/*.md");
+        }
+
+        [TestMethod]
+        public void Ship_the_tbox_of_the_language_and_keep_it_in_step_with_the_rules()
+        {
+            // che cosa il parser di questo linguaggio scrive nel grafo: nello zip, sempre ricavato dalle regole di adesso
+            var folder = Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy");
+            Write("toy/" + LanguageTBox.FileName, "# scritto a mano, vecchio\n");
+            var result = LanguagePackageExport.Export(_project, "toy", _out);
+            string tbox;
+            using (var zip = ZipFile.OpenRead(result.ZipPath))
+            using (var reader = new StreamReader(zip.GetEntry("toy/" + LanguageTBox.FileName).Open()))
+                tbox = reader.ReadToEnd();
+            Assert.AreEqual(File.ReadAllText(Path.Combine(folder, LanguageTBox.FileName)), tbox, "quello della cartella, riscritto");
+            var g = new VDS.RDF.Graph();
+            new VDS.RDF.Parsing.TurtleParser().Load(g, new StringReader(tbox));
+            StringAssert.Contains(tbox, "code:language \"toy\" ; rdfs:label \"Toy\" ; code:packageVersion 1");
+            StringAssert.Contains(tbox, "a code:ProducedKind ; code:kind \"function\" ; code:fromRule \"blocks.proc\"");
+            StringAssert.Contains(tbox, "a code:ProducedRelation ; code:relation \"references\" ; code:fromRule \"references[0]\" ; code:targetIs \"the module of a file, found by file name among the analysed files\" ; code:whenNotFound \"an external node with the name as written\"");
+
+            // uno zip di prima, senza TBox: l'import lo scrive; e cambiate le regole, il TBox le segue
+            File.Delete(Path.Combine(folder, LanguageTBox.FileName));
+            var old = Path.Combine(_root, "vecchio");
+            Directory.CreateDirectory(old);
+            ZipFile.CreateFromDirectory(DeclarativeLanguage.FolderOf(_project), Path.Combine(old, "toy.zip"));
+            var imported = LanguagePackageImport.Import(_other, Path.Combine(old, "toy.zip"), replace: false);
+            Assert.AreEqual(tbox, File.ReadAllText(Path.Combine(imported.Folder, LanguageTBox.FileName)));
+            Write("toy/language.yml", DeclarativeLanguageExtractorShould.ToyDefinition.Replace("version: 1", "version: 2").Replace("kind: function\n    begin: '^\\s*PART", "kind: method\n    begin: '^\\s*PART"));
+            Assert.IsTrue(LanguageTBox.Write(folder));
+            StringAssert.Contains(File.ReadAllText(Path.Combine(folder, LanguageTBox.FileName)), "code:kind \"method\" ; code:fromRule \"blocks.part\"");
+            Assert.IsFalse(LanguageTBox.Write(folder), "niente da riscrivere se le regole non cambiano");
         }
 
         [TestMethod]

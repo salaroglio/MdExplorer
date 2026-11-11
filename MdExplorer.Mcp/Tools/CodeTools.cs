@@ -172,6 +172,8 @@ public sealed class CodeTools : McpToolsBase
         "CallSite, Annotation, Description…), every property with its domain, range and meaning, the relations between symbols, and the allowed values of " +
         "kind and confidence. It is the same for every parser. `parsers` says, per language of THIS project, which parser wrote the graph (name, version, " +
         "files) and which symbol kinds and relations it actually produced, with counts — a kind or relation absent there does not exist for that language. " +
+        "`languagePackages` gives, for each language added with a package (.mde-languages/<id>/), its own TBox: which kinds and relations its rules produce and " +
+        "from which rule of language.yml (the same text as the package's tbox.ttl, which MdExplorer writes and ships in the package zip). " +
         "CALL IT ONCE, FIRST, before any other code_* tool in a conversation: it tells exactly what a node and an edge carry, so you neither look for " +
         "what the graph does not record nor miss what it does. You still never write SPARQL: the other code_* tools read the graph for you.")]
     public async Task<string> code_ontology(

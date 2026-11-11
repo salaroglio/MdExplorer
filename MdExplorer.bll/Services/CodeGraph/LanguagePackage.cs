@@ -27,7 +27,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// Aggiungere un linguaggio = copiare una cartella, toglierlo = cancellarla; MdExplorer non ne porta con sé, i pacchetti
     /// stanno fuori dal suo repository. In più le <b>rilevazioni</b> (<c>findings/*.md</c>, 11/11/2026): quello che un agente ha
     /// trovato sul codice vero, dove chi mantiene il pacchetto non può guardare; viaggiano con il pacchetto quando lo si
-    /// esporta e non cambiano né le regole né i prompt. Lettura <b>rigida</b> come per le regole: un file che il formato non conosce, una
+    /// esporta e non cambiano né le regole né i prompt. E il <b>TBox</b> (<c>tbox.ttl</c>, <see cref="LanguageTBox"/>): che cosa
+    /// il parser del linguaggio scrive nel grafo, ricavato dalle regole e riscritto da MdExplorer. Lettura <b>rigida</b> come per le regole: un file che il formato non conosce, una
     /// skill senza nome o descrizione, o con un nome senza il prefisso, sono errori con il file e il motivo.
     /// </summary>
     public sealed class LanguagePackage
@@ -100,7 +101,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             var findings = new List<string>();
             foreach (var (rel, text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
             {
-                if (rel == DefinitionFile || rel == ReadmeFile) continue;
+                // tbox.ttl è derivato dalle regole: MdExplorer lo riscrive (LanguageTBox.Write), qui non si legge
+                if (rel == DefinitionFile || rel == ReadmeFile || rel == LanguageTBox.FileName) continue;
                 if (rel == PromptsFolder + "/" + CodeDocPromptFile) { prompt = text; continue; }
                 var parts = rel.Split('/');
                 if (parts.Length >= 3 && parts[0] == SkillsFolder && rel.EndsWith(".md", StringComparison.Ordinal))
@@ -110,8 +112,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     continue;
                 }
                 if (parts.Length == 2 && parts[0] == FindingsFolder && rel.EndsWith(".md", StringComparison.Ordinal)) { findings.Add(parts[1]); continue; }
-                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)",
-                    $"file not expected in a language package (allowed: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)");
+                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)",
+                    $"file not expected in a language package (allowed: {DefinitionFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)");
             }
             if (prompt != null && string.IsNullOrWhiteSpace(prompt))
                 throw Fail(PromptsFolder + "/" + CodeDocPromptFile, "è vuoto: se il linguaggio non ha niente da aggiungere al prompt, il file non serve", "it is empty: if the language has nothing to add to the prompt, the file is not needed");

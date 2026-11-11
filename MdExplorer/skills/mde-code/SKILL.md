@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 26
+  version: 27
   updatePolicy: replace
 ---
 
@@ -77,6 +77,11 @@ on you know exactly what a symbol, an edge, a call site or a description carries
   so, and read the source;
 - do not miss what is there: an edge has a `confidence`, a `line`, maybe a `rule` and a `guard`; a symbol has `bodyHash`,
   `signature`, `visibility`; an `external` has only a name. Use them in the answer.
+
+A language added with a package (`.mde-languages/<id>/`) has its own TBox in `languagePackages`: which kinds and
+relations its rules produce, each with the rule of `language.yml` it comes from. The same text is the package's
+`tbox.ttl`: MdExplorer writes it from the rules (when a language proposal is approved, on import, on export) and ships
+it in the package zip. Never edit it: change the rules (`code_language_try` → `code_language_propose`) and it follows.
 
 `code_ontology` is the structure; `code_schema` is the content of this project (counts, facts for rules, active rules,
 ready-made questions). The structure does not change during a conversation: once is enough.

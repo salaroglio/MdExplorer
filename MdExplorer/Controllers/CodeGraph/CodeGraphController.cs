@@ -1104,6 +1104,9 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new
             {
                 tbox = CodeTBox.Turtle(),
+                // i linguaggi aggiunti con un pacchetto: che cosa scrive ciascuno, dalle sue regole di adesso (lo stesso testo di tbox.ttl)
+                languagePackages = CodeLanguageCatalog.ForProject(projectPath).All.Where(l => l.Definition != null)
+                    .Select(l => new { id = l.Id, name = l.Definition.DisplayName, version = l.Definition.Version, tbox = LanguageTBox.Turtle(l.Definition) }),
                 parsers = parsers.Select(p => new { p.Language, p.Extractor, p.ExtractorVersion, p.Files, symbolKinds = p.SymbolKinds.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value), relations = p.Relations.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value) }),
             });
         });

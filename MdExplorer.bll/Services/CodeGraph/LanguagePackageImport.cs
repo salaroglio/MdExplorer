@@ -81,6 +81,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
                     File.WriteAllText(path, text, new UTF8Encoding(false));
                 }
+                // il TBox si ricava dalle regole appena lette: uno zip di prima non l'aveva, uno di un altro MdExplorer può averlo diverso
+                LanguageTBox.Write(Path.Combine(staging, id));
                 if (exists) Directory.Delete(target, recursive: true);
                 Directory.Move(Path.Combine(staging, id), target);
             }
@@ -158,8 +160,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (name.StartsWith('/') || Regex.IsMatch(name, @"^[A-Za-z]:") || name.Split('/').Any(p => p == ".."))
                         throw new LanguageDefinitionException(zipPath, UiText.Say($"'{name}': un percorso che esce dalla cartella del pacchetto", $"'{name}': a path that leaves the package folder"));
                     if (name.Split('/').Any(p => p.StartsWith('.')) || name.StartsWith("__MACOSX/", StringComparison.Ordinal)) continue;
-                    if (!name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) && !name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                        throw new LanguageDefinitionException(zipPath, UiText.Say($"'{name}': in un pacchetto di linguaggio ci sono solo file .yml e .md", $"'{name}': a language package holds only .yml and .md files"));
+                    if (!name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) && !name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(name) != LanguageTBox.FileName)
+                        throw new LanguageDefinitionException(zipPath, UiText.Say($"'{name}': in un pacchetto di linguaggio ci sono solo file .yml e .md (e tbox.ttl)", $"'{name}': a language package holds only .yml and .md files (and tbox.ttl)"));
                     total += entry.Length;
                     if (total > MaxTotalBytes || entries.Count >= MaxEntries) throw TooBig(zipPath);
                     using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
