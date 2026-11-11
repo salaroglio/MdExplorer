@@ -63,8 +63,11 @@ namespace MdExplorer.Features.Diagnostics
             new Regex(@"\beyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}", Opt), // JWT
         };
 
-        /// <summary><c>Bearer xxx</c>, <c>Basic xxx</c>: resta la parola, sparisce il valore.</summary>
-        private static readonly Regex AuthHeader = new Regex(@"\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=\-]{8,}", Opt | RegexOptions.IgnoreCase);
+        /// <summary>
+        /// <c>Bearer xxx</c>, <c>Basic xxx</c>: resta la parola, sparisce il valore. Non «Visual Basic qualcosa»: è il linguaggio,
+        /// e nelle rilevazioni di MarkAgent si nomina spesso (11/11/2026).
+        /// </summary>
+        private static readonly Regex AuthHeader = new Regex(@"\b(Bearer|(?<!Visual\s)Basic)\s+[A-Za-z0-9._~+/=\-]{8,}", Opt | RegexOptions.IgnoreCase);
 
         /// <summary><c>chiave = valore</c> o <c>chiave: valore</c> con un nome da segreto: resta la chiave, sparisce il valore.</summary>
         private static readonly Regex KeyValue = new Regex(

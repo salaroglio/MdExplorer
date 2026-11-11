@@ -45,6 +45,13 @@ namespace MdExplorer.Features.Tests.Diagnostics
         }
 
         [TestMethod]
+        public void Keep_the_name_of_the_visual_basic_language()
+        {
+            Assert.AreEqual("codice Visual Basic incorporato nel report", R("codice Visual Basic incorporato nel report"), "è il linguaggio, non un'intestazione Basic");
+            Assert.AreEqual("Authorization: Basic <segreto>", R("Authorization: Basic dXNlcjpwYXNzd29yZA=="), "l'intestazione vera resta oscurata");
+        }
+
+        [TestMethod]
         public void Hide_email_addresses()
         {
             var r = DiagnosticsRedactor.Redact("User carlo.salaroglio opened project, author carlo.salaroglio@deda.com", Windows);
