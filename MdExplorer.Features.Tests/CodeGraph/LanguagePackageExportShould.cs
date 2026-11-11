@@ -83,6 +83,24 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Carry_the_findings_an_agent_wrote_next_to_the_rules()
+        {
+            // quello che un agente rileva sul codice vero viaggia con il pacchetto: uno zip solo, andata e ritorno
+            Write("toy/findings/rilevazione-2026-11-11.md", "# Rilevazione\n\n12 file, 3 forme di chiamata: è tutto qui.\n");
+            var package = LanguagePackage.Load(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy"));
+            CollectionAssert.AreEqual(new[] { "rilevazione-2026-11-11.md" }, package.Findings.ToArray());
+            Assert.AreEqual(1, package.Skills.Count, "una rilevazione non è una skill");
+
+            var result = LanguagePackageExport.Export(_project, "toy", _out);
+            Assert.AreEqual(6, result.Files);
+            var imported = LanguagePackageImport.Import(_other, result.ZipPath, replace: false);
+            CollectionAssert.AreEqual(FilesOf(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy")), FilesOf(imported.Folder));
+
+            Write("toy/findings/sorgente.txt", "non è una rilevazione");
+            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out)).Message, "findings/*.md");
+        }
+
+        [TestMethod]
         public void Refuse_a_broken_or_missing_package()
         {
             Write("toy/skills/toy-code/SKILL.md", "---\nname: toy-code\n---\n");

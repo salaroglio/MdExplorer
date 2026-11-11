@@ -25,7 +25,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// (<c>language.yml</c>, <see cref="DeclarativeLanguage"/>), il prompt che si aggiunge a quello di Mark per i sorgenti
     /// di quel linguaggio (<c>prompts/code-doc.md</c>) e le skill per gli agenti (<c>skills/&lt;id&gt;-…/SKILL.md</c>).
     /// Aggiungere un linguaggio = copiare una cartella, toglierlo = cancellarla; MdExplorer non ne porta con sé, i pacchetti
-    /// stanno fuori dal suo repository. Lettura <b>rigida</b> come per le regole: un file che il formato non conosce, una
+    /// stanno fuori dal suo repository. In più le <b>rilevazioni</b> (<c>findings/*.md</c>, 11/11/2026): quello che un agente ha
+    /// trovato sul codice vero, dove chi mantiene il pacchetto non può guardare; viaggiano con il pacchetto quando lo si
+    /// esporta e non cambiano né le regole né i prompt. Lettura <b>rigida</b> come per le regole: un file che il formato non conosce, una
     /// skill senza nome o descrizione, o con un nome senza il prefisso, sono errori con il file e il motivo.
     /// </summary>
     public sealed class LanguagePackage
@@ -36,6 +38,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string CodeDocPromptFile = "code-doc.md";
         public const string SkillsFolder = "skills";
         public const string SkillFile = "SKILL.md";
+        public const string FindingsFolder = "findings";
         /// <summary>Quanto può essere grande un file del pacchetto: sono regole e testi, non sorgenti.</summary>
         public const int MaxFileBytes = 256 * 1024;
 
@@ -50,6 +53,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Le prime 8 cifre dello SHA-256 del prompt: entra nella versione del prompt di una descrizione (B6b).</summary>
         public string CodeDocPromptHash { get; private init; }
         public IReadOnlyList<LanguagePackageSkill> Skills { get; private init; }
+        /// <summary>I nomi dei file di <c>findings/</c>, in ordine: solo testo che viaggia con il pacchetto, MdExplorer non li legge.</summary>
+        public IReadOnlyList<string> Findings { get; private init; }
 
         /// <summary>
         /// Le cartelle dei pacchetti del progetto, in ordine; nessuna se <c>.mde-languages/</c> non c'è. Una cartella che
@@ -92,6 +97,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             var skillFiles = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
             string prompt = null;
+            var findings = new List<string>();
             foreach (var (rel, text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
             {
                 if (rel == DefinitionFile || rel == ReadmeFile) continue;
@@ -103,8 +109,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     mine[string.Join('/', parts.Skip(2))] = text;
                     continue;
                 }
-                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md)",
-                    $"file not expected in a language package (allowed: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md)");
+                if (parts.Length == 2 && parts[0] == FindingsFolder && rel.EndsWith(".md", StringComparison.Ordinal)) { findings.Add(parts[1]); continue; }
+                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)",
+                    $"file not expected in a language package (allowed: {DefinitionFile}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)");
             }
             if (prompt != null && string.IsNullOrWhiteSpace(prompt))
                 throw Fail(PromptsFolder + "/" + CodeDocPromptFile, "è vuoto: se il linguaggio non ha niente da aggiungere al prompt, il file non serve", "it is empty: if the language has nothing to add to the prompt, the file is not needed");
@@ -115,7 +122,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Id = id, FolderPath = folder,
                 Language = DeclarativeLanguage.Parse(yaml, PathOf(DefinitionFile)),
                 CodeDocPrompt = prompt?.Trim(), CodeDocPromptHash = prompt == null ? null : Hash(prompt.Trim()),
-                Skills = skills,
+                Skills = skills, Findings = findings,
             };
         }
 
