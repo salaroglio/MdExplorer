@@ -425,6 +425,60 @@ namespace MdExplorer.Features.Services.CodeGraph
             return links;
         }
 
+        /// <summary>
+        /// Le pagine con il loro code-behind (12/11/2026, ASP.NET Web Forms e simili): tre chiamate che un dialetto di pagine
+        /// riconosce e MdExplorer collega, come fa da solo per Angular.
+        /// <list type="bullet">
+        /// <item><c>codebehind</c>, con la classe come primo argomento (<c>Inherits="Alpina.Web.Ricerca"</c>): la classe
+        /// <c>renders</c> la pagina; la classe si cerca per nome qualificato, poi per nome se è una sola.</item>
+        /// <item><c>handler</c>, con il nome del metodo (<c>OnClick="btnCerca_Click"</c>): il controllo <c>calls</c> quel metodo
+        /// della classe della pagina.</item>
+        /// <item><c>autowire</c> (<c>AutoEventWireup="true"</c>): la pagina <c>calls</c> i metodi <c>Page_…</c> della sua classe,
+        /// che ASP.NET chiama per nome.</item>
+        /// </list>
+        /// </summary>
+        public async Task<List<CodePageLink>> CodeBehindLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
+        {
+            var links = new List<CodePageLink>();
+            if (pageLanguages == null || pageLanguages.Count == 0) return links;
+            var g = GraphsOf(projectPath);
+            var pages = $"VALUES ?lang {{ {string.Join(" ", pageLanguages.Select(Lit))} }} ?page code:kind \"module\" ; code:language ?lang ; code:path ?path . ";
+            var behind = $"?b a {CodeOntology.ClassCallSite} ; code:caller ?page ; code:callee \"codebehind\" ; code:line ?bline . ?ba code:argumentOf ?b ; code:position 0 ; code:value ?cname . ";
+            var rows = await RowsAsync($"SELECT DISTINCT ?page ?path ?bline ?cname WHERE {{ GRAPH {g.DataIri} {{ {pages}{behind}}} }}", ct);
+            if (rows.Count == 0) return links;
+
+            // le classi candidate, per nome qualificato e per nome semplice
+            var names = rows.Select(r => Str(r, "cname")).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.Ordinal).ToList();
+            var simple = names.Select(n => n.Split('.').Last()).Distinct(StringComparer.Ordinal).ToList();
+            var classes = await RowsAsync($"SELECT DISTINCT ?cls ?qn ?name WHERE {{ GRAPH {g.DataIri} {{ VALUES ?name {{ {string.Join(" ", simple.Select(Lit))} }} " +
+                "?cls a code:Symbol ; code:kind \"class\" ; code:name ?name ; code:qualifiedName ?qn . } }", ct);
+            string ClassOf(string written)
+            {
+                var exact = classes.Where(c => Str(c, "qn") == written).Select(c => c["cls"]).Distinct().ToList();
+                if (exact.Count == 1) return exact[0];
+                var byName = classes.Where(c => Str(c, "name") == written.Split('.').Last()).Select(c => c["cls"]).Distinct().ToList();
+                return byName.Count == 1 ? byName[0] : null;
+            }
+            foreach (var r in rows)
+            {
+                var cls = ClassOf(Str(r, "cname"));
+                if (cls == null) continue;
+                var page = r["page"];
+                var path = Str(r, "path");
+                links.Add(new CodePageLink { SourceId = SymbolId(cls), TargetId = SymbolId(page), Relation = "renders", Line = Count(r, "bline") });
+
+                // i gestori scritti nei controlli della pagina, e i Page_… chiamati per convenzione
+                foreach (var h in await RowsAsync(
+                    $"SELECT DISTINCT ?caller ?callee ?name ?line ?m WHERE {{ GRAPH {g.DataIri} {{ " +
+                    $"?c a {CodeOntology.ClassCallSite} ; code:caller ?caller ; code:callee ?callee ; code:path {Lit(path)} ; code:line ?line . FILTER(?callee IN (\"handler\", \"autowire\")) " +
+                    "OPTIONAL { ?ca code:argumentOf ?c ; code:position 0 ; code:value ?arg } " +
+                    $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . " +
+                    "FILTER((?callee = \"handler\" && LCASE(?name) = LCASE(?arg)) || (?callee = \"autowire\" && STRSTARTS(?name, \"Page_\"))) } }", ct))
+                    links.Add(new CodePageLink { SourceId = SymbolId(h["caller"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "line"), Path = path });
+            }
+            return links;
+        }
+
         public async Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
         {
             var result = new List<CodePageScriptCall>();

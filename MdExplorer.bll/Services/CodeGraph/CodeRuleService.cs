@@ -172,7 +172,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             var links = (await _store.PageScriptCallsAsync(projectPath, pageLanguages, ct))
                 .Select(c => new CodePageLink { SourceId = c.CallerId, TargetId = c.FunctionId, Relation = "calls", Name = c.Callee, Line = c.Line, Path = c.Path })
-                .Concat(await _store.AngularLinksAsync(projectPath, pageLanguages, ct));
+                .Concat(await _store.AngularLinksAsync(projectPath, pageLanguages, ct))
+                .Concat(await _store.CodeBehindLinksAsync(projectPath, pageLanguages, ct));
             // più bersagli per lo stesso nome nella stessa riga = ambiguous; un arco per (sorgente, bersaglio, relazione), come negli ast
             var edges = links.GroupBy(l => (l.SourceId, l.Relation, l.Name, l.Line))
                 .SelectMany(g =>
@@ -194,7 +195,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Rule, Source = PageScriptsId,
                     WrittenBy = "MdExplorer", WrittenAt = string.Empty,
                 },
-                RuleDescription = "MdExplorer: le chiamate delle pagine verso le funzioni dei file JS che caricano (anche dalle pagine incluse) e, per Angular, componente ↔ template e <app-x> → componente (D42).",
+                RuleDescription = "MdExplorer: le chiamate delle pagine verso le funzioni dei file JS che caricano (anche dalle pagine incluse) e, per Angular, componente ↔ template e <app-x> → componente (D42); per le pagine con code-behind (Web Forms), classe ↔ pagina, gestori e Page_….",
             };
             script.Edges.AddRange(edges);
             Directory.CreateDirectory(Path.GetDirectoryName(path));

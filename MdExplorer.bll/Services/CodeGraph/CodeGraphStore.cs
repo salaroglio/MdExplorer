@@ -96,6 +96,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// chiamata <c>selector</c> della pagina (dal dialetto: <c>&lt;app-x&gt;</c>) «instantiates» il componente con quel selettore.
         /// </summary>
         Task<List<CodePageLink>> AngularLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
+        /// <summary>Pagina ↔ code-behind (Web Forms): le chiamate <c>codebehind</c>, <c>handler</c>, <c>autowire</c> di un dialetto di pagine.</summary>
+        Task<List<CodePageLink>> CodeBehindLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
         Task<List<CodePageScriptCall>> PageScriptCallsAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default);
         /// <summary>
         /// Le triple di una cartella program (quelle che la sua ricarica toglierebbe: i nodi dei suoi script e i loro archi

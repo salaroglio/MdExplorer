@@ -440,6 +440,10 @@ public sealed class CodeTools : McpToolsBase
         "ANGULAR: MdExplorer links by itself the component to its templateUrl page (renders), a template call like (click)=\"save()\" to the " +
         "component's method, and a call recognizer with callee: selector (e.g. match: '<(?<a0>app-[\\w-]+)') to the component with that " +
         "selector (instantiates). " +
+        "CODE-BEHIND (ASP.NET Web Forms and the like): three call recognizers MdExplorer links by itself to the C#/VB class of the page — " +
+        "callee: codebehind with the class in a0 (e.g. match: 'Inherits=\"(?<a0>[\\w.]+)\"'): the class renders the page; callee: handler with the method in a0 " +
+        "(e.g. match: '\\bOn[A-Z]\\w*=\"(?<a0>\\w+)\"'): the control calls that method of the page's class; callee: autowire (e.g. match: " +
+        "'AutoEventWireup=\"(?<a0>true)\"'): the page calls the Page_… methods of its class. " +
         "Inline templates (Angular template: `…` in the .ts): template.inline = {extensions: [.ts], match: 'template\\s*:\\s*`(?<body>[^`]*)`'}: " +
         "the group body is a page of the dialect, path '<file>.ts#template', with the lines of the .ts; the .ts stays TypeScript. " +
         "A line-based language (blocks/labels/references instead of template) uses the same tools.";

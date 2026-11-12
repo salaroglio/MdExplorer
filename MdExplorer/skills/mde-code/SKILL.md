@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 28
+  version: 29
   updatePolicy: replace
 ---
 
@@ -153,7 +153,9 @@ ready-made questions). The structure does not change during a conversation: once
 - **Pages** (when the project has a page dialect): a page is a `module`; its `control` symbols are the elements with an
   event (`onclick`…); `includes` links a page to the pages it includes; `guard` on a control or an `includes` edge is the
   condition in the page (`$if[ROLE==S]$`): the control exists only then. Visibility in the page is not authorisation on the
-  server: say so when it matters.
+  server: say so when it matters. With a code-behind dialect (ASP.NET Web Forms) the page is also linked to its C# or VB
+  class: the class `renders` the page, a control `calls` the method named in its `OnClick=`/`On…=` attribute, the page
+  `calls` the `Page_…` methods (AutoEventWireup). The class must be in the graph (the folder marked with VB or C# too).
 - **A missing description is not an error**: the description step may still be running or may have been run only on
   part of the code. `code_inventory` tells how many files and symbols are described.
 - **Paths** are logical (`program/…`, `@alias/…`), the same on every machine; open `absolutePath`, which is where the
