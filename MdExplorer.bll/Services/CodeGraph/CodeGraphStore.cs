@@ -319,6 +319,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 await FlushBatchAsync(batch, reload, ct);
                 foreach (var failed in reload.Results.Where(r => r.HasError)) outcome.Results.Add(failed);
+                // Un nodo esterno non ha uno script (è condiviso): quello dell'SQL rimasto senza frecce resterebbe nel grafo, e chi
+                // cerca «STORICO_RAPPORTI» troverebbe un nodo isolato accanto alla tabella vera (visto con MarkAgent, 12/11/2026).
+                await UpdateAsync(CodeOntology.SparqlPrefixes +
+                    $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; code:language {CodeGraphIris.Lit(RoslynExtractorBase.SqlLanguage)} ; ?p ?o . " +
+                    "FILTER NOT EXISTS { ?e code:target ?x } FILTER NOT EXISTS { ?s ?r ?x } } }", ct);
                 if (outcome.SqlRelinked > 0)
                     _logger?.LogInformation("[CodeGraph] '{Project}': {Edges} frecce dell'SQL ricollegate in {Scripts} script ({List})",
                         projectPath, outcome.SqlRelinked, outcome.SqlRelinkedScripts.Count, string.Join(", ", outcome.SqlRelinkedScripts.Take(5)));

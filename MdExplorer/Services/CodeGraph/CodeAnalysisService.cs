@@ -1178,7 +1178,7 @@ namespace MdExplorer.Services.CodeGraph
                 }
             var otherScripts = others.Select(o => (o.Path, o.Script)).ToList();
             var changed = lang.Definition != null
-                ? CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, otherScripts)
+                ? CodeCrossLinker.LinkAll(lang.Id, lang.Definition.IgnoreCase, own, otherScripts, allSymbols: lang.Definition.Database)
                 : CodeCrossLinker.LinkAllJava(lang.Id, own, otherScripts, VanishedSymbols(projectPath, own, gone));
             foreach (var path in changed)
             {

@@ -19,11 +19,19 @@ namespace MdExplorer.Features.Services.CodeGraph
         private readonly Dictionary<string, List<(string Path, string Id)>> _symbols = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _imports = new(StringComparer.Ordinal);
 
-        private CodeLinkIndex(bool ignoreCase) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; }
+        private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; }
 
-        public static CodeLinkIndex Build(bool ignoreCase, IEnumerable<(string Path, CodeScript Script)> scripts)
+        /// <summary>
+        /// Un linguaggio database (<see cref="DeclarativeLanguage.Database"/>, 12/11/2026): si cercano per nome TUTTI i suoi simboli,
+        /// non solo le funzioni di primo livello — le tabelle e le viste di un altro file, le procedure dentro un package.
+        /// </summary>
+        public bool AllSymbols { get; }
+
+        internal static bool Indexed(ScriptSymbol s) => s.Kind is not ("module" or "external" or DeclarativeLanguage.FragmentKind) && !string.IsNullOrEmpty(s.Name);
+
+        public static CodeLinkIndex Build(bool ignoreCase, IEnumerable<(string Path, CodeScript Script)> scripts, bool allSymbols = false)
         {
-            var index = new CodeLinkIndex(ignoreCase);
+            var index = new CodeLinkIndex(ignoreCase, allSymbols);
             foreach (var (path, script) in scripts) index.Add(path, script);
             return index;
         }
@@ -36,7 +44,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             _moduleOf[path] = module.Id;
             _pathOfModule[module.Id] = path;
             if (!string.IsNullOrEmpty(module.Name)) Push(_programs, _norm(module.Name), path);
-            foreach (var s in script.Symbols.Where(s => s.Kind == "function" && s.ParentId == module.Id && !string.IsNullOrEmpty(s.Name)))
+            foreach (var s in script.Symbols.Where(s => AllSymbols ? Indexed(s) : s.Kind == "function" && s.ParentId == module.Id && !string.IsNullOrEmpty(s.Name)))
             {
                 if (!_symbols.TryGetValue(_norm(s.Name), out var list)) _symbols[_norm(s.Name)] = list = new();
                 list.Add((path, s.Id));
@@ -304,10 +312,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// dal disco) sull'indice di tutti. Torna i percorsi degli script di <paramref name="others"/> che sono cambiati.
         /// </summary>
         public static List<string> LinkAll(string languageId, bool ignoreCase, IReadOnlyList<(string Path, CodeScript Script)> own,
-            IReadOnlyList<(string Path, CodeScript Script)> others)
+            IReadOnlyList<(string Path, CodeScript Script)> others, bool allSymbols = false)
         {
             var all = own.Concat(others).ToList();
-            var index = CodeLinkIndex.Build(ignoreCase, all);
+            var index = CodeLinkIndex.Build(ignoreCase, all, allSymbols);
             var before = others.ToDictionary(o => o.Path, o => Fingerprint(o.Script), StringComparer.Ordinal);
             string Ext(string what, string name) => RoslynCSharpExtractor.StableId(languageId, "external", what + ":" + (ignoreCase ? name.ToUpperInvariant() : name));
             // prima tutti gli import, poi le chiamate: chi importa chi serve a scegliere fra le funzioni con lo stesso nome
@@ -327,7 +335,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var byId = new Dictionary<string, ScriptSymbol>(StringComparer.Ordinal);
             foreach (var s in script.Symbols.Where(s => s.Id != null)) byId.TryAdd(s.Id, s);
             var module = script.Symbols.FirstOrDefault(s => s.Kind == "module");
-            var local = new HashSet<string>(script.Symbols.Where(s => s.Kind == "function" && module != null && s.ParentId == module.Id && s.Name != null)
+            var local = new HashSet<string>(script.Symbols.Where(s => index.AllSymbols ? CodeLinkIndex.Indexed(s) : s.Kind == "function" && module != null && s.ParentId == module.Id && s.Name != null)
                 .Select(s => index.Normalize(s.Name)), StringComparer.Ordinal);
 
             // il riferimento di ogni arco: quello scritto, o (script di prima del 10/11) quello di un esterno

@@ -64,6 +64,42 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Find_a_table_or_a_packaged_procedure_of_another_file_in_a_database_language()
+        {
+            // 12/11/2026, visto nel demo: il ricollegamento fra file di un linguaggio a regole cercava solo le funzioni di primo
+            // livello, e in PL/SQL le tabelle di tabelle.sql e le procedure dentro un package restavano esterne
+            (string, CodeScript) Script(string path, Action<CodeScript> fill)
+            {
+                var s = new CodeScript { Header = new CodeScriptHeader { Language = "plsql" } };
+                s.Symbols.Add(new ScriptSymbol { Id = path + "#m", Kind = "module", Name = path, QualifiedName = path });
+                fill(s);
+                return (path, s);
+            }
+            var tables = Script("db/tabelle.sql", s => s.Symbols.Add(new ScriptSymbol { Id = "t", Kind = "record", Name = "TICKET", QualifiedName = "db/tabelle.sql:TICKET", ParentId = "db/tabelle.sql#m" }));
+            var body = Script("db/pkg.pkb", s =>
+            {
+                s.Symbols.Add(new ScriptSymbol { Id = "pkg", Kind = "class", Name = "PKG", QualifiedName = "db/pkg.pkb:PKG", ParentId = "db/pkg.pkb#m" });
+                s.Symbols.Add(new ScriptSymbol { Id = "p", Kind = "function", Name = "CHIUDI", QualifiedName = "db/pkg.pkb:PKG.CHIUDI", ParentId = "pkg" });
+            });
+            var caller = Script("db/altro.pkb", s =>
+            {
+                s.Symbols.Add(new ScriptSymbol { Id = "f", Kind = "function", Name = "F", QualifiedName = "db/altro.pkb:F", ParentId = "db/altro.pkb#m" });
+                s.Symbols.Add(new ScriptSymbol { Id = "x1", Kind = "external", Name = "TICKET", QualifiedName = "TICKET" });
+                s.Symbols.Add(new ScriptSymbol { Id = "x2", Kind = "external", Name = "CHIUDI", QualifiedName = "CHIUDI" });
+                s.Edges.Add(new ScriptEdge { SourceId = "f", TargetId = "x1", Relation = "writes", Confidence = "inferred", Line = 3, Written = CodeCrossLinker.Written("symbol", "TICKET", null) });
+                s.Edges.Add(new ScriptEdge { SourceId = "f", TargetId = "x2", Relation = "calls", Confidence = "inferred", Line = 4, Written = CodeCrossLinker.Written("symbol", "CHIUDI", null) });
+            });
+            string Targets(CodeScript s) => string.Join(" ", s.Edges.OrderBy(e => e.Line).Select(e => e.TargetId));
+
+            var plain = Script("db/altro.pkb", s => { s.Symbols.AddRange(caller.Item2.Symbols.Where(x => x.Kind != "module")); s.Edges.AddRange(caller.Item2.Edges.Select(e => new ScriptEdge { SourceId = e.SourceId, TargetId = e.TargetId, Relation = e.Relation, Confidence = e.Confidence, Line = e.Line, Written = e.Written })); });
+            CodeCrossLinker.LinkAll("plsql", true, new[] { plain }, new[] { tables, body });
+            Assert.IsFalse(Targets(plain.Item2).Contains("t"), "un linguaggio qualunque: solo le funzioni di primo livello, come prima");
+
+            CodeCrossLinker.LinkAll("plsql", true, new[] { caller }, new[] { tables, body }, allSymbols: true);
+            Assert.AreEqual("t p", Targets(caller.Item2), "un linguaggio database: la tabella dell'altro file e la procedura dentro il package");
+        }
+
+        [TestMethod]
         public async Task Link_in_the_graph_whichever_folder_is_analysed_first_and_unlink_when_the_procedure_goes()
         {
             var store = FusekiFixture.NewStore();
@@ -120,6 +156,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 Assert.AreEqual("calls:ELENCO:function reads:ORDINI:external calls:TOTALE:function", await Targets());
                 StringAssert.Contains(File.ReadAllText(vbScript), "sql:symbol:elenco", "lo script dice il riferimento scritto, per poter tornare indietro");
                 Assert.AreEqual(0, (await store.LoadProjectAsync(project)).SqlRelinked, "niente cambiato, niente da fare");
+                Assert.IsFalse((await store.ResolveAsync(project, "elenco")).Any(x => x.Kind == "external"), "il nodo esterno rimasto senza frecce esce dal grafo");
 
                 // la procedura sparisce: le frecce tornano ai nodi esterni
                 File.Delete(dbScript);
