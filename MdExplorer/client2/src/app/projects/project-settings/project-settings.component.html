@@ -441,6 +441,13 @@
       </div>
     </mat-tab>
 
+    <!-- I linguaggi del grafo attivi nel progetto, dalla libreria (12/11/2026) -->
+    <mat-tab [label]="'PROJECT_SETTINGS.CODE_LANGUAGES_TAB' | translate">
+      <div class="tab-content">
+        <app-language-library [projectPath]="projectPath"></app-language-library>
+      </div>
+    </mat-tab>
+
     <!-- Tab 3: AI & RAG Settings -->
     <mat-tab [label]="'PROJECT_SETTINGS.AI_RAG' | translate">
       <div class="tab-content">

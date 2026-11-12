@@ -20,6 +20,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { GitModule } from '../git/git.module';
 import { ProjectSettingsService } from './services/project-settings.service';
 import { ParticipantGemsModule } from '../components/participant-gems/participant-gems.module';
+import { LanguageLibraryModule } from '../components/language-library/language-library.module';
 
 const routes: Routes = [
   {
@@ -57,6 +58,7 @@ const routes: Routes = [
     GitModule,
     TranslateModule,
     ParticipantGemsModule,
+    LanguageLibraryModule,
   ],
   providers: [
     ProjectSettingsService

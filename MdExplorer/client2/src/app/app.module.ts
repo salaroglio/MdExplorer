@@ -34,6 +34,7 @@ import { UnifiedSettingsDialogComponent } from './components/unified-settings-di
 import { TelegramSettingsComponent } from './components/telegram-settings/telegram-settings.component';
 import { AppStoreSettingsDialogComponent } from './components/app-store-settings-dialog/app-store-settings-dialog.component';
 import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
+import { LanguageLibraryModule } from './components/language-library/language-library.module';
 import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
 
 
@@ -83,6 +84,7 @@ const routes: Routes = [
       }
     }),
     ParticipantGemsModule,
+    LanguageLibraryModule,
     MarkAssistantModule,
   ],
   providers: [

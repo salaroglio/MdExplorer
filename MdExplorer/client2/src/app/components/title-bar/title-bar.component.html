@@ -76,6 +76,10 @@
       <mat-icon>dns</mat-icon>
       <span>{{ 'TITLE_BAR.SERVICES' | translate }}</span>
     </button>
+    <button mat-menu-item (click)="openSettings('languages')">
+      <mat-icon>translate</mat-icon>
+      <span>{{ 'TITLE_BAR.CODE_LANGUAGES' | translate }}</span>
+    </button>
     <button mat-menu-item (click)="openSettings('telegram')">
       <mat-icon>send</mat-icon>
       <span>{{ 'TITLE_BAR.TELEGRAM' | translate }}</span>

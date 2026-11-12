@@ -1,0 +1,40 @@
+.language-library {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .actions { display: flex; align-items: center; gap: 12px; }
+
+  .package {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12));
+    border-radius: 6px;
+
+    .info { min-width: 0; flex: 1; }
+    .title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+    .version { opacity: 0.7; }
+    code { font-size: 0.85em; opacity: 0.8; }
+    .meta { font-size: 0.85em; opacity: 0.75; margin-top: 2px; overflow-wrap: anywhere; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  }
+
+  .state {
+    font-size: 0.75em;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid currentColor;
+    opacity: 0.85;
+    &.active { color: #188038; }
+    &.update { color: #f29900; }
+  }
+
+  .hint-text { font-size: 0.85em; opacity: 0.75; margin: 0; }
+  .folder { overflow-wrap: anywhere; }
+  .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .done { color: #188038; margin: 0; }
+  .error { color: #d93025; margin: 0; overflow-wrap: anywhere; }
+}
