@@ -1,9 +1,9 @@
 ---
 name: mde-code
-description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
+description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 29
+  version: 30
   updatePolicy: replace
 ---
 
@@ -45,9 +45,12 @@ asks what the graph lacked, follow «What the graph lacked» below.
 ## The one rule: ask the `code_*` tools
 
 The graph lives in a database **MdExplorer runs and manages itself**. Its address changes at every start and is
-not for you. **Never** query it with SPARQL, `curl`, an HTTP call, or a Fuseki URL such as `localhost:3030`; never
-read the scripts under `.mde-code/` to answer. Use the `code_*` tools: they answer in milliseconds and give
-`path:line` to open the source when you really need it.
+not for you. **Never** reach it with `curl`, an HTTP call, or a Fuseki URL such as `localhost:3030`; never read the
+scripts under `.mde-code/` to answer. Use the `code_*` tools: they answer in milliseconds and give `path:line` to
+open the source when you really need it.
+
+In this order: the tool made for the question (table below); then a ready-made question (`code_query`); only when
+**neither answers**, a SPARQL query you write yourself with **`code_sparql`** (see «When no tool answers»).
 
 A Fuseki server on `localhost:3030` and the skills `mde-tbox` / `mde-abox` / `mde-shacl` are a **different thing**:
 domain ontologies written from the project's documents. They are not the code graph — do not use them for code.
@@ -86,6 +89,21 @@ it in the package zip. Never edit it: change the rules (`code_language_try` → 
 `code_ontology` is the structure; `code_schema` is the content of this project (counts, facts for rules, active rules,
 ready-made questions). The structure does not change during a conversation: once is enough.
 
+## When no tool answers: `code_sparql`
+
+`code_sparql` runs a SELECT (or ASK) **you write**, read-only, on this project's graph. It is the last resort: first
+check that no `code_*` tool and no `code_query` question gives the answer — they are tested, faster and cheaper.
+
+- Write it from the TBox of `code_ontology`, never from a guess: classes, properties and values are there. An edge is
+  a node: `?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation "calls" ; code:confidence ?c ; code:path ?p`.
+- Only the patterns: the prefixes `code:`, `text:`, `rdf:`, `rdfs:`, `owl:`, `xsd:` are declared, and MdExplorer
+  puts the block in the project's graph. `GRAPH`, `FROM`, `SERVICE` and any update are refused.
+- For numbers use `GROUP BY` and `COUNT`; to stay in one folder `FILTER(STRSTARTS(?p, "folder/"))`. At most 60 seconds
+  and 1000 rows (`truncated` says there were more): narrow the query rather than raise the limit.
+- A refused query comes back with the reason: fix it and run it again; do not fall back to guessing the number.
+- In the answer, say that the number comes from a query you wrote, and give the query when the user may want to check it.
+- A question you had to answer with `code_sparql` is worth a finding («What the graph lacked»): it may become a ready-made question.
+
 ## Which tool
 
 | The user asks | Tool |
@@ -96,6 +114,7 @@ ready-made questions). The structure does not change during a conversation: once
 | How the graph is organised: classes of nodes, their properties, what each parser of this project produces | `code_ontology` (once, first) |
 | What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
 | A ready-made question (the catalog is in `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
+| A question no tool above answers: a count across relations or languages, a combination of conditions | `code_sparql` (last resort, read-only) |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
 | Does this document (design, analysis, specification) match the code? | see «Checking a document against the code» |
 | Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |

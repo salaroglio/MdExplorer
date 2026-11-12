@@ -74,6 +74,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeSymbolView>> UnusedAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
         /// <summary>Gli archi incerti per simbolo di partenza: certezza (inferred, ambiguous, llm-resolved) e quanti.</summary>
         Task<List<(CodeSymbolView Symbol, string Confidence, int Count)>> UncertainAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default);
+        /// <summary>Una query SPARQL di sola lettura scritta da MarkAgent, sul grafo dati del progetto (<see cref="CodeSparql"/>).</summary>
+        Task<CodeSparqlResult> SparqlAsync(string projectPath, string query, int limit, CancellationToken ct = default);
         /// <summary>Gli archi fra file (contains e imports esclusi): file di partenza, file d'arrivo, relazione, quanti.</summary>
         Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>

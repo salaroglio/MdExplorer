@@ -140,6 +140,26 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             return body;
         }
 
+        public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, System.Threading.CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
+            if (string.IsNullOrWhiteSpace(sparql)) throw new ArgumentException("SPARQL query is required", nameof(sparql));
+
+            using var http = CreateClient(null, null);
+            http.Timeout = timeout + TimeSpan.FromSeconds(10);
+            var seconds = ((int)Math.Ceiling(timeout.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/query?timeout=" + seconds;
+            using var content = new StringContent(sparql, Encoding.UTF8, "application/sparql-query");
+            using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/sparql-results+json"));
+
+            using var resp = await http.SendAsync(req, ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                throw new FusekiRequestException("query", (int)resp.StatusCode, body);
+            return body;
+        }
+
         public async Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain)
         {
             if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));

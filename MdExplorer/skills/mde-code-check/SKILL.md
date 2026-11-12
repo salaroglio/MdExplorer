@@ -1,9 +1,9 @@
 ---
 name: mde-code-check
-description: Check whether the relations of MdExplorer's code graph are TRUE against the source, and correct what produced a wrong one. Use when the user asks a precise question whose answer rests on a link of the graph («is it true that X calls Y?», «does this button really reach this procedure?», «who really handles this event?»), doubts an answer taken from the graph, asks to validate an enrichment rule, a language package or a kind of relation (events, dependency injection, calls to the database, project references), or wants to know how far the graph of a new language or of a new MdExplorer feature can be trusted. Triggers on "è giusta questa relazione", "verifica la relazione", "verifica il grafo", "controlla la regola", "valida le regole", "validazione delle regole", "la regola è sbagliata", "il collegamento è sbagliato", "manca un collegamento", "posso fidarmi del grafo", "quanto è affidabile il grafo", "is this link right", "check the rule", "validate the rules", "validate the graph", "wrong edge", "missing edge", "can I trust the graph".
+description: Check whether the relations of MdExplorer's code graph are TRUE against the source, and correct what produced a wrong one. Use when the user asks a precise question whose answer rests on a link of the graph («is it true that X calls Y?», «does this button really reach this procedure?», «who really handles this event?»), doubts an answer taken from the graph, asks to validate an enrichment rule, a language package or a kind of relation (events, dependency injection, calls to the database, project references), or wants to know how far the graph of a new language or of a new MdExplorer feature can be trusted. Triggers on "è giusta questa relazione", "verifica la relazione", "verifica il grafo", "controlla la regola", "valida le regole", "la regola è sbagliata", "il collegamento è sbagliato", "manca un collegamento", "posso fidarmi del grafo", "quanto è affidabile il grafo", "check the rule", "validate the rules", "validate the graph", "missing edge", "can I trust the graph".
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -35,7 +35,9 @@ Two things can be wrong, and you look for both:
    missing link to report one by one: it is one finding.
 1. **The claim.** State in one line what is being checked (one link, one rule, one kind of relation in one folder). Get
    the edges from the graph with `code_neighbors`, `code_path` or `code_impact`: for each, the relation, the
-   **confidence** and `path:line`.
+   **confidence** and `path:line`. For counts over a whole folder that no tool gives (edges by relation and by kind of
+   target, how many reach real symbols and how many stay on external nodes), write a query with `code_sparql` — only
+   when no `code_*` tool and no `code_query` question answers.
 2. **The sample.** One link asked by the user: that link. A rule, a package or a kind of relation: at least 10 points,
    or all of them when fewer, **spread over different files and folders** — never the first ten of one file. Take half
    from the graph (to find false links) and half from the source (to find missing ones: search the construct in the
@@ -91,6 +93,22 @@ asks how far the graph can be trusted, or an answer goes through one of them, ch
   Check both ways: a string for people taken for SQL («Select a file from…»), an alias or a `WITH` name taken for a
   table, a write taken for a read; and SQL the graph missed — built in pieces that do not start with an SQL word, read
   from a file or from configuration. The node `?` is right when the table's name really comes from a variable.
+- **Procedures called by name**: where a method writes `CommandType.StoredProcedure`, the name (`PKG.PROC`,
+  `SCHEMA.PKG.PROC`, `PROC`) is a `calls` edge — taken from the strings of the same call (a helper) or from `CommandText`
+  / `New …Command("…")` in the same method. A name held in a variable or a parameter is not read: count those apart.
+- **To the database**: an edge from the code to a table or a procedure goes to an `external` node of language `sql`
+  until a database language (PL/SQL) in the graph has that name; then it goes to the real symbol. One left on the
+  external node has a reason: the name is not in the analyzed database, it is there more than once (ambiguous), or it is
+  a synonym. A count by kind of target, with `code_sparql`:
+
+  ```sparql
+  SELECT ?rel ?targetLanguage ?targetKind (COUNT(?e) AS ?n) WHERE {
+    ?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:path ?p .
+    FILTER(?rel IN ("reads", "writes", "calls") && STRSTARTS(?p, "folder/"))
+    ?t code:language ?targetLanguage ; code:kind ?targetKind .
+    FILTER(?targetLanguage IN ("sql", "plsql"))
+  } GROUP BY ?rel ?targetLanguage ?targetKind ORDER BY ?rel
+  ```
 - **Dependency injection**: a `resolvesTo` edge says who is REGISTERED. A registration made with a factory (a lambda),
   by scanning assemblies or in a configuration file is not read: an interface with no `resolvesTo` is not «unused».
 

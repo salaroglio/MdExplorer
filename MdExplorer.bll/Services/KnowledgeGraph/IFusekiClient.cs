@@ -33,6 +33,12 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         /// (application/sparql-results+json) grezzi — il parsing è del chiamante.</summary>
         Task<string> QueryAsync(string baseUri, string dataset, string sparql, string username, string passwordPlain);
 
+        /// <summary>
+        /// Come <see cref="QueryAsync(string, string, string, string, string)"/>, senza credenziali (il Fuseki di MdExplorer), con un
+        /// tetto di tempo: Fuseki interrompe la query (parametro <c>timeout</c>) e la richiesta non aspetta oltre.
+        /// </summary>
+        Task<string> QueryAsync(string baseUri, string dataset, string sparql, System.TimeSpan timeout, System.Threading.CancellationToken ct);
+
         /// <summary>SPARQL Update (INSERT/DELETE) su <c>POST /{ds}/update</c>.</summary>
         Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain);
 

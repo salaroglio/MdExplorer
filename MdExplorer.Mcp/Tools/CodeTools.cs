@@ -158,7 +158,7 @@ public sealed class CodeTools : McpToolsBase
         "files (`uses`: pom.xml / Gradle / .csproj, with the line that says so; `linked` = calls into it reach that program's real symbols), the last description run (`interrupted` = " +
         "MdExplorer was closed while describing, or it failed: the user is asked at project open whether to continue); plus the description jobs " +
         "running now (file reached out of the total). Use it for 'what programs are in the graph?', 'how far did the description get?', 'is it done?'. " +
-        "The code graph is MdExplorer's own: answer ONLY from code_* tools, never with SPARQL or an HTTP call to a Fuseki server.")]
+        "The code graph is MdExplorer's own: answer ONLY from code_* tools, never with an HTTP call to a Fuseki server.")]
     public async Task<string> code_inventory(
         [Description("Project name.")] string project)
     {
@@ -175,7 +175,7 @@ public sealed class CodeTools : McpToolsBase
         "`languagePackages` gives, for each language added with a package (.mde-languages/<id>/), its own TBox: which kinds and relations its rules produce and " +
         "from which rule of language.yml (the same text as the package's tbox.ttl, which MdExplorer writes and ships in the package zip). " +
         "CALL IT ONCE, FIRST, before any other code_* tool in a conversation: it tells exactly what a node and an edge carry, so you neither look for " +
-        "what the graph does not record nor miss what it does. You still never write SPARQL: the other code_* tools read the graph for you.")]
+        "what the graph does not record nor miss what it does, and it is the schema to write a code_sparql query when no other code_* tool answers.")]
     public async Task<string> code_ontology(
         [Description("Project name.")] string project)
     {
@@ -198,7 +198,7 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "A READY-MADE QUESTION on the code graph, by name (you never write SPARQL): MdExplorer checks the parameters and runs it. The catalog with " +
+        "A READY-MADE QUESTION on the code graph, by name: MdExplorer checks the parameters and runs it. Prefer it to code_sparql. The catalog with " +
         "the parameters is in code_schema. unknown-externals: what the code uses that the graph knows only by name, by type and package. " +
         "where-is-it: WHERE in the repository that information is although it was not analyzed (source outside the program folders, a jar, a .class, " +
         "a configuration file) with the remedy. not-analyzed: files on disk not in the graph and symbols without a description, per program folder. " +
@@ -214,6 +214,24 @@ public sealed class CodeTools : McpToolsBase
         if (error != null) return error;
         return await PostAsync(client, "/api/codegraph/query", new { projectPath = path, name, parameters = parameters ?? new Dictionary<string, string>() },
             "code_query", project, name);
+    }
+
+    [McpServerTool, Description(
+        "LAST RESORT: a read-only SPARQL SELECT (or ASK) that YOU write on the project's code graph, when no other code_* tool and no " +
+        "code_query question answers (a count across relations, a combination the tools do not offer). First read the schema with code_ontology: " +
+        "classes, properties and values are there (an edge is a node `?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation \"calls\"`). " +
+        "Write only the patterns: the prefixes code:, text:, rdf:, rdfs:, owl:, xsd: are already declared, and MdExplorer puts the " +
+        "block in the project's graph — GRAPH, FROM, SERVICE and every update are refused. At most 60 seconds and `limit` rows (default 100, max 1000; " +
+        "`truncated` says there were more): use GROUP BY/COUNT for numbers and a FILTER on code:path to stay inside a folder. A refused query " +
+        "answers with the reason; fix it, do not fall back to guessing. Say in the answer that the number comes from a query you wrote.")]
+    public async Task<string> code_sparql(
+        [Description("Project name.")] string project,
+        [Description("The SELECT or ASK query, without PREFIX for code:/text:/rdf:/rdfs:/owl:/xsd: and without GRAPH.")] string query,
+        [Description("Optional: how many rows to return (1-1000, default 100).")] int limit = 0)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await PostAsync(client, "/api/codegraph/sparql", new { projectPath = path, query, limit }, "code_sparql", project, query);
     }
 
     [McpServerTool, Description(

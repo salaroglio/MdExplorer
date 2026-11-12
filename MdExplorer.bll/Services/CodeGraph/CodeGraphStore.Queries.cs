@@ -326,6 +326,44 @@ namespace MdExplorer.Features.Services.CodeGraph
             return ranked.Select(x => (x.Symbol, Str(x.Row, "conf"), Count(x.Row, "n"))).ToList();
         }
 
+        public async Task<CodeSparqlResult> SparqlAsync(string projectPath, string query, int limit, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var (prepared, ask) = CodeSparql.Prepare(query, g.Data);
+            limit = Math.Clamp(limit <= 0 ? CodeSparql.DefaultRows : limit, 1, CodeSparql.MaxRows);
+            var baseUri = await _fuseki.EnsureRunningAsync(ct);
+            string json;
+            try { json = await _client.QueryAsync(baseUri, CodeOntology.Dataset, prepared, CodeSparql.Timeout, ct); }
+            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 400)
+            {
+                throw new CodeSparqlException(UiText.Say($"Fuseki non accetta la query: {ex.ResponseBody?.Trim()}", $"Fuseki rejects the query: {ex.ResponseBody?.Trim()}"));
+            }
+            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 503)
+            {
+                throw new CodeSparqlException(UiText.Say($"la query ha superato {CodeSparql.Timeout.TotalSeconds:0} secondi: restringila (un FILTER sul path, un LIMIT) o usa un altro strumento code_*",
+                    $"the query took more than {CodeSparql.Timeout.TotalSeconds:0} seconds: narrow it (a FILTER on path, a LIMIT) or use another code_* tool"));
+            }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new CodeSparqlException(UiText.Say($"la query ha superato {CodeSparql.Timeout.TotalSeconds:0} secondi: restringila (un FILTER sul path, un LIMIT) o usa un altro strumento code_*",
+                    $"the query took more than {CodeSparql.Timeout.TotalSeconds:0} seconds: narrow it (a FILTER on path, a LIMIT) or use another code_* tool"));
+            }
+            var result = new CodeSparqlResult { Query = prepared };
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (ask)
+            {
+                result.Boolean = doc.RootElement.TryGetProperty("boolean", out var b) && b.GetBoolean();
+                return result;
+            }
+            if (doc.RootElement.TryGetProperty("head", out var head) && head.TryGetProperty("vars", out var vars))
+                foreach (var v in vars.EnumerateArray()) result.Columns.Add(v.GetString());
+            var rows = Parse(json);
+            result.RowCount = rows.Count;
+            result.Truncated = rows.Count > limit;
+            result.Rows = rows.Take(limit).ToList();
+            return result;
+        }
+
         public async Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);

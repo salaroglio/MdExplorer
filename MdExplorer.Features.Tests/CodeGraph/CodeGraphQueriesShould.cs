@@ -61,6 +61,38 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Run_markagent_sparql_only_on_the_graph_of_its_project()
+        {
+            // un altro progetto nello stesso Fuseki: la sua classe non deve vedersi dal primo (12/11/2026, code_sparql)
+            var other = Path.Combine(_root, "altro");
+            var src = Path.Combine(other, "src");
+            Directory.CreateDirectory(src);
+            File.WriteAllText(Path.Combine(src, "Segreto.cs"), "namespace Altro { public class Segreto { public void Nascosto() { } } }");
+            var files = Directory.GetFiles(src, "*.cs").Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(other, f))).ToList();
+            foreach (var (file, script) in new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(new CodeExtractionRequest { ProjectPath = other, AllFiles = files, FilesToEmit = files }).Scripts)
+                CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(other, file.LogicalPath, CodeScriptKind.Ast), CodeScriptWriter.Serialize(script));
+            Assert.AreEqual(0, (await _repo.LoadProjectAsync(other)).Failed);
+
+            var classes = await _repo.SparqlAsync(_project, "SELECT ?qn WHERE { ?s a code:Symbol ; code:kind \"class\" ; code:qualifiedName ?qn } ORDER BY ?qn", 0);
+            CollectionAssert.AreEqual(new[] { "Demo.Baz", "Demo.Client", "Demo.Foo" }, classes.Rows.Select(r => r["qn"]).ToArray());
+            CollectionAssert.AreEqual(new[] { "qn" }, classes.Columns);
+            Assert.IsFalse((await _repo.SparqlAsync(_project, "ASK { ?s code:qualifiedName \"Altro.Segreto\" }", 0)).Boolean.Value, "il grafo dell'altro progetto non si vede");
+            Assert.IsTrue((await _repo.SparqlAsync(other, "ASK { ?s code:qualifiedName \"Altro.Segreto\" }", 0)).Boolean.Value);
+
+            var calls = await _repo.SparqlAsync(_project, "SELECT ?rel (COUNT(?e) AS ?n) WHERE { ?e a code:Edge ; code:relation ?rel } GROUP BY ?rel ORDER BY ?rel", 1);
+            Assert.IsTrue(calls.Truncated && calls.Rows.Count == 1 && calls.RowCount > 1, "il limite taglia le righe e lo dice");
+
+            // la query d'esempio della skill mde-code-check: deve restare valida
+            var skill = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "MdExplorer", "skills", "mde-code-check", "SKILL.md"));
+            var example = skill[(skill.IndexOf("```sparql", StringComparison.Ordinal) + 9)..];
+            example = example[..example.IndexOf("```", StringComparison.Ordinal)];
+            Assert.AreEqual(0, (await _repo.SparqlAsync(_project, example, 0)).RowCount, "niente SQL in questo progetto, ma la query si esegue");
+
+            var ex = await Assert.ThrowsExceptionAsync<CodeSparqlException>(() => _repo.SparqlAsync(_project, "SELECT ?s WHERE { ?s code:nonEsiste ?x . FILTER(?x = ) }", 0));
+            StringAssert.Contains(ex.Message, "Fuseki");
+        }
+
+        [TestMethod]
         public async Task Outline_a_file_in_line_order()
         {
             var outline = await _repo.OutlineAsync(_project, "src/Demo/Foo.cs");

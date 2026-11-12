@@ -51,6 +51,9 @@ namespace MdExplorer.Features.Tests.Agents
                     // gli agenti (.agent.md) prendono il nome dal file: name è obbligatorio solo per le skill
                     if (file.EndsWith("SKILL.md") && !(map.TryGetValue("name", out var n) && n is string sn && sn.Length > 0)) problems.Add($"{name}: manca name");
                     if (!(map.TryGetValue("description", out var d) && d is string sd && sd.Length > 0)) problems.Add($"{name}: manca description");
+                    // lo standard delle skill (Agent Skills) vuole al massimo 1024 caratteri: oltre, un motore può scartarla (12/11/2026,
+                    // «la skill non è caricabile» con MarkAgent su Copilot, mde-code-check a 1050)
+                    else if (file.EndsWith("SKILL.md") && sd.Length > 1024) problems.Add($"{name}: description di {sd.Length} caratteri, al massimo 1024");
                 }
                 catch (Exception ex) { problems.Add($"{name}: YAML non valido — {ex.Message} (descrizione con «: » senza virgolette?)"); }
             }

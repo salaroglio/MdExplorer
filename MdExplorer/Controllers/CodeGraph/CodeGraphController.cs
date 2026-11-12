@@ -1156,6 +1156,28 @@ namespace MdExplorer.Controllers.CodeGraph
             catch (MdExplorer.Services.CodeGraph.CodeQueryException ex) { return BadRequest(new { error = ex.Message }); }
         });
 
+        public class SparqlRequest { public string? ProjectPath { get; set; } public string? Query { get; set; } public int Limit { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/sparql {projectPath, query, limit} — una SELECT o un ASK scritto da MarkAgent (<c>code_sparql</c>,
+        /// 12/11/2026), quando nessuno strumento <c>code_*</c> risponde: sola lettura, solo il grafo dati del progetto, tempo e righe
+        /// con un tetto (<see cref="CodeSparql"/>). Una query rifiutata è un 400 col motivo.
+        /// </summary>
+        [HttpPost("sparql")]
+        public Task<IActionResult> Sparql([FromBody] SparqlRequest request, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            try
+            {
+                var r = await _store.SparqlAsync(request.ProjectPath, request.Query, request.Limit, ct);
+                _logger.LogInformation("[CodeGraph] SPARQL di MarkAgent su '{Project}': {Rows} righe{Truncated}", request.ProjectPath, r.Boolean.HasValue ? (r.Boolean.Value ? "ASK sì" : "ASK no") : r.RowCount.ToString(), r.Truncated ? $" (date {r.Rows.Count})" : "");
+                return Ok(r.Boolean.HasValue
+                    ? new { boolean = r.Boolean.Value } as object
+                    : new { columns = r.Columns, rows = r.Rows, rowCount = r.RowCount, truncated = r.Truncated });
+            }
+            catch (CodeSparqlException ex) { return BadRequest(new { error = ex.Message }); }
+        });
+
         [HttpGet("overview")]
         public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {
