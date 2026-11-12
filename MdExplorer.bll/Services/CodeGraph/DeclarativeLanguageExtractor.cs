@@ -41,7 +41,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le regole, non le regole.</summary>
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
-        public const string EngineVersion = "4";
+        /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
+        public const string EngineVersion = "5";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -111,9 +112,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             var physical = text.Split('\n');
             StringBuilder code = null, raw = null;
             var start = 0;
+            var state = new LexState();
             for (var i = 0; i < physical.Length; i++)
             {
-                var (c, r) = Strip(lang, physical[i].TrimEnd('\r'));
+                var (c, r) = Strip(lang, physical[i].TrimEnd('\r'), state);
                 if (code == null) { code = new StringBuilder(); raw = new StringBuilder(); start = i + 1; }
                 var cont = lang.Continuation?.Match(c);
                 if (cont is { Success: true } && i < physical.Length - 1)
@@ -129,22 +131,54 @@ namespace MdExplorer.Features.Services.CodeGraph
             return lines;
         }
 
-        /// <summary>Una riga fisica: senza il commento (che dentro una stringa non conta) e con le stringhe svuotate nel «code».</summary>
-        private static (string Code, string Raw) Strip(DeclarativeLanguage lang, string line)
+        /// <summary>Dove si è dentro alla fine di una riga fisica: una stringa (con <c>multilineString</c>) o un commento a blocco continuano sulla dopo.</summary>
+        private sealed class LexState
+        {
+            public bool InString;
+            public bool InBlockComment;
+        }
+
+        /// <summary>
+        /// Una riga fisica: senza il commento di riga (che dentro una stringa non conta), con i commenti a blocco fatti spazi
+        /// (in «code» e in «raw», così le posizioni restano le stesse) e le stringhe svuotate nel «code». Un delimitatore di
+        /// commento dentro una stringa è testo della stringa; una virgoletta dentro un commento non apre una stringa.
+        /// </summary>
+        private static (string Code, string Raw) Strip(DeclarativeLanguage lang, string line, LexState state)
         {
             var delimiter = lang.StringDelimiter;
             var comment = lang.LineComment;
-            var inString = false;
-            var cut = line.Length;
+            var open = lang.BlockCommentOpen;
+            var close = lang.BlockCommentClose;
+            if (!lang.MultilineString) state.InString = false;
             var code = new StringBuilder(line.Length);
+            var raw = new StringBuilder(line.Length);
             for (var i = 0; i < line.Length; i++)
             {
                 var ch = line[i];
-                if (delimiter.HasValue && ch == delimiter.Value) { inString = !inString; code.Append(ch); continue; }
-                if (!inString && comment != null && string.CompareOrdinal(line, i, comment, 0, comment.Length) == 0) { cut = i; break; }
-                code.Append(inString ? ' ' : ch);
+                if (state.InBlockComment)
+                {
+                    if (string.CompareOrdinal(line, i, close, 0, close.Length) == 0)
+                    {
+                        code.Append(' ', close.Length); raw.Append(' ', close.Length);
+                        i += close.Length - 1;
+                        state.InBlockComment = false;
+                    }
+                    else { code.Append(' '); raw.Append(' '); }
+                    continue;
+                }
+                if (delimiter.HasValue && ch == delimiter.Value) { state.InString = !state.InString; code.Append(ch); raw.Append(ch); continue; }
+                if (!state.InString && comment != null && string.CompareOrdinal(line, i, comment, 0, comment.Length) == 0) break;
+                if (!state.InString && open != null && string.CompareOrdinal(line, i, open, 0, open.Length) == 0)
+                {
+                    code.Append(' ', open.Length); raw.Append(' ', open.Length);
+                    i += open.Length - 1;
+                    state.InBlockComment = true;
+                    continue;
+                }
+                code.Append(state.InString ? ' ' : ch);
+                raw.Append(ch);
             }
-            return (code.ToString(), line[..cut]);
+            return (code.ToString(), raw.ToString());
         }
 
         // ------------------------------------------------------------------ struttura
@@ -180,6 +214,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Sym DispatchedBy;
             /// <summary>Un frammento: l'indice della sua prima riga logica.</summary>
             public int StartIndex;
+            /// <summary>Un blocco che si chiude per profondità: ancora nell'intestazione, quanti livelli aperti, se il corpo è cominciato.</summary>
+            public bool NestHeader;
+            public int NestDepth;
+            public bool NestStarted;
         }
 
         private sealed class FileModel
@@ -239,21 +277,40 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var line = lines[i];
                     var top = stack[^1];
-                    if (top != module && BlockRule(top).End.IsMatch(line.Code))
+                    var nesting = top == module ? null : BlockRule(top).Nesting;
+                    if (nesting == null)
                     {
-                        CloseLabel(top, line.Start - 1);
-                        top.End = line.End;
-                        stack.RemoveAt(stack.Count - 1);
-                        _m.Owner[i] = top; _m.Block[i] = top;
-                        continue;
+                        if (top != module && BlockRule(top).End.IsMatch(line.Code))
+                        {
+                            CloseLabel(top, line.Start - 1);
+                            top.End = line.End;
+                            stack.RemoveAt(stack.Count - 1);
+                            _m.Owner[i] = top; _m.Block[i] = top;
+                            continue;
+                        }
+                        if (TryOpen(stack, top, line, i)) continue;
                     }
-                    var opened = OpenBlock(top, line);
-                    if (opened != null)
+                    else
                     {
-                        CloseLabel(top, line.Start - 1);
-                        stack.Add(opened);
-                        _m.Owner[i] = opened; _m.Block[i] = opened;
-                        continue;
+                        // un blocco che conta: un blocco dentro apre prima, e le parole della sua riga sono sue
+                        if (!top.NestHeader && TryOpen(stack, top, line, i)) continue;
+                        var outcome = Nest(top, nesting, line.Code, 0);
+                        if (outcome == NestOutcome.Closed)
+                        {
+                            CloseLabel(top, line.Start - 1);
+                            top.End = line.End;
+                            stack.RemoveAt(stack.Count - 1);
+                            _m.Owner[i] = top; _m.Block[i] = top;
+                            continue;
+                        }
+                        if (outcome == NestOutcome.Declaration)
+                        {
+                            Cancel(stack, top, i);
+                            top = stack[^1];
+                            _m.Owner[i] = top.OpenLabel ?? top; _m.Block[i] = top;
+                            continue;
+                        }
+                        if (top.NestHeader) { _m.Owner[i] = top; _m.Block[i] = top; continue; }
                     }
                     var declared = DeclareOnLine(top, line);
                     if (declared != null) { _m.Owner[i] = declared; _m.Block[i] = top; continue; }
@@ -388,7 +445,82 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private DeclarativeLanguage.BlockRule BlockRule(Sym s) => _lang.Blocks.First(b => b.Id == s.RuleId);
 
-            private Sym OpenBlock(Sym parent, LogicalLine line)
+            /// <summary>
+            /// Un blocco che comincia su questa riga: in pila, la riga è sua. Se si chiude per profondità, si contano le parole
+            /// dopo l'apertura: può chiudersi sulla stessa riga, o risultare una dichiarazione (e allora non c'è).
+            /// </summary>
+            private bool TryOpen(List<Sym> stack, Sym top, LogicalLine line, int i)
+            {
+                var opened = OpenBlock(top, line, out var match, out var rule);
+                if (opened == null) return false;
+                CloseLabel(top, line.Start - 1);
+                stack.Add(opened);
+                _m.Owner[i] = opened; _m.Block[i] = opened;
+                if (rule.Nesting == null) return true;
+                opened.NestHeader = rule.Nesting.Header != null;
+                var outcome = Nest(opened, rule.Nesting, line.Code, match.Index + match.Length);
+                if (outcome == NestOutcome.Closed) { opened.End = line.End; stack.RemoveAt(stack.Count - 1); }
+                else if (outcome == NestOutcome.Declaration) { Cancel(stack, opened, i); _m.Owner[i] = top.OpenLabel ?? top; _m.Block[i] = top; }
+                return true;
+            }
+
+            private enum NestOutcome { Open, Closed, Declaration }
+
+            /// <summary>Le parole di <paramref name="code"/> da <paramref name="from"/>, in ordine (<see cref="DeclarativeLanguage.NestingRule"/>).</summary>
+            private static NestOutcome Nest(Sym s, DeclarativeLanguage.NestingRule rule, string code, int from)
+            {
+                var pos = from;
+                if (s.NestHeader)
+                {
+                    var header = rule.Header.Match(code, pos);
+                    var declaration = rule.Declaration?.Match(code, pos);
+                    if (declaration is { Success: true } && (!header.Success || declaration.Index < header.Index)) return NestOutcome.Declaration;
+                    if (!header.Success) return NestOutcome.Open;
+                    s.NestHeader = false;
+                    pos = header.Index + header.Length;
+                }
+                while (pos <= code.Length)
+                {
+                    var open = rule.Open.Match(code, pos);
+                    var close = rule.Close.Match(code, pos);
+                    if (!open.Success && !close.Success) return NestOutcome.Open;
+                    if (open.Success && (!close.Success || open.Index < close.Index))
+                    {
+                        if (s.NestDepth == 0 && (rule.Body == null || At(rule.Body, code, open.Index))) s.NestStarted = true;
+                        s.NestDepth++;
+                        pos = open.Index + Math.Max(1, open.Length);
+                        continue;
+                    }
+                    // al primo livello la chiusura è del blocco; altrimenti risale, e chiude se risale dal corpo
+                    if (s.NestDepth == 0) return NestOutcome.Closed;
+                    s.NestDepth--;
+                    if (s.NestDepth == 0 && s.NestStarted) return NestOutcome.Closed;
+                    pos = close.Index + Math.Max(1, close.Length);
+                }
+                return NestOutcome.Open;
+            }
+
+            private static bool At(Regex rx, string code, int index)
+            {
+                var m = rx.Match(code, index);
+                return m.Success && m.Index == index;
+            }
+
+            /// <summary>Era una dichiarazione, non un blocco: il simbolo non c'è e le sue righe tornano a chi lo conteneva.</summary>
+            private void Cancel(List<Sym> stack, Sym s, int lineIndex)
+            {
+                stack.Remove(s);
+                _m.Symbols.Remove(s);
+                _qualified.Remove(s.QualifiedName);
+                var parent = s.Parent;
+                for (var j = lineIndex; j >= 0 && _m.Block[j] == s; j--)
+                {
+                    _m.Block[j] = parent;
+                    _m.Owner[j] = parent.OpenLabel ?? parent;
+                }
+            }
+
+            private Sym OpenBlock(Sym parent, LogicalLine line, out Match match, out DeclarativeLanguage.BlockRule opened)
             {
                 foreach (var rule in _lang.Blocks)
                 {
@@ -400,8 +532,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     sym.ReturnType = TypeOf(m);
                     var paramsGroup = m.Groups["params"];
                     if (paramsGroup.Success && _lang.Parameters != null) ReadParameters(sym, line.Raw.Substring(paramsGroup.Index, paramsGroup.Length));
+                    match = m; opened = rule;
                     return sym;
                 }
+                match = null; opened = null;
                 return null;
             }
 

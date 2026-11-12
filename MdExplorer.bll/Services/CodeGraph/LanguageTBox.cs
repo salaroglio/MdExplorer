@@ -36,7 +36,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.Append("# ---- symbols\n");
             Kind(sb, Node("kind-module"), "module", "module", "one per source file" + (lang.ModuleName != null ? "; its name is the one the file declares (rule module.name), else the file name" : "; its name is the file name"));
             foreach (var b in lang.Blocks)
-                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, "a block, from its begin line to its end line" + In(b.In) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : ""));
+                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, (b.Nesting != null ? "a block, from its begin line to the line where its nesting closes (open and close words counted outside comments and strings)" : "a block, from its begin line to its end line") + In(b.In) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : ""));
             foreach (var l in lang.Labels)
                 Kind(sb, Node("kind-" + l.Id), l.Kind, "labels." + l.Id, "a label inside a block, up to the next label or the end of the block" + In(l.In) + (l.OnlyIfReferenced ? "; a symbol only if something in the same file refers to it" : ""));
             foreach (var d in lang.Declarations.Where(d => d.Emit))

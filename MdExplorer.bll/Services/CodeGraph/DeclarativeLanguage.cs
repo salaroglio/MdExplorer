@@ -51,6 +51,17 @@ namespace MdExplorer.Features.Services.CodeGraph
         public StringComparer NameComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
         public string LineComment { get; private init; }
+        /// <summary>
+        /// Il commento a blocco (<c>lexical.blockComment: ['/*', '*/']</c>, 12/11/2026): può stare su più righe e il suo testo
+        /// diventa spazi, così niente di quello che c'è dentro apre un blocco o fa un arco. Null se il linguaggio non lo ha.
+        /// </summary>
+        public string BlockCommentOpen { get; private init; }
+        public string BlockCommentClose { get; private init; }
+        /// <summary>
+        /// <c>lexical.multilineString: true</c> (12/11/2026): una stringa non chiusa continua sulla riga dopo (PL/SQL, SQL), e
+        /// quello che contiene non è codice né commento. Senza, una stringa finisce con la riga (i BASIC).
+        /// </summary>
+        public bool MultilineString { get; private init; }
         public char? StringDelimiter { get; private init; }
         public Regex Continuation { get; private init; }
         public Regex ModuleName { get; private init; }
@@ -159,10 +170,34 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Id { get; init; }
             public string Kind { get; init; }
             public Regex Begin { get; init; }
+            /// <summary>La riga che chiude il blocco; null quando il blocco si chiude per profondità (<see cref="Nesting"/>).</summary>
             public Regex End { get; init; }
+            public NestingRule Nesting { get; init; }
             public IReadOnlyList<string> In { get; init; }
             public string NameTemplate { get; init; }
             public string SignatureTemplate { get; init; }
+        }
+
+        /// <summary>
+        /// Un blocco che si chiude contando (12/11/2026, rilevazione dal cliente: con «END;» senza nome sette funzioni sorelle
+        /// diventavano una dentro l'altra). Le parole si leggono in ordine sul testo «code» (senza commenti e stringhe), dopo
+        /// l'apertura del blocco:
+        /// <list type="bullet">
+        /// <item><see cref="Header"/>, facoltativa: finché non compare il blocco è solo un'intestazione; se prima compare
+        /// <see cref="Declaration"/> era una dichiarazione (<c>PROCEDURE X(…);</c> su più righe) e il blocco non c'è;</item>
+        /// <item><see cref="Open"/> scende di un livello (<c>BEGIN</c>, <c>CASE</c>); <see cref="Body"/>, facoltativa, dice
+        /// quale apertura al primo livello è il corpo (<c>BEGIN</c>; senza, una qualunque);</item>
+        /// <item><see cref="Close"/> risale: chiude il blocco quando risale al primo livello dal corpo, o quando compare
+        /// al primo livello (la fine di un package senza corpo di inizializzazione).</item>
+        /// </list>
+        /// </summary>
+        public sealed class NestingRule
+        {
+            public Regex Open { get; init; }
+            public Regex Close { get; init; }
+            public Regex Body { get; init; }
+            public Regex Header { get; init; }
+            public Regex Declaration { get; init; }
         }
 
         public sealed class LabelRule
@@ -318,6 +353,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var lexical = _d.Lexical ?? new Yaml.Lexical();
                 if (lexical.String != null && lexical.String.Length != 1)
                     throw Fail($"lexical.string: '{lexical.String}' — un solo carattere", $"lexical.string: '{lexical.String}' — a single character");
+                if (lexical.BlockComment != null && (lexical.BlockComment.Count != 2 || lexical.BlockComment.Any(string.IsNullOrEmpty)))
+                    throw Fail("lexical.blockComment: due testi, l'apertura e la chiusura (es. ['/*', '*/'])", "lexical.blockComment: two texts, the opening and the closing (e.g. ['/*', '*/'])");
+                if (lexical.MultilineString && lexical.String == null)
+                    throw Fail("lexical.multilineString: serve anche lexical.string", "lexical.multilineString: lexical.string is needed too");
 
                 var blocks = (_d.Blocks ?? new List<Yaml.Block>()).Select((b, i) => BuildBlock(b, i)).ToList();
                 var labels = (_d.Labels ?? new List<Yaml.Label>()).Select((l, i) => BuildLabel(l, i)).ToList();
@@ -338,6 +377,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Extensions = _d.Extensions.Select(e => e.ToLowerInvariant()).Distinct().ToList(),
                     IgnoreCase = _d.IgnoreCase, Database = _d.Database, DefinitionPath = _path, DefinitionHash = hash,
                     LineComment = string.IsNullOrEmpty(lexical.LineComment) ? null : lexical.LineComment,
+                    BlockCommentOpen = lexical.BlockComment?[0], BlockCommentClose = lexical.BlockComment?[1],
+                    MultilineString = lexical.MultilineString,
                     StringDelimiter = lexical.String?[0],
                     Continuation = lexical.Continuation == null ? null : Rx("lexical.continuation", lexical.Continuation),
                     ModuleName = _d.Module?.Name == null ? null : Rx("module.name", _d.Module.Name, "name"),
@@ -502,10 +543,26 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var where = $"blocks[{i}]";
                 if (string.IsNullOrWhiteSpace(b.Id)) throw Fail($"{where}.id: obbligatorio", $"{where}.id: required");
                 where = $"blocks[{b.Id}]";
-                if (b.Begin == null || b.End == null) throw Fail($"{where}: servono begin e end", $"{where}: begin and end are required");
+                if (b.Begin == null) throw Fail($"{where}: serve begin", $"{where}: begin is required");
+                if ((b.End == null) == (b.Nesting == null)) throw Fail($"{where}: serve end oppure nesting, uno dei due", $"{where}: either end or nesting is required, exactly one");
+                NestingRule nesting = null;
+                if (b.Nesting != null)
+                {
+                    var n = b.Nesting;
+                    if (n.Open == null || n.Close == null) throw Fail($"{where}.nesting: servono open e close", $"{where}.nesting: open and close are required");
+                    if (n.Declaration != null && n.Header == null) throw Fail($"{where}.nesting.declaration: vale solo con header", $"{where}.nesting.declaration: only with header");
+                    nesting = new NestingRule
+                    {
+                        Open = Rx(where + ".nesting.open", n.Open), Close = Rx(where + ".nesting.close", n.Close),
+                        Body = n.Body == null ? null : Rx(where + ".nesting.body", n.Body),
+                        Header = n.Header == null ? null : Rx(where + ".nesting.header", n.Header),
+                        Declaration = n.Declaration == null ? null : Rx(where + ".nesting.declaration", n.Declaration),
+                    };
+                }
                 return new BlockRule
                 {
-                    Id = b.Id, Kind = Kind(where, b.Kind), Begin = Rx(where + ".begin", b.Begin, "name"), End = Rx(where + ".end", b.End),
+                    Id = b.Id, Kind = Kind(where, b.Kind), Begin = Rx(where + ".begin", b.Begin, "name"),
+                    End = b.End == null ? null : Rx(where + ".end", b.End), Nesting = nesting,
                     In = b.In is { Count: > 0 } ? b.In : new List<string> { ModuleRule },
                     NameTemplate = b.Name ?? "{name}", SignatureTemplate = b.Signature,
                 };
@@ -716,8 +773,18 @@ namespace MdExplorer.Features.Services.CodeGraph
             public sealed class Lexical
             {
                 public string LineComment { get; set; }
+                public List<string> BlockComment { get; set; }
                 public string String { get; set; }
+                public bool MultilineString { get; set; }
                 public string Continuation { get; set; }
+            }
+            public sealed class Nesting
+            {
+                public string Open { get; set; }
+                public string Close { get; set; }
+                public string Body { get; set; }
+                public string Header { get; set; }
+                public string Declaration { get; set; }
             }
             public sealed class Module { public string Name { get; set; } }
             public sealed class Block
@@ -726,6 +793,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Kind { get; set; }
                 public string Begin { get; set; }
                 public string End { get; set; }
+                public Nesting Nesting { get; set; }
                 public List<string> In { get; set; }
                 public string Name { get; set; }
                 public string Signature { get; set; }
