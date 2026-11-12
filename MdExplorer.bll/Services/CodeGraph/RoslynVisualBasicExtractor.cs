@@ -28,8 +28,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 4 = quei nodi dicono il linguaggio <c>sql</c>, e si ricollegano al simbolo vero di un linguaggio database (12/11/2026).
         /// 5 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).
         /// 6 = i valori delle stringhe attraverso variabili, costanti, rami e parametri (<see cref="RoslynStringFlow"/>, 12/11/2026).
-        /// 7 = un nome fatto da più pezzi con più valori è <c>ambiguous</c> (combinazioni non verificate).</summary>
-        public override string ExtractorVersion => "7";
+        /// 7 = un nome fatto da più pezzi con più valori è <c>ambiguous</c> (combinazioni non verificate).
+        /// 8 = i progetti di Visual Studio 2002/2003 (riferimenti per GUID, librerie per HintPath); con una libreria non risolta il
+        /// nome della procedura non si deduce dal primo argomento stringa (12/11/2026, rilevazione dal cliente).</summary>
+        public override string ExtractorVersion => "8";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

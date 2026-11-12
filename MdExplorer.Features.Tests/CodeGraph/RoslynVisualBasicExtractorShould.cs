@@ -542,6 +542,144 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(web.Symbols.Any(s => s.Kind == "external" && s.QualifiedName.Contains("IOrdini")), "niente doppioni esterni dei tipi dell'altro progetto");
         }
 
+        // ---- Visual Studio .NET 2003 (12/11/2026, rilevazione dal cliente: schermate → BL → DL con «Reference Project="{GUID}"»,
+        //      un blocco applicativo di libreria con la connessione prima del nome della procedura)
+
+        private const string BlocksSource =
+            "namespace Acme.Blocks { public static class DbHelper {\n" +
+            "  public static System.Data.DataSet ExecuteDataset(string connectionString, System.Data.CommandType commandType, string commandText, params object[] commandParameters) => null;\n" +
+            "  public static int ExecuteNonQuery(string connectionString, System.Data.CommandType commandType, string commandText, params object[] commandParameters) => 0;\n" +
+            "} }\n";
+
+        private static string Vs2003Project(string guid, string rootNamespace, string references)
+            => "<VisualStudioProject>\n    <VisualBasic\n        ProjectType = \"Local\"\n        ProductVersion = \"7.10.3077\"\n        SchemaVersion = \"2.0\"\n" +
+               $"        ProjectGuid = \"{{{guid}}}\"\n    >\n        <Build>\n            <Settings\n                AssemblyName = \"{rootNamespace}\"\n" +
+               $"                OptionExplicit = \"On\"\n                OptionStrict = \"Off\"\n                RootNamespace = \"{rootNamespace}\"\n            >\n            </Settings>\n" +
+               "            <References>\n" +
+               "                <Reference Name = \"System\" AssemblyName = \"System\" HintPath = \"..\\..\\WINDOWS\\Microsoft.NET\\Framework\\v1.1.4322\\System.dll\" />\n" +
+               references +
+               "            </References>\n            <Imports>\n                <Import Namespace = \"Microsoft.VisualBasic\" />\n                <Import Namespace = \"System\" />\n" +
+               "                <Import Namespace = \"System.Data\" />\n            </Imports>\n        </Build>\n    </VisualBasic>\n</VisualStudioProject>\n";
+
+        /// <summary>Un DL e un BL di Visual Studio 2003; con <paramref name="withLibrary"/> la libreria del blocco applicativo c'è, compilata.</summary>
+        private string WriteVs2003Solution(bool withLibrary)
+        {
+            var root = Path.Combine(_project, "vs2003");
+            foreach (var d in new[] { "Lib", "Dl", "Bl" }) Directory.CreateDirectory(Path.Combine(root, d));
+            if (withLibrary)
+            {
+                var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")).Split(Path.PathSeparator).Select(p => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(p));
+                var lib = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Acme.Blocks", new[] { Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(BlocksSource) }, refs,
+                    new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+                Microsoft.CodeAnalysis.Emit.EmitResult emitted;
+                using (var dll = File.Create(Path.Combine(root, "Lib", "Acme.Blocks.dll"))) emitted = lib.Emit(dll);
+                Assert.IsTrue(emitted.Success, string.Join("\n", emitted.Diagnostics));
+            }
+            File.WriteAllText(Path.Combine(root, "Dl", "Dl.vbproj"), Vs2003Project("11111111-AAAA-BBBB-CCCC-000000000001", "Acme.Dl",
+                "                <Reference Name = \"Acme.Blocks\" AssemblyName = \"Acme.Blocks\" HintPath = \"..\\Lib\\Acme.Blocks.dll\" />\n"));
+            File.WriteAllText(Path.Combine(root, "Dl", "Dati.vb"),
+                "Imports Acme.Blocks\n" +
+                "Public Class Accesso\n" +
+                "    Public Shared Function Leggi(ByVal procedura As String, ByVal connessione As String)\n" +
+                "        Return DbHelper.ExecuteDataset(connessione, CommandType.StoredProcedure, procedura)\n" +          // riga 4
+                "    End Function\n" +
+                "    Public Shared Function Esegui(ByVal connessione As String, ByVal procedura As String)\n" +
+                "        Return DbHelper.ExecuteNonQuery(connessione, CommandType.StoredProcedure, procedura)\n" +         // riga 7
+                "    End Function\n" +
+                "End Class\n" +
+                "Public Class Ordini\n" +
+                "    Private Shared conn As String = System.Configuration.ConfigurationSettings.AppSettings(\"db\").ToString()\n" +
+                "    Public Function Elenco(ByVal filtro As String) As DataSet\n" +
+                "        Dim nome As String = \"SCHEMA_1.PKG_2.PROC_1\"\n" +
+                "        Return Accesso.Leggi(nome, conn)\n" +                                                          // riga 14
+                "    End Function\n" +
+                "    Public Function Segna() As Boolean\n" +
+                "        Accesso.Esegui(conn, \"PKG_1.PROC_1\")\n" +                                                    // riga 17
+                "        DbHelper.ExecuteNonQuery(conn, CommandType.StoredProcedure, \"PROC_2\")\n" +                   // riga 18
+                "        Return True\n" +
+                "    End Function\n" +
+                "End Class\n");
+            File.WriteAllText(Path.Combine(root, "Bl", "Bl.vbproj"), Vs2003Project("22222222-AAAA-BBBB-CCCC-000000000002", "Acme.Bl",
+                "                <Reference Name = \"Acme.Dl\" Project = \"{11111111-aaaa-bbbb-cccc-000000000001}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
+                "                <Reference Name = \"Mancante\" Project = \"{99999999-AAAA-BBBB-CCCC-000000000009}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n"));
+            File.WriteAllText(Path.Combine(root, "Bl", "Logica.vb"),
+                "Imports Acme.Dl\n" +
+                "Public Class Servizio\n" +
+                "    Private _ordini As Ordini\n" +
+                "    Private ReadOnly Property Dati() As Ordini\n" +
+                "        Get\n" +
+                "            If _ordini Is Nothing Then\n" +
+                "                _ordini = New Ordini\n" +
+                "            End If\n" +
+                "            Return _ordini\n" +
+                "        End Get\n" +
+                "    End Property\n" +
+                "    Public Function Elenco(ByVal filtro As String) As System.Data.DataSet\n" +
+                "        Return Dati.Elenco(filtro)\n" +
+                "    End Function\n" +
+                "End Class\n");
+            return root;
+        }
+
+        private CodeExtractionResult ExtractWithoutNetFramework(string folder)
+        {
+            var before = Environment.GetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable);
+            try
+            {
+                // le librerie di .NET Framework 1.1 non ci sono mai: quelle di .NET bastano per CommandType e DataSet
+                Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, Path.Combine(_root, "non-c-e"));
+                return ExtractAll(folder);
+            }
+            finally { Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, before); }
+        }
+
+        private static string ProcedureCalls(CodeScript s, string member)
+        {
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            return string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}:{e.Guard}"));
+        }
+
+        [TestMethod]
+        public void Read_visual_studio_2003_projects_with_references_by_guid_and_libraries_by_hint_path()
+        {
+            var result = ExtractWithoutNetFramework(WriteVs2003Solution(withLibrary: true));
+            var warnings = string.Join(" | ", result.Warnings);
+            StringAssert.Contains(warnings, "Mancante", "un progetto riferito che non è fra i sorgenti si dice");
+            Assert.IsFalse(warnings.Contains("System.dll"), "una libreria del framework stesso non è una libreria mancante: " + warnings);
+            Assert.IsFalse(warnings.Contains("Acme.Blocks"), warnings);
+
+            var bl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Logica.vb")).Script;
+            var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dati.vb")).Script;
+            Assert.IsNotNull(dl.Symbols.SingleOrDefault(x => x.QualifiedName == "Acme.Dl.Ordini" && x.Kind == "class"), "RootNamespace dagli attributi di Settings");
+            var elenco = bl.Symbols.Single(x => x.QualifiedName == "Acme.Bl.Servizio.Elenco(String)");
+            var target = dl.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)");
+            Assert.IsTrue(bl.Edges.Any(e => e.SourceId == elenco.Id && e.TargetId == target.Id && e.Relation == "calls" && e.Confidence == "extracted"),
+                "BL → DL per GUID: la proprietà tipizzata porta al metodo del DL, non a un esterno");
+            Assert.IsFalse(bl.Symbols.Any(x => x.Kind == "external" && x.Name.Contains("Elenco")));
+
+            // il nome è commandText della libreria, non la connessione: i chiamanti scrivono la procedura
+            Assert.AreEqual("14:SCHEMA_1.PKG_2.PROC_1:inferred:Leggi(procedura = \"SCHEMA_1.PKG_2.PROC_1\")", ProcedureCalls(dl, "Elenco"));
+            Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
+            StringAssert.Contains(ProcedureCalls(dl, "Leggi"), "procedura: the name comes from the callers");
+            StringAssert.Contains(ProcedureCalls(dl, "Esegui"), "procedura: the name comes from the callers");
+            Assert.IsFalse(dl.Edges.Any(e => e.Guard?.Contains("ToString") == true || e.Guard?.Contains("connessione") == true), "la connessione non è mai il nome");
+        }
+
+        [TestMethod]
+        public void Say_which_argument_is_the_procedure_only_when_the_library_is_not_resolved_and_one_has_its_shape()
+        {
+            var result = ExtractWithoutNetFramework(WriteVs2003Solution(withLibrary: false));
+            StringAssert.Contains(string.Join(" | ", result.Warnings), "Acme.Blocks.dll", "la libreria che manca si dice");
+            var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dati.vb")).Script;
+            Assert.AreEqual("4:?:ambiguous:DbHelper.ExecuteDataset is not resolved (its library is not among the references): which argument is the procedure name is not known", ProcedureCalls(dl, "Leggi"),
+                "due parametri, nessuno ha la forma di un nome: non si tira a indovinare");
+            Assert.AreEqual("18:PROC_2:ambiguous:library not resolved: the only argument shaped like a procedure name", ProcedureCalls(dl, "Segna"),
+                "la connessione non si sa (ToString), «PROC_2» è il solo a forma di nome; Esegui non si sa più come passa il nome");
+            Assert.AreEqual("", ProcedureCalls(dl, "Elenco"));
+        }
+
         [TestMethod]
         public void Resolve_dotnet_framework_classes_or_say_that_its_libraries_are_missing()
         {

@@ -90,7 +90,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>Prima i progetti riferiti, poi chi li riferisce: così la compilazione di uno vede i tipi dell'altro.</summary>
-        private static IEnumerable<ProjectGroup> InReferenceOrder(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey)
+        private static IEnumerable<ProjectGroup> InReferenceOrder(List<ProjectGroup> groups, Func<ProjectGroup, IEnumerable<ProjectGroup>> referenced)
         {
             var done = new HashSet<ProjectGroup>();
             var open = new HashSet<ProjectGroup>();
@@ -98,14 +98,46 @@ namespace MdExplorer.Features.Services.CodeGraph
             void Visit(ProjectGroup g)
             {
                 if (done.Contains(g) || !open.Add(g)) return;   // un giro di riferimenti (non dovrebbe esistere) non ferma l'analisi
-                foreach (var r in g.Project?.ProjectReferences ?? Array.Empty<string>())
-                    if (byKey.TryGetValue(r, out var other)) Visit(other);
+                foreach (var other in referenced(g)) Visit(other);
                 open.Remove(g);
                 done.Add(g);
                 ordered.Add(g);
             }
             foreach (var g in groups) Visit(g);
             return ordered;
+        }
+
+        /// <summary>
+        /// I progetti che ogni progetto riferisce, fra quelli dei sorgenti: per percorso (<c>ProjectReference</c>) e, nei progetti
+        /// di Visual Studio 2002/2003, per identità (<c>Reference Project="{GUID}"</c>, 12/11/2026). Un GUID che non è di nessun
+        /// progetto dei sorgenti, o che è di più d'uno (una copia del progetto in un archivio), si dice: i suoi tipi restano
+        /// nomi non risolti.
+        /// </summary>
+        private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, List<string> warnings)
+        {
+            var byGuid = groups.Where(g => g.Project?.ProjectGuid != null).GroupBy(g => g.Project.ProjectGuid, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<ProjectGroup, List<ProjectGroup>>();
+            foreach (var g in groups)
+            {
+                var list = new List<ProjectGroup>();
+                foreach (var r in g.Project?.ProjectReferences ?? Array.Empty<string>())
+                    if (byKey.TryGetValue(r, out var other) && !list.Contains(other)) list.Add(other);
+                foreach (var (guid, name) in g.Project?.ProjectReferenceGuids ?? Array.Empty<(string, string)>())
+                {
+                    if (!byGuid.TryGetValue(guid, out var found))
+                        warnings.Add(UiText.Say(
+                            $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: ciò che ne usa resta un nome non risolto.",
+                            $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: what uses it stays an unresolved name."));
+                    else if (found.Count > 1)
+                        warnings.Add(UiText.Say(
+                            $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale, ciò che ne usa resta un nome non risolto.",
+                            $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown, what uses it stays an unresolved name."));
+                    else if (found[0] != g && !list.Contains(found[0])) list.Add(found[0]);
+                }
+                result[g] = list;
+            }
+            return result;
         }
 
         private static readonly Dictionary<string, MetadataReference> FileReferences = new(StringComparer.OrdinalIgnoreCase);
@@ -227,11 +259,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 group.Trees.Add(Parse(text, f.LogicalPath, project));
             }
             if (projects != null) result.Warnings.AddRange(projects.Problems);
+            var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings);
 
             var trees = new List<(SyntaxTree Tree, Compilation Compilation)>();
             var compilations = new List<Compilation>();
             var missingFrameworks = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var group in InReferenceOrder(groups, groupByKey))
+            foreach (var group in InReferenceOrder(groups, g => referencedGroups[g]))
             {
                 ct.ThrowIfCancellationRequested();
                 var p = group.Project;
@@ -253,8 +286,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                         result.Warnings.Add(UiText.Say(
                             $"{Path.GetFileName(p.File)}: {p.MissingLibraries.Count} librerie riferite non ci sono su questo computer ({string.Join(", ", p.MissingLibraries.Take(3).Select(Path.GetFileName))}{(p.MissingLibraries.Count > 3 ? "…" : "")}): ciò che ne usa resta un nome non risolto.",
                             $"{Path.GetFileName(p.File)}: {p.MissingLibraries.Count} referenced libraries are not on this computer ({string.Join(", ", p.MissingLibraries.Take(3).Select(Path.GetFileName))}{(p.MissingLibraries.Count > 3 ? "…" : "")}): what uses them stays an unresolved name."));
-                    foreach (var referenced in p.ProjectReferences)
-                        if (groupByKey.TryGetValue(referenced, out var other) && other.Compilation != null) references.Add(other.Compilation.ToMetadataReference());
+                    foreach (var other in referencedGroups[group])
+                        if (other.Compilation != null) references.Add(other.Compilation.ToMetadataReference());
                 }
                 group.Compilation = Compile("mde-codegraph" + (p == null ? "" : "-" + Path.GetFileNameWithoutExtension(p.File)), group.Trees, references, p);
                 compilations.Add(group.Compilation);
@@ -394,8 +427,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Il nome di una procedura come si scrive in un comando: <c>PROC</c>, <c>PKG.PROC</c>, <c>SCHEMA.PKG.PROC</c>.</summary>
         private static readonly Regex ProcedureName = new(@"^[A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*){0,2}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
-        /// <summary>Il nome di un parametro di libreria che riceve il nome della procedura (<c>commandText</c>, <c>spName</c>…).</summary>
-        private static readonly Regex ProcedureParameterName = new(@"^(command|commandText|cmdText|storedProcedure|storedProcedureName|procedure|procedureName|procName|spName|sp)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        /// <summary>Il nome di un parametro di libreria che riceve il nome della procedura (<c>commandText</c>, <c>spName</c>, <c>sql</c> di Dapper, i nomi italiani…).</summary>
+        private static readonly Regex ProcedureParameterName = new(@"^(command|commandText|cmdText|text|testo|sql|storedProcedure|storedProcedureName|procedure|procedureName|procName|spName|sp|procedura|nomeProcedura|nomeProc|nomeSp|comando|testoComando)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
         private static string MethodKey(IMethodSymbol m) => m.OriginalDefinition.ToDisplayString(QualifiedFormat);
 
@@ -604,26 +637,62 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// primo argomento che fra i suoi valori ha un nome col punto (<c>PKG.PROC</c>), altrimenti il primo argomento stringa
         /// — una deduzione. Null se nessun argomento è una stringa.
         /// </summary>
-        private static SyntaxNode LibraryProcedureArgument(ProcedureSite site, SemanticModel model, RoslynStringFlow flow)
+        /// <summary>
+        /// Quale argomento porta il nome della procedura in una chiamata con <c>CommandType.StoredProcedure</c> a un metodo di cui non
+        /// si legge il corpo. <see cref="Argument"/> null = non si sa, e <see cref="Unknown"/> dice perché; <see cref="ByShape"/> =
+        /// scelto dalla forma del valore, non dal parametro (il metodo non è risolto).
+        /// </summary>
+        private sealed record LibraryChoice(SyntaxNode Argument, bool ByShape, string Unknown);
+
+        /// <summary>
+        /// L'argomento col nome della procedura, per una chiamata a un metodo che NON è nel codice analizzato (una libreria):
+        /// <list type="bullet">
+        /// <item>metodo risolto: il parametro stringa che si chiama come un nome di procedura (<c>commandText</c>, <c>spName</c>…),
+        /// se è uno solo; nessuno o più d'uno = non si sa;</item>
+        /// <item>metodo non risolto (la sua libreria non è fra i riferimenti): i nomi dei parametri non si conoscono. Se fra gli
+        /// argomenti che possono essere una stringa uno solo ha valori tutti a forma di nome di procedura (<c>PROC</c>,
+        /// <c>PKG.PROC</c>), è lui, dalla forma (12/11/2026, rilevazione dal cliente: prima si prendeva il primo argomento
+        /// stringa, che era la connessione); altrimenti non si sa.</item>
+        /// </list>
+        /// </summary>
+        private static LibraryChoice LibraryProcedureArgument(ProcedureSite site, SemanticModel model, RoslynStringFlow flow)
         {
-            if (model.GetOperation(site.At) is { } op)
+            var op = model.GetOperation(site.At);
+            var args = op switch { IInvocationOperation i => i.Arguments, IObjectCreationOperation o => o.Arguments, _ => default };
+            var method = op switch { IInvocationOperation i => i.TargetMethod, IObjectCreationOperation o => o.Constructor, _ => null };
+            if (!args.IsDefault && method != null)
             {
-                var args = op switch { IInvocationOperation i => i.Arguments, IObjectCreationOperation o => o.Arguments, _ => default };
-                if (!args.IsDefault)
-                {
-                    var named = args.Where(a => a.Parameter != null && a.Parameter.Type?.SpecialType == SpecialType.System_String && ProcedureParameterName.IsMatch(a.Parameter.Name)).ToList();
-                    if (named.Count == 1) return named[0].Value.Syntax;
-                }
+                var named = args.Where(a => a.Parameter != null && a.Parameter.Type?.SpecialType == SpecialType.System_String && ProcedureParameterName.IsMatch(a.Parameter.Name)).ToList();
+                if (named.Count == 1) return new LibraryChoice(named[0].Value.Syntax, false, null);
+                var strings = method.Parameters.Where(p => p.Type?.SpecialType == SpecialType.System_String).Select(p => p.Name).ToList();
+                return new LibraryChoice(null, false, named.Count == 0
+                    ? $"{method.Name}: none of its string parameters ({string.Join(", ", strings)}) is named like a procedure name"
+                    : $"{method.Name}: more than one string parameter is named like a procedure name ({string.Join(", ", named.Select(a => a.Parameter.Name))})");
             }
-            SyntaxNode firstString = null;
+            var shaped = new List<SyntaxNode>();
             foreach (var a in site.Args)
             {
-                if (a == null) continue;
+                if (a == null || IsStoredProcedure(model.GetOperation(a))) continue;
+                var type = model.GetTypeInfo(a).Type;
+                if (type != null && type.TypeKind != TypeKind.Error && type.SpecialType is not (SpecialType.System_String or SpecialType.System_Object)) continue;
                 var v = flow.Of(a, model);
-                if (v.Known.Any(k => k.Trim().Contains('.') && ProcedureName.IsMatch(k.Trim()))) return a;
-                if (firstString == null && (v.Known.Count > 0 || model.GetTypeInfo(a).Type?.SpecialType == SpecialType.System_String)) firstString = a;
+                if (v.Known.Count > 0 && !v.Unknown && v.Parameters.Count == 0 && !v.Combined && v.Known.All(k => ProcedureName.IsMatch(k.Trim()))) shaped.Add(a);
             }
-            return firstString;
+            var callee = site.At is { } at ? CalleeText(at) : "the method";
+            if (shaped.Count == 1) return new LibraryChoice(shaped[0], true, null);
+            return new LibraryChoice(null, false, shaped.Count == 0
+                ? $"{callee} is not resolved (its library is not among the references): which argument is the procedure name is not known"
+                : $"{callee} is not resolved (its library is not among the references) and {shaped.Count} arguments look like a procedure name");
+        }
+
+        /// <summary>Il metodo chiamato com'è scritto, senza argomenti: <c>OleDbHelper.ExecuteDataset</c>.</summary>
+        private static string CalleeText(SyntaxNode call)
+        {
+            var text = call.ToString();
+            var paren = text.IndexOf('(');
+            var head = (paren > 0 ? text[..paren] : text).Trim();
+            if (head.StartsWith("New ", StringComparison.OrdinalIgnoreCase) || head.StartsWith("new ", StringComparison.Ordinal)) head = head[4..].Trim();
+            return head.Length > 80 ? head[..80] + "…" : head;
         }
 
         /// <summary>
@@ -657,7 +726,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var (method, site, model) in callSites)
             {
                 if (site.Callee != null && result.ContainsKey(MethodKey(site.Callee))) continue;   // lo fa il punto 3
-                if (LibraryProcedureArgument(site, model, flow) is { } arg)
+                if (LibraryProcedureArgument(site, model, flow) is { Argument: { } arg, ByShape: false })
                     foreach (var p in flow.Of(arg, model).Parameters) Add(method, p, TypeStoredProcedure);
             }
             // 3) le chiamate a quei metodi, fino al punto fisso
@@ -1074,10 +1143,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                         continue;
                     }
                     if (site.Callee != null && _procedureParameters.ContainsKey(MethodKey(site.Callee))) continue;
-                    var arg = LibraryProcedureArgument(site, _model, _flow);
-                    if (arg == null) continue;
-                    var values = _flow.Of(arg, _model);
-                    ProcedureEdges(ownerId, line, values, name => values.Via == null ? null : $"{values.Via} = \"{name}\"", certain: true, condition: null, fromCallersHere: true);
+                    var choice = LibraryProcedureArgument(site, _model, _flow);
+                    if (choice.Argument == null)
+                    {
+                        SqlEdge(ownerId, null, SqlAccess.Call, true, line, choice.Unknown);
+                        continue;
+                    }
+                    var values = _flow.Of(choice.Argument, _model);
+                    var shape = choice.ByShape ? "library not resolved: the only argument shaped like a procedure name" : null;
+                    ProcedureEdges(ownerId, line, values, name => values.Via == null ? null : $"{values.Via} = \"{name}\"", certain: !choice.ByShape, condition: shape, fromCallersHere: true);
                 }
             }
 

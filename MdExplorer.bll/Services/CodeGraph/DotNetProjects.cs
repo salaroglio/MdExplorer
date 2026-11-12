@@ -35,6 +35,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyList<string> MissingLibraries { get; init; } = Array.Empty<string>();
         /// <summary>I file dei progetti riferiti (<c>ProjectReference</c>), assoluti.</summary>
         public IReadOnlyList<string> ProjectReferences { get; init; } = Array.Empty<string>();
+        /// <summary>
+        /// Visual Studio 2002/2003: l'identità del progetto (<c>ProjectGuid</c>) e i progetti riferiti per identità
+        /// (<c>&lt;Reference Name="…" Project="{GUID}"/&gt;</c>), col nome per dirlo quando quel progetto non è fra i sorgenti.
+        /// </summary>
+        public string ProjectGuid { get; init; }
+        public IReadOnlyList<(string Guid, string Name)> ProjectReferenceGuids { get; init; } = Array.Empty<(string, string)>();
 
         public bool IsNetFramework => FrameworkVersion != null;
 
@@ -48,13 +54,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                 throw new InvalidDataException(UiText.Say($"{path}: il file di progetto non si legge ({ex.Message})", $"{path}: the project file cannot be read ({ex.Message})"), ex);
             }
             var dir = Path.GetDirectoryName(path);
+            string Full(string relative) => Path.GetFullPath(Path.Combine(dir, relative.Replace('\\', Path.DirectorySeparatorChar)));
+            if (doc.Root?.Name.LocalName == "VisualStudioProject") return LoadVisualStudio7(path, doc, Full);
+
             // le proprietà ripetute (una per configurazione) valgono la prima non vuota: quella senza condizione sta in testa
             string Property(string name) => doc.Descendants().Where(e => e.Name.LocalName == name && e.Parent?.Name.LocalName == "PropertyGroup")
                 .Select(e => e.Value?.Trim()).FirstOrDefault(v => !string.IsNullOrEmpty(v));
-            bool? Switch(string name) => Property(name) is { } v ? v.Equals("On", StringComparison.OrdinalIgnoreCase) || v.Equals("true", StringComparison.OrdinalIgnoreCase) : null;
-            string Full(string relative) => Path.GetFullPath(Path.Combine(dir, relative.Replace('\\', Path.DirectorySeparatorChar)));
+            bool? Switch(string name) => Property(name) is { } v ? On(v) : null;
 
-            var hints = doc.Descendants().Where(e => e.Name.LocalName == "HintPath").Select(e => e.Value?.Trim()).Where(v => !string.IsNullOrEmpty(v) && !v.Contains("$(")).Select(Full).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var hints = doc.Descendants().Where(e => e.Name.LocalName == "HintPath").Select(e => e.Value?.Trim()).Where(v => !string.IsNullOrEmpty(v) && !v.Contains("$("))
+                .Select(Full).Where(h => !IsFrameworkLibrary(h)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             return new DotNetProject
             {
                 File = path,
@@ -70,6 +79,70 @@ namespace MdExplorer.Features.Services.CodeGraph
                     .Where(v => !string.IsNullOrEmpty(v) && !v.Contains("$(")).Select(Full).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             };
         }
+
+        private static bool On(string v) => v.Equals("On", StringComparison.OrdinalIgnoreCase) || v.Equals("true", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Una libreria del framework stesso (<c>…\Microsoft.NET\Framework\v1.1.4322\System.dll</c>): non è una libreria del
+        /// progetto, la dà la cartella del framework (<see cref="NetFrameworkLibraries"/>). Così un percorso di una volta che su
+        /// questa macchina non c'è non si dice mancante.
+        /// </summary>
+        internal static bool IsFrameworkLibrary(string fullPath)
+        {
+            var parts = fullPath.Split('\\', '/');
+            for (var i = 0; i + 1 < parts.Length; i++)
+                if (parts[i].Equals("Microsoft.NET", StringComparison.OrdinalIgnoreCase)
+                    && (parts[i + 1].Equals("Framework", StringComparison.OrdinalIgnoreCase) || parts[i + 1].Equals("Framework64", StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Il formato di Visual Studio .NET 2002/2003 (12/11/2026, rilevazione dal cliente: 20 riferimenti fra progetti in
+        /// questa forma, che prima non si leggevano): <c>&lt;VisualStudioProject&gt;&lt;VisualBasic ProjectGuid="…"&gt;</c> (o
+        /// <c>CSHARP</c>), le impostazioni come attributi di <c>Build/Settings</c>, i riferimenti in <c>Build/References</c>
+        /// (<c>HintPath</c> per una libreria, <c>Project</c> per un altro progetto), gli <c>Imports</c> in
+        /// <c>Build/Imports/Import Namespace</c>. <c>ProductVersion</c> 7.0 è .NET Framework 1.0, 7.10 è 1.1. Il VB di allora
+        /// non ha <c>Option Infer</c>: spenta.
+        /// </summary>
+        private static DotNetProject LoadVisualStudio7(string path, XDocument doc, Func<string, string> full)
+        {
+            static bool Is(XElement e, string name) => e.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase);
+            static string Attr(XElement e, string name)
+                => e?.Attributes().FirstOrDefault(a => a.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase))?.Value?.Trim() is { Length: > 0 } v ? v : null;
+            var language = doc.Root.Elements().FirstOrDefault()
+                ?? throw new InvalidDataException(UiText.Say($"{path}: VisualStudioProject senza l'elemento del linguaggio (VisualBasic, CSHARP)", $"{path}: VisualStudioProject without the language element (VisualBasic, CSHARP)"));
+            var build = language.Elements().FirstOrDefault(e => Is(e, "Build"));
+            var settings = build?.Elements().FirstOrDefault(e => Is(e, "Settings"));
+            var references = build?.Elements().Where(e => Is(e, "References")).SelectMany(e => e.Elements().Where(r => Is(r, "Reference"))).ToList() ?? new List<XElement>();
+            bool? Switch(string name) => Attr(settings, name) is { } v ? On(v) : null;
+
+            var hints = references.Where(r => Attr(r, "Project") == null).Select(r => Attr(r, "HintPath")).Where(h => h != null)
+                .Select(full).Where(h => !IsFrameworkLibrary(h)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var product = Attr(language, "ProductVersion");
+            var framework = product == null ? null : product.StartsWith("7.0.", StringComparison.Ordinal) || product == "7.0" ? "1.0" : product.StartsWith("7.1", StringComparison.Ordinal) ? "1.1" : null;
+            if (framework == null)
+                throw new InvalidDataException(UiText.Say(
+                    $"{path}: VisualStudioProject con ProductVersion '{product}': si leggono Visual Studio .NET 2002 (7.0) e 2003 (7.10)",
+                    $"{path}: VisualStudioProject with ProductVersion '{product}': Visual Studio .NET 2002 (7.0) and 2003 (7.10) are read"));
+            return new DotNetProject
+            {
+                File = path,
+                RootNamespace = Attr(settings, "RootNamespace"),
+                Imports = build?.Elements().Where(e => Is(e, "Imports")).SelectMany(e => e.Elements().Where(i => Is(i, "Import")))
+                    .Select(i => Attr(i, "Namespace")).Where(v => v != null).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? new List<string>(),
+                OptionStrict = Switch("OptionStrict"), OptionExplicit = Switch("OptionExplicit"), OptionInfer = false,
+                FrameworkVersion = framework,
+                Libraries = hints.Where(System.IO.File.Exists).ToList(),
+                MissingLibraries = hints.Where(h => !System.IO.File.Exists(h)).ToList(),
+                ProjectGuid = NormalGuid(Attr(language, "ProjectGuid")),
+                ProjectReferenceGuids = references.Where(r => Attr(r, "Project") != null)
+                    .Select(r => (NormalGuid(Attr(r, "Project")), Attr(r, "Name") ?? Attr(r, "Project"))).Distinct().ToList(),
+            };
+        }
+
+        /// <summary><c>{abc-…}</c> → <c>ABC-…</c>: lo stesso progetto scritto con o senza graffe, in maiuscolo o minuscolo.</summary>
+        internal static string NormalGuid(string guid) => guid?.Trim().Trim('{', '}').ToUpperInvariant();
 
         /// <summary><c>v4.8</c> (progetti di una volta) o <c>net48</c>/<c>net472</c> (progetti SDK) → <c>4.8</c>, <c>4.7.2</c>; null per .NET (Core).</summary>
         internal static string NetFrameworkVersion(string targetFrameworkVersion, string targetFramework)
