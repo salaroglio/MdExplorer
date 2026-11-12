@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
@@ -608,6 +609,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // i punti registrati di questo corpo, per nodo: una catena lega una chiamata a quella che le fa da ricevente (D43)
                 var sites = new Dictionary<SyntaxNode, ScriptCallSite>();
                 var chained = new List<(ScriptCallSite Site, SyntaxNode Receiver)>();
+                var commandTexts = new List<(string Text, int Line)>();   // cmd.CommandText = "…", New XCommand("…"): per CommandType.StoredProcedure
                 foreach (var node in decl.DescendantNodes())
                 {
                     if (_x.IsWholeString(node, out var parts)) Sql(ownerId, node, parts);
@@ -643,6 +645,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                         createdName ??= (_model.GetTypeInfo(node).Type as INamedTypeSymbol)?.Name;
                         if (createdName != null && createdArguments.Count > 0)
                             _callSites.Add(ownerId, line, createdName, null, Strings(null, createdArguments));
+                        if (createdName != null && createdName.EndsWith("Command", StringComparison.OrdinalIgnoreCase) && createdArguments.Count > 0 && ConstantString(createdArguments[0]) is { } commandText)
+                            commandTexts.Add((commandText, line));
                         if (info.Symbol is IMethodSymbol ctor && ctor.ContainingType != null)
                             Edge(ownerId, IdOf(ctor.ContainingType), "instantiates", "extracted", line);
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
@@ -664,7 +668,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var target = _model.GetSymbolInfo(assigned.Target).Symbol;
                         var named = target is IPropertySymbol or IFieldSymbol || (target == null && assigned.Receiver != null);
                         if (named && ConstantString(assigned.Value) is { } value)
+                        {
                             _callSites.Add(ownerId, Line(node), assigned.Name, assigned.Receiver, new[] { value });
+                            if (string.Equals(assigned.Name, "CommandText", StringComparison.OrdinalIgnoreCase)) commandTexts.Add((value, Line(node)));
+                        }
                     }
                     else if (_x.IsMethodNameOutsideInvocation(node))
                     {
@@ -680,6 +687,54 @@ namespace MdExplorer.Features.Services.CodeGraph
                         x = _x.IsInvocation(x, _model, out var inner) ? inner.ReceiverNode : null;
                     }
                 }
+                StoredProcedures(decl, ownerId, commandTexts);
+            }
+
+            /// <summary>Il nome di una procedura come si scrive in un comando: <c>PROC</c>, <c>PKG.PROC</c>, <c>SCHEMA.PKG.PROC</c>.</summary>
+            private static readonly Regex ProcedureName = new(@"^[A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*){0,2}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+            /// <summary>
+            /// Le procedure chiamate per nome (12/11/2026, misurato da MarkAgent dal cliente: 123 chiamate così, nessuna nel grafo).
+            /// Dove il corpo scrive <c>CommandType.StoredProcedure</c>, la stringa con il nome della procedura non è SQL e
+            /// <see cref="Sql"/> non la vede. Due forme:
+            /// <list type="bullet">
+            /// <item><c>StoredProcedure</c> fra gli argomenti di una chiamata o di un <c>New</c> (un helper: <c>Esegui("PKG.PROC", CommandType.StoredProcedure, …)</c>):
+            /// il nome è fra le stringhe della stessa chiamata;</item>
+            /// <item><c>cmd.CommandType = CommandType.StoredProcedure</c>: il nome è quello di <c>CommandText</c> o del <c>New …Command("…")</c> dello stesso corpo.</item>
+            /// </list>
+            /// Fra più stringhe valgono quelle col punto (<c>PKG.PROC</c>); senza punto, solo se è una. Un nome in una variabile non si legge.
+            /// </summary>
+            private void StoredProcedures(SyntaxNode decl, string ownerId, List<(string Text, int Line)> commandTexts)
+            {
+                var bodyWide = false;
+                foreach (var token in decl.DescendantTokens())
+                {
+                    if (!string.Equals(token.ValueText, "StoredProcedure", StringComparison.OrdinalIgnoreCase)) continue;
+                    var dot = token.GetPreviousToken();
+                    if (dot.ValueText != "." || !string.Equals(dot.GetPreviousToken().ValueText, "CommandType", StringComparison.OrdinalIgnoreCase)) continue;
+                    for (var a = token.Parent; a != null && a != decl; a = a.Parent)
+                    {
+                        IReadOnlyList<SyntaxNode> args = null;
+                        if (_x.IsInvocation(a, _model, out var shape)) args = shape.ArgumentNodes;
+                        else if (_x.IsCreation(a, out _, out var created)) args = created;
+                        if (args != null && args.Any(n => n != null && n.Span.Contains(token.Span)))
+                        {
+                            foreach (var name in ProcedureNames(args.Select(ConstantString))) SqlEdge(ownerId, name, SqlAccess.Call, false, Line(a));
+                            break;
+                        }
+                        if (_x.IsAssignment(a, out var assigned) && assigned.Value != null && assigned.Value.Span.Contains(token.Span)) { bodyWide = true; break; }
+                    }
+                }
+                if (!bodyWide) return;
+                foreach (var (text, line) in commandTexts)
+                    foreach (var name in ProcedureNames(new[] { text })) SqlEdge(ownerId, name, SqlAccess.Call, false, line);
+            }
+
+            private static List<string> ProcedureNames(IEnumerable<string> strings)
+            {
+                var names = strings.Where(s => s != null).Select(s => s.Trim()).Where(s => ProcedureName.IsMatch(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var dotted = names.Where(s => s.Contains('.')).ToList();
+                return dotted.Count > 0 ? dotted : names.Count == 1 ? names : new List<string>();
             }
 
             /// <summary>
@@ -718,13 +773,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (text.Length > EmbeddedSql.MaxLength) return;
                 }
                 var line = Line(node);
-                foreach (var o in EmbeddedSql.Analyze(text.ToString()))
-                {
-                    var key = o.Dynamic ? "dynamic:?" : (o.Access == SqlAccess.Call ? "symbol:" : "table:") + o.Name.ToUpperInvariant();
-                    var id = RoslynCSharpExtractor.StableId(SqlLanguage, "external", key);
-                    if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = o.Name.Split('.').Last(), QualifiedName = o.Name, Language = SqlLanguage });
-                    Edge(ownerId, id, o.Access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, o.Dynamic ? "ambiguous" : "inferred", line);
-                }
+                foreach (var o in EmbeddedSql.Analyze(text.ToString())) SqlEdge(ownerId, o.Name, o.Access, o.Dynamic, line);
+            }
+
+            /// <summary>L'arco verso il nodo esterno SQL di una tabella o di una procedura (o verso «?» se il nome è una variabile).</summary>
+            private void SqlEdge(string ownerId, string name, SqlAccess access, bool dynamic, int line)
+            {
+                var key = dynamic ? "dynamic:?" : (access == SqlAccess.Call ? "symbol:" : "table:") + name.ToUpperInvariant();
+                var id = RoslynCSharpExtractor.StableId(SqlLanguage, "external", key);
+                if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = name.Split('.').Last(), QualifiedName = name, Language = SqlLanguage });
+                Edge(ownerId, id, access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, dynamic ? "ambiguous" : "inferred", line);
             }
 
             /// <summary>Una stringa scritta o una costante che vale una stringa; null per tutto il resto.</summary>

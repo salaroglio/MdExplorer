@@ -25,8 +25,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public override string LanguageId => CodeLanguages.VisualBasic;
         /// <summary>2 = file di progetto (RootNamespace, Imports, librerie, .NET Framework), eventi, nomi assegnati e costanti (11/11/2026).
         /// 3 = l'SQL scritto nelle stringhe: tabelle lette e scritte, procedure chiamate (<see cref="EmbeddedSql"/>).
-        /// 4 = quei nodi dicono il linguaggio <c>sql</c>, e si ricollegano al simbolo vero di un linguaggio database (12/11/2026).</summary>
-        public override string ExtractorVersion => "4";
+        /// 4 = quei nodi dicono il linguaggio <c>sql</c>, e si ricollegano al simbolo vero di un linguaggio database (12/11/2026).
+        /// 5 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).</summary>
+        public override string ExtractorVersion => "5";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

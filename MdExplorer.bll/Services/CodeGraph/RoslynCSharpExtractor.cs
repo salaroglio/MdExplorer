@@ -40,8 +40,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>5 = l'SQL scritto nelle stringhe: le tabelle lette e scritte e le procedure chiamate (<see cref="EmbeddedSql"/>).</para>
         /// <para>6 = i nodi di quelle tabelle e procedure dicono il linguaggio <c>sql</c>: si ricollegano al simbolo vero di un
         /// linguaggio database quando c'è (<see cref="CodeSqlLinker"/>, 12/11/2026).</para>
+        /// <para>7 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).</para>
         /// </summary>
-        public override string ExtractorVersion => "6";
+        public override string ExtractorVersion => "7";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

@@ -275,6 +275,57 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Link_a_method_to_the_procedures_it_calls_by_name_with_CommandType_StoredProcedure()
+        {
+            // 12/11/2026, misurato da MarkAgent su un applicativo vero: 123 chiamate così, nessuna arrivava nel grafo
+            File.WriteAllText(Path.Combine(_src, "Procedure.vb"),
+                "Imports System.Data\n" +
+                "Namespace Demo\n" +
+                "  Public Class Procedure\n" +
+                "    Public Sub ConHelper(id As Integer, nome As String)\n" +
+                "      Esegui(\" PKG_ORDINI.CHIUDI \", CommandType.StoredProcedure, \"p_id\")\n" +      // riga 5: helper, spazi, un parametro senza punto
+                "      Esegui(\"GEST.PKG_ORDINI.APRI\", CommandType.StoredProcedure)\n" +            // riga 6: con lo schema
+                "      ' Esegui(\"PKG_VECCHIO.X\", CommandType.StoredProcedure)\n" +                 // riga 7: commentata
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                  // riga 8: nome in una variabile
+                "      Esegui(\"RICALCOLA\", CommandType.StoredProcedure)\n" +                        // riga 9: procedura senza package
+                "      Esegui(\"PKG_ALTRO.NON_PROC\", CommandType.Text)\n" +                          // riga 10: non è una procedura
+                "    End Sub\n" +
+                "    Public Sub ConComando()\n" +
+                "      Dim cmd As New Comando()\n" +
+                "      cmd.CommandType = CommandType.StoredProcedure\n" +
+                "      cmd.CommandText = \"PKG_RAPPORTI.SETTIMANA\"\n" +                              // riga 15
+                "    End Sub\n" +
+                "    Public Sub ConCostruttore()\n" +
+                "      Dim cmd As New OleCommand(\"PKG_RAPPORTI.MESE\")\n" +                          // riga 18
+                "      With cmd\n" +
+                "        .CommandType = CommandType.StoredProcedure\n" +
+                "      End With\n" +
+                "    End Sub\n" +
+                "    Public Sub SenzaProcedure()\n" +
+                "      Dim cmd As New Comando()\n" +
+                "      cmd.CommandText = \"PKG_RAPPORTI.ANNO\"\n" +                                  // senza StoredProcedure: niente
+                "    End Sub\n" +
+                "    Private Sub Esegui(testo As String, tipo As CommandType, ParamArray altri() As String)\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "  Public Class Comando\n    Public Property CommandText As String\n    Public Property CommandType As CommandType\n  End Class\n" +
+                "  Public Class OleCommand\n    Inherits Comando\n    Public Sub New(testo As String)\n    End Sub\n  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Procedure.vb").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Calls(string member) => string.Join(" ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}"));
+
+            Assert.AreEqual("5:PKG_ORDINI.CHIUDI:inferred 6:GEST.PKG_ORDINI.APRI:inferred 9:RICALCOLA:inferred", Calls("ConHelper"));
+            Assert.AreEqual("15:PKG_RAPPORTI.SETTIMANA:inferred", Calls("ConComando"));
+            Assert.AreEqual("18:PKG_RAPPORTI.MESE:inferred", Calls("ConCostruttore"));
+            Assert.AreEqual("", Calls("SenzaProcedure"));
+            Assert.AreEqual(CodeSqlLinker.ExternalId("symbol", "PKG_ORDINI.CHIUDI"), s.Symbols.Single(x => x.QualifiedName == "PKG_ORDINI.CHIUDI").Id, "lo stesso nodo dell'SQL scritto, che il ricollegamento sposta sulla procedura vera");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Procedure.vb").RecordCount);
+        }
+
+        [TestMethod]
         public void Load_the_handler_of_an_event_declared_in_another_file()
         {
             // 12/11/2026, visto nel demo: lo script del gestore ha l'arco «evento → gestore» con l'evento di un altro file,

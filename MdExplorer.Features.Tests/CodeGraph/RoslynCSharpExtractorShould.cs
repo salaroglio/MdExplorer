@@ -112,6 +112,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Link_a_method_to_the_procedures_it_calls_by_name_with_CommandType_StoredProcedure()
+        {
+            File.WriteAllText(Path.Combine(_src, "Procedure.cs"),
+                "using System.Data;\nnamespace Demo {\npublic class Comando { public string CommandText { get; set; } public CommandType CommandType { get; set; } }\n" +
+                "public class Procedure {\n" +
+                "  public void Chiudi(string nome) {\n" +
+                "    var cmd = new Comando { CommandType = CommandType.StoredProcedure };\n" +
+                "    cmd.CommandText = \"PKG_ORDINI.CHIUDI\";\n" +                                 // riga 7
+                "    Esegui(\"PKG_ORDINI.APRI\", System.Data.CommandType.StoredProcedure);\n" +    // riga 8: nome qualificato del tipo
+                "    Esegui(nome, CommandType.StoredProcedure);\n" +
+                "  }\n" +
+                "  void Esegui(string testo, CommandType tipo) { }\n} }");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Procedure.cs").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            var calls = string.Join(" ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == "Chiudi").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}"));
+            Assert.AreEqual("7:PKG_ORDINI.CHIUDI:inferred 8:PKG_ORDINI.APRI:inferred", calls);
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.cs"),
@@ -121,7 +142,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("6", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("7", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");
