@@ -274,6 +274,23 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Dati.vb").RecordCount);
         }
 
+        [TestMethod]
+        public void Load_the_handler_of_an_event_declared_in_another_file()
+        {
+            // 12/11/2026, visto nel demo: lo script del gestore ha l'arco «evento → gestore» con l'evento di un altro file,
+            // e il lettore Turtle lo rifiutava («nodo senza classe»): il file del gestore restava fuori dal grafo
+            File.WriteAllText(Path.Combine(_src, "Fonte.vb"),
+                "Namespace Demo\n  Public Class Fonte\n    Public Event Pronto(n As Integer)\n    Public Sub Vai()\n      RaiseEvent Pronto(1)\n    End Sub\n  End Class\nEnd Namespace\n");
+            File.WriteAllText(Path.Combine(_src, "Ascolto.vb"),
+                "Namespace Demo\n  Public Class Ascolto\n    Private WithEvents _f As Fonte\n    Private Sub Quando(n As Integer) Handles _f.Pronto\n    End Sub\n  End Class\nEnd Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Ascolto.vb").Script;
+            var turtle = CodeScriptTurtle.Write(s);
+            var back = CodeScriptTurtle.Read(turtle, ".mde-code/src/Demo/Ascolto.vb.ast.ttl");
+            Assert.AreEqual(s.Edges.Count, back.Edges.Count);
+            var handler = s.Symbols.Single(x => x.Name == "Quando").Id;
+            Assert.AreEqual(2, back.Edges.Count(e => e.TargetId == handler && e.Relation == "calls"), "dall'evento dell'altro file e dal campo WithEvents");
+        }
+
         private CodeExtractionResult ExtractAll(string folder)
         {
             var files = Directory.GetFiles(folder, "*.vb", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();

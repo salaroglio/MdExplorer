@@ -156,7 +156,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             // In uno script di regola i simboli non si dichiarano (stanno negli ast): compaiono solo come soggetto degli
             // archi diretti (code:dispatches). Un nodo senza classe che ha SOLO relazioni è uno di loro; tutto il resto no.
-            if (headerLine.Kind == CodeScriptKind.Rule)
+            // Anche in un ast (12/11/2026): l'evento dichiarato in un altro file «chiama» il gestore di questo (Handles,
+            // AddHandler, +=), e l'arco diretto ha per soggetto un simbolo che questo script non dichiara.
+            if (headerLine.Kind is CodeScriptKind.Rule or CodeScriptKind.Ast)
                 foreach (var k in nodes.Where(kv => kv.Value.Class == null && kv.Value.Values.Keys.All(p => CodeScriptParser.Relations.Contains(p))).Select(kv => kv.Key).ToList())
                     nodes.Remove(k);
             foreach (var n in nodes.Values)
