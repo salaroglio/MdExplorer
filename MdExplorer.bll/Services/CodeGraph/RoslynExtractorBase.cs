@@ -1044,8 +1044,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void ProcedureEdges(string ownerId, int line, StringValues v, Func<string, string> core, bool certain, string condition, bool fromCallersHere)
             {
                 var names = v.Known.Select(k => k.Trim()).Where(k => ProcedureName.IsMatch(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var combined = v.Combined ? "combination of pieces not verified" : null;
                 foreach (var name in names)
-                    SqlEdge(ownerId, name, SqlAccess.Call, false, line, NameGuard(core(name), names.Count, v, condition), certain ? "inferred" : "ambiguous");
+                    SqlEdge(ownerId, name, SqlAccess.Call, false, line, NameGuard(core(name), names.Count, v, combined == null ? condition : condition == null ? combined : condition + ", " + combined),
+                        certain && !v.Combined ? "inferred" : "ambiguous");
                 if (v.Known.Any(k => !ProcedureName.IsMatch(k.Trim())))
                     SqlEdge(ownerId, null, SqlAccess.Call, true, line, NameGuard(null, 0, StringValues.Of(""), $"a value that is not a procedure name{(condition == null ? "" : ", " + condition)}"));
                 if (v.Unknown)
@@ -1115,7 +1117,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             /// <summary>I valori a forma di nome (senza spazi) di una stringa, per i punti di chiamata letti dalle regole.</summary>
-            private static IEnumerable<string> NameValues(StringValues v) => v.Known.Where(CodeCallSites.IsNameLike);
+            private static IEnumerable<string> NameValues(StringValues v) => v.Combined ? Enumerable.Empty<string>() : v.Known.Where(CodeCallSites.IsNameLike);
 
             /// <summary>
             /// I punti di chiamata con le stringhe degli argomenti, anche quelle passate per una variabile o una costante: un argomento
@@ -1179,6 +1181,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // un pezzo che viene da una variabile dà un testo per ogni suo valore, più uno col buco se non si sanno tutti (12/11/2026)
                 const int MaxVariants = 64;
                 var variants = new List<(StringBuilder Text, string Guard)> { (new StringBuilder(), null) };
+                var chosen = new List<List<string>> { new() };   // per variante, i valori scelti dei pezzi con più valori
                 foreach (var p in parts)
                 {
                     if (p.Text != null) { foreach (var x in variants) x.Text.Append(p.Text); }
@@ -1190,22 +1193,37 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (v.Known.Count > 0 && variants.Count * options <= MaxVariants)
                         {
                             var expanded = new List<(StringBuilder, string)>();
-                            foreach (var (text, guard) in variants)
+                            var expandedChosen = new List<List<string>>();
+                            for (var i = 0; i < variants.Count; i++)
                             {
+                                var (text, guard) = variants[i];
                                 foreach (var k in v.Known)
+                                {
                                     expanded.Add((new StringBuilder(text.ToString()).Append(k),
                                         guard ?? (v.Via != null && options > 1 ? NameGuard($"{v.Via} = \"{k}\"", v.Known.Count, v, null) : null)));
-                                if (!v.IsComplete) expanded.Add((new StringBuilder(text.ToString()).Append(EmbeddedSql.Hole), guard));
+                                    expandedChosen.Add(options > 1 ? chosen[i].Append(k).ToList() : chosen[i]);
+                                }
+                                if (!v.IsComplete) { expanded.Add((new StringBuilder(text.ToString()).Append(EmbeddedSql.Hole), guard)); expandedChosen.Add(chosen[i]); }
                             }
                             variants = expanded;
+                            chosen = expandedChosen;
                         }
                         else foreach (var x in variants) x.Text.Append(EmbeddedSql.Hole);
                     }
                     if (variants[0].Text.Length > EmbeddedSql.MaxLength) return;
                 }
                 var line = Line(node);
-                foreach (var (text, guard) in variants)
-                    foreach (var o in EmbeddedSql.Analyze(text.ToString())) SqlEdge(ownerId, o.Name, o.Access, o.Dynamic, line, o.Dynamic ? null : guard);
+                for (var i = 0; i < variants.Count; i++)
+                {
+                    var (text, guard) = variants[i];
+                    foreach (var o in EmbeddedSql.Analyze(text.ToString()))
+                    {
+                        // un nome fatto da due o più pezzi con più valori: la combinazione può non succedere mai
+                        var combined = !o.Dynamic && chosen[i].Count(k => k.Length > 0 && o.Name.Contains(k.Trim(), StringComparison.OrdinalIgnoreCase)) >= 2;
+                        SqlEdge(ownerId, o.Name, o.Access, o.Dynamic, line, o.Dynamic ? null : combined ? (guard == null ? "" : guard + ", ") + "combination of pieces not verified" : guard,
+                            combined ? "ambiguous" : null);
+                    }
+                }
             }
 
             /// <summary>L'arco verso il nodo esterno SQL di una tabella o di una procedura (o verso «?» se il nome è una variabile).</summary>

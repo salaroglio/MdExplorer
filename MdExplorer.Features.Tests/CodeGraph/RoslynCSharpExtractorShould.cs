@@ -156,6 +156,26 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Mark_as_ambiguous_a_name_built_from_two_pieces_with_several_values()
+        {
+            File.WriteAllText(Path.Combine(_src, "Pezzi.cs"),
+                "namespace Demo { public class Pezzi {\n" +
+                "  void Exec(string sql) { }\n" +
+                "  public void Leggi(bool annuale) {\n" +
+                "    string t, c;\n" +
+                "    if (annuale) { t = \"T_ANNO\"; c = \"C_ANNO\"; } else { t = \"T_MESE\"; c = \"C_MESE\"; }\n" +
+                "    Exec(\"SELECT * FROM \" + t + \" JOIN \" + c + \" ON 1 = 1\");\n" +          // riga 6: due oggetti, ciascuno vero
+                "    Exec(\"SELECT * FROM STORICO_\" + t + c);\n" +                                // riga 7: un nome fatto da due pezzi
+                "  }\n} }");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Pezzi.cs").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Reads(int line) => string.Join(" ", s.Edges.Where(e => e.Relation == "reads" && e.Line == line).OrderBy(e => names[e.TargetId]).Select(e => $"{names[e.TargetId]}:{e.Confidence}"));
+            Assert.AreEqual("C_ANNO:inferred C_MESE:inferred T_ANNO:inferred T_MESE:inferred", Reads(6), "ogni pezzo nomina un oggetto vero");
+            Assert.AreEqual("STORICO_T_ANNOC_ANNO:ambiguous STORICO_T_ANNOC_MESE:ambiguous STORICO_T_MESEC_ANNO:ambiguous STORICO_T_MESEC_MESE:ambiguous", Reads(7));
+            StringAssert.Contains(s.Edges.First(e => e.Line == 7 && e.Relation == "reads").Guard, "combination of pieces not verified");
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_string_literals_and_nameof()
         {
             File.WriteAllText(Path.Combine(_src, "OrdiniController.cs"),
@@ -165,7 +185,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("8", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("9", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");

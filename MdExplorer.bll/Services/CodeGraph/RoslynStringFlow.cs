@@ -30,6 +30,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public SortedSet<int> Parameters { get; } = new();
         /// <summary>La variabile, il campo o il parametro attraverso cui il valore passa (il più vicino all'uso); null se è scritto lì.</summary>
         public string Via { get; set; }
+        /// <summary>
+        /// Almeno un valore è una combinazione di due pezzi con più valori ciascuno (<c>t &amp; c</c>, con t e c decisi nei rami): non
+        /// si verifica quali combinazioni possano davvero succedere insieme, quindi qualcuna può essere impossibile.
+        /// </summary>
+        public bool Combined { get; set; }
 
         public static StringValues Of(string value) { var v = new StringValues(); v.Known.Add(value); return v; }
         public static StringValues Dynamic(string reason) { var v = new StringValues(); v.MarkUnknown(reason); return v; }
@@ -50,12 +55,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (other.Unknown) MarkUnknown(other.Reason);
             Parameters.UnionWith(other.Parameters);
             Via ??= other.Via;
+            Combined |= other.Combined;
             if (Known.Count > MaxValues) { Known.Clear(); MarkUnknown($"more than {MaxValues} possible values"); }
         }
 
         public StringValues Copy()
         {
-            var c = new StringValues { Via = Via, Unknown = Unknown, Reason = Reason };
+            var c = new StringValues { Via = Via, Unknown = Unknown, Reason = Reason, Combined = Combined };
             c.Known.AddRange(Known);
             c.Parameters.UnionWith(Parameters);
             return c;
@@ -165,7 +171,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Due pezzi uniti: ogni combinazione; un pezzo che non si sa, o che viene da un parametro, rende non saputo il tutto.</summary>
         private static StringValues Join(StringValues a, StringValues b)
         {
-            var r = new StringValues { Via = a.Via ?? b.Via };
+            var r = new StringValues { Via = a.Via ?? b.Via, Combined = a.Combined || b.Combined || (a.Known.Count > 1 && b.Known.Count > 1) };
             if (!a.IsComplete || !b.IsComplete)
             {
                 r.MarkUnknown(a.Reason ?? b.Reason ?? "a piece comes from a parameter");

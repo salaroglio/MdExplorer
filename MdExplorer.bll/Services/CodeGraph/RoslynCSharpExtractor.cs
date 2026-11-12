@@ -42,8 +42,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// linguaggio database quando c'è (<see cref="CodeSqlLinker"/>, 12/11/2026).</para>
         /// <para>7 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).</para>
         /// <para>8 = i valori delle stringhe attraverso variabili, costanti, rami e parametri (<see cref="RoslynStringFlow"/>, 12/11/2026).</para>
+        /// <para>9 = un nome fatto da più pezzi con più valori è <c>ambiguous</c> (combinazioni non verificate).</para>
         /// </summary>
-        public override string ExtractorVersion => "8";
+        public override string ExtractorVersion => "9";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
