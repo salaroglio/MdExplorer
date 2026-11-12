@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Features.Services.CodeGraph
@@ -167,6 +168,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// nomina l'evento e quello che nomina chi lo solleva (<c>btnCerca</c>; null per <c>Me</c>).
         /// </summary>
         protected virtual IEnumerable<(SyntaxNode Event, SyntaxNode Container)> HandledEvents(SyntaxNode methodDeclaration) => Enumerable.Empty<(SyntaxNode, SyntaxNode)>();
+        /// <summary>VB: l'oggetto del blocco <c>With</c> che contiene il nodo, com'è scritto (<c>.CommandType = …</c> dentro <c>With cmd</c>); null fuori da un With.</summary>
+        protected virtual string WithObject(SyntaxNode node) => null;
+        /// <summary>VB: il nodo è l'espressione di un <c>With</c> (<c>With New OracleCommand(…)</c>).</summary>
+        protected virtual bool IsWithExpression(SyntaxNode node) => false;
         /// <summary>Un nome di metodo usato senza la forma della chiamata (VB: parentesi facoltative, <c>AddressOf</c>).</summary>
         protected virtual bool IsMethodNameOutsideInvocation(SyntaxNode node) => false;
 
@@ -256,6 +261,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
             }
             var perimeter = new PerimeterIndex(compilations);
+            var compilationOf = trees.ToDictionary(t => t.Tree, t => t.Compilation);
+            var models = new Dictionary<SyntaxTree, SemanticModel>();
+            SemanticModel ModelOf(SyntaxTree t)
+            {
+                if (models.TryGetValue(t, out var m)) return m;
+                return compilationOf.TryGetValue(t, out var c) ? models[t] = c.GetSemanticModel(t) : null;
+            }
+            var flow = new RoslynStringFlow(ModelOf, trees.Select(t => t.Tree).ToList());
+            var procedureParameters = ProcedureParameters(trees.Select(t => t.Tree).ToList(), ModelOf, flow, ct);
 
             // 2) Un script per file da emettere.
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
@@ -266,7 +280,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var file = request.FilesToEmit.First(f => f.LogicalPath == tree.FilePath);
                 try
                 {
-                    var script = ExtractFile(tree, compilation.GetSemanticModel(tree), perimeter, contents[tree.FilePath]);
+                    var script = ExtractFile(tree, ModelOf(tree), perimeter, contents[tree.FilePath], flow, procedureParameters);
                     result.Scripts.Add((file, script));
                 }
                 catch (Exception ex)
@@ -280,7 +294,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ one file
 
-        private CodeScript ExtractFile(SyntaxTree tree, SemanticModel model, PerimeterIndex perimeter, string content)
+        private CodeScript ExtractFile(SyntaxTree tree, SemanticModel model, PerimeterIndex perimeter, string content, RoslynStringFlow flow, IReadOnlyDictionary<string, ProcedureParameter> procedureParameters)
         {
             var script = new CodeScript
             {
@@ -291,7 +305,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     GeneratedAt = DateTime.UtcNow.ToString("o"),
                 }
             };
-            var ctx = new FileContext(this, script, model, perimeter);
+            var ctx = new FileContext(this, script, model, perimeter, flow, procedureParameters);
             var root = tree.GetRoot();
 
             foreach (var typeDecl in TypeDeclarations(root))
@@ -373,6 +387,323 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
             return script;
+        }
+
+        // ------------------------------------------------------------------ procedure chiamate per nome
+
+        /// <summary>Il nome di una procedura come si scrive in un comando: <c>PROC</c>, <c>PKG.PROC</c>, <c>SCHEMA.PKG.PROC</c>.</summary>
+        private static readonly Regex ProcedureName = new(@"^[A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*){0,2}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+        /// <summary>Il nome di un parametro di libreria che riceve il nome della procedura (<c>commandText</c>, <c>spName</c>…).</summary>
+        private static readonly Regex ProcedureParameterName = new(@"^(command|commandText|cmdText|storedProcedure|storedProcedureName|procedure|procedureName|procName|spName|sp)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+
+        private static string MethodKey(IMethodSymbol m) => m.OriginalDefinition.ToDisplayString(QualifiedFormat);
+
+        /// <summary>Lo stato del tipo di comando per una coppia: <see cref="TypeStoredProcedure"/>, <see cref="TypeMaybe"/>, o la posizione del parametro che lo dà.</summary>
+        private const int TypeStoredProcedure = -1;
+        private const int TypeMaybe = -2;
+
+        /// <summary>
+        /// Un metodo che passa un suo parametro come nome di una procedura (l'helper <c>Esegui(testo, tipo)</c> con
+        /// <c>cmd.CommandText = testo</c> e <c>cmd.CommandType = tipo</c>): le coppie (posizione del nome, stato del tipo).
+        /// Le frecce le fanno i chiamanti, che scrivono il nome e il tipo.
+        /// </summary>
+        private sealed class ProcedureParameter
+        {
+            public string Name;
+            public HashSet<(int Name, int Type)> Pairs = new();
+        }
+
+        /// <summary>Un punto in cui un corpo chiama una procedura per nome.</summary>
+        private sealed class ProcedureSite
+        {
+            public SyntaxNode At;
+            /// <summary><c>StoredProcedure</c> fra gli argomenti di una chiamata (o di un <c>New</c>): gli argomenti, il metodo chiamato.</summary>
+            public IReadOnlyList<SyntaxNode> Args;
+            public IMethodSymbol Callee;
+            /// <summary>Un comando del corpo: l'espressione del nome (<c>CommandText = …</c>, <c>New …Command(…)</c>) e lo stato del tipo.</summary>
+            public SyntaxNode Name;
+            public int Type = TypeStoredProcedure;
+        }
+
+        /// <summary>I metodi con un corpo, di un file: quelli che l'estrazione percorre.</summary>
+        private IEnumerable<(IMethodSymbol Method, SyntaxNode Decl)> MethodBodies(SyntaxTree tree, SemanticModel model)
+        {
+            foreach (var typeDecl in TypeDeclarations(tree.GetRoot()))
+            {
+                var type = TypeSymbol(model, typeDecl);
+                if (type == null) continue;
+                foreach (var member in type.GetMembers().OfType<IMethodSymbol>())
+                {
+                    if (member.IsImplicitlyDeclared) continue;
+                    var declared = member.DeclaringSyntaxReferences.FirstOrDefault(r => r.SyntaxTree == tree)?.GetSyntax();
+                    if (declared != null) yield return (member, Whole(declared));
+                }
+            }
+        }
+
+        /// <summary><c>CommandType.StoredProcedure</c> scritto (anche qualificato), o la costante 4 di un enum <c>CommandType</c>.</summary>
+        private static bool IsStoredProcedure(IOperation op)
+        {
+            while (op is IConversionOperation c) op = c.Operand;
+            if (op == null) return false;
+            if (op.Syntax.ToString().Replace(" ", "").EndsWith("CommandType.StoredProcedure", StringComparison.OrdinalIgnoreCase)) return true;
+            return op.Type?.Name == "CommandType" && op.ConstantValue.HasValue && Convert.ToInt32(op.ConstantValue.Value) == 4;
+        }
+
+        private static int? ParameterOrdinal(IOperation op)
+        {
+            while (op is IConversionOperation c) op = c.Operand;
+            return op is IParameterReferenceOperation p ? p.Parameter.Ordinal : null;
+        }
+
+        /// <summary>
+        /// Dove un corpo chiama una procedura per nome (12/11/2026):
+        /// <list type="bullet">
+        /// <item><c>CommandType.StoredProcedure</c> fra gli argomenti di una chiamata o di un <c>New</c>: il nome è fra gli argomenti;</item>
+        /// <item><c>….CommandType = CommandType.StoredProcedure</c>: il nome è quello di <c>CommandText</c> o del <c>New …Command(…)</c> dello stesso corpo;</item>
+        /// <item><c>….CommandType = tipo</c> con <c>tipo</c> un parametro: come sopra, se i chiamanti passano <c>StoredProcedure</c>.</item>
+        /// </list>
+        /// </summary>
+        private List<ProcedureSite> ProcedureSites(SyntaxNode decl, SemanticModel model, RoslynStringFlow flow)
+        {
+            var sites = new List<ProcedureSite>();
+            foreach (var token in decl.DescendantTokens())
+            {
+                if (!string.Equals(token.ValueText, "StoredProcedure", StringComparison.OrdinalIgnoreCase)) continue;
+                var dot = token.GetPreviousToken();
+                if (dot.ValueText != "." || !string.Equals(dot.GetPreviousToken().ValueText, "CommandType", StringComparison.OrdinalIgnoreCase)) continue;
+                for (var a = token.Parent; a != null && a != decl; a = a.Parent)
+                {
+                    IReadOnlyList<SyntaxNode> args = null;
+                    if (IsInvocation(a, model, out var shape)) args = shape.ArgumentNodes;
+                    else if (IsCreation(a, out _, out var created)) args = created;
+                    if (args != null && args.Any(n => n != null && n.Span.Contains(token.Span)))
+                    {
+                        var callee = model.GetOperation(a) switch { IInvocationOperation i => i.TargetMethod, IObjectCreationOperation o => o.Constructor, _ => null };
+                        sites.Add(new ProcedureSite { At = a, Args = args, Callee = callee });
+                        break;
+                    }
+                    if (IsAssignment(a, out var assigned) && assigned.Value != null && assigned.Value.Span.Contains(token.Span)) break;
+                }
+            }
+            // i comandi del corpo, oggetto per oggetto: il CommandType e il CommandText (o il New …Command) dello stesso oggetto —
+            // «cmd», il blocco With (nessun nome), la variabile a cui si assegna il New. Un comando senza CommandType è testo SQL.
+            var types = new Dictionary<string, SortedSet<int>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var node in decl.DescendantNodes())
+            {
+                if (!IsAssignment(node, out var assigned) || !string.Equals(assigned.Name, "CommandType", StringComparison.OrdinalIgnoreCase) || assigned.Value == null) continue;
+                var value = model.GetOperation(assigned.Value);
+                int? state = IsStoredProcedure(value) || assigned.Value.ToString().Replace(" ", "").EndsWith("CommandType.StoredProcedure", StringComparison.OrdinalIgnoreCase)
+                    ? TypeStoredProcedure : ParameterOrdinal(value);
+                if (state == null) continue;   // un altro tipo, o uno che non si sa: quel comando non si dà per procedura
+                var key = CommandObject(assigned.Receiver ?? WithObject(node) ?? InitializedObject(node, model));
+                if (!types.TryGetValue(key, out var set)) types[key] = set = new SortedSet<int>();
+                set.Add(state.Value);
+            }
+            if (types.Count == 0) return sites;
+            foreach (var node in decl.DescendantNodes())
+            {
+                SyntaxNode name = null;
+                string target = null;
+                if (IsAssignment(node, out var assigned) && string.Equals(assigned.Name, "CommandText", StringComparison.OrdinalIgnoreCase))
+                {
+                    name = assigned.Value;
+                    target = assigned.Receiver ?? WithObject(node) ?? InitializedObject(node, model);
+                }
+                else if (IsCreation(node, out var createdName, out var createdArguments) && createdArguments.Count > 0)
+                {
+                    // il testo del comando: il parametro del costruttore che diventa CommandText (CommandTextParameter); senza
+                    // costruttore noto, il primo argomento di un tipo che si chiama …Command
+                    if (model.GetOperation(node) is IObjectCreationOperation { Constructor: not null } created)
+                    {
+                        var ordinal = CommandTextParameter(created.Constructor, model, flow, 0);
+                        name = ordinal == null ? null : created.Arguments.FirstOrDefault(x => x.Parameter?.Ordinal == ordinal && x.ArgumentKind != ArgumentKind.DefaultValue)?.Value.Syntax;
+                    }
+                    else if ((createdName ?? (model.GetTypeInfo(node).Type as INamedTypeSymbol)?.Name)?.EndsWith("Command", StringComparison.OrdinalIgnoreCase) == true)
+                        name = createdArguments[0];
+                    target = AssignedTo(node, model) ?? (IsWithExpression(node) ? node.ToString() : null);
+                }
+                if (name == null || !types.TryGetValue(CommandObject(target), out var states)) continue;
+                foreach (var type in states) sites.Add(new ProcedureSite { At = node, Name = name, Type = type });
+            }
+            return sites;
+        }
+
+        /// <summary>
+        /// Il parametro di un costruttore che diventa il testo del comando. Nel codice analizzato si legge il corpo: un
+        /// <c>CommandText = parametro</c>, o un <c>MyBase.New(…)</c>/<c>: base(…)</c> che lo passa al costruttore di sopra. In una
+        /// libreria, il parametro stringa che si chiama come tale (<c>cmdText</c> di <c>SqlCommand</c>, <c>OracleCommand</c>,
+        /// <c>OleDbCommand</c>). Null se nessun parametro lo diventa.
+        /// </summary>
+        private int? CommandTextParameter(IMethodSymbol ctor, SemanticModel model, RoslynStringFlow flow, int depth)
+        {
+            if (ctor == null || depth > 8) return null;
+            var syntax = ctor.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
+            if (syntax == null)
+            {
+                var named = ctor.Parameters.Where(p => p.Type?.SpecialType == SpecialType.System_String && ProcedureParameterName.IsMatch(p.Name)).ToList();
+                return named.Count == 1 ? named[0].Ordinal : null;
+            }
+            var ctorModel = syntax.SyntaxTree == model.SyntaxTree ? model : flow.ModelOf(syntax.SyntaxTree);
+            if (ctorModel == null) return null;
+            var body = Whole(syntax);
+            foreach (var node in body.DescendantNodesAndSelf())
+            {
+                if (IsAssignment(node, out var assigned) && string.Equals(assigned.Name, "CommandText", StringComparison.OrdinalIgnoreCase) && assigned.Value != null
+                    && flow.Of(assigned.Value, ctorModel) is { Parameters.Count: 1 } v && v.Known.Count == 0 && !v.Unknown)
+                    return v.Parameters.Min;
+                if (ctorModel.GetOperation(node) is IInvocationOperation { TargetMethod.MethodKind: MethodKind.Constructor } chained && !ReferenceEquals(chained.TargetMethod, ctor)
+                    && CommandTextParameter(chained.TargetMethod, ctorModel, flow, depth + 1) is { } up)
+                {
+                    var arg = chained.Arguments.FirstOrDefault(a => a.Parameter?.Ordinal == up);
+                    if (arg != null && ParameterOrdinal(arg.Value) is { } mine) return mine;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Il nome dell'oggetto comando com'è scritto, senza <c>Me.</c>/<c>this.</c>; "" per il blocco <c>With</c> o un inizializzatore.</summary>
+        private static string CommandObject(string receiver)
+        {
+            if (string.IsNullOrWhiteSpace(receiver)) return string.Empty;
+            var r = receiver.Replace(" ", "");
+            foreach (var prefix in new[] { "Me.", "this.", "MyBase.", "base." })
+                if (r.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) r = r[prefix.Length..];
+            return r;
+        }
+
+        /// <summary>Per un'assegnazione dentro un inizializzatore (<c>New X With {.CommandType = …}</c>, <c>new X { CommandType = … }</c>): la variabile che lo riceve.</summary>
+        private static string InitializedObject(SyntaxNode assignment, SemanticModel model)
+        {
+            for (var n = assignment.Parent; n != null && n.Span.Length < assignment.Span.Length + 2000; n = n.Parent)
+                if (model.GetOperation(n) is IObjectCreationOperation) return AssignedTo(n, model);
+            return null;
+        }
+
+        /// <summary>La variabile (o il campo) a cui si assegna un <c>New</c>: <c>Dim cmd As New …</c>, <c>var cmd = new …</c>, <c>cmd = New …</c>; null per un <c>With New …</c>.</summary>
+        private static string AssignedTo(SyntaxNode creation, SemanticModel model)
+        {
+            for (var op = model.GetOperation(creation)?.Parent; op != null; op = op.Parent)
+            {
+                switch (op)
+                {
+                    case IConversionOperation: case IVariableInitializerOperation: continue;
+                    case IVariableDeclaratorOperation d: return d.Symbol.Name;
+                    case IVariableDeclarationOperation vd when vd.Declarators.Length == 1: return vd.Declarators[0].Symbol.Name;
+                    case ISimpleAssignmentOperation a: return a.Target.Syntax.ToString();
+                    default: return null;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// L'argomento col nome della procedura, per una chiamata a un metodo che NON è nel codice analizzato (una libreria): il
+        /// parametro che si chiama come un nome di procedura (<c>commandText</c>, <c>spName</c>…), se è uno solo; altrimenti il
+        /// primo argomento che fra i suoi valori ha un nome col punto (<c>PKG.PROC</c>), altrimenti il primo argomento stringa
+        /// — una deduzione. Null se nessun argomento è una stringa.
+        /// </summary>
+        private static SyntaxNode LibraryProcedureArgument(ProcedureSite site, SemanticModel model, RoslynStringFlow flow)
+        {
+            if (model.GetOperation(site.At) is { } op)
+            {
+                var args = op switch { IInvocationOperation i => i.Arguments, IObjectCreationOperation o => o.Arguments, _ => default };
+                if (!args.IsDefault)
+                {
+                    var named = args.Where(a => a.Parameter != null && a.Parameter.Type?.SpecialType == SpecialType.System_String && ProcedureParameterName.IsMatch(a.Parameter.Name)).ToList();
+                    if (named.Count == 1) return named[0].Value.Syntax;
+                }
+            }
+            SyntaxNode firstString = null;
+            foreach (var a in site.Args)
+            {
+                if (a == null) continue;
+                var v = flow.Of(a, model);
+                if (v.Known.Any(k => k.Trim().Contains('.') && ProcedureName.IsMatch(k.Trim()))) return a;
+                if (firstString == null && (v.Known.Count > 0 || model.GetTypeInfo(a).Type?.SpecialType == SpecialType.System_String)) firstString = a;
+            }
+            return firstString;
+        }
+
+        /// <summary>
+        /// Il giro preliminare, su tutti i file: i metodi che passano un loro parametro come nome di una procedura, anche
+        /// attraverso altri metodi (<c>Apri(n)</c> → <c>Esegui(n, CommandType.StoredProcedure)</c>), fino al punto fisso.
+        /// </summary>
+        private Dictionary<string, ProcedureParameter> ProcedureParameters(IReadOnlyList<SyntaxTree> trees, Func<SyntaxTree, SemanticModel> modelOf, RoslynStringFlow flow, CancellationToken ct)
+        {
+            var result = new Dictionary<string, ProcedureParameter>(StringComparer.Ordinal);
+            bool Add(IMethodSymbol m, int name, int type)
+            {
+                var key = MethodKey(m);
+                if (!result.TryGetValue(key, out var p)) result[key] = p = new ProcedureParameter { Name = m.Name };
+                return p.Pairs.Add((name, type));
+            }
+            var withMarker = trees.Where(t => t.GetText().ToString().IndexOf("CommandType", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+            // 1) i comandi dei corpi: il nome viene da un parametro
+            var callSites = new List<(IMethodSymbol Method, ProcedureSite Site, SemanticModel Model)>();
+            foreach (var tree in withMarker)
+            {
+                ct.ThrowIfCancellationRequested();
+                var model = modelOf(tree);
+                foreach (var (method, decl) in MethodBodies(tree, model))
+                    foreach (var site in ProcedureSites(decl, model, flow))
+                    {
+                        if (site.Name == null) { callSites.Add((method, site, model)); continue; }
+                        foreach (var p in flow.Of(site.Name, model).Parameters) Add(method, p, site.Type);
+                    }
+            }
+            // 2) StoredProcedure passato a un metodo di libreria: il nome viene da un parametro
+            foreach (var (method, site, model) in callSites)
+            {
+                if (site.Callee != null && result.ContainsKey(MethodKey(site.Callee))) continue;   // lo fa il punto 3
+                if (LibraryProcedureArgument(site, model, flow) is { } arg)
+                    foreach (var p in flow.Of(arg, model).Parameters) Add(method, p, TypeStoredProcedure);
+            }
+            // 3) le chiamate a quei metodi, fino al punto fisso
+            for (var round = 0; round < 32 && result.Count > 0; round++)
+            {
+                var names = new HashSet<string>(result.Values.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+                var changed = false;
+                foreach (var tree in trees)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var model = modelOf(tree);
+                    foreach (var token in tree.GetRoot().DescendantTokens())
+                    {
+                        if (!names.Contains(token.ValueText)) continue;
+                        var call = token.Parent?.AncestorsAndSelf().Take(4).Select(n => model.GetOperation(n)).OfType<IInvocationOperation>().FirstOrDefault();
+                        if (call == null || !result.TryGetValue(MethodKey(call.TargetMethod), out var target)) continue;
+                        if (model.GetEnclosingSymbol(token.SpanStart) is not IMethodSymbol caller) continue;
+                        foreach (var (name, type) in target.Pairs.ToList())
+                        {
+                            var nameArg = call.Arguments.FirstOrDefault(a => a.Parameter?.Ordinal == name);
+                            if (nameArg == null) continue;
+                            var state = TypeState(call, type);
+                            if (state == null) continue;   // il chiamante passa un altro tipo: non è una procedura
+                            foreach (var p in flow.Of(nameArg.Value).Parameters) changed |= Add(caller, p, state.Value);
+                        }
+                    }
+                }
+                if (!changed) break;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Lo stato del tipo di comando in una chiamata, per una coppia: <see cref="TypeStoredProcedure"/> (scritto, o la coppia non
+        /// ha condizione), la posizione di un parametro del chiamante che lo passa, <see cref="TypeMaybe"/> se non si sa; null se il
+        /// chiamante passa un altro tipo (<c>CommandType.Text</c>).
+        /// </summary>
+        private static int? TypeState(IInvocationOperation call, int type)
+        {
+            if (type == TypeStoredProcedure || type == TypeMaybe) return type;
+            var typeArg = call.Arguments.FirstOrDefault(a => a.Parameter?.Ordinal == type);
+            if (typeArg == null) return TypeMaybe;
+            if (IsStoredProcedure(typeArg.Value)) return TypeStoredProcedure;
+            if (ParameterOrdinal(typeArg.Value) is { } ordinal) return ordinal;
+            var v = typeArg.Value; while (v is IConversionOperation c) v = c.Operand;
+            return v.ConstantValue.HasValue ? null : TypeMaybe;
         }
 
         private static string KindOf(INamedTypeSymbol t) => t.TypeKind switch
@@ -504,10 +835,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly HashSet<string> _edges = new(StringComparer.Ordinal);
             private readonly CodeCallSites _callSites;
             private readonly RoslynExtractorBase _x;
+            private readonly RoslynStringFlow _flow;
+            private readonly IReadOnlyDictionary<string, ProcedureParameter> _procedureParameters;
 
-            public FileContext(RoslynExtractorBase extractor, CodeScript script, SemanticModel model, PerimeterIndex perimeter)
+            public FileContext(RoslynExtractorBase extractor, CodeScript script, SemanticModel model, PerimeterIndex perimeter,
+                RoslynStringFlow flow, IReadOnlyDictionary<string, ProcedureParameter> procedureParameters)
             {
-                _x = extractor; Script = script; _model = model; _perimeter = perimeter;
+                _x = extractor; Script = script; _model = model; _perimeter = perimeter; _flow = flow; _procedureParameters = procedureParameters;
                 _callSites = new CodeCallSites(script);
             }
 
@@ -584,11 +918,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
 
-            public void Edge(string source, string target, string relation, string confidence, int? line)
+            public void Edge(string source, string target, string relation, string confidence, int? line, string guard = null)
             {
                 if (source == null || target == null || source == target) return;
                 if (!_edges.Add($"{source}|{target}|{relation}|{line}")) return;
-                Script.Edges.Add(new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line });
+                Script.Edges.Add(new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line, Guard = guard });
             }
 
             /// <summary>Un uso di tipo (campo, proprietà, parametro, ritorno): arco <c>references</c> verso il tipo, anche generico (ai suoi argomenti).</summary>
@@ -609,7 +943,6 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // i punti registrati di questo corpo, per nodo: una catena lega una chiamata a quella che le fa da ricevente (D43)
                 var sites = new Dictionary<SyntaxNode, ScriptCallSite>();
                 var chained = new List<(ScriptCallSite Site, SyntaxNode Receiver)>();
-                var commandTexts = new List<(string Text, int Line)>();   // cmd.CommandText = "…", New XCommand("…"): per CommandType.StoredProcedure
                 foreach (var node in decl.DescendantNodes())
                 {
                     if (_x.IsWholeString(node, out var parts)) Sql(ownerId, node, parts);
@@ -619,12 +952,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var line = Line(node);
                         if (_x.IsRaise(node, out var raised) && _model.GetSymbolInfo(raised).Symbol is IEventSymbol raisedEvent)
                             Edge(ownerId, IdOf(raisedEvent), "calls", "extracted", line);
-                        if (shape.Callee != null && _callSites.Add(ownerId, line, shape.Callee, shape.Receiver, Strings(shape.Arguments, shape.ArgumentNodes), types: TypesOf(shape)) is { } site)
+                        if (shape.Callee != null && AddCallSites(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments, shape.ArgumentNodes, TypesOf(shape)) is { } site)
                         {
                             sites[node] = site;
                             if (shape.ReceiverNode != null) chained.Add((site, shape.ReceiverNode));
                         }
-                        if (info.Symbol is IMethodSymbol m) Call(ownerId, m, line);
+                        if (info.Symbol is IMethodSymbol m)
+                        {
+                            Call(ownerId, m, line);
+                            ProceduresThrough(ownerId, node, m, line);
+                        }
                         else if (info.CandidateSymbols.Length > 0)
                         {
                             foreach (var c in info.CandidateSymbols) Edge(ownerId, IdOf(c), "calls", "ambiguous", line);
@@ -644,9 +981,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         // New OleDbCommand("PKG.PROC", cn): il nome passato al costruttore è un punto di chiamata come gli altri
                         createdName ??= (_model.GetTypeInfo(node).Type as INamedTypeSymbol)?.Name;
                         if (createdName != null && createdArguments.Count > 0)
-                            _callSites.Add(ownerId, line, createdName, null, Strings(null, createdArguments));
-                        if (createdName != null && createdName.EndsWith("Command", StringComparison.OrdinalIgnoreCase) && createdArguments.Count > 0 && ConstantString(createdArguments[0]) is { } commandText)
-                            commandTexts.Add((commandText, line));
+                            AddCallSites(ownerId, line, createdName, null, null, createdArguments, null);
                         if (info.Symbol is IMethodSymbol ctor && ctor.ContainingType != null)
                             Edge(ownerId, IdOf(ctor.ContainingType), "instantiates", "extracted", line);
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
@@ -667,11 +1002,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                         // con quel nome e un argomento, così le regole sulle stringhe lo leggono (11/11/2026)
                         var target = _model.GetSymbolInfo(assigned.Target).Symbol;
                         var named = target is IPropertySymbol or IFieldSymbol || (target == null && assigned.Receiver != null);
-                        if (named && ConstantString(assigned.Value) is { } value)
-                        {
-                            _callSites.Add(ownerId, Line(node), assigned.Name, assigned.Receiver, new[] { value });
-                            if (string.Equals(assigned.Name, "CommandText", StringComparison.OrdinalIgnoreCase)) commandTexts.Add((value, Line(node)));
-                        }
+                        if (named && assigned.Value != null)
+                            foreach (var value in NameValues(_flow.Of(assigned.Value, _model)))
+                                _callSites.Add(ownerId, Line(node), assigned.Name, assigned.Receiver, new[] { value });
                     }
                     else if (_x.IsMethodNameOutsideInvocation(node))
                     {
@@ -687,54 +1020,132 @@ namespace MdExplorer.Features.Services.CodeGraph
                         x = _x.IsInvocation(x, _model, out var inner) ? inner.ReceiverNode : null;
                     }
                 }
-                StoredProcedures(decl, ownerId, commandTexts);
+                StoredProcedures(decl, ownerId);
             }
-
-            /// <summary>Il nome di una procedura come si scrive in un comando: <c>PROC</c>, <c>PKG.PROC</c>, <c>SCHEMA.PKG.PROC</c>.</summary>
-            private static readonly Regex ProcedureName = new(@"^[A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*){0,2}$", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
             /// <summary>
-            /// Le procedure chiamate per nome (12/11/2026, misurato da MarkAgent dal cliente: 123 chiamate così, nessuna nel grafo).
-            /// Dove il corpo scrive <c>CommandType.StoredProcedure</c>, la stringa con il nome della procedura non è SQL e
-            /// <see cref="Sql"/> non la vede. Due forme:
-            /// <list type="bullet">
-            /// <item><c>StoredProcedure</c> fra gli argomenti di una chiamata o di un <c>New</c> (un helper: <c>Esegui("PKG.PROC", CommandType.StoredProcedure, …)</c>):
-            /// il nome è fra le stringhe della stessa chiamata;</item>
-            /// <item><c>cmd.CommandType = CommandType.StoredProcedure</c>: il nome è quello di <c>CommandText</c> o del <c>New …Command("…")</c> dello stesso corpo.</item>
-            /// </list>
-            /// Fra più stringhe valgono quelle col punto (<c>PKG.PROC</c>); senza punto, solo se è una. Un nome in una variabile non si legge.
+            /// La condizione scritta sulla freccia verso una procedura: attraverso quale variabile o parametro passa il nome, e se è
+            /// uno di più valori (<c>(1 of 8)</c>) o uno dei valori noti mentre altri non si sanno.
             /// </summary>
-            private void StoredProcedures(SyntaxNode decl, string ownerId, List<(string Text, int Line)> commandTexts)
+            private static string NameGuard(string core, int count, StringValues v, string condition)
             {
-                var bodyWide = false;
-                foreach (var token in decl.DescendantTokens())
-                {
-                    if (!string.Equals(token.ValueText, "StoredProcedure", StringComparison.OrdinalIgnoreCase)) continue;
-                    var dot = token.GetPreviousToken();
-                    if (dot.ValueText != "." || !string.Equals(dot.GetPreviousToken().ValueText, "CommandType", StringComparison.OrdinalIgnoreCase)) continue;
-                    for (var a = token.Parent; a != null && a != decl; a = a.Parent)
-                    {
-                        IReadOnlyList<SyntaxNode> args = null;
-                        if (_x.IsInvocation(a, _model, out var shape)) args = shape.ArgumentNodes;
-                        else if (_x.IsCreation(a, out _, out var created)) args = created;
-                        if (args != null && args.Any(n => n != null && n.Span.Contains(token.Span)))
-                        {
-                            foreach (var name in ProcedureNames(args.Select(ConstantString))) SqlEdge(ownerId, name, SqlAccess.Call, false, Line(a));
-                            break;
-                        }
-                        if (_x.IsAssignment(a, out var assigned) && assigned.Value != null && assigned.Value.Span.Contains(token.Span)) { bodyWide = true; break; }
-                    }
-                }
-                if (!bodyWide) return;
-                foreach (var (text, line) in commandTexts)
-                    foreach (var name in ProcedureNames(new[] { text })) SqlEdge(ownerId, name, SqlAccess.Call, false, line);
+                var text = core;
+                if (!v.IsComplete) text = (text == null ? "" : text + " ") + $"(one of {count} known values; others: {v.Reason ?? "from the callers"})";
+                else if (count > 1) text = (text == null ? "" : text + " ") + $"(1 of {count})";
+                if (condition != null) text = (text == null ? "" : text + ", ") + condition;
+                return text;
             }
 
-            private static List<string> ProcedureNames(IEnumerable<string> strings)
+            /// <summary>
+            /// Le frecce verso le procedure di un nome con i suoi valori: una per ogni valore a forma di nome (certa o, se il tipo
+            /// non si sa, <c>ambiguous</c>), e il nodo <c>?</c> con il motivo per quello che il codice non dice. Un valore che non
+            /// è un nome di procedura lo dice anche lui.
+            /// </summary>
+            private void ProcedureEdges(string ownerId, int line, StringValues v, Func<string, string> core, bool certain, string condition, bool fromCallersHere)
             {
-                var names = strings.Where(s => s != null).Select(s => s.Trim()).Where(s => ProcedureName.IsMatch(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                var dotted = names.Where(s => s.Contains('.')).ToList();
-                return dotted.Count > 0 ? dotted : names.Count == 1 ? names : new List<string>();
+                var names = v.Known.Select(k => k.Trim()).Where(k => ProcedureName.IsMatch(k)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                foreach (var name in names)
+                    SqlEdge(ownerId, name, SqlAccess.Call, false, line, NameGuard(core(name), names.Count, v, condition), certain ? "inferred" : "ambiguous");
+                if (v.Known.Any(k => !ProcedureName.IsMatch(k.Trim())))
+                    SqlEdge(ownerId, null, SqlAccess.Call, true, line, NameGuard(null, 0, StringValues.Of(""), $"a value that is not a procedure name{(condition == null ? "" : ", " + condition)}"));
+                if (v.Unknown)
+                    SqlEdge(ownerId, null, SqlAccess.Call, true, line, (v.Via == null ? "" : v.Via + ": ") + "the name is decided at run time (" + v.Reason + ")" + (condition == null ? "" : ", " + condition));
+                if (v.Parameters.Count > 0 && fromCallersHere)
+                    SqlEdge(ownerId, null, SqlAccess.Call, true, line, (v.Via == null ? "" : v.Via + ": ") + "the name comes from the callers" + (condition == null ? "" : ", " + condition));
+            }
+
+            /// <summary>
+            /// Le procedure chiamate per nome in questo corpo (<see cref="ProcedureSites"/>), con tutti i valori che il nome può avere
+            /// in quel punto (<see cref="RoslynStringFlow"/>). Una chiamata a un metodo del codice analizzato che passa il nome a un
+            /// comando la fa <see cref="ProceduresThrough"/>; qui restano i comandi del corpo e i metodi di libreria.
+            /// </summary>
+            private void StoredProcedures(SyntaxNode decl, string ownerId)
+            {
+                foreach (var site in _x.ProcedureSites(decl, _model, _flow))
+                {
+                    var line = Line(site.At);
+                    if (site.Name != null)
+                    {
+                        var v = _flow.Of(site.Name, _model);
+                        var condition = site.Type >= 0 ? $"when the caller passes CommandType.StoredProcedure" : null;
+                        ProcedureEdges(ownerId, line, v, name => v.Via == null ? null : $"{v.Via} = \"{name}\"", site.Type != TypeMaybe, condition, fromCallersHere: true);
+                        continue;
+                    }
+                    if (site.Callee != null && _procedureParameters.ContainsKey(MethodKey(site.Callee))) continue;
+                    var arg = LibraryProcedureArgument(site, _model, _flow);
+                    if (arg == null) continue;
+                    var values = _flow.Of(arg, _model);
+                    ProcedureEdges(ownerId, line, values, name => values.Via == null ? null : $"{values.Via} = \"{name}\"", certain: true, condition: null, fromCallersHere: true);
+                }
+            }
+
+            /// <summary>
+            /// La chiamata a un metodo del codice analizzato che passa un suo parametro come nome di una procedura
+            /// (<see cref="ProcedureParameters"/>): la freccia va da chi chiama, che scrive il nome — <c>Esegui(testo = "PKG.X")</c>.
+            /// Se il tipo del comando lo passa il chiamante, conta quello che passa: <c>StoredProcedure</c> sì, un altro tipo no, un
+            /// valore che non si sa dà una freccia <c>ambiguous</c>. Un nome che arriva a sua volta da un parametro lo dicono i
+            /// chiamanti di questo metodo.
+            /// </summary>
+            private void ProceduresThrough(string ownerId, SyntaxNode node, IMethodSymbol method, int line)
+            {
+                if (_procedureParameters.Count == 0 || !_procedureParameters.TryGetValue(MethodKey(method), out var target)) return;
+                if (_model.GetOperation(node) is not IInvocationOperation call) return;
+                foreach (var (nameOrdinal, type) in target.Pairs)
+                {
+                    var arg = call.Arguments.FirstOrDefault(a => a.Parameter?.Ordinal == nameOrdinal);
+                    if (arg == null) continue;
+                    var state = TypeState(call, type);
+                    if (state == null) continue;
+                    var v = _flow.Of(arg.Value);
+                    var parameter = arg.Parameter.Name;
+                    var condition = state == TypeMaybe ? "if the command type is StoredProcedure (decided at run time)"
+                        : state >= 0 ? "when the caller passes CommandType.StoredProcedure" : null;
+                    ProcedureEdges(ownerId, line, v, name => $"{method.Name}({parameter} = \"{name}\")", state != TypeMaybe, condition, fromCallersHere: false);
+                }
+            }
+
+            /// <summary>
+            /// Un'espressione che può valere una stringa: di tipo stringa o Object, o di un tipo che Roslyn non conosce (una libreria
+            /// che manca). Solo un tipo conosciuto che non è una stringa (un numero, una data, un enum) si scarta.
+            /// </summary>
+            private bool MayBeString(SyntaxNode node)
+            {
+                var type = _model.GetTypeInfo(node).Type;
+                return type == null || type.TypeKind == TypeKind.Error || type.SpecialType is SpecialType.System_String or SpecialType.System_Object;
+            }
+
+            /// <summary>I valori a forma di nome (senza spazi) di una stringa, per i punti di chiamata letti dalle regole.</summary>
+            private static IEnumerable<string> NameValues(StringValues v) => v.Known.Where(CodeCallSites.IsNameLike);
+
+            /// <summary>
+            /// I punti di chiamata con le stringhe degli argomenti, anche quelle passate per una variabile o una costante: un argomento
+            /// che vale una di più stringhe (rami diversi) dà un punto per ciascuna, così le regole le leggono tutte.
+            /// </summary>
+            private ScriptCallSite AddCallSites(string ownerId, int line, string callee, string receiver, IReadOnlyList<string> written, IReadOnlyList<SyntaxNode> nodes, List<ScriptTypeArgument> types)
+            {
+                var count = Math.Max(written?.Count ?? 0, nodes?.Count ?? 0);
+                var single = new List<string>(count);
+                int multi = -1; List<string> alternatives = null;
+                for (var i = 0; i < count; i++)
+                {
+                    var text = written != null && i < written.Count ? written[i] : null;
+                    if (text == null && nodes != null && i < nodes.Count && nodes[i] != null && MayBeString(nodes[i]))
+                    {
+                        var values = NameValues(_flow.Of(nodes[i], _model)).ToList();
+                        if (values.Count == 1) text = values[0];
+                        else if (values.Count > 1 && multi < 0) { multi = i; alternatives = values; }
+                    }
+                    single.Add(text);
+                }
+                var first = _callSites.Add(ownerId, line, callee, receiver, single, types: types);
+                if (multi >= 0)
+                    foreach (var alternative in alternatives)
+                    {
+                        var args = single.ToList(); args[multi] = alternative;
+                        var site = _callSites.Add(ownerId, line, callee, receiver, args, types: types);
+                        first ??= site;
+                    }
+                return first;
             }
 
             /// <summary>
@@ -765,24 +1176,46 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// </summary>
             private void Sql(string ownerId, SyntaxNode node, IReadOnlyList<StringPart> parts)
             {
-                var text = new StringBuilder();
+                // un pezzo che viene da una variabile dà un testo per ogni suo valore, più uno col buco se non si sanno tutti (12/11/2026)
+                const int MaxVariants = 64;
+                var variants = new List<(StringBuilder Text, string Guard)> { (new StringBuilder(), null) };
                 foreach (var p in parts)
                 {
-                    var piece = p.Text ?? ConstantString(p.Hole);
-                    if (piece != null) text.Append(piece); else text.Append(EmbeddedSql.Hole);
-                    if (text.Length > EmbeddedSql.MaxLength) return;
+                    if (p.Text != null) { foreach (var x in variants) x.Text.Append(p.Text); }
+                    else
+                    {
+                        // un pezzo che non è una stringa (un numero, una data) non dà nomi: resta un buco, senza calcoli
+                        var v = p.Hole == null || !MayBeString(p.Hole) ? StringValues.Dynamic("not a string") : _flow.Of(p.Hole, _model);
+                        var options = v.Known.Count + (v.IsComplete ? 0 : 1);
+                        if (v.Known.Count > 0 && variants.Count * options <= MaxVariants)
+                        {
+                            var expanded = new List<(StringBuilder, string)>();
+                            foreach (var (text, guard) in variants)
+                            {
+                                foreach (var k in v.Known)
+                                    expanded.Add((new StringBuilder(text.ToString()).Append(k),
+                                        guard ?? (v.Via != null && options > 1 ? NameGuard($"{v.Via} = \"{k}\"", v.Known.Count, v, null) : null)));
+                                if (!v.IsComplete) expanded.Add((new StringBuilder(text.ToString()).Append(EmbeddedSql.Hole), guard));
+                            }
+                            variants = expanded;
+                        }
+                        else foreach (var x in variants) x.Text.Append(EmbeddedSql.Hole);
+                    }
+                    if (variants[0].Text.Length > EmbeddedSql.MaxLength) return;
                 }
                 var line = Line(node);
-                foreach (var o in EmbeddedSql.Analyze(text.ToString())) SqlEdge(ownerId, o.Name, o.Access, o.Dynamic, line);
+                foreach (var (text, guard) in variants)
+                    foreach (var o in EmbeddedSql.Analyze(text.ToString())) SqlEdge(ownerId, o.Name, o.Access, o.Dynamic, line, o.Dynamic ? null : guard);
             }
 
             /// <summary>L'arco verso il nodo esterno SQL di una tabella o di una procedura (o verso «?» se il nome è una variabile).</summary>
-            private void SqlEdge(string ownerId, string name, SqlAccess access, bool dynamic, int line)
+            private void SqlEdge(string ownerId, string name, SqlAccess access, bool dynamic, int line, string guard = null, string confidence = null)
             {
+                if (dynamic) name = "?";
                 var key = dynamic ? "dynamic:?" : (access == SqlAccess.Call ? "symbol:" : "table:") + name.ToUpperInvariant();
                 var id = RoslynCSharpExtractor.StableId(SqlLanguage, "external", key);
                 if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = name.Split('.').Last(), QualifiedName = name, Language = SqlLanguage });
-                Edge(ownerId, id, access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, dynamic ? "ambiguous" : "inferred", line);
+                Edge(ownerId, id, access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, dynamic ? "ambiguous" : confidence ?? "inferred", line, guard);
             }
 
             /// <summary>Una stringa scritta o una costante che vale una stringa; null per tutto il resto.</summary>
@@ -791,16 +1224,6 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (node == null) return null;
                 var constant = _model.GetConstantValue(node);
                 return constant.HasValue ? constant.Value as string : null;
-            }
-
-            /// <summary>Le stringhe degli argomenti per posizione: quelle che il linguaggio ha letto, e dove non ne ha lette le costanti.</summary>
-            private List<string> Strings(IReadOnlyList<string> written, IReadOnlyList<SyntaxNode> nodes)
-            {
-                var count = Math.Max(written?.Count ?? 0, nodes?.Count ?? 0);
-                var list = new List<string>(count);
-                for (var i = 0; i < count; i++)
-                    list.Add((written != null && i < written.Count ? written[i] : null) ?? (nodes != null && i < nodes.Count ? ConstantString(nodes[i]) : null));
-                return list;
             }
 
             /// <summary>I fatti per le regole di registrazione (D43): i tipi fra le parentesi per posizione, poi quelli generici.</summary>

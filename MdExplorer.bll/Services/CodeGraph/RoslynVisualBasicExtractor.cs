@@ -26,8 +26,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>2 = file di progetto (RootNamespace, Imports, librerie, .NET Framework), eventi, nomi assegnati e costanti (11/11/2026).
         /// 3 = l'SQL scritto nelle stringhe: tabelle lette e scritte, procedure chiamate (<see cref="EmbeddedSql"/>).
         /// 4 = quei nodi dicono il linguaggio <c>sql</c>, e si ricollegano al simbolo vero di un linguaggio database (12/11/2026).
-        /// 5 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).</summary>
-        public override string ExtractorVersion => "5";
+        /// 5 = le procedure chiamate per nome con <c>CommandType.StoredProcedure</c> (12/11/2026).
+        /// 6 = i valori delle stringhe attraverso variabili, costanti, rami e parametri (<see cref="RoslynStringFlow"/>, 12/11/2026).</summary>
+        public override string ExtractorVersion => "6";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -129,6 +130,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 default: parts.Add(new StringPart { Hole = node }); break;
             }
         }
+
+        protected override string WithObject(SyntaxNode node)
+            => node.Ancestors().OfType<WithBlockSyntax>().FirstOrDefault()?.WithStatement.Expression.ToString();
+
+        protected override bool IsWithExpression(SyntaxNode node) => node.Parent is WithStatementSyntax w && w.Expression == node;
 
         protected override bool IsAssignment(SyntaxNode node, out AssignmentShape shape)
         {

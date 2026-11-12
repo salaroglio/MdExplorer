@@ -309,7 +309,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "    End Sub\n" +
                 "  End Class\n" +
                 "  Public Class Comando\n    Public Property CommandText As String\n    Public Property CommandType As CommandType\n  End Class\n" +
-                "  Public Class OleCommand\n    Inherits Comando\n    Public Sub New(testo As String)\n    End Sub\n  End Class\n" +
+                "  Public Class OleCommand\n    Inherits Comando\n    Public Sub New(testo As String)\n      Me.CommandText = testo\n    End Sub\n  End Class\n" +
                 "End Namespace\n");
             var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Procedure.vb").Script;
             var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
@@ -317,12 +317,168 @@ namespace MdExplorer.Features.Tests.CodeGraph
                     && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
                 .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}"));
 
-            Assert.AreEqual("5:PKG_ORDINI.CHIUDI:inferred 6:GEST.PKG_ORDINI.APRI:inferred 9:RICALCOLA:inferred", Calls("ConHelper"));
+            Assert.AreEqual("5:PKG_ORDINI.CHIUDI:inferred 6:GEST.PKG_ORDINI.APRI:inferred 8:?:ambiguous 9:RICALCOLA:inferred", Calls("ConHelper"), "il nome nel parametro: il nodo «?», lo dicono i chiamanti");
             Assert.AreEqual("15:PKG_RAPPORTI.SETTIMANA:inferred", Calls("ConComando"));
             Assert.AreEqual("18:PKG_RAPPORTI.MESE:inferred", Calls("ConCostruttore"));
             Assert.AreEqual("", Calls("SenzaProcedure"));
             Assert.AreEqual(CodeSqlLinker.ExternalId("symbol", "PKG_ORDINI.CHIUDI"), s.Symbols.Single(x => x.QualifiedName == "PKG_ORDINI.CHIUDI").Id, "lo stesso nodo dell'SQL scritto, che il ricollegamento sposta sulla procedura vera");
             Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Procedure.vb").RecordCount);
+        }
+
+        [TestMethod]
+        public void Follow_the_name_of_a_procedure_through_variables_branches_and_parameters()
+        {
+            // 12/11/2026, misurato da MarkAgent dal cliente: 11 nomi in una variabile locale (anche in rami), 3 in un parametro
+            File.WriteAllText(Path.Combine(_src, "Flusso.vb"),
+                "Imports System.Data\n" +
+                "Namespace Demo\n" +
+                "  Public Class Comando\n    Public Property CommandText As String\n    Public Property CommandType As CommandType\n  End Class\n" +
+                "  Public Class Flusso\n" +                                                              // riga 7
+                "    Private Const PKG As String = \"PKG_STAMPE\"\n" +
+                "    Public Sub Una()\n" +
+                "      Dim nome As String = PKG & \".SETTIMANA\"\n" +                                    // riga 10: costante e pezzi
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 11
+                "    End Sub\n" +
+                "    Public Sub Rami(tipo As Integer)\n" +
+                "      Dim nome As String\n" +
+                "      Select Case tipo\n" +
+                "        Case 1 : nome = \"PKG_A.UNO\"\n" +
+                "        Case Else : nome = \"PKG_A.DUE\"\n" +
+                "      End Select\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 19
+                "    End Sub\n" +
+                "    Public Sub DaFuori(lettore As IDataReader)\n" +
+                "      Dim nome As String = lettore.GetString(0)\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 23: non si sa
+                "    End Sub\n" +
+                "    Private Sub Lancia(procedura As String)\n" +                                         // l'helper: il nome è il parametro
+                "      Dim cmd As New Comando()\n" +
+                "      cmd.CommandType = CommandType.StoredProcedure\n" +
+                "      cmd.CommandText = procedura\n" +                                                   // riga 28
+                "    End Sub\n" +
+                "    Private Sub Apri(nome As String)\n" +
+                "      Lancia(nome.Trim())\n" +                                                           // un passaggio in più
+                "    End Sub\n" +
+                "    Public Sub Chiamante()\n" +
+                "      Lancia(\"PKG_B.TRE\")\n" +                                                        // riga 34
+                "      Apri(\" PKG_B.QUATTRO \")\n" +                                                     // riga 35: attraverso Apri
+                "    End Sub\n" +
+                "    Private Sub Esegui(testo As String, tipo As CommandType)\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Flusso.vb").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Calls(string member) => string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}:{e.Guard}"));
+
+            Assert.AreEqual("11:PKG_STAMPE.SETTIMANA:inferred:nome = \"PKG_STAMPE.SETTIMANA\"", Calls("Una"));
+            Assert.AreEqual("19:PKG_A.DUE:inferred:nome = \"PKG_A.DUE\" (1 of 2) | 19:PKG_A.UNO:inferred:nome = \"PKG_A.UNO\" (1 of 2)", Calls("Rami"));
+            Assert.AreEqual("23:?:ambiguous:nome: the name is decided at run time (returned by GetString())", Calls("DaFuori"));
+            Assert.AreEqual("28:?:ambiguous:procedura: the name comes from the callers", Calls("Lancia"));
+            Assert.AreEqual("", Calls("Apri"), "il nome lo dà a sua volta chi chiama Apri");
+            Assert.AreEqual("34:PKG_B.TRE:inferred:Lancia(procedura = \"PKG_B.TRE\") | 35:PKG_B.QUATTRO:inferred:Apri(nome = \"PKG_B.QUATTRO\")", Calls("Chiamante"));
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Flusso.vb").RecordCount);
+        }
+
+        [TestMethod]
+        public void Give_each_use_only_the_values_that_reach_it()
+        {
+            // 12/11/2026, utente: «basta un errore, ed è tutto sbagliato» — un uso vede solo le assegnazioni che gli arrivano
+            File.WriteAllText(Path.Combine(_src, "Esatto.vb"),
+                "Imports System.Data\n" +
+                "Namespace Demo\n" +
+                "  Public Class Esatto\n" +
+                "    Private _scelta As String = \"PKG_C.UNO\"\n" +
+                "    Public Sub Ordine()\n" +
+                "      Dim nome As String = \"PKG_O.PRIMA\"\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 7: solo PRIMA
+                "      nome = \"PKG_O.DOPO\"\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 9: solo DOPO
+                "    End Sub\n" +
+                "    Public Sub Riassegnato(nome As String)\n" +
+                "      nome = \"PKG_R.FISSO\"\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 13: il parametro è riscritto
+                "    End Sub\n" +
+                "    Public Sub Campo()\n" +
+                "      Esegui(_scelta, CommandType.StoredProcedure)\n" +                                 // riga 16: inizializzatore e Cambia
+                "    End Sub\n" +
+                "    Public Sub Cambia()\n" +
+                "      _scelta = \"PKG_C.DUE\"\n" +
+                "    End Sub\n" +
+                "    Public Sub InParte(l As IDataReader, annuale As Boolean)\n" +
+                "      Dim nome As String = \"PKG_P.NOTO\"\n" +
+                "      If annuale Then nome = l.GetString(0)\n" +
+                "      Esegui(nome, CommandType.StoredProcedure)\n" +                                    // riga 24: uno noto, uno no
+                "    End Sub\n" +
+                "    Private Sub Lancia(testo As String, tipo As CommandType)\n" +                        // l'helper: nome e tipo dai chiamanti
+                "      Dim cmd As New Comando()\n" +
+                "      cmd.CommandType = tipo\n" +
+                "      cmd.CommandText = testo\n" +
+                "    End Sub\n" +
+                "    Public Sub Chiamanti(t As CommandType)\n" +
+                "      Lancia(\"PKG_T.SI\", CommandType.StoredProcedure)\n" +                            // riga 32: sì
+                "      Lancia(\"SELECT 1 FROM DUAL\", CommandType.Text)\n" +                            // riga 33: no, è SQL
+                "      Lancia(\"PKG_T.FORSE\", t)\n" +                                                   // riga 34: il tipo da un parametro
+                "    End Sub\n" +
+                "    Public Sub DiSopra()\n" +
+                "      Chiamanti(CommandType.StoredProcedure)\n" +
+                "    End Sub\n" +
+                "    Private Sub Esegui(testo As String, tipo As CommandType)\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "  Public Class Comando\n    Public Property CommandText As String\n    Public Property CommandType As CommandType\n  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Esatto.vb").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Calls(string member) => string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).ThenBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}:{e.Guard}"));
+
+            Assert.AreEqual("7:PKG_O.PRIMA:inferred:nome = \"PKG_O.PRIMA\" | 9:PKG_O.DOPO:inferred:nome = \"PKG_O.DOPO\"", Calls("Ordine"));
+            Assert.AreEqual("13:PKG_R.FISSO:inferred:nome = \"PKG_R.FISSO\"", Calls("Riassegnato"));
+            Assert.AreEqual("16:PKG_C.DUE:inferred:_scelta = \"PKG_C.DUE\" (1 of 2) | 16:PKG_C.UNO:inferred:_scelta = \"PKG_C.UNO\" (1 of 2)", Calls("Campo"));
+            Assert.AreEqual("24:?:ambiguous:nome: the name is decided at run time (returned by GetString()) | 24:PKG_P.NOTO:inferred:nome = \"PKG_P.NOTO\" (one of 1 known values; others: returned by GetString())", Calls("InParte"));
+            Assert.AreEqual("32:PKG_T.SI:inferred:Lancia(testo = \"PKG_T.SI\") | 34:PKG_T.FORSE:inferred:Lancia(testo = \"PKG_T.FORSE\"), when the caller passes CommandType.StoredProcedure", Calls("Chiamanti"),
+                "riga 33 passa CommandType.Text: nessuna procedura; riga 34 dipende da chi chiama Chiamanti");
+            Assert.AreEqual(s.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(s), "src/Demo/Esatto.vb").RecordCount);
+        }
+
+        [TestMethod]
+        public void Pair_command_type_and_command_text_of_the_same_command()
+        {
+            File.WriteAllText(Path.Combine(_src, "Comandi.vb"),
+                "Imports System.Data\n" +
+                "Namespace Demo\n" +
+                "  Public Class Comando\n    Public Property CommandText As String\n    Public Property CommandType As CommandType\n    Public Sub New(Optional cmdText As String = Nothing)\n      Me.CommandText = cmdText\n    End Sub\n  End Class\n" +
+                "  Public Class Comandi\n" +                                                              // riga 10
+                "    Public Sub Due()\n" +
+                "      Dim proc As New Comando()\n" +
+                "      proc.CommandType = CommandType.StoredProcedure\n" +
+                "      proc.CommandText = \"PKG_M.PROC\"\n" +                                          // riga 14: procedura
+                "      Dim testo As New Comando()\n" +
+                "      testo.CommandText = \"SELECT X FROM T_MISTO\"\n" +                               // riga 16: testo SQL, nessun CommandType
+                "    End Sub\n" +
+                "    Public Sub ConWith()\n" +
+                "      Dim cmd As New Comando(\"PKG_W.UNO\")\n" +                                      // riga 19
+                "      With cmd\n" +
+                "        .CommandType = CommandType.StoredProcedure\n" +
+                "      End With\n" +
+                "      With New Comando(\"PKG_W.DUE\")\n" +                                            // riga 23
+                "        .CommandType = CommandType.StoredProcedure\n" +
+                "      End With\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Comandi.vb").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            string Calls(string member) => string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == member && x.Kind != "external").Id && e.Relation == "calls"
+                    && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
+                .OrderBy(e => e.Line).Select(e => $"{e.Line}:{names[e.TargetId]}"));
+            Assert.AreEqual("14:PKG_M.PROC", Calls("Due"), "il comando di testo SQL non è una procedura");
+            Assert.IsTrue(s.Edges.Any(e => e.Relation == "reads" && names[e.TargetId] == "T_MISTO"), "il suo SQL resta letto come SQL");
+            Assert.AreEqual("19:PKG_W.UNO | 23:PKG_W.DUE", Calls("ConWith"));
         }
 
         [TestMethod]

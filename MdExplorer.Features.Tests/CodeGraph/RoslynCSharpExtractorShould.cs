@@ -129,7 +129,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var calls = string.Join(" ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.Name == "Chiudi").Id && e.Relation == "calls"
                     && s.Symbols.Single(x => x.Id == e.TargetId).Language == RoslynExtractorBase.SqlLanguage)
                 .OrderBy(e => e.Line).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Confidence}"));
-            Assert.AreEqual("7:PKG_ORDINI.CHIUDI:inferred 8:PKG_ORDINI.APRI:inferred", calls);
+            Assert.AreEqual("7:PKG_ORDINI.CHIUDI:inferred 8:PKG_ORDINI.APRI:inferred 9:?:ambiguous", calls, "il nome nel parametro lo dicono i chiamanti: qui il nodo «?»");
+        }
+
+        [TestMethod]
+        public void Give_rules_and_sql_the_values_of_strings_held_in_variables()
+        {
+            // 12/11/2026: lo stesso flusso dei valori per tutti — i punti di chiamata letti dalle regole e l'SQL a pezzi
+            File.WriteAllText(Path.Combine(_src, "Valori.cs"),
+                "namespace Demo { public class Valori {\n" +
+                "  static readonly string Fisso = \"R_FISSO\";\n" +
+                "  void Render(string report) { } void Exec(string sql) { }\n" +
+                "  public void Stampa(bool annuale) {\n" +
+                "    var report = annuale ? \"R_ANNO\" : \"R_MESE\";\n" +
+                "    Render(report);\n" +                                            // riga 6: due punti, uno per valore
+                "    Render(Fisso);\n" +                                             // riga 7: campo di sola lettura
+                "    var tabella = annuale ? \"STORICO_ANNO\" : \"STORICO_MESE\";\n" +
+                "    Exec(\"DELETE FROM \" + tabella);\n" +                         // riga 9
+                "  }\n} }");
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Valori.cs").Script;
+            var names = s.Symbols.ToDictionary(x => x.Id, x => x.QualifiedName);
+            CollectionAssert.AreEqual(new[] { "6:R_ANNO", "6:R_MESE", "7:R_FISSO" },
+                s.CallSites.Where(c => c.Callee == "Render").Select(c => $"{c.Line}:{c.Arguments.Single().Value}").OrderBy(x => x).ToArray());
+            var writes = s.Edges.Where(e => e.Relation == "writes").OrderBy(e => names[e.TargetId]).Select(e => $"{e.Line}:{names[e.TargetId]}:{e.Guard}").ToArray();
+            CollectionAssert.AreEqual(new[] { "9:STORICO_ANNO:tabella = \"STORICO_ANNO\" (1 of 2)", "9:STORICO_MESE:tabella = \"STORICO_MESE\" (1 of 2)" }, writes);
         }
 
         [TestMethod]
@@ -142,7 +165,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("7", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("8", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");

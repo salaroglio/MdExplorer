@@ -3,7 +3,7 @@ name: mde-code-check
 description: Check whether the relations of MdExplorer's code graph are TRUE against the source, and correct what produced a wrong one. Use when the user asks a precise question whose answer rests on a link of the graph («is it true that X calls Y?», «does this button really reach this procedure?», «who really handles this event?»), doubts an answer taken from the graph, asks to validate an enrichment rule, a language package or a kind of relation (events, dependency injection, calls to the database, project references), or wants to know how far the graph of a new language or of a new MdExplorer feature can be trusted. Triggers on "è giusta questa relazione", "verifica la relazione", "verifica il grafo", "controlla la regola", "valida le regole", "la regola è sbagliata", "il collegamento è sbagliato", "manca un collegamento", "posso fidarmi del grafo", "quanto è affidabile il grafo", "check the rule", "validate the rules", "validate the graph", "missing edge", "can I trust the graph".
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -94,8 +94,15 @@ asks how far the graph can be trusted, or an answer goes through one of them, ch
   table, a write taken for a read; and SQL the graph missed — built in pieces that do not start with an SQL word, read
   from a file or from configuration. The node `?` is right when the table's name really comes from a variable.
 - **Procedures called by name**: where a method writes `CommandType.StoredProcedure`, the name (`PKG.PROC`,
-  `SCHEMA.PKG.PROC`, `PROC`) is a `calls` edge — taken from the strings of the same call (a helper) or from `CommandText`
-  / `New …Command("…")` in the same method. A name held in a variable or a parameter is not read: count those apart.
+  `SCHEMA.PKG.PROC`, `PROC`) is a `calls` edge — from the arguments of the same call, or from `CommandText` /
+  `New …Command("…")` in the same method. A helper in the analyzed code that receives the name (and the command type) as
+  parameters is read inside: the edge goes from each CALLER that writes the name.
+- **Names through variables**: the graph follows a string through local variables (only the assignments that reach that
+  use), branches, constants, fields and parameters up to the callers. The edge's `guard` says how: `nome = "PKG.X" (1 of 3)`
+  (one of three values chosen at run time), `Run(name = "PKG.X")` (passed to a helper), `when the caller passes
+  CommandType.StoredProcedure`. A name the code does not say goes to the node `?`, and its `guard` gives the reason
+  (`returned by GetString()`, `read from the property X`). Check both ways: a value listed that cannot reach that line
+  (a false edge), and a value that reaches it and is missing.
 - **To the database**: an edge from the code to a table or a procedure goes to an `external` node of language `sql`
   until a database language (PL/SQL) in the graph has that name; then it goes to the real symbol. One left on the
   external node has a reason: the name is not in the analyzed database, it is there more than once (ambiguous), or it is

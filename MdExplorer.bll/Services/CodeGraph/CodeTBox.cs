@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["bodyHash"] = ("string", "hash of the body: tells whether the code changed since it was described"),
             ["trivial"] = ("string", "the body is a trivial shape (getter, setter, delegation): not worth describing"),
             ["trivialOf"] = ("string", "what the trivial body returns or delegates to"),
-            ["guard"] = ("string", "the condition under which the control or the edge exists (a page directive)"),
+            ["guard"] = ("string", "the condition under which the control or the edge exists: a page directive, or for an edge to the database the value a variable or a parameter must hold — name = \"PKG.X\" (1 of 3), Run(name = \"PKG.X\"), when the caller passes CommandType.StoredProcedure; on an edge to the node ? it says why the name cannot be known"),
             ["parameterOf"] = ("Symbol", "the symbol the parameter belongs to"),
             ["position"] = ("integer", "position from 0 (a generic type argument: 1000 + its position)"),
             ["direction"] = ("string", "in, out, ref"),
