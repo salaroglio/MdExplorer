@@ -1118,7 +1118,7 @@
     "OUTDATED_MANY": "{{n}} file analizzati con una versione precedente dell'estrattore",
     "OUTDATED_OLD": "Per questi file la struttura è quella vecchia.",
     "OUTDATED_CHECK_FAILED": "Non riesco a controllare se la struttura è aggiornata: {{detail}}",
-    "UPGRADE": "Aggiorna la struttura",
+    "OUTDATED_PRESS_EXTRACT": "«Estrai la struttura» li rilegge.",
     "UPGRADING": "Aggiorno la struttura…",
     "WHICH_FILES": "Quali file",
     "ASK_OUTDATED_ONE": "La struttura di 1 file è dell'estrattore precedente: Mark la descriverebbe sul grafo vecchio. Aggiorno la struttura prima?",

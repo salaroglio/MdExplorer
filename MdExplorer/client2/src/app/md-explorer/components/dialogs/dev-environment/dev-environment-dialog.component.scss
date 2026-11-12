@@ -69,6 +69,7 @@
 .ask-outdated { margin-top: 8px; }
 .outdated-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .outdated-actions mat-spinner { display: inline-block; margin-right: 4px; }
+.outdated-actions .upgrading { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 .outdated-files { display: flex; flex-wrap: wrap; gap: 4px 8px; max-height: 120px; overflow: auto; font-size: 12px; }
 
 // I due passi uno sotto l'altro, la spiegazione a fianco del pulsante

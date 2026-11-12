@@ -1118,7 +1118,7 @@
     "OUTDATED_MANY": "{{n}} files analyzed with an earlier version of the extractor",
     "OUTDATED_OLD": "For these files the structure is the old one.",
     "OUTDATED_CHECK_FAILED": "Cannot check whether the structure is up to date: {{detail}}",
-    "UPGRADE": "Update the structure",
+    "OUTDATED_PRESS_EXTRACT": "«Extract the structure» reads them again.",
     "UPGRADING": "Updating the structure…",
     "WHICH_FILES": "Which files",
     "ASK_OUTDATED_ONE": "The structure of 1 file comes from the earlier extractor: Mark would describe the old graph. Update the structure first?",

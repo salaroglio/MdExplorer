@@ -22,14 +22,11 @@
       <div>
         <strong>⚠ {{ (outdated.count === 1 ? 'DEV_ENV.OUTDATED_ONE' : 'DEV_ENV.OUTDATED_MANY') | translate: { n: outdated.count } }}</strong>
         <span *ngFor="let c of outdated.changes"> — {{ c.language }}: {{ c.from }} → {{ c.to }} ({{ 'DEV_ENV.FILES' | translate: { count: c.files } }})</span>.
-        {{ 'DEV_ENV.OUTDATED_OLD' | translate }}
+        {{ 'DEV_ENV.OUTDATED_OLD' | translate }} {{ 'DEV_ENV.OUTDATED_PRESS_EXTRACT' | translate }}
       </div>
+      <!-- un solo pulsante per rileggere: «Estrai la struttura» rilegge anche i file dell'estrattore precedente (12/11/2026) -->
       <div class="outdated-actions">
-        <button mat-stroked-button color="primary" (click)="upgradeStructure()" [disabled]="upgrading || analyzing || describing">
-          <mat-spinner diameter="16" *ngIf="upgrading"></mat-spinner>
-          <mat-icon *ngIf="!upgrading">account_tree</mat-icon>
-          {{ (upgrading ? 'DEV_ENV.UPGRADING' : 'DEV_ENV.UPGRADE') | translate }}
-        </button>
+        <span class="upgrading" *ngIf="upgrading"><mat-spinner diameter="16"></mat-spinner> {{ 'DEV_ENV.UPGRADING' | translate }}</span>
         <button mat-button (click)="showOutdatedFiles = !showOutdatedFiles">{{ 'DEV_ENV.WHICH_FILES' | translate }}</button>
       </div>
       <div class="outdated-files" *ngIf="showOutdatedFiles">
