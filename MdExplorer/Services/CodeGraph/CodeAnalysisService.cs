@@ -875,11 +875,19 @@ namespace MdExplorer.Services.CodeGraph
                     }
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] registrazioni non applicate"); outcome.Warnings.Add("registrazioni: " + ex.Message); }
+                // Gli avvisi dell'analisi completa: nel log, e per cartella in .md/codegraph/warnings (report, code_inventory).
+                if (!targeted && outcome.Reparsed > 0)
+                {
+                    try { CodeAnalysisWarnings.Write(projectPath, folderRelative, outcome.Reparsed, outcome.FilesInPerimeter, outcome.Warnings); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _logger.LogWarning(ex, "[CodeGraph] '{Folder}': avvisi non salvati", folderRelative); }
+                    if (outcome.Warnings.Count > 0)
+                        _logger.LogWarning("[CodeGraph] '{Folder}': {Count} avvisi dell'analisi:\n{Warnings}", folderRelative, outcome.Warnings.Count,
+                            string.Join("\n", outcome.Warnings.Take(200).Select(w => "  - " + w)) + (outcome.Warnings.Count > 200 ? $"\n  … e altri {outcome.Warnings.Count - 200} (tutti in {CodeAnalysisWarnings.FolderPath(projectPath)})" : ""));
+                }
                 // Il report (F6): rigenerato a ogni analisi, non dopo ogni turno di MarkAgent.
                 if (!targeted) try
                 {
                     var notes = new List<string> { $"{folderRelative}: {scan.Mode}, {scan.Reason}; {outcome.FilesInPerimeter} file, {outcome.Candidates} candidati, {outcome.Reparsed} riparsati, {outcome.ScriptsRemoved} script tolti" };
-                    notes.AddRange(outcome.Warnings);
                     await _report.WriteAsync(projectPath, notes, ct);
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] report non scritto"); outcome.Warnings.Add("report non scritto: " + ex.Message); }

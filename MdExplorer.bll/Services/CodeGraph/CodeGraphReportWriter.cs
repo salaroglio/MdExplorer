@@ -114,6 +114,22 @@ namespace MdExplorer.Features.Services.CodeGraph
                 sb.AppendLine();
                 foreach (var n in notes) sb.AppendLine($"- {n}");
             }
+            // gli avvisi dell'ultima estrazione di OGNI cartella, non solo di quella appena analizzata
+            var warnings = CodeAnalysisWarnings.ReadAll(projectPath);
+            if (warnings.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(L("## Avvisi dell'ultima estrazione, per cartella", "## Warnings of the last extraction, per folder"));
+                foreach (var w in warnings)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine(L($"### {w.Folder} — {w.At.ToLocalTime():dd/MM/yyyy HH:mm}, {w.Reparsed} file riletti su {w.Files}: {w.Warnings.Count} avvisi",
+                        $"### {w.Folder} — {w.At.ToLocalTime():yyyy-MM-dd HH:mm}, {w.Reparsed} files reread out of {w.Files}: {w.Warnings.Count} warnings"));
+                    sb.AppendLine();
+                    if (w.Warnings.Count == 0) sb.AppendLine(L("Nessun avviso.", "No warnings."));
+                    foreach (var line in w.Warnings) sb.AppendLine($"- {line}");
+                }
+            }
 
             var path = ReportPath(projectPath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);

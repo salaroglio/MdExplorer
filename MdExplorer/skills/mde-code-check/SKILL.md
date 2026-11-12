@@ -3,7 +3,7 @@ name: mde-code-check
 description: Check whether the relations of MdExplorer's code graph are TRUE against the source, and correct what produced a wrong one. Use when the user asks a precise question whose answer rests on a link of the graph («is it true that X calls Y?», «does this button really reach this procedure?», «who really handles this event?»), doubts an answer taken from the graph, asks to validate an enrichment rule, a language package or a kind of relation (events, dependency injection, calls to the database, project references), or wants to know how far the graph of a new language or of a new MdExplorer feature can be trusted. Triggers on "è giusta questa relazione", "verifica la relazione", "verifica il grafo", "controlla la regola", "valida le regole", "la regola è sbagliata", "il collegamento è sbagliato", "manca un collegamento", "posso fidarmi del grafo", "quanto è affidabile il grafo", "check the rule", "validate the rules", "validate the graph", "missing edge", "can I trust the graph".
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -32,7 +32,9 @@ Two things can be wrong, and you look for both:
 
 0. **The structure.** If you have not yet in this conversation, call `code_ontology`: what an edge and a symbol carry,
    and which relations the parser of that language produces at all. A relation the parser does not produce is not a
-   missing link to report one by one: it is one finding.
+   missing link to report one by one: it is one finding. Then `code_inventory`: `lastExtraction.warnings` of each folder
+   says what the parser could not do (libraries or referenced projects missing, a library borrowed from another project,
+   blocks never closed); many missing links have their cause there. `null` = no extraction recorded yet, not «no warnings».
 1. **The claim.** State in one line what is being checked (one link, one rule, one kind of relation in one folder). Get
    the edges from the graph with `code_neighbors`, `code_path` or `code_impact`: for each, the relation, the
    **confidence** and `path:line`. For counts over a whole folder that no tool gives (edges by relation and by kind of

@@ -44,8 +44,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>8 = i valori delle stringhe attraverso variabili, costanti, rami e parametri (<see cref="RoslynStringFlow"/>, 12/11/2026).</para>
         /// <para>9 = un nome fatto da più pezzi con più valori è <c>ambiguous</c> (combinazioni non verificate).</para>
         /// <para>10 = i progetti di Visual Studio 2002/2003; con una libreria non risolta il nome della procedura non si deduce dal primo argomento stringa.</para>
+        /// <para>11 = una libreria che manca presa da un altro progetto con lo stesso nome di assembly, con un avviso.</para>
         /// </summary>
-        public override string ExtractorVersion => "10";
+        public override string ExtractorVersion => "11";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

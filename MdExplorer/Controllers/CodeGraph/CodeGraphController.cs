@@ -1046,11 +1046,14 @@ namespace MdExplorer.Controllers.CodeGraph
                 var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);
                 var scan = await _store.GetScanStateAsync(projectPath, p.Folder, ct);
                 var lastRun = runs.FirstOrDefault(r => r.ProgramFolder == p.Folder);
+                var warned = CodeAnalysisWarnings.Read(projectPath, p.Folder);
                 programs.Add(new
                 {
                     folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
                     lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges, sourceControl = scan.SourceControl },
+                    // gli avvisi dell'ultima estrazione che ha riletto dei file; null = nessuna ancora registrata (non «nessun avviso»)
+                    lastExtraction = warned == null ? null : new { at = warned.At, reparsed = warned.Reparsed, files = warned.Files, warningCount = warned.Warnings.Count, warnings = warned.Warnings },
                     // i programmi da cui questo dipende secondo il build; «linked» = il ponte è attivo nel grafo dall'ultima analisi
                     uses = bridges.Where(b => b.From == p.Folder).Select(b => new
                     {

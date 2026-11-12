@@ -562,7 +562,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
                "                <Import Namespace = \"System.Data\" />\n            </Imports>\n        </Build>\n    </VisualBasic>\n</VisualStudioProject>\n";
 
         /// <summary>Un DL e un BL di Visual Studio 2003; con <paramref name="withLibrary"/> la libreria del blocco applicativo c'è, compilata.</summary>
-        private string WriteVs2003Solution(bool withLibrary)
+        /// <param name="libraryAsMissingProject">Il DL riferisce la libreria come un progetto che non c'è (per GUID); la DLL la riferisce il BL.</param>
+        private string WriteVs2003Solution(bool withLibrary, bool libraryAsMissingProject = false)
         {
             var root = Path.Combine(_project, "vs2003");
             foreach (var d in new[] { "Lib", "Dl", "Bl" }) Directory.CreateDirectory(Path.Combine(root, d));
@@ -575,8 +576,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 using (var dll = File.Create(Path.Combine(root, "Lib", "Acme.Blocks.dll"))) emitted = lib.Emit(dll);
                 Assert.IsTrue(emitted.Success, string.Join("\n", emitted.Diagnostics));
             }
-            File.WriteAllText(Path.Combine(root, "Dl", "Dl.vbproj"), Vs2003Project("11111111-AAAA-BBBB-CCCC-000000000001", "Acme.Dl",
-                "                <Reference Name = \"Acme.Blocks\" AssemblyName = \"Acme.Blocks\" HintPath = \"..\\Lib\\Acme.Blocks.dll\" />\n"));
+            var blocksByPath = "                <Reference Name = \"Acme.Blocks\" AssemblyName = \"Acme.Blocks\" HintPath = \"..\\Lib\\Acme.Blocks.dll\" />\n";
+            File.WriteAllText(Path.Combine(root, "Dl", "Dl.vbproj"), Vs2003Project("11111111-AAAA-BBBB-CCCC-000000000001", "Acme.Dl", libraryAsMissingProject
+                ? "                <Reference Name = \"Acme.Blocks\" Project = \"{77777777-AAAA-BBBB-CCCC-000000000007}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n"
+                : blocksByPath));
             File.WriteAllText(Path.Combine(root, "Dl", "Dati.vb"),
                 "Imports Acme.Blocks\n" +
                 "Public Class Accesso\n" +
@@ -601,7 +604,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "End Class\n");
             File.WriteAllText(Path.Combine(root, "Bl", "Bl.vbproj"), Vs2003Project("22222222-AAAA-BBBB-CCCC-000000000002", "Acme.Bl",
                 "                <Reference Name = \"Acme.Dl\" Project = \"{11111111-aaaa-bbbb-cccc-000000000001}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
-                "                <Reference Name = \"Mancante\" Project = \"{99999999-AAAA-BBBB-CCCC-000000000009}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n"));
+                "                <Reference Name = \"Mancante\" Project = \"{99999999-AAAA-BBBB-CCCC-000000000009}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
+                (libraryAsMissingProject ? blocksByPath : "")));
             File.WriteAllText(Path.Combine(root, "Bl", "Logica.vb"),
                 "Imports Acme.Dl\n" +
                 "Public Class Servizio\n" +
@@ -665,6 +669,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(ProcedureCalls(dl, "Leggi"), "procedura: the name comes from the callers");
             StringAssert.Contains(ProcedureCalls(dl, "Esegui"), "procedura: the name comes from the callers");
             Assert.IsFalse(dl.Edges.Any(e => e.Guard?.Contains("ToString") == true || e.Guard?.Contains("connessione") == true), "la connessione non è mai il nome");
+        }
+
+        [TestMethod]
+        public void Use_the_library_another_project_references_when_the_referenced_project_is_missing_and_say_so()
+        {
+            // dal cliente: il DL riferisce il blocco applicativo come progetto (che non c'è), la DLL la riferiscono le schermate
+            var result = ExtractWithoutNetFramework(WriteVs2003Solution(withLibrary: true, libraryAsMissingProject: true));
+            var warnings = string.Join(" | ", result.Warnings);
+            StringAssert.Contains(warnings, "Dl.vbproj", warnings);
+            StringAssert.Contains(warnings, "Acme.Blocks.dll", "si dice quale libreria si usa e chi la riferisce");
+            StringAssert.Contains(warnings, "Bl.vbproj", warnings);
+            var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dati.vb")).Script;
+            Assert.AreEqual("14:SCHEMA_1.PKG_2.PROC_1:inferred:Leggi(procedura = \"SCHEMA_1.PKG_2.PROC_1\")", ProcedureCalls(dl, "Elenco"));
+            Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
         }
 
         [TestMethod]
