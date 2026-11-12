@@ -48,20 +48,26 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public static Func<string, string> Resolver(IEnumerable<CodeOwnerMember> databaseSymbols)
         {
-            var index = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            void Add(string key, string id)
+            var index = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);   // chiave → id → tipo del contenitore
+            void Add(string key, CodeOwnerMember s)
             {
-                if (string.IsNullOrWhiteSpace(key) || id == null) return;
-                if (!index.TryGetValue(key, out var ids)) index[key] = ids = new HashSet<string>(StringComparer.Ordinal);
-                ids.Add(id);
+                if (string.IsNullOrWhiteSpace(key) || s.MemberId == null) return;
+                if (!index.TryGetValue(key, out var ids)) index[key] = ids = new Dictionary<string, string>(StringComparer.Ordinal);
+                ids[s.MemberId] = s.ParentKind;
             }
             foreach (var s in databaseSymbols)
             {
-                Add(s.MemberName, s.MemberId);
+                Add(s.MemberName, s);
                 var qn = s.MemberQualifiedName ?? string.Empty;
-                Add(qn[(qn.LastIndexOf(':') + 1)..], s.MemberId);
+                Add(qn[(qn.LastIndexOf(':') + 1)..], s);
             }
-            string One(string key) => index.TryGetValue(key, out var ids) && ids.Count == 1 ? ids.First() : null;
+            // la procedura del corpo vince su quella dichiarata nella specifica del package
+            string One(string key)
+            {
+                if (!index.TryGetValue(key, out var ids)) return null;
+                var best = CodeOwnerMember.PreferImplementations(ids.ToList(), kv => kv.Value);
+                return best.Count == 1 ? best[0].Key : null;
+            }
             return name =>
             {
                 if (string.IsNullOrWhiteSpace(name)) return null;

@@ -13,6 +13,21 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string MemberId { get; set; }
         public string MemberName { get; set; }
         public string MemberQualifiedName { get; set; }
+        /// <summary>
+        /// Il tipo del simbolo che contiene il membro (<c>interface</c> per una procedura dichiarata nella specifica di un package),
+        /// quando la query lo dà: fra una dichiarazione e un'implementazione con lo stesso nome vince l'implementazione.
+        /// </summary>
+        public string ParentKind { get; set; }
+
+        /// <summary>
+        /// Fra candidati con lo stesso nome, le implementazioni (12/11/2026): la procedura dichiarata nella specifica di un package
+        /// (dentro un'interfaccia) cede a quella del corpo. Se ci sono solo dichiarazioni, restano loro: il grafo arriva alla firma.
+        /// </summary>
+        public static List<T> PreferImplementations<T>(IReadOnlyCollection<T> candidates, Func<T, string> parentKind)
+        {
+            var implemented = candidates.Where(c => parentKind(c) != "interface").ToList();
+            return implemented.Count > 0 && implemented.Count < candidates.Count ? implemented : candidates.ToList();
+        }
     }
 
     /// <summary>Perché un punto di chiamata non ha trovato il metodo: il motivo che Mark legge per correggere la regola.</summary>
@@ -275,7 +290,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (r.Miss != null) return;
             var name = r.Value.Trim();
             if (index.TryGetValue(name, out var found))
-                r.Targets.AddRange(found.GroupBy(s => s.MemberId, StringComparer.Ordinal).Select(g => g.First()));
+                r.Targets.AddRange(CodeOwnerMember.PreferImplementations(found.GroupBy(s => s.MemberId, StringComparer.Ordinal).Select(g => g.First()).ToList(), s => s.ParentKind));
             if (r.Targets.Count == 0)
             {
                 if (name.Length == 0) { r.Miss = CodeRuleMiss.SymbolNotFound; return; }

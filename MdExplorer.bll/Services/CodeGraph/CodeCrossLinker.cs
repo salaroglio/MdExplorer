@@ -17,6 +17,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         private readonly Dictionary<string, string> _moduleOf = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pathOfModule = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<(string Path, string Id)>> _symbols = new(StringComparer.Ordinal);
+        /// <summary>I simboli dichiarati dentro un'interfaccia (la specifica di un package): cedono all'implementazione.</summary>
+        private readonly HashSet<string> _declarations = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _imports = new(StringComparer.Ordinal);
 
         private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; }
@@ -48,6 +50,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 if (!_symbols.TryGetValue(_norm(s.Name), out var list)) _symbols[_norm(s.Name)] = list = new();
                 list.Add((path, s.Id));
+                if (s.ParentId != null && script.Symbols.FirstOrDefault(p => p.Id == s.ParentId)?.Kind == "interface") _declarations.Add(s.Id);
             }
             SetImports(path, script);
         }
@@ -73,7 +76,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         internal IReadOnlyList<string> Files(string fileName) => _files.TryGetValue(_norm(LastSegment(fileName)), out var l) ? l : (IReadOnlyList<string>)Array.Empty<string>();
         internal IReadOnlyList<string> Programs(string name) => _programs.TryGetValue(_norm(name), out var l) ? l : (IReadOnlyList<string>)Array.Empty<string>();
         internal string ModuleOf(string path) => _moduleOf.TryGetValue(path, out var id) ? id : null;
-        internal IReadOnlyList<(string Path, string Id)> Symbols(string name) => _symbols.TryGetValue(_norm(name), out var l) ? l : (IReadOnlyList<(string, string)>)Array.Empty<(string, string)>();
+        internal IReadOnlyList<(string Path, string Id)> Symbols(string name)
+        {
+            if (!_symbols.TryGetValue(_norm(name), out var l)) return Array.Empty<(string, string)>();
+            return AllSymbols ? CodeOwnerMember.PreferImplementations(l, c => _declarations.Contains(c.Id) ? "interface" : null) : l;
+        }
 
         /// <summary>I file che <paramref name="path"/> importa, anche attraverso i file importati (gli include di un include).</summary>
         internal HashSet<string> ImportedClosure(string path)

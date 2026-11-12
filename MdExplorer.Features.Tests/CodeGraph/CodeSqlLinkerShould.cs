@@ -36,6 +36,19 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Prefer_the_body_of_a_package_to_its_specification_and_take_the_specification_when_it_is_alone()
+        {
+            // 12/11/2026: dal cliente ci sono solo le specifiche (.pks); nel demo specifica e corpo
+            CodeOwnerMember Member(string id, string qn, string parentKind) => new() { MemberId = id, MemberName = qn.Split('.').Last(), MemberQualifiedName = "db/x:" + qn, ParentKind = parentKind };
+            var both = CodeSqlLinker.Resolver(new[] { Member("spec", "PKG.CHIUDI", "interface"), Member("body", "PKG.CHIUDI", "class") });
+            Assert.AreEqual("body", both("PKG.CHIUDI"), "la procedura del corpo, non la firma della specifica");
+            var alone = CodeSqlLinker.Resolver(new[] { Member("spec", "PKG.AVVISA", "interface") });
+            Assert.AreEqual("spec", alone("PKG.AVVISA"), "senza corpo, la firma");
+            var two = CodeSqlLinker.Resolver(new[] { Member("a", "PKG_A.TOTALE", "class"), Member("b", "PKG_B.TOTALE", "class") });
+            Assert.IsNull(two("TOTALE"), "due implementazioni: non si sceglie");
+        }
+
+        [TestMethod]
         public void Move_the_arrow_to_the_real_symbol_and_back_to_the_external_when_it_goes_away()
         {
             var ext = CodeSqlLinker.ExternalId("symbol", "PKG_ORDINI.ELENCO");
@@ -95,8 +108,13 @@ namespace MdExplorer.Features.Tests.CodeGraph
             CodeCrossLinker.LinkAll("plsql", true, new[] { plain }, new[] { tables, body });
             Assert.IsFalse(Targets(plain.Item2).Contains("t"), "un linguaggio qualunque: solo le funzioni di primo livello, come prima");
 
-            CodeCrossLinker.LinkAll("plsql", true, new[] { caller }, new[] { tables, body }, allSymbols: true);
-            Assert.AreEqual("t p", Targets(caller.Item2), "un linguaggio database: la tabella dell'altro file e la procedura dentro il package");
+            var spec = Script("db/pkg.pks", s =>
+            {
+                s.Symbols.Add(new ScriptSymbol { Id = "spk", Kind = "interface", Name = "PKG", QualifiedName = "db/pkg.pks:PKG", ParentId = "db/pkg.pks#m" });
+                s.Symbols.Add(new ScriptSymbol { Id = "sp", Kind = "function", Name = "CHIUDI", QualifiedName = "db/pkg.pks:PKG.CHIUDI", ParentId = "spk" });
+            });
+            CodeCrossLinker.LinkAll("plsql", true, new[] { caller }, new[] { tables, body, spec }, allSymbols: true);
+            Assert.AreEqual("t p", Targets(caller.Item2), "un linguaggio database: la tabella dell'altro file e la procedura dentro il package — del corpo, non della specifica");
         }
 
         [TestMethod]
