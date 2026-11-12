@@ -2312,6 +2312,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var outcome = await store.LoadProjectAsync(context.ProjectPath);
                 _logger.LogInformation($"🧩 [{context.ConnectionId}] code scripts: {events} eventi raccolti → {outcome.Loaded} caricati, {outcome.Removed} tolti, {outcome.Failed} falliti in {sw.Elapsed.TotalSeconds:0.0} s");
                 if (outcome.Failed > 0) _logger.LogWarning($"🧩 [{context.ConnectionId}] code scripts NOT loaded: {outcome.FirstError}");
+                await MdExplorer.Services.CodeGraph.CodeSqlRelinkNotice.SendAsync(_hubContext, context.ProjectPath, outcome);
             }
             catch (Exception ex)
             {

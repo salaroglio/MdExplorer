@@ -28,6 +28,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Removed => Results.Count(r => r.Removed);
         public int Failed => Results.Count(r => r.HasError);
         public string FirstError => Results.FirstOrDefault(r => r.HasError)?.Error;
+        /// <summary>
+        /// Le frecce dell'SQL scritto nel codice spostate in questo giro fra il nodo esterno e il simbolo di un linguaggio database
+        /// (<see cref="CodeSqlLinker"/>), e gli script riscritti per farlo: modifiche in <c>.mde-code</c> da salvare su Git.
+        /// </summary>
+        public int SqlRelinked { get; set; }
+        public List<string> SqlRelinkedScripts { get; } = new();
     }
 
     public sealed class CodeGraphStatus

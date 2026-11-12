@@ -51,6 +51,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public bool IsAsync { get; set; }
         public string ParentId { get; set; }
         /// <summary>
+        /// Solo per un nodo <c>external</c> che non appartiene al linguaggio dello script (12/11/2026): <c>sql</c> per le tabelle e
+        /// le procedure che l'SQL scritto nel codice nomina. È ciò che le rende ricollegabili al simbolo vero di un linguaggio
+        /// database (<see cref="CodeSqlLinker"/>). Null = il linguaggio dello script.
+        /// </summary>
+        public string Language { get; set; }
+        /// <summary>
         /// Un metodo «finto» (D41, 21/10/2026): <c>getter</c>, <c>setter</c>, <c>constant</c> o <c>empty</c>, riconosciuto
         /// dall'estrattore dal corpo di un'istruzione sola. Non va all'LLM e non conta nei livelli della descrizione dal
         /// basso: la sua descrizione la scrive MdExplorer. Null = un metodo vero.

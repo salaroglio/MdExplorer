@@ -30,7 +30,7 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append("@prefix code: <").Append(CodeOntology.Namespace).Append("> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\n")
               .Append(me).Append("> a code:LanguageProfile ;\n")
               .Append("  code:language ").Append(Lit(lang.Id)).Append(" ; rdfs:label ").Append(Lit(lang.DisplayName ?? lang.Id)).Append(" ; code:packageVersion ").Append(lang.Version).Append(" ;\n")
-              .Append("  code:extensions ").Append(string.Join(", ", lang.Extensions.Select(Lit))).Append(" ; code:ignoreCase ").Append(lang.IgnoreCase ? "true" : "false").Append(" ;\n")
+              .Append("  code:extensions ").Append(string.Join(", ", lang.Extensions.Select(Lit))).Append(" ; code:ignoreCase ").Append(lang.IgnoreCase ? "true" : "false").Append(" ; code:database ").Append(lang.Database ? "true" : "false").Append(" ;\n")
               .Append("  rdfs:comment \"What the parser of this language package writes in MdExplorer's code graph. The classes of nodes and their properties are those of the code ontology (tool code_ontology); here: which symbol kinds and which relations this language produces, and from which rule of language.yml. A kind or a relation not listed here does not exist for this language.\" .\n\n");
 
             sb.Append("# ---- symbols\n");

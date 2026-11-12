@@ -230,6 +230,7 @@
         <li>{{ 'DEV_ENV.OUTCOME_REPARSED' | translate: { candidates: outcome.candidates, reparsed: outcome.reparsed } }}</li>
         <li *ngIf="outcome.scriptsRemoved > 0">{{ 'DEV_ENV.OUTCOME_REMOVED' | translate: { removed: outcome.scriptsRemoved } }}</li>
         <li *ngIf="outcome.load">{{ 'DEV_ENV.OUTCOME_LOADED' | translate: { loaded: outcome.load.loaded, failed: outcome.load.failed } }}</li>
+        <li *ngIf="outcome.load?.sqlRelinked">{{ 'DEV_ENV.OUTCOME_SQL_RELINKED' | translate: { links: outcome.load?.sqlRelinked, scripts: outcome.load?.sqlRelinkedScripts?.length } }}</li>
         <li class="warn" *ngFor="let w of withoutExtractor">{{ 'DEV_ENV.OUTCOME_NO_EXTRACTOR' | translate: { language: w.language, files: w.files } }}</li>
         <li class="warn" *ngIf="outcome.load?.firstError">{{ outcome.load?.firstError }}</li>
       </ul>

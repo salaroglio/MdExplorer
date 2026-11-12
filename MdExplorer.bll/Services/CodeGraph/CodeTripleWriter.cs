@@ -58,7 +58,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:kind ").Append(Lit(s.Kind))
                   .Append(" ; code:name ").Append(Lit(s.Name ?? string.Empty))
                   .Append(" ; code:qualifiedName ").Append(Lit(s.QualifiedName ?? string.Empty))
-                  .Append(" ; code:language ").Append(Lit(h.Language ?? string.Empty));
+                  .Append(" ; code:language ").Append(Lit(s.Language ?? h.Language ?? string.Empty));
                 if (s.IsExternal)
                 {
                     // Condiviso fra gli script: niente file, niente fromScript, niente righe.

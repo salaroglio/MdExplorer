@@ -1017,6 +1017,7 @@
       "OUTCOME_REPARSED": "{{candidates}} candidates, {{reparsed}} re-parsed",
       "OUTCOME_REMOVED": "{{removed}} scripts of vanished sources removed",
       "OUTCOME_LOADED": "{{loaded}} scripts loaded into the database, {{failed}} failed",
+      "OUTCOME_SQL_RELINKED": "{{links}} links from the SQL in the code moved to the analysed database objects ({{scripts}} scripts rewritten)",
       "OUTCOME_NO_EXTRACTOR": "{{language}}: {{files}} files not analysed, extractor not available yet",
       "SAVE": "Save",
       "DOWNLOAD_GRAMMAR": "Download the grammar ({{size}} MB)",

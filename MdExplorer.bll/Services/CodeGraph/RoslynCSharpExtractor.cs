@@ -38,8 +38,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// le librerie che il progetto riferisce e quelle di .NET Framework se punta lì; gli eventi (nodo, chi li solleva, i
         /// gestori agganciati con <c>+=</c>), i nomi assegnati a una proprietà o passati a un costruttore, le costanti stringa.</para>
         /// <para>5 = l'SQL scritto nelle stringhe: le tabelle lette e scritte e le procedure chiamate (<see cref="EmbeddedSql"/>).</para>
+        /// <para>6 = i nodi di quelle tabelle e procedure dicono il linguaggio <c>sql</c>: si ricollegano al simbolo vero di un
+        /// linguaggio database quando c'è (<see cref="CodeSqlLinker"/>, 12/11/2026).</para>
         /// </summary>
-        public override string ExtractorVersion => "5";
+        public override string ExtractorVersion => "6";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

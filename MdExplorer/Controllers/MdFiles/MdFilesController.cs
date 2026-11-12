@@ -2189,6 +2189,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     try
                     {
                         var outcome = await codeScriptLoader.LoadProjectAsync(codeGraphProjectPath);
+                        await MdExplorer.Services.CodeGraph.CodeSqlRelinkNotice.SendAsync(_hubContext, codeGraphProjectPath, outcome);
                         if (!outcome.ScriptsFolderMissing)
                         {
                             _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",

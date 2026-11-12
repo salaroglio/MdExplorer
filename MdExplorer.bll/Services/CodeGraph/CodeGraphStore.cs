@@ -249,6 +249,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 await FlushBatchAsync(batch, outcome, ct);
 
+                // Qualcosa è cambiato: le frecce dell'SQL del codice si riallineano ai simboli dei linguaggi database (12/11/2026).
+                // Dopo un pull che porta il PL/SQL analizzato da un collega, o dopo l'estrazione del VB quando il PL/SQL c'è già.
+                if (outcome.Loaded + outcome.Removed > 0) await RelinkSqlCoreAsync(projectPath, g, known, outcome, ct);
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
                     projectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed);
@@ -257,6 +260,74 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return outcome;
             }
             finally { gate.Release(); }
+        }
+
+        /// <summary>
+        /// Il ricollegamento dell'SQL (<see cref="CodeSqlLinker"/>) sugli script già caricati: si chiede al grafo quali script hanno
+        /// frecce verso un nodo esterno dell'SQL che ora ha un simbolo vero, o frecce già ricollegate il cui simbolo è sparito o
+        /// cambiato; si riscrivono solo quelli, e si ricaricano. Gli altri script non si leggono nemmeno.
+        /// </summary>
+        private async Task RelinkSqlCoreAsync(string projectPath, ProjectGraphs g, IReadOnlyDictionary<string, string> known, CodeScriptLoadOutcome outcome, CancellationToken ct)
+        {
+            try
+            {
+                var toExternal = await RowsAsync($"SELECT DISTINCT ?sc ?x ?qn WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; code:language {CodeGraphIris.Lit(RoslynExtractorBase.SqlLanguage)} ; code:qualifiedName ?qn . " +
+                    "?e a code:Edge ; code:target ?x ; code:fromScript ?sc } }", ct);
+                var relinked = await RowsAsync($"SELECT DISTINCT ?sc ?w ?t WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:written ?w ; code:target ?t ; code:fromScript ?sc . " +
+                    $"FILTER(STRSTARTS(?w, {CodeGraphIris.Lit(CodeSqlLinker.WrittenPrefix)})) }} }}", ct);
+                if (toExternal.Count == 0 && relinked.Count == 0) return;
+
+                List<string> databases;
+                try { databases = CodeLanguageCatalog.ForProject(projectPath).All.Where(l => l.Definition?.Database == true).Select(l => l.Id).ToList(); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[CodeGraph] '{Project}': linguaggi del progetto illeggibili, niente ricollegamento dell'SQL", projectPath); return; }
+                if (databases.Count == 0 && relinked.Count == 0) return;
+                var resolve = CodeSqlLinker.Resolver(databases.Count == 0 ? new List<CodeOwnerMember>() : await SymbolsOfLanguagesAsync(projectPath, databases, ct));
+
+                var scripts = new SortedSet<string>(StringComparer.Ordinal);
+                foreach (var r in toExternal)
+                {
+                    var id = CodeGraphIris.SymbolId(r["x"]);
+                    var qn = SparqlResults.Str(r, "qn");
+                    var isSql = id == CodeSqlLinker.ExternalId("table", qn ?? "") || id == CodeSqlLinker.ExternalId("symbol", qn ?? "");
+                    if (isSql && resolve(qn) != null) scripts.Add(r["sc"]);
+                }
+                foreach (var r in relinked)
+                {
+                    var (kind, name) = CodeSqlLinker.ParseWritten(SparqlResults.Str(r, "w"));
+                    if (kind == null) continue;
+                    var expected = resolve(name) ?? CodeSqlLinker.ExternalId(kind, name);
+                    if (expected != CodeGraphIris.SymbolId(r["t"])) scripts.Add(r["sc"]);
+                }
+                if (scripts.Count == 0) return;
+
+                var batch = new List<(CodeScriptResult Result, string Update)>();
+                var reload = new CodeScriptLoadOutcome();
+                foreach (var rel in scripts)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var abs = Path.Combine(projectPath, rel.Replace('/', Path.DirectorySeparatorChar));
+                    if (!File.Exists(abs) || !CodeGraphPaths.IsAstScript(abs)) continue;
+                    var script = CodeScriptTurtle.Read(File.ReadAllText(abs, Encoding.UTF8), rel);
+                    var moved = CodeSqlLinker.Relink(script, resolve);
+                    if (moved == 0 || !CodeScriptWriter.WriteIfChanged(abs, CodeScriptWriter.Serialize(script))) continue;
+                    outcome.SqlRelinked += moved;
+                    outcome.SqlRelinkedScripts.Add(rel);
+                    known.TryGetValue(rel, out var previousHash);
+                    var (result, update) = PrepareOne(g, abs, rel, previousHash);
+                    if (update == null) { if (result.HasError) outcome.Results.Add(result); continue; }
+                    batch.Add((result, update));
+                }
+                await FlushBatchAsync(batch, reload, ct);
+                foreach (var failed in reload.Results.Where(r => r.HasError)) outcome.Results.Add(failed);
+                if (outcome.SqlRelinked > 0)
+                    _logger?.LogInformation("[CodeGraph] '{Project}': {Edges} frecce dell'SQL ricollegate in {Scripts} script ({List})",
+                        projectPath, outcome.SqlRelinked, outcome.SqlRelinkedScripts.Count, string.Join(", ", outcome.SqlRelinkedScripts.Take(5)));
+            }
+            catch (CodeScriptFormatException ex)
+            {
+                // uno script che non si rilegge resta com'è: il caricamento l'ha già detto, qui non si aggiunge rumore
+                _logger?.LogWarning("[CodeGraph] '{Project}': ricollegamento dell'SQL saltato: {Error}", projectPath, ex.Message);
+            }
         }
 
         public async Task<(long Folder, long Total)> TripleCountsAsync(string projectPath, string folderRelative, CancellationToken ct = default)

@@ -129,7 +129,7 @@ export interface CodeFolderAnalysisOutcome {
   scriptsRemoved: number;
   filesWithoutExtractor: { [language: string]: number };
   warnings: string[];
-  load?: { loaded: number; skipped: number; removed: number; failed: number; firstError?: string };
+  load?: { loaded: number; skipped: number; removed: number; failed: number; firstError?: string; sqlRelinked?: number; sqlRelinkedScripts?: string[] };
   error?: string;
 }
 

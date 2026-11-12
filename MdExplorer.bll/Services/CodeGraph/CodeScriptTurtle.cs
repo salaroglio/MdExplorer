@@ -201,6 +201,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     BodyHash = n.OptStr("bodyHash"),
                     Guard = n.OptStr("guard"),
                     ReturnTypeName = n.OptStr("returnTypeName"),
+                    Language = kind == "external" && n.OptStr("language") is { } lang && lang != script.Header.Language ? lang : null,
                 });
             }
             foreach (var n in nodes.Where(n => n.Class == "Parameter"))

@@ -40,6 +40,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Version { get; private init; }
         public IReadOnlyList<string> Extensions { get; private init; }
         public bool IgnoreCase { get; private init; }
+        /// <summary>
+        /// <c>database: true</c> (12/11/2026): i simboli di questo linguaggio sono oggetti di un database (procedure, funzioni, package,
+        /// tabelle, viste) e l'SQL scritto nel codice C# o Visual Basic che li nomina si ricollega a loro (<see cref="CodeSqlLinker"/>).
+        /// </summary>
+        public bool Database { get; private init; }
         public string DefinitionPath { get; private init; }
         /// <summary>Le prime 8 cifre dello SHA-256 del file: cambiare una regola vuol dire riparsare tutto.</summary>
         public string DefinitionHash { get; private init; }
@@ -331,7 +336,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     Id = _d.Id, DisplayName = string.IsNullOrWhiteSpace(_d.Name) ? _d.Id : _d.Name, Version = _d.Version,
                     Extensions = _d.Extensions.Select(e => e.ToLowerInvariant()).Distinct().ToList(),
-                    IgnoreCase = _d.IgnoreCase, DefinitionPath = _path, DefinitionHash = hash,
+                    IgnoreCase = _d.IgnoreCase, Database = _d.Database, DefinitionPath = _path, DefinitionHash = hash,
                     LineComment = string.IsNullOrEmpty(lexical.LineComment) ? null : lexical.LineComment,
                     StringDelimiter = lexical.String?[0],
                     Continuation = lexical.Continuation == null ? null : Rx("lexical.continuation", lexical.Continuation),
@@ -650,6 +655,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public int Version { get; set; }
                 public List<string> Extensions { get; set; }
                 public bool IgnoreCase { get; set; }
+                public bool Database { get; set; }
                 public Lexical Lexical { get; set; }
                 public Module Module { get; set; }
                 public List<Block> Blocks { get; set; }

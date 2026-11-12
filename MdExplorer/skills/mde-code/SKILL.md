@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "program folder", "scansione", "scan", "descrizione del codice", "chi chiama", "who calls", "impatto", "impact", "dove è definito", "cosa c'è nel grafo", "come è memorizzato il codice", "quali file modificare", "dove intervenire", "analisi della modifica", "impact analysis", "which files to change", "verifica il documento", "il documento corrisponde al codice", "document driven", "@alias", "rilevazione", "rilevazione per MdExplorer", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 27
+  version: 28
   updatePolicy: replace
 ---
 
@@ -141,7 +141,11 @@ ready-made questions). The structure does not change during a conversation: once
   direction in. Confidence `inferred`: read from the text, not by an SQL parser. The node `?` (`ambiguous`) means the
   name comes from a variable (`"SELECT * FROM " & table`): the graph cannot know which table — read the source and say
   so. Not seen: SQL kept outside the code (configuration, XML files, the database), views and synonyms behind a name.
-  The same table written with and without its schema is two nodes.
+  When the database sources are in the graph too — a language package with `database: true` in its `language.yml`
+  (PL/SQL) — these arrows go to the real procedure or table instead of the external node: MdExplorer relinks them
+  whenever scripts change (after «Extract the structure», at project open, after a pull), in whichever order the two
+  folders were analysed, matching the name without case and without the schema in front; a name that fits two symbols
+  stays on the external node. The rewritten `.mde-code` scripts are changes to commit.
 - **.NET projects**: C# and VB are read one project file at a time (`.csproj`, `.vbproj`: root namespace, project
   imports, referenced libraries and projects). For a .NET Framework project the framework libraries must be on the
   computer; when they are not, the scan warns and what the code inherits or calls from the framework stays an

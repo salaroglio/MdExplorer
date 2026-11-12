@@ -722,7 +722,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var key = o.Dynamic ? "dynamic:?" : (o.Access == SqlAccess.Call ? "symbol:" : "table:") + o.Name.ToUpperInvariant();
                     var id = RoslynCSharpExtractor.StableId(SqlLanguage, "external", key);
-                    if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = o.Name.Split('.').Last(), QualifiedName = o.Name });
+                    if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = o.Name.Split('.').Last(), QualifiedName = o.Name, Language = SqlLanguage });
                     Edge(ownerId, id, o.Access switch { SqlAccess.Write => "writes", SqlAccess.Call => "calls", _ => "reads" }, o.Dynamic ? "ambiguous" : "inferred", line);
                 }
             }
