@@ -18977,7 +18977,7 @@ function BackgroundWorkPanelComponent_ng_container_0_ng_container_1_section_2_di
   if (rf & 2) {
     const r_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](2, 3, "BACKGROUND_WORK.SCAN_PHASE." + (r_r13.phase || "scanning")), "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", r_r13.label || _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](2, 3, "BACKGROUND_WORK.SCAN_PHASE." + (r_r13.phase || "scanning")), "");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", r_r13.language);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
@@ -49519,7 +49519,8 @@ class BackgroundWorkService {
       total,
       etaMs,
       phase: p.phase ?? 'scanning',
-      language: p.language
+      language: p.language,
+      label: p.label
     };
   }
   descriptionRow(run, state) {
@@ -56726,4 +56727,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.50b84b4ec2af1f17.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.0a854316178eb7ef.js.map

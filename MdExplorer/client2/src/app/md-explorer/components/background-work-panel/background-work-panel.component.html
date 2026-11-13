@@ -39,7 +39,7 @@
         </div>
         <div class="bg-work__file" *ngIf="r.state === 'running' && r.currentFile" [title]="r.currentFile">{{ r.currentFile }}</div>
         <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind === 'scan'">
-          {{ ('BACKGROUND_WORK.SCAN_PHASE.' + (r.phase || 'scanning')) | translate }}<ng-container *ngIf="r.language"> · {{ r.language }}</ng-container><ng-container *ngIf="r.total"> · {{ r.index }} / {{ r.total }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container></ng-container>
+          {{ r.label || (('BACKGROUND_WORK.SCAN_PHASE.' + (r.phase || 'scanning')) | translate) }}<ng-container *ngIf="r.language"> · {{ r.language }}</ng-container><ng-container *ngIf="r.total"> · {{ r.index }} / {{ r.total }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container></ng-container>
         </div>
 
         <!-- finita -->

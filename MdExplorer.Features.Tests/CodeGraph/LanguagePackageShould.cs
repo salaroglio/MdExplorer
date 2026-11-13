@@ -100,6 +100,47 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(error.Reason, why);
         }
 
+        private const string Links = "progress:\n  links:\n    it: Collego le letture alle query\n    en: Linking reads to the queries\n";
+
+        [TestMethod]
+        public void Read_the_package_phrases_without_changing_the_rules_fingerprint()
+        {
+            // 13/11/2026: le frasi del pannello sono del pacchetto, ma cambiarle non fa riestrarre niente
+            Write("catalogo/language.yml", XmlCatalogShould.Definition);
+            var before = LanguagePackage.Load(Path.Combine(_languages, "catalogo"));
+            Assert.IsNull(before.Messages, "messages.yml è facoltativo");
+            Write("catalogo/messages.yml", Links);
+
+            var package = LanguagePackage.Load(Path.Combine(_languages, "catalogo"));
+
+            Assert.AreEqual("Collego le letture alle query", package.Messages.LinksIt);
+            Assert.AreEqual("Linking reads to the queries", package.Messages.LinksEn);
+            Assert.AreEqual(before.Language.DefinitionHash, package.Language.DefinitionHash, "le regole sono le stesse");
+        }
+
+        [DataTestMethod]
+        [DataRow("progress:\n  links:\n    it: Solo italiano\n", "progress.links")]
+        [DataRow("progress:\n  altro:\n    it: a\n    en: b\n", "messages.yml")]
+        [DataRow("progresso: x\n", "messages.yml")]
+        [DataRow("# niente\n", "progress.links")]
+        public void Refuse_package_phrases_that_do_not_follow_the_format(string text, string why)
+        {
+            Write("catalogo/language.yml", XmlCatalogShould.Definition);
+            Write("catalogo/messages.yml", text);
+            var error = CodeLanguageCatalog.ForProject(_project).Errors["catalogo"];
+            StringAssert.EndsWith(error.DefinitionPath, "messages.yml");
+            StringAssert.Contains(error.DefinitionPath + " " + error.Reason, why);
+        }
+
+        [TestMethod]
+        public void Refuse_a_linking_phrase_for_a_package_that_has_no_linking_step()
+        {
+            Write("toy/language.yml", DeclarativeLanguageExtractorShould.ToyDefinition);
+            Write("toy/messages.yml", Links);
+            var error = CodeLanguageCatalog.ForProject(_project).Errors["toy"];
+            StringAssert.Contains(error.Reason, "template");
+        }
+
         [TestMethod]
         public void Refuse_a_package_without_rules()
         {

@@ -170,6 +170,8 @@ namespace MdExplorer.Services.CodeGraph
         public int Done { get; set; }
         public int Total { get; set; }
         public string PhaseStartedAt { get; set; }
+        /// <summary>La frase del passo scritta dal pacchetto (<c>messages.yml</c>), nella lingua dell'interfaccia; null = il testo di MdExplorer.</summary>
+        public string Label { get; set; }
         internal long LastSentTicks;
     }
 
@@ -273,14 +275,25 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>
+        /// La frase del passo di collegamento scritta dai pacchetti (<c>messages.yml</c>): se tutti quelli del passo la scrivono,
+        /// le loro frasi; se anche uno solo non la scrive, null, e il pannello usa il testo di MdExplorer col nome dei pacchetti
+        /// (una riga che mescola frasi di pacchetti e testo di MdExplorer non direbbe di chi è cosa).
+        /// </summary>
+        private static string PackageLinksLabel(IReadOnlyList<CodeLanguage> languages)
+        {
+            var texts = languages.Select(l => l.Package?.Messages?.Links).ToList();
+            return texts.Any(t => t == null) ? null : string.Join(" · ", texts.Distinct(StringComparer.Ordinal));
+        }
+
+        /// <summary>
         /// Una fase o un file in più: lo stato che rilegge il pannello (<see cref="Scanning"/>) e, a tutte le finestre, al più
         /// un messaggio al secondo; il cambio di fase e l'ultimo file della fase partono subito.
         /// </summary>
-        private void Step(CodeScanInProgress p, string phase, string language = null, int done = 0, int total = 0)
+        private void Step(CodeScanInProgress p, string phase, string language = null, int done = 0, int total = 0, string label = null)
         {
             if (p == null) return;
-            var changed = p.Phase != phase || p.Language != language;
-            if (changed) { p.Phase = phase; p.Language = language; p.PhaseStartedAt = DateTime.UtcNow.ToString("o"); }
+            var changed = p.Phase != phase || p.Language != language || p.Label != label;
+            if (changed) { p.Phase = phase; p.Language = language; p.Label = label; p.PhaseStartedAt = DateTime.UtcNow.ToString("o"); }
             p.Done = done; p.Total = total;
             var now = DateTime.UtcNow.Ticks;
             if (!changed && done != total && now - Interlocked.Read(ref p.LastSentTicks) < TimeSpan.TicksPerSecond) return;
@@ -288,7 +301,7 @@ namespace MdExplorer.Services.CodeGraph
             var snapshot = new CodeScanInProgress
             {
                 ProjectPath = p.ProjectPath, Folder = p.Folder, StartedAt = p.StartedAt, Phase = p.Phase, Language = p.Language,
-                Done = p.Done, Total = p.Total, PhaseStartedAt = p.PhaseStartedAt,
+                Done = p.Done, Total = p.Total, PhaseStartedAt = p.PhaseStartedAt, Label = p.Label,
             };
             _ = AnnounceScanAsync(p.ProjectPath, p.Folder, "progress", progress: snapshot);
         }
@@ -919,11 +932,11 @@ namespace MdExplorer.Services.CodeGraph
                             // I passi dei pacchetti si vedono solo se un pacchetto del progetto li ha, col nome scritto nel pacchetto
                             // (13/11/2026, utente: «devono essere dinamici in funzione dei caricamenti dei pacchetti»).
                             var pageDialects = catalog.All.Where(l => l.Definition?.Template != null).ToList();
-                            if (pageDialects.Count > 0) Step(progress, "pageScripts", string.Join(", ", pageDialects.Select(l => l.DisplayName)));
+                            if (pageDialects.Count > 0) Step(progress, "pageScripts", string.Join(", ", pageDialects.Select(l => l.DisplayName)), label: PackageLinksLabel(pageDialects));
                             await rules.ApplyPageScriptsAsync(projectPath, pageDialects.Select(l => l.Id).ToList(), ct);
                             // i cataloghi di SQL in XML: la chiamata che legge una query → la query (13/11/2026)
                             var xmlCatalogs = catalog.All.Where(l => l.Definition?.Xml != null).ToList();
-                            if (xmlCatalogs.Count > 0) Step(progress, "xmlCatalogs", string.Join(", ", xmlCatalogs.Select(l => l.DisplayName)));
+                            if (xmlCatalogs.Count > 0) Step(progress, "xmlCatalogs", string.Join(", ", xmlCatalogs.Select(l => l.DisplayName)), label: PackageLinksLabel(xmlCatalogs));
                             var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, xmlCatalogs.Select(l => l.Definition).ToList(), ct);
                             var catalogNames = string.Join(", ", xmlCatalogs.Select(l => l.DisplayName));
                             if (catalogMisses.Count > 0)

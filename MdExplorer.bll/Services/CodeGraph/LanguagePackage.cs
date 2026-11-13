@@ -21,6 +21,33 @@ namespace MdExplorer.Features.Services.CodeGraph
     }
 
     /// <summary>
+    /// Le frasi del pacchetto (<c>messages.yml</c>, 13/11/2026, utente: «le specializzazioni vanno tenute separate»): quello
+    /// che il pannello dei lavori in sfondo dice dei passi che esistono solo per questo pacchetto. Stanno fuori da
+    /// <c>language.yml</c> perché cambiarle non cambia le regole: niente riestrazione. Senza, MdExplorer usa il suo testo
+    /// predefinito col nome del pacchetto.
+    /// <code>
+    /// progress:
+    ///   links:            # il collegamento dopo il caricamento (pagine → funzioni JS, letture → query): solo con template o xml
+    ///     it: Collego le letture alle query dei cataloghi
+    ///     en: Linking reads to the catalogs' queries
+    /// </code>
+    /// </summary>
+    public sealed class LanguagePackageMessages
+    {
+        public string LinksIt { get; init; }
+        public string LinksEn { get; init; }
+        /// <summary>La frase del collegamento nella lingua dell'interfaccia; null se il pacchetto non la scrive.</summary>
+        public string Links => LinksIt == null ? null : UiText.Say(LinksIt, LinksEn);
+
+        internal sealed class Yaml
+        {
+            public ProgressYaml Progress { get; set; }
+            internal sealed class ProgressYaml { public TextYaml Links { get; set; } }
+            internal sealed class TextYaml { public string It { get; set; } public string En { get; set; } }
+        }
+    }
+
+    /// <summary>
     /// Un linguaggio come pacchetto modulare: una cartella <c>.mde-languages/&lt;id&gt;/</c> con le regole
     /// (<c>language.yml</c>, <see cref="DeclarativeLanguage"/>), il prompt che si aggiunge a quello di Mark per i sorgenti
     /// di quel linguaggio (<c>prompts/code-doc.md</c>) e le skill per gli agenti (<c>skills/&lt;id&gt;-…/SKILL.md</c>).
@@ -40,6 +67,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string SkillsFolder = "skills";
         public const string SkillFile = "SKILL.md";
         public const string FindingsFolder = "findings";
+        public const string MessagesFile = "messages.yml";
         /// <summary>Quanto può essere grande un file del pacchetto: sono regole e testi, non sorgenti.</summary>
         public const int MaxFileBytes = 256 * 1024;
 
@@ -56,6 +84,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyList<LanguagePackageSkill> Skills { get; private init; }
         /// <summary>I nomi dei file di <c>findings/</c>, in ordine: solo testo che viaggia con il pacchetto, MdExplorer non li legge.</summary>
         public IReadOnlyList<string> Findings { get; private init; }
+        /// <summary>Le frasi di <c>messages.yml</c>; null se il pacchetto non ne ha.</summary>
+        public LanguagePackageMessages Messages { get; private init; }
 
         /// <summary>
         /// Le cartelle dei pacchetti del progetto, in ordine; nessuna se <c>.mde-languages/</c> non c'è. Una cartella che
@@ -98,12 +128,14 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             var skillFiles = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
             string prompt = null;
+            string messages = null;
             var findings = new List<string>();
             foreach (var (rel, text) in files.OrderBy(f => f.Key, StringComparer.Ordinal))
             {
                 // tbox.ttl è derivato dalle regole: MdExplorer lo riscrive (LanguageTBox.Write), qui non si legge
                 if (rel == DefinitionFile || rel == ReadmeFile || rel == LanguageTBox.FileName) continue;
                 if (rel == PromptsFolder + "/" + CodeDocPromptFile) { prompt = text; continue; }
+                if (rel == MessagesFile) { messages = text; continue; }
                 var parts = rel.Split('/');
                 if (parts.Length >= 3 && parts[0] == SkillsFolder && rel.EndsWith(".md", StringComparison.Ordinal))
                 {
@@ -112,17 +144,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                     continue;
                 }
                 if (parts.Length == 2 && parts[0] == FindingsFolder && rel.EndsWith(".md", StringComparison.Ordinal)) { findings.Add(parts[1]); continue; }
-                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)",
-                    $"file not expected in a language package (allowed: {DefinitionFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)");
+                throw Fail(rel, $"file non previsto in un pacchetto di linguaggio (ammessi: {DefinitionFile}, {MessagesFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)",
+                    $"file not expected in a language package (allowed: {DefinitionFile}, {MessagesFile}, {LanguageTBox.FileName}, {ReadmeFile}, {PromptsFolder}/{CodeDocPromptFile}, {SkillsFolder}/{id}-…/*.md, {FindingsFolder}/*.md)");
             }
             if (prompt != null && string.IsNullOrWhiteSpace(prompt))
                 throw Fail(PromptsFolder + "/" + CodeDocPromptFile, "è vuoto: se il linguaggio non ha niente da aggiungere al prompt, il file non serve", "it is empty: if the language has nothing to add to the prompt, the file is not needed");
 
             var skills = skillFiles.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => ReadSkill(id, k.Key, k.Value, PathOf)).ToList();
+            var language = DeclarativeLanguage.Parse(yaml, PathOf(DefinitionFile));
             return new LanguagePackage
             {
                 Id = id, FolderPath = folder,
-                Language = DeclarativeLanguage.Parse(yaml, PathOf(DefinitionFile)),
+                Language = language,
+                Messages = messages == null ? null : ReadMessages(messages, language, PathOf(MessagesFile)),
                 CodeDocPrompt = prompt?.Trim(), CodeDocPromptHash = prompt == null ? null : Hash(prompt.Trim()),
                 Skills = skills, Findings = findings,
             };
@@ -151,6 +185,24 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (!(header.TryGetValue("description", out var d) && d is string sd && !string.IsNullOrWhiteSpace(sd)))
                 throw Fail("description: obbligatoria, è quella che fa scegliere la skill all'agente", "description: required, it is what makes the agent pick the skill");
             return new LanguagePackageSkill { Name = name, Description = sd.Trim(), Files = files };
+        }
+
+        /// <summary><c>messages.yml</c>: solo le chiavi che il formato conosce, tutte e due le lingue, e un passo che il pacchetto ha davvero.</summary>
+        private static LanguagePackageMessages ReadMessages(string text, DeclarativeLanguage language, string path)
+        {
+            LanguagePackageMessages.Yaml m;
+            try { m = new DeserializerBuilder().WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance).Build().Deserialize<LanguagePackageMessages.Yaml>(text); }
+            catch (YamlException ex) { throw new LanguageDefinitionException(path, UiText.Say($"riga {ex.Start.Line}: {ex.InnerException?.Message ?? ex.Message}", $"line {ex.Start.Line}: {ex.InnerException?.Message ?? ex.Message}"), ex); }
+            var links = m?.Progress?.Links;
+            if (links == null)
+                throw new LanguageDefinitionException(path, UiText.Say("non dice niente: l'unica frase prevista è progress.links (it, en); se il pacchetto non ne ha, il file non serve",
+                    "it says nothing: the only expected text is progress.links (it, en); if the package has none, the file is not needed"));
+            if (string.IsNullOrWhiteSpace(links.It) || string.IsNullOrWhiteSpace(links.En))
+                throw new LanguageDefinitionException(path, UiText.Say("progress.links: servono tutte e due le lingue, it ed en", "progress.links: both languages are needed, it and en"));
+            if (language.Template == null && language.Xml == null)
+                throw new LanguageDefinitionException(path, UiText.Say("progress.links: il pacchetto non ha un passo di collegamento (né template né xml in language.yml)",
+                    "progress.links: the package has no linking step (neither template nor xml in language.yml)"));
+            return new LanguagePackageMessages { LinksIt = links.It.Trim(), LinksEn = links.En.Trim() };
         }
 
         private static string Hash(string text)

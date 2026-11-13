@@ -218,6 +218,8 @@ export interface ScanProgress {
   done?: number;
   total?: number;
   phaseStartedAt?: string;
+  /** La frase del passo scritta dal pacchetto (messages.yml), già nella lingua dell'interfaccia; assente = il testo di MdExplorer. */
+  label?: string;
 }
 
 /** Quanto occupa il database del grafo (Fuseki, unico per tutti i progetti): per dataset, con le generazioni TDB2. */

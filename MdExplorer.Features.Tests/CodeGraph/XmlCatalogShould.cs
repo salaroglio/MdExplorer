@@ -17,7 +17,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
     [TestClass]
     public class XmlCatalogShould
     {
-        private const string Definition = @"schema: 1
+        internal const string Definition = @"schema: 1
 id: catalogo
 name: Cataloghi SQL
 version: 1

@@ -32,6 +32,8 @@ export interface BackgroundRow {
   /** Scansione: la fase (ScanProgress.phase) e il linguaggio che sta leggendo. */
   phase?: string;
   language?: string;
+  /** La frase del passo scritta dal pacchetto: al posto del testo di MdExplorer. */
+  label?: string;
 }
 
 /**
@@ -171,7 +173,7 @@ export class BackgroundWorkService {
     return {
       id: 'scan:' + p.folder, kind: 'scan', folder: p.folder, state: 'running',
       percent: total > 0 ? Math.round(done * 100 / total) : null,
-      index: done, total, etaMs, phase: p.phase ?? 'scanning', language: p.language,
+      index: done, total, etaMs, phase: p.phase ?? 'scanning', language: p.language, label: p.label,
     };
   }
 
