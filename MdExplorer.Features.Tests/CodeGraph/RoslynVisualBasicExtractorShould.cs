@@ -78,6 +78,19 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Give_shared_and_instance_constructors_different_ids()
+        {
+            File.WriteAllText(Path.Combine(_src, "Manager.vb"),
+                "Namespace Demo\n  Public Class Manager\n    Shared Sub New()\n    End Sub\n    Public Sub New()\n    End Sub\n  End Class\nEnd Namespace\n");
+
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Manager.vb").Script;
+
+            var ctors = s.Symbols.Where(x => x.Kind == "constructor").ToList();
+            Assert.AreEqual(2, ctors.Select(c => c.Id).Distinct().Count(), string.Join(", ", ctors.Select(c => c.Name + "=" + c.QualifiedName)));
+            Assert.AreEqual(s.Symbols.Count, s.Symbols.Select(x => x.Id).Distinct().Count(), "nessun id ripetuto nello script");
+        }
+
+        [TestMethod]
         public void Make_one_external_node_for_a_name_written_with_different_case()
         {
             // il VB non distingue le maiuscole: lo stesso metodo che manca, scritto in due modi, è un nodo solo (13/11/2026)

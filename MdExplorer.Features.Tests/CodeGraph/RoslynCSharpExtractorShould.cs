@@ -42,6 +42,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Give_static_and_instance_constructors_different_ids()
+        {
+            // 13/11/2026, dal cliente: «code:name ripetuto 2 volte», lo script non si caricava
+            File.WriteAllText(Path.Combine(_src, "Manager.cs"),
+                "namespace Demo { public class Manager {\n  static Manager() { }\n  public Manager() { }\n} }\n");
+
+            var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
+
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/Manager.cs").Script;
+            var ctors = s.Symbols.Where(x => x.Kind == "constructor").ToList();
+            Assert.AreEqual(2, ctors.Count, string.Join(", ", ctors.Select(c => c.Name + "=" + c.QualifiedName)));
+            Assert.AreEqual(2, ctors.Select(c => c.Id).Distinct().Count(), string.Join(", ", ctors.Select(c => c.Name + "=" + c.QualifiedName + "=" + c.Id)));
+            Assert.AreEqual(s.Symbols.Count, s.Symbols.Select(x => x.Id).Distinct().Count(), "nessun id ripetuto nello script");
+        }
+
+        [TestMethod]
         public void Extract_symbols_parameters_and_resolved_edges_without_an_sdk()
         {
             var extractor = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance);
@@ -185,7 +201,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("14", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("15", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");

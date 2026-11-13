@@ -585,7 +585,17 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Il nome di un parametro di libreria che riceve il nome della procedura (<c>commandText</c>, <c>spName</c>, <c>sql</c> di Dapper, i nomi italiani…).</summary>
         private static readonly Regex ProcedureParameterName = new(@"^(command|commandText|cmdText|text|testo|sql|storedProcedure|storedProcedureName|procedure|procedureName|procName|spName|sp|procedura|nomeProcedura|nomeProc|nomeSp|comando|testoComando)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
-        private static string MethodKey(IMethodSymbol m) => m.OriginalDefinition.ToDisplayString(QualifiedFormat);
+        private static string MethodKey(IMethodSymbol m) => Qualified(m.OriginalDefinition);
+
+        /// <summary>
+        /// Il nome qualificato di un simbolo, da cui viene il suo id. Il costruttore statico (<c>static X()</c>, <c>Shared Sub New</c>)
+        /// si scrive come quello d'istanza senza parametri: prende il nome del CLR, <c>X..cctor()</c> (13/11/2026, dal cliente: i due
+        /// avevano lo stesso id e lo script non si caricava, «code:name ripetuto 2 volte»).
+        /// </summary>
+        private static string Qualified(ISymbol symbol)
+            => symbol is IMethodSymbol { MethodKind: MethodKind.StaticConstructor, ContainingType: { } type }
+                ? type.ToDisplayString(QualifiedFormat) + "..cctor()"
+                : symbol.ToDisplayString(QualifiedFormat);
 
         /// <summary>Lo stato del tipo di comando per una coppia: <see cref="TypeStoredProcedure"/>, <see cref="TypeMaybe"/>, o la posizione del parametro che lo dà.</summary>
         private const int TypeStoredProcedure = -1;
@@ -1028,7 +1038,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             }
 
-            private static string Key(ISymbol symbol) => symbol.OriginalDefinition.ToDisplayString(QualifiedFormat);
+            private static string Key(ISymbol symbol) => Qualified(symbol.OriginalDefinition);
 
             public bool IsInPerimeter(ISymbol s) => s.Locations.Any(l => l.IsInSource);
 
@@ -1081,7 +1091,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     IEventSymbol when _perimeter.IsInPerimeter(original) => "field",
                     _ => "external",
                 };
-                var qualified = original.ToDisplayString(QualifiedFormat);
+                var qualified = Qualified(original);
                 var id = kind == "external" ? ExternalId(qualified) : RoslynCSharpExtractor.StableId(_x.LanguageId, kind, qualified);
                 if (kind == "external" && _externals.Add(id))
                 {
@@ -1096,10 +1106,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Declare(ISymbol symbol, SyntaxNode decl, string kind, string signature, string returnType, string parentId = null)
             {
                 var span = decl.GetLocation().GetLineSpan();
-                var id = RoslynCSharpExtractor.StableId(_x.LanguageId, kind, symbol.ToDisplayString(QualifiedFormat));
+                var id = RoslynCSharpExtractor.StableId(_x.LanguageId, kind, Qualified(symbol));
                 Script.Symbols.Add(new ScriptSymbol
                 {
-                    Id = id, Kind = kind, Name = symbol.Name, QualifiedName = symbol.ToDisplayString(QualifiedFormat),
+                    Id = id, Kind = kind, Name = symbol.Name, QualifiedName = Qualified(symbol),
                     LineStart = span.StartLinePosition.Line + 1, LineEnd = span.EndLinePosition.Line + 1,
                     Signature = signature, ReturnType = returnType,
                     Visibility = symbol.DeclaredAccessibility.ToString().ToLowerInvariant(),
