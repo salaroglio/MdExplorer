@@ -604,10 +604,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// si scrive come quello d'istanza senza parametri: prende il nome del CLR, <c>X..cctor()</c> (13/11/2026, dal cliente: i due
         /// avevano lo stesso id e lo script non si caricava, «code:name ripetuto 2 volte»).
         /// </summary>
-        private static string Qualified(ISymbol symbol)
-            => symbol is IMethodSymbol { MethodKind: MethodKind.StaticConstructor, ContainingType: { } type }
-                ? type.ToDisplayString(QualifiedFormat) + "..cctor()"
-                : symbol.ToDisplayString(QualifiedFormat);
+        private static string Qualified(ISymbol symbol) => symbol switch
+        {
+            IMethodSymbol { MethodKind: MethodKind.StaticConstructor, ContainingType: { } type } => type.ToDisplayString(QualifiedFormat) + "..cctor()",
+            // un evento non ha sovraccarichi: il nome basta. Con i parametri, l'Event VB dichiarato (Event X(sender, e)) e lo
+            // stesso evento visto da un altro progetto (Handles ctl.X) davano due id diversi, e l'arco evento → gestore partiva
+            // da un nodo che non esiste (13/11/2026, dal cliente: 36 archi)
+            IEventSymbol { ContainingType: { } owner } ev => owner.ToDisplayString(QualifiedFormat) + "." + ev.Name,
+            _ => symbol.ToDisplayString(QualifiedFormat),
+        };
 
         /// <summary>Lo stato del tipo di comando per una coppia: <see cref="TypeStoredProcedure"/>, <see cref="TypeMaybe"/>, o la posizione del parametro che lo dà.</summary>
         private const int TypeStoredProcedure = -1;

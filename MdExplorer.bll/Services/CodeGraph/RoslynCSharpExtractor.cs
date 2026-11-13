@@ -51,8 +51,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>15 = il costruttore statico ha un id suo (<c>X..cctor()</c>), non quello d'istanza senza parametri (13/11/2026).</para>
         /// <para>16 = un'implementazione esplicita di interfaccia ha un id suo (<c>X.IEnumerator.Current</c>), e il metodo esplicito è dichiarato (13/11/2026).</para>
         /// <para>17 = i <c>delegate</c> sono tipi dichiarati (13/11/2026).</para>
+        /// <para>18 = l'id di un evento è il nome senza parametri, uguale da ogni progetto (13/11/2026).</para>
         /// </summary>
-        public override string ExtractorVersion => "17";
+        public override string ExtractorVersion => "18";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

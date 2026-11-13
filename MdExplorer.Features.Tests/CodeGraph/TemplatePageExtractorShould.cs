@@ -153,6 +153,19 @@ var apri = function(x) { mostra(""popup.dettaglio""); };
         }
 
         [TestMethod]
+        public void Link_an_include_written_with_other_case_to_the_real_file()
+        {
+            // 13/11/2026, dal cliente: Src="Controllo.ascx" per il file controllo.ascx, l'arco andava a un nodo inesistente
+            Write("web/pagine/casi.page", "{%include(PARTI/Testata.page)%}");
+
+            var s = Read("web/pagine/casi.page").Script;
+
+            var include = s.Edges.Single(e => e.Relation == "includes");
+            Assert.AreEqual(Id("module", "web/pagine/parti/testata.page"), include.TargetId);
+            Assert.AreEqual("extracted", include.Confidence);
+        }
+
+        [TestMethod]
         public void Link_included_pages_and_imported_scripts()
         {
             var page = Read();

@@ -40,8 +40,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 14 = un nome esterno scritto con maiuscole diverse è un nodo solo: il VB non le distingue (13/11/2026, rilevazione dal cliente).
         /// 15 = <c>Shared Sub New</c> ha un id suo (<c>X..cctor()</c>), non quello di <c>Sub New()</c> (13/11/2026).
         /// 16 = stesso nome qualificato del C# per le implementazioni esplicite (formato comune).
-        /// 17 = i <c>Delegate</c> sono tipi dichiarati (13/11/2026).</summary>
-        public override string ExtractorVersion => "17";
+        /// 17 = i <c>Delegate</c> sono tipi dichiarati (13/11/2026).
+        /// 18 = l'id di un Event è il nome senza parametri: Handles da un altro progetto arriva all'evento dichiarato (13/11/2026).</summary>
+        public override string ExtractorVersion => "18";
 
         protected override bool IgnoresCase => true;
 

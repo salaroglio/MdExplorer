@@ -31,8 +31,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class TemplatePageExtractor : ICodeExtractor
     {
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le pagine, non il dialetto. 3 = il &lt;script src&gt;
-        /// punta all'id del modulo JS legato al suo file (13/11/2026).</summary>
-        public const string EngineVersion = "3";
+        /// punta all'id del modulo JS legato al suo file (13/11/2026). 4 = un include scritto con altre maiuscole va al percorso vero
+        /// del file (13/11/2026).</summary>
+        public const string EngineVersion = "4";
         public const int MaxSignatureLength = 200;
 
         private readonly DeclarativeLanguage _lang;
@@ -134,8 +135,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (string.IsNullOrEmpty(Path.GetExtension(t))) variants.AddRange(_lang.Extensions.Select(e => t + e));
 
                 var dir = Path.GetDirectoryName(fromLogicalPath)?.Replace('\\', '/') ?? string.Empty;
+                // il percorso VERO del file, non com'è scritto: Src="Controllo.ascx" per il file controllo.ascx (13/11/2026, dal
+                // cliente: l'arco andava all'id della grafia scritta, un nodo che non esiste)
                 var relative = variants.Select(v => Normalize(v.StartsWith('/') ? v.TrimStart('/') : (dir.Length > 0 ? dir + "/" + v : v)))
-                    .Where(p => p != null && _paths.Contains(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    .Select(p => p != null && _paths.TryGetValue(p, out var actual) ? actual : null)
+                    .Where(p => p != null).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 if (relative.Count > 0) return relative;
 
                 var suffixes = variants.Select(v => "/" + v.TrimStart('.', '/')).ToList();

@@ -93,6 +93,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Start_the_event_to_handler_edge_from_the_declared_event()
+        {
+            // 13/11/2026, dal cliente: Event X(sender, e) dichiarato e Handles ctl.X avevano due id (con e senza parametri)
+            File.WriteAllText(Path.Combine(_src, "Pulsante.vb"),
+                "Namespace Demo\n  Public Class Pulsante\n    Public Event Premuto(sender As Object, e As EventArgs)\n  End Class\n" +
+                "  Public Class Maschera\n    Private WithEvents _p As Pulsante\n    Private Sub Su_Premuto(sender As Object, e As EventArgs) Handles _p.Premuto\n    End Sub\n  End Class\nEnd Namespace\n");
+
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Pulsante.vb").Script;
+
+            var ev = s.Symbols.Single(x => x.Name == "Premuto" && x.Kind == "field");
+            Assert.AreEqual(RoslynCSharpExtractor.StableId("visualbasic", "field", "Demo.Pulsante.Premuto"), ev.Id, ev.QualifiedName);
+            var handler = s.Symbols.Single(x => x.Name == "Su_Premuto").Id;
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == ev.Id && e.TargetId == handler && e.Relation == "calls"), string.Join(", ", s.Edges.Select(e => e.SourceId + ">" + e.TargetId)));
+        }
+
+        [TestMethod]
         public void Declare_delegate_types_that_the_code_uses()
         {
             // 13/11/2026, dal cliente: chi usava un Delegate puntava a un tipo mai dichiarato (arco verso un nodo che non c'è)
