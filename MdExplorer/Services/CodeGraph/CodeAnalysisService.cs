@@ -160,7 +160,8 @@ namespace MdExplorer.Services.CodeGraph
         /// <summary>
         /// A che punto è (13/11/2026, utente: «una misura di quanto devo aspettare»): <c>queued</c> (aspetta che finisca
         /// un'altra analisi), <c>scanning</c> (che cosa è cambiato), <c>reading</c> e <c>extracting</c> (per linguaggio: file
-        /// letti, script fatti), <c>writing</c> (script su disco), <c>loading</c> (script nel grafo), <c>linking</c> (regole e
+        /// letti, script fatti), <c>writing</c> (script su disco), su Fuseki <c>removing</c> (triple vecchie tolte), <c>loading</c>
+        /// (script caricati), <c>relinking</c> (SQL del codice → oggetti del database) e <c>compacting</c>, poi <c>linking</c> (regole e
         /// collegamenti fra linguaggi). <see cref="Total"/> 0 = la fase non si conta.
         /// </summary>
         public string Phase { get; set; }
@@ -888,13 +889,13 @@ namespace MdExplorer.Services.CodeGraph
                 // un database che cresce (Windows 22/10/2026: 35 GB per 1.414 file). Utente: «in automatico».
                 else if (outcome.Reparsed > 0 && outcome.Reparsed == inPerimeter.Count)
                 {
-                    Step(progress, "loading");
-                    outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct, (done, total) => Step(progress, "loading", null, done, total));
+                    Step(progress, CodeGraphStore.StepRemove);
+                    outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct, (step, done, total) => Step(progress, step, null, done, total));
                 }
                 else
                 {
-                    Step(progress, "loading");
-                    outcome.Load = await _store.LoadProjectAsync(projectPath, ct, progress: (done, total) => Step(progress, "loading", null, done, total));
+                    Step(progress, CodeGraphStore.StepLoad);
+                    outcome.Load = await _store.LoadProjectAsync(projectPath, ct, progress: (step, done, total) => Step(progress, step, null, done, total));
                 }
                 Step(progress, "linking");
                 // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli

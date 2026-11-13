@@ -23,14 +23,18 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>Carica tutti gli script di <c>.mde-code/</c> cambiati dall'ultima volta e toglie quelli spariti.</summary>
         /// <param name="compact">false: niente compattazione anche dopo un carico grosso (i caricamenti a metà di una descrizione: si compatta alla fine).</param>
-        /// <param name="progress">Gli script passati su quanti ce ne sono sul disco (il pannello dei lavori in sfondo); null = nessuno guarda.</param>
-        Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<int, int> progress = null);
+        /// <param name="progress">
+        /// Il passo e a che punto è, per il pannello dei lavori in sfondo (null = nessuno guarda): <see cref="CodeGraphStore.StepRemove"/> (triple
+        /// vecchie tolte da Fuseki: lotti o script), <see cref="CodeGraphStore.StepLoad"/> (script passati su quanti ce ne sono sul disco),
+        /// <see cref="CodeGraphStore.StepRelinkSql"/> e <see cref="CodeGraphStore.StepCompact"/> (senza conteggio, totale 0).
+        /// </param>
+        Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<string, int, int> progress = null);
         /// <summary>
         /// La ricarica DA CAPO di una cartella program (22/10/2026, quando l'analisi ne ha riscritto tutti gli script): via
         /// le sue triple in una transazione sola, poi il caricamento a lotti e la compattazione di <see cref="LoadProjectAsync"/>.
         /// Le altre cartelle e gli altri progetti restano come sono.
         /// </summary>
-        Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<int, int> progress = null);
+        Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<string, int, int> progress = null);
         /// <summary>Compatta il dataset del grafo del codice (TDB2 copy-on-write): alla fine di un giro che ha caricato a lotti senza compattare.</summary>
         Task CompactAsync(CancellationToken ct = default);
         /// <summary>Carica (o ricarica, se l'hash è diverso) un singolo script.</summary>
@@ -147,6 +151,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
     public sealed partial class CodeGraphStore : ICodeGraphStore
     {
+        /// <summary>I passi del caricamento su Fuseki per il pannello dei lavori in sfondo (13/11/2026).</summary>
+        public const string StepRemove = "removing";
+        public const string StepLoad = "loading";
+        public const string StepRelinkSql = "relinking";
+        public const string StepCompact = "compacting";
+
         private readonly IFusekiProcessManager _fuseki;
         private readonly IFusekiClient _client;
         private readonly ILogger<CodeGraphStore> _logger;
@@ -203,7 +213,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ caricamento
 
-        public async Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<int, int> progress = null)
+        public async Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<string, int, int> progress = null)
         {
             var outcome = new CodeScriptLoadOutcome();
             var root = CodeGraphPaths.GetScriptsRoot(projectPath);
@@ -228,9 +238,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // simbolo): uno script rinominato, o un JSON Lines convertito in Turtle, porta gli STESSI nodi; togliere il
                 // vecchio dopo aver caricato il nuovo cancellava anche le triple appena caricate (12/10/2026).
                 var onDiskRel = new HashSet<string>(onDisk.Select(f => CodeGraphPaths.ToProjectRelative(projectPath, f)), StringComparer.Ordinal);
-                foreach (var gone in known.Keys.Where(k => !onDiskRel.Contains(k)).ToList())
+                var goneScripts = known.Keys.Where(k => !onDiskRel.Contains(k)).ToList();
+                var goneDone = 0;
+                foreach (var gone in goneScripts)
                 {
                     ct.ThrowIfCancellationRequested();
+                    progress?.Invoke(StepRemove, ++goneDone, goneScripts.Count);
                     outcome.Results.Add(await RemoveOneAsync(g, gone, ct));
                 }
 
@@ -245,7 +258,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var file in ordered)
                 {
                     ct.ThrowIfCancellationRequested();
-                    progress?.Invoke(++passed, ordered.Count);
+                    progress?.Invoke(StepLoad, ++passed, ordered.Count);
                     var rel = CodeGraphPaths.ToProjectRelative(projectPath, file);
                     known.TryGetValue(rel, out var previousHash);
                     var (result, update) = PrepareOne(g, file, rel, previousHash);
@@ -258,12 +271,20 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 // Qualcosa è cambiato: le frecce dell'SQL del codice si riallineano ai simboli dei linguaggi database (12/11/2026).
                 // Dopo un pull che porta il PL/SQL analizzato da un collega, o dopo l'estrazione del VB quando il PL/SQL c'è già.
-                if (outcome.Loaded + outcome.Removed > 0) await RelinkSqlCoreAsync(projectPath, g, known, outcome, ct);
+                if (outcome.Loaded + outcome.Removed > 0)
+                {
+                    progress?.Invoke(StepRelinkSql, 0, 0);
+                    await RelinkSqlCoreAsync(projectPath, g, known, outcome, ct);
+                }
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
                     projectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed);
                 // TDB2 è copy-on-write: dopo un carico grosso i blocchi vecchi restano su disco finché non si compatta.
-                if (compact && outcome.Loaded + outcome.Removed >= CompactAfterScripts) await _fuseki.CompactAsync(CodeOntology.Dataset, ct);
+                if (compact && outcome.Loaded + outcome.Removed >= CompactAfterScripts)
+                {
+                    progress?.Invoke(StepCompact, 0, 0);
+                    await _fuseki.CompactAsync(CodeOntology.Dataset, ct);
+                }
                 return outcome;
             }
             finally { gate.Release(); }
@@ -360,7 +381,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public Task CompactAsync(CancellationToken ct = default) => _fuseki.CompactAsync(CodeOntology.Dataset, ct);
 
-        public async Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<int, int> progress = null)
+        public async Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<string, int, int> progress = null)
         {
             if (string.IsNullOrWhiteSpace(folderRelative))
                 throw new ArgumentException(UiText.Say("La ricarica da capo vuole la cartella program: folderRelative è vuoto.", "A full reload needs the program folder: folderRelative is empty."), nameof(folderRelative));
@@ -378,9 +399,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var r in await RowsAsync($"SELECT ?sc WHERE {{ GRAPH {g.StateIri} {{ ?s a code:Script ; code:scriptPath ?sc . FILTER(STRSTARTS(?sc, {lit})) }} }}", ct)) rels.Add(r["sc"]);
                 foreach (var r in await RowsAsync($"SELECT DISTINCT ?sc WHERE {{ GRAPH {g.DataIri} {{ ?s code:fromScript ?sc . FILTER(STRSTARTS(?sc, {lit})) }} }}", ct)) rels.Add(r["sc"]);
                 scripts = rels.Count;
-                foreach (var chunk in rels.Chunk(BatchScripts))
+                var chunks = rels.Chunk(BatchScripts).ToList();
+                var chunkDone = 0;
+                foreach (var chunk in chunks)
                 {
                     ct.ThrowIfCancellationRequested();
+                    progress?.Invoke(StepRemove, ++chunkDone, chunks.Count);
                     await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct);
                 }
                 await UpdateAsync(CodeTripleWriter.RemoveFolderStateUpdate(prefix, g.State), ct);

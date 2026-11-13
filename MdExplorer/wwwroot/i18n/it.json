@@ -2903,7 +2903,10 @@
       "reading": "Leggo i file",
       "extracting": "Estraggo la struttura",
       "writing": "Scrivo gli script",
-      "loading": "Carico nel grafo",
+      "removing": "Fuseki: tolgo le triple vecchie della cartella",
+      "loading": "Fuseki: carico gli script",
+      "relinking": "Fuseki: ricollego l'SQL del codice agli oggetti del database",
+      "compacting": "Fuseki: compatto il database",
       "linking": "Collego regole e linguaggi"
     },
     "SCAN_DONE": "Fatto: {{files}} file, {{reparsed}} riletti",
