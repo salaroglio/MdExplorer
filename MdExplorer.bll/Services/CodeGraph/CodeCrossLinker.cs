@@ -27,8 +27,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         private readonly Dictionary<string, List<(string Path, string Id)>> _owned = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<(string Path, string Id)>> _topLevel = new(StringComparer.Ordinal);
         private readonly HashSet<string> _containers = new(StringComparer.Ordinal);
+        /// <summary>I parametri di ogni simbolo (in ordine, con o senza default): un simbolo senza parametri ne ha zero.</summary>
+        private readonly Dictionary<string, List<(string Name, bool Optional)>> _parameters = new(StringComparer.Ordinal);
+        private bool _ignoreCase;
 
-        private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; }
+        private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; _ignoreCase = ignoreCase; }
 
         /// <summary>
         /// Un linguaggio database (<see cref="DeclarativeLanguage.Database"/>, 12/11/2026): si cercano per nome TUTTI i suoi simboli,
@@ -59,6 +62,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 list.Add((path, s.Id));
                 if (s.ParentId != null && script.Symbols.FirstOrDefault(p => p.Id == s.ParentId)?.Kind == "interface") _declarations.Add(s.Id);
             }
+            foreach (var g in script.Parameters.Where(p => p.SymbolId != null).GroupBy(p => p.SymbolId))
+                _parameters[g.Key] = g.OrderBy(p => p.Position).Select(p => (p.Name, p.DefaultValue != null)).ToList();
             foreach (var s in script.Symbols.Where(Indexed))
             {
                 var parent = s.ParentId == null ? null : script.Symbols.FirstOrDefault(p => p.Id == s.ParentId);
@@ -113,6 +118,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         internal bool HasContainer(string name) => _containers.Contains(_norm(name));
+
+        /// <summary>Fra più candidati, quelli i cui parametri accettano gli argomenti (motore 8); se nessuno, tutti.</summary>
+        internal List<(string Path, string Id)> Accepting(List<(string Path, string Id)> candidates, DeclarativeLanguageExtractor.CallArguments args)
+        {
+            if (args == null || candidates.Count < 2) return candidates;
+            var names = _ignoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            var fit = candidates.Where(c => args.Fits(_parameters.TryGetValue(c.Id, out var p) ? p : new List<(string, bool)>(), names)).ToList();
+            return fit.Count > 0 ? fit : candidates;
+        }
 
         /// <summary>I file che <paramref name="path"/> importa, anche attraverso i file importati (gli include di un include).</summary>
         internal HashSet<string> ImportedClosure(string path)
@@ -337,13 +351,61 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string Written(string what, string name, string maxConfidence)
             => what + ":" + name + (maxConfidence == null ? string.Empty : "|" + maxConfidence);
 
+        /// <summary>
+        /// Dopo il nome, gli argomenti della chiamata (motore 8, 13/11/2026): <c>symbol:PKG.F~2;P_X|inferred</c> = due per
+        /// posizione e P_X per nome. <c>~</c> non sta in un identificatore (il <c>#</c> sì, in PL/SQL).
+        /// </summary>
+        public const string ArgumentsMark = "~";
+
         internal static (string What, string Name, string Max) Parse(string written)
         {
             var colon = written.IndexOf(':');
             if (colon <= 0) return (null, null, null);
             var rest = written[(colon + 1)..];
             var bar = rest.LastIndexOf('|');
-            return bar < 0 ? (written[..colon], rest, null) : (written[..colon], rest[..bar], rest[(bar + 1)..]);
+            var (name, max) = bar < 0 ? (rest, null) : (rest[..bar], rest[(bar + 1)..]);
+            var mark = name.IndexOf(ArgumentsMark, StringComparison.Ordinal);
+            return (written[..colon], mark < 0 ? name : name[..mark], max);
+        }
+
+        /// <summary>
+        /// Le chiamate scritte dopo il nome, ognuna con gli argomenti e la riga (<c>~1@4/1;C@5</c>: più chiamate dello stesso
+        /// chiamante verso lo stesso bersaglio si uniscono in un arco); vuoto se il riferimento non le porta, e un elemento
+        /// con argomenti null se non si leggono.
+        /// </summary>
+        internal static List<(DeclarativeLanguageExtractor.CallArguments Arguments, int Line)> CallsOf(string written)
+        {
+            var result = new List<(DeclarativeLanguageExtractor.CallArguments, int)>();
+            var (head, _) = SplitMax(written);
+            var mark = head.IndexOf(ArgumentsMark, StringComparison.Ordinal);
+            if (mark < 0) return result;
+            foreach (var call in head[(mark + 1)..].Split('/', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var at = call.LastIndexOf('@');
+                var line = at > 0 && int.TryParse(call[(at + 1)..], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var l) ? l : 0;
+                result.Add((DeclarativeLanguageExtractor.CallArguments.Parse(at > 0 ? call[..at] : call), line));
+            }
+            return result;
+        }
+
+        /// <summary>Lo stesso riferimento con le chiamate di tutti e due (senza ripetizioni); se i nomi sono diversi resta il primo.</summary>
+        public static string MergeArguments(string first, string second)
+        {
+            if (second == null || first == second) return first;
+            var (h1, max1) = SplitMax(first);
+            var (h2, _) = SplitMax(second);
+            var m1 = h1.IndexOf(ArgumentsMark, StringComparison.Ordinal);
+            var m2 = h2.IndexOf(ArgumentsMark, StringComparison.Ordinal);
+            if (m1 < 0 || m2 < 0 || h1[..m1] != h2[..m2]) return first;
+            var calls = h1[(m1 + 1)..].Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            foreach (var c in h2[(m2 + 1)..].Split('/', StringSplitOptions.RemoveEmptyEntries)) if (!calls.Contains(c)) calls.Add(c);
+            return h1[..m1] + ArgumentsMark + string.Join("/", calls) + (max1 == null ? string.Empty : "|" + max1);
+        }
+
+        private static (string Head, string Max) SplitMax(string written)
+        {
+            var bar = written.LastIndexOf('|');
+            return bar < 0 ? (written, null) : (written[..bar], written[(bar + 1)..]);
         }
 
         /// <summary>
@@ -368,6 +430,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                + "\n#" + string.Join(",", s.Symbols.Where(x => x.Kind == "external").Select(x => x.Id));
 
         private static int Rank(string confidence) => confidence switch { "extracted" => 2, "inferred" => 1, _ => 0 };
+        private static string Cap(string confidence, string max) => max != null && Rank(max) < Rank(confidence) ? max : confidence;
 
         private static void Relink(CodeScript script, string path, CodeLinkIndex index, Func<string, string, string> ext, bool importsOnly)
         {
@@ -424,7 +487,25 @@ namespace MdExplorer.Features.Services.CodeGraph
                 List<string> targets; string confidence;
                 if (isCall)
                 {
-                    var candidates = index.Symbols(name).Where(c => c.Path != path).ToList();
+                    var all = index.Symbols(name).Where(c => c.Path != path).ToList();
+                    var calls = CallsOf(w);
+                    if (calls.Count > 1)
+                    {
+                        // più chiamate con argomenti diversi nello stesso arco (motore 8): ognuna sceglie il suo sovraccarico
+                        var each = calls.Select(c => (c.Line, Targets: index.Accepting(all, c.Arguments))).ToList();
+                        if (each.All(x => x.Targets.Count >= 1 && x.Targets.Count <= DeclarativeLanguageExtractor.MaxAmbiguousCandidates))
+                        {
+                            foreach (var (callLine, found) in each)
+                                foreach (var t in found)
+                                    result.Add(new ScriptEdge
+                                    {
+                                        SourceId = e.SourceId, TargetId = t.Id, Relation = e.Relation, Line = callLine > 0 ? callLine : line, Written = w, Guard = e.Guard,
+                                        Confidence = Cap(found.Count == 1 ? "inferred" : "ambiguous", max),
+                                    });
+                            continue;
+                        }
+                    }
+                    var candidates = index.Accepting(all, calls.Count == 1 ? calls[0].Arguments : null);
                     var imported = index.ImportedClosure(path);
                     var viaImports = candidates.Where(c => imported.Contains(c.Path)).ToList();
                     if (viaImports.Count > 0) { targets = viaImports.Select(c => c.Id).ToList(); confidence = viaImports.Count == 1 ? "extracted" : "ambiguous"; }

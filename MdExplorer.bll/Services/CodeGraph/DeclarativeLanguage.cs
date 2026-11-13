@@ -248,6 +248,42 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string DefaultDirection { get; init; }
             /// <summary>La parola di direzione vale anche per i parametri che seguono, finché un'altra la cambia (<c>OUT A, B IN C</c>: A e B in uscita).</summary>
             public bool Sticky { get; init; }
+            /// <summary>
+            /// <c>separator: ','</c> (motore 8, 13/11/2026): i parametri si leggono fra le parentesi della firma ANCHE su più
+            /// righe, uno per pezzo fra i separatori al primo livello (<c>NUMBER(10,2)</c> resta un tipo), e la firma è
+            /// completa: serve a scegliere il sovraccarico di una chiamata. Null = come prima, solo la riga dell'intestazione.
+            /// </summary>
+            public string Separator { get; init; }
+            /// <summary><c>optional: '\bDEFAULT\b|:='</c>: un parametro con un valore di default si può omettere nella chiamata.</summary>
+            public Regex Optional { get; init; }
+        }
+
+        /// <summary>
+        /// Una regola che legge un ELENCO dopo il suo modello (motore 8, 13/11/2026, <c>FROM T1 a, T2 b</c>): dalla fine della
+        /// corrispondenza, anche sulle righe dopo, fino a <see cref="Until"/> al primo livello di parentesi, a una parentesi
+        /// che chiude (la fine di una sottoquery) o a <see cref="MaxLines"/> righe; ogni pezzo fra i <see cref="Separator"/>
+        /// al primo livello è un bersaglio se <see cref="Item"/> (gruppo <c>target</c>) lo riconosce dall'inizio.
+        /// </summary>
+        public sealed class ListRule
+        {
+            public Regex Until { get; init; }
+            public string Separator { get; init; }
+            public Regex Item { get; init; }
+            public const int MaxLines = 200;
+        }
+
+        /// <summary>
+        /// Gli argomenti di una chiamata (motore 8): dopo la parentesi con cui finisce il modello, fino a quella che la chiude
+        /// (anche su più righe), separati da <see cref="Separator"/> al primo livello; <see cref="Named"/> (gruppo <c>name</c>)
+        /// riconosce un argomento per nome (<c>p_x => 1</c>). Con più candidati restano quelli i cui parametri accettano quegli
+        /// argomenti. <see cref="NextLine"/>: il modello può finire a fine riga e la parentesi stare sulla riga dopo; se lì
+        /// non c'è, non era una chiamata. Un modello che non finisce con una parentesi è una chiamata senza argomenti.
+        /// </summary>
+        public sealed class ArgumentsRule
+        {
+            public string Separator { get; init; }
+            public Regex Named { get; init; }
+            public bool NextLine { get; init; }
         }
 
         /// <summary>
@@ -319,6 +355,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// bersaglio è un simbolo di primo livello. Non risolto, il nodo esterno è <c>owner.target</c>. Solo con resolve: symbol.
             /// </summary>
             public bool HasOwner { get; init; }
+            /// <summary>Un elenco dopo il modello (<see cref="ListRule"/>); null = un bersaglio per corrispondenza.</summary>
+            public ListRule List { get; init; }
+            /// <summary>Gli argomenti della chiamata (<see cref="ArgumentsRule"/>); null = non si leggono.</summary>
+            public ArgumentsRule Arguments { get; init; }
         }
 
         // ------------------------------------------------------------------ catalogo del progetto
@@ -649,7 +689,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!CodeScriptParser.Directions.Contains(dir)) throw Fail($"parameters.direction.{word}: '{dir}' — ammesse: {string.Join(", ", CodeScriptParser.Directions)}", $"parameters.direction.{word}: '{dir}' — allowed: {string.Join(", ", CodeScriptParser.Directions)}");
                 var def = p.Default ?? "in";
                 if (!CodeScriptParser.Directions.Contains(def)) throw Fail($"parameters.default: '{def}' — ammesse: {string.Join(", ", CodeScriptParser.Directions)}", $"parameters.default: '{def}' — allowed: {string.Join(", ", CodeScriptParser.Directions)}");
-                return new ParameterRule { Item = Rx("parameters.item", p.Item, "name"), Direction = directions, DefaultDirection = def, Sticky = p.Sticky };
+                if (p.Separator != null && p.Separator.Length == 0) throw Fail("parameters.separator: vuoto", "parameters.separator: empty");
+                if (p.Optional != null && p.Separator == null) throw Fail("parameters.optional: vale solo con parameters.separator", "parameters.optional: only with parameters.separator");
+                return new ParameterRule
+                {
+                    Item = Rx("parameters.item", p.Item, "name"), Direction = directions, DefaultDirection = def, Sticky = p.Sticky,
+                    Separator = p.Separator, Optional = p.Optional == null ? null : Rx("parameters.optional", p.Optional),
+                };
             }
 
             private FragmentRule BuildFragments(List<BlockRule> blocks)
@@ -702,13 +748,32 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!r.Assign.Contains("{var}")) throw Fail($"{where}.assign: manca {{var}}, il posto della variabile", $"{where}.assign: {{var}} is missing, where the variable goes");
                     Rx(where + ".assign", r.Assign.Replace("{var}", "X"), "name");
                 }
-                var pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : Rx(where + ".pattern", r.Pattern, "target");
+                var pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : r.List != null ? Rx(where + ".pattern", r.Pattern) : Rx(where + ".pattern", r.Pattern, "target");
+                ListRule list = null;
+                if (r.List != null)
+                {
+                    if (r.Assign != null || r.Arguments != null) throw Fail($"{where}.list: non vale con assign né con arguments", $"{where}.list: not with assign or arguments");
+                    if (string.IsNullOrEmpty(r.List.Separator) || r.List.Item == null || r.List.Until == null)
+                        throw Fail($"{where}.list: servono until, separator e item", $"{where}.list: until, separator and item are required");
+                    list = new ListRule { Until = Rx(where + ".list.until", r.List.Until), Separator = r.List.Separator, Item = Rx(where + ".list.item", r.List.Item, "target") };
+                }
+                ArgumentsRule arguments = null;
+                if (r.Arguments != null)
+                {
+                    if (resolve != ResolveKind.Symbol || r.Assign != null) throw Fail($"{where}.arguments: vale solo con resolve: symbol (e senza assign)", $"{where}.arguments: only with resolve: symbol (and without assign)");
+                    if (string.IsNullOrEmpty(r.Arguments.Separator)) throw Fail($"{where}.arguments.separator: obbligatorio", $"{where}.arguments.separator: required");
+                    arguments = new ArgumentsRule
+                    {
+                        Separator = r.Arguments.Separator, NextLine = r.Arguments.NextLine,
+                        Named = r.Arguments.Named == null ? null : Rx(where + ".arguments.named", r.Arguments.Named, "name"),
+                    };
+                }
                 var hasOwner = pattern.GetGroupNames().Contains("owner");
                 if (hasOwner && (resolve != ResolveKind.Symbol || r.Assign != null))
                     throw Fail($"{where}.pattern: il gruppo owner vale solo con resolve: symbol (e senza assign)", $"{where}.pattern: the owner group only applies to resolve: symbol (and without assign)");
                 return new ReferenceRule
                 {
-                    AssignTemplate = r.Assign, HasOwner = hasOwner,
+                    AssignTemplate = r.Assign, HasOwner = hasOwner, List = list, Arguments = arguments,
                     Relation = r.Relation, Pattern = pattern,
                     Text = Enum(where + ".text", r.Text, TextKind.Code),
                     After = r.After == null ? null : Rx(where + ".after", r.After), NotAfter = r.NotAfter == null ? null : Rx(where + ".notAfter", r.NotAfter),
@@ -870,6 +935,20 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Item { get; set; }
                 public Dictionary<string, string> Direction { get; set; }
                 public string Default { get; set; }
+                public string Separator { get; set; }
+                public string Optional { get; set; }
+            }
+            public sealed class List
+            {
+                public string Until { get; set; }
+                public string Separator { get; set; }
+                public string Item { get; set; }
+            }
+            public sealed class Arguments
+            {
+                public string Separator { get; set; }
+                public string Named { get; set; }
+                public bool NextLine { get; set; }
             }
             public sealed class Reference
             {
@@ -884,6 +963,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<string> Rules { get; set; }
                 public List<string> Ignore { get; set; }
                 public List<string> IgnoreUnresolved { get; set; }
+                public List List { get; set; }
+                public Arguments Arguments { get; set; }
                 public List<string> Unless { get; set; }
                 public string Scope { get; set; }
                 public string Confidence { get; set; }

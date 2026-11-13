@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
-        public const string EngineVersion = "7";
+        public const string EngineVersion = "8";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -100,6 +100,104 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         private string StableId(string kind, string qualifiedName) => RoslynCSharpExtractor.StableId(_lang.Id, kind, qualifiedName);
+
+        // ------------------------------------------------------------------ testo su più righe (motore 8)
+
+        /// <summary>Quante righe logiche si seguono al più per chiudere una parentesi o un elenco.</summary>
+        internal const int MaxSpanLines = 200;
+
+        /// <summary>
+        /// Il testo fra la parentesi in <paramref name="open"/> della riga <paramref name="lineIndex"/> e quella che la chiude,
+        /// anche sulle righe dopo (unite da un a capo), sul testo «code»: commenti e stringhe non contano. Null se non si chiude
+        /// entro <see cref="MaxSpanLines"/> righe. <paramref name="lastLine"/> è la riga della parentesi che chiude.
+        /// </summary>
+        internal static string Balanced(List<LogicalLine> lines, int lineIndex, int open, out int lastLine)
+            => Balanced(lines, lineIndex, open, out lastLine, out _);
+
+        /// <param name="raw">Lo stesso tratto sul testo «raw» (con stringhe e commenti), alle stesse posizioni.</param>
+        internal static string Balanced(List<LogicalLine> lines, int lineIndex, int open, out int lastLine, out string raw)
+        {
+            lastLine = lineIndex;
+            raw = null;
+            var sb = new StringBuilder();
+            var sbRaw = new StringBuilder();
+            var depth = 0;
+            for (var i = lineIndex; i < lines.Count && i < lineIndex + MaxSpanLines; i++)
+            {
+                var code = lines[i].Code;
+                var rawLine = lines[i].Raw ?? code;
+                for (var k = i == lineIndex ? open : 0; k < code.Length; k++)
+                {
+                    var ch = code[k];
+                    if (ch == '(') { if (depth++ == 0) continue; }
+                    else if (ch == ')' && --depth == 0) { lastLine = i; raw = sbRaw.ToString(); return sb.ToString(); }
+                    sb.Append(ch);
+                    sbRaw.Append(k < rawLine.Length ? rawLine[k] : ch);
+                }
+                sb.Append('\n');
+                sbRaw.Append('\n');
+            }
+            return null;
+        }
+
+        /// <summary>I pezzi di <paramref name="text"/> fra i separatori al primo livello di parentesi (<c>NUMBER(10,2)</c> resta intero).</summary>
+        internal static List<string> SplitTop(string text, string separator)
+            => SplitSpans(text, separator).Select(r => text.Substring(r.Start, r.Length)).ToList();
+
+        /// <summary>Come <see cref="SplitTop"/>, ma le posizioni: per prendere lo stesso pezzo da un testo allineato.</summary>
+        internal static List<(int Start, int Length)> SplitSpans(string text, string separator)
+        {
+            var pieces = new List<(int, int)>();
+            var depth = 0;
+            var start = 0;
+            for (var k = 0; k < text.Length; k++)
+            {
+                var ch = text[k];
+                if (ch == '(') depth++;
+                else if (ch == ')') depth--;
+                else if (depth == 0 && string.CompareOrdinal(text, k, separator, 0, separator.Length) == 0)
+                {
+                    pieces.Add((start, k - start));
+                    start = k + separator.Length;
+                    k = start - 1;
+                }
+            }
+            pieces.Add((start, text.Length - start));
+            return pieces;
+        }
+
+        /// <summary>Gli argomenti di una chiamata: quanti per posizione e i nomi di quelli per nome; null = non si sa.</summary>
+        internal sealed record CallArguments(int Positional, IReadOnlyList<string> Named)
+        {
+            /// <summary>Per il riferimento scritto: <c>2</c>, <c>1;P_X,P_Y</c>.</summary>
+            public string Written => Named.Count == 0 ? Positional.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : Positional.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";" + string.Join(",", Named);
+
+            public static CallArguments Parse(string written)
+            {
+                if (string.IsNullOrEmpty(written)) return null;
+                var semi = written.IndexOf(';');
+                if (!int.TryParse(semi < 0 ? written : written[..semi], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n)) return null;
+                return new CallArguments(n, semi < 0 ? Array.Empty<string>() : written[(semi + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries));
+            }
+
+            /// <summary>
+            /// Una firma (parametri in ordine, con o senza default) accetta questi argomenti: i posizionali riempiono i primi
+            /// parametri, quelli per nome esistono e non sono già riempiti, e ogni parametro senza default è riempito.
+            /// </summary>
+            public bool Fits(IReadOnlyList<(string Name, bool Optional)> parameters, StringComparer names)
+            {
+                if (Positional > parameters.Count) return false;
+                var filled = new HashSet<string>(names);
+                for (var k = 0; k < Positional; k++) filled.Add(parameters[k].Name);
+                foreach (var n in Named)
+                {
+                    if (!parameters.Any(p => names.Equals(p.Name, n))) return false;
+                    if (!filled.Add(n)) return false;
+                }
+                return parameters.All(p => p.Optional || filled.Contains(p.Name));
+            }
+        }
 
         // ------------------------------------------------------------------ righe logiche
 
@@ -224,6 +322,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public List<(Sym Declaration, string Confidence)> Implements;
             /// <summary><c>completes</c>: le implementazioni di questa dichiarazione (un riferimento che trova entrambe va a loro).</summary>
             public List<Sym> ImplementedBy;
+            /// <summary>La firma è stata letta tutta (<c>parameters.separator</c>): i suoi parametri dicono quali chiamate accetta.</summary>
+            public bool ParamsKnown;
         }
 
         private sealed class FileModel
@@ -249,6 +349,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly FileModel _m;
             private readonly HashSet<string> _qualified;
             private readonly int _fragmentAbove;
+            /// <summary>L'indice della riga logica che si sta leggendo: una firma può continuare sulle righe dopo.</summary>
+            private int _current;
 
             public StructureReader(DeclarativeLanguage lang, CodeSourceFile file, string text, int fragmentAbove)
             {
@@ -284,6 +386,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 for (var i = 0; i < lines.Count; i++)
                 {
                     var line = lines[i];
+                    _current = i;
                     var top = stack[^1];
                     var nesting = top == module ? null : BlockRule(top).Nesting;
                     if (nesting == null)
@@ -539,8 +642,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     DeclaredName(line, m.Groups["name"]);
                     sym.Signature = rule.SignatureTemplate != null ? Template(rule.SignatureTemplate, m, line) : Collapse(line.Raw);
                     sym.ReturnType = TypeOf(m);
-                    var paramsGroup = m.Groups["params"];
-                    if (paramsGroup.Success && _lang.Parameters != null) ReadParameters(sym, line.Raw.Substring(paramsGroup.Index, paramsGroup.Length));
+                    Signature(sym, m, rule.Begin, line);
                     match = m; opened = rule;
                     return sym;
                 }
@@ -573,8 +675,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         last.Key = name;
                         last.Signature = Collapse(line.Raw);
                         last.ReturnType = TypeOf(m);
-                        var paramsGroup = m.Groups["params"];
-                        if (paramsGroup.Success && _lang.Parameters != null) ReadParameters(last, line.Raw.Substring(paramsGroup.Index, paramsGroup.Length));
+                        Signature(last, m, rule.At, line);
                     }
                     return last ?? parent.OpenLabel ?? parent;
                 }
@@ -717,6 +818,45 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return len.Success && len.Length > 0 ? $"{type}({len.Value.Trim()})" : type;
             }
 
+            /// <summary>
+            /// I parametri della firma. Con <c>parameters.separator</c> (motore 8) fra le parentesi, anche su più righe, e la firma è
+            /// completa (<see cref="Sym.ParamsKnown"/>): una regola con il gruppo <c>params</c> che non ha la parentesi ha zero
+            /// parametri; una parentesi che non si chiude lascia la firma incompleta. Senza, come prima: il testo del gruppo sulla riga.
+            /// </summary>
+            private void Signature(Sym sym, Match m, Regex rule, LogicalLine line)
+            {
+                var rule0 = _lang.Parameters;
+                if (rule0 == null || !rule.GetGroupNames().Contains("params")) return;
+                var g = m.Groups["params"];
+                if (rule0.Separator == null)
+                {
+                    if (g.Success) ReadParameters(sym, line.Raw.Substring(g.Index, g.Length));
+                    return;
+                }
+                if (!g.Success) { sym.ParamsKnown = true; return; }
+                var open = line.Code.LastIndexOf('(', Math.Max(0, Math.Min(g.Index, line.Code.Length) - 1));
+                string raw = null;
+                var inner = open < 0 ? null : Balanced(_m.Lines, _current, open, out _, out raw);
+                if (inner == null) { ReadParameters(sym, line.Raw.Substring(g.Index, g.Length)); return; }
+                var position = 0;
+                foreach (var (at, length) in SplitSpans(inner, rule0.Separator))
+                {
+                    var piece = inner.Substring(at, length);
+                    var rawPiece = raw != null && raw.Length == inner.Length ? raw.Substring(at, length) : piece;
+                    var p = rule0.Item.Match(piece);
+                    if (!p.Success || p.Groups["name"].Length == 0) continue;
+                    var word = p.Groups["direction"];
+                    var optional = rule0.Optional?.Match(piece);
+                    sym.Parameters.Add(new ScriptParameter
+                    {
+                        Position = position++, Name = p.Groups["name"].Value, ParameterType = TypeOf(p),
+                        Direction = word.Success && rule0.Direction.TryGetValue(Regex.Replace(word.Value.Trim(), @"\s+", " "), out var d) ? d : rule0.DefaultDirection,
+                        DefaultValue = optional is { Success: true } ? Collapse(rawPiece[(optional.Index + optional.Length)..]) : null,
+                    });
+                }
+                sym.ParamsKnown = true;
+            }
+
             private void ReadParameters(Sym sym, string text)
             {
                 var rule = _lang.Parameters;
@@ -784,10 +924,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var sameName = specs.SelectMany(spec => spec.File.Symbols.Where(d => d.Parent == spec && d.Kind == member.Kind && lang.NameComparer.Equals(d.Key, member.Key))).ToList();
                     if (sameName.Count == 0) continue;
                     var siblings = members.Count(o => o.Kind == member.Kind && lang.NameComparer.Equals(o.Key, member.Key));
-                    var found = sameName.Count == 1 && siblings == 1 ? sameName : sameName.Where(d => d.Parameters.Count == member.Parameters.Count).ToList();
+                    var found = sameName.Count == 1 && siblings == 1 ? sameName : sameName.Where(d => SameSignature(lang, d, member)).ToList();
                     foreach (var d in found) Link(member, d, found.Count == 1 ? confidence : "ambiguous");
                 }
             }
+
+            /// <summary>Con le due firme lette tutte (motore 8), gli stessi nomi di parametro in ordine; altrimenti lo stesso numero.</summary>
+            private static bool SameSignature(DeclarativeLanguage lang, Sym a, Sym b)
+                => a.ParamsKnown && b.ParamsKnown
+                    ? a.Parameters.Select(p => p.Name).SequenceEqual(b.Parameters.Select(p => p.Name), lang.NameComparer)
+                    : a.Parameters.Count == b.Parameters.Count;
 
             private static void Link(Sym implementation, Sym declaration, string confidence)
             {
@@ -885,6 +1031,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         foreach (Match match in rule.Pattern.Matches(text))
                         {
                             if (rule.AssignTemplate != null) { Dispatch(rule, match.Groups["var"].Value, i, line); continue; }
+                            if (rule.List != null) { ListReferences(rule, i, match.Index + match.Length); continue; }
                             var group = match.Groups["target"];
                             if (declared != null && declared.Any(d => group.Index < d.Index + d.Length && d.Index < group.Index + group.Length)) continue;
                             var target = group.Value;
@@ -893,8 +1040,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                             if (target.Length == 0) continue;
                             var owner = rule.HasOwner && match.Groups["owner"].Success ? match.Groups["owner"].Value.Trim() : null;
                             if (owner?.Length == 0) owner = null;
-                            var written = WrittenOf(rule, target, owner);
-                            foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i], owner))
+                            CallArguments args = null;
+                            if (rule.Arguments != null && !ArgumentsOf(rule.Arguments, i, match, out args)) continue;   // non era una chiamata
+                            var written = WrittenOf(rule, target, owner, args, line.Start);
+                            foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i], owner, args, line.Start))
                                 _pending.Add((_m.Owner[i], id, rule.Relation, Cap(confidence, rule.Confidence), line.Start, written));
                         }
                     }
@@ -971,7 +1120,102 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// Il riferimento scritto (F1a): solo per le regole che si risolvono fra file diversi (per file, per modulo, per nome senza
             /// <c>scope</c>); le etichette di un blocco e i segmenti di un modulo restano dentro il file e non si ricollegano.
             /// </summary>
-            private static string WrittenOf(DeclarativeLanguage.ReferenceRule rule, string target, string owner = null)
+            /// <summary>
+            /// Un elenco dopo il modello (motore 8, <c>FROM T1 a, T2 b</c>): i pezzi fra i separatori al primo livello di parentesi,
+            /// anche sulle righe dopo, fino a <c>until</c>, a una parentesi che chiude o a <see cref="MaxSpanLines"/> righe (lo dice
+            /// un avviso). Ogni pezzo che <c>item</c> riconosce dall'inizio è un bersaglio, dalla riga dove comincia.
+            /// </summary>
+            private void ListReferences(DeclarativeLanguage.ReferenceRule rule, int lineIndex, int start)
+            {
+                var list = rule.List;
+                var items = new List<(int Line, string Text)>();
+                var sb = new StringBuilder();
+                var itemLine = -1;
+                var depth = 0;
+                var closed = false;
+                void Flush() { if (sb.Length > 0) items.Add((itemLine < 0 ? lineIndex : itemLine, sb.ToString())); sb.Clear(); itemLine = -1; }
+                for (var i = lineIndex; i < _m.Lines.Count && i < lineIndex + MaxSpanLines && !closed; i++)
+                {
+                    var code = _m.Lines[i].Code;
+                    for (var k = i == lineIndex ? start : 0; k < code.Length; k++)
+                    {
+                        var ch = code[k];
+                        if (depth == 0 && !char.IsWhiteSpace(ch) && (k == 0 || !IsWordChar(code[k - 1])))
+                        {
+                            var u = list.Until.Match(code, k);
+                            if (u.Success && u.Index == k) { closed = true; break; }
+                        }
+                        if (ch == '(') depth++;
+                        else if (ch == ')') { if (depth == 0) { closed = true; break; } depth--; }
+                        else if (depth == 0 && string.CompareOrdinal(code, k, list.Separator, 0, list.Separator.Length) == 0)
+                        {
+                            Flush();
+                            k += list.Separator.Length - 1;
+                            continue;
+                        }
+                        if (itemLine < 0 && !char.IsWhiteSpace(ch)) itemLine = i;
+                        sb.Append(ch);
+                    }
+                    if (!closed) sb.Append('\n');
+                }
+                if (!closed)
+                    _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{_m.Lines[lineIndex].Start}: l'elenco dopo il modello non finisce entro {MaxSpanLines} righe: letti i primi pezzi",
+                        $"{_m.File.LogicalPath}:{_m.Lines[lineIndex].Start}: the list after the pattern does not end within {MaxSpanLines} lines: its first items were read"));
+                Flush();
+                foreach (var (at, text) in items)
+                {
+                    var m = list.Item.Match(text);
+                    if (!m.Success || m.Index != 0) continue;
+                    var target = m.Groups["target"].Value.Trim();
+                    if (target.Length == 0) continue;
+                    var written = WrittenOf(rule, target);
+                    foreach (var (id, confidence) in Resolve(rule, target, _m.Block[at]))
+                        _pending.Add((_m.Owner[at], id, rule.Relation, Cap(confidence, rule.Confidence), _m.Lines[at].Start, written));
+                }
+            }
+
+            private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c is '_' or '$' or '#';
+
+            /// <summary>
+            /// Gli argomenti della chiamata appena trovata (motore 8). Il modello finisce con <c>(</c>: fino alla parentesi che la
+            /// chiude, anche su più righe (null se non si chiude: non si sa). Finisce a fine riga con <c>nextLine</c>: la
+            /// parentesi deve aprire la riga dopo, altrimenti non era una chiamata (false). Altrimenti: nessun argomento.
+            /// </summary>
+            private bool ArgumentsOf(DeclarativeLanguage.ArgumentsRule rule, int lineIndex, Match match, out CallArguments args)
+            {
+                args = null;
+                var code = _m.Lines[lineIndex].Code;
+                var end = match.Index + match.Length;
+                var value = match.Value.TrimEnd();
+                int line = lineIndex, open;
+                if (value.EndsWith('(')) open = match.Index + value.Length - 1;
+                else if (rule.NextLine && (end >= code.Length || code[end..].Trim().Length == 0) && !value.EndsWith(';'))
+                {
+                    line = lineIndex + 1;
+                    while (line < _m.Lines.Count && string.IsNullOrWhiteSpace(_m.Lines[line].Code)) line++;
+                    if (line >= _m.Lines.Count) return false;
+                    var next = _m.Lines[line].Code;
+                    open = next.Length - next.TrimStart().Length;
+                    if (open >= next.Length || next[open] != '(') return false;
+                }
+                else { args = new CallArguments(0, Array.Empty<string>()); return true; }
+                var inner = Balanced(_m.Lines, line, open, out _);
+                if (inner == null) return true;
+                if (line != lineIndex && inner.Trim() == "+") return false;   // COLONNA a capo (+): un join esterno
+                if (inner.Trim().Length == 0) { args = new CallArguments(0, Array.Empty<string>()); return true; }
+                var positional = 0;
+                var named = new List<string>();
+                foreach (var piece in SplitTop(inner, rule.Separator))
+                {
+                    var n = rule.Named?.Match(piece);
+                    if (n is { Success: true }) named.Add(n.Groups["name"].Value.Trim());
+                    else positional++;
+                }
+                args = new CallArguments(positional, named);
+                return true;
+            }
+
+            private static string WrittenOf(DeclarativeLanguage.ReferenceRule rule, string target, string owner = null, CallArguments args = null, int line = 0)
             {
                 var what = rule.Resolve switch
                 {
@@ -980,10 +1224,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     _ => rule.Scope == DeclarativeLanguage.ScopeKind.Perimeter ? "symbol" : null,
                 };
                 if (what == null || rule.Ignore.Contains(target)) return null;
-                return CodeCrossLinker.Written(what, owner == null ? target : owner + "." + target, rule.Confidence);
+                return CodeCrossLinker.Written(what, (owner == null ? target : owner + "." + target)
+                    + (args == null ? string.Empty : CodeCrossLinker.ArgumentsMark + args.Written + "@" + line.ToString(System.Globalization.CultureInfo.InvariantCulture)), rule.Confidence);
             }
 
-            private IEnumerable<(string Id, string Confidence)> Resolve(DeclarativeLanguage.ReferenceRule rule, string target, Sym block, string owner = null)
+            private IEnumerable<(string Id, string Confidence)> Resolve(DeclarativeLanguage.ReferenceRule rule, string target, Sym block, string owner = null,
+                CallArguments args = null, int line = 0)
             {
                 if (rule.Ignore.Contains(target)) yield break;
                 IReadOnlyList<Sym> found;
@@ -1022,6 +1268,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var implementations = found.Where(s => s.ImplementedBy == null || !s.ImplementedBy.Any(found.Contains)).ToList();
                     if (implementations.Count > 0) found = implementations;
+                }
+                // fra i sovraccarichi, quelli che accettano gli argomenti scritti (motore 8); una firma non letta tutta resta
+                if (args != null && found.Count > 1)
+                {
+                    var fit = found.Where(s => !s.ParamsKnown || args.Fits(s.Parameters.Select(p => (p.Name, p.DefaultValue != null)).ToList(), Lang.NameComparer)).ToList();
+                    if (fit.Count > 0) found = fit;
+                    else _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line}: '{target}' chiamato con {Describe(args)}: nessuno dei {found.Count} candidati li accetta, restano tutti (ambiguous)",
+                        $"{_m.File.LogicalPath}:{line}: '{target}' called with {Describe(args)}: none of the {found.Count} candidates accepts them, all are kept (ambiguous)"));
                 }
                 var written = owner == null ? target : owner + "." + target;
                 if (found.Count == 0)
@@ -1075,7 +1329,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_edges.TryGetValue(key, out var existing))
                 {
                     if (Rank(confidence) > Rank(existing.Confidence)) { existing.Confidence = confidence; existing.Line = line; }
-                    existing.Written ??= written;
+                    // più chiamate verso lo stesso bersaglio con argomenti diversi: il riferimento le ricorda tutte (motore 8)
+                    existing.Written = existing.Written == null ? written : CodeCrossLinker.MergeArguments(existing.Written, written);
                     return;
                 }
                 var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line, Written = written };
@@ -1084,6 +1339,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             private static int Rank(string confidence) => confidence switch { "extracted" => 2, "inferred" => 1, _ => 0 };
+
+            private static string Describe(CallArguments a) => a.Named.Count == 0
+                ? UiText.Say($"{a.Positional} argomenti", $"{a.Positional} arguments")
+                : UiText.Say($"{a.Positional} argomenti per posizione e {string.Join(", ", a.Named)} per nome", $"{a.Positional} positional arguments and {string.Join(", ", a.Named)} by name");
         }
     }
 }
