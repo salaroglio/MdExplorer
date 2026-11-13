@@ -451,7 +451,14 @@ namespace MdExplorer
                 options.MultipartBodyLengthLimit = 500L * 1024 * 1024; // 500 MB
             });
 
-            services.AddSignalR(_ => _.KeepAliveInterval = TimeSpan.FromSeconds(20));
+            // 13/11/2026, dal cliente: una risposta lunga di MarkAgent tagliata da «connessione persa». Il servizio chiudeva la
+            // connessione dopo 30 s senza segnali dal client (e con lei la sessione dell'agente); un client in secondo piano o un
+            // servizio sotto carico li ritarda. Segnale ogni 15 s, pazienza 2 minuti, da entrambe le parti (SignalrTimeouts nel client).
+            services.AddSignalR(o =>
+            {
+                o.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                o.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+            });
 
             // Try to load P2P Premium module if available
             Assembly? p2pAssembly = null;

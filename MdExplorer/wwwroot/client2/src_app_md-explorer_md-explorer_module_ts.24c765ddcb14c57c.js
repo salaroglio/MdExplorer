@@ -8361,9 +8361,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "SignalRChatProvider": () => (/* binding */ SignalRChatProvider)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/signalr-timeouts */ 367);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
+
 
 
 
@@ -8377,13 +8379,13 @@ class SignalRChatProvider {
     this.hubConnection = null;
     this.currentRoomId = null;
     this.currentUser = null;
-    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject([]);
-    this._presence$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject({
+    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
+    this._presence$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject({
       users: [],
       totalOnline: 0
     });
-    this._isConnected$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(false);
-    this._projectUsersCount$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(0);
+    this._isConnected$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._projectUsersCount$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(0);
     this.messages$ = this._messages$.asObservable();
     this.presence$ = this._presence$.asObservable();
     this.isConnected$ = this._isConnected$.asObservable();
@@ -8394,7 +8396,7 @@ class SignalRChatProvider {
    * Initialize SignalR connection
    */
   initializeSignalR() {
-    this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.HubConnectionBuilder().withUrl('/signalr/teamchat').configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.LogLevel.Information).withAutomaticReconnect().build();
+    this.hubConnection = (0,_signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__.applySignalrTimeouts)(new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__.HubConnectionBuilder().withUrl('/signalr/teamchat').configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__.LogLevel.Information).withAutomaticReconnect().build());
     // Handle incoming messages
     this.hubConnection.on('ReceiveMessage', message => {
       const currentMessages = this._messages$.value;
@@ -8543,7 +8545,7 @@ class SignalRChatProvider {
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
       token: SignalRChatProvider,
       factory: SignalRChatProvider.ɵfac
     });
@@ -56727,4 +56729,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.0a854316178eb7ef.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.24c765ddcb14c57c.js.map

@@ -1,4 +1,5 @@
 import { Injectable, Injector } from '@angular/core';
+import { applySignalrTimeouts } from '../signalr-timeouts';
 import { PasteAnchor } from '../../md-explorer/models/paste-anchor';
 import * as signalR from "@microsoft/signalr";
 import { GITService } from '../../git/services/gitservice.service';
@@ -255,9 +256,9 @@ export class MdServerMessagesService {
 
   public startConnection = () => {
     if (this.hubConnection == null) {
-      this.hubConnection = new signalR.HubConnectionBuilder()
+      this.hubConnection = applySignalrTimeouts(new signalR.HubConnectionBuilder()
         .withUrl('../signalr/monitormd')
-        .build();
+        .build());
       this.hubConnection.on('markdownfileisprocessed', (data) => {
         this.processCallBack(data, 'markdownfileisprocessed');
       });

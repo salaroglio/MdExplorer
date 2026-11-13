@@ -17183,19 +17183,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AiChatService": () => (/* binding */ AiChatService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 833);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 745);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 9337);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 2313);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 9196);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/signalr-timeouts */ 367);
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 833);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 745);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 2313);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 9196);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
 
 
 
@@ -17217,13 +17219,13 @@ class AiChatService {
     // Il modello che ha RISPOSTO all'ultimo turno della chat principale, come lo riporta Copilot.
     // Puo' essere diverso da quello scelto: un modello che l'installazione non ha non da' errore,
     // il CLI lo sostituisce in silenzio. E' l'unico nome onesto da mostrare.
-    this._answeredModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._answeredModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.answeredModel$ = this._answeredModel$.asObservable();
     // Ultimo connectionId noto di MonitorMDHub: e' cosi' che il backend risale al progetto.
     // Va conservato perche' i due hub si connettono in ordine imprevedibile, e chi arriva
     // secondo deve poter (ri)mandare il valore senza dipendere da un timer.
     this._projectConnId = null;
-    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
+    this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject([]);
     this.messages$ = this._messages$.asObservable();
     // Last scroll position of the chat message list. Persisted here (in the
     // singleton service) rather than in AiChatComponent because mat-tab-group
@@ -17233,49 +17235,49 @@ class AiChatService {
     // component decide between "restore the exact position" and "snap to bottom".
     this.savedScrollTop = 0;
     this.savedAtBottom = true;
-    this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     this.downloadProgress$ = this._downloadProgress$.asObservable();
-    this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.currentModel$ = this._currentModel$.asObservable();
-    this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.isModelLoaded$ = this._isModelLoaded$.asObservable();
-    this._isConfiguringProvider$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._isConfiguringProvider$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.isConfiguringProvider$ = this._isConfiguringProvider$.asObservable();
-    this._streamingMessage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    this._streamingMessage$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     this.streamingMessage$ = this._streamingMessage$.asObservable();
     // True while a prompt is streaming a response on the default channel — drives the Stop button.
-    this._isStreaming$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._isStreaming$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.isStreaming$ = this._isStreaming$.asObservable();
     /**
      * Consuntivo dell'ultimo turno di Claude Code (evento SignalR `ReceiveClaudeUsage`).
      * Resta null per ogni altro provider: nessun altro lo manda.
      */
-    this._claudeUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._claudeUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.claudeUsage$ = this._claudeUsage$.asObservable();
     /**
      * Consumi di Copilot (evento SignalR `ReceiveCopilotUsage`): quota del periodo, parte presa da
      * questa conversazione, riempimento del contesto. Null finché il backend non li manda.
      */
-    this._copilotUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._copilotUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.copilotUsage$ = this._copilotUsage$.asObservable();
     /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
-    this._toolActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._toolActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.toolActivity$ = this._toolActivity$.asObservable();
-    this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.gpuInfo$ = this._gpuInfo$.asObservable();
-    this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.gpuEnabled$ = this._gpuEnabled$.asObservable();
     this.currentStreamingMessageId = null;
     this.currentStreamingProviderType = null;
     // Channel-aware event stream for PromptLab and multi-channel consumers
-    this._channelEvent$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    this._channelEvent$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     // Gemini API state
-    this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
+    this._useGemini$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
     this.useGemini$ = this._useGemini$.asObservable();
-    this._geminiModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject('gemini-1.5-flash');
+    this._geminiModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject('gemini-1.5-flash');
     this.geminiModel$ = this._geminiModel$.asObservable();
     // Current document context for AI
-    this._currentDocument$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this._currentDocument$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.currentDocument$ = this._currentDocument$.asObservable();
     // Captures a SetChatMode attempted before the SignalR hub was connected.
     // Replayed in startConnection() BEFORE getModelStatus() so the backend
@@ -17286,7 +17288,7 @@ class AiChatService {
     // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
     // every prompt fails with "Copilot not available".
     this._lastChatMode = null;
-    this._connectionLost$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    this._connectionLost$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
     this.connectionLost$ = this._connectionLost$.asObservable();
     /**
@@ -17302,7 +17304,7 @@ class AiChatService {
     this.initializeSignalR();
   }
   initializeSignalR() {
-    this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.HubConnectionBuilder().withUrl('/signalr/aichat').configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.LogLevel.Information).withAutomaticReconnect().build();
+    this.hubConnection = (0,_signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__.applySignalrTimeouts)(new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__.HubConnectionBuilder().withUrl('/signalr/aichat').configureLogging(_microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__.LogLevel.Information).withAutomaticReconnect().build());
     // Setup event handlers
     this.hubConnection.on('DownloadProgress', progress => {
       this._downloadProgress$.next(progress);
@@ -17532,7 +17534,7 @@ class AiChatService {
     console.log('[AiChatService] HubConnection state:', this.hubConnection.state);
     if (this.hubConnection.state === 'Connected') {
       console.log('[AiChatService] Using SignalR to load model');
-      return new rxjs__WEBPACK_IMPORTED_MODULE_5__.Observable(observer => {
+      return new rxjs__WEBPACK_IMPORTED_MODULE_6__.Observable(observer => {
         this.hubConnection.invoke('LoadModel', modelId).then(response => {
           console.log('[AiChatService] SignalR LoadModel success, response:', response);
           observer.next(response);
@@ -17745,7 +17747,7 @@ class AiChatService {
    * Used by PromptLab cards to subscribe to their own channel.
    */
   getChannelStream$(channelId) {
-    return this._channelEvent$.asObservable().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.filter)(event => event.channelId === channelId), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(({
+    return this._channelEvent$.asObservable().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.filter)(event => event.channelId === channelId), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(({
       type,
       data
     }) => ({
@@ -17879,7 +17881,7 @@ class AiChatService {
   }
   getOpenAiModels() {
     // Uses the multi-provider endpoint
-    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
+    return this.getModelsByProvider('OpenAI').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => response.models || []));
   }
   testOpenAiApiKey(apiKey) {
     return this.http.post('/api/openai/test-api-key', {
@@ -18026,7 +18028,7 @@ class AiChatService {
     return this.http.get('/api/copilotcli/configured');
   }
   getCopilotCliModels() {
-    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
+    return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => response.models || []));
   }
   checkClaudeCodeConfiguration() {
     return this.http.get('/api/claudecode/configured');
@@ -18037,7 +18039,7 @@ class AiChatService {
    * — `sonnet`, `opus`, `haiku` — che puntano sempre all'ultima versione della famiglia.
    */
   getClaudeCodeModels() {
-    return this.getModelsByProvider('ClaudeCode').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
+    return this.getModelsByProvider('ClaudeCode').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => response.models || []));
   }
   getCopilotCliSystemPrompt() {
     return this.http.get('/api/copilotcli/system-prompt');
@@ -18055,9 +18057,9 @@ class AiChatService {
    */
   getCachedModels() {
     if (this._cachedModels?.length) {
-      return (0,rxjs__WEBPACK_IMPORTED_MODULE_8__.of)(this._cachedModels);
+      return (0,rxjs__WEBPACK_IMPORTED_MODULE_9__.of)(this._cachedModels);
     }
-    return this.http.get('/api/aimodels/cached').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => {
+    return this.http.get('/api/aimodels/cached').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => {
       const models = (response?.models || []).map(m => ({
         value: m.id || m.modelId,
         label: m.name || m.id || m.modelId
@@ -18077,7 +18079,7 @@ class AiChatService {
       params: {
         provider: 'CopilotCli'
       }
-    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => (response?.models || []).map(m => ({
       id: m.id,
       name: m.name || m.id
     }))));
@@ -18090,7 +18092,7 @@ class AiChatService {
     if (this._refreshInFlight) {
       return this._refreshInFlight;
     }
-    this._refreshInFlight = this.http.post('/api/copilotcli/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.tap)(response => {
+    this._refreshInFlight = this.http.post('/api/copilotcli/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.tap)(response => {
       const modelList = response?.models || [];
       if (modelList.length) {
         this._cachedModels = modelList.map(m => ({
@@ -18098,9 +18100,9 @@ class AiChatService {
           label: m.name || m.Name || m.id || m.Id || m
         }));
       }
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => {
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.finalize)(() => {
       this._refreshInFlight = null;
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.shareReplay)(1));
     return this._refreshInFlight;
   }
   /**
@@ -18112,7 +18114,7 @@ class AiChatService {
       params: {
         provider: 'ClaudeCode'
       }
-    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => (response?.models || []).map(m => ({
       id: m.id,
       name: m.name || m.id,
       description: m.description || null
@@ -18123,9 +18125,9 @@ class AiChatService {
     if (this._claudeRefreshInFlight) {
       return this._claudeRefreshInFlight;
     }
-    this._claudeRefreshInFlight = this.http.post('/api/claudecode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => {
+    this._claudeRefreshInFlight = this.http.post('/api/claudecode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.finalize)(() => {
       this._claudeRefreshInFlight = null;
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.shareReplay)(1));
     return this._claudeRefreshInFlight;
   }
   /**
@@ -18137,7 +18139,7 @@ class AiChatService {
       params: {
         provider: 'OpenCode'
       }
-    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => (response?.models || []).map(m => ({
       id: m.id,
       name: m.name || m.id,
       description: m.description || null
@@ -18148,9 +18150,9 @@ class AiChatService {
     if (this._openCodeRefreshInFlight) {
       return this._openCodeRefreshInFlight;
     }
-    this._openCodeRefreshInFlight = this.http.post('/api/opencode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => {
+    this._openCodeRefreshInFlight = this.http.post('/api/opencode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.finalize)(() => {
       this._openCodeRefreshInFlight = null;
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.shareReplay)(1));
     return this._openCodeRefreshInFlight;
   }
   notifyCopilotCliConnected(modelId) {
@@ -18230,11 +18232,11 @@ class AiChatService {
   }
   static {
     this.ɵfac = function AiChatService_Factory(t) {
-      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_13__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_12__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService)));
+      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_13__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__.MdServerMessagesService)));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdefineInjectable"]({
       token: AiChatService,
       factory: AiChatService.ɵfac,
       providedIn: 'root'
@@ -20781,16 +20783,18 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MdServerMessagesService": () => (/* binding */ MdServerMessagesService)
 /* harmony export */ });
-/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 6067);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
-/* harmony import */ var _dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../dialogs/opening-application/opening-application.provider */ 5903);
-/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../git/services/gitservice.service */ 7224);
+/* harmony import */ var _signalr_timeouts__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../signalr-timeouts */ 367);
+/* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 6067);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
+/* harmony import */ var _dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../dialogs/opening-application/opening-application.provider */ 5903);
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../git/services/gitservice.service */ 7224);
+
 
 
 
@@ -20808,88 +20812,88 @@ class MdServerMessagesService {
     this.gitService = gitService;
     this.injector = injector;
     /** Emits the connectionId once available (and on every reconnection). ReplaySubject(1) so late subscribers get the last value immediately. */
-    this.connectionId$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.ReplaySubject(1);
+    this.connectionId$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.ReplaySubject(1);
     // Observable for Git branch switch events.
     // changedFiles: repo-relative paths ('/' separators) of the operation's commit diff —
     // used to reload the open document, NOT to decide whether to refresh the tree.
-    this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for Git pull refresh events (same payload contract as gitBranchSwitched$)
-    this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for RAG indexing progress events
-    this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for App Store publish progress (backend → Nexus upload)
-    this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for the Mark folder-summarizer job progress (MarkActionsController)
-    this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
-    this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
-    this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /**
      * Sprint «File di sistema di MDE», S3: MDE ha modificato file del repository (con il motivo) e che ne è del commit/push.
      * A tutte le finestre: filtra per progetto chi ascolta. `notices` sono già nella lingua dell'interfaccia.
      */
-    this.mdeRepoChange$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.mdeRepoChange$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /**
      * Sprint «Schema di .development.yml», F4: il file del progetto ha gruppi spenti (scritti da un MDE più nuovo o rovinati), dopo un
      * pull o quando il file cambia. A tutte le finestre: filtra per progetto chi ascolta. `notice` vuoto = il file è tornato a posto.
      */
-    this.developmentConfigOff$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.developmentConfigOff$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** N6 (QA 07/11): MDE sta facendo le sue operazioni git su quel repository (commit automatico); a tutte le finestre. */
-    this.mdeGitBusy$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.mdeGitBusy$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
-    this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Regole di arricchimento proposte da MarkAgent (D42), a tutte le finestre: {projectPath, count}; il tab filtra per progetto. */
-    this.codeRuleProposals$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.codeRuleProposals$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for the "Ask to MarkAgent" diagram explanation stream
     // (MarkDiagramController). Phases: start | chunk | done | error.
-    this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /**
      * «Ragguagli» waiting for the MarkAgent tab (sprint 2026-09-29-Motore-LLM-Unico, D9): what was done in parallel
      * (a change confirmed from «spiega il diagramma»), given to the tab's LLM with the user's next message.
      */
-    this.markAgentBriefings$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.BehaviorSubject({
+    this.markAgentBriefings$ = new rxjs__WEBPACK_IMPORTED_MODULE_9__.BehaviorSubject({
       count: 0,
       items: []
     });
     // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
-    this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Who is working right now in a project (AgentActivityBroadcaster): the whole list at every start and end
-    this.agentActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
     // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
     // + the unread badge on the toolbar bell.
-    this.agentMessageReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentMessageReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Un incarico aspetta che il responsabile dell'agente lo avvii (workflow, start: ask-owner): badge, avviso, posta.
-    this.agentStartRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentStartRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for federated intervention requests (§12.6): another city asks an agent
     // of THIS one to act — needs the human gate (approve/reject) before any run.
-    this.federationRequestReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.federationRequestReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Delega interna: un agente ha instradato lavoro su un ambito il cui responsabile e'
     // l'umano locale. Non e' un permesso da concedere (il gate custodisce la fiducia fra umani
     // diversi): e' consapevolezza che la mappa di ownership e' stata esercitata.
-    this.agentDelegationRouted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentDelegationRouted$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Un agente ha consegnato e CHIEDE di fondere: il tab di revisione si accende.
-    this.agentMergeRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.agentMergeRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
-    this.submoduleTouchedByAgent$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.submoduleTouchedByAgent$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
     // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
-    this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // I submodule del progetto: popolati all'apertura, non solo su clone e pull.
     // Il fallimento arriva qui perché prima finiva appeso al messaggio di successo del clone —
     // il clone risultava riuscito, la cartella del codice restava vuota e nessuno lo leggeva.
-    this.submoduleInit$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.submoduleInit$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
-    this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable streams for runnable fenced code blocks (MdExecutionController)
-    this.executionOutput$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
-    this.executionCompleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
-    this.executionError$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.executionOutput$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.executionCompleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.executionError$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable streams for long-running "services" (MdServicesController)
-    this.serviceStarted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
-    this.serviceOutput$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
-    this.serviceStopped$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.serviceStarted$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.serviceOutput$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.serviceStopped$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // ── File/folder/indexing events (md-tree & co.) ──
     // Each SignalR event below is registered EXACTLY ONCE on the hub connection
     // (in startConnection) and fanned out through these Subjects. Components must
@@ -20897,30 +20901,30 @@ class MdServerMessagesService {
     // call hubConnection.on() on every invocation: SignalR ACCUMULATES handlers,
     // so every component re-creation (e.g. leaving/re-entering a project) added a
     // duplicate handler bound to a dead component — events got processed N times.
-    this.markdownFileChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownfileischanged'
-    this.markdownFileCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownFileCreated'
-    this.markdownFileDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownFileDeleted'
-    this.folderCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderCreated'
-    this.folderDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderDeleted'
-    this.folderRenamed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderRenamed'
-    this.folderContentChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderContentChanged' (non-.md content of a folder changed)
-    this.fileSystemStorm$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileSystemStorm'
-    this.fileIndexed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileIndexed'
-    this.folderIndexingStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderIndexingStart'
-    this.folderIndexingComplete$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderIndexingComplete'
-    this.parsingProjectStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'parsingProjectStart'
-    this.parsingProjectStop$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'parsingProjectStop'
-    this.knowledgeProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'knowledgeProgress'
+    this.markdownFileChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'markdownfileischanged'
+    this.markdownFileCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'markdownFileCreated'
+    this.markdownFileDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'markdownFileDeleted'
+    this.folderCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderCreated'
+    this.folderDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderDeleted'
+    this.folderRenamed$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderRenamed'
+    this.folderContentChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderContentChanged' (non-.md content of a folder changed)
+    this.fileSystemStorm$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'fileSystemStorm'
+    this.fileIndexed$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'fileIndexed'
+    this.folderIndexingStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderIndexingStart'
+    this.folderIndexingComplete$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'folderIndexingComplete'
+    this.parsingProjectStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'parsingProjectStart'
+    this.parsingProjectStop$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'parsingProjectStop'
+    this.knowledgeProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject(); // 'knowledgeProgress'
     // FSW buffer overflow / internal error: events were LOST server-side.
     // Consumers must do a full reload — incremental state can no longer be trusted.
-    this.fileSystemWatcherError$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.fileSystemWatcherError$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Un .gitignore, .mdFoldersIgnore o .mdignore è cambiato: ciò che si vede è cambiato (sprint 2026-10-21, W6). */
-    this.ignoreRulesChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    this.ignoreRulesChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     this.connectionIsLost = false;
     this.consoleIsClosed = false;
     this.startConnection = () => {
       if (this.hubConnection == null) {
-        this.hubConnection = new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__.HubConnectionBuilder().withUrl('../signalr/monitormd').build();
+        this.hubConnection = (0,_signalr_timeouts__WEBPACK_IMPORTED_MODULE_0__.applySignalrTimeouts)(new _microsoft_signalr__WEBPACK_IMPORTED_MODULE_1__.HubConnectionBuilder().withUrl('../signalr/monitormd').build());
         this.hubConnection.on('markdownfileisprocessed', data => {
           this.processCallBack(data, 'markdownfileisprocessed');
         });
@@ -21433,16 +21437,40 @@ class MdServerMessagesService {
   }
   static {
     this.ɵfac = function MdServerMessagesService_Factory(t) {
-      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_9__.Injector));
+      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_2__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_3__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_4__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_5__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_6__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_10__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineInjectable"]({
       token: MdServerMessagesService,
       factory: MdServerMessagesService.ɵfac,
       providedIn: 'root'
     });
   }
+}
+
+/***/ }),
+
+/***/ 367:
+/*!*********************************************!*\
+  !*** ./src/app/signalR/signalr-timeouts.ts ***!
+  \*********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "applySignalrTimeouts": () => (/* binding */ applySignalrTimeouts)
+/* harmony export */ });
+/**
+ * I tempi di tutte le connessioni SignalR del client, uguali a quelli del servizio (Startup: KeepAliveInterval 15 s,
+ * ClientTimeoutInterval 2 min). 13/11/2026, dal cliente: una risposta lunga di MarkAgent tagliata da «connessione persa»:
+ * con 30 s di pazienza bastava un servizio sotto carico o una finestra in secondo piano per chiudere la connessione, e
+ * con lei la sessione dell'agente. Il client manda un segnale ogni 15 s e aspetta quelli del servizio fino a 2 minuti.
+ */
+function applySignalrTimeouts(connection) {
+  connection.keepAliveIntervalInMilliseconds = 15000;
+  connection.serverTimeoutInMilliseconds = 120000;
+  return connection;
 }
 
 /***/ }),
@@ -21487,8 +21515,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.13.8',
-  buildTime: '2026.11.13 17:52:08'
+  version: '2026.11.13.9',
+  buildTime: '2026.11.13 18:11:56'
 };
 
 /***/ }),
@@ -21522,4 +21550,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.9dd59ad42a2ddd9c.js.map
+//# sourceMappingURL=main.9a353957ca113c4d.js.map

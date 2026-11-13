@@ -1,4 +1,5 @@
 import { Injectable, Inject, forwardRef } from '@angular/core';
+import { applySignalrTimeouts } from '../signalR/signalr-timeouts';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Observable, Subject, BehaviorSubject, of } from 'rxjs';
@@ -167,11 +168,11 @@ export class AiChatService {
   }
 
   private initializeSignalR(): void {
-    this.hubConnection = new HubConnectionBuilder()
+    this.hubConnection = applySignalrTimeouts(new HubConnectionBuilder()
       .withUrl('/signalr/aichat')
       .configureLogging(LogLevel.Information)
       .withAutomaticReconnect()
-      .build();
+      .build());
 
     // Setup event handlers
     this.hubConnection.on('DownloadProgress', (progress: DownloadProgress) => {
