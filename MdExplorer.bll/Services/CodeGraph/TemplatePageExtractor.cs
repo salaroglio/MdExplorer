@@ -743,7 +743,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                         handlers.Add((a.ValueOffset + skip, a.ValueOffset + a.Value.Length));
                     }
                 }
-                if (handlers.Count == 0) return;
+                if (handlers.Count == 0)
+                {
+                    // un controllo lato server senza eventi (template.controls): i suoi gestori stanno nel code-behind
+                    if (Rule.Controls.Count > 0 && !string.IsNullOrWhiteSpace(tag.Get("id"))
+                        && Rule.Controls.All(c => tag.Get(c.Attribute) is { } v && c.Value.IsMatch(v.Trim())))
+                        EnsureControl(tag);
+                    return;
+                }
                 var id = EnsureControl(tag);
                 foreach (var (from, to) in handlers) JsCalls(from, to, _ => id, always: true);
             }

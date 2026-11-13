@@ -295,6 +295,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         protected abstract bool IsWholeString(SyntaxNode node, out IReadOnlyList<StringPart> parts);
         /// <summary>Un evento sollevato: <c>RaiseEvent Click(…)</c>, <c>Click?.Invoke(…)</c>. Il nodo è ciò che nomina l'evento; la base controlla che lo sia.</summary>
         protected abstract bool IsRaise(SyntaxNode node, out SyntaxNode eventNode);
+        /// <summary>Il punto di chiamata di un gestore di un evento della classe stessa (<see cref="OwnEventReceiver"/>).</summary>
+        public const string OwnEventCallee = "handles";
+
         /// <summary>Un gestore agganciato a un evento nel codice: <c>AddHandler x.Click, AddressOf H</c>, <c>x.Click += H</c>.</summary>
         protected abstract bool IsSubscription(SyntaxNode node, out SyntaxNode eventNode, out SyntaxNode handlerNode, out bool certain);
         /// <summary>
@@ -302,6 +305,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// nomina l'evento e quello che nomina chi lo solleva (<c>btnCerca</c>; null per <c>Me</c>).
         /// </summary>
         protected virtual IEnumerable<(SyntaxNode Event, SyntaxNode Container)> HandledEvents(SyntaxNode methodDeclaration) => Enumerable.Empty<(SyntaxNode, SyntaxNode)>();
+        /// <summary>VB: la parola davanti a un evento della classe stessa (<c>MyBase</c> in <c>Handles MyBase.Load</c>, <c>Me</c>); null altrimenti.</summary>
+        protected virtual string OwnEventReceiver(SyntaxNode eventNode) => null;
+        /// <summary>Chi solleva l'evento di una registrazione nel codice (<c>btnCerca</c> in <c>AddHandler btnCerca.Click, …</c>); null se non è scritto.</summary>
+        protected virtual SyntaxNode SubscriptionContainer(SyntaxNode eventNode) => null;
         /// <summary>VB: l'oggetto del blocco <c>With</c> che contiene il nodo, com'è scritto (<c>.CommandType = …</c> dentro <c>With cmd</c>); null fuori da un With.</summary>
         protected virtual string WithObject(SyntaxNode node) => null;
         /// <summary>VB: il nodo è l'espressione di un <c>With</c> (<c>With New OracleCommand(…)</c>).</summary>
@@ -489,6 +496,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                                     // il controllo della pagina (un campo WithEvents del perimetro) porta al suo gestore: l'evento di
                                     // libreria da solo è lo stesso nodo per tutti i pulsanti
                                     if (container != null) ctx.ControlHandler(container, id, Line(handled));
+                                    // un evento della classe stessa (Handles MyBase.Load): chi usa la classe (la pagina) lo solleva
+                                    else if (OwnEventReceiver(handled) is { } own) ctx.OwnEventHandler(id, own, handled.ToString(), Line(handled));
                                 }
                                 if (IsPlainMethod(m)) ctx.Reference(id, m.ReturnType, Line(decl));
                                 var pos = 0;
@@ -1178,7 +1187,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     else if (_x.IsSubscription(node, out var eventNode, out var handlerNode, out var certain))
                     {
                         if (_model.GetSymbolInfo(handlerNode).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary } handler)
+                        {
                             Handler(eventNode, IdOf(handler.OriginalDefinition), Line(node), certain);
+                            // AddHandler btnCerca.Click, AddressOf H: come Handles btnCerca.Click, il controllo porta al gestore
+                            if (_x.SubscriptionContainer(eventNode) is { } container) ControlHandler(container, IdOf(handler.OriginalDefinition), Line(node));
+                        }
                     }
                     else if (_x.IsAssignment(node, out var assigned))
                     {
@@ -1352,6 +1365,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = text.Split('.').Last(), QualifiedName = text });
                 Edge(id, handlerId, "calls", "ambiguous", line);
             }
+
+            /// <summary>
+            /// <c>Handles MyBase.Load</c> (13/11/2026, rilevazione dal cliente: 496 gestori del ciclo di vita che la pagina non
+            /// raggiungeva): un punto di chiamata <c>handles</c> sul gestore, con chi solleva l'evento e il suo nome. Il
+            /// collegamento pagina ↔ code-behind ne fa la freccia pagina → gestore, come per <c>AutoEventWireup</c>.
+            /// </summary>
+            public void OwnEventHandler(string handlerId, string receiver, string eventName, int line)
+                => _callSites.Add(handlerId, line, OwnEventCallee, receiver, new[] { eventName }, always: true);
 
             public void ControlHandler(SyntaxNode containerNode, string handlerId, int line)
             {

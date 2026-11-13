@@ -103,6 +103,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Regex Dynamic { get; init; }
             /// <summary>Le pagine scritte dentro file di un altro linguaggio (Angular <c>template: `…`</c> nel .ts); null = nessuna.</summary>
             public TemplateInline Inline { get; init; }
+            /// <summary>
+            /// <c>controls: { runat: '^server$' }</c> (13/11/2026, rilevazione dal cliente: Web Forms con i gestori agganciati nel
+            /// code-behind, <c>Handles btnCerca.Click</c>, e niente eventi nel markup): un elemento con un <c>id</c> e TUTTI questi
+            /// attributi (nome → valore) è un controllo anche senza eventi. Il collegamento con il code-behind porta il controllo ai
+            /// gestori del campo omonimo della classe della pagina. Vuoto = solo gli elementi con un evento.
+            /// </summary>
+            public IReadOnlyList<(string Attribute, Regex Value)> Controls { get; init; } = Array.Empty<(string, Regex)>();
         }
 
         /// <summary>
@@ -527,10 +534,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                     inline = new TemplateInline { Extensions = hosts, Match = Rx("template.inline.match", t.Inline.Match ?? string.Empty, "body") };
                 }
+                var controls = new List<(string, Regex)>();
+                foreach (var kv in t.Controls ?? new Dictionary<string, string>())
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key)) throw Fail("template.controls: un attributo senza nome", "template.controls: an attribute without a name");
+                    controls.Add((kv.Key.Trim(), RxIgnoreCase($"template.controls.{kv.Key.Trim()}", kv.Value ?? string.Empty)));
+                }
                 return new TemplateRule
                 {
                     Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks,
-                    Recognizers = recognizers, Events = events, Dynamic = dynamic, Inline = inline,
+                    Recognizers = recognizers, Events = events, Dynamic = dynamic, Inline = inline, Controls = controls,
                 };
             }
 
@@ -757,6 +770,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<string> Events { get; set; }
                 public string Dynamic { get; set; }
                 public TemplateInline Inline { get; set; }
+                public Dictionary<string, string> Controls { get; set; }
             }
             public sealed class TemplateInline
             {

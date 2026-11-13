@@ -45,7 +45,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (lang.Fragments != null)
                 Kind(sb, Node("kind-fragment"), DeclarativeLanguage.FragmentKind, "fragments", "a piece of a block too long to describe in one go" + In(lang.Fragments.In) + ": the block contains its fragments");
             if (lang.Template != null)
-                Kind(sb, Node("kind-control"), "control", "template", "an element of a page with an event or a javascript: link; the page is the module");
+                Kind(sb, Node("kind-control"), "control", "template", "an element of a page with an event or a javascript: link"
+                    + (lang.Template.Controls.Count > 0 ? ", or with an id and " + string.Join(" and ", lang.Template.Controls.Select(c => $"{c.Attribute} matching '{c.Value}'")) + " (template.controls: a server control, linked to the handlers of the code-behind field with its id)" : "")
+                    + "; the page is the module");
             Kind(sb, Node("kind-external"), "external", "references", "a name a reference rule could not find among the analysed files (only where the rule says unresolved: external): no file, no lines");
 
             sb.Append("\n# ---- relations\n");

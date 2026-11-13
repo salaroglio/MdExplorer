@@ -89,5 +89,69 @@ template:
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }
+
+        [TestMethod]
+        public async Task Link_server_controls_and_the_page_to_the_handlers_wired_in_the_code_behind()
+        {
+            // 13/11/2026, rilevazione dal cliente (Web Forms 1.1): AutoEventWireup="false", nessun evento nel markup, i gestori
+            // agganciati con Handles e AddHandler; la pagina non arrivava a nessuno dei 1494 gestori
+            var store = FusekiFixture.NewStore();
+            var root = Path.Combine(Path.GetTempPath(), "mde-codebehind-tests", Guid.NewGuid().ToString("N"));
+            var project = Path.Combine(root, "project");
+            try
+            {
+                var web = Path.Combine(project, "web");
+                Directory.CreateDirectory(web);
+                var package = Path.Combine(DeclarativeLanguage.FolderOf(project), "pagine");
+                Directory.CreateDirectory(package);
+                File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Dialect + "  controls:\n    runat: '^server$'\n");
+                File.WriteAllText(Path.Combine(web, "Ordini.pag"),
+                    "<%@ Page Language=\"vb\" AutoEventWireup=\"false\" Codebehind=\"Ordini.pag.vb\" Inherits=\"Demo.Ordini\" %>\n" +
+                    "<asp:Button id=\"btnSalva\" runat=\"server\" Text=\"Salva\" />\n" +
+                    "<asp:Button id=\"btnAltro\" runat=\"server\" />\n" +
+                    "<asp:Label id=\"lblNota\" runat=\"server\" />\n" +
+                    "<div id=\"fuori\">testo</div>\n");
+                File.WriteAllText(Path.Combine(web, "Ordini.pag.vb"),
+                    "Namespace Demo\n" +
+                    "  Public Class Bottone\n    Public Event Click As EventHandler\n  End Class\n" +
+                    "  Public Class Pagina\n    Public Event Load As EventHandler\n  End Class\n" +
+                    "  Public Class Ordini\n    Inherits Pagina\n" +
+                    "    Protected WithEvents btnSalva As Bottone\n    Protected WithEvents btnAltro As Bottone\n    Protected lblNota As Object\n" +
+                    "    Private Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load\n" +
+                    "      AddHandler btnAltro.Click, AddressOf btnAltro_Click\n    End Sub\n" +
+                    "    Private Sub btnSalva_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btnSalva.Click\n    End Sub\n" +
+                    "    Private Sub btnAltro_Click(ByVal sender As Object, ByVal e As EventArgs)\n    End Sub\n" +
+                    "  End Class\nEnd Namespace\n");
+                void Emit(ICodeExtractor extractor, string pattern)
+                {
+                    var files = Directory.GetFiles(web, pattern).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(project, f))).ToList();
+                    foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = project, AllFiles = files, FilesToEmit = files }).Scripts)
+                    {
+                        var path = CodeScriptWriter.ScriptPathFor(project, file.LogicalPath, CodeScriptKind.Ast);
+                        Directory.CreateDirectory(Path.GetDirectoryName(path));
+                        File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                    }
+                }
+                Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), "*.vb");
+                Emit(new TemplatePageExtractor(CodeLanguageCatalog.ForProject(project).ById("pagine").Definition), "*.pag");
+                var load = await store.LoadProjectAsync(project);
+                Assert.AreEqual(0, load.Failed, load.FirstError);
+                await new CodeRuleService(store, NullLogger<CodeRuleService>.Instance).ApplyPageScriptsAsync(project, new[] { "pagine" });
+
+                async Task<string> Callers(string method)
+                {
+                    var id = (await store.ResolveAsync(project, method)).Single(x => x.Kind == "method").Id;
+                    return string.Join(" ", (await store.NeighborsAsync(project, id, "calls", "in", 1, 10))
+                        .Where(e => e.Other.Kind is "control" or "module" or "method").Select(e => e.Other.Kind + ":" + e.Other.Name).OrderBy(x => x, StringComparer.Ordinal));
+                }
+                Assert.AreEqual("control:btnSalva", await Callers("Ordini.btnSalva_Click"), "Handles btnSalva.Click: il controllo della pagina con quell'id");
+                Assert.AreEqual("control:btnAltro", await Callers("Ordini.btnAltro_Click"), "AddHandler: il controllo sì, Page_Load che lo registra no (AddressOf non è una chiamata)");
+                Assert.AreEqual("module:Ordini.pag", await Callers("Ordini.Page_Load"), "Handles MyBase.Load: la pagina, che solleva il suo Load");
+
+                var page = (await store.OutlineAsync(project, "web/Ordini.pag")).Where(x => x.Kind == "control").Select(x => x.Name).OrderBy(x => x, StringComparer.Ordinal);
+                CollectionAssert.AreEqual(new[] { "btnAltro", "btnSalva", "lblNota" }, page.ToArray(), "i controlli runat=server con un id; non il div");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
     }
 }

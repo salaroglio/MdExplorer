@@ -473,6 +473,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// della classe della pagina.</item>
         /// <item><c>autowire</c> (<c>AutoEventWireup="true"</c>): la pagina <c>calls</c> i metodi <c>Page_…</c> della sua classe,
         /// che ASP.NET chiama per nome.</item>
+        /// <item>senza riconoscitori (13/11/2026): un controllo della pagina <c>calls</c> i gestori del campo con il suo id
+        /// (<c>Handles btnCerca.Click</c>, <c>AddHandler</c>); la pagina <c>calls</c> i gestori degli eventi della classe stessa
+        /// (<c>Handles MyBase.Load</c>, punto di chiamata <c>handles</c> dell'estrattore VB).</item>
         /// </list>
         /// </summary>
         public async Task<List<CodePageLink>> CodeBehindLinksAsync(string projectPath, IReadOnlyCollection<string> pageLanguages, CancellationToken ct = default)
@@ -513,6 +516,21 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . " +
                     "FILTER((?callee = \"handler\" && LCASE(?name) = LCASE(?arg)) || (?callee = \"autowire\" && STRSTARTS(?name, \"Page_\"))) } }", ct))
                     links.Add(new CodePageLink { SourceId = SymbolId(h["caller"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "line"), Path = path });
+
+                // i gestori agganciati nel code-behind (13/11/2026): il controllo lato server con l'id del campo che li gestisce
+                // (Handles btnCerca.Click, AddHandler btnCerca.Click), e la pagina per gli eventi della classe stessa (Handles MyBase.Load)
+                foreach (var h in await RowsAsync(
+                    $"SELECT DISTINCT ?ctl ?cline ?m ?name WHERE {{ GRAPH {g.DataIri} {{ " +
+                    $"?ctl code:parent <{page}> ; code:kind \"control\" ; code:name ?cname ; code:lineStart ?cline . " +
+                    $"?f code:parent <{cls}> ; code:kind ?fk ; code:name ?fname ; code:calls ?m . FILTER(?fk IN (\"field\", \"property\")) " +
+                    $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . " +
+                    "FILTER(LCASE(?fname) = LCASE(?cname)) } }", ct))
+                    links.Add(new CodePageLink { SourceId = SymbolId(h["ctl"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "cline"), Path = path });
+                foreach (var h in await RowsAsync(
+                    $"SELECT DISTINCT ?m ?name WHERE {{ GRAPH {g.DataIri} {{ " +
+                    $"?h a {CodeOntology.ClassCallSite} ; code:caller ?m ; code:callee {Lit(RoslynExtractorBase.OwnEventCallee)} . " +
+                    $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . }} }}", ct))
+                    links.Add(new CodePageLink { SourceId = SymbolId(page), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(r, "bline"), Path = path });
             }
             return links;
         }

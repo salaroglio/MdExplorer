@@ -32,8 +32,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 8 = i progetti di Visual Studio 2002/2003 (riferimenti per GUID, librerie per HintPath); con una libreria non risolta il
         /// nome della procedura non si deduce dal primo argomento stringa (12/11/2026, rilevazione dal cliente).
         /// 9 = una libreria che manca (progetto riferito assente, HintPath inesistente) presa da un altro progetto con lo stesso nome di assembly.
-        /// 10 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata (13/11/2026).</summary>
-        public override string ExtractorVersion => "10";
+        /// 10 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata (13/11/2026).
+        /// 11 = <c>Handles MyBase.Load</c> registrato (punto di chiamata <c>handles</c>) per la freccia pagina → gestore; AddHandler con il
+        /// controllo come Handles; <c>AddressOf</c> in AddHandler/RemoveHandler non è una chiamata.</summary>
+        public override string ExtractorVersion => "11";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -185,6 +187,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                    ?? Enumerable.Empty<(SyntaxNode, SyntaxNode)>();
         }
 
+        protected override string OwnEventReceiver(SyntaxNode eventNode)
+            => eventNode.Parent is HandlesClauseItemSyntax { EventContainer: KeywordEventContainerSyntax k } ? k.Keyword.Text : null;
+
+        protected override SyntaxNode SubscriptionContainer(SyntaxNode eventNode)
+            => eventNode.Parent is MemberAccessExpressionSyntax { Expression: { } e } ma && ma.Name == eventNode ? e : null;
+
         /// <summary>In VB gli attributi stanno sulla riga che apre il blocco (<c>&lt;Export(GetType(IFoo))&gt; Public Class Foo</c>).</summary>
         protected override IEnumerable<AttributeShape> AttributesOf(SyntaxNode declaration)
         {
@@ -270,6 +278,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (node is not SimpleNameSyntax name || name.Parent is QualifiedNameSyntax) return false;
             SyntaxNode whole = name.Parent is MemberAccessExpressionSyntax ma && ma.Name == name ? ma : name;
             if (whole.Parent is InvocationExpressionSyntax inv && inv.Expression == whole) return false;
+            // AddHandler/RemoveHandler x.Click, AddressOf H: il metodo che registra non esegue H (13/11/2026); la freccia
+            // evento → gestore la fa la registrazione
+            if (whole.Parent is UnaryExpressionSyntax u && u.IsKind(SyntaxKind.AddressOfExpression) && u.Parent is AddRemoveHandlerStatementSyntax) return false;
             return whole.Parent is not NameOfExpressionSyntax;
         }
     }
