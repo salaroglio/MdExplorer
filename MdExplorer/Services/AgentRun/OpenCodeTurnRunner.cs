@@ -120,7 +120,7 @@ namespace MdExplorer.Services.AgentRun
             using (var verifierScope = _scopeFactory.CreateScope())
                 if (verifierScope.ServiceProvider.GetService<MdExplorer.Features.Commands.PlantumlServer>() is { } plantuml)
                     session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(plantuml.CheckAsync);
-            // Gli stessi limiti degli altri motori (R4 della valutazione del 07/11): fermo da 5 minuti o oltre i 30 si ferma.
+            // Gli stessi limiti degli altri motori (AgentTurnLimits): fermo da 10 minuti o oltre i 60 si ferma.
             // Ogni frammento che arriva (risposta, strumenti, ragionamento) dice che è vivo.
             using var idle = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
             using var hard = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Hard);

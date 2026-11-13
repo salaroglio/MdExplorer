@@ -11,11 +11,18 @@ namespace MdExplorer.Features.Agents
     /// </summary>
     public static class AgentTurnLimits
     {
-        /// <summary>Il motore non manda niente da tanto: è fermo.</summary>
-        public static readonly TimeSpan Idle = TimeSpan.FromMinutes(5);
+        /// <summary>Il motore non manda niente da tanto: è fermo (10 minuti dal 13/11/2026, utente; prima 5).</summary>
+        public static readonly TimeSpan Idle = TimeSpan.FromMinutes(10);
 
-        /// <summary>Il tetto del turno, anche se il motore è vivo.</summary>
-        public static readonly TimeSpan Hard = TimeSpan.FromMinutes(30);
+        /// <summary>Il tetto del turno, anche se il motore è vivo (60 minuti dal 13/11/2026, utente: verifiche lunghe di MarkAgent; prima 30).</summary>
+        public static readonly TimeSpan Hard = TimeSpan.FromMinutes(60);
+
+        /// <summary>
+        /// Dopo quanto i pool chiudono una sessione non usata: sempre oltre il tetto del turno. L'ultimo uso si segna all'inizio
+        /// del turno, e un turno vive al più <see cref="Hard"/>: con una soglia più corta la pulizia chiuderebbe una sessione nel
+        /// mezzo di un turno lungo ma vivo.
+        /// </summary>
+        public static readonly TimeSpan SessionIdle = Hard + TimeSpan.FromMinutes(10);
 
         /// <summary>Il motivo, per il messaggio del turno fallito.</summary>
         public static string Why(string engine, bool idle) => idle

@@ -21,7 +21,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
     /// </summary>
     public sealed class OpenCodeSessionPool : IAsyncDisposable
     {
-        private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(30);
+        private static readonly TimeSpan DefaultIdleTimeout = MdExplorer.Features.Agents.AgentTurnLimits.SessionIdle;   // oltre il tetto del turno
         private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(2);
         private const int DefaultMaxSessions = 16;
 
