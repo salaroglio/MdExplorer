@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Linq;
@@ -75,6 +76,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             Assert.AreEqual(CodeLanguages.VisualBasic, CodeLanguages.ForFile("src/Demo/Foo.vb")?.Id);
             Assert.AreEqual("ready", new CodeExtractorRegistry(new ICodeExtractor[] { Extractor() }).Availability(CodeLanguages.VisualBasic));
+        }
+
+        [TestMethod]
+        public void Report_files_read_and_scripts_made_for_the_background_panel()
+        {
+            var steps = new List<(string Step, int Done, int Total)>();
+            var files = Request().AllFiles;
+
+            Extractor().Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files, Progress = (s, d, t) => steps.Add((s, d, t)) });
+
+            CollectionAssert.AreEqual(Enumerable.Range(1, files.Count).ToArray(), steps.Where(x => x.Step == CodeExtractionRequest.ReadStep).Select(x => x.Done).ToArray());
+            CollectionAssert.AreEqual(Enumerable.Range(1, files.Count).ToArray(), steps.Where(x => x.Step == CodeExtractionRequest.EmitStep).Select(x => x.Done).ToArray());
+            Assert.IsTrue(steps.All(x => x.Total == files.Count), string.Join(", ", steps));
+            Assert.IsTrue(steps.FindLastIndex(x => x.Step == CodeExtractionRequest.ReadStep) < steps.FindIndex(x => x.Step == CodeExtractionRequest.EmitStep), "prima si legge, poi si emette");
         }
 
         [TestMethod]

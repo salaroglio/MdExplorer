@@ -2897,7 +2897,15 @@
       "description": "Descrizione del codice"
     },
     "FILES": "domande",
-    "SCANNING": "Leggo il codice con il parser…",
+    "SCAN_PHASE": {
+      "queued": "In coda: aspetta che finisca un'altra analisi",
+      "scanning": "Cerco i file cambiati",
+      "reading": "Leggo i file",
+      "extracting": "Estraggo la struttura",
+      "writing": "Scrivo gli script",
+      "loading": "Carico nel grafo",
+      "linking": "Collego regole e linguaggi"
+    },
     "SCAN_DONE": "Fatto: {{files}} file, {{reparsed}} riletti",
     "DESCRIPTION_DONE": "Finita: {{described}} domande riuscite su {{total}}",
     "INTERRUPTED": "Si è fermata dopo {{index}} domande su {{total}} ({{when}}, {{described}} riuscite): MdExplorer è stato chiuso o si è interrotto mentre lavorava.",

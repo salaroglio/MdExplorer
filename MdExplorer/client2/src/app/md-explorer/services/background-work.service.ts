@@ -4,7 +4,7 @@ import { distinctUntilChanged, map } from 'rxjs/operators';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { ProjectsService } from './projects.service';
 import { IndexingProgressService, IndexingProgressState } from './indexing-progress.service';
-import { CodeGraphService, DescriptionRun } from './code-graph.service';
+import { CodeGraphService, DescriptionRun, ScanProgress } from './code-graph.service';
 import { ProjectOpeningGate } from '../../shared/project-opening-gate';
 
 /** Una riga del pannello dei lavori in sfondo. */
@@ -29,6 +29,9 @@ export interface BackgroundRow {
   heldRequests?: string[];
   /** Apertura del progetto conclusa: quanto ha impiegato il servizio. */
   durationMs?: number;
+  /** Scansione: la fase (ScanProgress.phase) e il linguaggio che sta leggendo. */
+  phase?: string;
+  language?: string;
 }
 
 /**
@@ -107,7 +110,11 @@ export class BackgroundWorkService {
       if (!this.mine(e?.projectPath)) { return; }
       const id = 'scan:' + e.folder;
       if (e.phase === 'started') {
-        this.upsert({ id, kind: 'scan', folder: e.folder, state: 'running', percent: null });
+        this.upsert(this.scanRow(e.progress ?? { folder: e.folder, startedAt: '' }));
+      } else if (e.phase === 'progress') {
+        // un avanzamento arrivato dopo la fine (i messaggi non hanno ordine garantito) non riapre la riga
+        const row = this.codeRows$.value.find(r => r.id === id);
+        if (row?.state === 'running' && e.progress) { this.upsert(this.scanRow(e.progress)); }
       } else if (e.phase === 'failed') {
         this.upsert({ id, kind: 'scan', folder: e.folder, state: 'failed', percent: null, error: e.error });
       } else {
@@ -142,7 +149,7 @@ export class BackgroundWorkService {
       next: b => {
         if (this.projectPath !== path) { return; }
         const rows: BackgroundRow[] = [
-          ...(b.scans ?? []).map(s => ({ id: 'scan:' + s.folder, kind: 'scan' as const, folder: s.folder, state: 'running' as const, percent: null })),
+          ...(b.scans ?? []).map(s => this.scanRow(s)),
           ...(b.descriptions ?? []).map(d => this.descriptionRow(d.run, d.state)),
         ];
         this.codeRows$.next(rows);
@@ -150,6 +157,22 @@ export class BackgroundWorkService {
       // il pannello non deve bloccare niente: l'errore si vede come riga
       error: err => this.upsert({ id: 'error', kind: 'description', state: 'failed', percent: null, error: err?.error?.error || err?.message || String(err) }),
     });
+  }
+
+  /** Una scansione in corso: la fase, il linguaggio, a che file è e quanto manca alla fine della fase. */
+  private scanRow(p: ScanProgress): BackgroundRow {
+    const total = p.total || 0;
+    const done = p.done || 0;
+    let etaMs: number | null = null;
+    if (total > 0 && done > 0 && p.phaseStartedAt) {
+      const elapsed = Date.now() - new Date(p.phaseStartedAt).getTime();
+      etaMs = Math.max(0, elapsed / done * (total - done));
+    }
+    return {
+      id: 'scan:' + p.folder, kind: 'scan', folder: p.folder, state: 'running',
+      percent: total > 0 ? Math.round(done * 100 / total) : null,
+      index: done, total, etaMs, phase: p.phase ?? 'scanning', language: p.language,
+    };
   }
 
   private descriptionRow(run: DescriptionRun, state: BackgroundRow['state']): BackgroundRow {

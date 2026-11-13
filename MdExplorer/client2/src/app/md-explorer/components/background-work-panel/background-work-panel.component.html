@@ -38,7 +38,9 @@
           {{ r.index }} / {{ r.total }}<ng-container *ngIf="r.kind === 'description'"> {{ 'BACKGROUND_WORK.FILES' | translate }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container><ng-container *ngIf="r.engine"> · {{ r.engine }}</ng-container></ng-container>
         </div>
         <div class="bg-work__file" *ngIf="r.state === 'running' && r.currentFile" [title]="r.currentFile">{{ r.currentFile }}</div>
-        <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind === 'scan'">{{ 'BACKGROUND_WORK.SCANNING' | translate }}</div>
+        <div class="bg-work__detail" *ngIf="r.state === 'running' && r.kind === 'scan'">
+          {{ ('BACKGROUND_WORK.SCAN_PHASE.' + (r.phase || 'scanning')) | translate }}<ng-container *ngIf="r.language"> · {{ r.language }}</ng-container><ng-container *ngIf="r.total"> · {{ r.index }} / {{ r.total }}<ng-container *ngIf="eta(r.etaMs)"> · {{ eta(r.etaMs) }}</ng-container></ng-container>
+        </div>
 
         <!-- finita -->
         <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'description'">{{ 'BACKGROUND_WORK.DESCRIPTION_DONE' | translate: { described: r.filesDescribed, total: r.total } }}</div>

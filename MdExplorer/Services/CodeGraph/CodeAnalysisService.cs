@@ -157,6 +157,18 @@ namespace MdExplorer.Services.CodeGraph
         public string ProjectPath { get; set; }
         public string Folder { get; set; }
         public string StartedAt { get; set; }
+        /// <summary>
+        /// A che punto è (13/11/2026, utente: «una misura di quanto devo aspettare»): <c>queued</c> (aspetta che finisca
+        /// un'altra analisi), <c>scanning</c> (che cosa è cambiato), <c>reading</c> e <c>extracting</c> (per linguaggio: file
+        /// letti, script fatti), <c>writing</c> (script su disco), <c>loading</c> (script nel grafo), <c>linking</c> (regole e
+        /// collegamenti fra linguaggi). <see cref="Total"/> 0 = la fase non si conta.
+        /// </summary>
+        public string Phase { get; set; }
+        public string Language { get; set; }
+        public int Done { get; set; }
+        public int Total { get; set; }
+        public string PhaseStartedAt { get; set; }
+        internal long LastSentTicks;
     }
 
     /// <summary>L'esito dell'analisi di un seme (F3b): la differenza da confermare, o l'analisi fatta.</summary>
@@ -244,7 +256,7 @@ namespace MdExplorer.Services.CodeGraph
             => _scanning.Values.Where(s => string.Equals(s.ProjectPath, projectPath, StringComparison.OrdinalIgnoreCase)).ToList();
 
         /// <summary>A tutte le finestre (<c>codeScanStatus</c>): il pannello dei lavori in sfondo filtra per progetto.</summary>
-        private async Task AnnounceScanAsync(string projectPath, string folder, string phase, CodeFolderAnalysisOutcome outcome = null)
+        private async Task AnnounceScanAsync(string projectPath, string folder, string phase, CodeFolderAnalysisOutcome outcome = null, CodeScanInProgress progress = null)
         {
             try
             {
@@ -252,9 +264,31 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     projectPath, folder, phase,
                     files = outcome?.FilesInPerimeter, reparsed = outcome?.Reparsed, error = outcome?.Error,
+                    progress,
                 });
             }
             catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] SignalR codeScanStatus non inviato"); }
+        }
+
+        /// <summary>
+        /// Una fase o un file in più: lo stato che rilegge il pannello (<see cref="Scanning"/>) e, a tutte le finestre, al più
+        /// un messaggio al secondo; il cambio di fase e l'ultimo file della fase partono subito.
+        /// </summary>
+        private void Step(CodeScanInProgress p, string phase, string language = null, int done = 0, int total = 0)
+        {
+            if (p == null) return;
+            var changed = p.Phase != phase || p.Language != language;
+            if (changed) { p.Phase = phase; p.Language = language; p.PhaseStartedAt = DateTime.UtcNow.ToString("o"); }
+            p.Done = done; p.Total = total;
+            var now = DateTime.UtcNow.Ticks;
+            if (!changed && done != total && now - Interlocked.Read(ref p.LastSentTicks) < TimeSpan.TicksPerSecond) return;
+            Interlocked.Exchange(ref p.LastSentTicks, now);
+            var snapshot = new CodeScanInProgress
+            {
+                ProjectPath = p.ProjectPath, Folder = p.Folder, StartedAt = p.StartedAt, Phase = p.Phase, Language = p.Language,
+                Done = p.Done, Total = p.Total, PhaseStartedAt = p.PhaseStartedAt,
+            };
+            _ = AnnounceScanAsync(p.ProjectPath, p.Folder, "progress", progress: snapshot);
         }
 
         /// <summary>
@@ -640,15 +674,30 @@ namespace MdExplorer.Services.CodeGraph
         {
             folderRelative = NormalizeRelative(folderRelative);
             var outcome = new CodeFolderAnalysisOutcome { Folder = folderRelative };
-            await _gate.WaitAsync(ct);
             // dopo un turno di MarkAgent (targeted) la rianalisi è di pochi file: nel pannello sarebbe solo uno sfarfallio
             var shown = !targeted;
             var scanKey = projectPath + "|" + folderRelative;
+            CodeScanInProgress progress = null;
             if (shown)
             {
-                _scanning[scanKey] = new CodeScanInProgress { ProjectPath = projectPath, Folder = folderRelative, StartedAt = DateTime.UtcNow.ToString("o") };
-                await AnnounceScanAsync(projectPath, folderRelative, "started");
+                // si vede anche mentre aspetta un'altra analisi: un'analisi alla volta, e chi aspetta sa perché
+                var now = DateTime.UtcNow.ToString("o");
+                progress = new CodeScanInProgress { ProjectPath = projectPath, Folder = folderRelative, StartedAt = now, Phase = "queued", PhaseStartedAt = now };
+                _scanning[scanKey] = progress;
+                await AnnounceScanAsync(projectPath, folderRelative, "started", progress: progress);
             }
+            try { await _gate.WaitAsync(ct); }
+            catch (OperationCanceledException)
+            {
+                if (shown)
+                {
+                    _scanning.TryRemove(scanKey, out _);
+                    outcome.Error = UiText.Say("annullata mentre aspettava un'altra analisi", "cancelled while waiting for another analysis");
+                    await AnnounceScanAsync(projectPath, folderRelative, "failed", outcome);
+                }
+                throw;
+            }
+            Step(progress, "scanning");
             try
             {
                 // Script di uno schema ritirato: via dal disco e via lo stato dello scanner, PRIMA di leggerlo, così questa
@@ -737,7 +786,11 @@ namespace MdExplorer.Services.CodeGraph
                     if (remote != null) await remote.LoadAsync(all, ct);
                     // G4 (27/10/2026): l'id di un simbolo viene dal file che lo dichiara, quindi l'estrattore emette TUTTI i file
                     // (del programma e dei ponti) per sapere chi dichiara che cosa; su disco va solo ciò che è cambiato.
-                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings, Sources = remote?.Sources }, ct);
+                    var extracted = extractor.Extract(new CodeExtractionRequest
+                    {
+                        ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings, Sources = remote?.Sources,
+                        Progress = (step, done, total) => Step(progress, step == CodeExtractionRequest.ReadStep ? "reading" : "extracting", lang.DisplayName, done, total),
+                    }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
                     var declarations = new CodeDeclarations();
                     foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
@@ -770,8 +823,10 @@ namespace MdExplorer.Services.CodeGraph
                     }
                     if (CrossLinkable(lang) && (pending.Count > 0 || orphanLanguages.Contains(lang.Id)))
                         CrossLink(projectPath, lang, pending.Select(x => (x.File.LogicalPath, x.Script)).ToList(), untouched, written, outcome, orphanSources);
+                    var writtenSoFar = 0;
                     foreach (var (file, script, scriptPath, onDisk, fromSource) in pending)
                     {
+                        Step(progress, "writing", lang.DisplayName, ++writtenSoFar, pending.Count);
                         // l'impronta del corpo (F12b) e l'hash del sorgente, per ogni linguaggio e con la codifica giusta
                         // (CodeSourceText: un CP-850 letto in UTF-8 non vedrebbe un'accentata cambiata)
                         var sourceText = sources.Read(file);
@@ -832,8 +887,16 @@ namespace MdExplorer.Services.CodeGraph
                 // dal grafo in una volta e si ricarica a lotti, invece di cancellare e reinserire script per script dentro
                 // un database che cresce (Windows 22/10/2026: 35 GB per 1.414 file). Utente: «in automatico».
                 else if (outcome.Reparsed > 0 && outcome.Reparsed == inPerimeter.Count)
-                    outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct);
-                else outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
+                {
+                    Step(progress, "loading");
+                    outcome.Load = await _store.ReloadFolderAsync(projectPath, folderRelative, ct, (done, total) => Step(progress, "loading", null, done, total));
+                }
+                else
+                {
+                    Step(progress, "loading");
+                    outcome.Load = await _store.LoadProjectAsync(projectPath, ct, progress: (done, total) => Step(progress, "loading", null, done, total));
+                }
+                Step(progress, "linking");
                 // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli
                 var sourceControl = scope.Remote != null
                     ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }

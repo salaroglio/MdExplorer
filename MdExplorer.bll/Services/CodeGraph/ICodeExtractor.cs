@@ -26,6 +26,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Da dove arrivano i testi; null = dal disco di questa macchina (<see cref="LocalCodeSources"/>).</summary>
         public ICodeSources Sources { get; init; }
 
+        /// <summary>
+        /// L'avanzamento per il pannello dei lavori in sfondo (13/11/2026, utente: «una misura di quanto devo aspettare»): la fase
+        /// (<see cref="ReadStep"/>: i file letti, anche quelli che servono solo a risolvere; <see cref="EmitStep"/>: gli script
+        /// fatti), a che file si è, su quanti. null = nessuno lo guarda.
+        /// </summary>
+        public Action<string, int, int> Progress { get; init; }
+        public const string ReadStep = "read";
+        public const string EmitStep = "emit";
+        public void Report(string step, int done, int total) => Progress?.Invoke(step, done, total);
+
         /// <summary>Il testo di un file del perimetro: l'unico modo in cui un estrattore lo legge.</summary>
         public string ReadText(CodeSourceFile file) => (Sources ?? new LocalCodeSources(ExtensionEncodings)).Read(file);
 

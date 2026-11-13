@@ -69,9 +69,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (request.FilesToEmit.Count == 0) return result;
 
             var models = new List<FileModel>();
+            var read = 0;
             foreach (var f in request.AllFiles)
             {
                 ct.ThrowIfCancellationRequested();
+                request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
@@ -84,10 +86,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             var index = new PerimeterIndex(_lang, models);
 
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
+            var emitted = 0;
             foreach (var model in models)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!toEmit.Contains(model.File.LogicalPath)) continue;
+                request.Report(CodeExtractionRequest.EmitStep, ++emitted, toEmit.Count);
                 try { result.Scripts.Add((model.File, new FileEmitter(this, model, index).Emit(CodeSourceText.Hash(model.Text)))); }
                 catch (RegexMatchTimeoutException ex)
                 {

@@ -78,9 +78,11 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // Passata 1: parsing di tutto il perimetro e indice delle dichiarazioni.
             var parsed = new List<ParsedFile>();
+            var read = 0;
             foreach (var f in request.AllFiles)
             {
                 ct.ThrowIfCancellationRequested();
+                request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
@@ -95,10 +97,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // Passata 2: uno script per file richiesto.
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
+            var emitted = 0;
             foreach (var pf in parsed)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!toEmit.Contains(pf.File.LogicalPath)) continue;
+                request.Report(CodeExtractionRequest.EmitStep, ++emitted, toEmit.Count);
                 try { result.Scripts.Add((pf.File, new FileEmitter(this, pf, index).Emit())); }
                 catch (Exception ex)
                 {

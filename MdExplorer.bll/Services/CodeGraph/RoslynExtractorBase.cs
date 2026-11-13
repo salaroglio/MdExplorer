@@ -363,9 +363,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             var groups = new List<ProjectGroup>();
             var groupByKey = new Dictionary<string, ProjectGroup>(StringComparer.OrdinalIgnoreCase);
             var notCompiled = new Dictionary<string, List<CodeSourceFile>>(StringComparer.OrdinalIgnoreCase);
+            var read = 0;
             foreach (var f in request.AllFiles)
             {
                 ct.ThrowIfCancellationRequested();
+                request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
@@ -448,10 +450,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // 2) Un script per file da emettere.
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
+            var emitted = 0;
             foreach (var (tree, compilation) in trees)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!toEmit.Contains(tree.FilePath)) continue;
+                request.Report(CodeExtractionRequest.EmitStep, ++emitted, toEmit.Count);
                 var file = request.FilesToEmit.First(f => f.LogicalPath == tree.FilePath);
                 try
                 {

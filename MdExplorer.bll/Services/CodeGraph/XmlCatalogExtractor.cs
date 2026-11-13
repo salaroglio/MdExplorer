@@ -41,9 +41,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeExtractionResult Extract(CodeExtractionRequest request, CancellationToken ct = default)
         {
             var result = new CodeExtractionResult();
+            var emitted = 0;
             foreach (var file in request.FilesToEmit)
             {
                 ct.ThrowIfCancellationRequested();
+                request.Report(CodeExtractionRequest.EmitStep, ++emitted, request.FilesToEmit.Count);
                 string text;
                 try { text = request.ReadText(file); }
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{file.LogicalPath}: non leggibile ({ex.Message})", $"{file.LogicalPath}: cannot be read ({ex.Message})")); continue; }

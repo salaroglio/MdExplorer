@@ -67,9 +67,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             var pages = new List<TemplatePage>();
             if (request.FilesToEmit.Count == 0) return pages;
             var index = new PageIndex(_lang, request.AllFiles);
+            var emitted = 0;
             foreach (var f in request.FilesToEmit)
             {
                 ct.ThrowIfCancellationRequested();
+                request.Report(CodeExtractionRequest.EmitStep, ++emitted, request.FilesToEmit.Count);
                 var page = new TemplatePage { File = f };
                 pages.Add(page);
                 string text;

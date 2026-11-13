@@ -2897,7 +2897,15 @@
       "description": "Describing code"
     },
     "FILES": "questions",
-    "SCANNING": "Reading the code with the parser…",
+    "SCAN_PHASE": {
+      "queued": "Queued: waiting for another analysis to finish",
+      "scanning": "Looking for changed files",
+      "reading": "Reading the files",
+      "extracting": "Extracting the structure",
+      "writing": "Writing the scripts",
+      "loading": "Loading into the graph",
+      "linking": "Linking rules and languages"
+    },
     "SCAN_DONE": "Done: {{files}} files, {{reparsed}} re-read",
     "DESCRIPTION_DONE": "Finished: {{described}} of {{total}} questions answered",
     "INTERRUPTED": "It stopped after {{index}} of {{total}} questions ({{when}}, {{described}} answered): MdExplorer was closed or stopped while it was working.",

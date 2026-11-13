@@ -23,13 +23,14 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>Carica tutti gli script di <c>.mde-code/</c> cambiati dall'ultima volta e toglie quelli spariti.</summary>
         /// <param name="compact">false: niente compattazione anche dopo un carico grosso (i caricamenti a metà di una descrizione: si compatta alla fine).</param>
-        Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true);
+        /// <param name="progress">Gli script passati su quanti ce ne sono sul disco (il pannello dei lavori in sfondo); null = nessuno guarda.</param>
+        Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<int, int> progress = null);
         /// <summary>
         /// La ricarica DA CAPO di una cartella program (22/10/2026, quando l'analisi ne ha riscritto tutti gli script): via
         /// le sue triple in una transazione sola, poi il caricamento a lotti e la compattazione di <see cref="LoadProjectAsync"/>.
         /// Le altre cartelle e gli altri progetti restano come sono.
         /// </summary>
-        Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default);
+        Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<int, int> progress = null);
         /// <summary>Compatta il dataset del grafo del codice (TDB2 copy-on-write): alla fine di un giro che ha caricato a lotti senza compattare.</summary>
         Task CompactAsync(CancellationToken ct = default);
         /// <summary>Carica (o ricarica, se l'hash è diverso) un singolo script.</summary>
@@ -202,7 +203,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ caricamento
 
-        public async Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true)
+        public async Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<int, int> progress = null)
         {
             var outcome = new CodeScriptLoadOutcome();
             var root = CodeGraphPaths.GetScriptsRoot(projectPath);
@@ -240,9 +241,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                                     .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal))
                                     .Concat(onDisk.Where(CodeGraphPaths.IsRuleScript).OrderBy(f => f, StringComparer.Ordinal)).ToList();
                 var batch = new List<(CodeScriptResult Result, string Update)>();
+                var passed = 0;
                 foreach (var file in ordered)
                 {
                     ct.ThrowIfCancellationRequested();
+                    progress?.Invoke(++passed, ordered.Count);
                     var rel = CodeGraphPaths.ToProjectRelative(projectPath, file);
                     known.TryGetValue(rel, out var previousHash);
                     var (result, update) = PrepareOne(g, file, rel, previousHash);
@@ -357,7 +360,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public Task CompactAsync(CancellationToken ct = default) => _fuseki.CompactAsync(CodeOntology.Dataset, ct);
 
-        public async Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default)
+        public async Task<CodeScriptLoadOutcome> ReloadFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default, Action<int, int> progress = null)
         {
             if (string.IsNullOrWhiteSpace(folderRelative))
                 throw new ArgumentException(UiText.Say("La ricarica da capo vuole la cartella program: folderRelative è vuoto.", "A full reload needs the program folder: folderRelative is empty."), nameof(folderRelative));
@@ -386,7 +389,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             _logger?.LogInformation("[CodeGraph] '{Project}': cartella '{Folder}' tolta dal grafo ({Scripts} script, lotti da {Batch}) in {Seconds:0.0} s, si ricarica da capo",
                 projectPath, folderRelative, scripts, BatchScripts, (DateTime.UtcNow - started).TotalSeconds);
             // senza stato, gli script della cartella risultano tutti da caricare: lotti e compattazione come all'apertura
-            return await LoadProjectAsync(projectPath, ct);
+            return await LoadProjectAsync(projectPath, ct, progress: progress);
         }
 
         public async Task<CodeScriptResult> LoadScriptAsync(string projectPath, string scriptAbsolutePath, CancellationToken ct = default)

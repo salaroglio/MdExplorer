@@ -202,7 +202,21 @@ export interface DescriptionRun {
 
 export interface BackgroundWork {
   descriptions: { state: 'running' | 'interrupted' | 'failed' | 'stopped'; run: DescriptionRun }[];
-  scans: { folder: string; startedAt: string }[];
+  scans: ScanProgress[];
+}
+
+/**
+ * A che punto è la scansione di una cartella (13/11/2026): queued (aspetta un'altra analisi), scanning, reading/extracting
+ * (per linguaggio), writing, loading, linking; total 0 = la fase non si conta.
+ */
+export interface ScanProgress {
+  folder: string;
+  startedAt: string;
+  phase?: 'queued' | 'scanning' | 'reading' | 'extracting' | 'writing' | 'loading' | 'linking';
+  language?: string;
+  done?: number;
+  total?: number;
+  phaseStartedAt?: string;
 }
 
 /** Quanto occupa il database del grafo (Fuseki, unico per tutti i progetti): per dataset, con le generazioni TDB2. */
