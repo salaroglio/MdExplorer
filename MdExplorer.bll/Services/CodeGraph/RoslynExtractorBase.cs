@@ -512,6 +512,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ctx.Edge(typeId, ctx.IdOf(type.BaseType), type.TypeKind == TypeKind.Interface ? "inherits" : "inherits", "extracted", Line(typeDecl));
                 foreach (var iface in type.Interfaces)
                     ctx.Edge(typeId, ctx.IdOf(iface), type.TypeKind == TypeKind.Interface ? "inherits" : "implements", "extracted", Line(typeDecl));
+                // un delegate: la sua firma usa dei tipi (i suoi metodi Invoke/BeginInvoke li crea il compilatore, e qui sotto si saltano)
+                if (type.DelegateInvokeMethod is { } invoke)
+                {
+                    foreach (var p in invoke.Parameters) ctx.Reference(typeId, p.Type, Line(typeDecl));
+                    if (!invoke.ReturnsVoid) ctx.Reference(typeId, invoke.ReturnType, Line(typeDecl));
+                }
 
                 foreach (var member in type.GetMembers())
                 {
@@ -952,7 +958,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             TypeKind.Struct => t.IsRecord ? "record" : "struct",
             TypeKind.Enum => "enum",
             TypeKind.Class => t.IsRecord ? "record" : "class",
-            TypeKind.Delegate => "class",
+            TypeKind.Delegate => "class",   // un tipo che si istanzia (New D(AddressOf M)) e si passa: per il grafo una classe
             _ => "class",
         };
 

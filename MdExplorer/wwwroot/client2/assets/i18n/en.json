@@ -2906,6 +2906,7 @@
       "removing": "Fuseki: removing the folder's old triples",
       "loading": "Fuseki: loading the scripts",
       "relinking": "Fuseki: relinking the code's SQL to the database objects",
+      "externals": "Fuseki: removing external nodes nothing points to any more",
       "compacting": "Fuseki: compacting the database",
       "linking": "Linking rules and languages"
     },

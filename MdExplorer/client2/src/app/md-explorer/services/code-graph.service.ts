@@ -212,7 +212,7 @@ export interface BackgroundWork {
 export interface ScanProgress {
   folder: string;
   startedAt: string;
-  phase?: 'queued' | 'scanning' | 'reading' | 'extracting' | 'writing' | 'removing' | 'loading' | 'relinking' | 'compacting' | 'linking';
+  phase?: 'queued' | 'scanning' | 'reading' | 'extracting' | 'writing' | 'removing' | 'loading' | 'relinking' | 'externals' | 'compacting' | 'linking';
   language?: string;
   done?: number;
   total?: number;

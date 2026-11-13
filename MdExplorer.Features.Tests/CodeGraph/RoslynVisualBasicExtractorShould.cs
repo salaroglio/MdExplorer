@@ -93,6 +93,26 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Declare_delegate_types_that_the_code_uses()
+        {
+            // 13/11/2026, dal cliente: chi usava un Delegate puntava a un tipo mai dichiarato (arco verso un nodo che non c'è)
+            File.WriteAllText(Path.Combine(_src, "Avvisi.vb"),
+                "Namespace Demo\n  Public Delegate Sub Avviso(testo As String, foo As Foo)\n" +
+                "  Public Class Avvisi\n    Private _a As Avviso\n    Public Sub Go()\n      _a = New Avviso(AddressOf Scrivi)\n    End Sub\n" +
+                "    Private Sub Scrivi(testo As String, foo As Foo)\n    End Sub\n  End Class\nEnd Namespace\n");
+
+            var result = Extractor().Extract(Request());
+
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/Avvisi.vb").Script;
+            var avviso = s.Symbols.Single(x => x.Name == "Avviso" && x.Kind != "external");
+            Assert.AreEqual(RoslynCSharpExtractor.StableId("visualbasic", "class", "Demo.Avviso"), avviso.Id);
+            var fooId = RoslynCSharpExtractor.StableId("visualbasic", "class", "Demo.Foo");
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == avviso.Id && e.TargetId == fooId && e.Relation == "references"), "la firma del delegate usa Foo");
+            Assert.IsFalse(s.Symbols.Any(x => x.Name is "Invoke" or "BeginInvoke" or "EndInvoke"), "i metodi del delegate li crea il compilatore");
+            Assert.IsTrue(s.Edges.Any(e => e.TargetId == avviso.Id && e.Relation != "contains"), "chi lo usa arriva al tipo dichiarato");
+        }
+
+        [TestMethod]
         public void Give_shared_and_instance_constructors_different_ids()
         {
             File.WriteAllText(Path.Combine(_src, "Manager.vb"),

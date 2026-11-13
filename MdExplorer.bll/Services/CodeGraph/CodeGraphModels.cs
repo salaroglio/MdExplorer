@@ -33,6 +33,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// (<see cref="CodeSqlLinker"/>), e gli script riscritti per farlo: modifiche in <c>.mde-code</c> da salvare su Git.
         /// </summary>
         public int SqlRelinked { get; set; }
+        /// <summary>I nodi esterni a cui non arrivava più niente, tolti dal grafo in questo giro.</summary>
+        public int ExternalsRemoved { get; set; }
         public List<string> SqlRelinkedScripts { get; } = new();
     }
 

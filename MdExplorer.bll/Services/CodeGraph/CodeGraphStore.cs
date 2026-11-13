@@ -156,6 +156,24 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string StepLoad = "loading";
         public const string StepRelinkSql = "relinking";
         public const string StepCompact = "compacting";
+        public const string StepOrphanExternals = "externals";
+
+        /// <summary>
+        /// I nodi esterni a cui non arriva più niente (13/11/2026, rilevazione dal cliente: 2.280 nodi esterni VB su 3.618 senza
+        /// archi). Un nodo esterno è condiviso fra gli script e non ha <c>code:fromScript</c>: togliere uno script toglie i suoi
+        /// archi, ma il nodo restava, anche con un id che l'estrattore non dà più (le due grafie di un nome VB). Si tolgono quelli
+        /// che nessuna tripla del grafo nomina.
+        /// </summary>
+        private async Task<int> RemoveOrphanExternalsCoreAsync(ProjectGraphs g, CancellationToken ct)
+        {
+            var where = $"GRAPH {g.DataIri} {{ ?x code:kind \"external\" . FILTER NOT EXISTS {{ ?s ?q ?x }} }}";
+            var rows = await RowsAsync($"SELECT (COUNT(DISTINCT ?x) AS ?n) WHERE {{ {where} }}", ct);
+            var n = rows.Count == 0 ? 0 : int.Parse(SparqlResults.Str(rows[0], "n") ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+            if (n == 0) return 0;
+            await UpdateAsync(CodeOntology.SparqlPrefixes + $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; ?p ?o . FILTER NOT EXISTS {{ ?s ?q ?x }} }} }}", ct);
+            _logger?.LogInformation("[CodeGraph] {Count} nodi esterni senza archi tolti dal grafo", n);
+            return n;
+        }
 
         private readonly IFusekiProcessManager _fuseki;
         private readonly IFusekiClient _client;
@@ -275,6 +293,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     progress?.Invoke(StepRelinkSql, 0, 0);
                     await RelinkSqlCoreAsync(projectPath, g, known, outcome, ct);
+                    progress?.Invoke(StepOrphanExternals, 0, 0);
+                    outcome.ExternalsRemoved = await RemoveOrphanExternalsCoreAsync(g, ct);
                 }
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",

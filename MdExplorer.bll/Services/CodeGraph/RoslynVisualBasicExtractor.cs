@@ -39,8 +39,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 13 = niente archi verso i simboli che il compilatore crea da solo (il delegato di un Event, il costruttore di default).
         /// 14 = un nome esterno scritto con maiuscole diverse è un nodo solo: il VB non le distingue (13/11/2026, rilevazione dal cliente).
         /// 15 = <c>Shared Sub New</c> ha un id suo (<c>X..cctor()</c>), non quello di <c>Sub New()</c> (13/11/2026).
-        /// 16 = stesso nome qualificato del C# per le implementazioni esplicite (formato comune).</summary>
-        public override string ExtractorVersion => "16";
+        /// 16 = stesso nome qualificato del C# per le implementazioni esplicite (formato comune).
+        /// 17 = i <c>Delegate</c> sono tipi dichiarati (13/11/2026).</summary>
+        public override string ExtractorVersion => "17";
 
         protected override bool IgnoresCase => true;
 
@@ -80,13 +81,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static bool IsNamespace(string name)
             => !string.IsNullOrWhiteSpace(name) && name.Split('.').All(part => SyntaxFacts.IsValidIdentifier(part));
 
+        /// <summary>Le classi, i moduli, le interfacce, gli enum… e i <c>Delegate</c> (13/11/2026: chi li usava puntava a un tipo mai dichiarato).</summary>
         protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root)
-            => root.DescendantNodes().Where(n => n is TypeBlockSyntax or EnumBlockSyntax);
+            => root.DescendantNodes().Where(n => n is TypeBlockSyntax or EnumBlockSyntax or DelegateStatementSyntax);
 
         protected override INamedTypeSymbol TypeSymbol(SemanticModel model, SyntaxNode typeDeclaration) => typeDeclaration switch
         {
             TypeBlockSyntax t => model.GetDeclaredSymbol(t.BlockStatement),
             EnumBlockSyntax e => model.GetDeclaredSymbol(e.EnumStatement),
+            DelegateStatementSyntax d => model.GetDeclaredSymbol(d) as INamedTypeSymbol,
             _ => null,
         };
 

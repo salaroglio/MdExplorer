@@ -42,6 +42,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Declare_delegate_types_that_the_code_uses()
+        {
+            File.WriteAllText(Path.Combine(_src, "Notice.cs"),
+                "namespace Demo {\n  public delegate void Notice(string text);\n  public class Board { private Notice _n; public void Go() { _n = new Notice(Write); } private void Write(string t) { } }\n}\n");
+
+            var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
+
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/Notice.cs").Script;
+            var notice = s.Symbols.Single(x => x.Name == "Notice" && x.Kind != "external");
+            Assert.AreEqual(RoslynCSharpExtractor.StableId("csharp", "class", "Demo.Notice"), notice.Id);
+            Assert.IsFalse(s.Symbols.Any(x => x.Name is "Invoke" or "BeginInvoke" or "EndInvoke"));
+            var declared = s.Symbols.Select(x => x.Id).ToHashSet();
+            Assert.IsTrue(s.Edges.Any(e => e.TargetId == notice.Id && e.Relation != "contains"), "chi lo usa arriva al tipo dichiarato");
+        }
+
+        [TestMethod]
         public void Give_explicit_interface_implementations_their_own_ids()
         {
             // 13/11/2026, dal cliente: un enumeratore con Current e MoveNext pubblici e quelli espliciti di IEnumerator
@@ -224,7 +240,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("16", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("17", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");

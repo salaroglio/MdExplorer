@@ -89,6 +89,45 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Remove_external_nodes_that_nothing_points_to_any_more()
+        {
+            // 13/11/2026, dal cliente: i nodi esterni non hanno fromScript e restavano nel grafo anche senza archi
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            Assert.AreEqual(1, (await _store.GetStatusAsync(_project)).ExternalSymbols);
+
+            // lo stesso script senza la chiamata a Console: l'esterno non serve più a nessuno
+            var withoutCall = string.Join("\n", AstBody.Split('\n').Where(l => !l.Contains("x-console")));
+            File.WriteAllText(AstPath, Ttl(AstHeader.Replace("abc", "abd") + "\n" + withoutCall + "\n"));
+            var outcome = await _store.LoadProjectAsync(_project);
+
+            Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
+            Assert.AreEqual(1, outcome.ExternalsRemoved);
+            var status = await _store.GetStatusAsync(_project);
+            Assert.AreEqual(0, status.ExternalSymbols);
+            Assert.AreEqual(3, status.Symbols, "i simboli dichiarati restano");
+        }
+
+        [TestMethod]
+        public async Task Keep_an_external_node_that_another_script_still_uses()
+        {
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            var other = Path.Combine(_project, ".mde-code", "src", "Demo", "Bar.cs.ast.ttl");
+            File.WriteAllText(other, Ttl(AstHeader.Replace("Foo.cs", "Bar.cs") + "\n" +
+                "{\"type\":\"symbol\",\"id\":\"s-bar\",\"kind\":\"class\",\"name\":\"Bar\",\"qualifiedName\":\"Demo.Bar\",\"lineStart\":1,\"lineEnd\":3,\"signature\":\"public class Bar\",\"visibility\":\"public\"}\n" +
+                "{\"type\":\"symbol\",\"id\":\"x-console\",\"kind\":\"external\",\"name\":\"Console\",\"qualifiedName\":\"System.Console\"}\n" +
+                "{\"type\":\"edge\",\"sourceId\":\"s-bar\",\"targetId\":\"x-console\",\"relation\":\"calls\",\"confidence\":\"extracted\",\"line\":2}\n"));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var withoutCall = string.Join("\n", AstBody.Split('\n').Where(l => !l.Contains("x-console")));
+            File.WriteAllText(AstPath, Ttl(AstHeader.Replace("abc", "abd") + "\n" + withoutCall + "\n"));
+            var outcome = await _store.LoadProjectAsync(_project);
+
+            Assert.AreEqual(0, outcome.ExternalsRemoved, "Bar lo usa ancora");
+            Assert.AreEqual(1, (await _store.GetStatusAsync(_project)).ExternalSymbols);
+        }
+
+        [TestMethod]
         public async Task Load_call_sites_with_their_strings_and_drop_them_with_the_script()
         {
             // D42: i punti di chiamata con stringhe arrivano in Fuseki e se ne vanno con lo script, come gli archi.

@@ -50,8 +50,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>14 = niente archi verso i simboli che il compilatore crea da solo (il costruttore di default).</para>
         /// <para>15 = il costruttore statico ha un id suo (<c>X..cctor()</c>), non quello d'istanza senza parametri (13/11/2026).</para>
         /// <para>16 = un'implementazione esplicita di interfaccia ha un id suo (<c>X.IEnumerator.Current</c>), e il metodo esplicito è dichiarato (13/11/2026).</para>
+        /// <para>17 = i <c>delegate</c> sono tipi dichiarati (13/11/2026).</para>
         /// </summary>
-        public override string ExtractorVersion => "16";
+        public override string ExtractorVersion => "17";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -65,7 +66,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             => CSharpCompilation.Create(name, trees, references,
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
-        protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root) => root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>();
+        /// <summary>Le classi, le interfacce, gli enum… e i <c>delegate</c> (13/11/2026: chi li usava puntava a un tipo mai dichiarato).</summary>
+        protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root)
+            => root.DescendantNodes().Where(n => n is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax);
 
         protected override bool IsCreation(SyntaxNode node, out string typeName, out IReadOnlyList<SyntaxNode> arguments)
         {
