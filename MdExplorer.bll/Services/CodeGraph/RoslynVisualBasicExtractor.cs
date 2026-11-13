@@ -31,8 +31,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 7 = un nome fatto da più pezzi con più valori è <c>ambiguous</c> (combinazioni non verificate).
         /// 8 = i progetti di Visual Studio 2002/2003 (riferimenti per GUID, librerie per HintPath); con una libreria non risolta il
         /// nome della procedura non si deduce dal primo argomento stringa (12/11/2026, rilevazione dal cliente).
-        /// 9 = una libreria che manca (progetto riferito assente, HintPath inesistente) presa da un altro progetto con lo stesso nome di assembly.</summary>
-        public override string ExtractorVersion => "9";
+        /// 9 = una libreria che manca (progetto riferito assente, HintPath inesistente) presa da un altro progetto con lo stesso nome di assembly.
+        /// 10 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata (13/11/2026).</summary>
+        public override string ExtractorVersion => "10";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

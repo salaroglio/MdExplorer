@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
-        public const string EngineVersion = "5";
+        public const string EngineVersion = "6";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -218,6 +218,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             public bool NestHeader;
             public int NestDepth;
             public bool NestStarted;
+            /// <summary>Il percorso dentro il file (<c>PKG.PROC</c>; <c>PKG@spec</c> per la specifica completata da un corpo): i figli lo prolungano.</summary>
+            public string Local;
+            /// <summary><c>completes</c>: le dichiarazioni che questo simbolo implementa, con la certezza dell'abbinamento.</summary>
+            public List<(Sym Declaration, string Confidence)> Implements;
+            /// <summary><c>completes</c>: le implementazioni di questa dichiarazione (un riferimento che trova entrambe va a loro).</summary>
+            public List<Sym> ImplementedBy;
         }
 
         private sealed class FileModel
@@ -233,6 +239,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Sym[] Owner;
             public Sym[] Block;
             public List<string> Warnings = new();
+            /// <summary>Riga (inizio della riga logica) → dove sta, nel testo, il nome che quella riga dichiara: lì non c'è un riferimento.</summary>
+            public Dictionary<int, List<(int Index, int Length)>> DeclaredNames = new();
         }
 
         private sealed class StructureReader
@@ -528,6 +536,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var m = rule.Begin.Match(line.Code);
                     if (!m.Success) continue;
                     var sym = Declare(rule.Id, rule.Kind, Template(rule.NameTemplate, m, line), m, line, parent);
+                    DeclaredName(line, m.Groups["name"]);
                     sym.Signature = rule.SignatureTemplate != null ? Template(rule.SignatureTemplate, m, line) : Collapse(line.Raw);
                     sym.ReturnType = TypeOf(m);
                     var paramsGroup = m.Groups["params"];
@@ -550,6 +559,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!rule.In.Contains(parent.RuleId)) continue;
                     var m = rule.At.Match(line.Code);
                     if (!m.Success) continue;
+                    if (rule.Each == null) DeclaredName(line, m.Groups["name"]);
                     if (!rule.Emit)
                     {
                         foreach (var name in Names(rule, m, line))
@@ -569,6 +579,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                     return last ?? parent.OpenLabel ?? parent;
                 }
                 return null;
+            }
+
+            /// <summary>
+            /// Il nome che una riga dichiara non è un riferimento (13/11/2026): <c>PROCEDURE X(a IN NUMBER);</c> nella specifica di
+            /// un package non chiama X, e l'intestazione di un sovraccarico non chiama l'altro.
+            /// </summary>
+            private void DeclaredName(LogicalLine line, Group name)
+            {
+                if (name == null || !name.Success || name.Length == 0) return;
+                if (!_m.DeclaredNames.TryGetValue(line.Start, out var list)) _m.DeclaredNames[line.Start] = list = new List<(int, int)>();
+                list.Add((name.Index, name.Length));
             }
 
             private static IEnumerable<string> Names(DeclarativeLanguage.DeclarationRule rule, Match m, LogicalLine line)
@@ -606,7 +627,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var local = parent.RuleId == DeclarativeLanguage.ModuleRule ? name : LocalPath(parent) + "." + name;
                 var qualified = _m.Module.QualifiedName + ":" + local;
-                if (!_qualified.Add(qualified))
+                var completed = _qualified.Contains(qualified) ? Completed(ruleId, qualified, parent) : null;
+                if (completed != null && completed.Value.Rename != null)
+                {
+                    // il corpo dopo la specifica: la specifica (e i suoi membri) lascia il nome al corpo
+                    Rename(completed.Value.Rename, "@" + completed.Value.Rename.RuleId);
+                    _qualified.Add(qualified);
+                }
+                else if (completed != null)
+                {
+                    // la specifica dopo il corpo: prende lei il suffisso
+                    local += "@" + ruleId;
+                    qualified = _m.Module.QualifiedName + ":" + local;
+                    _qualified.Add(qualified);
+                }
+                else if (!_qualified.Add(qualified))
                 {
                     // Lo stesso nome due volte nello stesso posto: si tengono entrambi, distinti dalla riga, e lo si dice.
                     _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line.Start}: '{name}' è già dichiarato in {(parent == _m.Module ? "questo file" : parent.Name)}", $"{_m.File.LogicalPath}:{line.Start}: '{name}' is already declared in {(parent == _m.Module ? "this file" : parent.Name)}"));
@@ -616,14 +651,51 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var sym = new Sym
                 {
                     RuleId = ruleId, Kind = kind, Key = m.Groups["name"].Value, Name = name, QualifiedName = qualified,
-                    Start = line.Start, End = line.End, Parent = parent, File = _m,
+                    Start = line.Start, End = line.End, Parent = parent, File = _m, Local = local,
                 };
                 _m.Symbols.Add(sym);
                 return sym;
             }
 
+            /// <summary>
+            /// Il nome è già preso: se uno dei due blocchi completa l'altro (<c>completes</c>) non è un doppione. Torna il blocco da
+            /// rinominare se la specifica era già dichiarata (<c>Rename</c>), null in <c>Rename</c> se la specifica è quella nuova,
+            /// null se non è una coppia specifica-corpo.
+            /// </summary>
+            private (Sym Rename, bool Pair)? Completed(string ruleId, string qualified, Sym parent)
+            {
+                var existing = _m.Symbols.LastOrDefault(s => s.Parent == parent && _lang.NameComparer.Equals(s.QualifiedName, qualified));
+                if (existing == null) return null;
+                var mine = _lang.Blocks.FirstOrDefault(b => b.Id == ruleId);
+                var theirs = _lang.Blocks.FirstOrDefault(b => b.Id == existing.RuleId);
+                if (mine?.Completes != null && mine.Completes == existing.RuleId) return (existing, true);
+                if (theirs?.Completes != null && theirs.Completes == ruleId) return (null, true);
+                return null;
+            }
+
+            /// <summary>La specifica e tutto quello che contiene prendono il suffisso nel percorso: il nome resta libero per il corpo.</summary>
+            private void Rename(Sym spec, string suffix)
+            {
+                var prefix = _m.Module.QualifiedName + ":";
+                var oldLocal = spec.Local;
+                var oldQualified = spec.QualifiedName;
+                foreach (var s in _m.Symbols.Where(s => s == spec || IsInside(s, spec)).ToList())
+                {
+                    _qualified.Remove(s.QualifiedName);
+                    s.Local = oldLocal + suffix + s.Local[oldLocal.Length..];
+                    s.QualifiedName = prefix + oldLocal + suffix + s.QualifiedName[oldQualified.Length..];
+                    _qualified.Add(s.QualifiedName);
+                }
+            }
+
+            private static bool IsInside(Sym s, Sym container)
+            {
+                for (var p = s.Parent; p != null; p = p.Parent) if (p == container) return true;
+                return false;
+            }
+
             private static string LocalPath(Sym s)
-                => s.Parent == null || s.Parent.RuleId == DeclarativeLanguage.ModuleRule ? s.Name : LocalPath(s.Parent) + "." + s.Name;
+                => s.Local ?? (s.Parent == null || s.Parent.RuleId == DeclarativeLanguage.ModuleRule ? s.Name : LocalPath(s.Parent) + "." + s.Name);
 
             /// <summary><c>PART{name}</c> → <c>PART10</c>; i gruppi si prendono dal testo «raw», alle stesse posizioni del «code».</summary>
             private static string Template(string template, Match m, LogicalLine line)
@@ -688,6 +760,39 @@ namespace MdExplorer.Features.Services.CodeGraph
                         Add(map, s.Key, s);
                     }
                 }
+                foreach (var rule in lang.Blocks.Where(b => b.Completes != null))
+                    foreach (var body in models.SelectMany(m => m.Symbols).Where(s => s.RuleId == rule.Id))
+                        Complete(lang, body, rule.Completes);
+            }
+
+            /// <summary>
+            /// <c>completes</c>: il corpo e la sua specifica (stesso nome; nello stesso file, altrimenti nel perimetro: dedotto), poi
+            /// ogni membro del corpo e il membro della specifica con lo stesso tipo e nome — se il nome è uno solo per parte, quello;
+            /// se ci sono sovraccarichi, quello con lo stesso numero di parametri. Più di un candidato: ambiguous.
+            /// </summary>
+            private void Complete(DeclarativeLanguage lang, Sym body, string specRule)
+            {
+                var all = Symbols(specRule, body.Key);
+                var here = all.Where(s => s.File == body.File).ToList();
+                var specs = here.Count > 0 ? here : all.ToList();
+                if (specs.Count == 0) return;
+                var confidence = specs.Count > 1 ? "ambiguous" : here.Count > 0 ? "extracted" : "inferred";
+                foreach (var spec in specs) Link(body, spec, confidence);
+                var members = body.File.Symbols.Where(s => s.Parent == body).ToList();
+                foreach (var member in members)
+                {
+                    var sameName = specs.SelectMany(spec => spec.File.Symbols.Where(d => d.Parent == spec && d.Kind == member.Kind && lang.NameComparer.Equals(d.Key, member.Key))).ToList();
+                    if (sameName.Count == 0) continue;
+                    var siblings = members.Count(o => o.Kind == member.Kind && lang.NameComparer.Equals(o.Key, member.Key));
+                    var found = sameName.Count == 1 && siblings == 1 ? sameName : sameName.Where(d => d.Parameters.Count == member.Parameters.Count).ToList();
+                    foreach (var d in found) Link(member, d, found.Count == 1 ? confidence : "ambiguous");
+                }
+            }
+
+            private static void Link(Sym implementation, Sym declaration, string confidence)
+            {
+                (implementation.Implements ??= new()).Add((declaration, confidence));
+                (declaration.ImplementedBy ??= new()).Add(implementation);
             }
 
             public IReadOnlyList<Sym> Symbols(string rule, string key)
@@ -749,6 +854,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     foreach (var p in s.Parameters) { p.SymbolId = s.Id; _script.Parameters.Add(p); }
                 }
                 CollectJumps();
+                foreach (var s in _m.Symbols.Where(s => s.Implements != null && emitted.Contains(s)))
+                    foreach (var (declaration, confidence) in s.Implements)
+                        _pending.Add((s, declaration.Id ?? _owner.StableId(declaration.Kind, declaration.QualifiedName), "implements", confidence, s.Start, null));
                 foreach (var (source, target, relation, confidence, line, written) in _pending)
                     Edge(Visible(source).Id, target, relation, confidence, line, written);
                 return _script;
@@ -768,6 +876,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var line = _m.Lines[i];
                     if (string.IsNullOrWhiteSpace(line.Code) && string.IsNullOrWhiteSpace(line.Raw)) continue;
+                    _m.DeclaredNames.TryGetValue(line.Start, out var declared);
                     foreach (var rule in Lang.References)
                     {
                         if (rule.After != null && (previous == null || !rule.After.IsMatch(previous))) continue;
@@ -776,7 +885,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                         foreach (Match match in rule.Pattern.Matches(text))
                         {
                             if (rule.AssignTemplate != null) { Dispatch(rule, match.Groups["var"].Value, i, line); continue; }
-                            var target = match.Groups["target"].Value;
+                            var group = match.Groups["target"];
+                            if (declared != null && declared.Any(d => group.Index < d.Index + d.Length && d.Index < group.Index + group.Length)) continue;
+                            var target = group.Value;
                             if (rule.Strip != null) target = rule.Strip.Replace(target, string.Empty);
                             target = target.Trim();
                             if (target.Length == 0) continue;
@@ -902,6 +1013,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                             single = here.Count > 0 ? "extracted" : "inferred";
                             break;
                     }
+                }
+                // fra una dichiarazione (la firma nella specifica) e la sua implementazione, l'implementazione
+                if (found.Count > 1)
+                {
+                    var implementations = found.Where(s => s.ImplementedBy == null || !s.ImplementedBy.Any(found.Contains)).ToList();
+                    if (implementations.Count > 0) found = implementations;
                 }
                 if (found.Count == 0)
                 {

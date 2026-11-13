@@ -176,6 +176,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             public IReadOnlyList<string> In { get; init; }
             public string NameTemplate { get; init; }
             public string SignatureTemplate { get; init; }
+            /// <summary>
+            /// <c>completes: spec</c> (13/11/2026, rilevazione dal cliente: specifica e corpo del package nello stesso file, ogni
+            /// procedura «già dichiarata»): questo blocco è l'implementazione del blocco <c>spec</c> con lo stesso nome. Il nome
+            /// resta al corpo (chi chiama <c>PKG.PROC</c> arriva al codice); nello stesso file la specifica diventa
+            /// <c>PKG@spec</c>. Il corpo «implements» la specifica e ogni suo membro il membro omonimo con gli stessi parametri;
+            /// fra una dichiarazione e la sua implementazione un riferimento va all'implementazione. Null se non completa niente.
+            /// </summary>
+            public string Completes { get; init; }
         }
 
         /// <summary>
@@ -366,6 +374,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!ruleIds.Add(id)) throw Fail($"id di regola ripetuto o riservato: '{id}'", $"rule id repeated or reserved: '{id}'");
                 var containers = new HashSet<string>(blocks.Select(b => b.Id).Append(ModuleRule), StringComparer.Ordinal);
                 foreach (var b in blocks) CheckIn($"blocks[{b.Id}].in", b.In, containers);
+                foreach (var b in blocks.Where(b => b.Completes != null))
+                    if (b.Completes == b.Id || !blocks.Any(o => o.Id == b.Completes && o.Completes == null))
+                        throw Fail($"blocks[{b.Id}].completes: '{b.Completes}' non è un altro blocco (che non ne completa a sua volta un altro)",
+                            $"blocks[{b.Id}].completes: '{b.Completes}' is not another block (one that does not complete a block itself)");
                 foreach (var l in labels) CheckIn($"labels[{l.Id}].in", l.In, containers);
                 foreach (var x in declarations) CheckIn($"declarations[{x.Id}].in", x.In, containers);
                 var fragments = BuildFragments(blocks);
@@ -565,6 +577,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     End = b.End == null ? null : Rx(where + ".end", b.End), Nesting = nesting,
                     In = b.In is { Count: > 0 } ? b.In : new List<string> { ModuleRule },
                     NameTemplate = b.Name ?? "{name}", SignatureTemplate = b.Signature,
+                    Completes = string.IsNullOrWhiteSpace(b.Completes) ? null : b.Completes.Trim(),
                 };
             }
 
@@ -797,6 +810,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<string> In { get; set; }
                 public string Name { get; set; }
                 public string Signature { get; set; }
+                public string Completes { get; set; }
             }
             public sealed class Label
             {

@@ -36,7 +36,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.Append("# ---- symbols\n");
             Kind(sb, Node("kind-module"), "module", "module", "one per source file" + (lang.ModuleName != null ? "; its name is the one the file declares (rule module.name), else the file name" : "; its name is the file name"));
             foreach (var b in lang.Blocks)
-                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, (b.Nesting != null ? "a block, from its begin line to the line where its nesting closes (open and close words counted outside comments and strings)" : "a block, from its begin line to its end line") + In(b.In) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : ""));
+                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, (b.Nesting != null ? "a block, from its begin line to the line where its nesting closes (open and close words counted outside comments and strings)" : "a block, from its begin line to its end line") + In(b.In) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : "")
+                    + (b.Completes != null ? $"; it implements the {b.Completes} block with the same name: the name (and every reference to it) belongs to this block, and in the same file the {b.Completes} block is named NAME@{b.Completes}" : ""));
             foreach (var l in lang.Labels)
                 Kind(sb, Node("kind-" + l.Id), l.Kind, "labels." + l.Id, "a label inside a block, up to the next label or the end of the block" + In(l.In) + (l.OnlyIfReferenced ? "; a symbol only if something in the same file refers to it" : ""));
             foreach (var d in lang.Declarations.Where(d => d.Emit))
@@ -66,6 +67,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (r.AssignTemplate != null) target += "; the name is in a variable: it is the one assigned to that variable earlier in the block (inferred)";
                 Relation(sb, Node("relation-" + i), r.Relation, $"references[{i}]", target, r.ExternalWhenUnresolved ? "an external node with the name as written" : "no edge", r.Confidence);
             }
+            foreach (var b in lang.Blocks.Where(b => b.Completes != null))
+                Relation(sb, Node("relation-implements-" + b.Id), "implements", $"blocks.{b.Id}.completes",
+                    $"the {b.Completes} block with the same name (in the same file, else in the analysed files: inferred), and from each member of this block the member of that block with the same kind and name (with overloads, the same number of parameters; several: ambiguous). A reference that finds both a declaration and its implementation goes to the implementation", null, null);
             if (lang.Fragments != null)
                 Relation(sb, Node("relation-jumps"), DeclarativeLanguage.JumpsRelation, "fragments", "another fragment of the same block: a jump written in the code, or the code running on into the next piece (inferred)", null, null);
             if (lang.Template != null)

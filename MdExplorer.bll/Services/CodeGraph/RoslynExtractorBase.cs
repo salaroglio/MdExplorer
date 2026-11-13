@@ -115,7 +115,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// nomi non risolti.
         /// </summary>
         private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, List<string> warnings,
-            Dictionary<ProjectGroup, List<string>> borrowed)
+            Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk)
         {
             var byGuid = groups.Where(g => g.Project?.ProjectGuid != null).GroupBy(g => g.Project.ProjectGuid, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -130,13 +130,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!byGuid.TryGetValue(guid, out var found))
                     {
                         // il progetto non c'è (la libreria di un altro, compilata): la sua DLL, se un altro progetto la riferisce
-                        var lib = BorrowLibrary(name, g, groups, out var from, out var problem);
+                        var lib = BorrowLibrary(name, g, groups, librariesOnDisk, out var from, out var problem);
                         if (lib != null)
                         {
                             Add(borrowed, g, lib);
                             warnings.Add(UiText.Say(
-                                $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: si usa la libreria {Path.GetFileName(lib)} con lo stesso nome di assembly, riferita da {Path.GetFileName(from)}.",
-                                $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: the library {Path.GetFileName(lib)} with the same assembly name, referenced by {Path.GetFileName(from)}, is used."));
+                                $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: si usa la libreria {Path.GetFileName(lib)} con lo stesso nome di assembly, {From(from, lib, true)}.",
+                                $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: the library {Path.GetFileName(lib)} with the same assembly name, {From(from, lib, false)}, is used."));
                         }
                         else
                             warnings.Add(UiText.Say(
@@ -152,6 +152,32 @@ namespace MdExplorer.Features.Services.CodeGraph
                 result[g] = list;
             }
             return result;
+        }
+
+        /// <summary>La cartella più profonda che contiene tutti i file analizzati; null se non ce n'è una.</summary>
+        private static string CommonDirectory(IEnumerable<string> files)
+        {
+            string common = null;
+            foreach (var f in files.Where(f => !string.IsNullOrEmpty(f)))
+            {
+                var dir = Path.GetDirectoryName(Path.GetFullPath(f));
+                if (common == null) { common = dir; continue; }
+                while (common != null && !(dir + Path.DirectorySeparatorChar).StartsWith(common.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    common = Path.GetDirectoryName(common);
+                if (common == null) return null;
+            }
+            return common;
+        }
+
+        /// <summary>Le DLL sotto una cartella (anche nelle sottocartelle, <c>bin</c> compresa); nessuna se la cartella non si legge.</summary>
+        private static List<string> LibrariesUnder(string directory)
+        {
+            if (directory == null || !Directory.Exists(directory)) return new List<string>();
+            try
+            {
+                return Directory.EnumerateFiles(directory, "*.dll", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive }).ToList();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return new List<string>(); }
         }
 
         private static void Add(Dictionary<ProjectGroup, List<string>> map, ProjectGroup g, string path)
@@ -174,21 +200,36 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
         }
 
+        /// <summary>Da dove viene la libreria presa in prestito: il progetto che la riferisce, o la cartella in cui sta.</summary>
+        private static string From(string project, string library, bool italian)
+            => project != null
+                ? (italian ? $"riferita da {Path.GetFileName(project)}" : $"referenced by {Path.GetFileName(project)}")
+                : (italian ? $"che nessun progetto riferisce ma sta in {Path.GetDirectoryName(library)}" : $"which no project references but lies in {Path.GetDirectoryName(library)}");
+
         /// <summary>
         /// Una libreria che questo progetto vuole e non trova (un progetto riferito che non c'è, un HintPath che non esiste), presa
         /// da un ALTRO progetto dei sorgenti che riferisce una DLL con lo stesso nome di assembly (12/11/2026, rilevazione dal cliente:
-        /// il DL riferiva come progetto un blocco applicativo la cui DLL stava nelle librerie delle schermate). Una deduzione: chi
-        /// la usa lo dice con un avviso. Più DLL con quel nome ma identità diverse (versione, chiave) = non si sceglie, e
-        /// <paramref name="problem"/> lo dice.
+        /// il DL riferiva come progetto un blocco applicativo la cui DLL stava nelle librerie delle schermate); se nessun progetto la
+        /// riferisce, una DLL con quel nome di assembly fra quelle nella cartella analizzata (13/11/2026: la DLL c'era, nessun
+        /// .vbproj la nominava). Una deduzione: chi la usa lo dice con un avviso. Più DLL con quel nome ma identità diverse
+        /// (versione, chiave) = non si sceglie, e <paramref name="problem"/> lo dice.
         /// </summary>
-        private static string BorrowLibrary(string assemblyName, ProjectGroup g, List<ProjectGroup> groups, out string fromProject, out string problem)
+        private static string BorrowLibrary(string assemblyName, ProjectGroup g, List<ProjectGroup> groups, Lazy<List<string>> librariesOnDisk, out string fromProject, out string problem)
         {
             fromProject = null; problem = null;
             if (string.IsNullOrWhiteSpace(assemblyName)) return null;
+            bool Named(AssemblyName n) => n != null && string.Equals(n.Name, assemblyName, StringComparison.OrdinalIgnoreCase);
             var found = groups.Where(o => o != g && o.Project != null)
                 .SelectMany(o => o.Project.Libraries.Select(l => (Project: o.Project.File, Path: l, Name: AssemblyNameOf(l))))
-                .Where(x => x.Name != null && string.Equals(x.Name.Name, assemblyName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => Named(x.Name))
                 .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToList();
+            if (found.Count == 0 && librariesOnDisk != null)
+                found = librariesOnDisk.Value
+                    // il nome del file prima, per non aprire ogni DLL della cartella
+                    .Where(l => string.Equals(Path.GetFileNameWithoutExtension(l), assemblyName, StringComparison.OrdinalIgnoreCase))
+                    .Select(l => (Project: (string)null, Path: l, Name: AssemblyNameOf(l)))
+                    .Where(x => Named(x.Name))
+                    .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToList();
             if (found.Count == 0) return null;
             var identities = found.Select(x => x.Name.FullName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (identities.Count > 1)
@@ -321,7 +362,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             if (projects != null) result.Warnings.AddRange(projects.Problems);
             var borrowed = new Dictionary<ProjectGroup, List<string>>();
-            var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed);
+            var librariesOnDisk = local ? new Lazy<List<string>>(() => LibrariesUnder(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)))) : null;
+            var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk);
 
             var trees = new List<(SyntaxTree Tree, Compilation Compilation)>();
             var compilations = new List<Compilation>();
@@ -347,12 +389,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var missing = new List<string>();
                     foreach (var m in p.MissingLibraries)
                     {
-                        var lib = BorrowLibrary(Path.GetFileNameWithoutExtension(m), group, groups, out var from, out var problem);
+                        var lib = BorrowLibrary(Path.GetFileNameWithoutExtension(m), group, groups, librariesOnDisk, out var from, out var problem);
                         if (lib == null) { missing.Add(Path.GetFileName(m) + (problem ?? "")); continue; }
                         Add(borrowed, group, lib);
                         result.Warnings.Add(UiText.Say(
-                            $"{Path.GetFileName(p.File)}: la libreria {Path.GetFileName(m)} non c'è dove la indica (HintPath): si usa quella con lo stesso nome di assembly riferita da {Path.GetFileName(from)}.",
-                            $"{Path.GetFileName(p.File)}: the library {Path.GetFileName(m)} is not where its HintPath says: the one with the same assembly name referenced by {Path.GetFileName(from)} is used."));
+                            $"{Path.GetFileName(p.File)}: la libreria {Path.GetFileName(m)} non c'è dove la indica (HintPath): si usa quella con lo stesso nome di assembly, {From(from, lib, true)}.",
+                            $"{Path.GetFileName(p.File)}: the library {Path.GetFileName(m)} is not where its HintPath says: the one with the same assembly name, {From(from, lib, false)}, is used."));
                     }
                     if (borrowed.TryGetValue(group, out var extra)) references.AddRange(extra.Select(FileReference).Where(r => r != null));
                     if (missing.Count > 0)

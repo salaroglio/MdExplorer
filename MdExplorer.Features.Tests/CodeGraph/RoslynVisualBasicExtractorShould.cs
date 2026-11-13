@@ -563,7 +563,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
         /// <summary>Un DL e un BL di Visual Studio 2003; con <paramref name="withLibrary"/> la libreria del blocco applicativo c'è, compilata.</summary>
         /// <param name="libraryAsMissingProject">Il DL riferisce la libreria come un progetto che non c'è (per GUID); la DLL la riferisce il BL.</param>
-        private string WriteVs2003Solution(bool withLibrary, bool libraryAsMissingProject = false)
+        /// <param name="nobodyReferencesTheLibrary">Con <paramref name="libraryAsMissingProject"/>: nemmeno il BL riferisce la DLL, che sta solo nella cartella.</param>
+        private string WriteVs2003Solution(bool withLibrary, bool libraryAsMissingProject = false, bool nobodyReferencesTheLibrary = false)
         {
             var root = Path.Combine(_project, "vs2003");
             foreach (var d in new[] { "Lib", "Dl", "Bl" }) Directory.CreateDirectory(Path.Combine(root, d));
@@ -605,7 +606,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             File.WriteAllText(Path.Combine(root, "Bl", "Bl.vbproj"), Vs2003Project("22222222-AAAA-BBBB-CCCC-000000000002", "Acme.Bl",
                 "                <Reference Name = \"Acme.Dl\" Project = \"{11111111-aaaa-bbbb-cccc-000000000001}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
                 "                <Reference Name = \"Mancante\" Project = \"{99999999-AAAA-BBBB-CCCC-000000000009}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
-                (libraryAsMissingProject ? blocksByPath : "")));
+                (libraryAsMissingProject && !nobodyReferencesTheLibrary ? blocksByPath : "")));
             File.WriteAllText(Path.Combine(root, "Bl", "Logica.vb"),
                 "Imports Acme.Dl\n" +
                 "Public Class Servizio\n" +
@@ -680,6 +681,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(warnings, "Dl.vbproj", warnings);
             StringAssert.Contains(warnings, "Acme.Blocks.dll", "si dice quale libreria si usa e chi la riferisce");
             StringAssert.Contains(warnings, "Bl.vbproj", warnings);
+            var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dati.vb")).Script;
+            Assert.AreEqual("14:SCHEMA_1.PKG_2.PROC_1:inferred:Leggi(procedura = \"SCHEMA_1.PKG_2.PROC_1\")", ProcedureCalls(dl, "Elenco"));
+            Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
+        }
+
+        [TestMethod]
+        public void Use_a_library_lying_in_the_analysed_folder_when_no_project_references_it_and_say_where()
+        {
+            // dal cliente (13/11/2026): il DL riferisce il blocco applicativo come progetto, nessun .vbproj riferisce la DLL, che però c'è
+            var result = ExtractWithoutNetFramework(WriteVs2003Solution(withLibrary: true, libraryAsMissingProject: true, nobodyReferencesTheLibrary: true));
+            var warnings = string.Join(" | ", result.Warnings);
+            StringAssert.Contains(warnings, "Acme.Blocks.dll", warnings);
+            StringAssert.Contains(warnings, "which no project references but lies in", warnings);
+            StringAssert.Contains(warnings, Path.Combine("vs2003", "Lib"), "si dice in quale cartella sta: " + warnings);
             var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dati.vb")).Script;
             Assert.AreEqual("14:SCHEMA_1.PKG_2.PROC_1:inferred:Leggi(procedura = \"SCHEMA_1.PKG_2.PROC_1\")", ProcedureCalls(dl, "Elenco"));
             Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
