@@ -35,8 +35,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 10 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata (13/11/2026).
         /// 11 = <c>Handles MyBase.Load</c> registrato (punto di chiamata <c>handles</c>) per la freccia pagina → gestore; AddHandler con il
         /// controllo come Handles; <c>AddressOf</c> in AddHandler/RemoveHandler non è una chiamata.
-        /// 12 = i file che il progetto non compila (non elencati nel .vbproj) restano senza simboli (13/11/2026).</summary>
-        public override string ExtractorVersion => "12";
+        /// 12 = i file che il progetto non compila (non elencati nel .vbproj) restano senza simboli (13/11/2026).
+        /// 13 = niente archi verso i simboli che il compilatore crea da solo (il delegato di un Event, il costruttore di default).</summary>
+        public override string ExtractorVersion => "13";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

@@ -1,5 +1,6 @@
 using MdExplorer.Features.Services;
 using System;
+using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1149,6 +1150,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (type is IArrayTypeSymbol arr) { Reference(from, arr.ElementType, line); return; }
                 if (type is INamedTypeSymbol named)
                 {
+                    // un tipo che il compilatore crea da solo (il delegato di «Event X(a As T)» in VB) non è nel grafo: un arco
+                    // verso di lui andrebbe verso un nodo che non esiste (13/11/2026, 194 dal cliente); del delegato contano i parametri
+                    if (named.IsImplicitlyDeclared)
+                    {
+                        foreach (var p in named.DelegateInvokeMethod?.Parameters ?? ImmutableArray<IParameterSymbol>.Empty) Reference(from, p.Type, line);
+                        return;
+                    }
                     Edge(from, IdOf(named), "references", "extracted", line);
                     foreach (var arg in named.TypeArguments) Reference(from, arg, line);
                 }
@@ -1506,6 +1514,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void Call(string ownerId, IMethodSymbol m, int line)
             {
                 var target = m.ReducedFrom ?? m.OriginalDefinition ?? m;
+                // il costruttore che il compilatore crea da solo (MyBase.New() verso una classe senza Sub New): non ha codice e non è
+                // nel grafo, quindi niente arco verso un nodo che non esiste (13/11/2026)
+                if (target.IsImplicitlyDeclared && _perimeter.IsInPerimeter(target)) return;
                 Edge(ownerId, IdOf(target), "calls", "extracted", line);
                 if (target.ContainingType?.TypeKind == TypeKind.Interface)
                     foreach (var impl in _perimeter.ImplementationsOf(target)) Edge(ownerId, IdOf(impl), "calls", "inferred", line);

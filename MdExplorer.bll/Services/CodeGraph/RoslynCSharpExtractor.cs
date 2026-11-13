@@ -47,8 +47,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>11 = una libreria che manca presa da un altro progetto con lo stesso nome di assembly, con un avviso.</para>
         /// <para>12 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata.</para>
         /// <para>13 = i file che il progetto non compila (non elencati nel .csproj di una volta) restano senza simboli.</para>
+        /// <para>14 = niente archi verso i simboli che il compilatore crea da solo (il costruttore di default).</para>
         /// </summary>
-        public override string ExtractorVersion => "13";
+        public override string ExtractorVersion => "14";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

@@ -176,6 +176,15 @@ END PKG;
         }
 
         [TestMethod]
+        public void End_a_list_with_the_file_without_a_warning()
+        {
+            // 13/11/2026, dal cliente: una vista che finisce con il file, senza «;»: l'elenco è finito, non tagliato
+            var s = Extract(out var result, ("view.blk", "PACKAGE BODY V AS\nPROCEDURE P(a IN NUMBER) IS\nBEGIN\n  SELECT 1 FROM T_ONE x,\n    T_TWO y"));
+            Assert.IsFalse(result.Warnings.Any(w => w.Contains("200")), string.Join("\n", result.Warnings));
+            Assert.AreEqual("4:T_ONE:inferred | 5:T_TWO:inferred", Out(s, "db/view.blk:V.P", "reads"));
+        }
+
+        [TestMethod]
         public void Choose_the_overload_when_relinking_a_call_from_another_context()
         {
             // il chiamante analizzato da solo: PKG non c'è, le chiamate sono esterne con gli argomenti scritti

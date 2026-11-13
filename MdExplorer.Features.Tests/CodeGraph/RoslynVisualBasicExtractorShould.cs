@@ -686,6 +686,26 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
         }
 
+        [TestMethod]
+        public void Draw_no_edge_to_a_symbol_the_compiler_makes_by_itself()
+        {
+            // 13/11/2026, rilevazione dal cliente: 194 archi dalla dichiarazione di un Event verso il suo delegato nascosto e 3 da
+            // MyBase.New() verso il costruttore di default, nodi che nel grafo non ci sono
+            var root = Path.Combine(_project, "impliciti");
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "Eventi.vb"),
+                "Public Class Valore\nEnd Class\n" +
+                "Public Class Sorgente\n    Public Event Cambiato(ByVal nuovo As Valore)\nEnd Class\n" +
+                "Public Class Figlia\n    Inherits Sorgente\n    Public Sub New()\n        MyBase.New()\n    End Sub\nEnd Class\n");
+            var s = ExtractAll(root).Scripts.Single().Script;
+            var ids = s.Symbols.Select(x => x.Id).ToHashSet();
+            var dangling = s.Edges.Where(e => !ids.Contains(e.TargetId)).Select(e => e.Relation + ":" + e.TargetId).ToList();
+            Assert.AreEqual(0, dangling.Count, string.Join(", ", dangling));
+            var evento = s.Symbols.Single(x => x.Name == "Cambiato");
+            Assert.IsTrue(s.Edges.Any(e => e.SourceId == evento.Id && e.Relation == "references" && e.TargetId == s.Symbols.Single(x => x.Name == "Valore" && x.Kind == "class").Id),
+                "dell'evento conta il tipo dei suoi parametri");
+        }
+
         [DataTestMethod]
         [DataRow(true)]
         [DataRow(false)]
