@@ -61,6 +61,7 @@ references:
   - relation: calls
     pattern: '(?<![\w.])(?:\w+\.(?=\w+\.\w+\s*\())?(?<owner>\w+)\.(?<target>\w+)\s*\('
     text: code
+    ignoreUnresolved: [EXISTS, COUNT]
     resolve: symbol
     rules: [proc, decl]
     unresolved: external
@@ -251,6 +252,29 @@ END;
             CollectionAssert.Contains(targets, Sym(other, "db/b.blk:PKG_B.SAVE").Id);
             CollectionAssert.Contains(targets, Sym(other, "db/c.blk:PKG_C.SAVE").Id);
             Assert.AreEqual(4, targets.Count, "PKG_B.SAVE due volte (con e senza schema) è un arco; PKG_C.SAVE; RUN e PKG_B.MISSING esterni: " + string.Join(", ", targets));
+        }
+
+        [TestMethod]
+        public void Ignore_a_listed_name_only_when_it_does_not_resolve()
+        {
+            // 13/11/2026: v_tab.EXISTS(i) è un metodo di collezione, non un nodo esterno; PKG_B.COUNT(…) una procedura vera
+            var s = Extract(out _, ("a.blk", @"PACKAGE BODY PKG_A AS
+PROCEDURE SAVE(a IN NUMBER) IS
+BEGIN
+  v_ok := v_tab.EXISTS(a);
+  PKG_B.COUNT(a);
+END;
+END PKG_A;
+PACKAGE BODY PKG_B AS
+PROCEDURE COUNT(a IN NUMBER) IS
+BEGIN
+  NULL;
+END;
+END PKG_B;
+"));
+            var calls = Edges(s, Sym(s, "db/a.blk:PKG_A.SAVE"), "calls");
+            Assert.AreEqual(Sym(s, "db/a.blk:PKG_B.COUNT").Id, calls.Single().TargetId, "COUNT si risolve: la freccia c'è");
+            Assert.IsFalse(s.SelectMany(x => x.Symbols).Any(x => x.Kind == "external" && x.Name.Contains("EXISTS")), "EXISTS non si risolve: niente nodo esterno");
         }
 
         [TestMethod]

@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
-        public const string EngineVersion = "6";
+        public const string EngineVersion = "7";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -1027,6 +1027,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (found.Count == 0)
                 {
                     if (rule.Unless.Any(u => _index.Symbols(u, target).Count > 0)) yield break;
+                    if (rule.IgnoreUnresolved.Contains(target)) yield break;
                     if (rule.ExternalWhenUnresolved) yield return (External(rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "symbol" : rule.Resolve == DeclarativeLanguage.ResolveKind.File ? "file" : "module", written), rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "inferred" : "extracted");
                     yield break;
                 }

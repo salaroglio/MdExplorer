@@ -293,6 +293,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             public IReadOnlyList<string> Rules { get; init; }
             /// <summary>Parole che non sono riferimenti (parole chiave, funzioni del linguaggio): niente arco, niente nodo esterno.</summary>
             public ISet<string> Ignore { get; init; }
+            /// <summary>
+            /// <c>ignoreUnresolved</c> (13/11/2026, rilevazione dal cliente: 59 metodi di collezione <c>v_tab.EXISTS(i)</c> diventati
+            /// nodi esterni): nomi che, se NON si risolvono, non sono riferimenti (niente arco, niente nodo esterno). Se un simbolo
+            /// con quel nome c'è (una procedura <c>PKG.COUNT</c>), la freccia va a lui come sempre: a differenza di
+            /// <see cref="Ignore"/>, non si perde mai un simbolo vero.
+            /// </summary>
+            public ISet<string> IgnoreUnresolved { get; init; }
             /// <summary>Regole di dichiarazione che escludono il bersaglio non risolto: <c>X(3)</c> con <c>X</c> variabile non è una chiamata.</summary>
             public IReadOnlyList<string> Unless { get; init; }
             public ScopeKind Scope { get; init; }
@@ -708,6 +715,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Strip = r.Strip == null ? null : Rx(where + ".strip", r.Strip),
                     Resolve = resolve, Rules = rules, Scope = scope, Confidence = r.Confidence, ExternalWhenUnresolved = unresolved == "external",
                     Ignore = new HashSet<string>(r.Ignore ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
+                    IgnoreUnresolved = new HashSet<string>(r.IgnoreUnresolved ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
                     Unless = r.Unless ?? new List<string>(),
                 };
             }
@@ -875,6 +883,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Rule { get; set; }
                 public List<string> Rules { get; set; }
                 public List<string> Ignore { get; set; }
+                public List<string> IgnoreUnresolved { get; set; }
                 public List<string> Unless { get; set; }
                 public string Scope { get; set; }
                 public string Confidence { get; set; }
