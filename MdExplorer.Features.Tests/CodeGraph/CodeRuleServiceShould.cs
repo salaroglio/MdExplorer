@@ -69,15 +69,28 @@ namespace MdExplorer.Features.Tests.CodeGraph
             {
                 var files = Directory.GetFiles(Path.Combine(_project, "program"), pattern, SearchOption.AllDirectories).OrderBy(f => f)
                     .Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
-                foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
-                {
-                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
-                    Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    File.WriteAllText(path, CodeScriptWriter.Serialize(script));
-                }
+                WriteAsTheAnalysisDoes(_project, extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }));
             }
             Emit(new TreeSitterJavaScriptExtractor(grammars, NullLogger<TreeSitterJavaScriptExtractor>.Instance), "*.js");
             Emit(new TreeSitterJavaExtractor(grammars, NullLogger<TreeSitterJavaExtractor>.Instance), "*.java");
+        }
+
+        /// <summary>
+        /// Gli script come li scrive l'analisi: con gli id legati al file che dichiara ogni simbolo (G4, <see cref="CodeFileScope"/>).
+        /// Senza questo passo un arco fra linguaggi diversi sembra giusto qui e va verso un nodo che non esiste nel progetto vero
+        /// (13/11/2026: il &lt;script src&gt; di una pagina).
+        /// </summary>
+        internal static void WriteAsTheAnalysisDoes(string project, CodeExtractionResult result)
+        {
+            var declarations = new CodeDeclarations();
+            foreach (var (file, script) in result.Scripts) declarations.Add(file.LogicalPath, script);
+            foreach (var (file, script) in result.Scripts)
+            {
+                CodeFileScope.Apply(script, declarations);
+                var path = CodeScriptWriter.ScriptPathFor(project, file.LogicalPath, CodeScriptKind.Ast);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+            }
         }
 
         private async Task<string> IdOf(string qualifiedNameStart)
@@ -506,12 +519,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Scan();
             var dialect = new TemplatePageExtractor(DeclarativeLanguage.Parse(TemplatePageExtractorShould.Dialect, "/p/.mde-languages/pagine/language.yml"));
             var all = Directory.GetFiles(pages, "*.page", SearchOption.AllDirectories).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
-            foreach (var (file, ast) in dialect.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all }).Scripts)
-            {
-                var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
-                File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
-            }
+            WriteAsTheAnalysisDoes(_project, dialect.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all }));
             var loaded = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
 

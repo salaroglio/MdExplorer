@@ -315,7 +315,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Regex Until { get; init; }
             public string Separator { get; init; }
             public Regex Item { get; init; }
-            public const int MaxLines = 200;
+            public const int MaxLines = DeclarativeLanguageExtractor.MaxSpanLines;
         }
 
         /// <summary>

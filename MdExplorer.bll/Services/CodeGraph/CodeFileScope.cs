@@ -51,6 +51,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     renames[LegacyProgramId(legacyProgramFolder, s.Id)] = declarations.Resolve(s.Id);
 
             var local = new HashSet<string>(script.Symbols.Where(s => s.Id != null).Select(s => s.Id), StringComparer.Ordinal);
+            // un modulo di un altro linguaggio che l'estrattore ha già legato al suo file (<script src> di una pagina): esiste
+            foreach (var e in script.Edges.Where(e => e.Written != null && e.Written.StartsWith("file:", StringComparison.Ordinal) && e.TargetId != null)) local.Add(e.TargetId);
             var cache = new Dictionary<string, string>(StringComparer.Ordinal);
             var unresolved = new HashSet<string>(StringComparer.Ordinal);
             string Map(string id)

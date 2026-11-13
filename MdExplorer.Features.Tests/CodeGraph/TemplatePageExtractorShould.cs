@@ -169,8 +169,8 @@ var apri = function(x) { mostra(""popup.dettaglio""); };
             CollectionAssert.AreEqual(new[] { "manca" }, page.UnresolvedIncludes);
 
             var js = s.Edges.Single(e => e.Relation == "imports");
-            Assert.AreEqual((module, RoslynCSharpExtractor.StableId(CodeLanguages.JavaScript, "module", "web/js/comune")), (js.SourceId, js.TargetId),
-                "lo stesso id che gli dà l'estrattore JS");
+            Assert.AreEqual((module, CodeFileScope.FileId("web/js/comune.js", RoslynCSharpExtractor.StableId(CodeLanguages.JavaScript, "module", "web/js/comune"))), (js.SourceId, js.TargetId),
+                "l'id che il modulo JS ha nel grafo: la chiave dell'estrattore JS legata al suo file (G4)");
         }
 
         [TestMethod]

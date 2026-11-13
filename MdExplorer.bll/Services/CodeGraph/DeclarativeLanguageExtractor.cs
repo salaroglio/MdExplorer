@@ -104,7 +104,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         // ------------------------------------------------------------------ testo su più righe (motore 8)
 
         /// <summary>Quante righe logiche si seguono al più per chiudere una parentesi o un elenco.</summary>
-        internal const int MaxSpanLines = 200;
+        internal const int MaxSpanLines = 1000;   // 13/11/2026: frasi SQL vere di 370 righe; prima 200
 
         /// <summary>
         /// Il testo fra la parentesi in <paramref name="open"/> della riga <paramref name="lineIndex"/> e quella che la chiude,

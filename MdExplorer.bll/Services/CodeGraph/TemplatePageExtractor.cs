@@ -30,8 +30,9 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public sealed class TemplatePageExtractor : ICodeExtractor
     {
-        /// <summary>La versione del motore: cambia quando cambia il modo di leggere le pagine, non il dialetto.</summary>
-        public const string EngineVersion = "2";
+        /// <summary>La versione del motore: cambia quando cambia il modo di leggere le pagine, non il dialetto. 3 = il &lt;script src&gt;
+        /// punta all'id del modulo JS legato al suo file (13/11/2026).</summary>
+        public const string EngineVersion = "3";
         public const int MaxSignatureLength = 200;
 
         private readonly DeclarativeLanguage _lang;
@@ -980,14 +981,17 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             /// <summary>
             /// <c>&lt;script src="x.js"&gt;</c> → <c>imports</c> verso il modulo JS, se il file c'è accanto alla pagina:
-            /// l'id è quello che gli dà l'estrattore JS (il percorso logico senza estensione). Se no un nodo esterno.
+            /// l'id è quello che il modulo ha nel grafo — la chiave dell'estrattore JS (il percorso logico senza estensione)
+            /// legata al suo file (G4, <see cref="CodeFileScope.FileId"/>; 13/11/2026, rilevazione dal cliente: con la chiave
+            /// sola l'arco andava verso un nodo che non esiste, e i pulsanti non arrivavano alle funzioni del JS). Il
+            /// riferimento scritto <c>file:</c> dice che la destinazione è di un altro linguaggio. Se no un nodo esterno.
             /// </summary>
             private void ImportScript(string src, int offset)
             {
                 var line = LineOf(offset);
                 if (src.Length == 0 || HasDirective(src)) return;
                 var clean = src.Split('?', '#')[0].Replace('\\', '/');
-                string target = null;
+                string target = null, written = null;
                 if (!clean.Contains("://") && !clean.StartsWith("//") && !clean.StartsWith('/'))
                 {
                     var dir = Path.GetDirectoryName(_file.LogicalPath)?.Replace('\\', '/') ?? string.Empty;
@@ -997,10 +1001,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (lang != null && lang.ExtractorKind == CodeExtractorKind.TreeSitter && _request.Exists(new CodeSourceFile(absolute, logical)))
                     {
                         var ext = lang.Extensions.FirstOrDefault(e => logical.EndsWith(e, StringComparison.OrdinalIgnoreCase));
-                        target = RoslynCSharpExtractor.StableId(lang.Id, "module", ext == null ? logical : logical[..^ext.Length]);
+                        target = CodeFileScope.FileId(logical, RoslynCSharpExtractor.StableId(lang.Id, "module", ext == null ? logical : logical[..^ext.Length]));
+                        written = CodeCrossLinker.Written("file", logical, null);
                     }
                 }
-                Edge(_moduleId, target ?? External("file", clean), "imports", "extracted", line);
+                Edge(_moduleId, target ?? External("file", clean), "imports", "extracted", line, written: written);
             }
 
             private string External(string what, string name)
@@ -1011,7 +1016,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             /// <summary>Un arco per (sorgente, destinazione, relazione); due guardie diverse sullo stesso arco valgono in «o».</summary>
-            private void Edge(string source, string target, string relation, string confidence, int line, string guard = null)
+            private void Edge(string source, string target, string relation, string confidence, int line, string guard = null, string written = null)
             {
                 if (source == null || target == null || source == target) return;
                 var key = $"{source}|{target}|{relation}";
@@ -1020,7 +1025,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     existing.Guard = existing.Guard == null || guard == null ? null : existing.Guard == guard ? guard : $"({existing.Guard}) || ({guard})";
                     return;
                 }
-                var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line, Guard = guard };
+                var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line, Guard = guard, Written = written };
                 _edges[key] = edge;
                 _script.Edges.Add(edge);
             }
