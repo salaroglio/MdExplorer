@@ -196,25 +196,58 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ .NET
 
+        /// <summary>
+        /// <c>ProjectReference</c> per percorso e, nei progetti di Visual Studio 2002/2003 (13/11/2026, rilevazione dal cliente:
+        /// un progetto web che riferisce la libreria del livello dati in un'altra cartella), <c>Reference Project="{GUID}"</c>
+        /// per identità: il GUID si cerca fra i <c>ProjectGuid</c> dei progetti di tutte le cartelle program. Un GUID che è di
+        /// progetti in più cartelle (una copia in un archivio) non fa ponte, e lo si dice.
+        /// </summary>
         private static void DotNet(List<CodeProgramLocation> programs, Dictionary<string, List<string>> files, List<CodeBridge> bridges, List<string> warnings)
         {
+            static bool IsProject(string f) => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase);
+            var docs = new List<(CodeProgramLocation Program, string File, XDocument Doc, DotNetProject Old)>();
             foreach (var p in programs)
-                foreach (var csproj in files[p.Key].Where(f => f.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase)))
+                foreach (var csproj in files[p.Key].Where(IsProject))
                 {
-                    // il linguaggio del ponte è quello del progetto che chiede: un .vbproj può riferire un .csproj e viceversa
-                    var language = csproj.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ? CodeLanguages.VisualBasic : CodeLanguages.CSharp;
                     XDocument doc;
                     try { doc = XDocument.Load(csproj); }
                     catch (Exception ex) { warnings.Add($"{p.Key}: {csproj} non si legge come XML ({ex.Message}): i suoi ponti .NET non ci sono"); continue; }
-                    foreach (var reference in doc.Descendants().Where(e => e.Name.LocalName == "ProjectReference"))
+                    DotNetProject old = null;
+                    if (doc.Root?.Name.LocalName == "VisualStudioProject")
                     {
-                        var include = reference.Attribute("Include")?.Value;
-                        if (string.IsNullOrWhiteSpace(include)) continue;
-                        var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(csproj), include.Replace('\\', Path.DirectorySeparatorChar)));
-                        var to = OwnerOf(programs, target);
-                        if (to != null && to != p.Key) bridges.Add(new CodeBridge(p.Key, to, language, $"{Rel(csproj)}: ProjectReference {include}"));
+                        try { old = DotNetProject.Load(csproj); }
+                        catch (Exception ex) { warnings.Add($"{p.Key}: {csproj} non si legge come progetto di Visual Studio 2002/2003 ({ex.Message}): i suoi ponti per GUID non ci sono"); }
                     }
+                    docs.Add((p, csproj, doc, old));
                 }
+            var byGuid = docs.Where(d => d.Old?.ProjectGuid != null).GroupBy(d => d.Old.ProjectGuid, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(d => d.Program.Key).Distinct(StringComparer.Ordinal).ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (p, csproj, doc, old) in docs)
+            {
+                // il linguaggio del ponte è quello del progetto che chiede: un .vbproj può riferire un .csproj e viceversa
+                var language = csproj.EndsWith(".vbproj", StringComparison.OrdinalIgnoreCase) ? CodeLanguages.VisualBasic : CodeLanguages.CSharp;
+                foreach (var reference in doc.Descendants().Where(e => e.Name.LocalName == "ProjectReference"))
+                {
+                    var include = reference.Attribute("Include")?.Value;
+                    if (string.IsNullOrWhiteSpace(include)) continue;
+                    var target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(csproj), include.Replace('\\', Path.DirectorySeparatorChar)));
+                    var to = OwnerOf(programs, target);
+                    if (to != null && to != p.Key) bridges.Add(new CodeBridge(p.Key, to, language, $"{Rel(csproj)}: ProjectReference {include}"));
+                }
+                foreach (var (guid, name) in old?.ProjectReferenceGuids ?? Array.Empty<(string, string)>())
+                {
+                    if (guid == null || !byGuid.TryGetValue(guid, out var owners)) continue;   // un progetto che non è in nessuna cartella program: nessun ponte
+                    var others = owners.Where(o => o != p.Key).ToList();
+                    if (others.Count == 0) continue;   // nello stesso programma: lo risolve l'estrattore
+                    if (owners.Count > 1)
+                    {
+                        warnings.Add($"{p.Key}: {Rel(csproj)} riferisce il progetto {name} ({{{guid}}}), che è in più cartelle program ({string.Join(", ", owners)}): non si sa quale, nessun ponte");
+                        continue;
+                    }
+                    bridges.Add(new CodeBridge(p.Key, others[0], language, $"{Rel(csproj)}: Reference Project {name} {{{guid}}}"));
+                }
+            }
         }
 
         private static string Rel(string path) => Path.GetFileName(Path.GetDirectoryName(path)) + "/" + Path.GetFileName(path);

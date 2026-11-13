@@ -27,6 +27,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public abstract string ExtractorVersion { get; }
         public string Availability => "ready";
 
+        /// <summary>
+        /// Il linguaggio non distingue maiuscole e minuscole (VB): un nodo esterno è uno per nome, comunque sia scritto, e il nome
+        /// mostrato è quello della prima grafia incontrata.
+        /// </summary>
+        protected virtual bool IgnoresCase => false;
+
         private readonly ILogger _logger;
 
         /// <summary>Una chiamata come è scritta: il testo dell'espressione chiamata e, se c'è, il punto di chiamata (D42).</summary>
@@ -1076,13 +1082,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     _ => "external",
                 };
                 var qualified = original.ToDisplayString(QualifiedFormat);
-                var id = RoslynCSharpExtractor.StableId(_x.LanguageId, kind, qualified);
+                var id = kind == "external" ? ExternalId(qualified) : RoslynCSharpExtractor.StableId(_x.LanguageId, kind, qualified);
                 if (kind == "external" && _externals.Add(id))
                 {
                     Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = original.Name, QualifiedName = qualified });
                 }
                 return id;
             }
+
+            /// <summary>L'id di un nodo esterno dal nome: senza badare alle maiuscole se il linguaggio non ci bada.</summary>
+            private string ExternalId(string name) => RoslynCSharpExtractor.StableId(_x.LanguageId, "external", _x.IgnoresCase ? name.ToUpperInvariant() : name);
 
             public string Declare(ISymbol symbol, SyntaxNode decl, string kind, string signature, string returnType, string parentId = null)
             {
@@ -1194,7 +1203,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         else if (info.Symbol == null)
                         {
                             var text = shape.Text;
-                            var id = RoslynCSharpExtractor.StableId(_x.LanguageId, "external", text);
+                            var id = ExternalId(text);
                             if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = text.Split('.').Last(), QualifiedName = text });
                             Edge(ownerId, id, "calls", "ambiguous", line);
                         }
@@ -1393,7 +1402,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (_model.GetSymbolInfo(eventNode).Symbol is IEventSymbol ev) { Edge(IdOf(ev), handlerId, "calls", "inferred", line); return; }
                 if (!certain) return;   // x += y senza un evento riconosciuto può essere una somma
                 var text = eventNode.Parent is { } p && p.ToString().Length <= CodeCallSites.MaxReceiverLength && p.ToString().EndsWith(eventNode.ToString(), StringComparison.Ordinal) && p.ToString().Contains('.') ? p.ToString() : eventNode.ToString();
-                var id = RoslynCSharpExtractor.StableId(_x.LanguageId, "external", text);
+                var id = ExternalId(text);
                 if (_externals.Add(id)) Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = text.Split('.').Last(), QualifiedName = text });
                 Edge(id, handlerId, "calls", "ambiguous", line);
             }

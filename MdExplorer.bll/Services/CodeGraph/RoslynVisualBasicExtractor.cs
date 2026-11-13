@@ -36,8 +36,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 11 = <c>Handles MyBase.Load</c> registrato (punto di chiamata <c>handles</c>) per la freccia pagina → gestore; AddHandler con il
         /// controllo come Handles; <c>AddressOf</c> in AddHandler/RemoveHandler non è una chiamata.
         /// 12 = i file che il progetto non compila (non elencati nel .vbproj) restano senza simboli (13/11/2026).
-        /// 13 = niente archi verso i simboli che il compilatore crea da solo (il delegato di un Event, il costruttore di default).</summary>
-        public override string ExtractorVersion => "13";
+        /// 13 = niente archi verso i simboli che il compilatore crea da solo (il delegato di un Event, il costruttore di default).
+        /// 14 = un nome esterno scritto con maiuscole diverse è un nodo solo: il VB non le distingue (13/11/2026, rilevazione dal cliente).</summary>
+        public override string ExtractorVersion => "14";
+
+        protected override bool IgnoresCase => true;
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

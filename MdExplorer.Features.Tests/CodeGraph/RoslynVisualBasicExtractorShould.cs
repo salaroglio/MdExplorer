@@ -78,6 +78,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Make_one_external_node_for_a_name_written_with_different_case()
+        {
+            // il VB non distingue le maiuscole: lo stesso metodo che manca, scritto in due modi, è un nodo solo (13/11/2026)
+            File.WriteAllText(Path.Combine(_src, "Other.vb"),
+                "Namespace Demo\n  Public Class Other\n    Public Sub Go()\n      MISSING.doit()\n      missing.DoIt()\n    End Sub\n  End Class\nEnd Namespace\n");
+
+            var result = Extractor().Extract(Request());
+
+            var client = result.Scripts.Single(s => s.File.LogicalPath == "src/Demo/Client.vb").Script;
+            var other = result.Scripts.Single(s => s.File.LogicalPath == "src/Demo/Other.vb").Script;
+            var first = client.Symbols.Single(s => s.Kind == "external" && s.QualifiedName == "Missing.DoIt");
+            var inOther = other.Symbols.Where(s => s.Kind == "external" && s.Name.Equals("DoIt", StringComparison.OrdinalIgnoreCase)).ToList();
+            Assert.AreEqual(1, inOther.Count, string.Join(", ", inOther.Select(s => s.QualifiedName)));
+            Assert.AreEqual(first.Id, inOther[0].Id, "stesso nodo in tutti i file, comunque sia scritto");
+            Assert.AreEqual("MISSING.doit", inOther[0].QualifiedName, "il nome mostrato è la prima grafia del file");
+            var go = other.Symbols.Single(s => s.Name == "Go" && s.Kind != "external");
+            CollectionAssert.AreEqual(new[] { 4, 5 }, other.Edges.Where(e => e.SourceId == go.Id && e.TargetId == first.Id && e.Relation == "calls").Select(e => e.Line).OrderBy(l => l).ToArray(),
+                "le due chiamate, ognuna alla sua riga, verso lo stesso nodo");
+        }
+
+        [TestMethod]
         public void Extract_symbols_parameters_and_resolved_edges_without_an_sdk()
         {
             var result = Extractor().Extract(Request());

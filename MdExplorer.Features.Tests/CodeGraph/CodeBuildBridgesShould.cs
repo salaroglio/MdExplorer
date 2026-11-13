@@ -94,6 +94,44 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(("src/Acme.Win", "src/Acme.Core", CodeLanguages.VisualBasic), (bridges[0].From, bridges[0].To, bridges[0].Language));
         }
 
+        private static string Vs2003(string guid, string references = "")
+            => "<VisualStudioProject>\n  <VisualBasic ProjectType=\"Local\" ProductVersion=\"7.10.3077\" SchemaVersion=\"2.0\" ProjectGuid=\"{" + guid + "}\">\n" +
+               "    <Build>\n      <Settings RootNamespace=\"Acme\" OptionExplicit=\"On\" />\n      <References>\n" + references +
+               "      </References>\n    </Build>\n  </VisualBasic>\n</VisualStudioProject>\n";
+
+        [TestMethod]
+        public void Read_visual_studio_2003_references_by_project_guid()
+        {
+            const string core = "11111111-2222-3333-4444-555555555555";
+            Put("dati/Acme.Dati.vbproj", Vs2003(core));
+            Put("web/Acme.Web.vbproj", Vs2003("AAAAAAAA-2222-3333-4444-555555555555",
+                "        <Reference Name=\"Acme.Dati\" Project=\"{" + core.ToLowerInvariant() + "}\" Package=\"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
+                "        <Reference Name=\"Altro\" Project=\"{99999999-2222-3333-4444-555555555555}\" />\n"));
+            var warnings = new List<string>();
+
+            var bridges = CodeBuildBridges.Find(Programs("dati", "web"), warnings);
+
+            Assert.AreEqual(1, bridges.Count, string.Join("; ", bridges));
+            Assert.AreEqual(("web", "dati", CodeLanguages.VisualBasic), (bridges[0].From, bridges[0].To, bridges[0].Language));
+            StringAssert.Contains(bridges[0].Evidence, "Reference Project Acme.Dati");
+            Assert.AreEqual(0, warnings.Count, string.Join("; ", warnings));
+        }
+
+        [TestMethod]
+        public void Make_no_bridge_when_the_same_project_guid_is_in_two_program_folders()
+        {
+            const string core = "11111111-2222-3333-4444-555555555555";
+            Put("dati/Acme.Dati.vbproj", Vs2003(core));
+            Put("archivio/Acme.Dati.vbproj", Vs2003(core));
+            Put("web/Acme.Web.vbproj", Vs2003("AAAAAAAA-2222-3333-4444-555555555555", "        <Reference Name=\"Acme.Dati\" Project=\"{" + core + "}\" />\n"));
+            var warnings = new List<string>();
+
+            var bridges = CodeBuildBridges.Find(Programs("dati", "archivio", "web"), warnings);
+
+            Assert.AreEqual(0, bridges.Count, string.Join("; ", bridges));
+            Assert.IsTrue(warnings.Any(w => w.Contains("più cartelle program")), string.Join("; ", warnings));
+        }
+
         [TestMethod]
         public void Make_no_bridge_inside_one_program_nor_towards_folders_that_are_not_programs()
         {
