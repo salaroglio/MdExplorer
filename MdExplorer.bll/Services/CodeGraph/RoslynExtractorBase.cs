@@ -355,6 +355,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var contents = new Dictionary<string, string>(StringComparer.Ordinal);
             var groups = new List<ProjectGroup>();
             var groupByKey = new Dictionary<string, ProjectGroup>(StringComparer.OrdinalIgnoreCase);
+            var notCompiled = new Dictionary<string, List<CodeSourceFile>>(StringComparer.OrdinalIgnoreCase);
             foreach (var f in request.AllFiles)
             {
                 ct.ThrowIfCancellationRequested();
@@ -363,11 +364,23 @@ namespace MdExplorer.Features.Services.CodeGraph
                 catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 contents[f.LogicalPath] = text;
                 var project = projects?.Of(f.AbsolutePath);
+                // un file che il suo progetto non compila (una copia lasciata in un'altra cartella): fuori dalla compilazione,
+                // e il suo script resta vuoto — le sue classi non si confondono con quelle vere (13/11/2026)
+                if (project?.CompiledFiles != null && !project.CompiledFiles.Contains(Path.GetFullPath(f.AbsolutePath)))
+                {
+                    if (!notCompiled.TryGetValue(project.File, out var list)) notCompiled[project.File] = list = new List<CodeSourceFile>();
+                    list.Add(f);
+                    continue;
+                }
                 var key = project?.File ?? string.Empty;
                 if (!groupByKey.TryGetValue(key, out var group)) { groupByKey[key] = group = new ProjectGroup { Project = project }; groups.Add(group); }
                 group.Trees.Add(Parse(text, f.LogicalPath, project));
             }
             if (projects != null) result.Warnings.AddRange(projects.Problems);
+            foreach (var (projectFile, files) in notCompiled.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+                result.Warnings.Add(UiText.Say(
+                    $"{Path.GetFileName(projectFile)}: {files.Count} file della cartella non sono fra quelli che il progetto compila, e nel grafo restano senza simboli: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}",
+                    $"{Path.GetFileName(projectFile)}: {files.Count} files of the folder are not among those the project compiles, and stay without symbols in the graph: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}"));
             var borrowed = new Dictionary<ProjectGroup, List<string>>();
             var librariesOnDisk = local ? new Lazy<List<string>>(() => LibrariesUnder(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)))) : null;
             var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk);
@@ -444,6 +457,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                     _logger?.LogWarning(ex, "[CodeGraph/roslyn] estrazione fallita per {File}", tree.FilePath);
                 }
             }
+            // i file che il progetto non compila: uno script senza simboli, che sostituisce quello di prima
+            foreach (var f in notCompiled.Values.SelectMany(x => x).Where(f => toEmit.Contains(f.LogicalPath)))
+                result.Scripts.Add((request.FilesToEmit.First(x => x.LogicalPath == f.LogicalPath), new CodeScript
+                {
+                    Header = new CodeScriptHeader
+                    {
+                        Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Ast, Source = f.LogicalPath, Language = LanguageId,
+                        SourceHash = Sha256(contents[f.LogicalPath]), Extractor = ExtractorName, ExtractorVersion = ExtractorVersion,
+                        GeneratedAt = DateTime.UtcNow.ToString("o"),
+                    },
+                }));
             return result;
         }
 

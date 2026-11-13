@@ -34,8 +34,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 9 = una libreria che manca (progetto riferito assente, HintPath inesistente) presa da un altro progetto con lo stesso nome di assembly.
         /// 10 = se nessun progetto la riferisce, la DLL con quel nome di assembly che sta nella cartella analizzata (13/11/2026).
         /// 11 = <c>Handles MyBase.Load</c> registrato (punto di chiamata <c>handles</c>) per la freccia pagina → gestore; AddHandler con il
-        /// controllo come Handles; <c>AddressOf</c> in AddHandler/RemoveHandler non è una chiamata.</summary>
-        public override string ExtractorVersion => "11";
+        /// controllo come Handles; <c>AddressOf</c> in AddHandler/RemoveHandler non è una chiamata.
+        /// 12 = i file che il progetto non compila (non elencati nel .vbproj) restano senza simboli (13/11/2026).</summary>
+        public override string ExtractorVersion => "12";
 
         private static readonly VisualBasicParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

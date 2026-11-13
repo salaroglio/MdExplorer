@@ -42,6 +42,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string ProjectGuid { get; init; }
         public IReadOnlyList<(string Guid, string Name)> ProjectReferenceGuids { get; init; } = Array.Empty<(string, string)>();
 
+        /// <summary>
+        /// I file che il progetto compila, assoluti (13/11/2026, rilevazione dal cliente: copie di pagine in altre cartelle con la
+        /// stessa classe, che Visual Studio non compila e MDE leggeva, rendendo ambigue le frecce). Visual Studio 2002/2003:
+        /// <c>Files/Include/File BuildAction="Compile"</c>; progetti di una volta: <c>&lt;Compile Include="…"/&gt;</c>. Null =
+        /// tutti i file della cartella (progetti SDK, o un elenco con caratteri jolly o variabili, che qui non si valuta).
+        /// </summary>
+        public IReadOnlySet<string> CompiledFiles { get; init; }
+
         public bool IsNetFramework => FrameworkVersion != null;
 
         /// <summary>Un file di progetto letto; un XML che non si legge è un errore col file, mai un progetto vuoto.</summary>
@@ -64,9 +72,15 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             var hints = doc.Descendants().Where(e => e.Name.LocalName == "HintPath").Select(e => e.Value?.Trim()).Where(v => !string.IsNullOrEmpty(v) && !v.Contains("$("))
                 .Select(Full).Where(h => !IsFrameworkLibrary(h)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            // un progetto SDK compila tutto quello che c'è nella cartella; uno di una volta solo quello che elenca
+            var sdk = doc.Root?.Attribute("Sdk") != null || doc.Descendants().Any(e => e.Name.LocalName == "Sdk");
+            var compileItems = doc.Descendants().Where(e => e.Name.LocalName == "Compile" && e.Parent?.Name.LocalName == "ItemGroup")
+                .SelectMany(e => (e.Attribute("Include")?.Value ?? string.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
+            var compiled = sdk || compileItems.Count == 0 || compileItems.Any(i => i.Contains('*') || i.Contains('?') || i.Contains("$("))
+                ? null : new HashSet<string>(compileItems.Select(Full), StringComparer.OrdinalIgnoreCase);
             return new DotNetProject
             {
-                File = path,
+                File = path, CompiledFiles = compiled,
                 RootNamespace = Property("RootNamespace"),
                 Imports = doc.Descendants().Where(e => e.Name.LocalName == "Import" && e.Parent?.Name.LocalName == "ItemGroup")
                     .Select(e => e.Attribute("Include")?.Value?.Trim()).Where(v => !string.IsNullOrEmpty(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
@@ -125,9 +139,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 throw new InvalidDataException(UiText.Say(
                     $"{path}: VisualStudioProject con ProductVersion '{product}': si leggono Visual Studio .NET 2002 (7.0) e 2003 (7.10)",
                     $"{path}: VisualStudioProject with ProductVersion '{product}': Visual Studio .NET 2002 (7.0) and 2003 (7.10) are read"));
+            var files = language.Elements().Where(e => Is(e, "Files")).SelectMany(f => f.Elements().Where(e => Is(e, "Include"))).SelectMany(i => i.Elements().Where(e => Is(e, "File")))
+                .Where(f => string.Equals(Attr(f, "BuildAction"), "Compile", StringComparison.OrdinalIgnoreCase)).Select(f => Attr(f, "RelPath")).Where(r => r != null).ToList();
             return new DotNetProject
             {
-                File = path,
+                File = path, CompiledFiles = files.Count == 0 ? null : new HashSet<string>(files.Select(full), StringComparer.OrdinalIgnoreCase),
                 RootNamespace = Attr(settings, "RootNamespace"),
                 Imports = build?.Elements().Where(e => Is(e, "Imports")).SelectMany(e => e.Elements().Where(i => Is(i, "Import")))
                     .Select(i => Attr(i, "Namespace")).Where(v => v != null).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? new List<string>(),

@@ -506,7 +506,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (cls == null) continue;
                 var page = r["page"];
                 var path = Str(r, "path");
-                links.Add(new CodePageLink { SourceId = SymbolId(cls), TargetId = SymbolId(page), Relation = "renders", Line = Count(r, "bline") });
+                // Name = la pagina: due pagine con lo stesso Inherits sono due archi certi, non due candidati di uno (13/11/2026)
+                links.Add(new CodePageLink { SourceId = SymbolId(cls), TargetId = SymbolId(page), Relation = "renders", Name = path, Line = Count(r, "bline") });
 
                 // i gestori scritti nei controlli della pagina, e i Page_… chiamati per convenzione
                 foreach (var h in await RowsAsync(

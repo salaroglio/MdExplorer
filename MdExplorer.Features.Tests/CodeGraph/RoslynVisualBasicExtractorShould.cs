@@ -686,6 +686,32 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("17:PKG_1.PROC_1:inferred:Esegui(procedura = \"PKG_1.PROC_1\") | 18:PROC_2:inferred:", ProcedureCalls(dl, "Segna"));
         }
 
+        [DataTestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void Leave_without_symbols_a_file_the_project_does_not_compile_so_its_class_is_not_a_duplicate(bool visualStudio2003)
+        {
+            // 13/11/2026, rilevazione dal cliente: una copia della pagina in un'altra cartella, con la stessa classe, che il
+            // progetto non elenca; prima la classe risultava dichiarata in due file e le frecce verso di lei ambigue
+            var root = Path.Combine(_project, visualStudio2003 ? "elenco2003" : "elenco");
+            Directory.CreateDirectory(Path.Combine(root, "Vecchia"));
+            File.WriteAllText(Path.Combine(root, "Web.vbproj"), visualStudio2003
+                ? Vs2003Project("33333333-AAAA-BBBB-CCCC-000000000003", "Acme.Web", "").Replace("    </VisualBasic>",
+                    "        <Files>\n            <Include>\n                <File RelPath = \"Ordini.vb\" SubType = \"Code\" BuildAction = \"Compile\" />\n" +
+                    "                <File RelPath = \"Ordini.aspx\" SubType = \"Form\" BuildAction = \"Content\" />\n            </Include>\n        </Files>\n    </VisualBasic>")
+                : LegacyProject + "  <PropertyGroup><RootNamespace>Acme.Web</RootNamespace></PropertyGroup>\n  <ItemGroup><Compile Include=\"Ordini.vb\" /></ItemGroup>\n</Project>\n");
+            const string Ordini = "Public Class Ordini\n    Public Sub Salva()\n    End Sub\nEnd Class\n";
+            File.WriteAllText(Path.Combine(root, "Ordini.vb"), Ordini);
+            File.WriteAllText(Path.Combine(root, "Vecchia", "Ordini.vb"), Ordini + "' copia di una volta\n");
+            var result = ExtractWithoutNetFramework(root);
+
+            var copy = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Vecchia/Ordini.vb")).Script;
+            Assert.AreEqual(0, copy.Symbols.Count + copy.Edges.Count, "la copia che il progetto non compila resta senza simboli");
+            Assert.AreEqual(1, result.Scripts.SelectMany(x => x.Script.Symbols).Count(x => x.QualifiedName == "Acme.Web.Ordini" && x.Kind == "class"), "una classe sola");
+            var warning = result.Warnings.Single(w => w.Contains("Web.vbproj") && w.Contains("Vecchia/Ordini.vb"));
+            StringAssert.Contains(warning, "1 files");
+        }
+
         [TestMethod]
         public void Use_a_library_lying_in_the_analysed_folder_when_no_project_references_it_and_say_where()
         {
