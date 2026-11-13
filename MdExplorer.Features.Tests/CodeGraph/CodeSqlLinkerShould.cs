@@ -49,6 +49,17 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Take_the_name_in_front_as_a_schema_only_for_a_procedure_of_its_own()
+        {
+            // 13/11/2026: PKG_A.SAVE con PKG_A fuori dai file analizzati non è il SAVE di PKG_B
+            CodeOwnerMember Member(string id, string qn, string parentKind) => new() { MemberId = id, MemberName = qn.Split('.').Last(), MemberQualifiedName = "db/x:" + qn, ParentKind = parentKind };
+            var resolve = CodeSqlLinker.Resolver(new[] { Member("b", "PKG_B.SAVE", "class"), Member("p", "PROC_9", "module") });
+            Assert.IsNull(resolve("PKG_A.SAVE"), "il SAVE di un altro package non è una procedura a sé");
+            Assert.AreEqual("p", resolve("SCHEMA_1.PROC_9"), "lo schema davanti a una procedura a sé");
+            Assert.AreEqual("b", resolve("SCHEMA_1.PKG_B.SAVE"));
+        }
+
+        [TestMethod]
         public void Move_the_arrow_to_the_real_symbol_and_back_to_the_external_when_it_goes_away()
         {
             var ext = CodeSqlLinker.ExternalId("symbol", "PKG_ORDINI.ELENCO");

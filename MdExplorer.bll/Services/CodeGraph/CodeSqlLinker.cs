@@ -62,10 +62,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Add(qn[(qn.LastIndexOf(':') + 1)..], s);
             }
             // la procedura del corpo vince su quella dichiarata nella specifica del package
-            string One(string key)
+            string One(string key, bool standaloneOnly = false)
             {
                 if (!index.TryGetValue(key, out var ids)) return null;
-                var best = CodeOwnerMember.PreferImplementations(ids.ToList(), kv => kv.Value);
+                var list = standaloneOnly ? ids.Where(kv => kv.Value == "module").ToList() : ids.ToList();
+                var best = CodeOwnerMember.PreferImplementations(list, kv => kv.Value);
                 return best.Count == 1 ? best[0].Key : null;
             }
             return name =>
@@ -74,7 +75,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var n = name.Trim();
                 if (index.ContainsKey(n)) return One(n);
                 var dot = n.IndexOf('.');
-                return dot > 0 && dot < n.Length - 1 ? One(n[(dot + 1)..]) : null;   // senza lo schema davanti
+                if (dot <= 0 || dot >= n.Length - 1) return null;
+                // senza lo schema davanti: SCHEMA.PKG.PROC → PKG.PROC; SCHEMA.PROC → una procedura a sé (13/11/2026: mai il PROC di
+                // un package qualunque, PKG_A.SAVE senza PKG_A fra i file non è il SAVE di PKG_B)
+                var rest = n[(dot + 1)..];
+                return One(rest, standaloneOnly: !rest.Contains('.'));
             };
         }
 

@@ -65,6 +65,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     },
                 };
                 if (r.AssignTemplate != null) target += "; the name is in a variable: it is the one assigned to that variable earlier in the block (inferred)";
+                if (r.HasOwner) target += "; the name in front (OWNER.NAME) is the block it is in: only a symbol directly inside a block with that name, never the namesake in another block (none: an external node OWNER.NAME); if no block has that name, it is an outer qualifier (a schema) and the target is a top-level symbol";
                 Relation(sb, Node("relation-" + i), r.Relation, $"references[{i}]", target, r.ExternalWhenUnresolved ? "an external node with the name as written" : "no edge", r.Confidence);
             }
             foreach (var b in lang.Blocks.Where(b => b.Completes != null))

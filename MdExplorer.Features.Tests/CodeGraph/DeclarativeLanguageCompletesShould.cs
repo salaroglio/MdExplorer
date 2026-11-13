@@ -40,7 +40,7 @@ blocks:
       body: '\bBEGIN\b'
   - id: proc
     kind: function
-    in: [body]
+    in: [module, body]
     begin: '^\s*(?:PROCEDURE|FUNCTION)\s+(?<name>\w+)\s*(?:\((?<params>[^)]*)\)?)?'
     nesting:
       header: '\b(?:IS|AS)\b'
@@ -59,9 +59,8 @@ parameters:
   default: in
 references:
   - relation: calls
-    pattern: '(?<![\w.])(?<target>\w+\.\w+)\s*\('
+    pattern: '(?<![\w.])(?:\w+\.(?=\w+\.\w+\s*\())?(?<owner>\w+)\.(?<target>\w+)\s*\('
     text: code
-    strip: '^\w+\.'
     resolve: symbol
     rules: [proc, decl]
     unresolved: external
@@ -194,6 +193,64 @@ END OTHER;
             var s = Extract(out _, ("pkg.spc", Spec), ("other.blk", Caller));
             var call = Edges(s, Sym(s, "db/other.blk:OTHER.RUN"), "calls").Single();
             Assert.AreEqual(Sym(s, "db/pkg.spc:PKG.SAVE").Id, call.TargetId, "senza corpo il grafo arriva alla firma");
+        }
+
+        private const string Others = @"PACKAGE BODY PKG_A AS
+PROCEDURE SAVE(a IN NUMBER) IS
+BEGIN
+  PKG_B.SAVE(a);
+  SCH.PKG_B.SAVE(a);
+  PKG_C.SAVE(a);
+  SCH.RUN(a);
+  PKG_B.MISSING(a);
+END;
+END PKG_A;
+PACKAGE BODY PKG_B AS
+PROCEDURE SAVE(a IN NUMBER) IS
+BEGIN
+  INSERT INTO T_B VALUES (a);
+END;
+END PKG_B;
+";
+
+        private const string Standalone = @"PROCEDURE RUN(a IN NUMBER) IS
+BEGIN
+  INSERT INTO T_RUN VALUES (a);
+END;
+";
+
+        [TestMethod]
+        public void Send_a_call_written_with_its_package_to_that_package_and_never_to_the_namesake_of_another()
+        {
+            // 13/11/2026: PKG_B.SAVE dentro PKG_A arrivava al SAVE di PKG_A (lo stesso file vince), «extracted»
+            var s = Extract(out _, ("a.blk", Others), ("run.blk", Standalone));
+            var names = s.SelectMany(x => x.Symbols).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First().QualifiedName);
+            string Calls(List<CodeScript> scripts) => string.Join(" | ", Edges(scripts, Sym(scripts, "db/a.blk:PKG_A.SAVE"), "calls")
+                .Select(e => $"{names[e.TargetId]}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal));
+            Assert.AreEqual("PKG_B.MISSING:inferred | PKG_C.SAVE:inferred | db/a.blk:PKG_B.SAVE:extracted | db/run.blk:RUN:inferred", Calls(s),
+                "PKG_B.SAVE (anche con lo schema) al SAVE di PKG_B; PKG_C non c'è: esterno PKG_C.SAVE, non il SAVE del chiamante; " +
+                "SCH.RUN: SCH non è un package, è lo schema della procedura a sé; PKG_B c'è ma non ha MISSING: esterno");
+
+            // il ricollegamento fra contesti legge lo stesso nome con il package e non cambia niente
+            var scripts = s.Select((x, i) => (Path: i == 0 ? "db/a.blk" : "db/run.blk", Script: x)).ToList();
+            CodeCrossLinker.LinkAll("blk", true, scripts, Array.Empty<(string, CodeScript)>(), allSymbols: true);
+            names = s.SelectMany(x => x.Symbols).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First().QualifiedName);
+            Assert.AreEqual("PKG_B.MISSING:inferred | PKG_C.SAVE:inferred | db/a.blk:PKG_B.SAVE:extracted | db/run.blk:RUN:inferred", Calls(s));
+        }
+
+        [TestMethod]
+        public void Relink_a_call_written_with_its_package_to_that_package_from_another_context()
+        {
+            // il chiamante analizzato da solo (un contesto), il package dopo (un altro): il ricollegamento sceglie per package
+            var caller = Extract(out _, ("a.blk", Others.Substring(0, Others.IndexOf("PACKAGE BODY PKG_B", StringComparison.Ordinal))));
+            var other = Extract(out _, ("b.blk", Others[Others.IndexOf("PACKAGE BODY PKG_B", StringComparison.Ordinal)..]),
+                ("c.blk", "PACKAGE BODY PKG_C AS\nPROCEDURE SAVE(a IN NUMBER) IS\nBEGIN\n  NULL;\nEND;\nEND PKG_C;\n"));
+            CodeCrossLinker.LinkAll("blk", true, new[] { ("db/a.blk", caller[0]) }, new[] { ("db/b.blk", other[0]), ("db/c.blk", other[1]) }, allSymbols: true);
+            var save = Sym(caller, "db/a.blk:PKG_A.SAVE");
+            var targets = caller[0].Edges.Where(e => e.SourceId == save.Id && e.Relation == "calls").Select(e => e.TargetId).ToList();
+            CollectionAssert.Contains(targets, Sym(other, "db/b.blk:PKG_B.SAVE").Id);
+            CollectionAssert.Contains(targets, Sym(other, "db/c.blk:PKG_C.SAVE").Id);
+            Assert.AreEqual(4, targets.Count, "PKG_B.SAVE due volte (con e senza schema) è un arco; PKG_C.SAVE; RUN e PKG_B.MISSING esterni: " + string.Join(", ", targets));
         }
 
         [TestMethod]

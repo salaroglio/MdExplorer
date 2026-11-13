@@ -298,6 +298,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// cerca all'indietro nello stesso blocco. Null = una regola di sempre.
             /// </summary>
             public string AssignTemplate { get; init; }
+            /// <summary>
+            /// Il modello ha il gruppo <c>owner</c> (13/11/2026, rilevazione dal cliente: <c>PKG_A.SAVE(…)</c> arrivava al SAVE del
+            /// package del chiamante): il bersaglio è il simbolo che sta direttamente dentro un blocco con quel nome
+            /// (<c>PKG_A</c>); se nessun blocco si chiama così, il nome davanti è un qualificatore di fuori (lo schema) e il
+            /// bersaglio è un simbolo di primo livello. Non risolto, il nodo esterno è <c>owner.target</c>. Solo con resolve: symbol.
+            /// </summary>
+            public bool HasOwner { get; init; }
         }
 
         // ------------------------------------------------------------------ catalogo del progetto
@@ -675,10 +682,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (!r.Assign.Contains("{var}")) throw Fail($"{where}.assign: manca {{var}}, il posto della variabile", $"{where}.assign: {{var}} is missing, where the variable goes");
                     Rx(where + ".assign", r.Assign.Replace("{var}", "X"), "name");
                 }
+                var pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : Rx(where + ".pattern", r.Pattern, "target");
+                var hasOwner = pattern.GetGroupNames().Contains("owner");
+                if (hasOwner && (resolve != ResolveKind.Symbol || r.Assign != null))
+                    throw Fail($"{where}.pattern: il gruppo owner vale solo con resolve: symbol (e senza assign)", $"{where}.pattern: the owner group only applies to resolve: symbol (and without assign)");
                 return new ReferenceRule
                 {
-                    AssignTemplate = r.Assign,
-                    Relation = r.Relation, Pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : Rx(where + ".pattern", r.Pattern, "target"),
+                    AssignTemplate = r.Assign, HasOwner = hasOwner,
+                    Relation = r.Relation, Pattern = pattern,
                     Text = Enum(where + ".text", r.Text, TextKind.Code),
                     After = r.After == null ? null : Rx(where + ".after", r.After), NotAfter = r.NotAfter == null ? null : Rx(where + ".notAfter", r.NotAfter),
                     Strip = r.Strip == null ? null : Rx(where + ".strip", r.Strip),

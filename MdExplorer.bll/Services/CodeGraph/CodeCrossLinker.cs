@@ -20,6 +20,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>I simboli dichiarati dentro un'interfaccia (la specifica di un package): cedono all'implementazione.</summary>
         private readonly HashSet<string> _declarations = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _imports = new(StringComparer.Ordinal);
+        /// <summary>
+        /// I nomi scritti con il contenitore (<c>PKG_A.SAVE</c>, 13/11/2026): i simboli per «contenitore.nome», quelli di primo
+        /// livello per nome, e i nomi dei contenitori — se un contenitore con quel nome c'è, mai il SAVE di un altro.
+        /// </summary>
+        private readonly Dictionary<string, List<(string Path, string Id)>> _owned = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<(string Path, string Id)>> _topLevel = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _containers = new(StringComparer.Ordinal);
 
         private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; }
 
@@ -52,6 +59,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 list.Add((path, s.Id));
                 if (s.ParentId != null && script.Symbols.FirstOrDefault(p => p.Id == s.ParentId)?.Kind == "interface") _declarations.Add(s.Id);
             }
+            foreach (var s in script.Symbols.Where(Indexed))
+            {
+                var parent = s.ParentId == null ? null : script.Symbols.FirstOrDefault(p => p.Id == s.ParentId);
+                if (parent == null || parent.Kind == "module") { Push(_topLevel, _norm(s.Name), (path, s.Id)); continue; }
+                if (string.IsNullOrEmpty(parent.Name)) continue;
+                _containers.Add(_norm(parent.Name));
+                Push(_owned, _norm(parent.Name + "." + s.Name), (path, s.Id));
+                if (parent.Kind == "interface") _declarations.Add(s.Id);
+            }
             SetImports(path, script);
         }
 
@@ -59,6 +75,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         internal void SetImports(string path, CodeScript script)
             => _imports[path] = new HashSet<string>(script.Edges.Where(e => e.Relation == "imports" && _pathOfModule.ContainsKey(e.TargetId ?? ""))
                 .Select(e => _pathOfModule[e.TargetId]), StringComparer.Ordinal);
+
+        private static void Push(Dictionary<string, List<(string Path, string Id)>> map, string key, (string Path, string Id) value)
+        {
+            if (!map.TryGetValue(key, out var list)) map[key] = list = new();
+            if (!list.Contains(value)) list.Add(value);
+        }
 
         private static void Push(Dictionary<string, List<string>> map, string key, string value)
         {
@@ -78,9 +100,19 @@ namespace MdExplorer.Features.Services.CodeGraph
         internal string ModuleOf(string path) => _moduleOf.TryGetValue(path, out var id) ? id : null;
         internal IReadOnlyList<(string Path, string Id)> Symbols(string name)
         {
-            if (!_symbols.TryGetValue(_norm(name), out var l)) return Array.Empty<(string, string)>();
-            return AllSymbols ? CodeOwnerMember.PreferImplementations(l, c => _declarations.Contains(c.Id) ? "interface" : null) : l;
+            List<(string Path, string Id)> l;
+            var dot = name.LastIndexOf('.');
+            if (dot > 0 && dot < name.Length - 1)
+            {
+                // «contenitore.nome»: dentro quel contenitore, se c'è; altrimenti il nome davanti è lo schema
+                var found = HasContainer(name[..dot]) ? _owned.TryGetValue(_norm(name), out l) : _topLevel.TryGetValue(_norm(name[(dot + 1)..]), out l);
+                if (!found) return Array.Empty<(string, string)>();
+            }
+            else if (!_symbols.TryGetValue(_norm(name), out l)) return Array.Empty<(string, string)>();
+            return AllSymbols || dot > 0 ? CodeOwnerMember.PreferImplementations(l, c => _declarations.Contains(c.Id) ? "interface" : null) : l;
         }
+
+        internal bool HasContainer(string name) => _containers.Contains(_norm(name));
 
         /// <summary>I file che <paramref name="path"/> importa, anche attraverso i file importati (gli include di un include).</summary>
         internal HashSet<string> ImportedClosure(string path)
@@ -356,6 +388,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return null;
             }
 
+            // «contenitore.nome» nello stesso file: il simbolo dentro il contenitore, o di primo livello se il contenitore non c'è
+            bool LocalQualified(string name)
+            {
+                var dot = name.LastIndexOf('.');
+                if (dot <= 0 || dot == name.Length - 1) return false;
+                var owner = index.Normalize(name[..dot]);
+                var member = index.Normalize(name[(dot + 1)..]);
+                return script.Symbols.Any(s => CodeLinkIndex.Indexed(s) && index.Normalize(s.Name) == member
+                    && (s.ParentId != null && byId.TryGetValue(s.ParentId, out var p) && p.Kind != "module"
+                        ? index.Normalize(p.Name ?? "") == owner
+                        : !index.HasContainer(name[..dot])));
+            }
+
             var result = new List<ScriptEdge>();
             var done = new HashSet<string>(StringComparer.Ordinal);
             var groups = script.Edges.Select(e => (Edge: e, W: WrittenOf(e))).Where(x => x.W != null)
@@ -373,7 +418,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // un punto di uscita per nome in una variabile (F4e) non si ricollega: non si sa dove va
                 if (what is not ("symbol" or "file" or "module") || isCall == importsOnly) { result.AddRange(group.Select(x => x.Edge)); continue; }
                 // nello stesso file l'estrattore ha già scelto, e vince
-                if (isCall && local.Contains(index.Normalize(name))) { result.AddRange(group.Select(x => x.Edge)); continue; }
+                if (isCall && (name.Contains('.') ? LocalQualified(name) : local.Contains(index.Normalize(name)))) { result.AddRange(group.Select(x => x.Edge)); continue; }
                 var line = group.Min(x => x.Edge.Line);
 
                 List<string> targets; string confidence;

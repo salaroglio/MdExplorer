@@ -891,8 +891,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                             if (rule.Strip != null) target = rule.Strip.Replace(target, string.Empty);
                             target = target.Trim();
                             if (target.Length == 0) continue;
-                            var written = WrittenOf(rule, target);
-                            foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i]))
+                            var owner = rule.HasOwner && match.Groups["owner"].Success ? match.Groups["owner"].Value.Trim() : null;
+                            if (owner?.Length == 0) owner = null;
+                            var written = WrittenOf(rule, target, owner);
+                            foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i], owner))
                                 _pending.Add((_m.Owner[i], id, rule.Relation, Cap(confidence, rule.Confidence), line.Start, written));
                         }
                     }
@@ -969,7 +971,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// Il riferimento scritto (F1a): solo per le regole che si risolvono fra file diversi (per file, per modulo, per nome senza
             /// <c>scope</c>); le etichette di un blocco e i segmenti di un modulo restano dentro il file e non si ricollegano.
             /// </summary>
-            private static string WrittenOf(DeclarativeLanguage.ReferenceRule rule, string target)
+            private static string WrittenOf(DeclarativeLanguage.ReferenceRule rule, string target, string owner = null)
             {
                 var what = rule.Resolve switch
                 {
@@ -978,10 +980,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     _ => rule.Scope == DeclarativeLanguage.ScopeKind.Perimeter ? "symbol" : null,
                 };
                 if (what == null || rule.Ignore.Contains(target)) return null;
-                return CodeCrossLinker.Written(what, target, rule.Confidence);
+                return CodeCrossLinker.Written(what, owner == null ? target : owner + "." + target, rule.Confidence);
             }
 
-            private IEnumerable<(string Id, string Confidence)> Resolve(DeclarativeLanguage.ReferenceRule rule, string target, Sym block)
+            private IEnumerable<(string Id, string Confidence)> Resolve(DeclarativeLanguage.ReferenceRule rule, string target, Sym block, string owner = null)
             {
                 if (rule.Ignore.Contains(target)) yield break;
                 IReadOnlyList<Sym> found;
@@ -1001,6 +1003,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 else
                 {
                     var all = rule.Rules.SelectMany(r => _index.Symbols(r, target)).ToList();
+                    if (owner != null) all = Owned(all, owner);
                     switch (rule.Scope)
                     {
                         case DeclarativeLanguage.ScopeKind.Block:
@@ -1020,15 +1023,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var implementations = found.Where(s => s.ImplementedBy == null || !s.ImplementedBy.Any(found.Contains)).ToList();
                     if (implementations.Count > 0) found = implementations;
                 }
+                var written = owner == null ? target : owner + "." + target;
                 if (found.Count == 0)
                 {
                     if (rule.Unless.Any(u => _index.Symbols(u, target).Count > 0)) yield break;
-                    if (rule.ExternalWhenUnresolved) yield return (External(rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "symbol" : rule.Resolve == DeclarativeLanguage.ResolveKind.File ? "file" : "module", target), rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "inferred" : "extracted");
+                    if (rule.ExternalWhenUnresolved) yield return (External(rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "symbol" : rule.Resolve == DeclarativeLanguage.ResolveKind.File ? "file" : "module", written), rule.Resolve == DeclarativeLanguage.ResolveKind.Symbol ? "inferred" : "extracted");
                     yield break;
                 }
                 if (found.Count > MaxAmbiguousCandidates)
                 {
-                    yield return (External("symbol", "?." + target), "ambiguous");
+                    yield return (External("symbol", "?." + written), "ambiguous");
                     yield break;
                 }
                 foreach (var s in found)
@@ -1036,6 +1040,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (s.File == _m) _referenced.Add(s);
                     yield return (s.Id ?? _owner.StableId(s.Kind, s.QualifiedName), found.Count == 1 ? single : "ambiguous");
                 }
+            }
+
+            /// <summary>
+            /// Il gruppo <c>owner</c>: se fra i file analizzati c'è un blocco con quel nome (il corpo o la specifica di
+            /// <c>PKG_A</c>), i candidati che stanno direttamente dentro uno di quei blocchi — anche nessuno: allora è un nodo
+            /// esterno, mai il simbolo omonimo di un altro blocco. Se non c'è, il nome davanti è un qualificatore di fuori (lo
+            /// schema: <c>SCHEMA.PROC</c>) e valgono i candidati di primo livello.
+            /// </summary>
+            private List<Sym> Owned(List<Sym> all, string owner)
+            {
+                if (Lang.Blocks.Any(b => _index.Symbols(b.Id, owner).Count > 0))
+                    return all.Where(s => s.Parent != null && s.Parent.RuleId != DeclarativeLanguage.ModuleRule && Lang.NameComparer.Equals(s.Parent.Key, owner)).ToList();
+                return all.Where(s => s.Parent?.RuleId == DeclarativeLanguage.ModuleRule).ToList();
             }
 
             /// <summary>Con <c>ignoreCase</c> <c>STRLEFT</c> e <c>strleft</c> sono lo stesso nodo: l'id nasce dal nome in maiuscolo, il nome resta il primo visto.</summary>
