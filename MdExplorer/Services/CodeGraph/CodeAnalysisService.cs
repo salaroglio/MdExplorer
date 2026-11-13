@@ -916,15 +916,19 @@ namespace MdExplorer.Services.CodeGraph
                         if (rules != null)
                         {
                             // prima la seconda passata delle pagine (D42 passo 2c): pulsante → funzione del file JS che la pagina carica
-                            var pageLanguages = catalog.All.Where(l => l.Definition?.Template != null).Select(l => l.Id).ToList();
-                            Step(progress, "pageScripts");
-                            await rules.ApplyPageScriptsAsync(projectPath, pageLanguages, ct);
-                            Step(progress, "xmlCatalogs");
+                            // I passi dei pacchetti si vedono solo se un pacchetto del progetto li ha, col nome scritto nel pacchetto
+                            // (13/11/2026, utente: «devono essere dinamici in funzione dei caricamenti dei pacchetti»).
+                            var pageDialects = catalog.All.Where(l => l.Definition?.Template != null).ToList();
+                            if (pageDialects.Count > 0) Step(progress, "pageScripts", string.Join(", ", pageDialects.Select(l => l.DisplayName)));
+                            await rules.ApplyPageScriptsAsync(projectPath, pageDialects.Select(l => l.Id).ToList(), ct);
                             // i cataloghi di SQL in XML: la chiamata che legge una query → la query (13/11/2026)
-                            var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, catalog.All.Where(l => l.Definition?.Xml != null).Select(l => l.Definition).ToList(), ct);
+                            var xmlCatalogs = catalog.All.Where(l => l.Definition?.Xml != null).ToList();
+                            if (xmlCatalogs.Count > 0) Step(progress, "xmlCatalogs", string.Join(", ", xmlCatalogs.Select(l => l.DisplayName)));
+                            var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, xmlCatalogs.Select(l => l.Definition).ToList(), ct);
+                            var catalogNames = string.Join(", ", xmlCatalogs.Select(l => l.DisplayName));
                             if (catalogMisses.Count > 0)
-                                outcome.Warnings.Add(UiText.Say($"cataloghi SQL in XML: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
-                                    $"SQL catalogs in XML: {catalogMisses.Count} reads of a query no analysed catalog has (e.g. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})"));
+                                outcome.Warnings.Add(UiText.Say($"{catalogNames}: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
+                                    $"{catalogNames}: {catalogMisses.Count} reads of a query no analysed catalog has (e.g. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})"));
                         }
                         if (rules != null) Step(progress, "rules");
                         if (rules != null)

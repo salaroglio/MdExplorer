@@ -2908,8 +2908,8 @@
       "relinking": "Fuseki: ricollego l'SQL del codice agli oggetti del database",
       "externals": "Fuseki: tolgo i nodi esterni a cui non arriva più niente",
       "compacting": "Fuseki: compatto il database",
-      "pageScripts": "Pagine: collego i controlli alle funzioni dei file JavaScript che caricano",
-      "xmlCatalogs": "Cataloghi SQL in XML: collego le letture alle query",
+      "pageScripts": "Collego i controlli delle pagine alle funzioni JavaScript che caricano",
+      "xmlCatalogs": "Collego le letture alle query dei cataloghi",
       "rules": "Regole di MarkAgent: rifaccio i loro collegamenti sulle chiamate di adesso",
       "registrations": "Registrazioni: collego le interfacce alle implementazioni registrate",
       "report": "Scrivo gli avvisi e il report dell'analisi"
