@@ -25,7 +25,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <param name="compact">false: niente compattazione anche dopo un carico grosso (i caricamenti a metà di una descrizione: si compatta alla fine).</param>
         /// <param name="progress">
         /// Il passo e a che punto è, per il pannello dei lavori in sfondo (null = nessuno guarda): <see cref="CodeGraphStore.StepRemove"/> (triple
-        /// vecchie tolte da Fuseki: lotti o script), <see cref="CodeGraphStore.StepLoad"/> (script passati su quanti ce ne sono sul disco),
+        /// vecchie tolte da Fuseki: lotti o script), <see cref="CodeGraphStore.StepLoad"/> (script mandati a Fuseki su quanti sono cambiati: i saltati non si contano),
         /// <see cref="CodeGraphStore.StepRelinkSql"/> e <see cref="CodeGraphStore.StepCompact"/> (senza conteggio, totale 0).
         /// </param>
         Task<CodeScriptLoadOutcome> LoadProjectAsync(string projectPath, CancellationToken ct = default, bool compact = true, Action<string, int, int> progress = null);
@@ -271,15 +271,27 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var ordered = onDisk.Where(CodeGraphPaths.IsAstScript).OrderBy(f => f, StringComparer.Ordinal)
                                     .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal))
                                     .Concat(onDisk.Where(CodeGraphPaths.IsRuleScript).OrderBy(f => f, StringComparer.Ordinal)).ToList();
-                var batch = new List<(CodeScriptResult Result, string Update)>();
-                var passed = 0;
+                // Prima quali vanno davvero a Fuseki: l'impronta uguale a quella caricata si salta. Il pannello conta solo quelli
+                // (13/11/2026, utente: il conteggio su tutti gli script del progetto partiva «da 1500»: i saltati passano in un lampo).
+                var toLoad = new List<(string File, string Rel)>();
                 foreach (var file in ordered)
                 {
                     ct.ThrowIfCancellationRequested();
-                    progress?.Invoke(StepLoad, ++passed, ordered.Count);
                     var rel = CodeGraphPaths.ToProjectRelative(projectPath, file);
-                    known.TryGetValue(rel, out var previousHash);
-                    var (result, update) = PrepareOne(g, file, rel, previousHash);
+                    string hash = null;
+                    try { hash = Sha256(File.ReadAllText(file, Encoding.UTF8)); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* lo rilegge PrepareOne, che dice l'errore */ }
+                    if (hash != null && known.TryGetValue(rel, out var previousHash) && string.Equals(hash, previousHash, StringComparison.OrdinalIgnoreCase))
+                        outcome.Results.Add(new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.KindName(CodeGraphPaths.KindOf(rel)), Skipped = true });
+                    else toLoad.Add((file, rel));
+                }
+                var batch = new List<(CodeScriptResult Result, string Update)>();
+                var passed = 0;
+                foreach (var (file, rel) in toLoad)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    progress?.Invoke(StepLoad, ++passed, toLoad.Count);
+                    var (result, update) = PrepareOne(g, file, rel, previousHash: null);
                     if (update == null) { outcome.Results.Add(result); continue; }
                     batch.Add((result, update));
                     if (batch.Count >= BatchScripts || batch.Sum(b => b.Update.Length) >= BatchChars)

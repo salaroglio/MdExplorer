@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Linq;
@@ -106,6 +107,23 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var status = await _store.GetStatusAsync(_project);
             Assert.AreEqual(0, status.ExternalSymbols);
             Assert.AreEqual(3, status.Symbols, "i simboli dichiarati restano");
+        }
+
+        [TestMethod]
+        public async Task Count_only_the_scripts_that_go_to_fuseki()
+        {
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            File.WriteAllText(DocPath, Ttl(DocScript));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            File.WriteAllText(DocPath, Ttl(DocScript.Replace("Porta un file", "Carica un file")));
+            var steps = new List<(string Step, int Done, int Total)>();
+            var outcome = await _store.LoadProjectAsync(_project, progress: (s, d, t) => steps.Add((s, d, t)));
+
+            Assert.AreEqual(1, outcome.Loaded);
+            Assert.AreEqual(1, outcome.Skipped);
+            CollectionAssert.AreEqual(new[] { (CodeGraphStore.StepLoad, 1, 1) }, steps.Where(x => x.Step == CodeGraphStore.StepLoad).ToArray(),
+                "lo script invariato si salta senza contarlo: " + string.Join(", ", steps));
         }
 
         [TestMethod]

@@ -2904,7 +2904,7 @@
       "extracting": "Estraggo la struttura",
       "writing": "Scrivo gli script",
       "removing": "Fuseki: tolgo le triple vecchie della cartella",
-      "loading": "Fuseki: carico gli script",
+      "loading": "Fuseki: carico gli script cambiati",
       "relinking": "Fuseki: ricollego l'SQL del codice agli oggetti del database",
       "externals": "Fuseki: tolgo i nodi esterni a cui non arriva più niente",
       "compacting": "Fuseki: compatto il database",
