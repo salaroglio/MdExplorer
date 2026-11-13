@@ -207,12 +207,13 @@ export interface BackgroundWork {
 
 /**
  * A che punto è la scansione di una cartella (13/11/2026): queued (aspetta un'altra analisi), scanning, reading/extracting
- * (per linguaggio), writing, su Fuseki removing/loading/relinking/compacting, linking; total 0 = la fase non si conta.
+ * (per linguaggio), writing, su Fuseki removing/loading/relinking/externals/compacting, poi pageScripts/xmlCatalogs/rules/registrations/report; total 0 = la fase non si conta.
  */
 export interface ScanProgress {
   folder: string;
   startedAt: string;
-  phase?: 'queued' | 'scanning' | 'reading' | 'extracting' | 'writing' | 'removing' | 'loading' | 'relinking' | 'externals' | 'compacting' | 'linking';
+  phase?: 'queued' | 'scanning' | 'reading' | 'extracting' | 'writing' | 'removing' | 'loading' | 'relinking' | 'externals' | 'compacting'
+    | 'pageScripts' | 'xmlCatalogs' | 'rules' | 'registrations' | 'report';
   language?: string;
   done?: number;
   total?: number;

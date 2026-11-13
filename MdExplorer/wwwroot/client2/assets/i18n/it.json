@@ -2908,7 +2908,11 @@
       "relinking": "Fuseki: ricollego l'SQL del codice agli oggetti del database",
       "externals": "Fuseki: tolgo i nodi esterni a cui non arriva più niente",
       "compacting": "Fuseki: compatto il database",
-      "linking": "Collego regole e linguaggi"
+      "pageScripts": "Pagine: collego i controlli alle funzioni dei file JavaScript che caricano",
+      "xmlCatalogs": "Cataloghi SQL in XML: collego le letture alle query",
+      "rules": "Regole di MarkAgent: rifaccio i loro collegamenti sulle chiamate di adesso",
+      "registrations": "Registrazioni: collego le interfacce alle implementazioni registrate",
+      "report": "Scrivo gli avvisi e il report dell'analisi"
     },
     "SCAN_DONE": "Fatto: {{files}} file, {{reparsed}} riletti",
     "DESCRIPTION_DONE": "Finita: {{described}} domande riuscite su {{total}}",

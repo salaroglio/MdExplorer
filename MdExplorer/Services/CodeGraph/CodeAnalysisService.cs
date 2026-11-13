@@ -161,7 +161,8 @@ namespace MdExplorer.Services.CodeGraph
         /// A che punto è (13/11/2026, utente: «una misura di quanto devo aspettare»): <c>queued</c> (aspetta che finisca
         /// un'altra analisi), <c>scanning</c> (che cosa è cambiato), <c>reading</c> e <c>extracting</c> (per linguaggio: file
         /// letti, script fatti), <c>writing</c> (script su disco), su Fuseki <c>removing</c> (triple vecchie tolte), <c>loading</c>
-        /// (script caricati), <c>relinking</c> (SQL del codice → oggetti del database) e <c>compacting</c>, poi <c>linking</c> (regole e
+        /// (script caricati), <c>relinking</c> (SQL del codice → oggetti del database), <c>externals</c> e <c>compacting</c>, poi <c>pageScripts</c> (pulsante →
+        /// funzione JS), <c>xmlCatalogs</c> (lettura → query), <c>rules</c> (regole di MarkAgent), <c>registrations</c>, <c>report</c> (regole e
         /// collegamenti fra linguaggi). <see cref="Total"/> 0 = la fase non si conta.
         /// </summary>
         public string Phase { get; set; }
@@ -897,7 +898,6 @@ namespace MdExplorer.Services.CodeGraph
                     Step(progress, CodeGraphStore.StepLoad);
                     outcome.Load = await _store.LoadProjectAsync(projectPath, ct, progress: (step, done, total) => Step(progress, step, null, done, total));
                 }
-                Step(progress, "linking");
                 // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli
                 var sourceControl = scope.Remote != null
                     ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }
@@ -917,13 +917,16 @@ namespace MdExplorer.Services.CodeGraph
                         {
                             // prima la seconda passata delle pagine (D42 passo 2c): pulsante → funzione del file JS che la pagina carica
                             var pageLanguages = catalog.All.Where(l => l.Definition?.Template != null).Select(l => l.Id).ToList();
+                            Step(progress, "pageScripts");
                             await rules.ApplyPageScriptsAsync(projectPath, pageLanguages, ct);
+                            Step(progress, "xmlCatalogs");
                             // i cataloghi di SQL in XML: la chiamata che legge una query → la query (13/11/2026)
                             var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, catalog.All.Where(l => l.Definition?.Xml != null).Select(l => l.Definition).ToList(), ct);
                             if (catalogMisses.Count > 0)
                                 outcome.Warnings.Add(UiText.Say($"cataloghi SQL in XML: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
                                     $"SQL catalogs in XML: {catalogMisses.Count} reads of a query no analysed catalog has (e.g. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})"));
                         }
+                        if (rules != null) Step(progress, "rules");
                         if (rules != null)
                             foreach (var p in await rules.ReapplyAllAsync(projectPath, ct))
                                 if (!p.Accepted) outcome.Warnings.Add(UiText.Say($"la regola '{p.RuleId}' ora collega {p.Resolved} chiamate su {p.Resolved + p.Unresolved}", $"rule '{p.RuleId}' now links {p.Resolved} calls out of {p.Resolved + p.Unresolved}"));
@@ -935,6 +938,7 @@ namespace MdExplorer.Services.CodeGraph
                     var rules = _services.GetService(typeof(CodeRuleService)) as CodeRuleService;
                     if (rules != null)
                     {
+                        Step(progress, "registrations");
                         var (files, skipped) = await RegistrationFilesAsync(projectPath, ct);
                         var (edges, misses) = await rules.ApplyRegistrationsAsync(projectPath, files, ct);
                         outcome.Warnings.AddRange(skipped);
@@ -945,6 +949,7 @@ namespace MdExplorer.Services.CodeGraph
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] registrazioni non applicate"); outcome.Warnings.Add("registrazioni: " + ex.Message); }
                 // Gli avvisi dell'analisi completa: nel log, e per cartella in .md/codegraph/warnings (report, code_inventory).
+                Step(progress, "report");
                 if (!targeted && outcome.Reparsed > 0)
                 {
                     try { CodeAnalysisWarnings.Write(projectPath, folderRelative, outcome.Reparsed, outcome.FilesInPerimeter, outcome.Warnings); }

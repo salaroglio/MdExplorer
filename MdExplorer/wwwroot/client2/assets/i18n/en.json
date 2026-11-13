@@ -2908,7 +2908,11 @@
       "relinking": "Fuseki: relinking the code's SQL to the database objects",
       "externals": "Fuseki: removing external nodes nothing points to any more",
       "compacting": "Fuseki: compacting the database",
-      "linking": "Linking rules and languages"
+      "pageScripts": "Pages: linking controls to the functions of the JavaScript files they load",
+      "xmlCatalogs": "SQL catalogs in XML: linking reads to queries",
+      "rules": "MarkAgent rules: redoing their links on the current calls",
+      "registrations": "Registrations: linking interfaces to their registered implementations",
+      "report": "Writing the analysis warnings and report"
     },
     "SCAN_DONE": "Done: {{files}} files, {{reparsed}} re-read",
     "DESCRIPTION_DONE": "Finished: {{described}} of {{total}} questions answered",
