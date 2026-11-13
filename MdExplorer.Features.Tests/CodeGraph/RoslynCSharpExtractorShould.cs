@@ -42,6 +42,29 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Give_explicit_interface_implementations_their_own_ids()
+        {
+            // 13/11/2026, dal cliente: un enumeratore con Current e MoveNext pubblici e quelli espliciti di IEnumerator
+            File.WriteAllText(Path.Combine(_src, "Items.cs"),
+                "namespace Demo { public class Items : System.Collections.IEnumerator {\n" +
+                "  public string Current => null;\n  object System.Collections.IEnumerator.Current => Current;\n" +
+                "  public bool MoveNext() => false;\n  bool System.Collections.IEnumerator.MoveNext() => MoveNext();\n" +
+                "  public void Reset() { }\n} }\n");
+
+            var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
+
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/Items.cs").Script;
+            var dup = s.Symbols.GroupBy(x => x.Id).Where(g => g.Count() > 1).Select(g => string.Join(" / ", g.Select(x => x.Kind + " " + x.Name + " = " + x.QualifiedName))).ToList();
+            Assert.AreEqual(0, dup.Count, string.Join("; ", dup));
+            Assert.AreEqual(2, s.Symbols.Count(x => x.Name.EndsWith("MoveNext") && x.Kind == "method"), string.Join(", ", s.Symbols.Select(x => x.Kind + " " + x.Name)));
+            Assert.IsNotNull(s.Symbols.SingleOrDefault(x => x.Kind == "method" && x.QualifiedName == "Demo.Items.System.Collections.IEnumerator.MoveNext()"),
+                string.Join(", ", s.Symbols.Select(x => x.QualifiedName)));
+            // le chiamate dello script (MoveNext esplicito → pubblico) arrivano a simboli dichiarati
+            var declared = s.Symbols.Select(x => x.Id).ToHashSet();
+            Assert.IsFalse(s.Edges.Any(e => e.Relation == "calls" && !declared.Contains(e.TargetId)), "nessuna chiamata verso un simbolo non dichiarato");
+        }
+
+        [TestMethod]
         public void Give_static_and_instance_constructors_different_ids()
         {
             // 13/11/2026, dal cliente: «code:name ripetuto 2 volte», lo script non si caricava
@@ -201,7 +224,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("15", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("16", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");

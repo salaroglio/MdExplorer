@@ -49,8 +49,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>13 = i file che il progetto non compila (non elencati nel .csproj di una volta) restano senza simboli.</para>
         /// <para>14 = niente archi verso i simboli che il compilatore crea da solo (il costruttore di default).</para>
         /// <para>15 = il costruttore statico ha un id suo (<c>X..cctor()</c>), non quello d'istanza senza parametri (13/11/2026).</para>
+        /// <para>16 = un'implementazione esplicita di interfaccia ha un id suo (<c>X.IEnumerator.Current</c>), e il metodo esplicito è dichiarato (13/11/2026).</para>
         /// </summary>
-        public override string ExtractorVersion => "15";
+        public override string ExtractorVersion => "16";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

@@ -327,7 +327,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
             typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
             genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-            memberOptions: SymbolDisplayMemberOptions.IncludeContainingType | SymbolDisplayMemberOptions.IncludeParameters,
+            // l'interfaccia di un'implementazione esplicita (object IEnumerator.Current accanto a Current): senza, i due avevano lo
+            // stesso id e lo script non si caricava, «code:name ripetuto 2 volte» (13/11/2026, dal cliente)
+            memberOptions: SymbolDisplayMemberOptions.IncludeContainingType | SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeExplicitInterface,
             parameterOptions: SymbolDisplayParameterOptions.IncludeType,
             miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
@@ -519,7 +521,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var decl = Whole(declared);
                     switch (member)
                     {
-                        case IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod or MethodKind.Constructor or MethodKind.StaticConstructor:
+                        case IMethodSymbol m when m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod or MethodKind.ExplicitInterfaceImplementation or MethodKind.Constructor or MethodKind.StaticConstructor:
                             {
                                 var kind = IsPlainMethod(m) ? "method" : "constructor";
                                 var id = ctx.Declare(m, decl, kind, m.ToDisplayString(SignatureFormat), IsPlainMethod(m) ? m.ReturnType.ToDisplayString(TypeFormat) : null, typeId);
@@ -955,7 +957,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         };
 
         /// <summary>Un metodo con un nome: anche <c>Declare Function … Lib</c> di VB (una funzione di una DLL nativa).</summary>
-        private static bool IsPlainMethod(IMethodSymbol m) => m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod;
+        /// <summary>Un metodo (non un costruttore): anche l'implementazione esplicita di un'interfaccia (<c>bool IEnumerator.MoveNext()</c>,
+        /// 13/11/2026: prima non era dichiarata, e la freccia che ci arrivava dall'interfaccia andava a un «costruttore» inesistente).</summary>
+        private static bool IsPlainMethod(IMethodSymbol m) => m.MethodKind is MethodKind.Ordinary or MethodKind.DeclareMethod or MethodKind.ExplicitInterfaceImplementation;
 
         /// <summary>Un campo <c>WithEvents</c> di VB è per Roslyn una proprietà: nel grafo resta il campo che chi legge ha scritto.</summary>
         private static string PropertyKind(IPropertySymbol p) => p.IsWithEvents ? "field" : "property";
