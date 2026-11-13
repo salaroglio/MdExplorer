@@ -127,6 +127,24 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Keep_one_spelling_for_an_external_node_written_with_other_case()
+        {
+            // 13/11/2026, dal cliente: lo stesso esterno VB (un id) scritto con maiuscole diverse da due script aveva due nomi
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            var other = Path.Combine(_project, ".mde-code", "src", "Demo", "Bar.cs.ast.ttl");
+            File.WriteAllText(other, Ttl(AstHeader.Replace("Foo.cs", "Bar.cs") + "\n" +
+                "{\"type\":\"symbol\",\"id\":\"s-bar\",\"kind\":\"class\",\"name\":\"Bar\",\"qualifiedName\":\"Demo.Bar\",\"lineStart\":1,\"lineEnd\":3,\"signature\":\"public class Bar\",\"visibility\":\"public\"}\n" +
+                "{\"type\":\"symbol\",\"id\":\"x-console\",\"kind\":\"external\",\"name\":\"console\",\"qualifiedName\":\"system.console\"}\n" +
+                "{\"type\":\"edge\",\"sourceId\":\"s-bar\",\"targetId\":\"x-console\",\"relation\":\"calls\",\"confidence\":\"extracted\",\"line\":2}\n"));
+
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var rows = await _store.SparqlAsync(_project, "SELECT ?qn ?n WHERE { ?x code:kind \"external\" ; code:qualifiedName ?qn ; code:name ?n }", 10);
+            Assert.AreEqual(1, rows.Rows.Count, string.Join("; ", rows.Rows.Select(r => string.Join(",", r.Values))));
+            Assert.AreEqual(("System.Console", "Console"), (rows.Rows[0]["qn"], rows.Rows[0]["n"]), "la prima in ordine, sempre la stessa");
+        }
+
+        [TestMethod]
         public async Task Keep_an_external_node_that_another_script_still_uses()
         {
             File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));

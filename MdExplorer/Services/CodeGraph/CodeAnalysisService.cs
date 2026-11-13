@@ -911,6 +911,10 @@ namespace MdExplorer.Services.CodeGraph
                     Step(progress, CodeGraphStore.StepLoad);
                     outcome.Load = await _store.LoadProjectAsync(projectPath, ct, progress: (step, done, total) => Step(progress, step, null, done, total));
                 }
+                // Gli script che Fuseki non ha preso: negli avvisi dell'analisi (log, report, code_inventory), così li vede anche
+                // MarkAgent (13/11/2026, dal cliente: «gli strumenti non espongono il conteggio degli script falliti»)
+                foreach (var failed in outcome.Load.Results.Where(r => r.HasError))
+                    outcome.Warnings.Add(UiText.Say($"caricamento nel grafo fallito, lo script non c'è: {failed.Error}", $"loading into the graph failed, the script is missing: {failed.Error}"));
                 // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli
                 var sourceControl = scope.Remote != null
                     ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }

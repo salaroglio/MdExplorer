@@ -164,6 +164,19 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// archi, ma il nodo restava, anche con un id che l'estrattore non dà più (le due grafie di un nome VB). Si tolgono quelli
         /// che nessuna tripla del grafo nomina.
         /// </summary>
+        /// <summary>
+        /// Un nodo esterno di un linguaggio che non distingue le maiuscole (VB) ha un id solo per tutte le grafie, ma ogni script
+        /// ci scrive la sua: il nodo finiva con due nomi (13/11/2026, dal cliente: 18 nodi, 36 grafie). Ne resta una, la prima in
+        /// ordine: sempre la stessa, qualunque script sia stato caricato per ultimo.
+        /// </summary>
+        private async Task OneSpellingPerExternalCoreAsync(ProjectGraphs g, CancellationToken ct)
+        {
+            foreach (var p in new[] { "code:qualifiedName", "code:name" })
+                await UpdateAsync(CodeOntology.SparqlPrefixes +
+                    $"DELETE {{ GRAPH {g.DataIri} {{ ?x {p} ?v }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; {p} ?v . " +
+                    $"?x {p} ?other . FILTER(STR(?other) < STR(?v)) }} }}", ct);
+        }
+
         private async Task<int> RemoveOrphanExternalsCoreAsync(ProjectGraphs g, CancellationToken ct)
         {
             var where = $"GRAPH {g.DataIri} {{ ?x code:kind \"external\" . FILTER NOT EXISTS {{ ?s ?q ?x }} }}";
@@ -307,6 +320,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     await RelinkSqlCoreAsync(projectPath, g, known, outcome, ct);
                     progress?.Invoke(StepOrphanExternals, 0, 0);
                     outcome.ExternalsRemoved = await RemoveOrphanExternalsCoreAsync(g, ct);
+                    await OneSpellingPerExternalCoreAsync(g, ct);
                 }
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
