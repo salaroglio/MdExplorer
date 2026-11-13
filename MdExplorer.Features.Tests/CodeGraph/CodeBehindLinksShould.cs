@@ -110,15 +110,18 @@ template:
                     "<asp:Button id=\"btnSalva\" runat=\"server\" Text=\"Salva\" />\n" +
                     "<asp:Button id=\"btnAltro\" runat=\"server\" />\n" +
                     "<asp:Label id=\"lblNota\" runat=\"server\" />\n" +
+                    "<asp:Button id=\"btnTerzo\" runat=\"server\" />\n" +
                     "<div id=\"fuori\">testo</div>\n");
                 File.WriteAllText(Path.Combine(web, "Ordini.pag.vb"),
                     "Namespace Demo\n" +
                     "  Public Class Bottone\n    Public Event Click As EventHandler\n  End Class\n" +
                     "  Public Class Pagina\n    Public Event Load As EventHandler\n  End Class\n" +
+                    "  Public Class Servizio\n    Public Shared Sub Esegui(ByVal sender As Object, ByVal e As EventArgs)\n    End Sub\n  End Class\n" +
                     "  Public Class Ordini\n    Inherits Pagina\n" +
-                    "    Protected WithEvents btnSalva As Bottone\n    Protected WithEvents btnAltro As Bottone\n    Protected lblNota As Object\n" +
+                    "    Protected WithEvents btnSalva As Bottone\n    Protected WithEvents btnAltro As Bottone\n    Protected lblNota As Object\n    Protected btnTerzo As Bottone\n" +
                     "    Private Sub Page_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load\n" +
-                    "      AddHandler btnAltro.Click, AddressOf btnAltro_Click\n    End Sub\n" +
+                    "      AddHandler btnAltro.Click, AddressOf btnAltro_Click\n" +
+                    "      AddHandler btnTerzo.Click, AddressOf Servizio.Esegui\n    End Sub\n" +
                     "    Private Sub btnSalva_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btnSalva.Click\n    End Sub\n" +
                     "    Private Sub btnAltro_Click(ByVal sender As Object, ByVal e As EventArgs)\n    End Sub\n" +
                     "  End Class\nEnd Namespace\n");
@@ -147,9 +150,10 @@ template:
                 Assert.AreEqual("control:btnSalva", await Callers("Ordini.btnSalva_Click"), "Handles btnSalva.Click: il controllo della pagina con quell'id");
                 Assert.AreEqual("control:btnAltro", await Callers("Ordini.btnAltro_Click"), "AddHandler: il controllo sì, Page_Load che lo registra no (AddressOf non è una chiamata)");
                 Assert.AreEqual("module:Ordini.pag", await Callers("Ordini.Page_Load"), "Handles MyBase.Load: la pagina, che solleva il suo Load");
+                Assert.AreEqual("control:btnTerzo", await Callers("Servizio.Esegui"), "AddHandler verso un gestore di un'altra classe: il controllo ci arriva lo stesso");
 
                 var page = (await store.OutlineAsync(project, "web/Ordini.pag")).Where(x => x.Kind == "control").Select(x => x.Name).OrderBy(x => x, StringComparer.Ordinal);
-                CollectionAssert.AreEqual(new[] { "btnAltro", "btnSalva", "lblNota" }, page.ToArray(), "i controlli runat=server con un id; non il div");
+                CollectionAssert.AreEqual(new[] { "btnAltro", "btnSalva", "btnTerzo", "lblNota" }, page.ToArray(), "i controlli runat=server con un id; non il div");
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

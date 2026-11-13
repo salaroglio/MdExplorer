@@ -518,12 +518,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     links.Add(new CodePageLink { SourceId = SymbolId(h["caller"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "line"), Path = path });
 
                 // i gestori agganciati nel code-behind (13/11/2026): il controllo lato server con l'id del campo che li gestisce
-                // (Handles btnCerca.Click, AddHandler btnCerca.Click), e la pagina per gli eventi della classe stessa (Handles MyBase.Load)
+                // (Handles btnCerca.Click, AddHandler btnCerca.Click — il gestore può stare in un'altra classe: AddressOf uc2.Gestore),
+                // e la pagina per gli eventi della classe stessa (Handles MyBase.Load)
                 foreach (var h in await RowsAsync(
                     $"SELECT DISTINCT ?ctl ?cline ?m ?name WHERE {{ GRAPH {g.DataIri} {{ " +
                     $"?ctl code:parent <{page}> ; code:kind \"control\" ; code:name ?cname ; code:lineStart ?cline . " +
                     $"?f code:parent <{cls}> ; code:kind ?fk ; code:name ?fname ; code:calls ?m . FILTER(?fk IN (\"field\", \"property\")) " +
-                    $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . " +
+                    "?m code:kind \"method\" ; code:name ?name . " +
                     "FILTER(LCASE(?fname) = LCASE(?cname)) } }", ct))
                     links.Add(new CodePageLink { SourceId = SymbolId(h["ctl"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "cline"), Path = path });
                 foreach (var h in await RowsAsync(
