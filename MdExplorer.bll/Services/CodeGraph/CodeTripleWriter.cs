@@ -386,6 +386,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 sb.Append(" ; code:scmKind ").Append(Lit(sc.Kind ?? SourceControlInfo.Unknown)).Append(" ; code:scmLocalChanges ").Append(Int(sc.LocalChanges));
                 if (sc.Revision != null) sb.Append(" ; code:scmRevision ").Append(Lit(sc.Revision));
+                if (sc.FolderRevision != null) sb.Append(" ; code:scmFolderRevision ").Append(Lit(sc.FolderRevision));
                 if (sc.Branch != null) sb.Append(" ; code:scmBranch ").Append(Lit(sc.Branch));
                 if (sc.Note != null) sb.Append(" ; code:scmNote ").Append(Lit(sc.Note));
             }

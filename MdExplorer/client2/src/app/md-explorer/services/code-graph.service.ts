@@ -246,6 +246,8 @@ export interface DescribePreview {
 export interface SourceControlInfo {
   kind: 'git' | 'svn' | 'none' | 'unknown';
   revision: string | null;
+  /** L'ultimo commit (git) o l'ultima revisione cambiata (SVN) della CARTELLA: dice se i sorgenti sono cambiati. */
+  folderRevision: string | null;
   branch: string | null;
   localChanges: number;
   note: string | null;

@@ -55,6 +55,33 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Keep_the_last_commit_of_the_folder_when_only_other_files_of_the_repository_change()
+        {
+            // 13/11/2026: «i sorgenti sono cambiati» dopo un commit di documenti nello stesso repository
+            var project = Path.Combine(_root, "git"); var src = Path.Combine(project, "src");
+            Directory.CreateDirectory(src);
+            File.WriteAllText(Path.Combine(src, "A.sql"), "select 1 from dual;");
+            File.WriteAllText(Path.Combine(project, "doc.md"), "# doc");
+            string[] Commit(string m) => new[] { "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", m };
+            foreach (var args in new[] { new[] { "init", "-q", "-b", "main" }, new[] { "add", "-A" }, Commit("a") })
+                Assert.IsTrue((await _git.RunAsync(project, args)).Ok, string.Join(' ', args));
+            var before = await _probe.ProbeAsync(src);
+
+            File.AppendAllText(Path.Combine(project, "doc.md"), "altro");
+            foreach (var args in new[] { new[] { "add", "-A" }, Commit("doc") }) Assert.IsTrue((await _git.RunAsync(project, args)).Ok);
+            var afterDoc = await _probe.ProbeAsync(src);
+            Assert.AreNotEqual(before.Revision, afterDoc.Revision, "il repository è andato avanti");
+            Assert.AreEqual(before.FolderRevision, afterDoc.FolderRevision, "la cartella no");
+            Assert.IsNotNull(afterDoc.FolderRevision);
+
+            File.AppendAllText(Path.Combine(src, "A.sql"), "\n-- x");
+            foreach (var args in new[] { new[] { "add", "-A" }, Commit("sql") }) Assert.IsTrue((await _git.RunAsync(project, args)).Ok);
+            var afterSql = await _probe.ProbeAsync(src);
+            Assert.AreNotEqual(afterDoc.FolderRevision, afterSql.FolderRevision, "un commit di un file della cartella sì");
+            Assert.AreEqual(afterSql.Revision, afterSql.FolderRevision);
+        }
+
+        [TestMethod]
         public async Task Read_revision_url_and_local_changes_from_svn()
         {
             if (!Runs("svnadmin", "--version", "--quiet")) Assert.Inconclusive("SVN non installato su questa macchina");
@@ -74,6 +101,7 @@ namespace MdExplorer.IntegrationTests
             var info = await _probe.ProbeAsync(prog);
             Assert.AreEqual(SourceControlInfo.Svn, info.Kind);
             Assert.AreEqual("2", info.Revision);
+            Assert.AreEqual("2", info.FolderRevision, "l'ultima revisione che ha cambiato la cartella");
             Assert.AreEqual("^/trunk/prog", info.Branch);
             Assert.AreEqual(1, info.LocalChanges, "il file non aggiunto non conta");
             Assert.IsNull(info.Note);

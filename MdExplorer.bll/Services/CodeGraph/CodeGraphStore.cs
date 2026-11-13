@@ -589,9 +589,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             var iri = CodeGraphIris.Iri(CodeGraphIris.Scan(g.Hash, programFolder));
             var row = (await RowsAsync(
-                $"SELECT ?folder ?root ?commit ?mode ?at ?cand ?rep ?bridges ?stamps ?scm ?scmRev ?scmBranch ?scmChanges ?scmNote WHERE {{ GRAPH {g.StateIri} {{ {iri} a code:ScanState ; code:programFolder ?folder ; code:mode ?mode ; code:scannedAt ?at ; code:candidates ?cand ; code:reparsed ?rep . " +
+                $"SELECT ?folder ?root ?commit ?mode ?at ?cand ?rep ?bridges ?stamps ?scm ?scmRev ?scmFolderRev ?scmBranch ?scmChanges ?scmNote WHERE {{ GRAPH {g.StateIri} {{ {iri} a code:ScanState ; code:programFolder ?folder ; code:mode ?mode ; code:scannedAt ?at ; code:candidates ?cand ; code:reparsed ?rep . " +
                 $"OPTIONAL {{ {iri} code:repositoryRoot ?root }} OPTIONAL {{ {iri} code:analyzedCommit ?commit }} OPTIONAL {{ {iri} code:bridges ?bridges }} OPTIONAL {{ {iri} code:remoteStamps ?stamps }} " +
-                $"OPTIONAL {{ {iri} code:scmKind ?scm ; code:scmLocalChanges ?scmChanges }} OPTIONAL {{ {iri} code:scmRevision ?scmRev }} OPTIONAL {{ {iri} code:scmBranch ?scmBranch }} OPTIONAL {{ {iri} code:scmNote ?scmNote }} }} }}", ct)).FirstOrDefault();
+                $"OPTIONAL {{ {iri} code:scmKind ?scm ; code:scmLocalChanges ?scmChanges }} OPTIONAL {{ {iri} code:scmRevision ?scmRev }} OPTIONAL {{ {iri} code:scmFolderRevision ?scmFolderRev }} OPTIONAL {{ {iri} code:scmBranch ?scmBranch }} OPTIONAL {{ {iri} code:scmNote ?scmNote }} }} }}", ct)).FirstOrDefault();
             if (row == null) return null;
             return new CodeScanState
             {
@@ -602,7 +602,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // scansioni di prima del 30/10/2026: il gestore non c'è, e non si inventa
                 SourceControl = SparqlResults.Str(row, "scm") is { } scm ? new SourceControlInfo
                 {
-                    Kind = scm, Revision = SparqlResults.Str(row, "scmRev"), Branch = SparqlResults.Str(row, "scmBranch"),
+                    Kind = scm, Revision = SparqlResults.Str(row, "scmRev"), FolderRevision = SparqlResults.Str(row, "scmFolderRev"), Branch = SparqlResults.Str(row, "scmBranch"),
                     LocalChanges = SparqlResults.Count(row, "scmChanges"), Note = SparqlResults.Str(row, "scmNote"),
                 } : null,
             };

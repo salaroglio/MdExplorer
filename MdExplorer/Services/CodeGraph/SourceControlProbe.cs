@@ -66,6 +66,10 @@ namespace MdExplorer.Services.CodeGraph
             var head = await _git.RunAsync(folder, new[] { "rev-parse", "HEAD" }, ct);
             if (!head.Ok) { info.Note = UiText.Say("git: revisione non letta — ", "git: revision not read — ") + head.Describe(); return info; }
             info.Revision = head.Stdout.Trim();
+            // l'ultimo commit che ha toccato la cartella: un commit di altri file del repository non cambia i sorgenti
+            var last = await _git.RunAsync(folder, new[] { "log", "-1", "--format=%H", "--", "." }, ct);
+            if (last.Ok) info.FolderRevision = string.IsNullOrWhiteSpace(last.Stdout) ? null : last.Stdout.Trim();
+            else info.Note = UiText.Say("git: ultimo commit della cartella non letto — ", "git: last commit of the folder not read — ") + last.Describe();
             var branch = await _git.RunAsync(folder, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
             if (branch.Ok) info.Branch = branch.Stdout.Trim();
             var status = await _git.RunAsync(folder, new[] { "status", "--porcelain", "-z", "--untracked-files=no", "--", "." }, ct);
@@ -102,6 +106,8 @@ namespace MdExplorer.Services.CodeGraph
             if (version.ExitCode != 0) { info.Note = "svnversion: " + version.Why; return info; }
             (info.Revision, var modified) = ParseSvnVersion(version.Stdout);
             if (info.Revision == null) { info.Note = "svnversion: " + version.Stdout.Trim(); return info; }
+            var changed = await RunAsync("svn", folder, new[] { "info", "--show-item", "last-changed-revision", "." }, ct);
+            if (changed.ExitCode == 0 && !string.IsNullOrWhiteSpace(changed.Stdout)) info.FolderRevision = changed.Stdout.Trim();
             var url = await RunAsync("svn", folder, new[] { "info", "--show-item", "relative-url", "." }, ct);
             if (url.ExitCode == 0) info.Branch = url.Stdout.Trim();
             var status = await RunAsync("svn", folder, new[] { "status", "-q", "." }, ct);

@@ -208,6 +208,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Kind { get; set; }
         /// <summary>Il commit (git) o la revisione (SVN: <c>1240</c>, o <c>1230:1240</c> per una copia mista); null se non si sa, e <see cref="Note"/> dice perché.</summary>
         public string Revision { get; set; }
+        /// <summary>
+        /// L'ultimo commit che ha toccato la cartella (git <c>log -1 -- .</c>) o la sua ultima revisione cambiata (SVN
+        /// <c>last-changed-revision</c>), 13/11/2026: è QUESTA che dice se i sorgenti sono cambiati. <see cref="Revision"/> va
+        /// avanti con ogni commit del repository, anche di documenti o del grafo stesso. Null se non si sa (scansioni di prima).
+        /// </summary>
+        public string FolderRevision { get; set; }
         /// <summary>Il ramo (git) o l'URL relativo al repository (SVN: <c>^/trunk/prog</c>).</summary>
         public string Branch { get; set; }
         /// <summary>I file già nel gestore modificati in locale e non ancora salvati: con questi la revisione da sola non basta.</summary>

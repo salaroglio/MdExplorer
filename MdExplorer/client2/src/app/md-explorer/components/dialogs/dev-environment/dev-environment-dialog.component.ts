@@ -160,21 +160,27 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.sourceControlLine = this.describeSourceControl(v.now);
         const at = v.scannedAt ? new Date(v.scannedAt).toLocaleString() : '';
         const then = v.scanned, now = v.now;
-        this.sourceControlBehind = !!(then?.revision && now.revision && then.revision !== now.revision);
+        // i sorgenti sono cambiati se è cambiato l'ultimo commit della CARTELLA, non quello del repository (13/11/2026: un
+        // commit di documenti o del grafo stesso nello stesso repository non tocca i sorgenti)
+        const byFolder = !!(then?.folderRevision && now.folderRevision);
+        this.sourceControlBehind = byFolder && then!.folderRevision !== now.folderRevision;
+        const aligned = byFolder ? !this.sourceControlBehind : !!(then?.revision && then.revision === now.revision);
         this.sourceControlScanned =
           !v.scannedAt ? this.translate.instant('DEV_ENV.SCM_NEVER')
           : !then ? this.translate.instant('DEV_ENV.SCM_NOT_RECORDED', { at })
-          : this.sourceControlBehind ? this.translate.instant('DEV_ENV.SCM_BEHIND', { revision: this.shortRevision(then), at })
-          : then.revision && then.revision === now.revision
+          : this.sourceControlBehind ? this.translate.instant('DEV_ENV.SCM_BEHIND', { revision: this.shortRevision(then, then.folderRevision), at })
+          : aligned
             ? this.translate.instant(then.localChanges > 0 ? 'DEV_ENV.SCM_ALIGNED_LOCAL' : 'DEV_ENV.SCM_ALIGNED', { at, count: then.localChanges })
+          : then.revision && now.revision && !then.folderRevision
+            ? this.translate.instant('DEV_ENV.SCM_FOLDER_NOT_RECORDED', { revision: this.shortRevision(then), at })
           : this.translate.instant('DEV_ENV.SCM_SCANNED_AT', { at, state: this.describeSourceControl(then) });
       },
       error: (err) => { this.sourceControl = null; this.sourceControlError = err?.error?.error || err?.message || ''; }
     });
   }
 
-  private shortRevision(s: SourceControlInfo): string {
-    return s.kind === 'git' ? (s.revision ?? '').substring(0, 8) : 'r' + s.revision;
+  private shortRevision(s: SourceControlInfo, revision: string | null = s.revision): string {
+    return s.kind === 'git' ? (revision ?? '').substring(0, 8) : 'r' + revision;
   }
 
   private describeSourceControl(s: SourceControlInfo): string {
