@@ -70,13 +70,18 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var site in sitesOf(loader.Method))
                 {
                     if (loader.Receiver != null && !(site.Receiver ?? string.Empty).EndsWith(loader.Receiver, StringComparison.OrdinalIgnoreCase)) continue;
+                    // la classe del lettore: un metodo con lo stesso nome in un'altra classe non è lui (13/11/2026, dal cliente: un
+                    // lettore C# omonimo, per un altro XML); una chiamata che il compilatore non risolve non si può dire sua
+                    if (loader.Class != null && !IsClass(site.CalleeType, loader.Class)) continue;
                     string Arg(int? position) => position is { } p && site.Arguments.TryGetValue(p, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
-                    var name = Arg(loader.Name);
+                    var name = loader.NameValue ?? Arg(loader.Name);
                     if (name == null) continue;   // il nome non si conosce: nessun arco, e il grafo non inventa
-                    var group = Arg(loader.Group);
-                    var file = Arg(loader.File);
+                    var group = loader.GroupValue ?? Arg(loader.Group);
+                    // il file: il valore scritto, o solo il nome con cui finisce (MapPath, configurazione + "\ordini.xml")
+                    var file = Arg(loader.File)
+                        ?? (loader.File is { } fp && site.FileNames.TryGetValue(fp, out var fn) && !string.IsNullOrWhiteSpace(fn) ? fn.Trim() : null);
                     if (file != null) file = file.Replace('\\', '/')[(file.Replace('\\', '/').LastIndexOf('/') + 1)..];
-                    var guard = $"{loader.Method}({string.Join(", ", new[] { group == null ? null : $"group = \"{group}\"", $"name = \"{name}\"" }.Where(x => x != null))})";
+                    var guard = $"{loader.Method}({string.Join(", ", new[] { file == null ? null : $"file = \"{file}\"", group == null ? null : $"group = \"{group}\"", $"name = \"{name}\"" }.Where(x => x != null))})";
                     var queries = entries.Where(e => e.Fragment == null && e.Query == name && (group == null || e.Group == group)
                         && (file == null || e.Path.EndsWith("/" + file, StringComparison.OrdinalIgnoreCase) || e.Path.Equals(file, StringComparison.OrdinalIgnoreCase))).ToList();
                     if (queries.Count == 0)
@@ -106,6 +111,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
             return edges.Values.OrderBy(e => e.Path, StringComparer.Ordinal).ThenBy(e => e.Line).ThenBy(e => e.SourceId, StringComparer.Ordinal).ThenBy(e => e.TargetId, StringComparer.Ordinal).ToList();
         }
+
+        /// <summary>La classe risolta è quella del lettore: uguale, o con quella fine dopo un punto (<c>Lettore</c> per <c>Demo.Dati.Lettore</c>).</summary>
+        private static bool IsClass(string calleeType, string wanted)
+            => calleeType != null && (calleeType.Equals(wanted, StringComparison.OrdinalIgnoreCase) || calleeType.EndsWith("." + wanted, StringComparison.OrdinalIgnoreCase));
 
         private static int Rank(string confidence) => confidence switch { "extracted" => 2, "inferred" => 1, _ => 0 };
     }

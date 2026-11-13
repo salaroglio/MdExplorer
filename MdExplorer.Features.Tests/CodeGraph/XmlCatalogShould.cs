@@ -163,6 +163,41 @@ xml:
             StringAssert.Contains(edges.First(e => e.SourceId == "m2").Guard, "name = \"CERCA\"");
         }
 
+        [TestMethod]
+        public void Link_by_the_reader_class_with_fixed_names_and_the_file_name_only()
+        {
+            // 13/11/2026, dal cliente: un lettore C# omonimo per un altro XML; un metodo di paginazione che legge sempre la stessa
+            // query; il file passato come MapPath("~/sql/x.xml") o configurazione + "\x.xml"
+            var yaml = Definition[..Definition.IndexOf("  loaders:", StringComparison.Ordinal)] +
+                "  loaders:\n" +
+                "    - method: Leggi\n      class: Dati.Lettore\n      file: 0\n      group: 1\n      name: 2\n" +
+                "    - method: Pagina\n      class: Lettore\n      file: 0\n      groupValue: ORDINI\n      nameValue: ELENCO\n      defaultFragment: Testo\n";
+            var entries = new List<XmlCatalogLinker.Entry>
+            {
+                new("q1", "web/sql/ordini.xml", "ORDINI", "ELENCO", null), new("f1", "web/sql/ordini.xml", "ORDINI", "ELENCO", "Testo"),
+                new("q9", "web/sql/copia.xml", "ORDINI", "ELENCO", null), new("f9", "web/sql/copia.xml", "ORDINI", "ELENCO", "Testo"),
+                new("q2", "web/sql/clienti.xml", "CLIENTI", "CERCA", null), new("q3", "web/sql/vecchio.xml", "CLIENTI", "CERCA", null),
+            };
+            CodeCallSiteView With(CodeCallSiteView s, string type, string file) { s.CalleeType = type; if (file != null) s.FileNames[0] = file; return s; }
+            var sites = new Dictionary<string, List<CodeCallSiteView>>
+            {
+                ["Leggi"] = new()
+                {
+                    With(Site("m1", "Leggi", 10, null, "CLIENTI", "CERCA"), "Demo.Dati.Lettore", "clienti.xml"),
+                    With(Site("m2", "Leggi", 20, null, "CLIENTI", "CERCA"), "Demo.Altro.Lettore", "clienti.xml"),
+                    With(Site("m3", "Leggi", 30, null, "CLIENTI", "CERCA"), null, "clienti.xml"),
+                },
+                ["Pagina"] = new() { With(Site("m4", "Pagina", 40), "Demo.Dati.Lettore", "ordini.xml"), With(Site("m5", "Pagina", 50), "Demo.Dati.Lettore", null) },
+            };
+            var misses = new List<XmlCatalogLinker.Miss>();
+            var edges = XmlCatalogLinker.Link(Language(yaml).Xml.Loaders, m => sites.TryGetValue(m, out var s) ? s : new List<CodeCallSiteView>(), entries, misses);
+
+            Assert.AreEqual("m1>q2:inferred | m4>f1:inferred | m5>f1:ambiguous | m5>f9:ambiguous", string.Join(" | ", edges.Select(e => $"{e.SourceId}>{e.TargetId}:{e.Confidence}")),
+                "m1: la classe e il nome del file; m2: un'altra classe, non è il lettore; m3: non risolto, non si dice; m4: gruppo e nome fissi, il file dal nome; m5: il file non si sa");
+            Assert.AreEqual(0, misses.Count);
+            StringAssert.Contains(edges.First(e => e.SourceId == "m4").Guard, "file = \"ordini.xml\"");
+        }
+
         [DataTestMethod]
         [DataRow("xml:\n  queries:\n    - match: '//Q'\n", "xml.queries[0].name")]
         [DataRow("xml:\n  queries:\n    - match: '//Q['\n      name: 'N'\n", "XPath")]

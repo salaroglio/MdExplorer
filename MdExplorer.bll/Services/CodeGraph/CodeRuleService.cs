@@ -233,7 +233,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             var sites = new Dictionary<string, IReadOnlyList<CodeCallSiteView>>(StringComparer.Ordinal);
             foreach (var method in loaders.Select(l => l.Method).Distinct(StringComparer.Ordinal))
-                sites[method] = await _store.CallSitesAsync(projectPath, method, ct);
+                sites[method] = await _store.CallSitesAsync(projectPath, method, ct, withFileNames: true);
             var entries = XmlCatalogLinker.Entries(await _store.SymbolsOfLanguagesAsync(projectPath, catalogs.Where(l => l.Xml != null).Select(l => l.Id).ToList(), ct));
             var edges = XmlCatalogLinker.Link(loaders, m => sites.TryGetValue(m, out var s) ? s : Array.Empty<CodeCallSiteView>(), entries, misses);
             var script = new CodeScript

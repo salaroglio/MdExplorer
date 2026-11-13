@@ -145,6 +145,21 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Give_back_file_names_and_the_callee_class_of_call_sites_only_to_who_asks()
+        {
+            var script = CodeScriptParser.Parse(AstHeader + "\n" + AstBody, "fixture.jsonl");
+            var site = new ScriptCallSite { SourceId = "s-foo-ingest", Line = 5, Ordinal = CodeCallSites.FileNameOnlyOrdinalBase, Callee = "Leggi", ArgumentCount = 3, CalleeType = "Demo.Lettore" };
+            site.Arguments.Add(new ScriptStringArgument { Position = 0, FileName = "ordini.xml" });
+            script.CallSites.Add(site);
+            File.WriteAllText(AstPath, CodeScriptWriter.Serialize(script));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var all = await _store.CallSitesAsync(_project, "Leggi", withFileNames: true);
+            Assert.AreEqual(("ordini.xml", "Demo.Lettore", 0), (all.Single().FileNames[0], all.Single().CalleeType, all.Single().Arguments.Count));
+            Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "Leggi")).Count, "le regole sulle stringhe non vedono un punto con il solo nome del file");
+        }
+
+        [TestMethod]
         public async Task Keep_an_external_node_that_another_script_still_uses()
         {
             File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));

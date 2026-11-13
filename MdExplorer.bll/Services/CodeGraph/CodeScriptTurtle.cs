@@ -104,8 +104,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
             ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard", "written"),
             ["RuleSet"] = Set("ruleId", "description", "writtenBy", "writtenAt", "schema"),
-            ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver", "receiverSite"),
-            ["StringArgument"] = Set("argumentOf", "position", "value"),
+            ["CallSite"] = Set("caller", "callee", "line", "ordinal", "argumentCount", "path", "receiver", "receiverSite", "calleeType"),
+            ["StringArgument"] = Set("argumentOf", "position", "value", "fileName"),
             // D43 (30/10/2026): i fatti per le regole di registrazione
             ["TypeArgument"] = Set("argumentOf", "position", "typeName", "confidence"),
             ["Annotation"] = Set("annotationOf", "ordinal", "name", "line", "path", "typeName"),
@@ -225,6 +225,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     SourceId = SymbolId(n.IriValue("caller", path)), Callee = n.Str("callee", path), Line = n.Int("line", path),
                     Ordinal = n.Int("ordinal", path), ArgumentCount = n.Int("argumentCount", path), Receiver = n.OptStr("receiver"),
+                    CalleeType = n.OptStr("calleeType"),
                 };
                 if (n.OptIri("receiverSite") is { } rs)
                 {
@@ -242,7 +243,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var of = n.IriValue("argumentOf", path);
                 if (!sites.TryGetValue(of, out var site))
                     throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: code:argumentOf <{of}> non è un code:CallSite dello script", $"<{n.Iri}>: code:argumentOf <{of}> is not a code:CallSite of the script"));
-                site.Arguments.Add(new ScriptStringArgument { Position = n.Int("position", path), Value = n.Str("value", path) });
+                var value = n.OptStr("value");
+                var fileName = n.OptStr("fileName");
+                if ((value == null) == (fileName == null))
+                    throw new CodeScriptFormatException(path, 0, UiText.Say($"<{n.Iri}>: un argomento ha code:value oppure code:fileName, uno dei due", $"<{n.Iri}>: an argument has code:value or code:fileName, one of the two"));
+                site.Arguments.Add(new ScriptStringArgument { Position = n.Int("position", path), Value = value, FileName = fileName });
             }
             foreach (var n in nodes.Where(n => n.Class == "TypeArgument"))
             {

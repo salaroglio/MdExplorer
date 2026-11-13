@@ -112,10 +112,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Method { get; init; }
             /// <summary>Facoltativo: la classe o l'oggetto davanti, com'è scritto (<c>Lettore</c>).</summary>
             public string Receiver { get; init; }
+            /// <summary>
+            /// Facoltativo (13/11/2026): la classe che dichiara il lettore, come il compilatore la risolve (<c>Demo.Dati.Lettore</c>, o
+            /// la fine: <c>Lettore</c>). Un metodo con lo stesso nome in un'altra classe non è questo lettore; una chiamata che il
+            /// compilatore non risolve non si collega.
+            /// </summary>
+            public string Class { get; init; }
             /// <summary>Le posizioni degli argomenti (da 0): il file, il gruppo, il nome, un frammento, più frammenti.</summary>
             public int? File { get; init; }
             public int? Group { get; init; }
-            public int Name { get; init; }
+            public int? Name { get; init; }
+            /// <summary>
+            /// Il gruppo e il nome scritti DENTRO il lettore, non passati (13/11/2026: un metodo di paginazione che legge sempre la
+            /// stessa query): al posto di <see cref="Group"/> e <see cref="Name"/>.
+            /// </summary>
+            public string GroupValue { get; init; }
+            public string NameValue { get; init; }
             public IReadOnlyList<int> Fragments { get; init; } = Array.Empty<int>();
             /// <summary>Il frammento che legge un metodo senza l'argomento del frammento; null = non si sa, e la chiamata va a tutti i frammenti (ambiguous).</summary>
             public string DefaultFragment { get; init; }
@@ -548,7 +560,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var where = $"xml.loaders[{i}]";
                     if (string.IsNullOrWhiteSpace(l.Method)) throw Fail($"{where}.method: obbligatorio", $"{where}.method: required");
-                    if (l.Name == null) throw Fail($"{where}.name: obbligatorio, la posizione dell'argomento col nome della query (da 0)", $"{where}.name: required, the position of the argument with the query name (from 0)");
+                    if ((l.Name == null) == string.IsNullOrWhiteSpace(l.NameValue))
+                        throw Fail($"{where}.name: uno fra name (la posizione dell'argomento col nome della query, da 0) e nameValue (il nome scritto dentro il lettore)",
+                            $"{where}.name: one of name (the position of the argument with the query name, from 0) and nameValue (the name written inside the reader)");
+                    if (l.Group != null && !string.IsNullOrWhiteSpace(l.GroupValue))
+                        throw Fail($"{where}: group oppure groupValue, non tutti e due", $"{where}: group or groupValue, not both");
                     var fragments = l.Fragments ?? new List<int>();
                     if (l.Fragment != null) fragments = fragments.Prepend(l.Fragment.Value).ToList();
                     foreach (var p in new int?[] { l.File, l.Group, l.Name }.Concat(fragments.Select(f => (int?)f)))
@@ -557,7 +573,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     return new XmlLoaderRule
                     {
                         Method = l.Method.Trim(), Receiver = string.IsNullOrWhiteSpace(l.Receiver) ? null : l.Receiver.Trim(),
-                        File = l.File, Group = l.Group, Name = l.Name.Value, Fragments = fragments, DefaultFragment = l.DefaultFragment,
+                        Class = string.IsNullOrWhiteSpace(l.Class) ? null : l.Class.Trim(),
+                        File = l.File, Group = l.Group, Name = l.Name, Fragments = fragments, DefaultFragment = l.DefaultFragment,
+                        GroupValue = string.IsNullOrWhiteSpace(l.GroupValue) ? null : l.GroupValue.Trim(),
+                        NameValue = string.IsNullOrWhiteSpace(l.NameValue) ? null : l.NameValue.Trim(),
                     };
                 }).ToList();
                 return new XmlRule { Queries = queries, Loaders = loaders, Placeholder = Rx("xml.placeholder", x.Placeholder ?? @"\{\d+\}") };
@@ -948,9 +967,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 public string Method { get; set; }
                 public string Receiver { get; set; }
+                public string Class { get; set; }
                 public int? File { get; set; }
                 public int? Group { get; set; }
                 public int? Name { get; set; }
+                public string GroupValue { get; set; }
+                public string NameValue { get; set; }
                 public int? Fragment { get; set; }
                 public List<int> Fragments { get; set; }
                 public string DefaultFragment { get; set; }

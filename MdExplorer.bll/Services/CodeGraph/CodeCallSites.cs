@@ -43,19 +43,34 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// tipo). Con <paramref name="always"/> la registra anche senza: il JS di un controllo di una pagina (D42 passo 2), dove
         /// conta già sapere QUALE funzione chiama. Torna il punto registrato, o null.
         /// </summary>
+        /// <summary>Da qui si numerano i punti che hanno SOLO nomi di file (13/11/2026): come per i tipi, i numeri dei punti con stringhe non cambiano.</summary>
+        public const int FileNameOnlyOrdinalBase = 2000;
+
+        private readonly Dictionary<(string, int), int> _fileNameOnlyOrdinals = new();
+
+        /// <param name="fileNames">Per posizione, il nome del file con cui finisce un argomento di cui non si sa il valore intero
+        /// (<see cref="ScriptStringArgument.FileName"/>); null = nessuno.</param>
         public ScriptCallSite Add(string sourceId, int line, string callee, string receiver, IReadOnlyList<string> arguments, bool always = false,
-            IReadOnlyList<ScriptTypeArgument> types = null)
+            IReadOnlyList<ScriptTypeArgument> types = null, IReadOnlyList<string> fileNames = null)
         {
             if (sourceId == null || string.IsNullOrEmpty(callee) || arguments == null) return null;
             var hasString = false;
             for (var i = 0; i < arguments.Count; i++) hasString |= IsNameLike(arguments[i]);
+            string FileNameAt(int i) => fileNames != null && i < fileNames.Count && !IsNameLike(arguments[i]) && IsNameLike(fileNames[i]) ? fileNames[i] : null;
+            var hasFileName = Enumerable.Range(0, arguments.Count).Any(i => FileNameAt(i) != null);
             var hasType = types != null && types.Any(t => t != null);
-            if (!hasString && !hasType && !always) return null;
+            if (!hasString && !hasType && !hasFileName && !always) return null;
             int ordinal;
             if (hasString || always)
             {
                 _ordinals.TryGetValue((sourceId, line), out ordinal);
                 _ordinals[(sourceId, line)] = ordinal + 1;
+            }
+            else if (hasFileName)
+            {
+                _fileNameOnlyOrdinals.TryGetValue((sourceId, line), out var n);
+                _fileNameOnlyOrdinals[(sourceId, line)] = n + 1;
+                ordinal = FileNameOnlyOrdinalBase + n;
             }
             else
             {
@@ -70,6 +85,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             };
             for (var i = 0; i < arguments.Count; i++)
                 if (IsNameLike(arguments[i])) site.Arguments.Add(new ScriptStringArgument { Position = i, Value = arguments[i] });
+                else if (FileNameAt(i) is { } file) site.Arguments.Add(new ScriptStringArgument { Position = i, FileName = file });
             if (types != null)
                 foreach (var t in types.Where(t => t != null)) site.TypeArguments.Add(t);
             _script.CallSites.Add(site);

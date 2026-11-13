@@ -35,6 +35,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// si verifica quali combinazioni possano davvero succedere insieme, quindi qualcuna può essere impossibile.
         /// </summary>
         public bool Combined { get; set; }
+        /// <summary>
+        /// Dei valori che non si sanno (<see cref="Unknown"/>), il nome del file con cui finiscono, per ogni strada (13/11/2026,
+        /// dal cliente: <c>MapPath("~/sql/ordini.xml")</c>, o la configurazione più <c>"\ordini.xml"</c>: il percorso non si sa,
+        /// il file sì). Null se anche una sola strada non lo dice.
+        /// </summary>
+        public HashSet<string> UnknownFileNames { get; private set; }
 
         public static StringValues Of(string value) { var v = new StringValues(); v.Known.Add(value); return v; }
         public static StringValues Dynamic(string reason) { var v = new StringValues(); v.MarkUnknown(reason); return v; }
@@ -47,12 +53,43 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             Unknown = true;
             Reason ??= reason;
+            UnknownFileNames = null;   // una strada che non dice il nome del file: il nome non si sa per tutte
+        }
+
+        /// <summary>Una strada che non si sa per intero, ma finisce con uno di questi nomi di file.</summary>
+        public void MarkUnknownEndingWith(string reason, IEnumerable<string> fileNames)
+        {
+            if (!Unknown) UnknownFileNames = new HashSet<string>(fileNames, StringComparer.Ordinal);
+            else UnknownFileNames?.UnionWith(fileNames);
+            Unknown = true;
+            Reason ??= reason;
+        }
+
+        /// <summary>Il pezzo dopo l'ultima barra (<c>/</c> o <c>\</c>): il nome del file.</summary>
+        public static string FileNameOf(string path) => path[(Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\')) + 1)..];
+
+        public static bool HasSeparator(string s) => s.IndexOf('/') >= 0 || s.IndexOf('\\') >= 0;
+
+        /// <summary>
+        /// I nomi dei file con cui finiscono TUTTI i valori possibili; null se di un valore non si sa (un parametro, una strada
+        /// che non lo dice).
+        /// </summary>
+        public HashSet<string> FileNames()
+        {
+            if (Parameters.Count > 0 || (Unknown && UnknownFileNames == null)) return null;
+            var names = new HashSet<string>(Known.Select(FileNameOf), StringComparer.Ordinal);
+            if (Unknown) names.UnionWith(UnknownFileNames);
+            return names;
         }
 
         public void Add(StringValues other)
         {
             foreach (var k in other.Known) if (!Known.Contains(k, StringComparer.Ordinal)) Known.Add(k);
-            if (other.Unknown) MarkUnknown(other.Reason);
+            if (other.Unknown)
+            {
+                if (other.UnknownFileNames != null) MarkUnknownEndingWith(other.Reason, other.UnknownFileNames);
+                else MarkUnknown(other.Reason);
+            }
             Parameters.UnionWith(other.Parameters);
             Via ??= other.Via;
             Combined |= other.Combined;
@@ -61,7 +98,8 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public StringValues Copy()
         {
-            var c = new StringValues { Via = Via, Unknown = Unknown, Reason = Reason, Combined = Combined };
+            var c = new StringValues { Via = Via, Unknown = Unknown, Reason = Reason, Combined = Combined,
+                UnknownFileNames = UnknownFileNames == null ? null : new HashSet<string>(UnknownFileNames, StringComparer.Ordinal) };
             c.Known.AddRange(Known);
             c.Parameters.UnionWith(Parameters);
             return c;
@@ -159,6 +197,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                         }
                         return mapped;
                     }
+                case IInvocationOperation path when KeepsFileName(path) is { } last:
+                    {
+                        // il percorso che ne esce non si sa (la cartella del sito, la configurazione), il nome del file sì
+                        var v = Of(last, visiting, depth + 1);
+                        var r = new StringValues { Via = v.Via };
+                        var names = v.FileNames();
+                        if (names == null || names.Count == 0) r.MarkUnknown($"returned by {path.TargetMethod.Name}()");
+                        else r.MarkUnknownEndingWith($"returned by {path.TargetMethod.Name}(): the path is not known, the file name is", names);
+                        return r;
+                    }
                 case IParameterReferenceOperation pr: return Reaching(pr, pr.Parameter, visiting);
                 case ILocalReferenceOperation lr: return Reaching(lr, lr.Local, visiting);
                 case IFieldReferenceOperation fr: return Field(fr.Field, visiting);
@@ -168,13 +216,39 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
         }
 
+        /// <summary>
+        /// Le chiamate che tengono il nome del file dell'argomento: <c>MapPath(x)</c> (Server, Request, HostingEnvironment),
+        /// <c>Path.Combine(…, x)</c>, <c>Path.GetFullPath(x)</c>. Torna l'argomento col nome, o null.
+        /// </summary>
+        private static IOperation KeepsFileName(IInvocationOperation call)
+        {
+            var m = call.TargetMethod;
+            var isPath = m.ContainingType?.ToDisplayString() == "System.IO.Path";
+            if (m.Name == "MapPath" && call.Arguments.Length == 1) return call.Arguments[0].Value;
+            if (isPath && m.Name == "GetFullPath" && call.Arguments.Length == 1) return call.Arguments[0].Value;
+            if (isPath && m.Name == "Combine" && call.Arguments.Length >= 1)
+            {
+                // Combine(params string[]): l'ultimo pezzo è dentro l'array
+                var last = call.Arguments[^1].Value;
+                if (last is IArrayCreationOperation { Initializer: { } init } && init.ElementValues.Length > 0) return init.ElementValues[^1];
+                return last;
+            }
+            return null;
+        }
+
         /// <summary>Due pezzi uniti: ogni combinazione; un pezzo che non si sa, o che viene da un parametro, rende non saputo il tutto.</summary>
         private static StringValues Join(StringValues a, StringValues b)
         {
             var r = new StringValues { Via = a.Via ?? b.Via, Combined = a.Combined || b.Combined || (a.Known.Count > 1 && b.Known.Count > 1) };
             if (!a.IsComplete || !b.IsComplete)
             {
-                r.MarkUnknown(a.Reason ?? b.Reason ?? "a piece comes from a parameter");
+                var reason = a.Reason ?? b.Reason ?? "a piece comes from a parameter";
+                // la fine si sa e ha una barra: il nome del file si sa, anche se il percorso no (configurazione + "\ordini.xml")
+                if (b.Parameters.Count == 0 && b.Known.Count > 0 && b.Known.All(StringValues.HasSeparator) && (!b.Unknown || b.UnknownFileNames != null))
+                    r.MarkUnknownEndingWith(reason, b.Known.Select(StringValues.FileNameOf).Concat(b.UnknownFileNames ?? Enumerable.Empty<string>()));
+                else if (b.Parameters.Count == 0 && b.Known.Count == 0 && b.UnknownFileNames != null)
+                    r.MarkUnknownEndingWith(reason, b.UnknownFileNames);
+                else r.MarkUnknown(reason);
                 return r;
             }
             if ((long)a.Known.Count * b.Known.Count > StringValues.MaxValues) { r.MarkUnknown($"more than {StringValues.MaxValues} possible values"); return r; }

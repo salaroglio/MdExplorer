@@ -273,6 +273,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Receiver { get; set; }
         public int ArgumentCount { get; set; }
         public SortedDictionary<int, string> Arguments { get; } = new();
+        /// <summary>Gli argomenti di cui si sa solo il nome del file con cui finiscono (<see cref="ScriptStringArgument.FileName"/>).</summary>
+        public SortedDictionary<int, string> FileNames { get; } = new();
+        /// <summary>La classe del metodo chiamato, risolta dal compilatore; null se non si risolve (<see cref="ScriptCallSite.CalleeType"/>).</summary>
+        public string CalleeType { get; set; }
         /// <summary>L'IRI del punto: per legare le catene (D43). Fuori dal JSON delle risposte.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string Iri { get; set; }

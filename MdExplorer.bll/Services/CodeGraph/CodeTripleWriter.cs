@@ -130,6 +130,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:path ").Append(Lit(h.Source));
                 if (c.Receiver != null) sb.Append(" ; code:receiver ").Append(Lit(c.Receiver));
                 if (c.ReceiverLine != null && c.ReceiverOrdinal != null) sb.Append(" ; code:receiverSite ").Append(Iri(CallSite(c.SourceId, c.ReceiverLine.Value, c.ReceiverOrdinal.Value)));
+                if (c.CalleeType != null) sb.Append(" ; code:calleeType ").Append(Lit(c.CalleeType));
                 FromScript(sb, fromScriptLit).Append(" .\n");
                 // gli argomenti X.class (D43): code:typeName e non code:value, così le regole sulle stringhe non li vedono
                 foreach (var t in c.TypeArguments)
@@ -145,8 +146,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     sb.Append(Iri(StringArgument(cs, a.Position))).Append(" a ").Append(CodeOntology.ClassStringArgument)
                       .Append(" ; code:argumentOf ").Append(Iri(cs))
-                      .Append(" ; code:position ").Append(Int(a.Position))
-                      .Append(" ; code:value ").Append(Lit(a.Value));
+                      .Append(" ; code:position ").Append(Int(a.Position));
+                    // solo il nome del file: code:fileName e non code:value, così le regole sulle stringhe non lo prendono per il valore
+                    if (a.Value != null) sb.Append(" ; code:value ").Append(Lit(a.Value));
+                    else sb.Append(" ; code:fileName ").Append(Lit(a.FileName));
                     FromScript(sb, fromScriptLit).Append(" .\n");
                 }
             }

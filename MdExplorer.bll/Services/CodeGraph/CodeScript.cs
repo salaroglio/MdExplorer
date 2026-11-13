@@ -143,6 +143,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public int? ReceiverLine { get; set; }
         public int? ReceiverOrdinal { get; set; }
+        /// <summary>
+        /// La classe del metodo chiamato, risolta dal compilatore (<c>Demo.Dati.Lettore</c>); null se non si risolve. Due metodi
+        /// con lo stesso nome in classi diverse non si confondono (13/11/2026, dal cliente: un lettore C# omonimo di quello VB).
+        /// </summary>
+        public string CalleeType { get; set; }
     }
 
     /// <summary>
@@ -216,8 +221,13 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>Da 0, come i parametri.</summary>
         public int Position { get; set; }
-        /// <summary>Il contenuto, senza virgolette.</summary>
+        /// <summary>Il contenuto, senza virgolette; null quando del valore si sa solo il nome del file (<see cref="FileName"/>).</summary>
         public string Value { get; set; }
+        /// <summary>
+        /// Del valore si sa solo il nome del file con cui finisce (13/11/2026): <c>MapPath("~/sql/ordini.xml")</c>, o la
+        /// configurazione più <c>"\ordini.xml"</c>. Il percorso intero non si sa; il nome sì, per ogni strada. Null se c'è <see cref="Value"/>.
+        /// </summary>
+        public string FileName { get; set; }
     }
 
     public sealed class ScriptSymbolDoc

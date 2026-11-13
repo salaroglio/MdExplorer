@@ -41,8 +41,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 15 = <c>Shared Sub New</c> ha un id suo (<c>X..cctor()</c>), non quello di <c>Sub New()</c> (13/11/2026).
         /// 16 = stesso nome qualificato del C# per le implementazioni esplicite (formato comune).
         /// 17 = i <c>Delegate</c> sono tipi dichiarati (13/11/2026).
-        /// 18 = l'id di un Event è il nome senza parametri: Handles da un altro progetto arriva all'evento dichiarato (13/11/2026).</summary>
-        public override string ExtractorVersion => "18";
+        /// 18 = l'id di un Event è il nome senza parametri: Handles da un altro progetto arriva all'evento dichiarato (13/11/2026).
+        /// 19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).</summary>
+        public override string ExtractorVersion => "19";
 
         protected override bool IgnoresCase => true;
 

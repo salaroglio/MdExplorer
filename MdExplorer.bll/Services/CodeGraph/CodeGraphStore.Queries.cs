@@ -127,13 +127,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             return s;
         }
 
-        public async Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default)
+        public async Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default, bool withFileNames = false)
         {
             var g = GraphsOf(projectPath);
             var rows = await RowsAsync(
-                $"SELECT ?c ?caller ?path ?line ?ord ?recv ?argc ?pos ?val WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"SELECT ?c ?caller ?path ?line ?ord ?recv ?ctype ?argc ?pos ?val ?file WHERE {{ GRAPH {g.DataIri} {{ " +
                 $"?c a {CodeOntology.ClassCallSite} ; code:callee {Lit(callee)} ; code:caller ?caller ; code:path ?path ; code:line ?line ; code:ordinal ?ord ; code:argumentCount ?argc . " +
-                "OPTIONAL { ?c code:receiver ?recv } ?a code:argumentOf ?c ; code:position ?pos ; code:value ?val } } ORDER BY ?path ?line ?ord ?pos", ct);
+                "OPTIONAL { ?c code:receiver ?recv } OPTIONAL { ?c code:calleeType ?ctype } ?a code:argumentOf ?c ; code:position ?pos . " +
+                $"{{ ?a code:value ?val }} UNION {{ ?a code:fileName ?file }} }} }} ORDER BY ?path ?line ?ord ?pos", ct);
             var sites = new List<CodeCallSiteView>();
             var byIri = new Dictionary<string, CodeCallSiteView>(StringComparer.Ordinal);
             foreach (var r in rows)
@@ -143,13 +144,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                     byIri[r["c"]] = site = new CodeCallSiteView
                     {
                         CallerId = SymbolId(r["caller"]), Callee = callee, Path = Str(r, "path"), Line = Count(r, "line"),
-                        Ordinal = Count(r, "ord"), Receiver = Str(r, "recv"), ArgumentCount = Count(r, "argc"),
+                        Ordinal = Count(r, "ord"), Receiver = Str(r, "recv"), ArgumentCount = Count(r, "argc"), CalleeType = Str(r, "ctype"),
                     };
                     sites.Add(site);
                 }
-                site.Arguments[Count(r, "pos")] = Str(r, "val");
+                // il valore va fra gli argomenti; del solo nome del file si sa altro, e sta a parte (le regole sulle stringhe non lo vedono)
+                if (Str(r, "val") is { } val) site.Arguments[Count(r, "pos")] = val;
+                else site.FileNames[Count(r, "pos")] = Str(r, "file");
             }
-            return sites;
+            return withFileNames ? sites : sites.Where(s => s.Arguments.Count > 0).ToList();
         }
 
         public async Task<List<CodeCallSiteView>> TypeCallSitesAsync(string projectPath, string callee, CancellationToken ct = default)

@@ -1215,7 +1215,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var line = Line(node);
                         if (_x.IsRaise(node, out var raised) && _model.GetSymbolInfo(raised).Symbol is IEventSymbol raisedEvent)
                             Edge(ownerId, IdOf(raisedEvent), "calls", "extracted", line);
-                        if (shape.Callee != null && AddCallSites(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments, shape.ArgumentNodes, TypesOf(shape)) is { } site)
+                        var calleeType = info.Symbol is IMethodSymbol { ContainingType: { } ct } ? ct.OriginalDefinition.ToDisplayString(QualifiedFormat) : null;
+                        if (shape.Callee != null && AddCallSites(ownerId, line, shape.Callee, shape.Receiver, shape.Arguments, shape.ArgumentNodes, TypesOf(shape), calleeType) is { } site)
                         {
                             sites[node] = site;
                             if (shape.ReceiverNode != null) chained.Add((site, shape.ReceiverNode));
@@ -1395,28 +1396,38 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// I punti di chiamata con le stringhe degli argomenti, anche quelle passate per una variabile o una costante: un argomento
             /// che vale una di più stringhe (rami diversi) dà un punto per ciascuna, così le regole le leggono tutte.
             /// </summary>
-            private ScriptCallSite AddCallSites(string ownerId, int line, string callee, string receiver, IReadOnlyList<string> written, IReadOnlyList<SyntaxNode> nodes, List<ScriptTypeArgument> types)
+            /// <param name="calleeType">La classe del metodo chiamato, se il compilatore lo risolve (<see cref="ScriptCallSite.CalleeType"/>).</param>
+            private ScriptCallSite AddCallSites(string ownerId, int line, string callee, string receiver, IReadOnlyList<string> written, IReadOnlyList<SyntaxNode> nodes, List<ScriptTypeArgument> types,
+                string calleeType = null)
             {
                 var count = Math.Max(written?.Count ?? 0, nodes?.Count ?? 0);
                 var single = new List<string>(count);
+                // del valore intero non si sa niente, ma del nome del file sì (MapPath, configurazione + "\ordini.xml"): un solo nome
+                var fileNames = new List<string>(count);
                 int multi = -1; List<string> alternatives = null;
                 for (var i = 0; i < count; i++)
                 {
                     var text = written != null && i < written.Count ? written[i] : null;
+                    string fileName = null;
                     if (text == null && nodes != null && i < nodes.Count && nodes[i] != null && MayBeString(nodes[i]))
                     {
-                        var values = NameValues(_flow.Of(nodes[i], _model)).ToList();
+                        var flowed = _flow.Of(nodes[i], _model);
+                        var values = NameValues(flowed).ToList();
                         if (values.Count == 1) text = values[0];
                         else if (values.Count > 1 && multi < 0) { multi = i; alternatives = values; }
+                        else if (values.Count == 0 && flowed.FileNames() is { Count: 1 } names) fileName = names.First();
                     }
                     single.Add(text);
+                    fileNames.Add(fileName);
                 }
-                var first = _callSites.Add(ownerId, line, callee, receiver, single, types: types);
+                var first = _callSites.Add(ownerId, line, callee, receiver, single, types: types, fileNames: fileNames);
+                if (first != null) first.CalleeType = calleeType;
                 if (multi >= 0)
                     foreach (var alternative in alternatives)
                     {
                         var args = single.ToList(); args[multi] = alternative;
-                        var site = _callSites.Add(ownerId, line, callee, receiver, args, types: types);
+                        var site = _callSites.Add(ownerId, line, callee, receiver, args, types: types, fileNames: fileNames);
+                        if (site != null) site.CalleeType = calleeType;
                         first ??= site;
                     }
                 return first;

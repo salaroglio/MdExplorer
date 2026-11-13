@@ -93,6 +93,44 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Record_the_file_name_of_a_path_and_the_class_of_the_method_called()
+        {
+            // 13/11/2026, dal cliente: il catalogo passato come MapPath("~/sql/x.xml") o configurazione & "\x.xml"
+            File.WriteAllText(Path.Combine(_src, "Dati.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Lettore\n" +
+                "    Public Shared Function Leggi(file As String, gruppo As String, nome As String) As String\n      Return \"\"\n    End Function\n" +
+                "    Public Shared Function MapPath(p As String) As String\n      Return p\n    End Function\n" +
+                "  End Class\n" +
+                "  Public Class Dati\n" +
+                "    Private Shared Catalogo As String = Lettore.MapPath(\"~/sql/clienti.xml\")\n" +
+                "    Private Shared Altro As String = Environment.GetEnvironmentVariable(\"CARTELLA\") & \"\\ordini.xml\"\n" +
+                "    Private Shared Unito As String = System.IO.Path.Combine(Environment.CurrentDirectory, \"sql\", \"storico.xml\")\n" +
+                "    Private Shared Ignoto As String = Environment.GetEnvironmentVariable(\"FILE\")\n" +
+                "    Public Sub A()\n" +
+                "      Lettore.Leggi(Catalogo, \"CLIENTI\", \"CERCA\")\n" +
+                "      Lettore.Leggi(Altro, \"ORDINI\", \"ELENCO\")\n" +
+                "      Lettore.Leggi(Unito, \"ORDINI\", \"STORICO\")\n" +
+                "      Lettore.Leggi(Ignoto, \"ORDINI\", \"VECCHIO\")\n" +
+                "    End Sub\n" +
+                "  End Class\n" +
+                "End Namespace\n");
+
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Dati.vb").Script;
+
+            var sites = s.CallSites.Where(c => c.Callee == "Leggi").OrderBy(c => c.Line).ToList();
+            CollectionAssert.AreEqual(new[] { "clienti.xml", "ordini.xml", "storico.xml", null },
+                sites.Select(c => c.Arguments.SingleOrDefault(a => a.Position == 0)?.FileName).ToArray(), "solo il nome del file, e solo quando si sa per ogni strada");
+            Assert.IsTrue(sites.All(c => c.Arguments.All(a => a.Position == 0 ? a.Value == null : a.Value != null)), "il percorso intero non si sa: niente valore");
+            Assert.IsTrue(sites.All(c => c.CalleeType == "Demo.Lettore"), string.Join(", ", sites.Select(c => c.CalleeType)));
+
+            // e lo script scritto e riletto li tiene
+            var back = CodeScriptTurtle.Read(CodeScriptWriter.Serialize(s), "src/Demo/Dati.vb.ast.ttl");
+            var first = back.CallSites.Where(c => c.Callee == "Leggi").OrderBy(c => c.Line).First();
+            Assert.AreEqual(("clienti.xml", "Demo.Lettore"), (first.Arguments.Single(a => a.Position == 0).FileName, first.CalleeType));
+        }
+
+        [TestMethod]
         public void Start_the_event_to_handler_edge_from_the_declared_event()
         {
             // 13/11/2026, dal cliente: Event X(sender, e) dichiarato e Handles ctl.X avevano due id (con e senza parametri)

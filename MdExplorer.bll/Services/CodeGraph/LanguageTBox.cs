@@ -96,7 +96,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Relation(sb, Node("relation-calls"), "calls", "xml.queries", sql, null, "inferred");
                 foreach (var l in lang.Xml.Loaders)
                     Relation(sb, Node("relation-dispatches-" + l.Method), "dispatches", "xml.loaders." + l.Method,
-                        $"from the method that calls {(l.Receiver == null ? "" : l.Receiver + ".")}{l.Method}(…) to the query named by argument {l.Name}" + (l.Group != null ? $" in the group of argument {l.Group}" : "")
+                        $"from the method that calls {(l.Receiver == null ? "" : l.Receiver + ".")}{l.Method}(…)" + (l.Class != null ? $" of the class {l.Class}" : "")
+                        + (l.NameValue != null ? $" to the query {l.NameValue} (fixed inside the reader)" : $" to the query named by argument {l.Name}")
+                        + (l.GroupValue != null ? $" in the group {l.GroupValue}" : l.Group != null ? $" in the group of argument {l.Group}" : "")
+                        + (l.File != null ? $", in the catalog file named by argument {l.File} (also when only its file name is known: MapPath, configuration + \\name.xml)" : "")
                         + (l.Fragments.Count > 0 ? $", its fragments named by arguments {string.Join(", ", l.Fragments)}" : l.DefaultFragment != null ? $", its fragment {l.DefaultFragment}" : ", or all its fragments (ambiguous) if it has some")
                         + "; values as the graph knows them (written, or through a variable); several queries with that name: ambiguous", null, "inferred");
             }

@@ -46,7 +46,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// I punti di chiamata con stringhe di un nome chiamato (D42): quello che leggono le regole di arricchimento.
         /// In ordine di file, riga e ordine sulla riga.
         /// </summary>
-        Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
+        /// <param name="withFileNames">Anche i punti che hanno solo nomi di file (<see cref="CodeCallSiteView.FileNames"/>), per i
+        /// cataloghi XML; le regole sulle stringhe li lasciano fuori, come prima.</param>
+        Task<List<CodeCallSiteView>> CallSitesAsync(string projectPath, string callee, CancellationToken ct = default, bool withFileNames = false);
         /// <summary>I punti di chiamata di <paramref name="callee"/> con argomenti X.class (D43), anche quelli con soli tipi.</summary>
         Task<List<CodeCallSiteView>> TypeCallSitesAsync(string projectPath, string callee, CancellationToken ct = default);
         /// <summary>
