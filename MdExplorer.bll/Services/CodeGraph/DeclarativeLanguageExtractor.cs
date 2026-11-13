@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
-        public const string EngineVersion = "9";
+        public const string EngineVersion = "10";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
