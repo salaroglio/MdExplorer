@@ -52,7 +52,7 @@ namespace MdExplorer.Services.CodeGraph
                 MaxLines = maxLines ?? new CodeClosureRequest().MaxLines,
             };
             Func<CodeClosure> discover;
-            if (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
+            if (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null && lang.Definition.Xml == null)
                 discover = () => new DeclarativeClosure(lang.Definition, workspace).Compute(request);
             else if (string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase))
             {

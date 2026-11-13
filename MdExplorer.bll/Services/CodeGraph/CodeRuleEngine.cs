@@ -13,6 +13,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string MemberId { get; set; }
         public string MemberName { get; set; }
         public string MemberQualifiedName { get; set; }
+        /// <summary>Il tipo del simbolo (<c>query</c>, <c>function</c>…), quando la query lo dà.</summary>
+        public string MemberKind { get; set; }
         /// <summary>
         /// Il tipo del simbolo che contiene il membro (<c>interface</c> per una procedura dichiarata nella specifica di un package),
         /// quando la query lo dà: fra una dichiarazione e un'implementazione con lo stesso nome vince l'implementazione.

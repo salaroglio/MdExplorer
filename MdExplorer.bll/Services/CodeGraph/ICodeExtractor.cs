@@ -129,10 +129,11 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public ICodeExtractorRegistry ForProject(CodeLanguageCatalog catalog)
         {
-            var builtIn = _extractors.Values.Where(e => e is not DeclarativeLanguageExtractor and not TemplatePageExtractor);
+            var builtIn = _extractors.Values.Where(e => e is not DeclarativeLanguageExtractor and not TemplatePageExtractor and not XmlCatalogExtractor);
             // un pacchetto con la sezione template è un dialetto di pagine (D42 passo 2), gli altri sono linguaggi a righe
             var declared = catalog.All.Where(l => l.Definition != null).Select(l => l.Definition.Template != null
                 ? (ICodeExtractor)new TemplatePageExtractor(l.Definition)
+                : l.Definition.Xml != null ? new XmlCatalogExtractor(l.Definition)
                 : new DeclarativeLanguageExtractor(l.Definition));
             return new CodeExtractorRegistry(builtIn.Concat(declared), catalog);
         }

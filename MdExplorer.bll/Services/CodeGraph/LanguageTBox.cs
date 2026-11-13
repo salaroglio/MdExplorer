@@ -44,6 +44,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Kind(sb, Node("kind-" + d.Id), d.Kind, "declarations." + d.Id, "a name declared on one line" + In(d.In));
             if (lang.Fragments != null)
                 Kind(sb, Node("kind-fragment"), DeclarativeLanguage.FragmentKind, "fragments", "a piece of a block too long to describe in one go" + In(lang.Fragments.In) + ": the block contains its fragments");
+            if (lang.Xml != null)
+            {
+                Kind(sb, Node("kind-group"), "namespace", "xml.queries.group", "a group of queries in a catalog (the module contains it)");
+                for (var i = 0; i < lang.Xml.Queries.Count; i++)
+                {
+                    var q = lang.Xml.Queries[i];
+                    Kind(sb, Node("kind-query-" + i), "query", $"xml.queries[{i}]", $"an element matching '{q.MatchText}': a named SQL text read at run time; qualified name FILE:GROUP.NAME"
+                        + (q.Fragments != null ? "; its fragments (child elements selected by xml.queries.fragments, named after the element) are query symbols too, children of the query: the text is theirs" : "; the text is the element's"));
+                }
+            }
             if (lang.Template != null)
                 Kind(sb, Node("kind-control"), "control", "template", "an element of a page with an event or a javascript: link"
                     + (lang.Template.Controls.Count > 0 ? ", or with an id and " + string.Join(" and ", lang.Template.Controls.Select(c => $"{c.Attribute} matching '{c.Value}'")) + " (template.controls: a server control, linked to the handlers of the code-behind field with its id)" : "")
@@ -78,6 +88,18 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"the {b.Completes} block with the same name (in the same file, else in the analysed files: inferred), and from each member of this block the member of that block with the same kind and name (with overloads, the same number of parameters; several: ambiguous). A reference that finds both a declaration and its implementation goes to the implementation", null, null);
             if (lang.Fragments != null)
                 Relation(sb, Node("relation-jumps"), DeclarativeLanguage.JumpsRelation, "fragments", "another fragment of the same block: a jump written in the code, or the code running on into the next piece (inferred)", null, null);
+            if (lang.Xml != null)
+            {
+                const string sql = "the tables and procedures its SQL text names (FROM, JOIN, INSERT INTO, UPDATE, DELETE FROM, MERGE INTO; CALL/BEGIN for procedures), as external nodes of the sql language that an analysed database language replaces; a name in a placeholder is the node ? (ambiguous)";
+                Relation(sb, Node("relation-reads"), "reads", "xml.queries", sql, null, "inferred");
+                Relation(sb, Node("relation-writes"), "writes", "xml.queries", sql, null, "inferred");
+                Relation(sb, Node("relation-calls"), "calls", "xml.queries", sql, null, "inferred");
+                foreach (var l in lang.Xml.Loaders)
+                    Relation(sb, Node("relation-dispatches-" + l.Method), "dispatches", "xml.loaders." + l.Method,
+                        $"from the method that calls {(l.Receiver == null ? "" : l.Receiver + ".")}{l.Method}(…) to the query named by argument {l.Name}" + (l.Group != null ? $" in the group of argument {l.Group}" : "")
+                        + (l.Fragments.Count > 0 ? $", its fragments named by arguments {string.Join(", ", l.Fragments)}" : l.DefaultFragment != null ? $", its fragment {l.DefaultFragment}" : ", or all its fragments (ambiguous) if it has some")
+                        + "; values as the graph knows them (written, or through a variable); several queries with that name: ambiguous", null, "inferred");
+            }
             if (lang.Template != null)
             {
                 Relation(sb, Node("relation-includes"), "includes", "template", "the page a directive includes; code:guard holds the condition in the page", null, null);

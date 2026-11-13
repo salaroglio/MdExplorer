@@ -74,6 +74,52 @@ namespace MdExplorer.Features.Services.CodeGraph
         public FragmentRule Fragments { get; private init; }
         /// <summary>Le pagine a direttive (D42 passo 2): con questa sezione il linguaggio è un dialetto di pagine, letto da <see cref="TemplatePageExtractor"/>; null per i linguaggi a righe.</summary>
         public TemplateRule Template { get; private init; }
+        /// <summary>I cataloghi di SQL in XML (13/11/2026): con questa sezione il linguaggio è letto da <see cref="XmlCatalogExtractor"/>; null altrimenti.</summary>
+        public XmlRule Xml { get; private init; }
+
+        /// <summary>
+        /// Un catalogo di frasi SQL scritto in XML e letto a run time per nome (13/11/2026, rilevazione dal cliente: il livello
+        /// dati legge l'SQL con <c>Lettore.Leggi(file, gruppo, nome)</c> e lo esegue; il grafo si fermava al lettore).
+        /// <see cref="Queries"/> dice con XPath quali elementi sono query, il loro nome, il gruppo e i frammenti; ogni query (o
+        /// frammento) diventa un simbolo <c>query</c> che legge e scrive le tabelle del suo testo. <see cref="Loaders"/> dice
+        /// quali chiamate del codice leggono una query e in quale argomento sta ogni parte del nome: la chiamata «dispatches» la
+        /// query. <see cref="Placeholder"/> è un pezzo che il codice riempie (<c>{0}</c> di <c>AppendFormat</c>): un nome di
+        /// tabella che cade lì è il nodo <c>?</c>.
+        /// </summary>
+        public sealed class XmlRule
+        {
+            public IReadOnlyList<XmlQueryRule> Queries { get; init; }
+            public IReadOnlyList<XmlLoaderRule> Loaders { get; init; }
+            public Regex Placeholder { get; init; }
+        }
+
+        public sealed class XmlQueryRule
+        {
+            /// <summary>Gli elementi che sono query (XPath assoluto: <c>//Gruppo/Query</c>).</summary>
+            public System.Xml.XPath.XPathExpression Match { get; init; }
+            public string MatchText { get; init; }
+            /// <summary>Il nome, relativo alla query (<c>Nome</c>, <c>@id</c>, <c>name()</c>).</summary>
+            public System.Xml.XPath.XPathExpression Name { get; init; }
+            /// <summary>Il gruppo, relativo alla query (<c>../@name</c>); null = nessun gruppo.</summary>
+            public System.Xml.XPath.XPathExpression Group { get; init; }
+            /// <summary>I frammenti, relativi alla query (<c>*[not(self::Nome)]</c>): il nome è quello dell'elemento; null = il testo è della query.</summary>
+            public System.Xml.XPath.XPathExpression Fragments { get; init; }
+        }
+
+        public sealed class XmlLoaderRule
+        {
+            /// <summary>Il nome del metodo chiamato (<c>Leggi</c>).</summary>
+            public string Method { get; init; }
+            /// <summary>Facoltativo: la classe o l'oggetto davanti, com'è scritto (<c>Lettore</c>).</summary>
+            public string Receiver { get; init; }
+            /// <summary>Le posizioni degli argomenti (da 0): il file, il gruppo, il nome, un frammento, più frammenti.</summary>
+            public int? File { get; init; }
+            public int? Group { get; init; }
+            public int Name { get; init; }
+            public IReadOnlyList<int> Fragments { get; init; } = Array.Empty<int>();
+            /// <summary>Il frammento che legge un metodo senza l'argomento del frammento; null = non si sa, e la chiamata va a tutti i frammenti (ambiguous).</summary>
+            public string DefaultFragment { get; init; }
+        }
 
         /// <summary>
         /// Un dialetto di pagine HTML che il server riempie (D42 passo 2). L'HTML (controlli, script) lo legge MdExplorer,
@@ -443,6 +489,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var x in declarations) CheckIn($"declarations[{x.Id}].in", x.In, containers);
                 var fragments = BuildFragments(blocks);
                 var template = BuildTemplate();
+                var xml = BuildXml();
+                if (xml != null && template != null) throw Fail("xml e template: uno solo dei due", "xml and template: only one of the two");
 
                 return new DeclarativeLanguage
                 {
@@ -459,7 +507,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Parameters = BuildParameters(),
                     Types = new Dictionary<string, string>(_d.Types ?? new Dictionary<string, string>(), StringComparer.Ordinal),
                     References = (_d.References ?? new List<Yaml.Reference>()).Select((r, i) => BuildReference(r, i, ruleIds, declarations)).ToList(),
-                    Fragments = fragments, Template = template,
+                    Fragments = fragments, Template = template, Xml = xml,
                 };
             }
 
@@ -467,6 +515,54 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// La sezione <c>template</c>: esclude le regole dei linguaggi a righe (una pagina non ha blocchi né etichette), e
             /// ogni parola ha un solo significato.
             /// </summary>
+            private XmlRule BuildXml()
+            {
+                var x = _d.Xml;
+                if (x == null) return null;
+                var lineRules = new (string Name, bool Present)[]
+                {
+                    ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
+                    ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                };
+                foreach (var (name, present) in lineRules)
+                    if (present) throw Fail($"{name}: con xml non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with xml (it is for line-based languages); remove one of the two sections");
+                System.Xml.XPath.XPathExpression XPath(string where, string expr, bool required)
+                {
+                    if (string.IsNullOrWhiteSpace(expr))
+                    {
+                        if (required) throw Fail($"{where}: obbligatorio", $"{where}: required");
+                        return null;
+                    }
+                    try { return System.Xml.XPath.XPathExpression.Compile(expr); }
+                    catch (System.Xml.XPath.XPathException ex) { throw Fail($"{where}: '{expr}' non è un XPath valido ({ex.Message})", $"{where}: '{expr}' is not a valid XPath ({ex.Message})"); }
+                }
+                if (x.Queries == null || x.Queries.Count == 0) throw Fail("xml.queries: almeno una", "xml.queries: at least one");
+                var queries = x.Queries.Select((q, i) => new XmlQueryRule
+                {
+                    Match = XPath($"xml.queries[{i}].match", q.Match, true), MatchText = q.Match,
+                    Name = XPath($"xml.queries[{i}].name", q.Name, true), Group = XPath($"xml.queries[{i}].group", q.Group, false),
+                    Fragments = XPath($"xml.queries[{i}].fragments", q.Fragments, false),
+                }).ToList();
+                var loaders = (x.Loaders ?? new List<Yaml.XmlLoader>()).Select((l, i) =>
+                {
+                    var where = $"xml.loaders[{i}]";
+                    if (string.IsNullOrWhiteSpace(l.Method)) throw Fail($"{where}.method: obbligatorio", $"{where}.method: required");
+                    if (l.Name == null) throw Fail($"{where}.name: obbligatorio, la posizione dell'argomento col nome della query (da 0)", $"{where}.name: required, the position of the argument with the query name (from 0)");
+                    var fragments = l.Fragments ?? new List<int>();
+                    if (l.Fragment != null) fragments = fragments.Prepend(l.Fragment.Value).ToList();
+                    foreach (var p in new int?[] { l.File, l.Group, l.Name }.Concat(fragments.Select(f => (int?)f)))
+                        if (p < 0) throw Fail($"{where}: le posizioni degli argomenti partono da 0", $"{where}: argument positions start at 0");
+                    if (fragments.Count > 0 && l.DefaultFragment != null) throw Fail($"{where}: defaultFragment vale solo senza fragment/fragments", $"{where}: defaultFragment only applies without fragment/fragments");
+                    return new XmlLoaderRule
+                    {
+                        Method = l.Method.Trim(), Receiver = string.IsNullOrWhiteSpace(l.Receiver) ? null : l.Receiver.Trim(),
+                        File = l.File, Group = l.Group, Name = l.Name.Value, Fragments = fragments, DefaultFragment = l.DefaultFragment,
+                    };
+                }).ToList();
+                return new XmlRule { Queries = queries, Loaders = loaders, Placeholder = Rx("xml.placeholder", x.Placeholder ?? @"\{\d+\}") };
+            }
+
             private TemplateRule BuildTemplate()
             {
                 var t = _d.Template;
@@ -833,6 +929,31 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<Reference> References { get; set; }
                 public Fragments Fragments { get; set; }
                 public Template Template { get; set; }
+                public Xml Xml { get; set; }
+            }
+            public sealed class Xml
+            {
+                public List<XmlQuery> Queries { get; set; }
+                public List<XmlLoader> Loaders { get; set; }
+                public string Placeholder { get; set; }
+            }
+            public sealed class XmlQuery
+            {
+                public string Match { get; set; }
+                public string Name { get; set; }
+                public string Group { get; set; }
+                public string Fragments { get; set; }
+            }
+            public sealed class XmlLoader
+            {
+                public string Method { get; set; }
+                public string Receiver { get; set; }
+                public int? File { get; set; }
+                public int? Group { get; set; }
+                public int? Name { get; set; }
+                public int? Fragment { get; set; }
+                public List<int> Fragments { get; set; }
+                public string DefaultFragment { get; set; }
             }
             public sealed class Template
             {

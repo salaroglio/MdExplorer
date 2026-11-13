@@ -335,7 +335,9 @@ namespace MdExplorer.Features.Services.CodeGraph
               // un pezzo di un blocco troppo lungo, dalla sua etichetta alla successiva (linguaggi dichiarativi)
               "fragment",
               // un elemento di una pagina con un evento (onclick…) o un href javascript: (pagine a direttive, D42 passo 2)
-              "control" };
+              "control",
+              // una frase SQL con un nome in un catalogo XML, o un suo frammento, letta dal codice a run time (13/11/2026)
+              "query" };
         public static readonly string[] Relations =
             { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates",
               // il codice passa da un frammento all'altro: GOTO, o prosegue nel pezzo che segue

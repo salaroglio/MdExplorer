@@ -425,14 +425,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (languages == null || languages.Count == 0) return new List<CodeOwnerMember>();
             var g = GraphsOf(projectPath);
             var rows = await RowsAsync(
-                $"SELECT ?s ?name ?qn ?pk WHERE {{ GRAPH {g.DataIri} {{ VALUES ?lang {{ {string.Join(" ", languages.Select(Lit))} }} " +
+                $"SELECT ?s ?name ?qn ?pk ?k WHERE {{ GRAPH {g.DataIri} {{ VALUES ?lang {{ {string.Join(" ", languages.Select(Lit))} }} " +
                 "?s a code:Symbol ; code:language ?lang ; code:kind ?k ; code:name ?name ; code:qualifiedName ?qn . " +
                 "OPTIONAL { ?s code:parent ?p . ?p code:kind ?pk } " +
                 "FILTER(?k NOT IN (\"external\", \"fragment\", \"module\")) } } ORDER BY ?qn", ct);
             return rows.Select(r => new CodeOwnerMember
             {
                 OwnerId = SymbolId(r["s"]), MemberId = SymbolId(r["s"]), OwnerQualifiedName = Str(r, "qn"), MemberQualifiedName = Str(r, "qn"),
-                OwnerName = Str(r, "name"), MemberName = Str(r, "name"), ParentKind = Str(r, "pk"),
+                OwnerName = Str(r, "name"), MemberName = Str(r, "name"), ParentKind = Str(r, "pk"), MemberKind = Str(r, "k"),
             }).ToList();
         }
 

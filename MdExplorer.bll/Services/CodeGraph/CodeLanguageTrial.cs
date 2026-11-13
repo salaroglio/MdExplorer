@@ -152,7 +152,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 else
                 {
-                    var result = new DeclarativeLanguageExtractor(lang).Extract(request, ct);
+                    var result = lang.Xml != null ? new XmlCatalogExtractor(lang).Extract(request, ct) : new DeclarativeLanguageExtractor(lang).Extract(request, ct);
                     scripts.AddRange(result.Scripts.Select(s => s.Script));
                     warnings.AddRange(result.Warnings);
                     filesWithWarnings += result.Warnings.Select(w => w.Split(':')[0]).Distinct(StringComparer.Ordinal).Count();

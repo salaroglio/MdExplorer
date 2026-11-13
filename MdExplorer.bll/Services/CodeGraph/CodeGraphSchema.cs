@@ -35,6 +35,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["directive"] = "an Angular directive", ["pipe"] = "an Angular pipe", ["ngmodule"] = "an Angular NgModule",
             ["fragment"] = "a piece of a long block of a declarative language, from one label to the next",
             ["control"] = "an element of a page with an event (onclick…, (click)) or a javascript: link",
+            ["query"] = "a named SQL text in an XML catalog (or one of its fragments) that the code reads at run time by name: it reads and writes the tables of its text; the code that reads it «dispatches» it",
             ["external"] = "something used but declared outside the scanned perimeter (a library, another program not bridged): only its name is known",
         };
 

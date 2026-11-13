@@ -208,6 +208,53 @@ namespace MdExplorer.Features.Services.CodeGraph
             return edges.Count;
         }
 
+        /// <summary>L'id degli archi dei cataloghi SQL in XML: col trattino basso, come <see cref="PageScriptsId"/>.</summary>
+        public const string XmlCatalogsId = "_xml-catalogs";
+
+        /// <summary>
+        /// I cataloghi di SQL in XML (13/11/2026): a grafo caricato, ogni chiamata a un lettore dichiarato da un pacchetto con la
+        /// sezione <c>xml</c> diventa un arco <c>dispatches</c> verso la query o i frammenti che legge (<see cref="XmlCatalogLinker"/>),
+        /// in <c>.mde-code/_rules/_xml-catalogs.rules.ttl</c>, rifatto a ogni scansione; senza cataloghi il file non c'è. Torna gli
+        /// archi scritti e i nomi letti che nessun catalogo ha.
+        /// </summary>
+        public async Task<(int Edges, List<XmlCatalogLinker.Miss> Misses)> ApplyXmlCatalogsAsync(string projectPath, IReadOnlyList<DeclarativeLanguage> catalogs, CancellationToken ct = default)
+        {
+            var path = ScriptPath(projectPath, XmlCatalogsId);
+            var misses = new List<XmlCatalogLinker.Miss>();
+            var loaders = (catalogs ?? Array.Empty<DeclarativeLanguage>()).Where(l => l.Xml != null).SelectMany(l => l.Xml.Loaders).ToList();
+            if (loaders.Count == 0)
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    await _store.RemoveScriptAsync(projectPath, path, ct);
+                }
+                return (0, misses);
+            }
+            var sites = new Dictionary<string, IReadOnlyList<CodeCallSiteView>>(StringComparer.Ordinal);
+            foreach (var method in loaders.Select(l => l.Method).Distinct(StringComparer.Ordinal))
+                sites[method] = await _store.CallSitesAsync(projectPath, method, ct);
+            var entries = XmlCatalogLinker.Entries(await _store.SymbolsOfLanguagesAsync(projectPath, catalogs.Where(l => l.Xml != null).Select(l => l.Id).ToList(), ct));
+            var edges = XmlCatalogLinker.Link(loaders, m => sites.TryGetValue(m, out var s) ? s : Array.Empty<CodeCallSiteView>(), entries, misses);
+            var script = new CodeScript
+            {
+                Header = new CodeScriptHeader
+                {
+                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Rule, Source = XmlCatalogsId,
+                    WrittenBy = "MdExplorer", WrittenAt = string.Empty,
+                },
+                RuleDescription = "MdExplorer: le chiamate che leggono una query da un catalogo SQL in XML (i lettori dei pacchetti con la sezione xml) → la query o i frammenti letti.",
+            };
+            script.Edges.AddRange(edges);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var text = CodeScriptTurtle.Write(script);
+            if (!File.Exists(path) || File.ReadAllText(path, Encoding.UTF8) != text) File.WriteAllText(path, text, new UTF8Encoding(false));
+            var loaded = await _store.LoadScriptAsync(projectPath, path, ct);
+            if (loaded.Error != null) throw new CodeRuleException(loaded.Error);
+            _logger?.LogInformation("[CodeRules] '{Project}': {Count} letture di cataloghi SQL in XML collegate, {Misses} nomi senza query", projectPath, edges.Count, misses.Count);
+            return (edges.Count, misses);
+        }
+
         /// <summary>L'id degli archi delle registrazioni (<see cref="CodeRegistrations"/>): col trattino basso, come <see cref="PageScriptsId"/>.</summary>
         public const string RegistrationsId = "_registrations";
 

@@ -854,6 +854,11 @@ namespace MdExplorer.Services.CodeGraph
                             // prima la seconda passata delle pagine (D42 passo 2c): pulsante → funzione del file JS che la pagina carica
                             var pageLanguages = catalog.All.Where(l => l.Definition?.Template != null).Select(l => l.Id).ToList();
                             await rules.ApplyPageScriptsAsync(projectPath, pageLanguages, ct);
+                            // i cataloghi di SQL in XML: la chiamata che legge una query → la query (13/11/2026)
+                            var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, catalog.All.Where(l => l.Definition?.Xml != null).Select(l => l.Definition).ToList(), ct);
+                            if (catalogMisses.Count > 0)
+                                outcome.Warnings.Add(UiText.Say($"cataloghi SQL in XML: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
+                                    $"SQL catalogs in XML: {catalogMisses.Count} reads of a query no analysed catalog has (e.g. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})"));
                         }
                         if (rules != null)
                             foreach (var p in await rules.ReapplyAllAsync(projectPath, ct))
@@ -1159,7 +1164,7 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         private static bool CrossLinkable(CodeLanguage lang)
-            => (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null)
+            => (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null && lang.Definition.Xml == null)
                || string.Equals(lang.Id, "java", StringComparison.OrdinalIgnoreCase);
 
         private void CrossLink(string projectPath, CodeLanguage lang, List<(string Path, CodeScript Script)> own, HashSet<string> untouched,
