@@ -30,6 +30,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string Cycles = "cycles";
         public const string Unused = "unused";
         public const string Uncertain = "uncertain";
+        public const string DataReach = "data-reach";
+        public const string WhoReaches = "who-reaches";
+        public const string Reachability = "reachability";
 
         private static readonly Dictionary<string, string> FolderParam = new() { ["folder"] = "optional: a program folder or path prefix (program/, @core/app); empty = the whole graph" };
 
@@ -76,6 +79,25 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Name = FlowFrom,
                 Question = "What happens when this runs? The flow from one symbol, level by level, following calls, dispatches, resolvesTo (registered implementations), instantiates, with each step's summary and the link descriptions of the rules.",
                 Parameters = new Dictionary<string, string> { ["symbol"] = "required: symbol id or exact qualified name", ["depth"] = "optional: 1-5, default 3", ["limit"] = "optional: steps, 1-300, default 80" },
+            },
+            // la navigazione dei metodi (14/11/2026): pagina → business layer → data layer → query/procedura → tabelle, e all'indietro
+            new CodeQueryInfo
+            {
+                Name = DataReach,
+                Question = "Which data does this reach, and how? From a page, a control or a method, the WHOLE execution closure (calls, dispatches, resolvesTo, instantiates, includes, page → its controls) down to the tables it reads and writes: for each table the method/query/procedure with the SQL and one shortest chain with file:line of every step and its weakest confidence. Then where the walk STOPS before data, all counted: externals (library, program not analysed, unresolved name) and leaves (calls nothing, no SQL), each with its chain; and the uncertain edges crossed (inferred, ambiguous, llm-resolved). `unexplored` > 0 = the depth limit cut the walk.",
+                Parameters = new Dictionary<string, string> { ["symbol"] = "required: symbol id or exact qualified name (a page module, a control, a method)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: max stops/examples listed per group, 1-500, default 50 (counts are always complete)" },
+            },
+            new CodeQueryInfo
+            {
+                Name = WhoReaches,
+                Question = "Who reaches this? From a table, a catalog query, a procedure or a method, backwards over the same relations to the ENTRY points (nodes nothing in the graph executes: page controls, page modules, methods called by a framework), each with one shortest chain entry → … → symbol. Answers «which pages read/write table X», «which screens end up in this procedure».",
+                Parameters = new Dictionary<string, string> { ["symbol"] = "required: symbol id or exact qualified name (a table is an external node: use its name as code_find_symbol returns it)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: entries listed, 1-500, default 50 (`entries` is always the full count)" },
+            },
+            new CodeQueryInfo
+            {
+                Name = Reachability,
+                Question = "How navigable is a layer? From every page control under `from` (or, without controls there, every method nobody calls) forward over the execution relations: how many methods/queries under `to` are reached, and for the others why — no-callers (nothing in the graph calls them: framework, reflection, dead code, check) or callers-not-reached (called only by code that is not reached itself, with an example caller).",
+                Parameters = new Dictionary<string, string> { ["from"] = "optional: path prefix of the entries (e.g. the web folder); empty = the whole graph", ["to"] = "required: path prefix of the layer to measure (e.g. the data layer folder)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: unreached listed, 1-500, default 50" },
             },
             new CodeQueryInfo
             {

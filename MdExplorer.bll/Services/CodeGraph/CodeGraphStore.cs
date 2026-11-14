@@ -86,6 +86,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Gli archi fra file (contains e imports esclusi): file di partenza, file d'arrivo, relazione, quanti.</summary>
         Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>
+        /// Gli archi della navigazione (<see cref="CodeNavigation.Relations"/>), tutti in una query: le candidate scartate fuori,
+        /// la certezza effettiva (llm-resolved se l'LLM ha scelto), contains solo verso un controllo.
+        /// </summary>
+        Task<List<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>I simboli (non esterni) con uno di questi tipi e il file sotto uno dei prefissi (null = ovunque): id, tipo, nome qualificato, file.</summary>
+        Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds, IReadOnlyCollection<string> pathPrefixes, CancellationToken ct = default);
+        /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).
         /// </summary>

@@ -61,6 +61,31 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Load_the_navigation_edges_and_follow_a_method_down_its_calls()
+        {
+            // 14/11/2026: data-reach, who-reaches, reachability leggono gli archi con una query sola
+            var edges = await _repo.NavigationEdgesAsync(_project);
+            Assert.IsTrue(edges.Count > 0);
+            Assert.IsFalse(edges.Any(e => e.Relation == "contains"), "contains conta solo verso un controllo, e qui non ce ne sono");
+            Assert.IsTrue(edges.All(e => CodeNavigation.Relations.Contains(e.Relation)), string.Join(", ", edges.Select(e => e.Relation).Distinct()));
+            var go = edges.First(e => e.SourceName == "Demo.Client.Go()");
+            Assert.AreEqual(("method", "src/Demo/Client.cs"), (go.SourceKind, go.SourcePath));
+            Assert.IsNotNull(go.Line);
+
+            var g = new CodeNavigation.Graph(edges);
+            var r = CodeNavigation.From(g, go.Source, 50, 50);
+            var chainToRun = CodeNavigation.To(g, edges.First(e => e.TargetName == "Demo.Baz.Run(int)").Target, 50, 50);
+            Assert.IsTrue(chainToRun.List.Any(x => x.Symbol == "Demo.Client.Go()"), "Go → IFoo.Bar → Foo.Bar → Baz.Run: " + string.Join(" | ", chainToRun.List.Select(x => x.Symbol)));
+            Assert.IsTrue(r.ExternalStops > 0, "Console.WriteLine è un esterno: la strada si ferma lì e si conta");
+            Assert.AreEqual("Demo.IFoo.Bar(string, int)", r.Abstracts.Single().Symbol, "il metodo dell'interfaccia non è una foglia: gira l'implementazione");
+            Assert.IsFalse(r.Leaves.Any(l => l.Symbol == "Demo.IFoo.Bar(string, int)"));
+
+            var methods = await _repo.SymbolsOfKindsAsync(_project, new[] { "method" }, new[] { "src/Demo/" });
+            CollectionAssert.IsSubsetOf(new[] { "Demo.Client.Go()", "Demo.Baz.Run(int)" }, methods.Select(m => m.Name).ToList());
+            Assert.AreEqual(0, (await _repo.SymbolsOfKindsAsync(_project, new[] { "method" }, new[] { "altrove/" })).Count);
+        }
+
+        [TestMethod]
         public async Task Run_markagent_sparql_only_on_the_graph_of_its_project()
         {
             // un altro progetto nello stesso Fuseki: la sua classe non deve vedersi dal primo (12/11/2026, code_sparql)

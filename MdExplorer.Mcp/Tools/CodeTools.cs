@@ -205,7 +205,12 @@ public sealed class CodeTools : McpToolsBase
         "where-is-it: WHERE in the repository that information is although it was not analyzed (source outside the program folders, a jar, a .class, " +
         "a configuration file) with the remedy. not-analyzed: files on disk not in the graph and symbols without a description, per program folder. " +
         "program-outline (folder): files with what each is for and the main types — the skeleton of a functional analysis. entry-points: where the code starts. " +
-        "flow-from (symbol, depth): what happens when it runs, step by step with summaries. hotspots, cross-program, cycles, unused (candidates), uncertain. " +
+        "flow-from (symbol, depth): what happens when it runs, step by step with summaries. " +
+        "NAVIGATION of the methods (page → business layer → data layer → query/procedure → tables): data-reach (symbol): the tables a page, control or " +
+        "method reaches, with one shortest chain each (file:line of every step) and every point where the walk stops before data, counted by cause; " +
+        "who-reaches (symbol): the entry points (page controls, framework-called methods) that reach a table, query or method, with their chains; " +
+        "reachability (to, from): how many methods of a layer the pages reach, and why the others are not reached. Prefer them to code_sparql for these questions. " +
+        "hotspots, cross-program, cycles, unused (candidates), uncertain. " +
         "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
     public async Task<string> code_query(
         [Description("Project name.")] string project,

@@ -79,6 +79,9 @@ namespace MdExplorer.Services.CodeGraph
                 },
                 CodeQueryCatalog.Uncertain => (await _store.UncertainAsync(projectPath, prefix, Int("limit", 1, 200, 30), ct))
                     .Select(x => new { symbol = Brief(x.Symbol), confidence = x.Confidence, edges = x.Count }),
+                CodeQueryCatalog.DataReach => await DataReachAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
+                CodeQueryCatalog.WhoReaches => await WhoReachesAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
+                CodeQueryCatalog.Reachability => await ReachabilityAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 _ => throw new InvalidOperationException($"domanda «{name}» nel catalogo ma senza esecuzione"),
             };
         }
@@ -123,6 +126,68 @@ namespace MdExplorer.Services.CodeGraph
                 start = Brief(start[0]),
                 steps = steps.Select(x => new { depth = x.Depth, from = x.From, x.Edge.Relation, x.Edge.Confidence, to = Brief(x.Edge.Other), at = x.Edge.Path == null ? null : $"{x.Edge.Path}:{x.Edge.Line}", x.Edge.Description }),
                 truncated = cut ? UiText.Say($"fermato a {limit} passi: aumenta limit o parti da un punto più in basso", $"stopped at {limit} steps: raise limit or start further down") : null,
+            };
+        }
+
+        private static string Prefix(string folder) => folder == null ? null : folder.Replace('\\', '/').TrimEnd('/') + "/";
+
+        /// <summary>Un simbolo solo per nome o id; <paramref name="allowExternal"/> per chi arriva a una tabella (un esterno).</summary>
+        private async Task<CodeSymbolView> SingleAsync(string projectPath, string symbol, bool allowExternal, CancellationToken ct)
+        {
+            var found = (await _store.ResolveAsync(projectPath, symbol, 10, ct)).Where(s => allowExternal || s.Kind != "external").ToList();
+            if (found.Count == 1) return found[0];
+            throw new CodeQueryException(found.Count == 0
+                ? UiText.Say($"«{symbol}» non è nel grafo: code_find_symbol per trovarlo.", $"«{symbol}» is not in the graph: code_find_symbol to find it.")
+                : UiText.Say($"«{symbol}» è più di un simbolo: usa l'id. {string.Join("; ", found.Take(5).Select(s => $"{s.Id} {s.Kind} {s.QualifiedName}"))}",
+                    $"«{symbol}» is more than one symbol: use the id. {string.Join("; ", found.Take(5).Select(s => $"{s.Id} {s.Kind} {s.QualifiedName}"))}"));
+        }
+
+        private static string DepthNote(int unexplored, int depth) => unexplored == 0 ? null
+            : UiText.Say($"{unexplored} nodi al limite di {depth} passi hanno ancora archi da seguire: alza depth", $"{unexplored} nodes at the {depth}-hop limit still have edges to follow: raise depth");
+
+        private async Task<object> DataReachAsync(string projectPath, string symbol, int depth, int limit, CancellationToken ct)
+        {
+            var start = await SingleAsync(projectPath, symbol, allowExternal: false, ct);
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var r = CodeNavigation.From(g, start.Id, depth, limit);
+            return new
+            {
+                start = Brief(start), reached = r.Reached, maxDepth = r.MaxDepth,
+                tables = r.Tables, tableCount = r.Tables.Count,
+                stops = new { externals = r.ExternalStops, externalList = r.Externals, leaves = r.LeafStops, leafList = r.Leaves, interfaceMembers = r.AbstractStops, interfaceMemberList = r.Abstracts },
+                uncertainEdges = r.UncertainEdges, ambiguousExamples = r.AmbiguousExamples,
+                depthLimit = DepthNote(r.Unexplored, depth),
+                listsCut = r.ExternalStops > limit || r.LeafStops > limit || r.AbstractStops > limit
+                    ? UiText.Say($"elenchi tagliati a {limit} (i conti sono completi): alza limit", $"lists cut at {limit} (counts are complete): raise limit") : null,
+            };
+        }
+
+        private async Task<object> WhoReachesAsync(string projectPath, string symbol, int depth, int limit, CancellationToken ct)
+        {
+            var target = await SingleAsync(projectPath, symbol, allowExternal: true, ct);
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var r = CodeNavigation.To(g, target.Id, depth, limit);
+            return new
+            {
+                target = Brief(target), reached = r.Reached, maxDepth = r.MaxDepth,
+                entries = r.Entries, entriesByKind = r.EntriesByKind, list = r.List,
+                depthLimit = DepthNote(r.Unexplored, depth),
+                listCut = r.Entries > limit ? UiText.Say($"elenco tagliato a {limit} su {r.Entries}: alza limit", $"list cut at {limit} of {r.Entries}: raise limit") : null,
+            };
+        }
+
+        private async Task<object> ReachabilityAsync(string projectPath, string from, string to, int depth, int limit, CancellationToken ct)
+        {
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var kinds = CodeNavigation.TargetKinds.Append("control").ToList();
+            var symbols = await _store.SymbolsOfKindsAsync(projectPath, kinds, from == null ? null : new[] { from, to }, ct);
+            var r = CodeNavigation.Over(g, symbols, from, to, depth, limit);
+            return new
+            {
+                from, to, entries = r.EntriesKind, entryCount = r.EntryCount,
+                targets = r.Targets, reached = r.Reached, unreached = r.UnreachedCount, unreachedByWhy = r.UnreachedByWhy, unreachedList = r.Unreached,
+                depthLimit = DepthNote(r.Unexplored, depth),
+                listCut = r.UnreachedCount > limit ? UiText.Say($"elenco tagliato a {limit} su {r.UnreachedCount}: alza limit", $"list cut at {limit} of {r.UnreachedCount}: raise limit") : null,
             };
         }
 

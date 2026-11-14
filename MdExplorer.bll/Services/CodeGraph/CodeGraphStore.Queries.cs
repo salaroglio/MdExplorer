@@ -376,6 +376,37 @@ namespace MdExplorer.Features.Services.CodeGraph
             return rows.Select(r => (Str(r, "from"), Str(r, "to"), Str(r, "rel"), Count(r, "n"))).ToList();
         }
 
+        public async Task<List<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var relations = string.Join(" ", CodeNavigation.Relations.Select(Lit));
+            var rows = await RowsAsync(
+                $"SELECT ?s ?sk ?sqn ?sp ?sa ?t ?tk ?tqn ?tp ?ta ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES ?rel {{ {relations} }} " +
+                "?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:confidence ?conf0 . " + EffectiveConfidence +
+                "?s code:kind ?sk . ?t code:kind ?tk . FILTER(?rel != \"contains\" || ?tk = \"control\") " +
+                "OPTIONAL { ?s code:qualifiedName ?sqn } OPTIONAL { ?s code:path ?sp } OPTIONAL { ?t code:qualifiedName ?tqn } OPTIONAL { ?t code:path ?tp } " +
+                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } " +
+                "BIND(EXISTS { ?s code:parent ?sparent . ?sparent code:kind \"interface\" } AS ?sa) BIND(EXISTS { ?t code:parent ?tparent . ?tparent code:kind \"interface\" } AS ?ta) } }", ct);
+            return rows.Select(r =>
+            {
+                var s = SymbolId(r["s"]); var t = SymbolId(r["t"]);
+                return new CodeNavEdge(s, Str(r, "sk"), Str(r, "sqn") ?? s, Str(r, "sp"), t, Str(r, "tk"), Str(r, "tqn") ?? t, Str(r, "tp"),
+                    Str(r, "rel"), Str(r, "conf"), Str(r, "path"), Int(r, "line"), Str(r, "sa") == "true", Str(r, "ta") == "true");
+            }).ToList();
+        }
+
+        public async Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds,
+            IReadOnlyCollection<string> pathPrefixes, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var prefixes = (pathPrefixes ?? Array.Empty<string>()).Where(p => !string.IsNullOrEmpty(p)).ToList();
+            var under = prefixes.Count == 0 ? string.Empty : $"FILTER({string.Join(" || ", prefixes.Select(p => $"STRSTARTS(?path, {Lit(p)})"))}) ";
+            var rows = await RowsAsync(
+                $"SELECT ?s ?kind ?qn ?path WHERE {{ GRAPH {g.DataIri} {{ VALUES ?kind {{ {string.Join(" ", kinds.Select(Lit))} }} " +
+                $"?s a code:Symbol ; code:kind ?kind ; code:path ?path . {under}OPTIONAL {{ ?s code:qualifiedName ?qn }} }} }}", ct);
+            return rows.Select(r => { var id = SymbolId(r["s"]); return (id, Str(r, "kind"), Str(r, "qn") ?? id, Str(r, "path")); }).ToList();
+        }
+
         public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
             => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
 
