@@ -42,8 +42,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 16 = stesso nome qualificato del C# per le implementazioni esplicite (formato comune).
         /// 17 = i <c>Delegate</c> sono tipi dichiarati (13/11/2026).
         /// 18 = l'id di un Event è il nome senza parametri: Handles da un altro progetto arriva all'evento dichiarato (13/11/2026).
-        /// 19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).</summary>
-        public override string ExtractorVersion => "19";
+        /// 19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).
+        /// 20 = campi omonimi di classi diverse restano distinti nel seguire le stringhe: ognuno col suo catalogo (14/11/2026, dal cliente).</summary>
+        public override string ExtractorVersion => "20";
 
         protected override bool IgnoresCase => true;
 

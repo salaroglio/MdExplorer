@@ -131,6 +131,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Keep_apart_fields_with_the_same_name_in_different_classes()
+        {
+            // 14/11/2026, dal cliente: ogni classe del data layer ha il suo campo Shared con lo stesso nome e il suo catalogo;
+            // il grafo dava a tutte il catalogo di una sola
+            File.WriteAllText(Path.Combine(_src, "Lettore.vb"),
+                "Namespace Demo\n  Public Class Lettore\n" +
+                "    Public Shared Function Leggi(file As String, gruppo As String, nome As String) As String\n      Return \"\"\n    End Function\n" +
+                "    Public Shared Function MapPath(p As String) As String\n      Return p\n    End Function\n  End Class\nEnd Namespace\n");
+            foreach (var (cls, xml, vis) in new[] { ("Clienti", "clienti.xml", "Private"), ("Ordini", "ordini.xml", "Private"), ("Fatture", "fatture.xml", "Friend"), ("Resi", "resi.xml", "Friend") })
+                File.WriteAllText(Path.Combine(_src, cls + ".vb"),
+                    $"Namespace Demo\n  Public Class {cls}\n" +
+                    $"    {vis} Shared Catalogo As String = Lettore.MapPath(Environment.GetEnvironmentVariable(\"DIR\") & \"\\{xml}\")\n" +
+                    $"    Public Sub A()\n      Lettore.Leggi(Catalogo, \"G\", \"N\")\n    End Sub\n  End Class\nEnd Namespace\n");
+
+            var scripts = Extractor().Extract(Request()).Scripts;
+            foreach (var (cls, xml) in new[] { ("Clienti", "clienti.xml"), ("Ordini", "ordini.xml"), ("Fatture", "fatture.xml"), ("Resi", "resi.xml") })
+            {
+                var s = scripts.Single(x => x.File.LogicalPath == $"src/Demo/{cls}.vb").Script;
+                var site = s.CallSites.Single(c => c.Callee == "Leggi");
+                Assert.AreEqual(xml, site.Arguments.SingleOrDefault(a => a.Position == 0)?.FileName, cls);
+            }
+        }
+
+        [TestMethod]
         public void Start_the_event_to_handler_edge_from_the_declared_event()
         {
             // 13/11/2026, dal cliente: Event X(sender, e) dichiarato e Handles ctl.X avevano due id (con e senza parametri)

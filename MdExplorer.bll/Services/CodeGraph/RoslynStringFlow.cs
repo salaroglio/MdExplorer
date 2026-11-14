@@ -442,12 +442,23 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Un campo (non costante: le costanti sono già sopra): tutte le sue scritture — l'inizializzatore e le assegnazioni —
         /// nel tipo se è privato, in tutti i file se no. Nessuna scrittura: vale Nothing/null, nessun valore.
         /// </summary>
+        /// <summary>
+        /// La chiave di un campo: namespace, classi che lo contengono e nome. Il formato di default di Visual Basic non mette la
+        /// classe davanti al campo (14/11/2026, dal cliente: i campi Shared omonimi di tutte le classi del data layer erano un
+        /// campo solo, e tutte ricevevano il catalogo di una).
+        /// </summary>
+        private static readonly SymbolDisplayFormat FieldKeyFormat = new(
+            globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+            typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+            genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+            memberOptions: SymbolDisplayMemberOptions.IncludeContainingType);
+
         private StringValues Field(IFieldSymbol field, HashSet<object> visiting)
         {
             // lo stesso campo visto da due compilazioni (un progetto che riferisce l'altro) è due simboli: si confronta per nome qualificato
             if (field.Type?.SpecialType is not (SpecialType.System_String or SpecialType.System_Object)) return StringValues.Dynamic("not a string");
-            var key = "field:" + field.OriginalDefinition.ToDisplayString();
-            bool Same(IFieldSymbol f) => f != null && "field:" + f.OriginalDefinition.ToDisplayString() == key;
+            var key = "field:" + field.OriginalDefinition.ToDisplayString(FieldKeyFormat);
+            bool Same(IFieldSymbol f) => f != null && "field:" + f.OriginalDefinition.ToDisplayString(FieldKeyFormat) == key;
             if (_done.TryGetValue(key, out var cached)) return cached.Copy();
             var result = new StringValues { Via = field.Name };
             if (visiting.Count >= MaxChain || !visiting.Add(key)) { result.MarkUnknown("the value goes round a loop of fields"); return result; }
