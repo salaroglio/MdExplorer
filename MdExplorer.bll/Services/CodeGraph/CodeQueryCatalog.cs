@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             new CodeQueryInfo
             {
                 Name = Reachability,
-                Question = "How navigable is a layer? From every page control under `from` (or, without controls there, every method nobody calls) forward over the execution relations: how many methods/queries under `to` are reached, and for the others why — no-callers (nothing in the graph calls them: framework, reflection, dead code, check) or callers-not-reached (called only by code that is not reached itself, with an example caller).",
+                Question = "How navigable is a layer? From every page and page control under `from` — a page also runs its life-cycle events (Page_Load…) and its includes — (or, without pages there, every method nobody calls) forward over the execution relations: how many methods/queries under `to` are reached, and for the others why — no-callers (nothing in the graph calls them: framework, reflection, dead code, check) or callers-not-reached (called only by code that is not reached itself, with an example caller).",
                 Parameters = new Dictionary<string, string> { ["from"] = "optional: path prefix of the entries (e.g. the web folder); empty = the whole graph", ["to"] = "required: path prefix of the layer to measure (e.g. the data layer folder)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: unreached listed, 1-500, default 50" },
             },
             new CodeQueryInfo

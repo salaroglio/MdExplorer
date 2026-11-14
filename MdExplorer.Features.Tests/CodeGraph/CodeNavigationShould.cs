@@ -29,6 +29,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             ["qb"] = ("query", "dl/sql/b.xml:ORDINI.STORICO", "dl/sql/b.xml"),
             ["log"] = ("external", "log4net.ILog.Info", null),
             ["fmt"] = ("method", "Bl.Ordini.Formatta()", "bl/Ordini.vb"),
+            ["load"] = ("method", "Web.Ordini.Page_Load(Object, EventArgs)", "web/Ordini.aspx.vb"),
+            ["init"] = ("method", "Dl.Ordini.Inizializza()", "dl/Ordini.vb"),
             ["T_ORD"] = ("external", "ORDINI", null),
             ["T_RIG"] = ("external", "RIGHE", null),
             ["T_STO"] = ("external", "STORICO", null),
@@ -52,6 +54,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             E("q", "T_ORD", "writes"), E("q", "T_RIG", "writes"),
             E("qa", "T_STO", "reads"), E("qb", "T_STO", "reads"),
             E("deadCaller", "dead", "calls"),
+            // il ciclo di vita: la pagina chiama Page_Load (AutoEventWireup), e solo da lì si arriva a Inizializza
+            E("page", "load", "calls"), E("load", "init", "calls"),
             // contains verso un metodo è struttura, non esecuzione: non conta
             E("page", "h", "contains"),
         });
@@ -82,8 +86,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(1, r.ExternalStops);
             Assert.AreEqual("log4net.ILog.Info", r.Externals.Single().Symbol);
             Assert.AreEqual("bl/Ordini.vb:21", r.Externals.Single().At);
-            Assert.AreEqual(1, r.LeafStops, "Formatta non chiama niente e non ha SQL; le query non sono foglie, arrivano ai dati");
-            Assert.AreEqual("Bl.Ordini.Formatta()", r.Leaves.Single().Symbol);
+            CollectionAssert.AreEquivalent(new[] { "Bl.Ordini.Formatta()", "Dl.Ordini.Inizializza()" }, r.Leaves.Select(l => l.Symbol).ToArray(),
+                "non chiamano niente e non hanno SQL; le query non sono foglie, arrivano ai dati");
+            Assert.AreEqual(2, r.LeafStops);
             Assert.AreEqual(2, r.UncertainEdges["ambiguous"]);
             Assert.AreEqual(2, r.UncertainEdges["inferred"]);
             Assert.AreEqual(0, r.Unexplored);
@@ -112,14 +117,14 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public void Measure_which_data_layer_methods_the_pages_reach_and_why_not()
         {
-            var symbols = N.Where(kv => kv.Value.Kind != "external" && kv.Value.Kind != "module")
+            var symbols = N.Where(kv => kv.Value.Kind != "external")
                 .Select(kv => (kv.Key, kv.Value.Kind, kv.Value.Name, kv.Value.Path)).ToList();
             var r = CodeNavigation.Over(Graph(), symbols, "web/", "dl/", 50, 50);
 
-            Assert.AreEqual("control", r.EntriesKind);
-            Assert.AreEqual(1, r.EntryCount);
-            Assert.AreEqual(7, r.Targets, "3 metodi raggiunti/non, 2 morti, e le 3 query del data layer");
-            Assert.AreEqual(5, r.Reached);
+            Assert.AreEqual("page+control", r.EntriesKind);
+            Assert.AreEqual(2, r.EntryCount, "la pagina e il suo controllo");
+            Assert.AreEqual(8, r.Targets, "5 metodi del data layer (Inserisci, Storico, Inizializza, Mai, SoloDaMorto) e le sue 3 query");
+            Assert.AreEqual(6, r.Reached, "anche Inizializza, che si raggiunge solo dal ciclo di vita della pagina");
             Assert.AreEqual(1, r.UnreachedByWhy["no-callers"]);
             Assert.AreEqual(1, r.UnreachedByWhy["callers-not-reached"]);
             Assert.AreEqual("Bl.Vecchio.Usa()", r.Unreached.Single(u => u.Why == "callers-not-reached").ExampleCaller);

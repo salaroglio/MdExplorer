@@ -179,7 +179,7 @@ namespace MdExplorer.Services.CodeGraph
         private async Task<object> ReachabilityAsync(string projectPath, string from, string to, int depth, int limit, CancellationToken ct)
         {
             var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
-            var kinds = CodeNavigation.TargetKinds.Append("control").ToList();
+            var kinds = CodeNavigation.TargetKinds.Append("control").Append("module").ToList();
             var symbols = await _store.SymbolsOfKindsAsync(projectPath, kinds, from == null ? null : new[] { from, to }, ct);
             var r = CodeNavigation.Over(g, symbols, from, to, depth, limit);
             return new

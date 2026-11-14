@@ -214,16 +214,20 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>
         /// Quanti metodi (e query) sotto <paramref name="toPrefix"/> si raggiungono dagli ingressi sotto <paramref name="fromPrefix"/>:
-        /// i controlli delle pagine, o se non ce ne sono i metodi che nel grafo nessuno chiama. Per quelli che non si
+        /// le pagine e i loro controlli, o se non ce ne sono i metodi che nel grafo nessuno chiama. Per quelli che non si
         /// raggiungono: nessuno li chiama nel grafo (framework, riflessione, codice morto: da guardare), o li chiama solo
         /// codice che a sua volta non si raggiunge (con un esempio).
         /// </summary>
         public static Reachability Over(Graph g, IReadOnlyCollection<(string Id, string Kind, string Name, string Path)> symbols, string fromPrefix, string toPrefix, int maxDepth, int limit)
         {
             bool Under(string path, string prefix) => prefix == null || (path != null && path.StartsWith(prefix, StringComparison.Ordinal));
+            // le pagine (un modulo che esegue qualcosa: i suoi controlli, gli eventi del ciclo di vita come Page_Load, le pagine
+            // incluse) e i controlli (14/11/2026, dal cliente: partendo dai soli controlli, i metodi raggiunti solo dal ciclo di
+            // vita della pagina risultavano non raggiunti)
+            var pages = symbols.Where(s => s.Kind == "module" && Under(s.Path, fromPrefix) && g.OutOf(s.Id).Any(e => Flow.Contains(e.Relation))).Select(s => s.Id).ToList();
             var controls = symbols.Where(s => s.Kind == "control" && Under(s.Path, fromPrefix)).Select(s => s.Id).ToList();
-            var kind = "control";
-            var starts = controls;
+            var kind = pages.Count > 0 ? "page+control" : "control";
+            var starts = pages.Concat(controls).Distinct(StringComparer.Ordinal).ToList();
             if (starts.Count == 0)
             {
                 kind = "entry-point";

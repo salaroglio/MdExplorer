@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 31
+  version: 32
   updatePolicy: replace
 ---
 
@@ -231,8 +231,9 @@ three navigation questions of `code_query` — one call each, exact counts, no S
   edges crossed.
 - `who-reaches` (`symbol`: a table — an external node, find it with `code_find_symbol` — a catalog query, a procedure or a
   method): the entry points (page controls, page modules, framework-called methods) that reach it, each with its chain.
-- `reachability` (`to`: the layer's folder, `from`: the pages' folder): how many methods and queries of the layer the page
-  controls reach, and for the others why — `no-callers` or `callers-not-reached` (with an example caller).
+- `reachability` (`to`: the layer's folder, `from`: the pages' folder): how many methods and queries of the layer the pages
+  reach — a page runs its controls, its life-cycle events (`Page_Load`…) and its includes — and for the others why —
+  `no-callers` or `callers-not-reached` (with an example caller).
 
 A chain is a shortest path, not the only one. A `weakest` of `inferred`/`ambiguous` means at least one step was deduced:
 open that `path:line` before stating the link as certain. `depthLimit` or `listsCut` in the answer: the walk or a list was
