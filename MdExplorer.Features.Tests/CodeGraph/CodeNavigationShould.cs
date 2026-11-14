@@ -119,6 +119,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var symbols = N.Where(kv => kv.Value.Kind != "external")
                 .Select(kv => (kv.Key, kv.Value.Kind, kv.Value.Name, kv.Value.Path)).ToList();
+            // Mai è dichiarato anche in una copia: lo stesso nodo con due percorsi, contato una volta
+            symbols.Add(("orphan", "method", "Dl.Ordini.Mai()", "dl/copia/Ordini.vb"));
             var r = CodeNavigation.Over(Graph(), symbols, "web/", "dl/", 50, 50);
 
             Assert.AreEqual("page+control", r.EntriesKind);

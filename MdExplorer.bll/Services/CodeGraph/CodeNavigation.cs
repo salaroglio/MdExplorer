@@ -221,6 +221,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static Reachability Over(Graph g, IReadOnlyCollection<(string Id, string Kind, string Name, string Path)> symbols, string fromPrefix, string toPrefix, int maxDepth, int limit)
         {
             bool Under(string path, string prefix) => prefix == null || (path != null && path.StartsWith(prefix, StringComparison.Ordinal));
+            // un nodo per nome qualificato: un simbolo dichiarato in più file (una copia, una classe partial) ha più percorsi e
+            // tornerebbe più volte. Si conta una volta, con il percorso che sta sotto il prefisso (14/11/2026, dal cliente)
+            symbols = symbols.GroupBy(x => x.Id, StringComparer.Ordinal)
+                .Select(grp => grp.OrderBy(x => Under(x.Path, toPrefix) ? 0 : Under(x.Path, fromPrefix) ? 1 : 2).ThenBy(x => x.Path, StringComparer.Ordinal).First())
+                .ToList();
             // le pagine (un modulo che esegue qualcosa: i suoi controlli, gli eventi del ciclo di vita come Page_Load, le pagine
             // incluse) e i controlli (14/11/2026, dal cliente: partendo dai soli controlli, i metodi raggiunti solo dal ciclo di
             // vita della pagina risultavano non raggiunti)
