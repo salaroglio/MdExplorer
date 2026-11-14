@@ -89,7 +89,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Gli archi della navigazione (<see cref="CodeNavigation.Relations"/>), tutti in una query: le candidate scartate fuori,
         /// la certezza effettiva (llm-resolved se l'LLM ha scelto), contains solo verso un controllo.
         /// </summary>
-        Task<List<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default);
+        Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>I simboli (non esterni) con uno di questi tipi e il file sotto uno dei prefissi (null = ovunque): id, tipo, nome qualificato, file.</summary>
         Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds, IReadOnlyCollection<string> pathPrefixes, CancellationToken ct = default);
         /// <summary>
@@ -235,7 +235,22 @@ namespace MdExplorer.Features.Services.CodeGraph
         private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, CancellationToken ct)
             => SparqlResults.Parse(await QueryAsync(sparql, ct));
 
+        /// <summary>
+        /// Quante scritture sono passate da qui (tutte quelle sul grafo del codice): una cache costruita prima di una scrittura
+        /// non vale più (<see cref="NavigationEdgesAsync"/>). Statico: le istanze del store parlano con lo stesso Fuseki.
+        /// </summary>
+        private static long _writes;
+        /// <summary>Le scritture in corso: finché ce n'è una, nessuna cache si usa né si tiene.</summary>
+        private static long _writing;
+
         private async Task UpdateAsync(string sparqlUpdate, CancellationToken ct)
+        {
+            Interlocked.Increment(ref _writing);
+            try { await UpdateCoreAsync(sparqlUpdate, ct); }
+            finally { Interlocked.Increment(ref _writes); Interlocked.Decrement(ref _writing); }
+        }
+
+        private async Task UpdateCoreAsync(string sparqlUpdate, CancellationToken ct)
         {
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
             // Gli update costruiti dal writer portano già i PREFIX; quelli di stato no.

@@ -376,23 +376,35 @@ namespace MdExplorer.Features.Services.CodeGraph
             return rows.Select(r => (Str(r, "from"), Str(r, "to"), Str(r, "rel"), Count(r, "n"))).ToList();
         }
 
-        public async Task<List<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
+        /// <summary>Gli archi della navigazione per grafo dati, con il numero di scritture di quando si sono letti.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Writes, IReadOnlyList<CodeNavEdge> Edges)> _navigation = new(StringComparer.Ordinal);
+
+        public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            // in cache finché nessuno scrive sul grafo (14/11/2026, dal cliente: ogni domanda rileggeva tutti gli archi)
+            var before = Interlocked.Read(ref _writes);
+            var quiet = Interlocked.Read(ref _writing) == 0;
+            if (quiet && _navigation.TryGetValue(g.Data, out var cached) && cached.Writes == before) return cached.Edges;
             var relations = string.Join(" ", CodeNavigation.Relations.Select(Lit));
             var rows = await RowsAsync(
-                $"SELECT ?s ?sk ?sqn ?sp ?sa ?t ?tk ?tqn ?tp ?ta ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES ?rel {{ {relations} }} " +
+                $"SELECT ?s ?sk ?sqn ?sp ?t ?tk ?tqn ?tp ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES ?rel {{ {relations} }} " +
                 "?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:confidence ?conf0 . " + EffectiveConfidence +
                 "?s code:kind ?sk . ?t code:kind ?tk . FILTER(?rel != \"contains\" || ?tk = \"control\") " +
                 "OPTIONAL { ?s code:qualifiedName ?sqn } OPTIONAL { ?s code:path ?sp } OPTIONAL { ?t code:qualifiedName ?tqn } OPTIONAL { ?t code:path ?tp } " +
-                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } " +
-                "BIND(EXISTS { ?s code:parent ?sparent . ?sparent code:kind \"interface\" } AS ?sa) BIND(EXISTS { ?t code:parent ?tparent . ?tparent code:kind \"interface\" } AS ?ta) } }", ct);
-            return rows.Select(r =>
+                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } } }", ct);
+            // i membri delle interfacce a parte: una query sola, non un EXISTS per ogni arco
+            var abstracts = (await RowsAsync($"SELECT ?m WHERE {{ GRAPH {g.DataIri} {{ ?m code:parent ?p . ?p code:kind \"interface\" }} }}", ct))
+                .Select(r => SymbolId(r["m"])).ToHashSet(StringComparer.Ordinal);
+            var edges = rows.Select(r =>
             {
                 var s = SymbolId(r["s"]); var t = SymbolId(r["t"]);
                 return new CodeNavEdge(s, Str(r, "sk"), Str(r, "sqn") ?? s, Str(r, "sp"), t, Str(r, "tk"), Str(r, "tqn") ?? t, Str(r, "tp"),
-                    Str(r, "rel"), Str(r, "conf"), Str(r, "path"), Int(r, "line"), Str(r, "sa") == "true", Str(r, "ta") == "true");
+                    Str(r, "rel"), Str(r, "conf"), Str(r, "path"), Int(r, "line"), abstracts.Contains(s), abstracts.Contains(t));
             }).ToList();
+            // si tiene solo se nessuno ha scritto mentre si leggeva
+            if (quiet && Interlocked.Read(ref _writing) == 0 && Interlocked.Read(ref _writes) == before) _navigation[g.Data] = (before, edges);
+            return edges;
         }
 
         public async Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds,

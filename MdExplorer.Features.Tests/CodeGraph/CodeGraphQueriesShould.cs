@@ -86,6 +86,25 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Keep_the_navigation_edges_until_the_graph_is_written()
+        {
+            // 14/11/2026, dal cliente: ogni domanda di navigazione rileggeva tutti gli archi, ed era lentissimo
+            var first = await _repo.NavigationEdgesAsync(_project);
+            Assert.AreSame(first, await _repo.NavigationEdgesAsync(_project), "nessuna scrittura: gli stessi archi, senza rileggere");
+
+            var src = Path.Combine(_project, "src", "Demo");
+            File.WriteAllText(Path.Combine(src, "Nuovo.cs"), "namespace Demo { public class Nuovo { public void Usa(Client c) { c.Go(); } } }");
+            var files = Directory.GetFiles(src, "*.cs").OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            foreach (var (file, script) in new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast), CodeScriptWriter.Serialize(script));
+            Assert.AreEqual(0, (await _repo.LoadProjectAsync(_project)).Failed);
+
+            var after = await _repo.NavigationEdgesAsync(_project);
+            Assert.AreNotSame(first, after, "il grafo è cambiato: si rileggono");
+            Assert.IsTrue(after.Any(e => e.SourceName == "Demo.Nuovo.Usa(Demo.Client)" && e.TargetName == "Demo.Client.Go()"), string.Join(" | ", after.Select(e => e.SourceName)));
+        }
+
+        [TestMethod]
         public async Task Run_markagent_sparql_only_on_the_graph_of_its_project()
         {
             // un altro progetto nello stesso Fuseki: la sua classe non deve vedersi dal primo (12/11/2026, code_sparql)
