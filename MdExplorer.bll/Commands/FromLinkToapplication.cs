@@ -54,6 +54,12 @@ namespace MdExplorer.Features.Commands
 
         public string TransformAfterConversion(string html, RequestInfo requestInfo)
         {
+            // Static export: there is no application to open, and the page would carry a path of this disk.
+            // The link stays a link, to the copy of the file the export puts next to the page.
+            if (requestInfo.StaticExport)
+            {
+                return html;
+            }
             var matches = GetMatches(html);
             var supportedExtensions = _extensionConfiguration.GetSupportedExtensions();
 

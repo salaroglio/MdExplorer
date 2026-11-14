@@ -1,8 +1,10 @@
 ﻿using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Commands
@@ -54,11 +56,13 @@ namespace MdExplorer.Features.Commands
         {
             var stringToReturn = markdown;
             var matches = GetMatches(markdown);
-            if (matches.Count==0)
+            // The first "# :floppy_disk:" title outside code: one written in a code block is text.
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var item = matches.Cast<Match>().FirstOrDefault(m => !regions.IsCode(m.Index));
+            if (item == null)
                 return stringToReturn;
-            
+
             var currentIncrement = 0;
-            var item = matches[0];
             var fileName = item.Groups[2].Value.Replace("\r",string.Empty);
             var text = item.Groups[1].Value + item.Groups[2].Value;
             var source = $"floppyDiskEmoji";

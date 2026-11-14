@@ -1,0 +1,99 @@
+:host {
+  display: block;
+  color: var(--mde-text-primary);
+}
+
+.wizard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  font-size: 0.85em;
+  color: var(--mde-text-hint);
+
+  li {
+    counter-increment: step;
+
+    &::before { content: counter(step) " · "; }
+    &.done { color: var(--mde-text-secondary); }
+    &.current { color: var(--mde-accent-primary); font-weight: 600; }
+  }
+}
+
+.wizard-body {
+  min-width: min(640px, 80vw);
+  max-height: 60vh;
+
+  .lead { font-size: 1.1em; line-height: 1.5; }
+  .hint { color: var(--mde-text-hint); font-size: 0.9em; }
+  h3 { margin: 16px 0 6px; font-size: 1em; }
+
+  blockquote {
+    margin: 8px 0;
+    padding: 6px 12px;
+    border-left: 3px solid var(--mde-accent-secondary);
+    background: var(--mde-bg-secondary);
+  }
+
+  code {
+    font-size: 0.9em;
+    background: var(--mde-bg-tertiary);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+}
+
+.scope-choice {
+  display: flex;
+  gap: 24px;
+  margin: 8px 0;
+}
+
+.contexts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--mde-border-color);
+  border-radius: 4px;
+
+  &.disabled { opacity: 0.5; }
+
+  li { padding: 2px 8px; }
+  li:hover { background: var(--mde-bg-hover); }
+  .count { margin-left: 8px; color: var(--mde-text-secondary); font-size: 0.85em; }
+}
+
+.numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.sample, .facts, .examples, .analyses {
+  padding-left: 0;
+  list-style: none;
+
+  li { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; }
+}
+
+.analyses li { display: block; }
+.status { margin-left: 6px; color: var(--mde-text-hint); font-size: 0.85em; }
+.note { color: var(--mde-text-secondary); }
+
+mat-icon.ok { color: var(--mde-success-fg); }
+mat-icon.ko { color: var(--mde-error-fg); }
+mat-icon.unchecked { color: var(--mde-text-hint); }
+
+.error { color: var(--mde-error-fg); }

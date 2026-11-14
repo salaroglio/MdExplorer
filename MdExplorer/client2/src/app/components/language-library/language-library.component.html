@@ -1,0 +1,75 @@
+<div class="language-library">
+  <!-- impostazioni generali: la libreria di questo computer -->
+  <ng-container *ngIf="!projectMode">
+    <p class="hint-text">{{ 'LANGUAGE_LIBRARY.LIBRARY_HINT' | translate }}</p>
+    <div class="actions">
+      <button mat-stroked-button color="primary" [matMenuTriggerFor]="importMenu" [disabled]="busy === 'import'">
+        <mat-icon>upload_file</mat-icon> {{ 'LANGUAGE_LIBRARY.LOAD_PACKAGE' | translate }}
+      </button>
+      <mat-menu #importMenu="matMenu">
+        <button mat-menu-item (click)="importPackage('zip')"><mat-icon>folder_zip</mat-icon> {{ 'LANGUAGE_LIBRARY.FROM_ZIP' | translate }}</button>
+        <button mat-menu-item (click)="importPackage('folder')"><mat-icon>folder_open</mat-icon> {{ 'LANGUAGE_LIBRARY.FROM_FOLDER' | translate }}</button>
+      </mat-menu>
+      <mat-spinner *ngIf="busy === 'import'" diameter="20"></mat-spinner>
+    </div>
+
+    <p *ngIf="!loading && library.length === 0" class="hint-text">{{ 'LANGUAGE_LIBRARY.LIBRARY_EMPTY' | translate }}</p>
+    <div class="package" *ngFor="let p of library">
+      <div class="info">
+        <div class="title"><strong>{{ p.displayName }}</strong> <span class="version" *ngIf="p.version">v{{ p.version }}</span> <code>{{ p.id }}</code></div>
+        <div class="meta" *ngIf="!p.error">{{ kinds(p) }}<span *ngIf="p.skills.length"> · {{ 'LANGUAGE_LIBRARY.SKILLS' | translate: { n: p.skills.length } }}</span><span *ngIf="p.findings"> · {{ 'LANGUAGE_LIBRARY.FINDINGS' | translate: { n: p.findings } }}</span></div>
+        <div class="error" *ngIf="p.error">{{ p.error }}</div>
+      </div>
+      <button mat-stroked-button color="warn" (click)="remove(p)" [disabled]="busy === p.id">
+        <mat-icon>delete</mat-icon> {{ 'LANGUAGE_LIBRARY.REMOVE' | translate }}
+      </button>
+    </div>
+    <p class="hint-text folder" *ngIf="libraryFolder">{{ 'LANGUAGE_LIBRARY.FOLDER' | translate }}: <code>{{ libraryFolder }}</code></p>
+  </ng-container>
+
+  <!-- impostazioni del progetto: quali pacchetti della libreria sono attivi qui -->
+  <ng-container *ngIf="projectMode">
+    <p class="hint-text">{{ 'LANGUAGE_LIBRARY.PROJECT_HINT' | translate }}</p>
+    <p *ngIf="!loading && project.length === 0" class="hint-text">{{ 'LANGUAGE_LIBRARY.PROJECT_EMPTY' | translate }}</p>
+    <div class="package" *ngFor="let p of project">
+      <div class="info">
+        <div class="title">
+          <strong>{{ p.displayName }}</strong>
+          <span class="version" *ngIf="p.active && p.projectVersion">v{{ p.projectVersion }}</span>
+          <span class="version" *ngIf="!p.active && p.libraryVersion">v{{ p.libraryVersion }}</span>
+          <code>{{ p.id }}</code>
+          <span class="state active" *ngIf="p.active">{{ 'LANGUAGE_LIBRARY.STATE_ACTIVE' | translate }}</span>
+          <span class="state update" *ngIf="p.updateAvailable">{{ 'LANGUAGE_LIBRARY.STATE_UPDATE' | translate: { version: p.libraryVersion } }}</span>
+          <span class="state" *ngIf="p.active && !p.inLibrary">{{ 'LANGUAGE_LIBRARY.STATE_NOT_IN_LIBRARY' | translate }}</span>
+        </div>
+        <div class="meta" *ngIf="!p.error">{{ kinds(p) }}</div>
+        <div class="meta" *ngIf="p.usedBy.length">{{ 'LANGUAGE_LIBRARY.USED_BY' | translate: { folders: p.usedBy.join(', ') } }}</div>
+        <div class="error" *ngIf="p.error">{{ p.error }}</div>
+      </div>
+      <div class="buttons">
+        <button mat-raised-button color="primary" *ngIf="!p.active && p.inLibrary" (click)="activate(p)" [disabled]="busy === p.id">
+          <mat-icon>add</mat-icon> {{ 'LANGUAGE_LIBRARY.ACTIVATE' | translate }}
+        </button>
+        <button mat-stroked-button color="primary" *ngIf="p.updateAvailable" (click)="activate(p, true)" [disabled]="busy === p.id">
+          <mat-icon>update</mat-icon> {{ 'LANGUAGE_LIBRARY.UPDATE' | translate }}
+        </button>
+        <button mat-stroked-button *ngIf="p.active && (!p.inLibrary || (p.projectVersion ?? 0) > (p.libraryVersion ?? 0))" (click)="adopt(p)" [disabled]="busy === p.id">
+          <mat-icon>library_add</mat-icon> {{ 'LANGUAGE_LIBRARY.ADOPT' | translate }}
+        </button>
+        <button mat-stroked-button color="warn" *ngIf="p.active" (click)="deactivate(p)" [disabled]="busy === p.id || p.usedBy.length > 0"
+                [matTooltip]="p.usedBy.length ? ('LANGUAGE_LIBRARY.DEACTIVATE_BLOCKED' | translate) : ''">
+          <mat-icon>remove</mat-icon> {{ 'LANGUAGE_LIBRARY.DEACTIVATE' | translate }}
+        </button>
+      </div>
+    </div>
+    <p class="hint-text folder">{{ 'LANGUAGE_LIBRARY.PROJECT_LOAD_HINT' | translate }}</p>
+  </ng-container>
+
+  <div class="confirm" *ngIf="pendingReplace">
+    <p>{{ pendingReplace.text }}</p>
+    <button mat-raised-button color="primary" (click)="confirmReplace()">{{ 'LANGUAGE_LIBRARY.REPLACE' | translate }}</button>
+    <button mat-button (click)="cancelReplace()">{{ 'COMMON.CANCEL' | translate }}</button>
+  </div>
+  <p class="done" *ngIf="message">{{ message }}</p>
+  <p class="error" *ngIf="error">{{ error }}</p>
+</div>

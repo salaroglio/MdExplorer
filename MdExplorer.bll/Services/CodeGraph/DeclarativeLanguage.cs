@@ -1,0 +1,1134 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using MdExplorer.Features.Services;
+using YamlDotNet.Core;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+
+namespace MdExplorer.Features.Services.CodeGraph
+{
+    /// <summary>
+    /// Un linguaggio definito nel progetto di documentazione: il file <c>language.yml</c> di un pacchetto
+    /// (<see cref="LanguagePackage"/>, <c>.mde-languages/&lt;id&gt;/</c>), di regole dichiarative — blocchi aperti e chiusi da parole chiave, etichette,
+    /// parametri, riferimenti — letto da <see cref="DeclarativeLanguageExtractor"/>. Niente codice eseguibile dal repository:
+    /// solo espressioni regolari, con un tempo massimo. Lettura <b>rigida</b>: una chiave che il formato non conosce, una
+    /// regex che non compila, un gruppo obbligatorio che manca o un riferimento a una regola inesistente sono errori con il
+    /// file e il campo, mai righe ignorate.
+    /// </summary>
+    public sealed class DeclarativeLanguage
+    {
+        public const string FolderName = ".mde-languages";
+        /// <summary>Il formato di prima, un file piatto <c>.mde-languages/&lt;id&gt;.lang.yml</c>: si sposta nel pacchetto (<see cref="LanguagePackage.MigrateFlat"/>).</summary>
+        public const string LegacyFileSuffix = ".lang.yml";
+        public const int CurrentSchema = 1;
+        /// <summary>Il nome che le regole dei riferimenti usano per il file stesso (il modulo).</summary>
+        public const string ModuleRule = "module";
+        /// <summary>L'id di regola dei frammenti (<see cref="FragmentRule"/>): riservato, come <see cref="ModuleRule"/>.</summary>
+        public const string FragmentsRule = "fragment";
+        /// <summary>Il kind dei frammenti e la relazione dei salti fra frammenti: solo la sezione <c>fragments</c> li produce.</summary>
+        public const string FragmentKind = "fragment";
+        public const string JumpsRelation = "jumps";
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
+
+        public string Id { get; private init; }
+        public string DisplayName { get; private init; }
+        public int Version { get; private init; }
+        public IReadOnlyList<string> Extensions { get; private init; }
+        public bool IgnoreCase { get; private init; }
+        /// <summary>
+        /// <c>database: true</c> (12/11/2026): i simboli di questo linguaggio sono oggetti di un database (procedure, funzioni, package,
+        /// tabelle, viste) e l'SQL scritto nel codice C# o Visual Basic che li nomina si ricollega a loro (<see cref="CodeSqlLinker"/>).
+        /// </summary>
+        public bool Database { get; private init; }
+        public string DefinitionPath { get; private init; }
+        /// <summary>Le prime 8 cifre dello SHA-256 del file: cambiare una regola vuol dire riparsare tutto.</summary>
+        public string DefinitionHash { get; private init; }
+        public StringComparer NameComparer => IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+        public string LineComment { get; private init; }
+        /// <summary>
+        /// Il commento a blocco (<c>lexical.blockComment: ['/*', '*/']</c>, 12/11/2026): può stare su più righe e il suo testo
+        /// diventa spazi, così niente di quello che c'è dentro apre un blocco o fa un arco. Null se il linguaggio non lo ha.
+        /// </summary>
+        public string BlockCommentOpen { get; private init; }
+        public string BlockCommentClose { get; private init; }
+        /// <summary>
+        /// <c>lexical.multilineString: true</c> (12/11/2026): una stringa non chiusa continua sulla riga dopo (PL/SQL, SQL), e
+        /// quello che contiene non è codice né commento. Senza, una stringa finisce con la riga (i BASIC).
+        /// </summary>
+        public bool MultilineString { get; private init; }
+        public char? StringDelimiter { get; private init; }
+        public Regex Continuation { get; private init; }
+        public Regex ModuleName { get; private init; }
+        public IReadOnlyList<BlockRule> Blocks { get; private init; }
+        public IReadOnlyList<LabelRule> Labels { get; private init; }
+        public IReadOnlyList<DeclarationRule> Declarations { get; private init; }
+        public ParameterRule Parameters { get; private init; }
+        public IReadOnlyDictionary<string, string> Types { get; private init; }
+        public IReadOnlyList<ReferenceRule> References { get; private init; }
+        public FragmentRule Fragments { get; private init; }
+        /// <summary>Le pagine a direttive (D42 passo 2): con questa sezione il linguaggio è un dialetto di pagine, letto da <see cref="TemplatePageExtractor"/>; null per i linguaggi a righe.</summary>
+        public TemplateRule Template { get; private init; }
+        /// <summary>I cataloghi di SQL in XML (13/11/2026): con questa sezione il linguaggio è letto da <see cref="XmlCatalogExtractor"/>; null altrimenti.</summary>
+        public XmlRule Xml { get; private init; }
+
+        /// <summary>
+        /// Un catalogo di frasi SQL scritto in XML e letto a run time per nome (13/11/2026, rilevazione dal cliente: il livello
+        /// dati legge l'SQL con <c>Lettore.Leggi(file, gruppo, nome)</c> e lo esegue; il grafo si fermava al lettore).
+        /// <see cref="Queries"/> dice con XPath quali elementi sono query, il loro nome, il gruppo e i frammenti; ogni query (o
+        /// frammento) diventa un simbolo <c>query</c> che legge e scrive le tabelle del suo testo. <see cref="Loaders"/> dice
+        /// quali chiamate del codice leggono una query e in quale argomento sta ogni parte del nome: la chiamata «dispatches» la
+        /// query. <see cref="Placeholder"/> è un pezzo che il codice riempie (<c>{0}</c> di <c>AppendFormat</c>): un nome di
+        /// tabella che cade lì è il nodo <c>?</c>.
+        /// </summary>
+        public sealed class XmlRule
+        {
+            public IReadOnlyList<XmlQueryRule> Queries { get; init; }
+            public IReadOnlyList<XmlLoaderRule> Loaders { get; init; }
+            public Regex Placeholder { get; init; }
+        }
+
+        public sealed class XmlQueryRule
+        {
+            /// <summary>Gli elementi che sono query (XPath assoluto: <c>//Gruppo/Query</c>).</summary>
+            public System.Xml.XPath.XPathExpression Match { get; init; }
+            public string MatchText { get; init; }
+            /// <summary>Il nome, relativo alla query (<c>Nome</c>, <c>@id</c>, <c>name()</c>).</summary>
+            public System.Xml.XPath.XPathExpression Name { get; init; }
+            /// <summary>Il gruppo, relativo alla query (<c>../@name</c>); null = nessun gruppo.</summary>
+            public System.Xml.XPath.XPathExpression Group { get; init; }
+            /// <summary>I frammenti, relativi alla query (<c>*[not(self::Nome)]</c>): il nome è quello dell'elemento; null = il testo è della query.</summary>
+            public System.Xml.XPath.XPathExpression Fragments { get; init; }
+        }
+
+        public sealed class XmlLoaderRule
+        {
+            /// <summary>Il nome del metodo chiamato (<c>Leggi</c>).</summary>
+            public string Method { get; init; }
+            /// <summary>Facoltativo: la classe o l'oggetto davanti, com'è scritto (<c>Lettore</c>).</summary>
+            public string Receiver { get; init; }
+            /// <summary>
+            /// Facoltativo (13/11/2026): la classe che dichiara il lettore, come il compilatore la risolve (<c>Demo.Dati.Lettore</c>, o
+            /// la fine: <c>Lettore</c>). Un metodo con lo stesso nome in un'altra classe non è questo lettore; una chiamata che il
+            /// compilatore non risolve non si collega.
+            /// </summary>
+            public string Class { get; init; }
+            /// <summary>Le posizioni degli argomenti (da 0): il file, il gruppo, il nome, un frammento, più frammenti.</summary>
+            public int? File { get; init; }
+            public int? Group { get; init; }
+            public int? Name { get; init; }
+            /// <summary>
+            /// Il gruppo e il nome scritti DENTRO il lettore, non passati (13/11/2026: un metodo di paginazione che legge sempre la
+            /// stessa query): al posto di <see cref="Group"/> e <see cref="Name"/>.
+            /// </summary>
+            public string GroupValue { get; init; }
+            public string NameValue { get; init; }
+            public IReadOnlyList<int> Fragments { get; init; } = Array.Empty<int>();
+            /// <summary>Il frammento che legge un metodo senza l'argomento del frammento; null = non si sa, e la chiamata va a tutti i frammenti (ambiguous).</summary>
+            public string DefaultFragment { get; init; }
+        }
+
+        /// <summary>
+        /// Un dialetto di pagine HTML che il server riempie (D42 passo 2). L'HTML (controlli, script) lo legge MdExplorer,
+        /// uguale per tutti; il dialetto dice come riconoscere il resto, in due forme che si possono anche unire:
+        /// <list type="bullet">
+        /// <item>la forma <b>a direttive</b> (<c>$include[x]$</c>, <c>$if[A==S]$…$endif$</c>): una sola espressione
+        /// <see cref="Directive"/> (gruppi <c>word</c> e, facoltativo, <c>arg</c>) e il significato delle parole;</item>
+        /// <item>la forma <b>a riconoscitori</b> (<see cref="Recognizers"/>), per le tecnologie dove il server mescola codice e
+        /// HTML (Razor, JSP, Thymeleaf…): ogni espressione ha un ruolo (include, condizione, ramo, chiusura, chiamata), e un
+        /// blocco può chiudersi alla graffa corrispondente (24/10/2026, utente: «il lettore lo genera l'LLM del cliente»).</item>
+        /// </list>
+        /// </summary>
+        public sealed class TemplateRule
+        {
+            /// <summary>La forma a direttive; null se il dialetto usa solo i riconoscitori.</summary>
+            public Regex Directive { get; init; }
+            /// <summary>Le parole il cui argomento è un'altra pagina: arco <c>includes</c>.</summary>
+            public ISet<string> Include { get; init; }
+            public IReadOnlyList<TemplateBlock> Blocks { get; init; }
+            public IReadOnlyList<TemplateRecognizer> Recognizers { get; init; }
+            /// <summary>I nomi degli attributi evento di un elemento (default <c>on…</c>; Angular <c>(click)</c>, Vue <c>@click</c>).</summary>
+            public IReadOnlyList<Regex> Events { get; init; }
+            /// <summary>
+            /// Che cosa dentro una stringa la rende scritta dal server (non letterale): <c>'@Model.Id'</c>, <c>'$codice$'</c>.
+            /// Default: la <see cref="Directive"/>; null = nessuna.
+            /// </summary>
+            public Regex Dynamic { get; init; }
+            /// <summary>Le pagine scritte dentro file di un altro linguaggio (Angular <c>template: `…`</c> nel .ts); null = nessuna.</summary>
+            public TemplateInline Inline { get; init; }
+            /// <summary>
+            /// <c>controls: { runat: '^server$' }</c> (13/11/2026, rilevazione dal cliente: Web Forms con i gestori agganciati nel
+            /// code-behind, <c>Handles btnCerca.Click</c>, e niente eventi nel markup): un elemento con un <c>id</c> e TUTTI questi
+            /// attributi (nome → valore) è un controllo anche senza eventi. Il collegamento con il code-behind porta il controllo ai
+            /// gestori del campo omonimo della classe della pagina. Vuoto = solo gli elementi con un evento.
+            /// </summary>
+            public IReadOnlyList<(string Attribute, Regex Value)> Controls { get; init; } = Array.Empty<(string, Regex)>();
+        }
+
+        /// <summary>
+        /// Le pagine dentro altri file (25/10/2026, utente: «gestisci anche i template inline»): nei file con queste
+        /// <see cref="Extensions"/> (che restano del loro linguaggio) il gruppo <c>body</c> di <see cref="Match"/> è una pagina
+        /// di questo dialetto. Si legge con le righe del file che la contiene; il suo percorso è quello del file più
+        /// <see cref="CodeInlinePages.Suffix"/>.
+        /// </summary>
+        public sealed class TemplateInline
+        {
+            public IReadOnlyList<string> Extensions { get; init; }
+            public Regex Match { get; init; }
+        }
+
+        public enum TemplateRole { Include, Open, Else, Case, Close, Call, Named }
+
+        /// <summary>
+        /// Un riconoscitore: un'espressione con un ruolo. <c>include</c> (gruppo <c>arg</c> = la pagina), <c>open</c> (apre un
+        /// blocco; con <see cref="Guard"/> il gruppo <c>arg</c> è la condizione; si chiude alla graffa corrispondente con
+        /// <c>close: brace</c>, o con il riconoscitore <c>close</c> che ha l'id scritto in <see cref="Close"/>), <c>else</c>
+        /// (nega la condizione: dentro il blocco aperto, o con <c>close: brace</c> un blocco nuovo dopo quello appena chiuso),
+        /// <c>case</c> (<c>condizione=caso</c>), <c>close</c>, <c>call</c> (una chiamata con stringhe: il nome da
+        /// <see cref="Callee"/> o dal gruppo <c>callee</c>, gli argomenti dai gruppi <c>a0</c>…<c>a9</c>; dentro un tag fa di
+        /// quell'elemento un controllo), <c>named</c> (un blocco con un nome, gruppo <c>name</c>, che non vale da sé ma per chi
+        /// lo nomina: un <c>open</c> con condizione che ha il gruppo <c>else</c> gli dà la negazione, con il gruppo <c>then</c> la
+        /// condizione stessa; Angular <c>*ngIf="x; else altro"</c> e <c>&lt;ng-template #altro&gt;</c>, 25/10/2026).
+        /// </summary>
+        public sealed class TemplateRecognizer
+        {
+            public string Id { get; init; }
+            public TemplateRole Role { get; init; }
+            public Regex Match { get; init; }
+            /// <summary><c>brace</c>, l'id di un riconoscitore <c>close</c>, o null.</summary>
+            public string Close { get; init; }
+            public bool Brace => Close == BraceClose;
+            /// <summary><c>close: element</c>: il blocco è l'elemento che contiene la corrispondenza, fino al suo tag di chiusura (Angular <c>*ngIf</c>).</summary>
+            public bool Element => Close == ElementClose;
+            public bool Guard { get; init; }
+            public string Callee { get; init; }
+            /// <summary>Gli indici dei gruppi <c>a0</c>…<c>a9</c> presenti nell'espressione.</summary>
+            public IReadOnlyList<int> ArgGroups { get; init; }
+            /// <summary>Un <c>open</c> con condizione che nomina blocchi <c>named</c>: i gruppi <c>then</c> e <c>else</c>.</summary>
+            public bool NamesBlocks { get; init; }
+        }
+
+        public const string BraceClose = "brace";
+        public const string ElementClose = "element";
+
+        /// <summary>
+        /// Una parte della pagina aperta e chiusa da due parole (<c>if</c>/<c>endif</c>, <c>loop</c>/<c>endloop</c>). Con
+        /// <see cref="Guard"/> l'argomento dell'apertura è la condizione di quello che contiene; <see cref="Else"/> la nega,
+        /// <see cref="Cases"/> la sostituisce con <c>argomento=caso</c> (un <c>switch</c>).
+        /// </summary>
+        public sealed class TemplateBlock
+        {
+            public string Open { get; init; }
+            public string Close { get; init; }
+            public IReadOnlyList<string> Else { get; init; }
+            public IReadOnlyList<string> Cases { get; init; }
+            public bool Guard { get; init; }
+        }
+
+        public sealed class BlockRule
+        {
+            public string Id { get; init; }
+            public string Kind { get; init; }
+            public Regex Begin { get; init; }
+            /// <summary>La riga che chiude il blocco; null quando il blocco si chiude per profondità (<see cref="Nesting"/>).</summary>
+            public Regex End { get; init; }
+            public NestingRule Nesting { get; init; }
+            public IReadOnlyList<string> In { get; init; }
+            public string NameTemplate { get; init; }
+            public string SignatureTemplate { get; init; }
+            /// <summary>
+            /// <c>completes: spec</c> (13/11/2026, rilevazione dal cliente: specifica e corpo del package nello stesso file, ogni
+            /// procedura «già dichiarata»): questo blocco è l'implementazione del blocco <c>spec</c> con lo stesso nome. Il nome
+            /// resta al corpo (chi chiama <c>PKG.PROC</c> arriva al codice); nello stesso file la specifica diventa
+            /// <c>PKG@spec</c>. Il corpo «implements» la specifica e ogni suo membro il membro omonimo con gli stessi parametri;
+            /// fra una dichiarazione e la sua implementazione un riferimento va all'implementazione. Null se non completa niente.
+            /// </summary>
+            public string Completes { get; init; }
+        }
+
+        /// <summary>
+        /// Un blocco che si chiude contando (12/11/2026, rilevazione dal cliente: con «END;» senza nome sette funzioni sorelle
+        /// diventavano una dentro l'altra). Le parole si leggono in ordine sul testo «code» (senza commenti e stringhe), dopo
+        /// l'apertura del blocco:
+        /// <list type="bullet">
+        /// <item><see cref="Header"/>, facoltativa: finché non compare il blocco è solo un'intestazione; se prima compare
+        /// <see cref="Declaration"/> era una dichiarazione (<c>PROCEDURE X(…);</c> su più righe) e il blocco non c'è;</item>
+        /// <item><see cref="Open"/> scende di un livello (<c>BEGIN</c>, <c>CASE</c>); <see cref="Body"/>, facoltativa, dice
+        /// quale apertura al primo livello è il corpo (<c>BEGIN</c>; senza, una qualunque);</item>
+        /// <item><see cref="Close"/> risale: chiude il blocco quando risale al primo livello dal corpo, o quando compare
+        /// al primo livello (la fine di un package senza corpo di inizializzazione).</item>
+        /// </list>
+        /// </summary>
+        public sealed class NestingRule
+        {
+            public Regex Open { get; init; }
+            public Regex Close { get; init; }
+            public Regex Body { get; init; }
+            public Regex Header { get; init; }
+            public Regex Declaration { get; init; }
+        }
+
+        public sealed class LabelRule
+        {
+            public string Id { get; init; }
+            public string Kind { get; init; }
+            public Regex At { get; init; }
+            public IReadOnlyList<string> In { get; init; }
+            public string NameTemplate { get; init; }
+            public bool OnlyIfReferenced { get; init; }
+        }
+
+        /// <summary>
+        /// Un simbolo su una riga sola (una macro <c>#define F(x)</c>, una variabile). Con <c>each</c> la riga ne
+        /// dichiara più d'uno (<c>VAR A, B, C</c>). Con <c>emit: false</c> serve solo da indice: dice che un nome è una
+        /// variabile, così <c>X(3)</c> non diventa una chiamata, senza riempire il grafo di variabili.
+        /// </summary>
+        public sealed class DeclarationRule
+        {
+            public string Id { get; init; }
+            public string Kind { get; init; }
+            public Regex At { get; init; }
+            public Regex Each { get; init; }
+            public IReadOnlyList<string> In { get; init; }
+            public string NameTemplate { get; init; }
+            public bool Emit { get; init; }
+        }
+
+        public sealed class ParameterRule
+        {
+            public Regex Item { get; init; }
+            public IReadOnlyDictionary<string, string> Direction { get; init; }
+            public string DefaultDirection { get; init; }
+            /// <summary>La parola di direzione vale anche per i parametri che seguono, finché un'altra la cambia (<c>OUT A, B IN C</c>: A e B in uscita).</summary>
+            public bool Sticky { get; init; }
+            /// <summary>
+            /// <c>separator: ','</c> (motore 8, 13/11/2026): i parametri si leggono fra le parentesi della firma ANCHE su più
+            /// righe, uno per pezzo fra i separatori al primo livello (<c>NUMBER(10,2)</c> resta un tipo), e la firma è
+            /// completa: serve a scegliere il sovraccarico di una chiamata. Null = come prima, solo la riga dell'intestazione.
+            /// </summary>
+            public string Separator { get; init; }
+            /// <summary><c>optional: '\bDEFAULT\b|:='</c>: un parametro con un valore di default si può omettere nella chiamata.</summary>
+            public Regex Optional { get; init; }
+        }
+
+        /// <summary>
+        /// Una regola che legge un ELENCO dopo il suo modello (motore 8, 13/11/2026, <c>FROM T1 a, T2 b</c>): dalla fine della
+        /// corrispondenza, anche sulle righe dopo, fino a <see cref="Until"/> al primo livello di parentesi, a una parentesi
+        /// che chiude (la fine di una sottoquery) o a <see cref="MaxLines"/> righe; ogni pezzo fra i <see cref="Separator"/>
+        /// al primo livello è un bersaglio se <see cref="Item"/> (gruppo <c>target</c>) lo riconosce dall'inizio.
+        /// </summary>
+        public sealed class ListRule
+        {
+            public Regex Until { get; init; }
+            public string Separator { get; init; }
+            public Regex Item { get; init; }
+            public const int MaxLines = DeclarativeLanguageExtractor.MaxSpanLines;
+        }
+
+        /// <summary>
+        /// Gli argomenti di una chiamata (motore 8): dopo la parentesi con cui finisce il modello, fino a quella che la chiude
+        /// (anche su più righe), separati da <see cref="Separator"/> al primo livello; <see cref="Named"/> (gruppo <c>name</c>)
+        /// riconosce un argomento per nome (<c>p_x => 1</c>). Con più candidati restano quelli i cui parametri accettano quegli
+        /// argomenti. <see cref="NextLine"/>: il modello può finire a fine riga e la parentesi stare sulla riga dopo; se lì
+        /// non c'è, non era una chiamata. Un modello che non finisce con una parentesi è una chiamata senza argomenti.
+        /// </summary>
+        public sealed class ArgumentsRule
+        {
+            public string Separator { get; init; }
+            public Regex Named { get; init; }
+            public bool NextLine { get; init; }
+        }
+
+        /// <summary>
+        /// I blocchi troppo lunghi perché l'LLM li legga in una volta (utente 23/10/2026: «per avere una buona descrizione
+        /// si deve per forza dare il codice, tutto ed in maniera fruibile»): oltre il limite il blocco si spezza a ogni riga
+        /// che <see cref="At"/> riconosce, e i <c>GOTO</c> (<see cref="Jump"/>) diventano archi <c>jumps</c> fra i pezzi.
+        /// <see cref="Stop"/> = l'ultima istruzione chiude il flusso: niente arco verso il pezzo che segue. Un pezzo ancora
+        /// troppo lungo (codice strutturato, senza etichette) si spezza ai rami della sua selezione più esterna
+        /// (<see cref="Branches"/>), e così via finché ci sta.
+        /// </summary>
+        public sealed class FragmentRule
+        {
+            public IReadOnlyList<string> In { get; init; }
+            public Regex At { get; init; }
+            public Regex Jump { get; init; }
+            public Regex Stop { get; init; }
+            public BranchRule Branches { get; init; }
+        }
+
+        /// <summary>Una selezione a rami: <c>SELECT</c> … <c>CASE</c>/<c>DEFAULT</c> … <c>ENDSEL</c>.</summary>
+        public sealed class BranchRule
+        {
+            public Regex Open { get; init; }
+            public Regex Case { get; init; }
+            public Regex Close { get; init; }
+        }
+
+        public enum TextKind { Code, Raw }
+        /// <summary><c>file</c> = per nome del file; <c>module</c> = per nome del programma (<c>module.name</c>); <c>symbol</c> = un simbolo di una regola.</summary>
+        public enum ResolveKind { File, Module, Symbol }
+        public enum ScopeKind { Block, Module, Perimeter }
+
+        public sealed class ReferenceRule
+        {
+            public string Relation { get; init; }
+            public Regex Pattern { get; init; }
+            public TextKind Text { get; init; }
+            public Regex After { get; init; }
+            public Regex NotAfter { get; init; }
+            public Regex Strip { get; init; }
+            public ResolveKind Resolve { get; init; }
+            /// <summary>Le regole dei simboli che il bersaglio può essere (<c>rule</c> o <c>rules</c> nel file).</summary>
+            public IReadOnlyList<string> Rules { get; init; }
+            /// <summary>Parole che non sono riferimenti (parole chiave, funzioni del linguaggio): niente arco, niente nodo esterno.</summary>
+            public ISet<string> Ignore { get; init; }
+            /// <summary>
+            /// <c>ignoreUnresolved</c> (13/11/2026, rilevazione dal cliente: 59 metodi di collezione <c>v_tab.EXISTS(i)</c> diventati
+            /// nodi esterni): nomi che, se NON si risolvono, non sono riferimenti (niente arco, niente nodo esterno). Se un simbolo
+            /// con quel nome c'è (una procedura <c>PKG.COUNT</c>), la freccia va a lui come sempre: a differenza di
+            /// <see cref="Ignore"/>, non si perde mai un simbolo vero.
+            /// </summary>
+            public ISet<string> IgnoreUnresolved { get; init; }
+            /// <summary>Regole di dichiarazione che escludono il bersaglio non risolto: <c>X(3)</c> con <c>X</c> variabile non è una chiamata.</summary>
+            public IReadOnlyList<string> Unless { get; init; }
+            public ScopeKind Scope { get; init; }
+            /// <summary>La confidenza massima che la regola può dare (null = quella che dice la risoluzione).</summary>
+            public string Confidence { get; init; }
+            public bool ExternalWhenUnresolved { get; init; }
+            /// <summary>
+            /// F4e (11/11/2026): una chiamata per nome in una variabile. Il <see cref="Pattern"/> cattura la variabile (<c>(?&lt;var&gt;…)</c>);
+            /// questo modello, con <c>{var}</c> al posto della variabile, è l'assegnazione con il nome (<c>(?&lt;name&gt;…)</c>) che si
+            /// cerca all'indietro nello stesso blocco. Null = una regola di sempre.
+            /// </summary>
+            public string AssignTemplate { get; init; }
+            /// <summary>
+            /// Il modello ha il gruppo <c>owner</c> (13/11/2026, rilevazione dal cliente: <c>PKG_A.SAVE(…)</c> arrivava al SAVE del
+            /// package del chiamante): il bersaglio è il simbolo che sta direttamente dentro un blocco con quel nome
+            /// (<c>PKG_A</c>); se nessun blocco si chiama così, il nome davanti è un qualificatore di fuori (lo schema) e il
+            /// bersaglio è un simbolo di primo livello. Non risolto, il nodo esterno è <c>owner.target</c>. Solo con resolve: symbol.
+            /// </summary>
+            public bool HasOwner { get; init; }
+            /// <summary>Un elenco dopo il modello (<see cref="ListRule"/>); null = un bersaglio per corrispondenza.</summary>
+            public ListRule List { get; init; }
+            /// <summary>Gli argomenti della chiamata (<see cref="ArgumentsRule"/>); null = non si leggono.</summary>
+            public ArgumentsRule Arguments { get; init; }
+        }
+
+        // ------------------------------------------------------------------ catalogo del progetto
+
+        public static string FolderOf(string projectPath) => Path.Combine(projectPath, FolderName);
+
+        // ------------------------------------------------------------------ lettura
+
+        public static DeclarativeLanguage Load(string path) => Parse(File.ReadAllText(path, Encoding.UTF8), path);
+
+        public static DeclarativeLanguage Parse(string yaml, string path)
+        {
+            var deserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
+            Yaml.Definition d;
+            try { d = deserializer.Deserialize<Yaml.Definition>(yaml); }
+            catch (YamlException ex)
+            {
+                var why = ex.InnerException?.Message ?? ex.Message;
+                throw new LanguageDefinitionException(path, UiText.Say($"riga {ex.Start.Line}: {why}", $"line {ex.Start.Line}: {why}"), ex);
+            }
+            if (d == null) throw new LanguageDefinitionException(path, UiText.Say("il file è vuoto", "the file is empty"));
+            return new Builder(path, d).Build(Hash(yaml));
+        }
+
+        private static string Hash(string text)
+        {
+            using var sha = SHA256.Create();
+            return Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(text)), 0, 4).ToLowerInvariant();
+        }
+
+        /// <summary>Le regole del file prese una per una: ogni errore dice dove, così chi scrive il file lo trova subito.</summary>
+        private sealed class Builder
+        {
+            private readonly string _path;
+            private readonly Yaml.Definition _d;
+            private RegexOptions _options;
+
+            public Builder(string path, Yaml.Definition d) { _path = path; _d = d; }
+
+            private LanguageDefinitionException Fail(string italian, string english) => new(_path, UiText.Say(italian, english));
+
+            public DeclarativeLanguage Build(string hash)
+            {
+                if (_d.Schema != CurrentSchema)
+                    throw Fail($"schema: {_d.Schema} non è uno schema che questo MdExplorer sa leggere (atteso {CurrentSchema})",
+                                $"schema: {_d.Schema} is not a schema this MdExplorer can read (expected {CurrentSchema})");
+                // l'id è il nome della cartella del pacchetto (.mde-languages/toy/language.yml → toy)
+                var folderId = Path.GetFileName(Path.GetDirectoryName(_path) ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(_d.Id)) throw Fail("id: obbligatorio", "id: required");
+                if (!Regex.IsMatch(_d.Id, "^[a-z][a-z0-9-]*$"))
+                    throw Fail($"id: '{_d.Id}' — solo minuscole, cifre e trattini, e comincia con una lettera", $"id: '{_d.Id}' — lowercase letters, digits and dashes only, starting with a letter");
+                if (!string.Equals(_d.Id, folderId, StringComparison.Ordinal))
+                    throw Fail($"id: '{_d.Id}' deve essere uguale al nome della cartella del pacchetto ('{folderId}')", $"id: '{_d.Id}' must match the package folder name ('{folderId}')");
+                if (_d.Version < 1) throw Fail("version: obbligatoria, intero da 1 in su", "version: required, an integer from 1 up");
+                if (_d.Extensions == null || _d.Extensions.Count == 0) throw Fail("extensions: almeno una (es. .toy)", "extensions: at least one (e.g. .toy)");
+                foreach (var e in _d.Extensions)
+                    if (string.IsNullOrWhiteSpace(e) || !e.StartsWith('.') || e.Length < 2)
+                        throw Fail($"extensions: '{e}' — un'estensione comincia col punto", $"extensions: '{e}' — an extension starts with a dot");
+
+                _options = RegexOptions.CultureInvariant | (_d.IgnoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
+                var lexical = _d.Lexical ?? new Yaml.Lexical();
+                if (lexical.String != null && lexical.String.Length != 1)
+                    throw Fail($"lexical.string: '{lexical.String}' — un solo carattere", $"lexical.string: '{lexical.String}' — a single character");
+                if (lexical.BlockComment != null && (lexical.BlockComment.Count != 2 || lexical.BlockComment.Any(string.IsNullOrEmpty)))
+                    throw Fail("lexical.blockComment: due testi, l'apertura e la chiusura (es. ['/*', '*/'])", "lexical.blockComment: two texts, the opening and the closing (e.g. ['/*', '*/'])");
+                if (lexical.MultilineString && lexical.String == null)
+                    throw Fail("lexical.multilineString: serve anche lexical.string", "lexical.multilineString: lexical.string is needed too");
+
+                var blocks = (_d.Blocks ?? new List<Yaml.Block>()).Select((b, i) => BuildBlock(b, i)).ToList();
+                var labels = (_d.Labels ?? new List<Yaml.Label>()).Select((l, i) => BuildLabel(l, i)).ToList();
+                var declarations = (_d.Declarations ?? new List<Yaml.Declaration>()).Select((x, i) => BuildDeclaration(x, i)).ToList();
+                var ruleIds = new HashSet<string>(StringComparer.Ordinal) { ModuleRule, FragmentsRule };
+                foreach (var id in blocks.Select(b => b.Id).Concat(labels.Select(l => l.Id)).Concat(declarations.Select(x => x.Id)))
+                    if (!ruleIds.Add(id)) throw Fail($"id di regola ripetuto o riservato: '{id}'", $"rule id repeated or reserved: '{id}'");
+                var containers = new HashSet<string>(blocks.Select(b => b.Id).Append(ModuleRule), StringComparer.Ordinal);
+                foreach (var b in blocks) CheckIn($"blocks[{b.Id}].in", b.In, containers);
+                foreach (var b in blocks.Where(b => b.Completes != null))
+                    if (b.Completes == b.Id || !blocks.Any(o => o.Id == b.Completes && o.Completes == null))
+                        throw Fail($"blocks[{b.Id}].completes: '{b.Completes}' non è un altro blocco (che non ne completa a sua volta un altro)",
+                            $"blocks[{b.Id}].completes: '{b.Completes}' is not another block (one that does not complete a block itself)");
+                foreach (var l in labels) CheckIn($"labels[{l.Id}].in", l.In, containers);
+                foreach (var x in declarations) CheckIn($"declarations[{x.Id}].in", x.In, containers);
+                var fragments = BuildFragments(blocks);
+                var template = BuildTemplate();
+                var xml = BuildXml();
+                if (xml != null && template != null) throw Fail("xml e template: uno solo dei due", "xml and template: only one of the two");
+
+                return new DeclarativeLanguage
+                {
+                    Id = _d.Id, DisplayName = string.IsNullOrWhiteSpace(_d.Name) ? _d.Id : _d.Name, Version = _d.Version,
+                    Extensions = _d.Extensions.Select(e => e.ToLowerInvariant()).Distinct().ToList(),
+                    IgnoreCase = _d.IgnoreCase, Database = _d.Database, DefinitionPath = _path, DefinitionHash = hash,
+                    LineComment = string.IsNullOrEmpty(lexical.LineComment) ? null : lexical.LineComment,
+                    BlockCommentOpen = lexical.BlockComment?[0], BlockCommentClose = lexical.BlockComment?[1],
+                    MultilineString = lexical.MultilineString,
+                    StringDelimiter = lexical.String?[0],
+                    Continuation = lexical.Continuation == null ? null : Rx("lexical.continuation", lexical.Continuation),
+                    ModuleName = _d.Module?.Name == null ? null : Rx("module.name", _d.Module.Name, "name"),
+                    Blocks = blocks, Labels = labels, Declarations = declarations,
+                    Parameters = BuildParameters(),
+                    Types = new Dictionary<string, string>(_d.Types ?? new Dictionary<string, string>(), StringComparer.Ordinal),
+                    References = (_d.References ?? new List<Yaml.Reference>()).Select((r, i) => BuildReference(r, i, ruleIds, declarations)).ToList(),
+                    Fragments = fragments, Template = template, Xml = xml,
+                };
+            }
+
+            /// <summary>
+            /// La sezione <c>template</c>: esclude le regole dei linguaggi a righe (una pagina non ha blocchi né etichette), e
+            /// ogni parola ha un solo significato.
+            /// </summary>
+            private XmlRule BuildXml()
+            {
+                var x = _d.Xml;
+                if (x == null) return null;
+                var lineRules = new (string Name, bool Present)[]
+                {
+                    ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
+                    ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                };
+                foreach (var (name, present) in lineRules)
+                    if (present) throw Fail($"{name}: con xml non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with xml (it is for line-based languages); remove one of the two sections");
+                System.Xml.XPath.XPathExpression XPath(string where, string expr, bool required)
+                {
+                    if (string.IsNullOrWhiteSpace(expr))
+                    {
+                        if (required) throw Fail($"{where}: obbligatorio", $"{where}: required");
+                        return null;
+                    }
+                    try { return System.Xml.XPath.XPathExpression.Compile(expr); }
+                    catch (System.Xml.XPath.XPathException ex) { throw Fail($"{where}: '{expr}' non è un XPath valido ({ex.Message})", $"{where}: '{expr}' is not a valid XPath ({ex.Message})"); }
+                }
+                if (x.Queries == null || x.Queries.Count == 0) throw Fail("xml.queries: almeno una", "xml.queries: at least one");
+                var queries = x.Queries.Select((q, i) => new XmlQueryRule
+                {
+                    Match = XPath($"xml.queries[{i}].match", q.Match, true), MatchText = q.Match,
+                    Name = XPath($"xml.queries[{i}].name", q.Name, true), Group = XPath($"xml.queries[{i}].group", q.Group, false),
+                    Fragments = XPath($"xml.queries[{i}].fragments", q.Fragments, false),
+                }).ToList();
+                var loaders = (x.Loaders ?? new List<Yaml.XmlLoader>()).Select((l, i) =>
+                {
+                    var where = $"xml.loaders[{i}]";
+                    if (string.IsNullOrWhiteSpace(l.Method)) throw Fail($"{where}.method: obbligatorio", $"{where}.method: required");
+                    if ((l.Name == null) == string.IsNullOrWhiteSpace(l.NameValue))
+                        throw Fail($"{where}.name: uno fra name (la posizione dell'argomento col nome della query, da 0) e nameValue (il nome scritto dentro il lettore)",
+                            $"{where}.name: one of name (the position of the argument with the query name, from 0) and nameValue (the name written inside the reader)");
+                    if (l.Group != null && !string.IsNullOrWhiteSpace(l.GroupValue))
+                        throw Fail($"{where}: group oppure groupValue, non tutti e due", $"{where}: group or groupValue, not both");
+                    var fragments = l.Fragments ?? new List<int>();
+                    if (l.Fragment != null) fragments = fragments.Prepend(l.Fragment.Value).ToList();
+                    foreach (var p in new int?[] { l.File, l.Group, l.Name }.Concat(fragments.Select(f => (int?)f)))
+                        if (p < 0) throw Fail($"{where}: le posizioni degli argomenti partono da 0", $"{where}: argument positions start at 0");
+                    if (fragments.Count > 0 && l.DefaultFragment != null) throw Fail($"{where}: defaultFragment vale solo senza fragment/fragments", $"{where}: defaultFragment only applies without fragment/fragments");
+                    return new XmlLoaderRule
+                    {
+                        Method = l.Method.Trim(), Receiver = string.IsNullOrWhiteSpace(l.Receiver) ? null : l.Receiver.Trim(),
+                        Class = string.IsNullOrWhiteSpace(l.Class) ? null : l.Class.Trim(),
+                        File = l.File, Group = l.Group, Name = l.Name, Fragments = fragments, DefaultFragment = l.DefaultFragment,
+                        GroupValue = string.IsNullOrWhiteSpace(l.GroupValue) ? null : l.GroupValue.Trim(),
+                        NameValue = string.IsNullOrWhiteSpace(l.NameValue) ? null : l.NameValue.Trim(),
+                    };
+                }).ToList();
+                return new XmlRule { Queries = queries, Loaders = loaders, Placeholder = Rx("xml.placeholder", x.Placeholder ?? @"\{\d+\}") };
+            }
+
+            private TemplateRule BuildTemplate()
+            {
+                var t = _d.Template;
+                if (t == null) return null;
+                var lineRules = new (string Name, bool Present)[]
+                {
+                    ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
+                    ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                };
+                foreach (var (name, present) in lineRules)
+                    if (present) throw Fail($"{name}: con template non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with template (it is for line-based languages); remove one of the two sections");
+                var comparer = _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+                // la forma a direttive
+                Regex directive = null;
+                var blocks = new List<TemplateBlock>();
+                var meaning = new Dictionary<string, string>(comparer);
+                if (string.IsNullOrWhiteSpace(t.Directive))
+                {
+                    if (t.Include != null || t.Blocks != null) throw Fail("template.include e template.blocks sono della forma a direttive: serve anche template.directive", "template.include and template.blocks belong to the directive form: template.directive is needed too");
+                }
+                else
+                {
+                    directive = Rx("template.directive", t.Directive, "word");
+                    void Word(string where, string word)
+                    {
+                        if (string.IsNullOrWhiteSpace(word)) throw Fail($"{where}: parola vuota", $"{where}: empty word");
+                        if (!meaning.TryAdd(word, where)) throw Fail($"{where}: '{word}' è già in {meaning[word]}: una parola ha un solo significato", $"{where}: '{word}' is already in {meaning[word]}: a word has one meaning only");
+                    }
+                    foreach (var w in t.Include ?? new List<string>()) Word("template.include", w);
+                    foreach (var (b, i) in (t.Blocks ?? new List<Yaml.TemplateBlock>()).Select((b, i) => (b, i)))
+                    {
+                        var where = $"template.blocks[{i}]";
+                        if (string.IsNullOrWhiteSpace(b.Open) || string.IsNullOrWhiteSpace(b.Close)) throw Fail($"{where}: servono open e close", $"{where}: open and close are required");
+                        if ((b.Else != null || b.Cases != null) && !b.Guard) throw Fail($"{where}: else e cases valgono solo con guard: true", $"{where}: else and cases only apply with guard: true");
+                        Word(where + ".open", b.Open);
+                        Word(where + ".close", b.Close);
+                        foreach (var w in b.Else ?? new List<string>()) Word(where + ".else", w);
+                        foreach (var w in b.Cases ?? new List<string>()) Word(where + ".cases", w);
+                        blocks.Add(new TemplateBlock
+                        {
+                            Open = b.Open, Close = b.Close, Else = b.Else ?? new List<string>(), Cases = b.Cases ?? new List<string>(), Guard = b.Guard,
+                        });
+                    }
+                    if (meaning.Count == 0) throw Fail("template: con directive serve almeno una parola in include o in blocks", "template: with directive at least one word in include or blocks is needed");
+                }
+
+                // la forma a riconoscitori
+                var recognizers = new List<TemplateRecognizer>();
+                var ids = new HashSet<string>(StringComparer.Ordinal);
+                var raw = t.Recognizers ?? new List<Yaml.TemplateRecognizer>();
+                foreach (var (r, i) in raw.Select((r, i) => (r, i)))
+                    if (r.Id != null && !ids.Add(r.Id)) throw Fail($"template.recognizers[{i}].id: '{r.Id}' ripetuto", $"template.recognizers[{i}].id: '{r.Id}' repeated");
+                var closers = raw.Where(r => string.Equals(r.Role, "close", StringComparison.OrdinalIgnoreCase)).Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
+                var hasNamed = raw.Any(r => string.Equals(r.Role, "named", StringComparison.OrdinalIgnoreCase));
+                foreach (var (r, i) in raw.Select((r, i) => (r, i)))
+                {
+                    var where = r.Id == null ? $"template.recognizers[{i}]" : $"template.recognizers[{r.Id}]";
+                    var role = Enum<TemplateRole>(where + ".role", r.Role, null);
+                    if (string.IsNullOrWhiteSpace(r.Match)) throw Fail($"{where}.match: obbligatorio", $"{where}.match: required");
+                    var match = role switch
+                    {
+                        TemplateRole.Include => Rx(where + ".match", r.Match, "arg"),
+                        TemplateRole.Named => Rx(where + ".match", r.Match, "name"),
+                        _ => Rx(where + ".match", r.Match),
+                    };
+                    if (role == TemplateRole.Close && r.Id == null) throw Fail($"{where}.id: un riconoscitore close ha un id, quello che gli open scrivono in close", $"{where}.id: a close recognizer has an id, the one open recognizers write in close");
+                    if (role == TemplateRole.Open && r.Close == null) throw Fail($"{where}.close: obbligatorio per open: brace, element, o l'id di un riconoscitore close", $"{where}.close: required for open: brace, element, or the id of a close recognizer");
+                    if (role == TemplateRole.Named && r.Close is not (BraceClose or ElementClose))
+                        throw Fail($"{where}.close: obbligatorio per named: brace o element (dove il blocco finisce)", $"{where}.close: required for named: brace or element (where the block ends)");
+                    if (r.Close != null && role != TemplateRole.Named)
+                    {
+                        if (role is not (TemplateRole.Open or TemplateRole.Else or TemplateRole.Case)) throw Fail($"{where}.close: vale solo per open, else e case", $"{where}.close: only applies to open, else and case");
+                        if (r.Close != BraceClose && (role != TemplateRole.Open || r.Close != ElementClose && !closers.Contains(r.Close)))
+                            throw Fail($"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, o l'id di un riconoscitore close" : "")}", $"{where}.close: '{r.Close}' — brace{(role == TemplateRole.Open ? ", element, or the id of a close recognizer" : "")}");
+                    }
+                    if (r.Guard && role != TemplateRole.Open) throw Fail($"{where}.guard: vale solo per open", $"{where}.guard: only applies to open");
+                    var namesBlocks = match.GetGroupNames().Any(g => g is "then" or "else");
+                    if (namesBlocks)
+                    {
+                        if (role != TemplateRole.Open || !r.Guard) throw Fail($"{where}: i gruppi then ed else valgono solo per open con guard: true", $"{where}: the groups then and else only apply to open with guard: true");
+                        if (!hasNamed) throw Fail($"{where}: i gruppi then ed else nominano un blocco, ma nessun riconoscitore ha role: named", $"{where}: the groups then and else name a block, but no recognizer has role: named");
+                    }
+                    var argGroups = Enumerable.Range(0, 10).Where(k => match.GetGroupNames().Contains("a" + k)).ToList();
+                    if (role == TemplateRole.Call)
+                    {
+                        if (string.IsNullOrWhiteSpace(r.Callee) && !match.GetGroupNames().Contains("callee"))
+                            throw Fail($"{where}: una chiamata ha un nome, in callee o nel gruppo (?<callee>…)", $"{where}: a call has a name, in callee or in the group (?<callee>…)");
+                    }
+                    else if (r.Callee != null || argGroups.Count > 0) throw Fail($"{where}: callee e i gruppi a0…a9 valgono solo per call", $"{where}: callee and the groups a0…a9 only apply to call");
+                    recognizers.Add(new TemplateRecognizer
+                    {
+                        Id = r.Id ?? $"{role.ToString().ToLowerInvariant()}#{i}", Role = role, Match = match, Close = r.Close, Guard = r.Guard,
+                        Callee = string.IsNullOrWhiteSpace(r.Callee) ? null : r.Callee.Trim(), ArgGroups = argGroups, NamesBlocks = namesBlocks,
+                    });
+                }
+                if (directive == null && recognizers.Count == 0) throw Fail("template: serve directive (forma a direttive) o recognizers (forma a riconoscitori)", "template: directive (directive form) or recognizers (recognizer form) is needed");
+
+                var events = (t.Events ?? new List<string> { "^on.+$" }).Select((e, i) => RxIgnoreCase($"template.events[{i}]", e)).ToList();
+                var dynamic = t.Dynamic != null ? Rx("template.dynamic", t.Dynamic) : directive;
+                TemplateInline inline = null;
+                if (t.Inline != null)
+                {
+                    var hosts = (t.Inline.Extensions ?? new List<string>()).Select(e => (e ?? string.Empty).Trim().ToLowerInvariant()).Distinct().ToList();
+                    if (hosts.Count == 0) throw Fail("template.inline.extensions: almeno una (es. .ts): i file che contengono le pagine", "template.inline.extensions: at least one (e.g. .ts): the files that contain the pages");
+                    foreach (var e in hosts)
+                    {
+                        if (!e.StartsWith('.') || e.Length < 2) throw Fail($"template.inline.extensions: '{e}' non è un'estensione (es. .ts)", $"template.inline.extensions: '{e}' is not an extension (e.g. .ts)");
+                        if (_d.Extensions.Any(x => string.Equals(x, e, StringComparison.OrdinalIgnoreCase)))
+                            throw Fail($"template.inline.extensions: '{e}' è già fra le extensions del dialetto: i suoi file sono pagine intere", $"template.inline.extensions: '{e}' is already among the dialect's extensions: its files are whole pages");
+                    }
+                    inline = new TemplateInline { Extensions = hosts, Match = Rx("template.inline.match", t.Inline.Match ?? string.Empty, "body") };
+                }
+                var controls = new List<(string, Regex)>();
+                foreach (var kv in t.Controls ?? new Dictionary<string, string>())
+                {
+                    if (string.IsNullOrWhiteSpace(kv.Key)) throw Fail("template.controls: un attributo senza nome", "template.controls: an attribute without a name");
+                    controls.Add((kv.Key.Trim(), RxIgnoreCase($"template.controls.{kv.Key.Trim()}", kv.Value ?? string.Empty)));
+                }
+                return new TemplateRule
+                {
+                    Directive = directive, Include = new HashSet<string>(t.Include ?? new List<string>(), comparer), Blocks = blocks,
+                    Recognizers = recognizers, Events = events, Dynamic = dynamic, Inline = inline, Controls = controls,
+                };
+            }
+
+            /// <summary>I nomi degli attributi HTML non badano alle maiuscole, qualunque sia ignoreCase.</summary>
+            private Regex RxIgnoreCase(string where, string pattern)
+            {
+                try { return new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeout); }
+                catch (ArgumentException ex) { throw Fail($"{where}: l'espressione regolare non compila ({ex.Message})", $"{where}: the regular expression does not compile ({ex.Message})"); }
+            }
+
+            /// <summary>Solo un blocco (o il modulo) contiene qualcosa: etichette e dichiarazioni no.</summary>
+            private void CheckIn(string where, IReadOnlyList<string> parents, HashSet<string> containers)
+            {
+                foreach (var p in parents)
+                    if (!containers.Contains(p)) throw Fail($"{where}: '{p}' non è una regola di blocco né 'module'", $"{where}: '{p}' is neither a block rule nor 'module'");
+            }
+
+            private string Kind(string where, string kind)
+            {
+                static bool Reserved(string k) => k == "external" || k == "module" || k == FragmentKind;
+                if (string.IsNullOrWhiteSpace(kind) || Reserved(kind) || !CodeScriptParser.SymbolKinds.Contains(kind))
+                    throw Fail($"{where}.kind: '{kind}' — ammessi: {string.Join(", ", CodeScriptParser.SymbolKinds.Where(k => !Reserved(k)))}",
+                                $"{where}.kind: '{kind}' — allowed: {string.Join(", ", CodeScriptParser.SymbolKinds.Where(k => !Reserved(k)))}");
+                return kind;
+            }
+
+            private BlockRule BuildBlock(Yaml.Block b, int i)
+            {
+                var where = $"blocks[{i}]";
+                if (string.IsNullOrWhiteSpace(b.Id)) throw Fail($"{where}.id: obbligatorio", $"{where}.id: required");
+                where = $"blocks[{b.Id}]";
+                if (b.Begin == null) throw Fail($"{where}: serve begin", $"{where}: begin is required");
+                if ((b.End == null) == (b.Nesting == null)) throw Fail($"{where}: serve end oppure nesting, uno dei due", $"{where}: either end or nesting is required, exactly one");
+                NestingRule nesting = null;
+                if (b.Nesting != null)
+                {
+                    var n = b.Nesting;
+                    if (n.Open == null || n.Close == null) throw Fail($"{where}.nesting: servono open e close", $"{where}.nesting: open and close are required");
+                    if (n.Declaration != null && n.Header == null) throw Fail($"{where}.nesting.declaration: vale solo con header", $"{where}.nesting.declaration: only with header");
+                    nesting = new NestingRule
+                    {
+                        Open = Rx(where + ".nesting.open", n.Open), Close = Rx(where + ".nesting.close", n.Close),
+                        Body = n.Body == null ? null : Rx(where + ".nesting.body", n.Body),
+                        Header = n.Header == null ? null : Rx(where + ".nesting.header", n.Header),
+                        Declaration = n.Declaration == null ? null : Rx(where + ".nesting.declaration", n.Declaration),
+                    };
+                }
+                return new BlockRule
+                {
+                    Id = b.Id, Kind = Kind(where, b.Kind), Begin = Rx(where + ".begin", b.Begin, "name"),
+                    End = b.End == null ? null : Rx(where + ".end", b.End), Nesting = nesting,
+                    In = b.In is { Count: > 0 } ? b.In : new List<string> { ModuleRule },
+                    NameTemplate = b.Name ?? "{name}", SignatureTemplate = b.Signature,
+                    Completes = string.IsNullOrWhiteSpace(b.Completes) ? null : b.Completes.Trim(),
+                };
+            }
+
+            private LabelRule BuildLabel(Yaml.Label l, int i)
+            {
+                var where = $"labels[{i}]";
+                if (string.IsNullOrWhiteSpace(l.Id)) throw Fail($"{where}.id: obbligatorio", $"{where}.id: required");
+                where = $"labels[{l.Id}]";
+                if (l.At == null) throw Fail($"{where}.at: obbligatorio", $"{where}.at: required");
+                return new LabelRule
+                {
+                    Id = l.Id, Kind = Kind(where, l.Kind), At = Rx(where + ".at", l.At, "name"),
+                    In = l.In is { Count: > 0 } ? l.In : new List<string> { ModuleRule },
+                    NameTemplate = l.Name ?? "{name}", OnlyIfReferenced = l.OnlyIfReferenced,
+                };
+            }
+
+            private DeclarationRule BuildDeclaration(Yaml.Declaration x, int i)
+            {
+                var where = $"declarations[{i}]";
+                if (string.IsNullOrWhiteSpace(x.Id)) throw Fail($"{where}.id: obbligatorio", $"{where}.id: required");
+                where = $"declarations[{x.Id}]";
+                if (x.At == null) throw Fail($"{where}.at: obbligatorio", $"{where}.at: required");
+                var each = x.Each == null ? null : Rx(where + ".each", x.Each, "name");
+                var at = each == null ? Rx(where + ".at", x.At, "name") : Rx(where + ".at", x.At, "list");
+                var emit = x.Emit ?? true;
+                return new DeclarationRule
+                {
+                    Id = x.Id, Kind = emit ? Kind(where, x.Kind) : x.Kind ?? "field", At = at, Each = each,
+                    In = x.In is { Count: > 0 } ? x.In : new List<string> { ModuleRule },
+                    NameTemplate = x.Name ?? "{name}", Emit = emit,
+                };
+            }
+
+            private ParameterRule BuildParameters()
+            {
+                var p = _d.Parameters;
+                if (p == null) return null;
+                if (p.Item == null) throw Fail("parameters.item: obbligatorio", "parameters.item: required");
+                var directions = new Dictionary<string, string>(p.Direction ?? new Dictionary<string, string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                foreach (var (word, dir) in directions)
+                    if (!CodeScriptParser.Directions.Contains(dir)) throw Fail($"parameters.direction.{word}: '{dir}' — ammesse: {string.Join(", ", CodeScriptParser.Directions)}", $"parameters.direction.{word}: '{dir}' — allowed: {string.Join(", ", CodeScriptParser.Directions)}");
+                var def = p.Default ?? "in";
+                if (!CodeScriptParser.Directions.Contains(def)) throw Fail($"parameters.default: '{def}' — ammesse: {string.Join(", ", CodeScriptParser.Directions)}", $"parameters.default: '{def}' — allowed: {string.Join(", ", CodeScriptParser.Directions)}");
+                if (p.Separator != null && p.Separator.Length == 0) throw Fail("parameters.separator: vuoto", "parameters.separator: empty");
+                if (p.Optional != null && p.Separator == null) throw Fail("parameters.optional: vale solo con parameters.separator", "parameters.optional: only with parameters.separator");
+                return new ParameterRule
+                {
+                    Item = Rx("parameters.item", p.Item, "name"), Direction = directions, DefaultDirection = def, Sticky = p.Sticky,
+                    Separator = p.Separator, Optional = p.Optional == null ? null : Rx("parameters.optional", p.Optional),
+                };
+            }
+
+            private FragmentRule BuildFragments(List<BlockRule> blocks)
+            {
+                var f = _d.Fragments;
+                if (f == null) return null;
+                if (f.In == null || f.In.Count == 0) throw Fail("fragments.in: almeno una regola di blocco", "fragments.in: at least one block rule");
+                foreach (var b in f.In)
+                    if (!blocks.Any(x => x.Id == b)) throw Fail($"fragments.in: '{b}' non è una regola di blocco", $"fragments.in: '{b}' is not a block rule");
+                if (f.At == null || f.Jump == null) throw Fail("fragments: servono at e jump", "fragments: at and jump are required");
+                return new FragmentRule
+                {
+                    In = f.In, At = Rx("fragments.at", f.At, "name"), Jump = Rx("fragments.jump", f.Jump, "target"),
+                    Stop = f.Stop == null ? null : Rx("fragments.stop", f.Stop),
+                    Branches = f.Branches == null ? null
+                        : f.Branches.Open == null || f.Branches.Case == null || f.Branches.Close == null
+                            ? throw Fail("fragments.branches: servono open, case e close", "fragments.branches: open, case and close are required")
+                            : new BranchRule { Open = Rx("fragments.branches.open", f.Branches.Open), Case = Rx("fragments.branches.case", f.Branches.Case), Close = Rx("fragments.branches.close", f.Branches.Close) },
+                };
+            }
+
+            private ReferenceRule BuildReference(Yaml.Reference r, int i, HashSet<string> ruleIds, List<DeclarationRule> declarations)
+            {
+                var where = $"references[{i}]";
+                // contains lo fanno i blocchi, jumps la sezione fragments
+                if (!CodeScriptParser.Relations.Contains(r.Relation ?? string.Empty) || r.Relation == "contains" || r.Relation == JumpsRelation)
+                    throw Fail($"{where}.relation: '{r.Relation}' — ammesse: {string.Join(", ", CodeScriptParser.Relations.Where(x => x != "contains" && x != JumpsRelation))}", $"{where}.relation: '{r.Relation}' — allowed: {string.Join(", ", CodeScriptParser.Relations.Where(x => x != "contains" && x != JumpsRelation))}");
+                if (r.Pattern == null) throw Fail($"{where}.pattern: obbligatorio", $"{where}.pattern: required");
+                var resolve = Enum<ResolveKind>(where + ".resolve", r.Resolve, null);
+                var scope = Enum(where + ".scope", r.Scope, ScopeKind.Perimeter);
+                if (r.Rule != null && r.Rules != null) throw Fail($"{where}: rule oppure rules, non tutti e due", $"{where}: rule or rules, not both");
+                var rules = r.Rules ?? (r.Rule == null ? new List<string>() : new List<string> { r.Rule });
+                if (resolve == ResolveKind.Symbol)
+                {
+                    if (rules.Count == 0) throw Fail($"{where}.rule: con resolve: symbol serve l'id di un blocco, di un'etichetta o di una dichiarazione", $"{where}.rule: resolve: symbol needs the id of a block, label or declaration rule");
+                    foreach (var rule in rules)
+                        if (!ruleIds.Contains(rule) || rule == ModuleRule)
+                            throw Fail($"{where}.rule: '{rule}' — con resolve: symbol serve l'id di un blocco, di un'etichetta o di una dichiarazione", $"{where}.rule: '{rule}' — resolve: symbol needs the id of a block, label or declaration rule");
+                }
+                else if (rules.Count > 0 || r.Scope != null) throw Fail($"{where}: rule e scope valgono solo con resolve: symbol", $"{where}: rule and scope only apply to resolve: symbol");
+                foreach (var u in r.Unless ?? new List<string>())
+                    if (!declarations.Any(x => x.Id == u)) throw Fail($"{where}.unless: '{u}' non è una regola di declarations", $"{where}.unless: '{u}' is not a declarations rule");
+                if (r.Confidence != null && !CodeScriptParser.Confidences.Contains(r.Confidence))
+                    throw Fail($"{where}.confidence: '{r.Confidence}' — ammesse: {string.Join(", ", CodeScriptParser.Confidences)}", $"{where}.confidence: '{r.Confidence}' — allowed: {string.Join(", ", CodeScriptParser.Confidences)}");
+                var unresolved = r.Unresolved ?? "ignore";
+                if (unresolved != "ignore" && unresolved != "external") throw Fail($"{where}.unresolved: '{unresolved}' — ammessi: ignore, external", $"{where}.unresolved: '{unresolved}' — allowed: ignore, external");
+                if (r.Assign != null)
+                {
+                    if (resolve != ResolveKind.Symbol) throw Fail($"{where}.assign: vale solo con resolve: symbol", $"{where}.assign: only with resolve: symbol");
+                    if (!r.Assign.Contains("{var}")) throw Fail($"{where}.assign: manca {{var}}, il posto della variabile", $"{where}.assign: {{var}} is missing, where the variable goes");
+                    Rx(where + ".assign", r.Assign.Replace("{var}", "X"), "name");
+                }
+                var pattern = r.Assign != null ? Rx(where + ".pattern", r.Pattern, "var") : r.List != null ? Rx(where + ".pattern", r.Pattern) : Rx(where + ".pattern", r.Pattern, "target");
+                ListRule list = null;
+                if (r.List != null)
+                {
+                    if (r.Assign != null || r.Arguments != null) throw Fail($"{where}.list: non vale con assign né con arguments", $"{where}.list: not with assign or arguments");
+                    if (string.IsNullOrEmpty(r.List.Separator) || r.List.Item == null || r.List.Until == null)
+                        throw Fail($"{where}.list: servono until, separator e item", $"{where}.list: until, separator and item are required");
+                    list = new ListRule { Until = Rx(where + ".list.until", r.List.Until), Separator = r.List.Separator, Item = Rx(where + ".list.item", r.List.Item, "target") };
+                }
+                ArgumentsRule arguments = null;
+                if (r.Arguments != null)
+                {
+                    if (resolve != ResolveKind.Symbol || r.Assign != null) throw Fail($"{where}.arguments: vale solo con resolve: symbol (e senza assign)", $"{where}.arguments: only with resolve: symbol (and without assign)");
+                    if (string.IsNullOrEmpty(r.Arguments.Separator)) throw Fail($"{where}.arguments.separator: obbligatorio", $"{where}.arguments.separator: required");
+                    arguments = new ArgumentsRule
+                    {
+                        Separator = r.Arguments.Separator, NextLine = r.Arguments.NextLine,
+                        Named = r.Arguments.Named == null ? null : Rx(where + ".arguments.named", r.Arguments.Named, "name"),
+                    };
+                }
+                var hasOwner = pattern.GetGroupNames().Contains("owner");
+                if (hasOwner && (resolve != ResolveKind.Symbol || r.Assign != null))
+                    throw Fail($"{where}.pattern: il gruppo owner vale solo con resolve: symbol (e senza assign)", $"{where}.pattern: the owner group only applies to resolve: symbol (and without assign)");
+                return new ReferenceRule
+                {
+                    AssignTemplate = r.Assign, HasOwner = hasOwner, List = list, Arguments = arguments,
+                    Relation = r.Relation, Pattern = pattern,
+                    Text = Enum(where + ".text", r.Text, TextKind.Code),
+                    After = r.After == null ? null : Rx(where + ".after", r.After), NotAfter = r.NotAfter == null ? null : Rx(where + ".notAfter", r.NotAfter),
+                    Strip = r.Strip == null ? null : Rx(where + ".strip", r.Strip),
+                    Resolve = resolve, Rules = rules, Scope = scope, Confidence = r.Confidence, ExternalWhenUnresolved = unresolved == "external",
+                    Ignore = new HashSet<string>(r.Ignore ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
+                    IgnoreUnresolved = new HashSet<string>(r.IgnoreUnresolved ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
+                    Unless = r.Unless ?? new List<string>(),
+                };
+            }
+
+            private T Enum<T>(string where, string value, T? fallback) where T : struct, System.Enum
+            {
+                if (value == null)
+                {
+                    if (fallback.HasValue) return fallback.Value;
+                    throw Fail($"{where}: obbligatorio ({Names<T>()})", $"{where}: required ({Names<T>()})");
+                }
+                if (System.Enum.TryParse<T>(value, true, out var parsed) && System.Enum.IsDefined(parsed) && !int.TryParse(value, out _)) return parsed;
+                throw Fail($"{where}: '{value}' — ammessi: {Names<T>()}", $"{where}: '{value}' — allowed: {Names<T>()}");
+            }
+
+            private T Enum<T>(string where, string value, T fallback) where T : struct, System.Enum => Enum<T>(where, value, (T?)fallback);
+
+            private static string Names<T>() where T : struct, System.Enum => string.Join(", ", System.Enum.GetNames<T>().Select(n => char.ToLowerInvariant(n[0]) + n[1..]));
+
+            private Regex Rx(string where, string pattern, params string[] requiredGroups)
+            {
+                Regex rx;
+                try { rx = new Regex(pattern, _options, RegexTimeout); }
+                catch (ArgumentException ex) { throw Fail($"{where}: l'espressione regolare non compila ({ex.Message})", $"{where}: the regular expression does not compile ({ex.Message})"); }
+                foreach (var g in requiredGroups)
+                    if (!rx.GetGroupNames().Contains(g)) throw Fail($"{where}: manca il gruppo (?<{g}>…)", $"{where}: the group (?<{g}>…) is missing");
+                return rx;
+            }
+        }
+
+        /// <summary>La forma del file YAML: solo DTO, i controlli stanno nel <see cref="Builder"/>.</summary>
+        private static class Yaml
+        {
+            public sealed class Definition
+            {
+                public int Schema { get; set; }
+                public string Id { get; set; }
+                public string Name { get; set; }
+                public int Version { get; set; }
+                public List<string> Extensions { get; set; }
+                public bool IgnoreCase { get; set; }
+                public bool Database { get; set; }
+                public Lexical Lexical { get; set; }
+                public Module Module { get; set; }
+                public List<Block> Blocks { get; set; }
+                public List<Label> Labels { get; set; }
+                public List<Declaration> Declarations { get; set; }
+                public Parameters Parameters { get; set; }
+                public Dictionary<string, string> Types { get; set; }
+                public List<Reference> References { get; set; }
+                public Fragments Fragments { get; set; }
+                public Template Template { get; set; }
+                public Xml Xml { get; set; }
+            }
+            public sealed class Xml
+            {
+                public List<XmlQuery> Queries { get; set; }
+                public List<XmlLoader> Loaders { get; set; }
+                public string Placeholder { get; set; }
+            }
+            public sealed class XmlQuery
+            {
+                public string Match { get; set; }
+                public string Name { get; set; }
+                public string Group { get; set; }
+                public string Fragments { get; set; }
+            }
+            public sealed class XmlLoader
+            {
+                public string Method { get; set; }
+                public string Receiver { get; set; }
+                public string Class { get; set; }
+                public int? File { get; set; }
+                public int? Group { get; set; }
+                public int? Name { get; set; }
+                public string GroupValue { get; set; }
+                public string NameValue { get; set; }
+                public int? Fragment { get; set; }
+                public List<int> Fragments { get; set; }
+                public string DefaultFragment { get; set; }
+            }
+            public sealed class Template
+            {
+                public string Directive { get; set; }
+                public List<string> Include { get; set; }
+                public List<TemplateBlock> Blocks { get; set; }
+                public List<TemplateRecognizer> Recognizers { get; set; }
+                public List<string> Events { get; set; }
+                public string Dynamic { get; set; }
+                public TemplateInline Inline { get; set; }
+                public Dictionary<string, string> Controls { get; set; }
+            }
+            public sealed class TemplateInline
+            {
+                public List<string> Extensions { get; set; }
+                public string Match { get; set; }
+            }
+            public sealed class TemplateRecognizer
+            {
+                public string Id { get; set; }
+                public string Role { get; set; }
+                public string Match { get; set; }
+                public string Close { get; set; }
+                public bool Guard { get; set; }
+                public string Callee { get; set; }
+            }
+            public sealed class TemplateBlock
+            {
+                public string Open { get; set; }
+                public string Close { get; set; }
+                public List<string> Else { get; set; }
+                public List<string> Cases { get; set; }
+                public bool Guard { get; set; }
+            }
+            public sealed class Fragments
+            {
+                public List<string> In { get; set; }
+                public string At { get; set; }
+                public string Jump { get; set; }
+                public string Stop { get; set; }
+                public Branches Branches { get; set; }
+            }
+            public sealed class Branches
+            {
+                public string Open { get; set; }
+                public string Case { get; set; }
+                public string Close { get; set; }
+            }
+            public sealed class Lexical
+            {
+                public string LineComment { get; set; }
+                public List<string> BlockComment { get; set; }
+                public string String { get; set; }
+                public bool MultilineString { get; set; }
+                public string Continuation { get; set; }
+            }
+            public sealed class Nesting
+            {
+                public string Open { get; set; }
+                public string Close { get; set; }
+                public string Body { get; set; }
+                public string Header { get; set; }
+                public string Declaration { get; set; }
+            }
+            public sealed class Module { public string Name { get; set; } }
+            public sealed class Block
+            {
+                public string Id { get; set; }
+                public string Kind { get; set; }
+                public string Begin { get; set; }
+                public string End { get; set; }
+                public Nesting Nesting { get; set; }
+                public List<string> In { get; set; }
+                public string Name { get; set; }
+                public string Signature { get; set; }
+                public string Completes { get; set; }
+            }
+            public sealed class Label
+            {
+                public string Id { get; set; }
+                public string Kind { get; set; }
+                public string At { get; set; }
+                public List<string> In { get; set; }
+                public string Name { get; set; }
+                public bool OnlyIfReferenced { get; set; }
+            }
+            public sealed class Declaration
+            {
+                public string Id { get; set; }
+                public string Kind { get; set; }
+                public string At { get; set; }
+                public string Each { get; set; }
+                public List<string> In { get; set; }
+                public string Name { get; set; }
+                public bool? Emit { get; set; }
+            }
+            public sealed class Parameters
+            {
+                public bool Sticky { get; set; }
+                public string Item { get; set; }
+                public Dictionary<string, string> Direction { get; set; }
+                public string Default { get; set; }
+                public string Separator { get; set; }
+                public string Optional { get; set; }
+            }
+            public sealed class List
+            {
+                public string Until { get; set; }
+                public string Separator { get; set; }
+                public string Item { get; set; }
+            }
+            public sealed class Arguments
+            {
+                public string Separator { get; set; }
+                public string Named { get; set; }
+                public bool NextLine { get; set; }
+            }
+            public sealed class Reference
+            {
+                public string Relation { get; set; }
+                public string Pattern { get; set; }
+                public string Text { get; set; }
+                public string After { get; set; }
+                public string NotAfter { get; set; }
+                public string Strip { get; set; }
+                public string Resolve { get; set; }
+                public string Rule { get; set; }
+                public List<string> Rules { get; set; }
+                public List<string> Ignore { get; set; }
+                public List<string> IgnoreUnresolved { get; set; }
+                public List List { get; set; }
+                public Arguments Arguments { get; set; }
+                public List<string> Unless { get; set; }
+                public string Scope { get; set; }
+                public string Confidence { get; set; }
+                public string Unresolved { get; set; }
+                public string Assign { get; set; }
+            }
+        }
+    }
+
+    /// <summary>Una definizione di linguaggio che non si può usare: il messaggio dice il file e il campo.</summary>
+    public sealed class LanguageDefinitionException : Exception
+    {
+        public string DefinitionPath { get; }
+        /// <summary>Il motivo senza il percorso davanti: per chi il percorso lo mostra già (la finestra «Ambiente di sviluppo»).</summary>
+        public string Reason { get; }
+
+        public LanguageDefinitionException(string path, string message, Exception inner = null)
+            : base($"{path}: {message}", inner)
+        {
+            DefinitionPath = path;
+            Reason = message;
+        }
+    }
+}

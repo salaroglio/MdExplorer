@@ -295,23 +295,23 @@ export class P2PManagerComponent implements OnInit, OnDestroy {
 
   downloadFile(fileInfo: any): void {
     if (!fileInfo?.magnetUri) {
-      this.snackBar.open('Magnet link non disponibile', 'OK', { duration: 3000 });
+      this.snackBar.open('Magnet link not available', 'OK', { duration: 3000 });
       return;
     }
 
-    this.snackBar.open('Avvio download...', '', { duration: 2000 });
+    this.snackBar.open('Starting download...', '', { duration: 2000 });
     this.p2pService.download(fileInfo.magnetUri).subscribe({
       next: (result) => {
         if (result.success) {
-          this.snackBar.open(`Download avviato: ${result.name}`, 'OK', { duration: 3000 });
+          this.snackBar.open(`Download started: ${result.name}`, 'OK', { duration: 3000 });
           this.selectedTab = 0; // Switch to Transfers tab
           this.refreshTransfers();
         } else {
-          this.snackBar.open('Errore: ' + result.error, 'OK', { duration: 3000 });
+          this.snackBar.open('Error: ' + result.error, 'OK', { duration: 3000 });
         }
       },
       error: (err) => {
-        this.snackBar.open('Errore download: ' + err.message, 'OK', { duration: 3000 });
+        this.snackBar.open('Download error: ' + err.message, 'OK', { duration: 3000 });
       }
     });
   }

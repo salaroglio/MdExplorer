@@ -27,7 +27,12 @@
   .setting-hint {
     margin-top: 8px;
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--mde-text-secondary);
     line-height: 1.4;
   }
+}
+
+// Testo descrittivo sotto i toggle (ex stile inline)
+.setting-hint-text {
+  color: var(--mde-text-secondary);
 }

@@ -11,8 +11,8 @@ import { BehaviorSubject, Observable } from 'rxjs';
  *  - parsingProjectStop   → setComplete() (percent=100), poi auto-dismiss
  *
  * Il flusso esce dal vecchio pattern di MatSnackBar.open() ripetuto per ogni
- * folder (che faceva "scoppiettare" UI). Adesso UNA sola snackbar custom
- * (IndexingProgressSnackComponent) resta aperta per tutta l'indicizzazione e
+ * folder (che faceva "scoppiettare" UI). Dal 14/10/2026 è la riga «indicizzazione»
+ * del pannello dei lavori in sfondo (BackgroundWorkService), che resta aperta e
  * si abbevera da questo BehaviorSubject.
  */
 export interface IndexingProgressState {

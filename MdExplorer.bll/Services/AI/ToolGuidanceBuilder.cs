@@ -92,81 +92,44 @@ RULE 5: BILINGUAL EXAMPLES (Italian + English)
 🇮🇹 'sostituisci la sezione Installation' / 🇬🇧 'replace the Installation section'
    → Generate new content, call update_markdown_file(mode='replace_section', start_marker='## Installation', end_marker=null, include_markers=true)
 
-RULE 6: CREATING SLIDE PRESENTATIONS WITH REVEAL.JS
+RULE 6: SLIDE PRESENTATIONS ARE PLAIN MARKDOWN FILES
 
-When user says create slides/presentation/slideshow:
-✅ CORRECT: Use create_slide_presentation tool
-❌ WRONG: Use create_markdown_file with manual HTML structure
+A presentation is a .md file whose front matter says document_type: slides. MdExplorer shows it
+with reveal.js. Create it with create_markdown_file, change it with update_markdown_file, like any
+other file. Never write <section>, <textarea> or reveal.js page HTML around the slides.
 
-Examples:
-🇮🇹 crea slide su Docker / 🇬🇧 create slides about Docker
-   → Generate 5-7 slides with heading and content, call create_slide_presentation
+- A line with only --- starts the next slide (always, also right under a line of text: use ## for titles).
+- A line with only -- starts a slide below the current one (vertical slide).
+- A line starting with Note: turns the rest of the slide into speaker notes.
+- <!-- .element: class=""fragment"" --> at the end of a list item makes it appear on its own.
+- <!-- .slide: data-background-color=""#1b2a3a"" --> inside a slide sets that slide's attributes.
+- reveal.js options go under reveal.config in the front matter; the theme under reveal.theme.
+- Diagrams are ```plantuml blocks. Mermaid is not shown in slides.
 
-🇮🇹 fai una presentazione su microservizi con diagrammi / 🇬🇧 make presentation on microservices with diagrams
-   → Generate slides including PlantUML or Mermaid diagrams, call create_slide_presentation
+SLIDE DECK EXAMPLE:
+---
+title: Docker in production
+document_type: slides
+---
 
-SLIDE STRUCTURE GUIDELINES:
-- Title slide: Auto-generated from title parameter
-- Content slides: 5-7 slides typically
-- Each slide: Clear heading + concise content (3-5 bullets or 1 code block)
-- Use useFragments=true for lists (animated bullet points)
-- Use useFragments=false for code blocks (no animation)
-- Diagrams: Include PlantUML or Mermaid code blocks in slide content
-- Keep text minimal: slides are visual aids, not essays
+# Docker in production
 
-RULE 7: MODIFYING EXISTING SLIDE PRESENTATIONS
+---
 
-When user says add/modify/change slide in existing presentation (document_type: slides):
-✅ CORRECT: Maintain reveal.js structure with proper <section> elements
-❌ WRONG: Append plain markdown lists or text outside reveal.js structure
+## Why containers
 
-CRITICAL: Slide presentations use reveal.js HTML structure, NOT plain markdown!
+- Same image everywhere <!-- .element: class=""fragment"" -->
+- Fast rollbacks <!-- .element: class=""fragment"" -->
 
-Examples:
-🇮🇹 aggiungi una slide su Docker networking / 🇬🇧 add a slide about Docker networking
-   Step 1: Call read_markdown_file to see current structure
-   Step 2: Generate new slide as <section data-markdown> block:
+Note:
+Mention the outage of last March.
 
-   <section data-markdown>
-     <textarea data-template>
-   ## Docker Networking
+---
 
-   - Bridge networks
-   - Host networks
-   - Overlay networks
-     </textarea>
-   </section>
+<!-- .slide: data-background-color=""#1b2a3a"" -->
 
-   Step 3: Call update_markdown_file(mode='append', content='...new section...')
-   ✅ Result: New slide added to reveal.js structure
-
-🇮🇹 modifica la slide 2 / 🇬🇧 modify slide 2
-   Step 1: Read file to find second <section> element
-   Step 2: Use update_markdown_file(mode='replace_section', start_marker='<section data-markdown>', end_marker='</section>')
-
-CRITICAL XML WELL-FORMED REQUIREMENTS:
-MdExplorer uses XmlDocument.InnerXml which REQUIRES well-formed XML!
-
-MANDATORY RULES (NO EXCEPTIONS):
-1. ALWAYS quote attributes with double quotes
-2. NEVER use self-closing tags like textarea/
-3. ALWAYS close ALL tags explicitly
-4. Copy the EXACT template below - DO NOT change tag structure
-
-EXACT TEMPLATE (copy this structure exactly - change only content inside textarea):
-
-START_SECTION
-    OPEN_SECTION_TAG with data-markdown attribute
-      OPEN_TEXTAREA_TAG with data-template attribute
-SLIDE_TITLE
-
-SLIDE_CONTENT_HERE
-      CLOSE_TEXTAREA_TAG
-    CLOSE_SECTION_TAG
-END_SECTION
-
-Example filled template:
-Your slides must follow this exact tag structure with proper attribute quoting.
+## Questions
+END OF EXAMPLE
 
 ❌ WRONG EXAMPLES:
 

@@ -1,8 +1,12 @@
+using Ad.Tools.Dal.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Net.Http;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Controllers.Diagnostics
 {
@@ -54,9 +58,149 @@ namespace MdExplorer.Controllers.Diagnostics
             }
         }
 
+        /// <summary>GET api/Diagnostics/StartupNotices — gli avvisi di avvio (Java e simili) che la pagina dei progetti mostra finché non vengono chiusi.</summary>
+        [HttpGet("StartupNotices")]
+        public IActionResult StartupNotices([FromServices] MdExplorer.Services.Java.StartupNotices notices)
+            => Ok(notices.All().Select(n => new { n.Id, n.Level, n.Kind, n.Params, n.At }));
+
+        [HttpPost("StartupNotices/{id}/dismiss")]
+        public IActionResult DismissNotice(string id, [FromServices] MdExplorer.Services.Java.StartupNotices notices)
+            => notices.Dismiss(id) ? Ok(new { dismissed = id }) : NotFound(new { error = MdExplorer.Features.Services.UiText.Say($"avviso '{id}' non trovato", $"notice '{id}' not found") });
+
+        /// <summary>GET api/Diagnostics/Java?path=… — la sonda di un java: versione maggiore, riga grezza, eseguibile o no. Senza path: il JavaPath impostato.</summary>
+        [HttpGet("Java")]
+        public IActionResult JavaProbe([FromQuery] string path, [FromServices] MdExplorer.Features.Utilities.IJavaLocator locator)
+        {
+            var target = string.IsNullOrWhiteSpace(path) ? locator.ResolveJavaPath() : path.Trim();
+            var probe = locator.Probe(target);
+            return Ok(new { path = target, probe.IsRunnable, probe.Major, probe.Raw, probe.Error, minimum = MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor, suitable = probe.IsRunnable && probe.Major >= MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor });
+        }
+
+        /// <summary>GET api/Diagnostics/JavaBest — il miglior Java del computer (≥ 21) fra tutti i candidati, o 404 se non c'è. Sonda tutto: qualche secondo.</summary>
+        [HttpGet("JavaBest")]
+        public IActionResult JavaBest([FromServices] MdExplorer.Features.Utilities.IJavaLocator locator)
+        {
+            var best = locator.FindBest(MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor);
+            if (best == null) return NotFound(new { error = MdExplorer.Features.Services.UiText.Say($"Nessun Java {MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor} trovato sul computer", $"No Java {MdExplorer.Services.Java.JavaHealthService.MinimumJavaMajor} found on the computer"), candidates = MdExplorer.Features.Utilities.JavaDiscovery.EnumerateCandidates() });
+            return Ok(new { best.Path, best.Major, best.Raw });
+        }
+
+        /// <summary>POST api/Diagnostics/JavaHealth — rilancia il controllo di salute di Java (sostituisce un JavaPath automatico non adatto, avvisa su uno scritto dall'utente).</summary>
+        [HttpPost("JavaHealth")]
+        public IActionResult JavaHealthRun([FromServices] MdExplorer.Services.Java.JavaHealthService health)
+        {
+            var r = health.Run();
+            return Ok(new { outcome = r.Outcome.ToString(), r.ConfiguredPath, r.ConfiguredMajor, r.ConfiguredProblem, r.BestPath, r.BestMajor, r.EffectivePath, r.MinimumMajor });
+        }
+
         /// <summary>
         /// Gets the log file path
         /// </summary>
+        /// <summary>
+        /// GET api/Diagnostics/Package — l'anteprima di «Invia diagnostica»: i file del pacchetto, la coda di ciascuno già
+        /// oscurata, quante sostituzioni per tipo e il peso dello zip. Lo zip completo è <see cref="PackageZip"/>.
+        /// </summary>
+        [HttpGet("Package")]
+        public IActionResult Package([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings, [FromQuery] bool findings = false)
+        {
+            const int previewLines = 300;
+            var projects = ProjectPaths(userSettings);
+            var files = package.Collect(findings ? projects : null);
+            var zipBytes = package.Zip(files).Length;
+            var totals = files.SelectMany(f => f.Redactions).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value));
+            return Ok(new
+            {
+                zipBytes,
+                // quante rilevazioni di MarkAgent ci sono da allegare: la finestra mostra la casella solo se ce ne sono
+                findingsAvailable = MdExplorer.Features.Diagnostics.DiagnosticsFindings.Collect(projects).Count,
+                redactions = totals,
+                files = files.Select(f =>
+                {
+                    var lines = f.Text.Split('\n');
+                    return new
+                    {
+                        name = f.Name, source = f.Source, bytes = f.OriginalBytes, truncated = f.Truncated,
+                        lines = lines.Length, redactions = f.Redactions,
+                        preview = string.Join('\n', lines.Skip(Math.Max(0, lines.Length - previewLines))),
+                    };
+                }),
+            });
+        }
+
+        /// <summary>GET api/Diagnostics/Package/zip — lo stesso pacchetto dell'anteprima, intero, come zip da salvare.</summary>
+        [HttpGet("Package/zip")]
+        public IActionResult PackageZip([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings, [FromQuery] bool findings = false)
+        {
+            var bytes = package.Zip(package.Collect(findings ? ProjectPaths(userSettings) : null));
+            return File(bytes, "application/zip", $"mde-diagnostica-{DateTime.Now:yyyy-MM-dd-HHmm}.zip");
+        }
+
+        public sealed class SendPackageRequest
+        {
+            /// <summary>La versione di MDE vista dal client (versionInfo): quella dell'assembly del servizio è ferma.</summary>
+            public string Version { get; set; }
+            /// <summary>Allegare le rilevazioni di MarkAgent (11/11/2026): solo se chi invia l'ha chiesto, dopo averle viste nell'anteprima.</summary>
+            public bool Findings { get; set; }
+        }
+
+        /// <summary>Le cartelle dei progetti che MdExplorer conosce: dove cercare le rilevazioni.</summary>
+        private static System.Collections.Generic.List<string> ProjectPaths(MdExplorer.Abstractions.DB.IUserSettingsDB userSettings)
+            => userSettings.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>().GetList().Select(p => p.Path).ToList();
+
+        /// <summary>
+        /// POST api/Diagnostics/Package/send — spedisce al relay (Diagnostics:UploadUrl, errantia) lo stesso pacchetto
+        /// dell'anteprima e ritorna il codice da dire a chi aiuta. Sprint «Invia diagnostica», D3.
+        /// </summary>
+        [HttpPost("Package/send")]
+        public async System.Threading.Tasks.Task<IActionResult> SendPackage(
+            [FromBody] SendPackageRequest request,
+            [FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
+            [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings,
+            [FromServices] System.Net.Http.IHttpClientFactory http,
+            [FromServices] Microsoft.Extensions.Configuration.IConfiguration configuration,
+            [FromServices] Microsoft.Extensions.Logging.ILogger<DiagnosticsController> logger)
+        {
+            var url = configuration["Diagnostics:UploadUrl"];
+            if (string.IsNullOrWhiteSpace(url))
+                return StatusCode(500, new { error = MdExplorer.Features.Services.UiText.Say(
+                    "Manca Diagnostics:UploadUrl nella configurazione del servizio: non so dove inviare.",
+                    "Diagnostics:UploadUrl is missing from the service configuration: I do not know where to send.") });
+
+            var zip = package.Zip(package.Collect(request?.Findings == true ? ProjectPaths(userSettings) : null));
+            using var content = new System.Net.Http.ByteArrayContent(zip);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
+            using var message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url) { Content = content };
+            message.Headers.TryAddWithoutValidation("X-MDE-Version", (request?.Version ?? "").Trim());
+            message.Headers.TryAddWithoutValidation("X-MDE-OS", RuntimeInformation.OSDescription);
+
+            try
+            {
+                var client = http.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(60);
+                using var response = await client.SendAsync(message);
+                var body = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+                var root = doc.RootElement;
+                string Get(string name) => root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty(name, out var v) ? v.ToString() : null;
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogWarning("[Diagnostica] invio rifiutato dal relay: {Status} {Body}", (int)response.StatusCode, body);
+                    return StatusCode(502, new { error = Get("error") ?? $"HTTP {(int)response.StatusCode}", code = Get("code") });
+                }
+                logger.LogInformation("[Diagnostica] pacchetto inviato: codice {Code}, {Bytes} byte", Get("code"), zip.Length);
+                return Ok(new { code = Get("code"), expiresAt = Get("expiresAt"), bytes = zip.Length });
+            }
+            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException || ex is System.Threading.Tasks.TaskCanceledException || ex is System.Text.Json.JsonException)
+            {
+                logger.LogWarning(ex, "[Diagnostica] invio non riuscito verso {Url}", url);
+                return StatusCode(502, new { error = MdExplorer.Features.Services.UiText.Say(
+                    $"Il relay non ha risposto ({ex.Message}). Puoi salvare lo zip e mandarlo in un altro modo.",
+                    $"The relay did not answer ({ex.Message}). You can save the zip and send it another way.") });
+            }
+        }
+
         [HttpGet("LogPath")]
         public IActionResult GetLogPath()
         {

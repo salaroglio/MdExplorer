@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { applySignalrTimeouts } from '../../signalR/signalr-timeouts';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { IChatProvider } from './chat-provider.interface';
@@ -33,11 +34,11 @@ export class SignalRChatProvider implements IChatProvider {
    * Initialize SignalR connection
    */
   private initializeSignalR(): void {
-    this.hubConnection = new HubConnectionBuilder()
+    this.hubConnection = applySignalrTimeouts(new HubConnectionBuilder()
       .withUrl('/signalr/teamchat')
       .configureLogging(LogLevel.Information)
       .withAutomaticReconnect()
-      .build();
+      .build());
 
     // Handle incoming messages
     this.hubConnection.on('ReceiveMessage', (message: ChatMessage) => {

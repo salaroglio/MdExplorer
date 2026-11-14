@@ -1,0 +1,33 @@
+/* "Modifica veloce" (slide-edit-mode.js): ciò che la pagina fa con la modalità accesa. */
+
+/* L'area che si può correggere sotto il puntatore: la stessa che correggerebbe «Modifica testo». */
+.mde-edit-hover {
+    outline: 2px dashed rgba(26, 115, 232, 0.85);
+    outline-offset: 3px;
+    background: rgba(26, 115, 232, 0.07);
+    border-radius: 3px;
+    cursor: text;
+}
+
+/* Un trascinamento non deve selezionare il testo, né far partire il trascinamento del browser su un link;
+   dentro il blocco in modifica il testo si seleziona come sempre. */
+body.mde-edit-mode [data-mde-content] {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body.mde-edit-mode [data-mde-content] [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+body.mde-edit-mode [data-mde-content] a {
+    -webkit-user-drag: none;
+}
+
+/* I frammenti non ancora mostrati si vedono tutti, per poterli evidenziare e trascinare. Solo CSS: lo stato di
+   reveal.js (classi, hash) non si tocca, e uscendo dalla modalità la slide torna com'era. */
+body.mde-edit-mode .reveal .slides section .fragment:not(.visible) {
+    opacity: 1 !important;
+    visibility: visible !important;
+}

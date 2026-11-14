@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { GitChatService } from '../../services/git-chat.service';
-import { ChatMessage, PresenceInfo, ChatSettings, ChatConnectionState } from '../../models/chat.models';
+import { ChatMessage, PresenceInfo, ChatSettings, ChatConnectionState, RoomInfo } from '../../models/chat.models';
 import { ProjectsService } from '../../../md-explorer/services/projects.service';
 
 @Component({
@@ -24,8 +24,36 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
   settings: ChatSettings = { notificationsEnabled: true, soundEnabled: true };
   connectionState: ChatConnectionState = 'disconnected';
+  roomInfo: RoomInfo | null = null;
+
+  /** Il testo dell'avviso sulla chiave della stanza, per lo stato che ha detto room-info. */
+  get keyNoticeKey(): string {
+    switch (this.roomInfo?.keyState) {
+      case 'notPushed': return 'GIT_CHAT.KEY_NOT_PUSHED';
+      case 'notPulled': return 'GIT_CHAT.KEY_NOT_PULLED';
+      case 'differs': return 'GIT_CHAT.KEY_DIFFERS';
+      default: return 'GIT_CHAT.KEY_NOT_COMMITTED';
+    }
+  }
+
+  /** Il motivo del rifiuto del relay, come chiave di traduzione; null se non c'è un codice. */
+  get relayErrorKey(): string | null {
+    switch (this.roomInfo?.relayCode) {
+      case undefined: case null: return null;
+      case 'room-not-registered': return 'GIT_CHAT.RELAY_ROOM_NOT_REGISTERED';
+      case 'too-many-rooms': return 'GIT_CHAT.RELAY_TOO_MANY_ROOMS';
+      case 'bad-token': return 'GIT_CHAT.RELAY_BAD_TOKEN';
+      case 'bad-master-key': return 'GIT_CHAT.RELAY_BAD_MASTER_KEY';
+      case 'unreachable': return 'GIT_CHAT.RELAY_UNREACHABLE';
+      default: return 'GIT_CHAT.RELAY_REFUSED';
+    }
+  }
 
   inputMessage = '';
+  /** Perché l'ultimo messaggio non è partito (il testo resta nella casella). */
+  sendError: string | null = null;
+  /** Perché non si è entrati nella stanza, quando il relay non ha dato un codice. */
+  joinError: string | null = null;
   showSettings = false;
   showOnlineUsers = false;
   private shouldScrollToBottom = true;
@@ -63,6 +91,10 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       })
     );
 
+    this.subscriptions.push(
+      this.chatService.roomInfo$.subscribe(info => this.roomInfo = info)
+    );
+
     // Subscribe to connection state
     this.subscriptions.push(
       this.chatService.connectionState$.subscribe(state => {
@@ -96,10 +128,12 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private async initializeChatForProject(projectPath: string): Promise<void> {
+    this.joinError = null;
     try {
       await this.chatService.joinRoom(projectPath);
     } catch (error) {
       console.error('[GitChatComponent] Failed to initialize chat:', error);
+      this.joinError = this.serverMessage(error);
     }
   }
 
@@ -107,6 +141,7 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     const content = this.inputMessage.trim();
     if (!content) return;
 
+    this.sendError = null;
     try {
       await this.chatService.sendMessage(content);
       this.inputMessage = '';
@@ -117,7 +152,16 @@ export class GitChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
     } catch (error) {
       console.error('[GitChatComponent] Failed to send message:', error);
+      this.sendError = this.serverMessage(error);
     }
+  }
+
+  /** Il testo che il servizio ha messo nella HubException, senza il prefisso che SignalR ci aggiunge. */
+  private serverMessage(error: unknown): string {
+    const text = (error as any)?.message ?? String(error);
+    const marker = 'HubException: ';
+    const at = text.indexOf(marker);
+    return at >= 0 ? text.substring(at + marker.length) : text;
   }
 
   onKeyPress(event: KeyboardEvent): void {

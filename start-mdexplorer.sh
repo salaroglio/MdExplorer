@@ -15,6 +15,15 @@ else
     DOTNET="$DOTNET_ROOT/dotnet"
 fi
 
+# CLIs installed with npm under nvm (copilot, claude, opencode) are in PATH only once nvm is loaded:
+# a shell started from a desktop shortcut or a terminal profile does not read .bashrc, and the
+# service would not find them (29/09/2026: «spiega il diagramma» failed to start copilot).
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh" >/dev/null 2>&1
+    echo "nvm loaded: node $(command -v node 2>/dev/null || echo 'not found')"
+fi
+
 # Change to MdExplorer directory
 cd "$SCRIPT_DIR/MdExplorer" || {
     echo "Error: Cannot find MdExplorer directory at $SCRIPT_DIR/MdExplorer"

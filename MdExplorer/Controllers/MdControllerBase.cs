@@ -126,39 +126,33 @@ namespace MdExplorer.Service.Controllers
         }
 
         /// <summary>
-        /// Gets EngineDB for current client. Uses DatabaseManager if available, otherwise falls back to injected _engineDB.
+        /// Il database dei file del progetto della finestra, con una sessione SOLO di questa richiesta: chiamate ripetute nella
+        /// stessa richiesta danno la stessa (BeginTransaction e Commit restano sullo stesso oggetto), e si chiude a fine
+        /// richiesta. Prima era una sessione per finestra, usata insieme dal watcher: due thread sulla stessa connessione
+        /// SQLite facevano morire il servizio (C1 della valutazione del 07/11). Senza connessione registrata: quella della DI.
         /// </summary>
         protected IEngineDB GetEngineDB()
-        {
-            var context = GetDatabaseContext();
-            return context?.EngineDB ?? _engineDB;
-        }
+            => PerRequest("mde.engineDB", id => _databaseManager.CreateIsolatedEngineDB(id)) ?? _engineDB;
 
-        /// <summary>
-        /// Gets EngineDB for a specific connectionId (for use in background tasks).
-        /// </summary>
-        protected IEngineDB GetEngineDB(string connectionId)
-        {
-            var context = GetDatabaseContext(connectionId);
-            return context?.EngineDB ?? _engineDB;
-        }
-
-        /// <summary>
-        /// Gets ProjectDB for current client. Only available when using DatabaseManager.
-        /// </summary>
+        /// <summary>Il database del progetto della finestra, una sessione per richiesta come <see cref="GetEngineDB"/>.</summary>
         protected IProjectDB GetProjectDB()
-        {
-            var context = GetDatabaseContext();
-            return context?.ProjectDB;
-        }
+            => PerRequest("mde.projectDB", id => _databaseManager.CreateIsolatedProjectDB(id));
 
-        /// <summary>
-        /// Gets ProjectDB for a specific connectionId (for use in background tasks).
-        /// </summary>
-        protected IProjectDB GetProjectDB(string connectionId)
+        private T PerRequest<T>(string key, Func<string, T> open) where T : class, IDisposable
         {
-            var context = GetDatabaseContext(connectionId);
-            return context?.ProjectDB;
+            if (GetDatabaseContext() is not { } context) return null;
+            var itemKey = key + ":" + context.ConnectionId;
+            if (HttpContext.Items.TryGetValue(itemKey, out var existing) && existing is T session) return session;
+            T opened;
+            try { opened = open(context.ConnectionId); }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to open {Key} for connection {ConnectionId}", key, context.ConnectionId);
+                return null;
+            }
+            HttpContext.Items[itemKey] = opened;
+            HttpContext.Response.RegisterForDispose(opened);
+            return opened;
         }
 
         /// <summary>
@@ -193,6 +187,18 @@ namespace MdExplorer.Service.Controllers
         }
 
         /// <summary>
+        /// The document view's Markdig pipeline with the user's Jira settings. The page is rendered
+        /// with it, and a correction made on the page reads the file with it.
+        /// </summary>
+        protected Markdig.MarkdownPipeline BuildDocumentViewPipeline()
+        {
+            var settingDal = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.Setting>();
+            var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
+            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
+            return MdExplorer.Features.Services.SourceMapping.DocumentViewPipeline.Build(jiraEnabled ? jiraUrl : null);
+        }
+
+        /// <summary>
         /// Enables or disables file system monitoring for the current client.
         /// Uses per-client FileSystemWatcherManager. Disable calls nest (see
         /// IFileSystemWatcherManager.SetWatcherEnabled).
@@ -204,9 +210,14 @@ namespace MdExplorer.Service.Controllers
         /// rely on suppression must not assume it took effect).
         /// </returns>
         protected bool SetFileSystemWatcherEnabled(bool enabled)
-        {
-            var connectionId = Request.Query["ConnectionId"].ToString();
+            => SetFileSystemWatcherEnabled(enabled, Request.Query["ConnectionId"].ToString());
 
+        /// <summary>
+        /// As <see cref="SetFileSystemWatcherEnabled(bool)"/>, for a request that carries its
+        /// connectionId in the JSON body (the posts made by the page) rather than in the query string.
+        /// </summary>
+        protected bool SetFileSystemWatcherEnabled(bool enabled, string connectionId)
+        {
             if (!string.IsNullOrEmpty(connectionId) && _fileSystemWatcherManager != null)
             {
                 return _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);

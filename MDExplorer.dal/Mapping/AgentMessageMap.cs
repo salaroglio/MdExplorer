@@ -1,0 +1,45 @@
+using FluentNHibernate.Mapping;
+using MdExplorer.Abstractions.Entities.UserDB;
+
+namespace MDExplorer.DataAccess.Mapping
+{
+    public class AgentMessageMap : ClassMap<AgentMessage>
+    {
+        public AgentMessageMap()
+        {
+            Table("AgentMessage");
+            Id(x => x.Id).GeneratedBy.GuidComb();
+            Map(x => x.ConversationId).Not.Nullable();
+            Map(x => x.A2ATaskId).Length(200).Nullable();
+            Map(x => x.FromAgent).Length(200).Not.Nullable();
+            Map(x => x.ToAgent).Length(200).Not.Nullable();
+            Map(x => x.ProjectPath).Length(int.MaxValue).Not.Nullable();
+            Map(x => x.Body).Length(int.MaxValue).Nullable();
+            Map(x => x.Topics).Length(int.MaxValue).Nullable();
+            Map(x => x.State).Length(50).Not.Nullable();
+            Map(x => x.Attempts).Not.Nullable();
+            Map(x => x.CreatedAt).Not.Nullable();
+            Map(x => x.ProcessedAt).Nullable();
+            Map(x => x.NextAttemptAt).Nullable();
+            Map(x => x.ReadAt).Nullable();
+            Map(x => x.ArchivedAt).Nullable();
+            Map(x => x.RunId).Length(64).Nullable();
+            Map(x => x.Replies).Length(int.MaxValue).Nullable();
+            Map(x => x.ReworkNote).Length(int.MaxValue).Nullable();
+            Map(x => x.OwnerStartedAt).Nullable();
+            Map(x => x.OwnerNote).Length(int.MaxValue).Nullable();
+            Map(x => x.StartProvider).Length(50).Nullable();
+            Map(x => x.StartModel).Length(200).Nullable();
+            Map(x => x.OwnerDeclinedAt).Nullable();
+            Map(x => x.WorkflowRound).Length(200).Nullable();
+            Map(x => x.WorkflowStep).Length(200).Nullable();
+            Map(x => x.WorkflowRoundNo).Nullable();
+            Map(x => x.WorkflowAttempt).Nullable();
+            Map(x => x.DeferredReason).Length(50).Nullable();
+            Map(x => x.ForcedAt).Nullable();
+            Map(x => x.TriggerSource).Length(50).Nullable();
+            Map(x => x.SubmoduleBaseCommit).Length(100).Nullable();
+            Map(x => x.Error).Length(int.MaxValue).Nullable();
+        }
+    }
+}

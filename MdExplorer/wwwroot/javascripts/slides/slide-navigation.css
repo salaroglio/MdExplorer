@@ -1,0 +1,54 @@
+/* Breadcrumb fra presentazioni (slide-navigation.js): in alto a sinistra, sopra la presentazione,
+   discreto finché non ci si passa sopra. Fuori dalla slide, quindi non si ingrandisce con lei. */
+
+.mde-slide-trail {
+    position: fixed;
+    top: 8px;
+    left: 10px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100vw - 120px);
+    padding: 4px 10px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.85);
+    font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #333;
+    opacity: 0.55;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.mde-slide-trail:hover {
+    opacity: 1;
+}
+
+.mde-slide-trail a {
+    color: #1a73e8;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mde-slide-trail a:hover {
+    text-decoration: underline;
+}
+
+.mde-slide-trail-separator {
+    color: rgba(0, 0, 0, 0.4);
+}
+
+.mde-slide-trail-current {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Nel PDF non serve: la carta non torna indietro. */
+html.reveal-print .mde-slide-trail,
+html.print-pdf .mde-slide-trail {
+    display: none !important;
+}

@@ -47,6 +47,18 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/prismjs/prism-turtle.min.js');
     loadScriptOnce('/prismjs/prism-json.min.js');
     loadScriptOnce('/prismjs/prism-yaml.min.js');
+    // Linguaggi che TextFileView.LanguageFor già nominava ma che non c'erano: quei file si vedevano senza colori (visto il
+    // 21/10/2026 con un COBOL). Prism 1.29.0, dopo le loro dipendenze (clike, javascript, markup, turtle sopra).
+    loadScriptOnce('/prismjs/prism-css.min.js');
+    loadScriptOnce('/prismjs/prism-scss.min.js');
+    loadScriptOnce('/prismjs/prism-typescript.min.js');
+    loadScriptOnce('/prismjs/prism-kotlin.min.js');
+    loadScriptOnce('/prismjs/prism-bash.min.js');
+    loadScriptOnce('/prismjs/prism-powershell.min.js');
+    loadScriptOnce('/prismjs/prism-markdown.min.js');
+    loadScriptOnce('/prismjs/prism-cypher.min.js');
+    loadScriptOnce('/prismjs/prism-sparql.min.js');
+    loadScriptOnce('/prismjs/prism-cobol.min.js');
 
     // Always load mermaid but configure it differently based on environment
     const isElectron = navigator.userAgent.includes('Electron');
@@ -112,8 +124,12 @@ if (window.commonJsLoaded) {
         console.log('🔍 [COMMON.JS] Emoji modules loading queued');
 
         // IMAGES: Readability, magnifier, transform (move/resize)
+        // La barra dei pulsanti sopra un'immagine: una barra sola, spostabile col mouse.
+        document.write("<link href='/javascripts/jqueryForFirstPage/images/image-toolbar.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-readability.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-magnifier.js');
+        // Testi IT/EN della barra e memoria della legenda, usati da image-transform.js (e dalle slide).
+        loadScriptOnce('/javascripts/jqueryForFirstPage/images/toolbar-shared.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-transform.js');
 
         // NAVIGATION: History and scroll position management
@@ -125,13 +141,20 @@ if (window.commonJsLoaded) {
         // SEARCH: Full-text search with highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');
 
+        // AI SELECTION: floating "Usa AI" button on text selection
+        document.write("<link href='/javascripts/jqueryForFirstPage/ai-selection/ai-selection.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/ai-selection/ai-selection.js');
+
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
+        document.write("<link href='/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
+
+        // INLINE EDIT: "Modifica testo" in the right-click menu — correct the text of a block on the page
+        document.write("<link href='/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js');
 
         // PANELS: TOC, knowledge graph, and resize functionality
         document.write("<link href='/javascripts/jqueryForFirstPage/panels/kg-manager.css' rel='stylesheet' />");
-        loadScriptOnce('/javascripts/lib/three.min.js');
-        loadScriptOnce('/javascripts/lib/3d-force-graph.min.js');
         loadScriptOnce('/javascripts/lib/force-graph.min.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');
@@ -166,6 +189,8 @@ if (window.commonJsLoaded) {
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.js');
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.js');
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.js');
 
@@ -177,10 +202,19 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.js');
 
+        // TABLES: narrow columns (numbers + short sigle) — wrap their long header, keep column small
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-narrow-cols.js');
+        // TABLES: floating "find in table" button on hover (like the SVG diagram search)
+        document.write("<link href='/javascripts/jqueryForFirstPage/tables/table-find.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-find.js');
+        // TABLES: a wheel that reaches the end of a table's scroll box carries on
+        // scrolling the document (Chrome latches it to the table otherwise)
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-scroll-chaining.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (24 files) ===');
+        console.log('=== MODULAR FILES LOADED (27 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');

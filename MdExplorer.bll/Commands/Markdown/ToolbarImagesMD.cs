@@ -22,7 +22,7 @@ namespace MdExplorer.Features.Commands.Markdown
 
         public MatchCollection GetMatchesPlantuml(string markdown)
         {
-            Regex rx = new Regex(@"```plantuml([^```]+)```[{]?([^}]*)[}]?",
+            Regex rx = new Regex(PlantumlFence.Body + @"[{]?([^}]*)[}]?",
                                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var matches = rx.Matches(markdown);
             return matches;

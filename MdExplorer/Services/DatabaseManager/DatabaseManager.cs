@@ -27,6 +27,12 @@ namespace MdExplorer.Services.DatabaseManager
     public class DatabaseManager : IDatabaseManager
     {
         private readonly ConcurrentDictionary<string, ConnectionDatabaseContext> _contexts = new();
+
+        /// <summary>
+        /// Una <see cref="ISessionFactory"/> per file di database, costruita una volta (C2 della valutazione del 07/11): prima
+        /// se ne costruiva una a ogni apertura, e la chiusura della sessione non la chiudeva, quindi restavano tutte in memoria.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Lazy<ISessionFactory>> _factories = new();
         private readonly ILogger<DatabaseManager> _logger;
         private readonly string _appDataPath;
 
@@ -65,20 +71,23 @@ namespace MdExplorer.Services.DatabaseManager
 
             try
             {
-                // Create database contexts
-                var engineDB = CreateEngineDB(engineDbPath);
-                var projectDB = CreateProjectDB(projectDbPath);
+                // Si aprono e si chiudono subito: un database che non si apre lo dice qui, all'apertura del progetto,
+                // e non alla prima richiesta. Le sessioni vere le apre ognuno per sé (C1).
+                using (CreateEngineDB(engineDbPath)) { }
+                using (CreateProjectDB(projectDbPath)) { }
 
                 var context = new ConnectionDatabaseContext
                 {
                     ConnectionId = connectionId,
                     ProjectPath = normalizedPath,
                     ProjectId = Guid.NewGuid(), // TODO: Get actual project ID from database
-                    EngineDB = engineDB,
-                    ProjectDB = projectDB,
+                    EngineConnectionString = engineDbPath,
+                    ProjectConnectionString = projectDbPath,
                     RegisteredAt = DateTime.UtcNow
                 };
 
+                // C2: la stessa finestra che apre un altro progetto (o rientra dalla copia di un agente) sostituisce il
+                // contesto. Non c'è più niente di aperto da chiudere: le sessioni sono di chi le ha chieste.
                 _contexts[connectionId] = context;
 
                 _logger.LogInformation($"✅ Connection {connectionId} registered successfully");
@@ -120,12 +129,7 @@ namespace MdExplorer.Services.DatabaseManager
 
                 try
                 {
-                    // Dispose databases
-                    DisposeDatabase(context.EngineDB, "EngineDB");
-                    DisposeDatabase(context.ProjectDB, "ProjectDB");
-                    // Do NOT dispose UserSettingsDB as it's shared
-
-                    _logger.LogInformation($"✅ Connection {connectionId} unregistered and resources disposed");
+                    _logger.LogInformation($"✅ Connection {connectionId} unregistered");
                 }
                 catch (Exception ex)
                 {
@@ -159,12 +163,18 @@ namespace MdExplorer.Services.DatabaseManager
             if (!_contexts.TryGetValue(connectionId, out var context))
                 throw new InvalidOperationException($"No database context found for connection {connectionId}");
 
-            var hash = Helper.HGetHashString(context.ProjectPath);
-            var engineDbPath = $"Data Source={Path.Combine(_appDataPath, $"MdEngine_{hash}.db")}";
+            return CreateEngineDB(context.EngineConnectionString);
+        }
 
-            _logger.LogDebug($"🔧 Creating isolated EngineDB for connection {connectionId}");
+        public IProjectDB CreateIsolatedProjectDB(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+                throw new ArgumentException("ConnectionId cannot be null or empty", nameof(connectionId));
 
-            return CreateEngineDB(engineDbPath);
+            if (!_contexts.TryGetValue(connectionId, out var context))
+                throw new InvalidOperationException($"No database context found for connection {connectionId}");
+
+            return CreateProjectDB(context.ProjectConnectionString);
         }
 
         public IEngineDB CreateIsolatedEngineDBForProjectPath(string projectPath)
@@ -219,17 +229,28 @@ namespace MdExplorer.Services.DatabaseManager
             }
         }
 
+        private ISessionFactory FactoryFor(string connectionString, Assembly mappings)
+        {
+            var key = mappings.GetName().Name + "|" + connectionString;
+            var factory = _factories.GetOrAdd(key, _ => new Lazy<ISessionFactory>(() =>
+                Fluently.Configure()
+                    .Database(new DatabaseSQLite().Config(connectionString))
+                    .Mappings(m => m.FluentMappings.AddFromAssembly(mappings))
+                    .BuildSessionFactory()));
+            try { return factory.Value; }
+            catch
+            {
+                // Lazy ricorderebbe l'errore per sempre: la prossima apertura riprova.
+                _factories.TryRemove(key, out _);
+                throw;
+            }
+        }
+
         private IEngineDB CreateEngineDB(string connectionString)
         {
             try
             {
-                var config = new DatabaseSQLite().Config(connectionString);
-                var assembly = typeof(MarkdownFileMap).Assembly;
-
-                var sessionFactory = Fluently.Configure()
-                    .Database(config)
-                    .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly))
-                    .BuildSessionFactory();
+                var sessionFactory = FactoryFor(connectionString, typeof(MarkdownFileMap).Assembly);
 
                 var session = sessionFactory.OpenSession();
                 DatabaseSQLite.ApplyPragmas(session);
@@ -246,13 +267,7 @@ namespace MdExplorer.Services.DatabaseManager
         {
             try
             {
-                var config = new DatabaseSQLite().Config(connectionString);
-                var assembly = typeof(SemanticClusterMap).Assembly;
-
-                var sessionFactory = Fluently.Configure()
-                    .Database(config)
-                    .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly))
-                    .BuildSessionFactory();
+                var sessionFactory = FactoryFor(connectionString, typeof(SemanticClusterMap).Assembly);
 
                 var session = sessionFactory.OpenSession();
                 DatabaseSQLite.ApplyPragmas(session);
@@ -262,22 +277,6 @@ namespace MdExplorer.Services.DatabaseManager
             {
                 _logger.LogError(ex, $"Failed to create ProjectDB with connection: {connectionString}");
                 throw;
-            }
-        }
-
-        private void DisposeDatabase(object database, string dbName)
-        {
-            try
-            {
-                if (database is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                    _logger.LogDebug($"   Disposed {dbName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error disposing {dbName}");
             }
         }
     }

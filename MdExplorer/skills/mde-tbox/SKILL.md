@@ -1,9 +1,9 @@
 ---
 name: mde-tbox
-description: Convention for generating TBox (schema/ontology) files inside an MDE project. Use when authoring a new OWL ontology layer in `ontology/TBox/`: produces a `.ttl` with class and property definitions plus a `.md` companion with description + runnable PowerShell that loads the file into Apache Jena Fuseki via Graph Store Protocol PUT. Triggers on "create new TBox layer", "generate OWL ontology", "define schema classes", "model domain in OWL", "new ontology layer".
+description: "Convention for generating TBox (schema/ontology) files inside an MDE project. Use when authoring a new OWL ontology layer in `ontology/TBox/`: produces a `.ttl` with class and property definitions plus a `.md` companion with description + runnable PowerShell that loads the file into Apache Jena Fuseki via Graph Store Protocol PUT. Triggers on \"create new TBox layer\", \"generate OWL ontology\", \"define schema classes\", \"model domain in OWL\", \"new ontology layer\". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill."
 mde:
   origin: mdexplorer
-  version: 1
+  version: 4
   updatePolicy: replace
 ---
 
@@ -16,6 +16,8 @@ features. To customize the skill while keeping your edits, remove the `mde:`
 block (or change `origin` to something else) — MdExplorer will then leave the
 file alone.
 -->
+
+> **Not the code graph.** This skill is about domain ontologies written from documents, loaded into a Fuseki server the user runs. MdExplorer's code graph (programs, files, symbols, calls) is a different database that MdExplorer manages itself: query it only with the `code_*` tools (skill `mde-code`), never with SPARQL to `localhost:3030`.
 
 # TBox generation convention
 
@@ -188,6 +190,10 @@ Il named graph IRI è **sempre** `urn:mde:tbox:<layer-name>` dove `<layer-name>`
 Rationale: usare `PUT` su Graph Store Protocol con questo IRI rende il caricamento **idempotente** — re-eseguire il runnable sostituisce completamente il contenuto del named graph senza accumulare duplicati o cross-contaminare altri layer.
 
 ## Validazione
+
+**Con lo strumento MCP `rdf_check` di MdExplorer** (gruppo `agents`) la verifica non ha bisogno di `riot` né di Fuseki: legge
+i `.ttl` (errori con riga e colonna), valida i dati con le regole SHACL e esegue le query `.rq`, tutto in memoria. Usalo
+se c'è; `riot` resta per chi lavora senza MdExplorer.
 
 Prima di marcare la TBox come completata, validare con `riot`:
 

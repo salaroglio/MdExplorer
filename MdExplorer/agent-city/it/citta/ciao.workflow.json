@@ -1,0 +1,15 @@
+{
+  "mde_workflow": 3,
+  "title": "Ciao mondo",
+  "description": "Il giro più piccolo della città: un agente scrive «hello world» in un file e lo consegna; chi ne risponde lo approva.",
+  "steps": [
+    {
+      "id": "ciao",
+      "agent": "citta-ciao",
+      "skill": "saluta",
+      "title": "Scrivi «hello world»",
+      "trigger": { "launch": true },
+      "start": "manual"
+    }
+  ]
+}

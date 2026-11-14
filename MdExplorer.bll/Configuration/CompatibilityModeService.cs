@@ -107,7 +107,7 @@ namespace MdExplorer.Features.Configuration
             {
                 try
                 {
-                    var yamlContent = File.ReadAllText(configFilePath);
+                    var yamlContent = DevelopmentConfigText.ReadFile(configFilePath).Text;
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
                         .Build();

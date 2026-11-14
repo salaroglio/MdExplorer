@@ -358,7 +358,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
         public async IAsyncEnumerable<string> StreamChatAsync(string prompt, string modelName = "gemini-1.5-flash", 
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            _logger.LogInformation($"[StreamChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[StreamChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
             
             // Ensure API key is loaded
             if (string.IsNullOrEmpty(_apiKey))
@@ -465,7 +465,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 
                 if (!string.IsNullOrEmpty(text))
                 {
-                    _logger.LogDebug($"[StreamChatAsync] Yielding text chunk: {text?.Substring(0, Math.Min(text?.Length ?? 0, 50))}...");
+                    _logger.LogDebug("[StreamChatAsync] Yielding text chunk: {Length} caratteri", text?.Length ?? 0);
                     yield return text;
                 }
                 else

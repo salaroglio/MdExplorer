@@ -10,18 +10,55 @@
   }
   
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--mde-scrollbar-track);
   }
-  
+
   &::-webkit-scrollbar-thumb {
-    background: #888;
+    background: var(--mde-scrollbar-thumb);
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--mde-scrollbar-hover);
   }
 }
+
+// === Classi per stili ex-inline del template ===
+// Brand on-color (identiche in tutti i temi: testo bianco su colore brand)
+.brand-openai-fg { color: #10a37f; }
+.brand-github-fg { color: var(--mde-text-primary); } // era #24292e: quasi-nero, token per i temi scuri
+
+.brand-openai-bg,
+mat-chip.brand-openai-bg {
+  background-color: #10a37f;
+  color: white;
+}
+
+.brand-github-bg {
+  background-color: #24292e;
+  color: white;
+}
+
+mat-chip.brand-github-green-bg {
+  background-color: #2ea44f;
+  color: white;
+}
+
+.app-prompt-button {
+  background-color: var(--mde-accent-secondary);
+  color: var(--mde-text-on-primary);
+}
+
+.engine-warning-card {
+  border: 2px solid var(--mde-warning-fg);
+  background: var(--mde-warning-bg);
+}
+
+.engine-installed-card {
+  border-left: 4px solid var(--mde-success-fg);
+}
+
+.success-icon { color: var(--mde-success-fg); }
 
 // Override quando è nel router-outlet principale (modalità standalone)
 :host-context(.router-outlet-wrapper) {
@@ -55,7 +92,7 @@
 
   .model-card {
     .model-description {
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--mde-text-secondary);
       margin: 10px 0;
       min-height: 40px;
     }
@@ -67,7 +104,7 @@
       margin: 15px 0;
 
       .file-size {
-        color: rgba(0, 0, 0, 0.54);
+        color: var(--mde-text-secondary);
         font-size: 0.9em;
       }
     }
@@ -75,7 +112,7 @@
     .download-progress {
       margin: 15px 0;
       padding: 10px;
-      background: #f5f5f5;
+      background: var(--mde-bg-tertiary);
       border-radius: 4px;
 
       .progress-info {
@@ -88,7 +125,7 @@
       .progress-bytes {
         margin-top: 8px;
         font-size: 0.85em;
-        color: rgba(0, 0, 0, 0.54);
+        color: var(--mde-text-secondary);
         text-align: center;
       }
     }
@@ -103,7 +140,7 @@
   .no-models {
     text-align: center;
     padding: 40px;
-    color: rgba(0, 0, 0, 0.54);
+    color: var(--mde-text-secondary);
 
     mat-icon {
       font-size: 48px;
@@ -115,8 +152,8 @@
 
   .system-prompt-editor {
     margin: 20px 0;
-    background: #f9f9f9;
-    border-left: 4px solid #673ab7;
+    background: var(--mde-bg-secondary);
+    border-left: 4px solid #673ab7; // viola identitario (nessun token dedicato)
 
     mat-form-field {
       width: 100%;
@@ -128,9 +165,9 @@
     }
 
     mat-card-actions {
-      background: white;
+      background: var(--mde-bg-primary);
       padding: 12px 16px;
-      border-top: 1px solid rgba(0, 0, 0, 0.12);
+      border-top: 1px solid var(--mde-outline-color);
     }
   }
   
@@ -213,13 +250,13 @@
     }
 
     mat-card-content {
-      background: white;
-      color: #333;
+      background: var(--mde-bg-primary);
+      color: var(--mde-text-primary);
       padding: 20px;
       margin: -16px -16px 0 -16px;
 
       h4 {
-        color: #24292e;
+        color: var(--mde-text-primary);
         margin: 20px 0 10px 0;
         font-size: 1.2em;
         font-weight: 500;
@@ -229,14 +266,14 @@
         .model-card {
           mat-card-header {
             mat-card-title {
-              color: #333;
+              color: var(--mde-text-primary);
               font-size: 1.1em;
               font-weight: 500;
               display: block;
             }
 
             mat-card-subtitle {
-              color: #666;
+              color: var(--mde-text-secondary);
               font-size: 0.9em;
             }
           }
@@ -247,14 +284,14 @@
             background: transparent;
 
             .model-description {
-              color: #666;
+              color: var(--mde-text-secondary);
             }
           }
         }
       }
 
       a {
-        color: #0366d6;
+        color: var(--mde-accent-primary);
         text-decoration: none;
         &:hover {
           text-decoration: underline;
@@ -287,59 +324,59 @@
     }
     
     mat-card-content {
-      background: white;
-      color: #333;
+      background: var(--mde-bg-primary);
+      color: var(--mde-text-primary);
       padding: 20px;
       margin: -16px -16px 0 -16px;
-      
+
       h4 {
-        color: #4285f4;
+        color: #4285f4; // blu brand Google (leggibile anche sui fondi scuri)
         margin: 20px 0 10px 0;
         font-size: 1.2em;
         font-weight: 500;
       }
-      
+
       // Ensure nested model cards display properly
       .models-grid {
         .model-card {
           mat-card-header {
             mat-card-title {
-              color: #333;
+              color: var(--mde-text-primary);
               font-size: 1.1em;
               font-weight: 500;
               display: block;
             }
-            
+
             mat-card-subtitle {
-              color: #666;
+              color: var(--mde-text-secondary);
               font-size: 0.9em;
             }
           }
-          
+
           mat-card-content {
             padding: 16px;
             margin: 0;
             background: transparent;
-            
+
             .model-description {
-              color: #666;
+              color: var(--mde-text-secondary);
             }
           }
         }
       }
-      
+
       mat-radio-group {
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
-      
+
       mat-radio-button {
         margin-bottom: 12px;
       }
-      
+
       a {
-        color: #4285f4;
+        color: var(--mde-accent-primary);
         text-decoration: none;
         &:hover {
           text-decoration: underline;
@@ -349,83 +386,5 @@
   }
 }
 
-// === DARK-BASED THEME OVERRIDES (dark + milan) ===
-:host-context(body.dark-theme),
-:host-context(body.milan-theme) {
-  &::-webkit-scrollbar-track {
-    background: var(--mde-scrollbar-track);
-  }
-  &::-webkit-scrollbar-thumb {
-    background: var(--mde-scrollbar-thumb);
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--mde-scrollbar-hover);
-  }
-
-  .model-manager {
-    .model-card {
-      .model-description {
-        color: var(--mde-text-secondary);
-      }
-
-      .model-info .file-size {
-        color: var(--mde-text-secondary);
-      }
-
-      .download-progress {
-        background: var(--mde-bg-tertiary);
-
-        .progress-bytes {
-          color: var(--mde-text-secondary);
-        }
-      }
-    }
-
-    .no-models {
-      color: var(--mde-text-secondary);
-    }
-
-    .system-prompt-editor {
-      background: var(--mde-bg-secondary);
-
-      mat-card-actions {
-        background: var(--mde-bg-primary);
-        border-top: 1px solid var(--mde-border-color);
-      }
-    }
-
-    // Provider config cards: keep coloured gradient header, but make inner content readable in dark.
-    .copilotcli-config-card,
-    .gemini-config-card {
-      mat-card-content {
-        background: var(--mde-bg-primary);
-        color: var(--mde-text-primary);
-
-        h4 {
-          color: var(--mde-text-primary);
-        }
-
-        .models-grid .model-card {
-          mat-card-header {
-            mat-card-title {
-              color: var(--mde-text-primary);
-            }
-            mat-card-subtitle {
-              color: var(--mde-text-secondary);
-            }
-          }
-
-          mat-card-content {
-            .model-description {
-              color: var(--mde-text-secondary);
-            }
-          }
-        }
-
-        a {
-          color: var(--mde-accent-primary);
-        }
-      }
-    }
-  }
-}
+// NOTE: nessun override dark/milan necessario — tutte le superfici e i testi
+// usano i token globali; le card provider mantengono gli header gradient brand.

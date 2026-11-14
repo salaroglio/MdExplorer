@@ -78,7 +78,7 @@ namespace MdExplorer.Service.Controllers
 
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                    var yamlContent = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(devConfigPath).Text;
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(CamelCaseNamingConvention.Instance)
                         .Build();
@@ -162,11 +162,8 @@ namespace MdExplorer.Service.Controllers
                 if (System.IO.File.Exists(devConfigPath))
                 {
                     // Load existing config
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    config = deserializer.Deserialize<DevelopmentConfig>(yamlContent) ?? new DevelopmentConfig();
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    config = MdExplorer.Utilities.DevelopmentConfigFile.Config(devConfigPath);
                 }
                 else
                 {
@@ -182,12 +179,8 @@ namespace MdExplorer.Service.Controllers
                 };
 
                 // Save config
-                var serializer = new SerializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-
-                var newYamlContent = serializer.Serialize(config);
-                System.IO.File.WriteAllText(devConfigPath, newYamlContent);
+                // Il serializzatore comune (senza voci vuote) e solo se cambia: sprint «File di sistema di MDE», S1.
+                MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(devConfigPath, config, new MdExplorer.Utilities.MdeWhy("cambiata la modalità di compatibilità del markdown", "markdown compatibility mode changed"));
 
                 _logger.LogInformation($"SetCompatibilityMode - Successfully saved to: {devConfigPath}");
 

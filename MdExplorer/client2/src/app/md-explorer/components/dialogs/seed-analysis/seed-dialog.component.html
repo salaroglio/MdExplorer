@@ -1,0 +1,116 @@
+<h2 mat-dialog-title class="dialog-header">
+  <mat-icon class="dialog-icon">account_tree</mat-icon>
+  {{ 'SEED.TITLE' | translate }}
+</h2>
+<mat-dialog-content class="dialog-container">
+  <div class="context-info">
+    <mat-icon class="context-icon">description</mat-icon>
+    <div>
+      <div class="seed-name">{{ name(data.seed) }}</div>
+      <div class="context-path">{{ folder(data.seed) }}</div>
+    </div>
+  </div>
+  <p class="intro">{{ 'SEED.INTRO' | translate }}</p>
+
+  <div class="loading" *ngIf="loading"><mat-spinner diameter="20"></mat-spinner>{{ 'SEED.LOADING' | translate }}</div>
+  <div class="error" *ngIf="errorMessage"><mat-icon>error</mat-icon><span>{{ errorMessage }}</span></div>
+
+  <ng-container *ngIf="preview && !loading && !done">
+    <div class="summary">
+      <span>{{ 'SEED.SUMMARY' | translate: { files: preview.files.length, lines: preview.lines, language: preview.language } }}</span>
+      <span class="warn" *ngIf="preview.budgetReached"><mat-icon>warning</mat-icon>{{ 'SEED.BUDGET' | translate }}</span>
+    </div>
+
+    <div class="levels">
+      <div class="level" *ngFor="let level of levels">
+        <label class="field-label">{{ level.depth === 0 ? ('SEED.LEVEL_SEED' | translate) : ('SEED.LEVEL' | translate: { depth: level.depth }) }}</label>
+        <div class="file-row" *ngFor="let f of level.files">
+          <mat-checkbox [checked]="!pruned.has(f.path)" [disabled]="isSeed(f) || applying" (change)="toggle(f.path, $event.checked)">
+            <span class="file-name">{{ name(f.path) }}</span>
+          </mat-checkbox>
+          <span class="file-meta">
+            <ng-container *ngIf="!isSeed(f)">{{ 'SEED.FROM' | translate: { from: shortFrom(f.from), written: f.written } }} · </ng-container>
+            {{ (f.whole ? 'SEED.WHOLE' : 'SEED.SYMBOLS') | translate: { count: f.symbolCount } }} · {{ 'SEED.LINES' | translate: { lines: f.lines } }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pruned" *ngIf="prunedList.length > 0">
+      <label class="field-label">{{ 'SEED.PRUNED' | translate }}</label>
+      <div class="file-row" *ngFor="let p of prunedList">
+        <span class="file-name">{{ name(p) }}</span>
+        <button mat-button (click)="restore(p)" [disabled]="applying">{{ 'SEED.RESTORE' | translate }}</button>
+      </div>
+    </div>
+
+    <div class="implementations" *ngIf="implChoices.length > 0 || implAuto.length > 0">
+      <label class="field-label">{{ 'SEED.IMPLEMENTATIONS' | translate }}</label>
+      <p class="hint" *ngIf="implChoices.length > 0">{{ 'SEED.IMPLEMENTATIONS_HINT' | translate }}</p>
+      <div class="contract" *ngFor="let i of implChoices">
+        <div class="contract-name"><code>{{ contractName(i.contract) }}</code> <span class="file-meta">{{ 'SEED.CANDIDATES_COUNT' | translate: { count: i.candidates.length, created: i.created.length } }}</span></div>
+        <div class="file-row" *ngFor="let c of i.candidates | slice:0:12">
+          <mat-checkbox [checked]="included.has(c)" [disabled]="applying" (change)="toggleImplementation(c, $event.checked)">
+            <span class="file-name">{{ name(c) }}</span>
+          </mat-checkbox>
+          <span class="file-meta" *ngIf="i.created.includes(c)">{{ 'SEED.CREATED_HERE' | translate }}</span>
+        </div>
+        <div class="file-meta" *ngIf="i.candidates.length > 12">{{ 'SEED.MORE' | translate: { count: i.candidates.length - 12 } }}</div>
+      </div>
+      <button mat-button class="miss-head" *ngIf="implAuto.length > 0" (click)="showAuto = !showAuto">
+        <mat-icon>{{ showAuto ? 'expand_less' : 'expand_more' }}</mat-icon>{{ 'SEED.IMPLEMENTATIONS_AUTO' | translate: { count: implAuto.length } }}
+      </button>
+      <div class="miss-list" *ngIf="showAuto">
+        <div class="miss-row" *ngFor="let i of implAuto">
+          <code>{{ contractName(i.contract) }}</code> → {{ name(i.followed[0] || i.candidates[0]) }}
+          <span class="file-meta">· {{ ('SEED.REASON_' + (i.reason || '').toUpperCase()) | translate }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="misses" *ngIf="missGroups.length > 0">
+      <label class="field-label">{{ 'SEED.MISSES' | translate }}</label>
+      <div *ngFor="let g of missGroups">
+        <button mat-button class="miss-head" (click)="openMisses = openMisses === g.kind ? null : g.kind">
+          <mat-icon>{{ openMisses === g.kind ? 'expand_less' : 'expand_more' }}</mat-icon>
+          {{ ('SEED.MISS_' + g.kind.toUpperCase()) | translate: { count: g.items.length, uses: g.uses } }}
+        </button>
+        <div class="miss-list" *ngIf="openMisses === g.kind">
+          <div class="miss-row" *ngFor="let m of g.items | slice:0:50">
+            <code>{{ m.written }}</code> <span class="file-meta">×{{ m.uses }}<ng-container *ngIf="m.from.length"> · {{ shortFrom(m.from[0]) }}</ng-container><ng-container *ngIf="m.candidates.length"> · {{ m.candidates.length }} {{ 'SEED.CANDIDATES' | translate }}</ng-container></span>
+          </div>
+          <div class="file-meta" *ngIf="g.items.length > 50">{{ 'SEED.MORE' | translate: { count: g.items.length - 50 } }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="confirm" *ngIf="confirmation">
+      <mat-icon>help</mat-icon>
+      <div>
+        <div>{{ 'SEED.CHANGED' | translate }}</div>
+        <div *ngIf="confirmation.added.length">{{ 'SEED.ADDED' | translate }}: <code *ngFor="let a of confirmation.added">{{ name(a) }} </code></div>
+        <div *ngIf="confirmation.removed.length">{{ 'SEED.REMOVED' | translate }}: <code *ngFor="let r of confirmation.removed">{{ name(r) }} </code></div>
+      </div>
+    </div>
+  </ng-container>
+
+  <div class="done" *ngIf="done?.outcome as o">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ 'SEED.DONE' | translate: { files: o.files, reparsed: o.reparsed, removed: o.scriptsRemoved, linked: o.crossLinked } }}</span>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">{{ (done ? 'SEED.CLOSE' : 'COMMON.CANCEL') | translate }}</button>
+  <ng-container *ngIf="!done && preview">
+    <button mat-stroked-button *ngIf="dirty" (click)="load()" [disabled]="loading || applying">
+      <mat-icon>refresh</mat-icon>{{ 'SEED.RECALC' | translate }}
+    </button>
+    <button mat-raised-button color="primary" *ngIf="!confirmation" (click)="analyze(false)" [disabled]="loading || applying || dirty" [title]="dirty ? ('SEED.RECALC_FIRST' | translate) : ''">
+      <mat-spinner diameter="16" *ngIf="applying"></mat-spinner>
+      <mat-icon *ngIf="!applying">account_tree</mat-icon>{{ 'SEED.ANALYZE' | translate }}
+    </button>
+    <button mat-raised-button color="primary" *ngIf="confirmation" (click)="analyze(true)" [disabled]="applying">
+      <mat-spinner diameter="16" *ngIf="applying"></mat-spinner>{{ 'SEED.CONFIRM' | translate }}
+    </button>
+  </ng-container>
+</mat-dialog-actions>

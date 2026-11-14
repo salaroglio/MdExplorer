@@ -41,7 +41,7 @@ namespace MdExplorer.Services
 
             try
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 if (string.IsNullOrWhiteSpace(yaml))
                     return null;
 
@@ -76,7 +76,7 @@ namespace MdExplorer.Services
             DevelopmentConfig dev;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 dev = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -88,12 +88,7 @@ namespace MdExplorer.Services
 
             dev.Atlassian = config;
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-
-            File.WriteAllText(filePath, serializer.Serialize(dev));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, dev, new MdExplorer.Utilities.MdeWhy("aggiornato il collegamento a Jira/Confluence", "Jira/Confluence link updated"));
             _logger.LogInformation("Atlassian config updated in {FilePath}", filePath);
         }
     }

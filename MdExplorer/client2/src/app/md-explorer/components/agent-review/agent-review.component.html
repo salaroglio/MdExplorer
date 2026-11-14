@@ -1,0 +1,136 @@
+<div class="review-panel">
+
+  <div class="review-header" *ngIf="!embedded">
+    <span class="review-title">{{ 'AGENT_REVIEW.TITLE' | translate }}</span>
+    <span class="flexExpand"></span>
+    <button mat-icon-button (click)="refresh()" [matTooltip]="'AGENT_REVIEW.REFRESH' | translate">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="review-empty">
+    <mat-spinner diameter="24"></mat-spinner>
+  </div>
+
+  <!-- Nessuna richiesta non è un vuoto da riempire: è la condizione normale. -->
+  <div *ngIf="!loading && requests.length === 0" class="review-empty">
+    <mat-icon>done_all</mat-icon>
+    <p>{{ 'AGENT_REVIEW.EMPTY' | translate }}</p>
+  </div>
+
+  <div *ngFor="let r of requests; trackBy: trackById" class="review-card">
+
+    <div class="review-card-head">
+      <mat-icon class="agent-icon">smart_toy</mat-icon>
+      <span class="agent-name">{{ r.agentName }}</span>
+      <span class="flexExpand"></span>
+      <span class="when" [title]="r.createdAt">{{ r.createdAt | date:'short' }}</span>
+    </div>
+
+    <p class="agent-summary" *ngIf="r.agentSummary" [title]="r.agentSummary">{{ r.agentSummary }}</p>
+
+    <!-- Il nome del branch racconta il lavoro: padrone, agente, data, cosa ha toccato. -->
+    <div class="branch" [matTooltip]="'AGENT_REVIEW.BRANCH_TOOLTIP' | translate">
+      <mat-icon>alt_route</mat-icon> {{ r.branch }}
+    </div>
+
+    <div class="counts">
+      <span class="c-added" *ngIf="countOf(r, 'added')">
+        +{{ countOf(r, 'added') }} {{ 'AGENT_REVIEW.ADDED' | translate }}
+      </span>
+      <span class="c-modified" *ngIf="countOf(r, 'modified')">
+        ~{{ countOf(r, 'modified') }} {{ 'AGENT_REVIEW.MODIFIED' | translate }}
+      </span>
+      <span class="c-deleted" *ngIf="countOf(r, 'deleted')">
+        −{{ countOf(r, 'deleted') }} {{ 'AGENT_REVIEW.DELETED' | translate }}
+      </span>
+    </div>
+
+    <ul class="files">
+      <li *ngFor="let f of r.files" [ngClass]="'f-' + f.change" [title]="f.path">
+        <mat-icon>{{ iconFor(f.change) }}</mat-icon>
+        <span class="file-path">{{ f.path }}</span>
+        <button mat-button class="btn-open-delivered" *ngIf="embedded && f.change !== 'deleted'"
+                (click)="openFile.emit({ request: r, path: f.path })">
+          <mat-icon>open_in_new</mat-icon> {{ 'AGENT_MAIL.OPEN' | translate }}
+        </button>
+      </li>
+    </ul>
+
+    <!-- Chi riceve il lavoro dopo «Autorizza»: lo dichiara la scheda dell'agente. Con più di un collega
+         sceglie la persona; nessuno si sveglia da solo, l'avviso parte dal suo gesto. -->
+    <!-- Rifiutato e fermo: qualcuno lo aspetta, ma riparte solo quando lo dici tu. -->
+    <div class="stopped" *ngIf="r.status === 'rejected'">
+      <p class="stopped-title"><mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.STOPPED_TITLE' | translate }}</p>
+      <p class="stopped-note" *ngIf="r.note"><strong>{{ 'AGENT_REVIEW.REJECT_NOTE_LABEL' | translate }}:</strong> {{ r.note }}</p>
+      <p class="stopped-hint">{{ 'AGENT_REVIEW.STOPPED_HINT' | translate: { agent: r.agentName } }}</p>
+      <!-- Il workflow dice quante volte si rifà: lo si legge prima di premere, e al limite il pulsante non c'è. -->
+      <p class="stopped-left" *ngIf="r.reworksLeft != null && r.reworksLeft > 0">
+        {{ (r.reworksLeft === 1 ? 'AGENT_REVIEW.REWORKS_LEFT_ONE' : 'AGENT_REVIEW.REWORKS_LEFT') | translate: { count: r.reworksLeft } }}
+      </p>
+      <p class="stopped-blocked" *ngIf="r.reworksLeft === 0"><mat-icon>do_not_disturb_on</mat-icon> {{ r.reworkBlocked }}</p>
+      <button mat-flat-button color="primary" class="btn-rework" *ngIf="r.reworksLeft !== 0" [disabled]="busyId === r.id" (click)="rework(r)">
+        <mat-icon>replay</mat-icon> {{ 'AGENT_REVIEW.REWORK' | translate }}
+      </button>
+    </div>
+
+    <div class="handover" *ngIf="hasRecipients(r) && !r.sessionOpen && r.status !== 'rejected'">
+      <div class="handover-title">
+        <mat-icon>forward_to_inbox</mat-icon> {{ 'AGENT_REVIEW.HANDOVER_TITLE' | translate }}
+      </div>
+      <mat-radio-group class="handover-list" [(ngModel)]="choice[r.id]" [disabled]="busyId === r.id">
+        <mat-radio-button *ngFor="let c of r.notifyCandidates" [value]="c.name" [disabled]="!c.available"
+                          [matTooltip]="c.reason || ''" [matTooltipDisabled]="c.available">
+          <span class="who">{{ c.name }}</span>
+          <span class="role" *ngIf="c.role"> — {{ c.role }}</span>
+          <span class="why" *ngIf="!c.available"> · {{ c.reason }}</span>
+        </mat-radio-button>
+        <mat-radio-button [value]="NOBODY">{{ 'AGENT_REVIEW.HANDOVER_NOBODY' | translate }}</mat-radio-button>
+      </mat-radio-group>
+      <p class="handover-hint" *ngIf="!choice[r.id]">{{ 'AGENT_REVIEW.HANDOVER_CHOOSE' | translate }}</p>
+    </div>
+
+    <!-- Sessione aperta: ci stai già lavorando, quindi le scelte sono altre. -->
+    <div class="actions" *ngIf="!r.sessionOpen && r.status !== 'rejected'">
+      <button mat-stroked-button color="primary" [disabled]="busyId === r.id || !canApprove(r)" (click)="approve(r)">
+        <mat-icon>merge</mat-icon> {{ 'AGENT_REVIEW.APPROVE' | translate }}
+      </button>
+      <button mat-stroked-button [disabled]="busyId === r.id" (click)="take(r)"
+              [matTooltip]="'AGENT_REVIEW.TAKE_TOOLTIP' | translate">
+        <mat-icon>build</mat-icon> {{ 'AGENT_REVIEW.TAKE' | translate }}
+      </button>
+      <button mat-stroked-button color="warn" class="btn-ask-reject" [disabled]="busyId === r.id" (click)="askReject(r)">
+        <mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.REJECT' | translate }}
+      </button>
+    </div>
+
+    <!-- Il rifiuto è l'eccezione: chiede il motivo e dice cosa succede dopo. -->
+    <div class="reject-form" *ngIf="rejectingId === r.id">
+      <p class="reject-effect">
+        <mat-icon>{{ r.someoneWaiting ? 'replay' : 'block' }}</mat-icon>
+        {{ (r.someoneWaiting ? 'AGENT_REVIEW.REJECT_EFFECT_REWORK' : 'AGENT_REVIEW.REJECT_EFFECT_DEAD') | translate: { agent: r.agentName } }}
+      </p>
+      <label class="reject-label" [attr.for]="'reject-note-' + r.id">{{ 'AGENT_REVIEW.REJECT_NOTE_LABEL' | translate }}</label>
+      <textarea class="reject-note" [id]="'reject-note-' + r.id" rows="3" [(ngModel)]="rejectNote"
+                [placeholder]="'AGENT_REVIEW.REJECT_NOTE_PLACEHOLDER' | translate"></textarea>
+      <div class="reject-actions">
+        <button mat-button (click)="cancelReject()">{{ 'AGENT_REVIEW.REJECT_CANCEL' | translate }}</button>
+        <button mat-flat-button color="warn" class="btn-confirm-reject" [disabled]="!rejectNote.trim() || busyId === r.id" (click)="reject(r)">
+          {{ 'AGENT_REVIEW.REJECT_CONFIRM' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <div class="actions session" *ngIf="r.sessionOpen">
+      <p class="session-note">⚙️ {{ 'AGENT_REVIEW.SESSION_OPEN' | translate }}</p>
+      <button mat-stroked-button color="primary" [disabled]="busyId === r.id" (click)="release(r, false)">
+        <mat-icon>check</mat-icon> {{ 'AGENT_REVIEW.CONCLUDE' | translate }}
+      </button>
+      <button mat-stroked-button color="warn" [disabled]="busyId === r.id" (click)="release(r, true)"
+              [matTooltip]="'AGENT_REVIEW.DISCARD_TOOLTIP' | translate">
+        <mat-icon>undo</mat-icon> {{ 'AGENT_REVIEW.DISCARD' | translate }}
+      </button>
+    </div>
+
+  </div>
+</div>

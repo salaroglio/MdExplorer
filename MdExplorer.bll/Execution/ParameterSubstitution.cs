@@ -12,15 +12,20 @@ namespace MdExplorer.Features.Execution
     /// <list type="bullet">
     /// <item>
     /// <description>
-    /// <c>&lt;placeholder&gt;</c> tokens are replaced by the user value, quoted safely for the
-    /// target shell (single-quote wrapping for POSIX/PowerShell, double-quote for cmd).
+    /// <c>&lt;placeholder&gt;</c> tokens are replaced by the user value <b>verbatim</b> — no shell
+    /// quoting is added. The script author owns the delimiters: whatever surrounds the token in
+    /// the markdown (<c>"&lt;NAME&gt;"</c>, <c>'&lt;NAME&gt;'</c>, or nothing at all) is exactly
+    /// what the shell sees. See the <c>mde-readme</c> skill for the authoring convention.
     /// </description>
     /// </item>
     /// <item>
     /// <description>
     /// <c>export VAR="default"</c> (POSIX) and <c>$Var = "default"</c> assignments inside a
     /// PowerShell <c>param()</c> block have their literal default rewritten to the user value
-    /// so the rest of the script keeps reading <c>$VAR</c> with the expected semantics.
+    /// so the rest of the script keeps reading <c>$VAR</c> with the expected semantics. These
+    /// two <b>do</b> quote, because the rewrite replaces the whole right-hand side of an
+    /// assignment — including the author's own quotes — and an unquoted multi-word value would
+    /// produce syntactically broken script.
     /// </description>
     /// </item>
     /// </list>
@@ -29,7 +34,6 @@ namespace MdExplorer.Features.Execution
     {
         public static string Apply(
             string code,
-            string language,
             IReadOnlyList<ExecutionParameter> parameters,
             IReadOnlyDictionary<string, string> values)
         {
@@ -46,16 +50,16 @@ namespace MdExplorer.Features.Execution
                 {
                     case "placeholder":
                     case "doc": // @param declared but never inlined — still allow placeholder substitution if present
-                        result = ReplacePlaceholder(result, param.Name, QuoteForShell(userValue, language));
+                        result = ReplacePlaceholder(result, param.Name, userValue);
                         break;
                     case "export":
                         result = RewriteExportDefault(result, param.Name, userValue);
                         // Some scripts also reference the same name as a placeholder — handle both.
-                        result = ReplacePlaceholder(result, param.Name, QuoteForShell(userValue, language));
+                        result = ReplacePlaceholder(result, param.Name, userValue);
                         break;
                     case "pwsh-param":
                         result = RewritePwshParamDefault(result, param.Name, userValue);
-                        result = ReplacePlaceholder(result, param.Name, QuoteForShell(userValue, language));
+                        result = ReplacePlaceholder(result, param.Name, userValue);
                         break;
                 }
             }
@@ -77,54 +81,27 @@ namespace MdExplorer.Features.Execution
             return false;
         }
 
-        // Integer / decimal / boolean literals — safe to inject bare (no shell metachars).
-        // Quoting them breaks downstream parsing: e.g. `--port '3030'` is rejected by Java as
-        // a bad port number, and `"https://api/'3030'"` yields a malformed URL.
-        private static readonly Regex BareSafeLiteralRegex = new(
-            @"^(?:-?\d+(?:\.\d+)?|true|false)$",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        private static string QuoteForShell(string value, string language)
+        /// <summary>
+        /// Replaces every <c>&lt;name&gt;</c> token matching <paramref name="paramName"/> with the
+        /// user value <b>as typed</b>.
+        /// <para>
+        /// Deliberately no shell-quoting: the runner used to wrap the value in quotes, which
+        /// double-quoted every author who wrote <c>"&lt;NAME&gt;"</c> (the value ended up holding
+        /// literal quote characters) and forced awkward templates on anyone who needed the raw
+        /// text spliced into a larger literal. Delimiters are now the author's job — the token
+        /// stands for the text, not for a shell word.
+        /// </para>
+        /// </summary>
+        private static string ReplacePlaceholder(string code, string paramName, string rawValue)
         {
-            value ??= string.Empty;
-
-            // Numeric / boolean values don't need shell-quoting and quoting them actually breaks
-            // common cases (process args, URL fragments, casts to [int]). Stringy values still
-            // get the protective quoting below.
-            if (BareSafeLiteralRegex.IsMatch(value))
-                return value;
-
-            switch (language)
-            {
-                case "bash":
-                case "sh":
-                case "shell":
-                    // POSIX-safe single-quoting: 'foo'\''bar' for embedded single quotes.
-                    return "'" + value.Replace("'", "'\\''") + "'";
-                case "powershell":
-                case "pwsh":
-                case "ps1":
-                    // PowerShell single-quoted: doubled '' escapes a single quote.
-                    return "'" + value.Replace("'", "''") + "'";
-                case "cmd":
-                case "bat":
-                case "batch":
-                    // cmd is fragile: escape % and ", wrap in double quotes.
-                    return "\"" + value.Replace("%", "%%").Replace("\"", "\"\"") + "\"";
-                default:
-                    return "'" + value.Replace("'", "'\\''") + "'";
-            }
-        }
-
-        private static string ReplacePlaceholder(string code, string paramName, string quotedValue)
-        {
+            rawValue ??= string.Empty;
             // Match any <name> whose normalized form equals the parameter's normalized name.
             var targetKey = paramName.Replace('-', '_').ToUpperInvariant();
             return Regex.Replace(code, @"<([A-Za-z][A-Za-z0-9_-]*)>", m =>
             {
                 var raw = m.Groups[1].Value;
                 var normalized = raw.Replace('-', '_').ToUpperInvariant();
-                return normalized == targetKey ? quotedValue : m.Value;
+                return normalized == targetKey ? rawValue : m.Value;
             });
         }
 
@@ -132,8 +109,10 @@ namespace MdExplorer.Features.Execution
         {
             // Replace the value portion of `export NAME=<anything-on-one-line>`.
             var pattern = $@"^([\t ]*export[\t ]+{Regex.Escape(paramName)}[\t ]*=[\t ]*)(?:""[^""\r\n]*""|'[^'\r\n]*'|[^\s\r\n]+)([\t ]*(?:\r?\n|$))";
-            var replacement = "$1" + ToBashDoubleQuoted(userValue) + "$2";
-            return Regex.Replace(code, pattern, replacement, RegexOptions.Multiline);
+            // Con una funzione e non con un testo di sostituzione: in quel testo .NET interpreta $1, $_ (tutto lo script), ${x}, $$, $&,
+            // e un valore come «pa$1ss» arrivava allo script cambiato (R1 della valutazione del 07/11).
+            var quoted = ToBashDoubleQuoted(userValue);
+            return Regex.Replace(code, pattern, m => m.Groups[1].Value + quoted + m.Groups[2].Value, RegexOptions.Multiline);
         }
 
         private static string RewritePwshParamDefault(string code, string paramName, string userValue)
@@ -141,8 +120,9 @@ namespace MdExplorer.Features.Execution
             // Replace the default in `[type]$Name = <value>` inside a PowerShell param() block.
             // Matches up to a comma/closing paren so multi-param signatures stay intact.
             var pattern = $@"(\[[A-Za-z][A-Za-z0-9\.]*\][\t ]*\${Regex.Escape(paramName)}[\t ]*=[\t ]*)(?:""[^""\r\n]*""|'[^'\r\n]*'|[^,\)\r\n]+)";
-            var replacement = "$1" + ToPwshSingleQuoted(userValue);
-            return Regex.Replace(code, pattern, replacement);
+            // Con una funzione, non con un testo di sostituzione (vedi RewriteExportDefault, R1).
+            var quoted = ToPwshSingleQuoted(userValue);
+            return Regex.Replace(code, pattern, m => m.Groups[1].Value + quoted);
         }
 
         private static string ToBashDoubleQuoted(string value)

@@ -47,6 +47,12 @@ namespace MdExplorer.Features.Services
         /// Returns null if no embedding model is installed.
         /// </summary>
         string GetInstalledEmbeddingModelPath();
+
+        /// <summary>
+        /// Percorso del miglior modello di dettatura (Whisper) installato, o <c>null</c> se non ce n'è
+        /// nessuno. Preferisce <c>small</c> a <c>base</c>.
+        /// </summary>
+        string GetInstalledSpeechModelPath();
     }
 
     public class ModelDownloadService : IModelDownloadService
@@ -179,6 +185,31 @@ namespace MdExplorer.Features.Services
                     FileSize = 632_000_000,
                     ContextLength = 514,
                     Parameters = "560M"
+                },
+                // Riconoscimento vocale (Whisper). Stessa cartella, stesso download e stessa UI degli
+                // altri modelli: per chi li scarica sono tutti "modelli che MdExplorer usa in locale".
+                // Numeri misurati il 22/09/2026 su 25 s di parlato italiano, Core Ultra 7 155H.
+                ["whisper-small"] = new ModelInfo
+                {
+                    Id = "whisper-small",
+                    Name = "Whisper Small (dettatura)",
+                    Description = "Riconoscimento vocale offline, multilingua. L'italiano esce corretto; " +
+                                  "trascrive 25 s di parlato in 6 s. È il modello consigliato per dettare.",
+                    Url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+                    FileName = "ggml-small.bin",
+                    FileSize = 487_000_000,
+                    Parameters = "244M"
+                },
+                ["whisper-base"] = new ModelInfo
+                {
+                    Id = "whisper-base",
+                    Name = "Whisper Base (dettatura leggera)",
+                    Description = "Riconoscimento vocale offline più piccolo e più veloce (25 s di parlato " +
+                                  "in 2,6 s), ma sbaglia qualche parola in italiano. Per chi ha poco disco.",
+                    Url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+                    FileName = "ggml-base.bin",
+                    FileSize = 148_000_000,
+                    Parameters = "74M"
                 }
             };
         }
@@ -235,6 +266,34 @@ namespace MdExplorer.Features.Services
                 _logger.LogError(ex, $"Failed to delete model: {modelName}");
                 return Task.FromResult(false);
             }
+        }
+
+        /// <summary>
+        /// I modelli di dettatura, dal migliore al più leggero. <c>small</c> prima di <c>base</c> perché
+        /// in italiano <c>base</c> sbaglia parole (misurato: «l'Encyclopedia Libra» invece di
+        /// «l'Enciclopedia libera»), e un testo da correggere a mano vale meno dei secondi risparmiati.
+        /// </summary>
+        private static readonly string[] SpeechModelFiles = new[]
+        {
+            "ggml-small.bin",
+            "ggml-base.bin"
+        };
+
+        /// <summary>
+        /// Il percorso del miglior modello di dettatura installato, o <c>null</c> se non c'è: chi chiama
+        /// deve poter dire all'utente «scaricalo», non fallire e basta.
+        /// </summary>
+        public string GetInstalledSpeechModelPath()
+        {
+            foreach (var fileName in SpeechModelFiles)
+            {
+                var path = GetModelPath(fileName);
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+            return null;
         }
 
         // Embedding model filenames in order of preference (best first)

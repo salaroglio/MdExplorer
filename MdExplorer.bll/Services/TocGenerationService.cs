@@ -270,7 +270,12 @@ namespace MdExplorer.Features.Services
             content.AppendLine();
             content.Append(tableContent);
 
-            await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8, ct);
+            // The yaml header is regenerated from scratch: put back the e2e: block the user wrote
+            // (test run settings for the folder, D22) or it would vanish on every regeneration.
+            var previous = File.Exists(tocFilePath) ? await File.ReadAllTextAsync(tocFilePath, ct) : null;
+            var regenerated = E2e.E2eFrontMatter.CarryOverBlock(previous, content.ToString());
+
+            await File.WriteAllTextAsync(tocFilePath, regenerated, Encoding.UTF8, ct);
         }
 
         /// <summary>

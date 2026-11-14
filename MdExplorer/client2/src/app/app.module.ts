@@ -1,8 +1,9 @@
-import { NgModule } from '@angular/core';
+import { NgModule, APP_INITIALIZER } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { LanguageService } from './services/language.service';
 import { ConnectionIdInterceptor } from './interceptors/connection-id.interceptor';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -30,8 +31,10 @@ import { TitleBarComponent } from './components/title-bar/title-bar.component';
 import { SearchBoxComponent } from './components/search-box/search-box.component';
 import { CompatibilityModeBadgeComponent } from './md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component';
 import { UnifiedSettingsDialogComponent } from './components/unified-settings-dialog/unified-settings-dialog.component';
+import { TelegramSettingsComponent } from './components/telegram-settings/telegram-settings.component';
 import { AppStoreSettingsDialogComponent } from './components/app-store-settings-dialog/app-store-settings-dialog.component';
 import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
+import { LanguageLibraryModule } from './components/language-library/language-library.module';
 import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
 
 
@@ -60,6 +63,7 @@ const routes: Routes = [
     SearchBoxComponent,
     CompatibilityModeBadgeComponent,
     UnifiedSettingsDialogComponent,
+    TelegramSettingsComponent,
     AppStoreSettingsDialogComponent,
     RunCommandDialogComponent
   ],
@@ -80,9 +84,12 @@ const routes: Routes = [
       }
     }),
     ParticipantGemsModule,
+    LanguageLibraryModule,
     MarkAssistantModule,
   ],
   providers: [
+    // the UI language comes from the backend before the first render (see LanguageService)
+    { provide: APP_INITIALIZER, useFactory: (languages: LanguageService) => () => languages.init(), deps: [LanguageService], multi: true },
     ParsingProjectProvider,
     ConnectionLostProvider,
     PlantumlWorkingProvider,

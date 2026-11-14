@@ -262,32 +262,6 @@ export class PromptLabService implements OnDestroy {
   // ---------------------------------------------------------------------------
 
   /**
-   * Ensure the hub has the right chat mode set for the current session model.
-   * Must be called before sending any message.
-   */
-  async ensureChatModePublic(): Promise<void> {
-    return this.ensureChatMode();
-  }
-
-  private async ensureChatMode(): Promise<void> {
-    const session = this.currentSession();
-    if (!session) return;
-
-    // Default to claude-sonnet-4 if no model is set
-    if (!session.model) {
-      session.model = 'claude-sonnet-4';
-    }
-
-    const model = session.model.toLowerCase();
-
-    // Local LLama models use the 'local' provider, everything else goes through copilotcli
-    const provider = model.includes('llama') ? 'local' : 'copilotcli';
-    const modelId = session.model;
-
-    await this.aiChatService.setProviderAsync(provider, modelId);
-  }
-
-  /**
    * Send a message on the card's body channel.
    * The channelId follows the pattern `card-{cardId}-body`.
    *
@@ -313,7 +287,7 @@ export class PromptLabService implements OnDestroy {
       messageToSend = `[System Instructions]\n${systemPrompt}\n[End System Instructions]\n\n${message}`;
     }
 
-    await this.ensureChatMode();
+    // The project's engine, the MarkAgent tab's: PromptLab never switches it (D7).
     this.aiChatService.sendMessageToChannel(messageToSend, channelId);
   }
 
@@ -425,10 +399,8 @@ export class PromptLabService implements OnDestroy {
     this._executingCards.add(cardId);
     this._lastSentPrompts.set(cardId, builtPrompt);
 
-    // Ensure provider is set, then send to LLM
-    this.ensureChatMode().then(() => {
-      this.aiChatService.sendMessageToChannel(builtPrompt, this.bodyChannelId(cardId));
-    });
+    // Send to the LLM: the project's engine, the MarkAgent tab's (D7).
+    this.aiChatService.sendMessageToChannel(builtPrompt, this.bodyChannelId(cardId));
   }
 
   /**
@@ -455,8 +427,9 @@ export class PromptLabService implements OnDestroy {
     card.lastRun = {
       executedAt: new Date(),
       duration: Date.now() - startTime,
-      provider: session.model,
-      model: session.model,
+      // What really answered: the engine and model of the connection (the project's, D7).
+      provider: this.aiChatService.chatMode?.provider ?? '',
+      model: this.aiChatService.chatMode?.modelId ?? this.aiChatService.chatMode?.provider ?? '',
       resolvedParameters: resolvedParams,
       promptSent,
       output
@@ -514,8 +487,13 @@ export class PromptLabService implements OnDestroy {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  getCurrentModel(): string {
-    return this.currentSession()?.model || 'claude-sonnet-4';
+  /** The engine PromptLab talks to: the project's, set by the MarkAgent tab (D7). Read-only here. */
+  engineLabel(): string {
+    const mode = this.aiChatService.chatMode;
+    if (!mode) return '';
+    const names: Record<string, string> = { claudecode: 'Claude Code', copilotcli: 'Copilot', opencode: 'opencode', local: 'Local', gemini: 'Gemini', openai: 'OpenAI' };
+    const name = names[mode.provider] ?? mode.provider;
+    return mode.modelId ? `${name} (${mode.modelId})` : name;
   }
 
   currentSession(): PromptLabSession | null {

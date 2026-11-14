@@ -20,7 +20,7 @@ namespace MdExplorer.Services.DatabaseManager
         /// Gets the database context for a specific connection.
         /// </summary>
         /// <param name="connectionId">SignalR ConnectionId</param>
-        /// <returns>Database context containing EngineDB, ProjectDB, and UserSettingsDB</returns>
+        /// <returns>Il progetto della connessione e dove stanno i suoi database</returns>
         /// <exception cref="InvalidOperationException">If no context exists for the connection</exception>
         ConnectionDatabaseContext GetContext(string connectionId);
 
@@ -52,6 +52,12 @@ namespace MdExplorer.Services.DatabaseManager
         /// <param name="connectionId">SignalR ConnectionId to get project path</param>
         /// <returns>New isolated EngineDB instance</returns>
         IEngineDB CreateIsolatedEngineDB(string connectionId);
+
+        /// <summary>
+        /// Una sessione nuova sul database del progetto (<c>.md/MdProject_*.db</c>) della connessione, come
+        /// <see cref="CreateIsolatedEngineDB"/>. Chi la chiede la chiude.
+        /// </summary>
+        IProjectDB CreateIsolatedProjectDB(string connectionId);
 
         /// <summary>
         /// Creates an isolated EngineDB instance from a project path directly.
@@ -89,15 +95,16 @@ namespace MdExplorer.Services.DatabaseManager
         /// </summary>
         public Guid ProjectId { get; set; }
 
-        /// <summary>
-        /// Engine database (markdown files index and links)
-        /// </summary>
-        public IEngineDB EngineDB { get; set; }
+        // C1 della valutazione del 07/11: qui c'erano EngineDB e ProjectDB, UNA sessione NHibernate per finestra usata insieme
+        // dalle richieste della pagina e dal watcher. La connessione nativa di SQLite non regge due thread: misurato l'08/11,
+        // salvare un file mentre l'albero si ricarica faceva morire il servizio (SIGSEGV dentro sqlite3_prepare). Ora ognuno
+        // apre la sua sessione (CreateIsolatedEngineDB / CreateIsolatedProjectDB): una per richiesta, una per operazione.
 
-        /// <summary>
-        /// Project-specific database (metadata, settings)
-        /// </summary>
-        public IProjectDB ProjectDB { get; set; }
+        /// <summary>Il database dei file (indice e collegamenti) della connessione.</summary>
+        public string EngineConnectionString { get; set; }
+
+        /// <summary>Il database del progetto (impostazioni, metadati) della connessione.</summary>
+        public string ProjectConnectionString { get; set; }
 
         /// <summary>
         /// Timestamp when this connection was registered

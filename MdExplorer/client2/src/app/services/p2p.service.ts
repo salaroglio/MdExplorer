@@ -1,4 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
+import { applySignalrTimeouts } from '../signalR/signalr-timeouts';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
@@ -229,11 +230,11 @@ export class P2PService implements OnDestroy {
       return; // Already initialized
     }
 
-    this.hubConnection = new HubConnectionBuilder()
+    this.hubConnection = applySignalrTimeouts(new HubConnectionBuilder()
       .withUrl('/signalr/p2p')
       .configureLogging(LogLevel.Information)
       .withAutomaticReconnect()
-      .build();
+      .build());
 
     // Setup event handlers
     this.hubConnection.on('TransferProgress', (transfer: TransferInfo) => {

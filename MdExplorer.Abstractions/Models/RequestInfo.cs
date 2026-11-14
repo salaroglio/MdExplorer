@@ -21,5 +21,27 @@ namespace MdExplorer.Abstractions.Models
         public string ConnectionId {  get; set; }
         public string BaseUrl { get; set; }
 
+        /// <summary>
+        /// Render read-only (Fase 7h — review-view worktree): i comandi NON devono scrivere su
+        /// disco (cache <c>.md/</c>) né cambiare la cwd di processo, perché la root è il worktree
+        /// di un agente (una scrittura verrebbe poi committata dal deliverable, e la cwd
+        /// resterebbe fuori dal progetto aperto).
+        /// </summary>
+        public bool ReadOnly { get; set; }
+
+        /// <summary>
+        /// Render of a slide deck: only the commands whose output works in a reveal.js page run
+        /// (<c>ICommand.WorksInSlides</c>). The others write HTML that lives on the document view's
+        /// scripts (toolbars, date pickers, runnable code…), which the slide page does not load.
+        /// </summary>
+        public bool SlideDeck { get; set; }
+
+        /// <summary>
+        /// Render for the static HTML export (always with <see cref="ReadOnly"/>): the page will be a file in a
+        /// zip, opened without MdExplorer. A command that turns a link into a call to the service or to the
+        /// desktop (open in the application) leaves it a plain link: the export copies the file it points to.
+        /// </summary>
+        public bool StaticExport { get; set; }
+
     }
 }

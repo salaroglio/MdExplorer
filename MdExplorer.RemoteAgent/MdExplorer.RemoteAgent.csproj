@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- mde-remote: MDE Remote che MDE carica nella home dell'utente SSH e lancia con «ssh host mde-remote, opzione root»
+       (sprint Cartella-Remota-Via-SSH). Native AOT senza dipendenze: sul server basta glibc (D5). La build per i server
+       si fa in rockylinux:8 con publish-linux-x64.sh, così gira da glibc 2.17 in su. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>mde-remote</AssemblyName>
+    <RootNamespace>MdExplorer.RemoteAgent</RootNamespace>
+    <Version>1.0.0</Version>
+    <PublishAot>true</PublishAot>
+    <!-- Senza ICU sul server (D5); e niente System.Security.Cryptography, che vorrebbe OpenSSL. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MdExplorer.Remote.Protocol\MdExplorer.Remote.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

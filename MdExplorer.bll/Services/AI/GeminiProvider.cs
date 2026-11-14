@@ -60,7 +60,7 @@ namespace MdExplorer.Features.Services.AI
 
         public async Task<string> ChatAsync(string prompt, string modelId = null, CancellationToken ct = default)
         {
-            _logger.LogInformation($"[GeminiProvider.ChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[GeminiProvider.ChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             if (!IsAvailable())
             {
@@ -76,7 +76,7 @@ namespace MdExplorer.Features.Services.AI
             string modelId = null,
             [EnumeratorCancellation] CancellationToken ct = default)
         {
-            _logger.LogInformation($"[GeminiProvider.StreamChatAsync] Starting with prompt: {prompt?.Substring(0, Math.Min(prompt?.Length ?? 0, 100))}...");
+            _logger.LogInformation("[GeminiProvider.StreamChatAsync] Starting with prompt: {Length} caratteri", prompt?.Length ?? 0); // mai il testo nel log
 
             if (!IsAvailable())
             {

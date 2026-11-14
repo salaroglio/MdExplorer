@@ -49,5 +49,18 @@ namespace MdExplorer.Services.TeamChat
         /// Get count of users who have the project open
         /// </summary>
         int GetProjectUsersCount(string roomId);
+
+        /// <summary>
+        /// Chiede al relay se fa entrare nella stanza con la chiave del progetto (e la registra, se
+        /// c'è la chiave master e la stanza è nuova). Il codice dice perché no.
+        /// </summary>
+        Task<ChatRoomCheck> CheckRoomAsync(string roomId);
+    }
+
+    /// <summary>Esito di <see cref="ITeamChatService.CheckRoomAsync"/>: <c>Code</c> = room-not-registered, bad-token, bad-master-key, unreachable…</summary>
+    public sealed class ChatRoomCheck
+    {
+        public bool Ok { get; init; }
+        public string Code { get; init; }
     }
 }

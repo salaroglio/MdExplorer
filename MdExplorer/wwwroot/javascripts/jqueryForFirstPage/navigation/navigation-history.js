@@ -196,6 +196,22 @@ function initializeConnectionIdForLinks() {
             return;
         }
 
+        // «mde:percorso» (i diagrammi generati da MdExplorer, per esempio il workflow degli agenti): un file del
+        // progetto, dalla radice. Lo apre Angular, come un clic nell'albero, invece di navigare l'iframe.
+        if (href.indexOf('mde:') === 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Il servizio aggiunge «?connectionId=…» a ogni href: per un file del progetto non serve.
+            var relativePath = href.substring(4).split('?')[0].replace(/^\/+/, '');
+            try { relativePath = decodeURI(relativePath); } catch (err) { /* già in chiaro */ }
+            window.parent.postMessage({
+                type: 'md-navigate',
+                relativePath: '/' + relativePath,
+                name: relativePath.split('/').pop()
+            }, '*');
+            return;
+        }
+
         // Open external links in system browser via backend
         if (/^https?:\/\/(?!localhost)/i.test(href)) {
             e.preventDefault();

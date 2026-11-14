@@ -6,28 +6,33 @@ namespace MdExplorer.Features.Services
 {
     /// <summary>
     /// Dedicated logger for chat interactions to debug AI tool calling behavior.
-    /// Writes all interactions to Logs/chat-interactions-{Date}.log
+    /// Writes all interactions to chat-interactions-{Date}.log, in the SAME folder as the service log.
     /// </summary>
     public class ChatInteractionLogger
     {
         private readonly object _lock = new object();
-        private readonly string _logFilePath;
+        private readonly string _logDirectory;
 
-        public ChatInteractionLogger()
+        /// <param name="logDirectory">
+        /// La cartella dei log del servizio (<c>Program.LogDirectory</c>): la cartella dati, scrivibile. Prima era la working
+        /// directory, cioè da installato la cartella del programma (06/11/2026). <c>null</c> = nessuna cartella scrivibile: non scrive.
+        /// </param>
+        public ChatInteractionLogger(string logDirectory)
         {
-            var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
-            Directory.CreateDirectory(logPath);
-            _logFilePath = Path.Combine(logPath, $"chat-interactions-{DateTime.Now:yyyy-MM-dd}.log");
+            _logDirectory = logDirectory;
         }
 
         private void WriteLog(string message)
         {
+            if (_logDirectory == null) return;
             lock (_lock)
             {
                 try
                 {
                     var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                    File.AppendAllText(_logFilePath, $"[{timestamp}] {message}\n");
+                    // La data al momento della scrittura: un servizio acceso più giorni scriveva tutto nel file del primo.
+                    var file = Path.Combine(_logDirectory, $"chat-interactions-{DateTime.Now:yyyy-MM-dd}.log");
+                    File.AppendAllText(file, $"[{timestamp}] {message}\n");
                 }
                 catch
                 {

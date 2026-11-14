@@ -71,8 +71,13 @@ namespace MdExplorer.Service.Controllers
 
             try
             {
-                var context = _databaseManager.GetContext(connectionId);
-                return context?.EngineDB ?? _engineDB;
+                // Una sessione per richiesta, come MdControllerBase.GetEngineDB (C1): mai quella condivisa col watcher.
+                var key = "mde.engineDB:" + connectionId;
+                if (HttpContext.Items.TryGetValue(key, out var existing) && existing is IEngineDB session) return session;
+                var opened = _databaseManager.CreateIsolatedEngineDB(connectionId);
+                HttpContext.Items[key] = opened;
+                HttpContext.Response.RegisterForDispose(opened);
+                return opened;
             }
             catch (Exception ex)
             {

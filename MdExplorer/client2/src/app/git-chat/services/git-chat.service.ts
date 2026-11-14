@@ -182,6 +182,12 @@ export class GitChatService implements OnDestroy {
 
       this._roomInfo$.next(roomInfo);
 
+      // Il relay non fa entrare nella stanza: il motivo è in roomInfo.relayCode, il componente lo mostra.
+      if (roomInfo.relayOk === false) {
+        this._connectionState$.next('error');
+        return;
+      }
+
       // Create user object
       const user: ChatUser = {
         oderId: this.generateSessionId(),

@@ -1,0 +1,650 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using MdExplorer.Features.Services.CodeGraph;
+using MdExplorer.Features.Services.CodeGraph.Grammars;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace MdExplorer.Features.Tests.CodeGraph
+{
+    /// <summary>
+    /// D42 dal sorgente al grafo: estrattori veri (JavaScript e Java), Fuseki vero, la regola applicata e tolta. La pagina
+    /// chiama <c>inviaPagina('ordini.elenco')</c>; l'alias sta in un <c>.properties</c>; il controller Java ha il metodo.
+    /// </summary>
+    [TestClass]
+    public class CodeRuleServiceShould
+    {
+        private string _root, _project;
+        private CodeGraphStore _store;
+        private CodeRuleService _rules;
+
+        private const string Rule = @"{
+            ""id"": ""azione-pagina"", ""description"": ""La pagina chiama il controller con 'alias.metodo'."",
+            ""call"": { ""callee"": ""inviaPagina"", ""argument"": 0 },
+            ""split"": { ""separator"": ""."" },
+            ""owner"": { ""from"": ""string"", ""aliasMap"": ""program/conf/controller.properties"" },
+            ""excludePrefixes"": [ ""redirect:"" ] }";
+
+        [TestInitialize]
+        public void Setup()
+        {
+            _store = FusekiFixture.NewStore();   // Inconclusive se Java 21 o il jar mancano
+            _rules = new CodeRuleService(_store, NullLogger<CodeRuleService>.Instance);
+            _root = Path.Combine(Path.GetTempPath(), "mde-coderules-tests", Guid.NewGuid().ToString("N"));
+            _project = Path.Combine(_root, "project");
+            var program = Path.Combine(_project, "program");
+            Directory.CreateDirectory(Path.Combine(program, "web"));
+            Directory.CreateDirectory(Path.Combine(program, "src", "com", "acme"));
+            Directory.CreateDirectory(Path.Combine(program, "conf"));
+            File.WriteAllText(Path.Combine(program, "web", "page.js"),
+                "function scegli(id) {\n  inviaPagina('ordini.elenco');\n}\nfunction apri() {\n  inviaPagina('ordini.dettaglio');\n  inviaPagina('redirect:home');\n}\n");
+            File.WriteAllText(Path.Combine(program, "src", "com", "acme", "OrdiniController.java"),
+                "package com.acme;\n\npublic class OrdiniController {\n    public void elenco() { }\n    public void dettaglio() { }\n}\n");
+            File.WriteAllText(Path.Combine(program, "conf", "controller.properties"), "ordini=com.acme.OrdiniController\n");
+        }
+
+        [TestCleanup]
+        public void Cleanup() { try { Directory.Delete(_root, true); } catch { } }
+
+        private static string NuGetGrammar(GrammarStore store, string id)
+        {
+            var home = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+            return Path.Combine(home, "treesitter.dotnet", "1.3.0", "runtimes", store.Rid, "native", GrammarCatalog.ById(id).FileName(store.Rid));
+        }
+
+        private void Scan()
+        {
+            var grammars = new GrammarStore(_root);
+            Directory.CreateDirectory(grammars.Folder);
+            foreach (var id in new[] { "java", "javascript" })
+            {
+                var source = NuGetGrammar(grammars, id);
+                if (!File.Exists(source)) Assert.Inconclusive($"grammatica {id} non trovata nel NuGet in cache: " + source);
+                grammars.Install(GrammarCatalog.ById(id), source, "1.3.0", "nuget");
+            }
+            void Emit(ICodeExtractor extractor, string pattern)
+            {
+                var files = Directory.GetFiles(Path.Combine(_project, "program"), pattern, SearchOption.AllDirectories).OrderBy(f => f)
+                    .Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                WriteAsTheAnalysisDoes(_project, extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }));
+            }
+            Emit(new TreeSitterJavaScriptExtractor(grammars, NullLogger<TreeSitterJavaScriptExtractor>.Instance), "*.js");
+            Emit(new TreeSitterJavaExtractor(grammars, NullLogger<TreeSitterJavaExtractor>.Instance), "*.java");
+        }
+
+        /// <summary>
+        /// Gli script come li scrive l'analisi: con gli id legati al file che dichiara ogni simbolo (G4, <see cref="CodeFileScope"/>).
+        /// Senza questo passo un arco fra linguaggi diversi sembra giusto qui e va verso un nodo che non esiste nel progetto vero
+        /// (13/11/2026: il &lt;script src&gt; di una pagina).
+        /// </summary>
+        internal static void WriteAsTheAnalysisDoes(string project, CodeExtractionResult result)
+        {
+            var declarations = new CodeDeclarations();
+            foreach (var (file, script) in result.Scripts) declarations.Add(file.LogicalPath, script);
+            foreach (var (file, script) in result.Scripts)
+            {
+                CodeFileScope.Apply(script, declarations);
+                var path = CodeScriptWriter.ScriptPathFor(project, file.LogicalPath, CodeScriptKind.Ast);
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+            }
+        }
+
+        private async Task<string> IdOf(string qualifiedNameStart)
+            => (await _store.ResolveAsync(_project, qualifiedNameStart)).Single(s => s.Kind is "method" or "function").Id;
+
+        [TestMethod]
+        public async Task Link_the_page_to_the_controller_method_and_remove_the_links_with_the_rule()
+        {
+            Scan();
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            var preview = await _rules.PreviewAsync(_project, CodeEnrichmentRule.Parse(Rule));
+            Assert.IsTrue(preview.Accepted, string.Join(" ", preview.RejectReasons));
+            Assert.AreEqual((3, 1, 2, 0), (preview.CallSites, preview.Excluded, preview.Resolved, preview.Unresolved));
+            Assert.IsFalse(File.Exists(CodeRuleService.ScriptPath(_project, "azione-pagina")), "la prova a secco non scrive niente");
+
+            await _rules.ApplyAsync(_project, CodeEnrichmentRule.Parse(Rule), "MarkAgent / test");
+            Assert.IsTrue(File.Exists(CodeRuleService.DefinitionPath(_project, "azione-pagina")));
+            var scegli = await IdOf("scegli");
+            var edge = (await _store.NeighborsAsync(_project, scegli, "dispatches", "out", 1, 10)).Single();
+            Assert.AreEqual(("rule", "program/web/page.js", 2), (edge.Confidence, edge.Path, edge.Line));
+            StringAssert.EndsWith(edge.Other.QualifiedName, "OrdiniController.elenco()");
+            Assert.AreEqual("azione-pagina", _rules.List(_project).Single().Id);
+            Assert.AreEqual("MarkAgent / test", _rules.List(_project).Single().WrittenBy);
+
+            // Una nuova apertura del progetto ricarica la regola dal disco come gli altri script (Git porta i due file).
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            Assert.IsTrue(await _rules.RemoveAsync(_project, "azione-pagina"));
+            Assert.AreEqual(0, (await _store.NeighborsAsync(_project, scegli, "dispatches", "out", 1, 10)).Count, "via con la regola");
+            Assert.IsTrue((await _store.NeighborsAsync(_project, await IdOf("OrdiniController.elenco"), null, "in", 1, 10)).Any(), "il resto del grafo resta");
+            Assert.IsFalse(await _rules.RemoveAsync(_project, "azione-pagina"));
+        }
+
+        /// <summary>
+        /// 30/10/2026: ServiceLoader. Il grafo sapeva chi implementa l'interfaccia, non chi è registrato e quindi gira: ora
+        /// interfaccia → implementazioni registrate, metodo per metodo, e l'impatto di un'implementazione risale a chi
+        /// chiama l'interfaccia.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_an_interface_into_the_implementations_registered_in_meta_inf_services()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "CsvExporter.java"), "package com.acme;\n\npublic class CsvExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "OldExporter.java"), "package com.acme;\n\npublic class OldExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"), "package com.acme;\n\npublic class Runner {\n    public void run(Exporter e) {\n        e.export(\"x\");\n    }\n}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            const string services = "program/resources/META-INF/services/com.acme.Exporter";
+            var file = (services, "# registrati\ncom.acme.PdfExporter\n\ncom.acme.CsvExporter  # il secondo\ncom.lib.Missing\n");
+
+            var (edges, misses) = await _rules.ApplyRegistrationsAsync(_project, new[] { file });
+            Assert.AreEqual(1, misses.Count, "la classe di una libreria non è nel grafo: si dice");
+            StringAssert.Contains(misses[0], "com.lib.Missing");
+            var exporter = (await _store.ResolveAsync(_project, "com.acme.Exporter")).Single(x => x.Kind == "interface").Id;
+            var resolved = await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10);
+            CollectionAssert.AreEquivalent(new[] { "com.acme.CsvExporter", "com.acme.PdfExporter" }, resolved.Select(e => e.Other.QualifiedName).ToArray(), "OldExporter implementa ma non è registrata");
+            Assert.AreEqual(("extracted", services, 2), (resolved.Single(e => e.Other.QualifiedName == "com.acme.PdfExporter").Confidence, resolved[0].Path,
+                resolved.Single(e => e.Other.QualifiedName == "com.acme.PdfExporter").Line));
+            Assert.AreEqual(4, edges, "2 classi + 2 metodi");
+
+            // l'impatto del metodo registrato risale al metodo dell'interfaccia e a chi lo chiama
+            var pdfExport = (await _store.ResolveAsync(_project, "com.acme.PdfExporter.export")).Single(x => x.Kind == "method").Id;
+            var impact = await _store.ImpactAsync(_project, pdfExport, 2, 20);
+            CollectionAssert.IsSubsetOf(new[] { "com.acme.Exporter.export(String)", "com.acme.Runner.run(Exporter)" }, impact.Select(e => e.Other.QualifiedName).ToArray(),
+                string.Join(", ", impact.Select(e => e.Relation + " " + e.Other.QualifiedName)));
+
+            // tolto il file, via gli archi
+            await _rules.ApplyRegistrationsAsync(_project, Array.Empty<(string, string)>());
+            Assert.IsFalse(File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.RegistrationsId)));
+            Assert.AreEqual(0, (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Count);
+        }
+
+        /// <summary>
+        /// D43: i fatti nuovi (argomenti X.class, catene, annotazioni) entrano in Fuseki, e le regole sulle stringhe (D42) non
+        /// li vedono: un punto con soli tipi non è un punto con stringhe.
+        /// </summary>
+        [TestMethod]
+        public async Task Load_class_arguments_and_annotations_without_showing_them_to_string_rules()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter { }\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter { }\n");
+            File.WriteAllText(Path.Combine(src, "AppModule.java"),
+                "package com.acme;\n\nimport com.google.inject.Provides;\n\npublic class AppModule {\n" +
+                "    void configure() {\n        bind(Exporter.class).to(PdfExporter.class);\n        named(\"main\");\n    }\n" +
+                "    @Provides\n    Exporter make() { return null; }\n}\n");
+            Scan();
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+            Assert.AreEqual(0, (await _store.CallSitesAsync(_project, "bind")).Count, "solo tipi: invisibile alle regole sulle stringhe");
+            Assert.AreEqual("main", (await _store.CallSitesAsync(_project, "named")).Single().Arguments[0]);
+
+            // code_schema (D43): i fatti che una regola può leggere, con i numeri
+            var facts = await _store.RuleFactsAsync(_project, 10);
+            CollectionAssert.AreEquivalent(new[] { "bind 1", "to 1" }, facts.TypeCallees.Select(x => $"{x.Callee} {x.Count}").ToArray());
+            CollectionAssert.Contains(facts.StringCallees.Select(x => x.Callee).ToList(), "named");
+            Assert.AreEqual(("Provides", "com.google.inject.Provides", 1), facts.Annotations.Single());
+            Assert.AreEqual((1, 1), (facts.Chains, facts.ResolvedReturnTypes), "to → bind; make() restituisce Exporter");
+
+            // F3: gli esterni di cui si sa solo il nome, e quanto è descritto
+            var externals = CodeExternals.Group(await _store.ExternalUsesAsync(_project, null));
+            CollectionAssert.Contains(externals.Select(t => t.Type).ToList(), "com.google.inject.Provides", "l'import di una libreria");
+            Assert.AreEqual(0, (await _store.ExternalUsesAsync(_project, "altrove/")).Count, "il filtro sul percorso");
+            var (describable, described) = await _store.DescribedCountsAsync(_project, "program/");
+            Assert.IsTrue(describable > 0);
+            Assert.AreEqual(0, described, "nessuno è ancora descritto");
+        }
+
+        /// <summary>
+        /// D43 passo 2: Guice scritto come regole di registrazione, non nel codice di MdExplorer. bind(X.class)…to(Y.class),
+        /// @ImplementedBy(Y.class), @Provides: archi resolvesTo con certezza «rule», metodo per metodo, e l'impatto risale.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_guice_bindings_written_as_registration_rules()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Store.java"), "package com.acme;\n\nimport com.google.inject.ImplementedBy;\n\n@ImplementedBy(FileStore.class)\npublic interface Store {\n    void save();\n}\n");
+            File.WriteAllText(Path.Combine(src, "FileStore.java"), "package com.acme;\n\npublic class FileStore implements Store {\n    public void save() { }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Clock.java"), "package com.acme;\n\npublic interface Clock { }\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"), "package com.acme;\n\npublic class Runner {\n    public void run(Exporter e) {\n        e.export(\"x\");\n    }\n}\n");
+            File.WriteAllText(Path.Combine(src, "AppModule.java"),
+                "package com.acme;\n\nimport com.google.inject.AbstractModule;\nimport com.google.inject.Provides;\nimport com.google.inject.name.Names;\n\n" +
+                "public class AppModule extends AbstractModule {\n" +
+                "    protected void configure() {\n" +
+                "        bind(Exporter.class).annotatedWith(Names.named(\"main\")).to(PdfExporter.class);\n" +   // riga 9
+                "        bind(Exporter.class).to(Lib.class);\n" +                                                    // riga 10: classe fuori dal grafo
+                "    }\n" +
+                "    @Provides\n    Clock clock() { return null; }\n" +                                               // righe 12-13
+                "}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+
+            var bind = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-bind"", ""kind"": ""registration"", ""description"": ""bind(X).to(Y): Guice usa Y quando serve X."",
+                ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""chain"", ""callee"": ""bind"", ""argument"": 0 },
+                ""implementation"": { ""from"": ""argument"", ""argument"": 0 }, ""describe"": ""Con quale qualificatore e durata?"" }");
+            var preview = await _rules.PreviewAsync(_project, bind);
+            Assert.IsTrue(preview.Accepted, string.Join(" ", preview.RejectReasons));
+            Assert.AreEqual((2, 1, 0, 1), (preview.CallSites, preview.Resolved, preview.Unresolved, preview.OutsideGraph), "Lib è fuori dal grafo: letta giusta, non pesa sulla quota");
+            Assert.AreEqual(1, preview.MissCounts["implementationNotInGraph"], "ma si dice");
+            Assert.AreEqual(("com.acme.Exporter → com.acme.PdfExporter", 9), (preview.Sample.Single().Value, preview.Sample.Single().Site.Line));
+            await _rules.ApplyAsync(_project, bind, "MarkAgent / test");
+            var exporter = (await _store.ResolveAsync(_project, "com.acme.Exporter")).Single(x => x.Kind == "interface").Id;
+            var edge = (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single();
+            Assert.AreEqual(("com.acme.PdfExporter", "rule", 9), (edge.Other.QualifiedName, edge.Confidence, edge.Line));
+            var pdfExport = (await _store.ResolveAsync(_project, "com.acme.PdfExporter.export")).Single(x => x.Kind == "method").Id;
+            CollectionAssert.Contains((await _store.ImpactAsync(_project, pdfExport, 2, 20)).Select(e => e.Other.QualifiedName).ToList(), "com.acme.Runner.run(Exporter)",
+                "l'impatto dell'implementazione risale a chi chiama l'interfaccia");
+
+            var implementedBy = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-implemented-by"", ""kind"": ""registration"", ""description"": ""@ImplementedBy(Y): l'implementazione predefinita."",
+                ""anchor"": { ""annotation"": ""ImplementedBy"" }, ""abstraction"": { ""from"": ""annotated"" }, ""implementation"": { ""from"": ""annotationArgument"" } }");
+            await _rules.ApplyAsync(_project, implementedBy, "MarkAgent / test");
+            var store = (await _store.ResolveAsync(_project, "com.acme.Store")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("com.acme.FileStore", (await _store.NeighborsAsync(_project, store, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+            var save = (await _store.ResolveAsync(_project, "com.acme.Store.save")).Single(x => x.Kind == "method").Id;
+            Assert.AreEqual("com.acme.FileStore.save()", (await _store.NeighborsAsync(_project, save, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName, "e metodo per metodo");
+
+            var provides = CodeEnrichmentRule.Parse(@"{ ""id"": ""guice-provides"", ""kind"": ""registration"", ""description"": ""@Provides: il metodo fornisce il tipo che restituisce."",
+                ""anchor"": { ""annotation"": ""Provides"" }, ""abstraction"": { ""from"": ""returnType"" }, ""implementation"": { ""from"": ""annotated"" } }");
+            await _rules.ApplyAsync(_project, provides, "MarkAgent / test");
+            var clock = (await _store.ResolveAsync(_project, "com.acme.Clock")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("com.acme.AppModule.clock()", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName,
+                "l'astrazione si risolve nel metodo che la fornisce");
+            Assert.AreEqual(3, _rules.List(_project).Count);
+
+            // le descrizioni dei collegamenti (D43): si salvano nello script della regola, Mark le legge sugli archi,
+            // restano quando la regola si riapplica (nuova scansione) e vanno via col loro punto
+            await _rules.SaveLinkDocsAsync(_project, "guice-bind", new[] { new ScriptLinkDoc { Path = "program/src/com/acme/AppModule.java", Line = 9, Summary = "Qualificatore main.", FactHash = "f", PromptVersion = "v" } });
+            Assert.AreEqual("Qualificatore main.", (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single().Description);
+            await _rules.ReapplyAllAsync(_project);
+            Assert.AreEqual("Qualificatore main.", CodeRuleService.ReadScript(_project, "guice-bind").LinkDocs.Single().Summary, "la scansione rifà gli archi, non le descrizioni");
+            Assert.AreEqual("Qualificatore main.", (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single().Description);
+            await _rules.SaveLinkDocsAsync(_project, "guice-bind", new[] { new ScriptLinkDoc { Path = "program/src/com/acme/Gone.java", Line = 1, Summary = "x", FactHash = "f", PromptVersion = "v" } });
+            await _rules.ReapplyAllAsync(_project);
+            Assert.IsFalse(CodeRuleService.ReadScript(_project, "guice-bind").LinkDocs.Any(d => d.Path.EndsWith("Gone.java")), "un punto senza archi perde la descrizione");
+            Assert.AreEqual(CodeRuleKind.Registration, _rules.List(_project).Single(r => r.Id == "guice-bind").Kind);
+            Assert.AreEqual("Con quale qualificatore e durata?", _rules.List(_project).Single(r => r.Id == "guice-bind").Describe);
+        }
+
+        /// <summary>
+        /// D43 per .NET (11/11/2026): la dependency injection scritta come regole di registrazione, in C# e in Visual Basic.
+        /// <c>AddScoped&lt;IFoo, Foo&gt;()</c> si legge dagli argomenti generici (<c>generic</c>), Autofac dalla catena.
+        /// </summary>
+        [TestMethod]
+        public async Task Resolve_dotnet_dependency_injection_written_as_registration_rules()
+        {
+            var cs = Path.Combine(_project, "program", "cs");
+            var vb = Path.Combine(_project, "program", "vb");
+            Directory.CreateDirectory(cs); Directory.CreateDirectory(vb);
+            File.WriteAllText(Path.Combine(cs, "Servizi.cs"),
+                "namespace Acme {\n" +
+                "  public interface IExporter { void Export(string doc); }\n" +
+                "  public class PdfExporter : IExporter { public void Export(string doc) { } }\n" +
+                "  public class CsvExporter : IExporter { public void Export(string doc) { } }\n" +
+                "  public interface IStore { }\n  public class FileStore : IStore { }\n" +
+                "  public interface IMailer { }\n  [Export(typeof(IMailer))] public class SmtpMailer : IMailer { }\n" +
+                "  public class Runner { public void Run(IExporter e) { e.Export(\"x\"); } }\n" +
+                "  public class Startup {\n" +
+                "    public void Configure(dynamic services, dynamic builder) {\n" +
+                "      services.AddScoped<IExporter, PdfExporter>();\n" +                    // riga 12
+                "      builder.RegisterType<FileStore>().SingleInstance().As<IStore>();\n" +  // riga 13
+                "    }\n  }\n}\n");
+            File.WriteAllText(Path.Combine(vb, "Servizi.vb"),
+                "Namespace Acme\n" +
+                "  Public Interface IClock\n  End Interface\n" +
+                "  Public Class SystemClock\n    Implements IClock\n  End Class\n" +
+                "  Public Class Avvio\n" +
+                "    Public Sub Configura(services As Object)\n" +
+                "      services.AddScoped(Of IClock, SystemClock)()\n" +                      // riga 9
+                "    End Sub\n  End Class\nEnd Namespace\n");
+            void Emit(ICodeExtractor extractor, string folder, string pattern)
+            {
+                var files = Directory.GetFiles(folder, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                }
+            }
+            Emit(new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance), cs, "*.cs");
+            Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), vb, "*.vb");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            // Microsoft.Extensions.DependencyInjection: AddScoped<Astrazione, Implementazione>() — C# e VB con la stessa regola
+            var addScoped = CodeEnrichmentRule.Parse(@"{ ""id"": ""di-add-scoped"", ""kind"": ""registration"", ""description"": ""AddScoped<I, C>(): il contenitore dà C quando serve I."",
+                ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }");
+            var preview = await _rules.PreviewAsync(_project, addScoped);
+            Assert.IsTrue(preview.Accepted, string.Join(" ", preview.RejectReasons));
+            Assert.AreEqual((2, 2, 0), (preview.CallSites, preview.Resolved, preview.Unresolved));
+            await _rules.ApplyAsync(_project, addScoped, "MarkAgent / test");
+
+            var exporter = (await _store.ResolveAsync(_project, "Acme.IExporter")).Single(x => x.Kind == "interface").Id;
+            var edge = (await _store.NeighborsAsync(_project, exporter, CodeRegistrations.Relation, "out", 1, 10)).Single();
+            Assert.AreEqual(("Acme.PdfExporter", "rule", 12), (edge.Other.QualifiedName, edge.Confidence, edge.Line), "delle due implementazioni, quella REGISTRATA");
+            var clock = (await _store.ResolveAsync(_project, "Acme.IClock")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.SystemClock", (await _store.NeighborsAsync(_project, clock, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName, "Visual Basic: (Of IClock, SystemClock)");
+            var pdfExport = (await _store.ResolveAsync(_project, "Acme.PdfExporter.Export")).Single(x => x.Kind == "method").Id;
+            CollectionAssert.Contains((await _store.ImpactAsync(_project, pdfExport, 2, 20)).Select(e => e.Other.QualifiedName).ToList(), "Acme.Runner.Run(Acme.IExporter)",
+                "l'impatto dell'implementazione risale a chi chiama l'interfaccia");
+
+            // Autofac: RegisterType<C>()…As<I>() — l'astrazione sull'àncora, l'implementazione più giù nella catena
+            var autofac = CodeEnrichmentRule.Parse(@"{ ""id"": ""autofac-as"", ""kind"": ""registration"", ""description"": ""RegisterType<C>().As<I>()."",
+                ""anchor"": { ""call"": ""As"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0 }, ""implementation"": { ""from"": ""chain"", ""callee"": ""RegisterType"", ""generic"": 0 } }");
+            Assert.IsTrue((await _rules.PreviewAsync(_project, autofac)).Accepted);
+            await _rules.ApplyAsync(_project, autofac, "MarkAgent / test");
+            var store = (await _store.ResolveAsync(_project, "Acme.IStore")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.FileStore", (await _store.NeighborsAsync(_project, store, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+
+            // MEF: [Export(typeof(I))] sulla classe — l'attributo si legge anche se il suo pacchetto non è fra le reference
+            var export = CodeEnrichmentRule.Parse(@"{ ""id"": ""mef-export"", ""kind"": ""registration"", ""description"": ""[Export(typeof(I))] su C."",
+                ""anchor"": { ""annotation"": ""Export"" }, ""abstraction"": { ""from"": ""annotationArgument"" }, ""implementation"": { ""from"": ""annotated"" } }");
+            Assert.IsTrue((await _rules.PreviewAsync(_project, export)).Accepted);
+            await _rules.ApplyAsync(_project, export, "MarkAgent / test");
+            var mailer = (await _store.ResolveAsync(_project, "Acme.IMailer")).Single(x => x.Kind == "interface").Id;
+            Assert.AreEqual("Acme.SmtpMailer", (await _store.NeighborsAsync(_project, mailer, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
+
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0, ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }"),
+                "argument e generic insieme: una posizione sola");
+        }
+
+        /// <summary>
+        /// 11/11/2026: dal codice alla procedura del database. Il nome sta in una stringa assegnata a una proprietà (o in una
+        /// costante passata a un costruttore) e il bersaglio è un simbolo di un ALTRO linguaggio, scritto con altre maiuscole.
+        /// </summary>
+        [TestMethod]
+        public async Task Link_a_name_assigned_in_code_to_a_symbol_of_another_language()
+        {
+            var vb = Path.Combine(_project, "program", "vb");
+            var db = Path.Combine(_project, "program", "db");
+            Directory.CreateDirectory(vb); Directory.CreateDirectory(db);
+            File.WriteAllText(Path.Combine(vb, "Ordini.vb"),
+                "Public Class Comando\n  Public Property CommandText As String\n  Public Sub New(Optional testo As String = Nothing)\n  End Sub\nEnd Class\n" +
+                "Public Class OrdiniDb\n" +
+                "  Private Const SP_TOTALE As String = \"TOTALE\"\n" +
+                "  Public Sub Elenco()\n" +
+                "    Dim cmd As New Comando()\n" +
+                "    cmd.CommandText = \"elenco\"\n" +            // riga 10: minuscolo nel codice, maiuscolo nel database
+                "  End Sub\n" +
+                "  Public Sub Totale()\n" +
+                "    Dim cmd As New Comando(SP_TOTALE)\n" +         // riga 13: costante passata al costruttore
+                "    cmd.CommandText = \"NON_ESISTE\"\n" +
+                "  End Sub\n" +
+                "  Public Sub Ancora()\n" +
+                "    Dim cmd As New Comando()\n" +
+                "    cmd.CommandText = \"Totale\"\n" +
+                "  End Sub\n" +
+                "End Class\n");
+            File.WriteAllText(Path.Combine(db, "ordini.toy"), "PROC ELENCO()\nENDPROC\nPROC TOTALE()\nENDPROC\n");
+            void Emit(ICodeExtractor extractor, string folder, string pattern)
+            {
+                var files = Directory.GetFiles(folder, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                }
+            }
+            Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), vb, "*.vb");
+            Emit(new DeclarativeLanguageExtractor(DeclarativeLanguage.Parse(DeclarativeLanguageExtractorShould.ToyDefinition, "toy/language.yml")), db, "*.toy");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            // che cosa ha scritto ogni parser in questo grafo (MCP code_ontology)
+            var parsers = await _store.ParserProfilesAsync(_project);
+            var vbParser = parsers.Single(x => x.Language == CodeLanguages.VisualBasic);
+            Assert.AreEqual((1, 2, 3), (vbParser.Files, vbParser.SymbolKinds["class"], vbParser.SymbolKinds["method"]));
+            Assert.IsTrue(vbParser.Relations["contains"] > 0 && !vbParser.Relations.ContainsKey("jumps") && vbParser.ExtractorVersion != null);
+            Assert.AreEqual(2, parsers.Single(x => x.Language == "toy").SymbolKinds["function"]);
+
+            var byProperty = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-testo"", ""description"": ""CommandText nomina la procedura eseguita."",
+                ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ], ""ignoreCase"": true } }");
+            var preview = await _rules.PreviewAsync(_project, byProperty);
+            Assert.AreEqual((3, 2, 0, 1), (preview.CallSites, preview.Resolved, preview.Unresolved, preview.OutsideGraph));
+            CollectionAssert.AreEqual(new[] { "NON_ESISTE" }, preview.OutsideGraphNames, "NON_ESISTE non è nel grafo: l'anteprima lo nomina");
+            CollectionAssert.Contains(preview.Sample.Select(x => x.Site.Line).ToList(), 10);
+            await _rules.ApplyAsync(_project, byProperty, "MarkAgent / test");
+            var elencoVb = (await _store.ResolveAsync(_project, "OrdiniDb.Elenco")).Single(x => x.Kind == "method").Id;
+            var edge = (await _store.NeighborsAsync(_project, elencoVb, "dispatches", "out", 1, 10)).Single();
+            Assert.AreEqual(("ELENCO", "rule"), (edge.Other.Name, edge.Confidence), "dal metodo VB alla procedura dell'altro linguaggio");
+            // la procedura che il grafo non ha: l'arco si fa lo stesso, verso un nodo external col suo nome
+            var totaleVb = (await _store.ResolveAsync(_project, "OrdiniDb.Totale")).Single(x => x.Kind == "method").Id;
+            var outside = (await _store.NeighborsAsync(_project, totaleVb, "dispatches", "out", 1, 10)).Single();
+            Assert.AreEqual(("NON_ESISTE", "external", "rule"), (outside.Other.Name, outside.Other.Kind, outside.Confidence));
+            var onDisk = CodeRuleService.ReadScript(_project, "comando-testo");
+            Assert.AreEqual(("NON_ESISTE", "toy"), (onDisk.Symbols.Single().Name, onDisk.Header.Language), "il nodo external sta nello script, e si rilegge");
+
+            var byConstructor = CodeEnrichmentRule.Parse(@"{ ""id"": ""comando-nuovo"", ""description"": ""New Comando(nome): la procedura eseguita."",
+                ""call"": { ""callee"": ""Comando"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""toy"" ] } }");
+            Assert.AreEqual((1, 1), ((await _rules.PreviewAsync(_project, byConstructor)).CallSites, (await _rules.PreviewAsync(_project, byConstructor)).Resolved), "la costante vale come la stringa scritta");
+
+            var wrong = CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""CommandText"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"", ""languages"": [ ""cobol"" ] } }");
+            // un linguaggio che nel grafo non c'è ancora (il database si analizza dopo): tutti i nomi su nodi external, regola valida
+            var later = await _rules.PreviewAsync(_project, wrong);
+            Assert.AreEqual((0, 3, true), (later.Resolved, later.OutsideGraph, later.Accepted));
+            Assert.AreEqual(3, later.Edges.Count);
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""c"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"" } }"), "senza languages");
+
+            // il nome qualificato dopo il file: «PKG.PROC» trova il simbolo «db/ordini.pks:PKG.PROC»
+            var site = new CodeCallSiteView { CallerId = "c", Callee = "CommandText", Path = "a.vb", Line = 1, Iri = "urn:x" };
+            site.Arguments[0] = "pkg_ordini.elenco";
+            var qualified = CodeRuleEngine.Evaluate(byProperty, new[] { site }, null, null, new[]
+            {
+                new CodeOwnerMember { OwnerId = "p", MemberId = "p", OwnerName = "ELENCO", MemberName = "ELENCO", OwnerQualifiedName = "db/ordini.pks:PKG_ORDINI.ELENCO", MemberQualifiedName = "db/ordini.pks:PKG_ORDINI.ELENCO" },
+                new CodeOwnerMember { OwnerId = "q", MemberId = "q", OwnerName = "ELENCO", MemberName = "ELENCO", OwnerQualifiedName = "db/altro.pks:PKG_ALTRO.ELENCO", MemberQualifiedName = "db/altro.pks:PKG_ALTRO.ELENCO" },
+            });
+            Assert.AreEqual(1, qualified.Resolved, "PKG_ORDINI.ELENCO, non l'omonima di un altro package");
+        }
+
+        [TestMethod]
+        public void Refuse_a_registration_rule_that_reads_a_fact_its_anchor_does_not_have()
+        {
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""returnType"" }, ""implementation"": { ""from"": ""argument"", ""argument"": 0 } }"));
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""anchor"": { ""annotation"": ""Provides"" }, ""abstraction"": { ""from"": ""chain"", ""callee"": ""bind"", ""argument"": 0 }, ""implementation"": { ""from"": ""annotated"" } }"));
+            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+                ""call"": { ""callee"": ""to"", ""argument"": 0 }, ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""argument"", ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""argument"": 1 } }"),
+                "i campi di una regola dispatch non valgono");
+            Assert.AreEqual(CodeRuleKind.Dispatch, CodeEnrichmentRule.Parse(Rule).Kind, "una regola di prima resta dispatch");
+        }
+
+        /// <summary>D43 F2: le domande pronte per capire il codice, su un piccolo programma vero (estrattore Java, Fuseki).</summary>
+        [TestMethod]
+        public async Task Answer_the_ready_made_questions_on_a_small_program()
+        {
+            var src = Path.Combine(_project, "program", "src", "com", "acme");
+            File.WriteAllText(Path.Combine(src, "Exporter.java"), "package com.acme;\n\npublic interface Exporter {\n    void export(String doc);\n}\n");
+            File.WriteAllText(Path.Combine(src, "PdfExporter.java"), "package com.acme;\n\npublic class PdfExporter implements Exporter {\n    public void export(String doc) { int a = 1; a++; }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Runner.java"),
+                "package com.acme;\n\npublic class Runner {\n" +
+                "    public void run(Exporter e) {\n        e.export(\"x\");\n        helper();\n    }\n" +
+                "    private void helper() { int a = 1; a++; }\n" +
+                "    private void unused() { int b = 2; b++; }\n}\n");
+            File.WriteAllText(Path.Combine(src, "Main.java"),
+                "package com.acme;\n\npublic class Main {\n    public static void main(String[] args) {\n        new Runner().run(new PdfExporter());\n    }\n}\n");
+            File.WriteAllText(Path.Combine(src, "A.java"), "package com.acme;\n\npublic class A {\n    public void a() { new B().b(); }\n}\n");
+            File.WriteAllText(Path.Combine(src, "B.java"), "package com.acme;\n\npublic class B {\n    public void b() { new A().a(); }\n}\n");
+            Scan();
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            const string prefix = "program/src/com/acme/";
+
+            var entries = (await _store.EntryPointsAsync(_project, prefix, 50)).Select(x => x.Symbol.QualifiedName).ToList();
+            CollectionAssert.Contains(entries, "com.acme.Main.main(String[])");
+            CollectionAssert.DoesNotContain(entries, "com.acme.Runner.run(Exporter)", "main la chiama");
+
+            var unused = (await _store.UnusedAsync(_project, prefix, 50)).Select(s => s.QualifiedName).ToList();
+            CollectionAssert.Contains(unused, "com.acme.Runner.unused()");
+            CollectionAssert.DoesNotContain(unused, "com.acme.Runner.helper()", "run la chiama");
+            CollectionAssert.DoesNotContain(unused, "com.acme.Runner.run(Exporter)", "pubblica: è in entry-points, non qui");
+
+            Assert.IsTrue((await _store.HotspotsAsync(_project, prefix, 5)).Count > 0);
+            Assert.IsTrue((await _store.FilesUnderAsync(_project, prefix, 50)).Any(f => f.Path.EndsWith("/Runner.java")));
+            CollectionAssert.Contains((await _store.TopLevelTypesAsync(_project, prefix, 50)).Select(t => t.QualifiedName).ToList(), "com.acme.Runner");
+            await _store.UncertainAsync(_project, prefix, 10);
+
+            var edges = await _store.FileEdgesAsync(_project);
+            var cycles = CodeDocGraph.Cycles(edges.SelectMany(e => new[] { e.From, e.To }), edges.GroupBy(e => e.From).ToDictionary(g => g.Key, g => g.Select(e => e.To).ToList()));
+            CollectionAssert.AreEquivalent(new[] { prefix + "A.java", prefix + "B.java" }, cycles.Single().ToArray(), "A e B si chiamano a vicenda");
+
+            var main = (await _store.ResolveAsync(_project, "com.acme.Main.main(String[])")).Single();
+            var (steps, truncated) = await CodeFlow.FromAsync(_store, _project, main, 3, 80);
+            Assert.IsFalse(truncated);
+            var flow = steps.Select(x => $"{x.Depth} {x.Edge.Relation} {x.Edge.Other.QualifiedName}").ToList();
+            CollectionAssert.Contains(flow, "1 calls com.acme.Runner.run(Exporter)", string.Join("; ", flow));
+            CollectionAssert.Contains(flow, "2 calls com.acme.Runner.helper()", string.Join("; ", flow));
+            Assert.IsFalse(steps.Any(x => x.Edge.Relation == "references"), "il flusso segue chi esegue, non i tipi nominati");
+        }
+
+        [TestMethod]
+        public async Task Link_page_controls_to_the_functions_of_the_scripts_the_page_loads()
+        {
+            var pages = Path.Combine(_project, "program", "web", "pagine");
+            Directory.CreateDirectory(Path.Combine(pages, "parti"));
+            File.WriteAllText(Path.Combine(pages, "ordini.page"),
+                "<script src=\"../page.js\"></script>\n{%include(parti/menu)%}\n<button id=\"scegli\" onclick=\"scegli(1)\">x</button>\n<a id=\"menu\" href=\"javascript:apriMenu()\">m</a>\n<i id=\"altro\" onclick=\"nessuna()\">y</i>\n");
+            File.WriteAllText(Path.Combine(pages, "parti", "menu.page"), "<script>\nfunction apriMenu() { }\n</script>\n");
+            Scan();
+            var dialect = new TemplatePageExtractor(DeclarativeLanguage.Parse(TemplatePageExtractorShould.Dialect, "/p/.mde-languages/pagine/language.yml"));
+            var all = Directory.GetFiles(pages, "*.page", SearchOption.AllDirectories).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            WriteAsTheAnalysisDoes(_project, dialect.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = all, FilesToEmit = all }));
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(0, await _rules.ApplyPageScriptsAsync(_project, new[] { "altro-dialetto" }), "solo le pagine dei dialetti dati");
+            var linked = await _rules.ApplyPageScriptsAsync(_project, new[] { "pagine" });
+            var script = CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId);
+            Assert.AreEqual(2, linked, File.ReadAllText(script));
+            Assert.IsTrue(File.Exists(script));
+            Assert.AreEqual(0, _rules.List(_project).Count, "non è una regola dell'utente");
+
+            var scegli = (await _store.ResolveAsync(_project, "program/web/pagine/ordini.page:scegli")).Single(s => s.Kind == "control").Id;
+            var toJs = (await _store.NeighborsAsync(_project, scegli, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("extracted", "function", "program/web/page.js"), (toJs.Confidence, toJs.Other.Kind, toJs.Other.Path), "la funzione del file che la pagina carica");
+            var menu = (await _store.ResolveAsync(_project, "program/web/pagine/ordini.page:menu")).Single(s => s.Kind == "control").Id;
+            Assert.AreEqual("program/web/pagine/parti/menu.page", (await _store.NeighborsAsync(_project, menu, "calls", "out", 1, 10)).Single().Other.Path, "la funzione della pagina inclusa");
+
+            var before = File.GetLastWriteTimeUtc(script);
+            System.Threading.Thread.Sleep(20);
+            Assert.AreEqual(2, await _rules.ApplyPageScriptsAsync(_project, new[] { "pagine" }));
+            Assert.AreEqual(before, File.GetLastWriteTimeUtc(script), "lo stesso risultato non riscrive il file");
+            Assert.AreEqual(0, await _rules.ApplyPageScriptsAsync(_project, Array.Empty<string>()));
+            Assert.IsFalse(File.Exists(script), "senza dialetti di pagine il file se ne va");
+            Assert.AreEqual(0, (await _store.NeighborsAsync(_project, scegli, "calls", "out", 1, 10)).Count);
+        }
+
+        [TestMethod]
+        public async Task Link_an_angular_template_to_its_component_methods_and_child_components()
+        {
+            var app = Path.Combine(_project, "program", "app");
+            Directory.CreateDirectory(app);
+            File.WriteAllText(Path.Combine(app, "x.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-x', templateUrl: './x.component.html' })\n" +
+                "export class XComponent {\n  salva(): void { }\n  annulla(): void { }\n}\n");
+            File.WriteAllText(Path.Combine(app, "dettaglio.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-dettaglio', template: '<p></p>' })\nexport class DettaglioComponent { }\n");
+            File.WriteAllText(Path.Combine(app, "x.component.html"),
+                "<div *ngIf=\"admin\">\n<button id=\"ok\" (click)=\"salva()\">ok</button>\n</div>\n<app-dettaglio></app-dettaglio>\n<i id=\"x\" (click)=\"nessuno()\">x</i>\n");
+            var grammars = new GrammarStore(_root);
+            Directory.CreateDirectory(grammars.Folder);
+            var ts = NuGetGrammar(grammars, "typescript");
+            if (!File.Exists(ts)) Assert.Inconclusive("grammatica typescript non trovata nel NuGet in cache: " + ts);
+            grammars.Install(GrammarCatalog.ById("typescript"), ts, "1.3.0", "nuget");
+            void Emit(ICodeExtractor extractor, string pattern)
+            {
+                var files = Directory.GetFiles(app, pattern).OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+                foreach (var (file, ast) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
+                }
+            }
+            Emit(new TreeSitterTypeScriptExtractor(grammars, NullLogger<TreeSitterTypeScriptExtractor>.Instance), "*.ts");
+            Emit(new TemplatePageExtractor(DeclarativeLanguage.Parse(TemplatePageExtractorShould.Angular, "/p/.mde-languages/angular/language.yml")), "*.html");
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(3, await _rules.ApplyPageScriptsAsync(_project, new[] { "angular" }), File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) ? File.ReadAllText(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) : "");
+            var comp = (await _store.ResolveAsync(_project, "program/app/x.component:XComponent")).Single(x => x.Kind == "component").Id;
+            var renders = (await _store.NeighborsAsync(_project, comp, "renders", "out", 1, 10)).Single();
+            Assert.AreEqual(("module", "program/app/x.component.html"), (renders.Other.Kind, renders.Other.Path));
+            var ok = (await _store.ResolveAsync(_project, "program/app/x.component.html:ok")).Single(x => x.Kind == "control").Id;
+            var salva = (await _store.NeighborsAsync(_project, ok, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("method", "salva", "extracted"), (salva.Other.Kind, salva.Other.Name, salva.Confidence), "(click)=salva() → il metodo del componente");
+            var child = (await _store.ResolveAsync(_project, "program/app/x.component.html:app-dettaglio@4")).Single(x => x.Kind == "control").Id;
+            Assert.AreEqual("DettaglioComponent", (await _store.NeighborsAsync(_project, child, "instantiates", "out", 1, 10)).Single().Other.Name);
+        }
+
+        [TestMethod]
+        public async Task Link_an_inline_angular_template_to_its_component()
+        {
+            var app = Path.Combine(_project, "program", "app");
+            Directory.CreateDirectory(app);
+            File.WriteAllText(Path.Combine(app, "x.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-x', template: `\n<div *ngIf=\"admin\">\n<button id=\"ok\" (click)=\"salva()\">ok</button>\n</div>\n<app-dettaglio></app-dettaglio>\n` })\n" +
+                "export class XComponent {\n  salva(): void { }\n}\n");
+            File.WriteAllText(Path.Combine(app, "dettaglio.component.ts"),
+                "import { Component } from '@angular/core';\n@Component({ selector: 'app-dettaglio', templateUrl: './dettaglio.component.html' })\nexport class DettaglioComponent { }\n");
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
+            Directory.CreateDirectory(package);
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), TemplatePageExtractorShould.Angular);
+            var catalog = CodeLanguageCatalog.ForProject(_project);
+            var grammars = new GrammarStore(_root);
+            Directory.CreateDirectory(grammars.Folder);
+            var ts = NuGetGrammar(grammars, "typescript");
+            if (!File.Exists(ts)) Assert.Inconclusive("grammatica typescript non trovata nel NuGet in cache: " + ts);
+            grammars.Install(GrammarCatalog.ById("typescript"), ts, "1.3.0", "nuget");
+            var sources = Directory.GetFiles(app, "*.ts").OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            void Emit(ICodeExtractor extractor, List<CodeSourceFile> files)
+            {
+                foreach (var (file, ast) in extractor.Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files }).Scripts)
+                {
+                    var path = CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, CodeScriptWriter.Serialize(ast));
+                }
+            }
+            Emit(new TreeSitterTypeScriptExtractor(grammars, NullLogger<TreeSitterTypeScriptExtractor>.Instance), sources);
+            Emit(new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog).Get("angular"),
+                CodeInlinePages.Expand(catalog, sources).Where(f => CodeInlinePages.IsInline(f.LogicalPath)).ToList());
+            var loaded = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, loaded.Failed, loaded.FirstError);
+
+            Assert.AreEqual(3, await _rules.ApplyPageScriptsAsync(_project, new[] { "angular" }), File.Exists(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) ? File.ReadAllText(CodeRuleService.ScriptPath(_project, CodeRuleService.PageScriptsId)) : "");
+            var comp = (await _store.ResolveAsync(_project, "program/app/x.component:XComponent")).Single(x => x.Kind == "component").Id;
+            var renders = (await _store.NeighborsAsync(_project, comp, "renders", "out", 1, 10)).Single();
+            Assert.AreEqual(("module", "program/app/x.component.ts#template"), (renders.Other.Kind, renders.Other.Path));
+            var ok = (await _store.ResolveAsync(_project, "program/app/x.component.ts#template:ok")).Single(x => x.Kind == "control");
+            Assert.AreEqual(("admin", 4), (ok.Guard, ok.LineStart), "condizione e riga del .ts");
+            var salva = (await _store.NeighborsAsync(_project, ok.Id, "calls", "out", 1, 10)).Single();
+            Assert.AreEqual(("method", "salva", "extracted"), (salva.Other.Kind, salva.Other.Name, salva.Confidence));
+            var child = (await _store.ResolveAsync(_project, "program/app/x.component.ts#template:app-dettaglio@6")).Single(x => x.Kind == "control").Id;
+            Assert.AreEqual("DettaglioComponent", (await _store.NeighborsAsync(_project, child, "instantiates", "out", 1, 10)).Single().Other.Name);
+        }
+
+        [TestMethod]
+        public async Task Refuse_to_apply_a_rule_that_links_too_little_and_write_nothing()
+        {
+            Scan();
+            await _store.LoadProjectAsync(_project);
+            var wrong = CodeEnrichmentRule.Parse(Rule.Replace("\"separator\": \".\"", "\"separator\": \":\""));   // la stringa non ha i due punti
+
+            var ex = await Assert.ThrowsExceptionAsync<CodeRuleException>(() => _rules.ApplyAsync(_project, wrong, "test"));
+            StringAssert.Contains(ex.Message, "0");
+            Assert.IsFalse(Directory.Exists(CodeGraphPaths.GetRulesFolder(_project)) && Directory.EnumerateFiles(CodeGraphPaths.GetRulesFolder(_project)).Any());
+        }
+    }
+}

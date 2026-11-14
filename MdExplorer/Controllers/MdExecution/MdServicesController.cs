@@ -84,7 +84,6 @@ namespace MdExplorer.Service.Controllers.MdExecution
                 var detected = ParameterExtractor.Extract(request.Code ?? string.Empty, request.Language);
                 var rewrittenCode = ParameterSubstitution.Apply(
                     request.Code ?? string.Empty,
-                    request.Language,
                     detected,
                     userValues);
 

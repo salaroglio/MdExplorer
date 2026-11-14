@@ -42,7 +42,7 @@ namespace MdExplorer.Services
             DevelopmentConfig config;
             if (File.Exists(filePath))
             {
-                var yaml = File.ReadAllText(filePath);
+                var yaml = MdExplorer.Features.Configuration.DevelopmentConfigText.ReadFile(filePath).Text;
                 config = string.IsNullOrWhiteSpace(yaml)
                     ? new DevelopmentConfig()
                     : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
@@ -77,11 +77,7 @@ namespace MdExplorer.Services
             }
             entry.KnowledgeGraph = new FolderKnowledgeGraphConfig { Namespace = ns, Enabled = true };
 
-            var serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
-                .Build();
-            File.WriteAllText(filePath, serializer.Serialize(config));
+            MdExplorer.Utilities.MdeRepoWriter.WriteDevelopmentConfig(filePath, config, new MdExplorer.Utilities.MdeWhy("acceso il grafo della conoscenza su una cartella", "knowledge graph turned on for a folder"));
             _logger.LogInformation(
                 "[FolderKgConfigWriter] auto-created KG namespace '{Namespace}' for folder '{Folder}' in {File}",
                 ns, string.IsNullOrEmpty(relKey) ? "." : relKey, filePath);

@@ -2,9 +2,16 @@ import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
 import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
-import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, Subject } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { ProjectOpeningGate } from '../../shared/project-opening-gate';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
+import { versionInfo } from '../../../environments/version';
+import { OpenPerf } from '../../shared/open-perf';
 
 interface ProjectOpenedResponse {
   success: boolean;
@@ -12,6 +19,36 @@ interface ProjectOpenedResponse {
   oderId?: string;
   projectUsersCount?: number;
   error?: string;
+}
+
+/** Che cosa serve per creare un progetto da un template. */
+export interface TemplateCreation {
+  path: string;
+  templateUrl: string;
+  language: string;
+  example?: boolean;
+  /** Il repository vuoto del gruppo; assente = un origin locale accanto alla cartella. */
+  originUrl?: string;
+  /** I metodi da unire dopo il primo template, nell'ordine (P2). */
+  methods?: string[];
+  /** Gli indirizzi, fra il primo template e i metodi, di cui si vuole anche la teoria (MC5). */
+  theory?: string[];
+  /** La città degli agenti di MDE, e la sua documentazione (C5 della città come funzione). */
+  agentCity?: boolean;
+  agentCityGuide?: boolean;
+  /** Il motore, quando non c'è una base che lo dichiara (P5: un progetto che parte da un metodo). */
+  harness?: string;
+}
+
+/** Il progetto creato da un template. */
+export interface TemplateCreated {
+  path: string;
+  id: string;
+  title: string;
+  version: string;
+  origin: string;
+  /** Che cosa MDE ha scritto nei file comuni, e ciò che resta da fare (per esempio workflow fermi). */
+  notes?: string[];
 }
 
 @Injectable({
@@ -31,6 +68,19 @@ export class ProjectsService {
   // or to disable the chat with a "not installed" banner.
   copilotCliAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
 
+  // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
+  // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
+  // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
+  // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
+  claudeCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
+  /**
+   * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
+   * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
+   * «c'è» sarebbe un processo a vuoto.
+   */
+  openCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -42,13 +92,17 @@ export class ProjectsService {
   // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
   private copilotCliRetryTimer: any = null;
 
+  // Idem per Claude Code (vedi emitClaudeCodeAutoConfig).
+  private claudeCodeRetryTimer: any = null;
+
   get mdProjects() {
     return this._mdProjects.asObservable();
   }
 
   constructor(
     private http: HttpClient,
-    private injector: Injector
+    private injector: Injector,
+    private openingGate: ProjectOpeningGate
   ) {
     this.dataStore = { mdProjects: [] };
     this._mdProjects = new BehaviorSubject<MdProject[]>([]);
@@ -75,13 +129,66 @@ export class ProjectsService {
     await this.http.post<any>(url, mdProject).toPromise();
   }
 
+  /**
+   * L'ambiente agentico con cui aprire UN percorso preciso, alla prossima apertura fatta da
+   * setNewFolderProject. Lo imposta il tour di Mark dopo il probe del computer, prima di clonare
+   * il progetto demo: la finestra di clone apre il progetto con setNewFolderProject e non sa
+   * niente di ambienti.
+   * Legato al percorso e consumato una volta sola: se il clone del demo fallisce, la scelta non
+   * finisce sul prossimo progetto che l'utente apre.
+   * Sprint: docs-internal/Sprints/2026-10-02-Demo-Ambiente-Agentico-Rilevato.md.
+   */
+  private pendingHarness: { path: string; harness: string } | null = null;
+
+  setHarnessForPath(path: string, harness: string): void {
+    this.pendingHarness = { path: ProjectsService.comparablePath(path), harness: harness };
+  }
+
+  /**
+   * Crea un progetto nuovo da un template (docs-internal/Sprints/2026-10-17-Template-Di-Progetto.md, P1) e non lo apre:
+   * lo apre chi chiama, con setNewFolderProject. `originUrl` vuoto = un origin locale accanto alla cartella.
+   * Un problema arriva come errore con il messaggio del servizio.
+   */
+  async createFromTemplate(request: TemplateCreation): Promise<TemplateCreated> {
+    try {
+      return await this.http.post<TemplateCreated>('../api/MdProjects/CreateFromTemplate',
+        { ...request, mdeVersion: versionInfo.version }).toPromise();
+    } catch (err: any) {
+      throw new Error(err?.error?.error || err?.message || String(err));
+    }
+  }
+
+  private static comparablePath(path: string): string {
+    return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  }
+
+  /** L'ambiente in attesa per questo percorso, tolto dall'attesa in ogni caso. */
+  private takeHarnessFor(path: string): string | null {
+    const pending = this.pendingHarness;
+    this.pendingHarness = null;
+    return pending && pending.path === ProjectsService.comparablePath(path) ? pending.harness : null;
+  }
+
   setNewFolderProject(path: string):void {
+    OpenPerf.mark('setNewFolderProject: projectChanging (subscriber sincroni)');
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
+    OpenPerf.mark('setNewFolderProject: notifyProjectClosed');
 
     // Close previous project if any
     this.notifyProjectClosed();
 
-    this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
+    // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
+    // scrive nel .development.yml e installa skill, istruzioni e server MCP per quello.
+    const request: { path: string; harness?: string } = { path: path };
+    const harness = this.takeHarnessFor(path);
+    if (harness) {
+      request.harness = harness;
+    }
+
+    OpenPerf.mark('POST SetFolderProject chiesta ad Angular');
+    this.postSetFolderProject(request).subscribe(async response => {
+      OpenPerf.mark('POST SetFolderProject: risposta');
+      OpenPerf.request('MdProjects/SetFolderProject');
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview
@@ -98,6 +205,8 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -115,6 +224,37 @@ export class ProjectsService {
 
   }
 
+  /**
+   * La richiesta che apre il progetto, con il cancello chiuso finché non risponde: la pagina del progetto si apre
+   * al click e le sue richieste /api aspettano nell'interceptor (vedi ProjectOpeningGate). Il cancello si riapre
+   * PRIMA che il chiamante riceva la risposta, e in ogni caso alla fine, anche su errore.
+   */
+  private postSetFolderProject(request: { path: string; [key: string]: any }): Observable<any> {
+    this.openingGate.close();
+    return this.http.post<any>('../api/MdProjects/SetFolderProject', request, ProjectOpeningGate.openingRequest()).pipe(
+      tap(() => this.openingGate.open()),
+      catchError(err => {
+        this.openingGate.open();
+        this.projectOpenFailed(request.path, err);
+        return EMPTY;
+      }),
+      finalize(() => this.openingGate.open())
+    );
+  }
+
+  /** La pagina del progetto è già aperta (vuota): si torna alla lista e si dice perché. */
+  private projectOpenFailed(path: string, err: any): void {
+    const reason = err?.error?.error || err?.error?.message || err?.message || String(err);
+    console.error('[Projects] SetFolderProject fallita per', path, err);
+    const translate = this.injector.get(TranslateService);
+    this.injector.get(MatSnackBar).open(
+      translate.instant('PROJECTS.OPEN_FAILED', { path, reason }), 'OK', { duration: 12000 });
+    // Come l'uscita dal progetto (sidenav.openProject): senza, la lista rivedrebbe il progetto di prima in
+    // currentProjects$ e rinavigherebbe subito alla sua pagina.
+    this.currentProjects$.next(null);
+    this.injector.get(Router).navigate(['/projects']);
+  }
+
   createProjectWithConfig(config: ProjectCreateConfigOptions): void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
 
@@ -124,10 +264,12 @@ export class ProjectsService {
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
-      addCopilotInstructions: config.addCopilotInstructions
+      // La scelta dell'harness viaggia SOLO alla creazione. Alla riapertura non si manda:
+      // decide il progetto, che se la porta scritta in .development.yml.
+      harness: config.harness
     };
 
-    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
+    this.postSetFolderProject(request).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview
@@ -144,6 +286,8 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -309,6 +453,65 @@ export class ProjectsService {
             }
           },
           error: () => { /* silent — leave provisional unavailable state */ }
+        });
+      }, 2000);
+    }
+  }
+
+  /**
+   * Gemella di emitCopilotCliAutoConfig per Claude Code.
+   *
+   * La ri-verifica qui è meno probabile che serva — la disponibilità di Claude Code è una
+   * scansione del PATH, non un processo da avviare, quindi non ha una cache fredda da
+   * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
+   * "disponibile".
+   */
+  /**
+   * Gemella delle due precedenti per opencode, senza la ri-verifica: la disponibilità è una
+   * scansione del PATH fatta dal backend, non una cache che si scalda.
+   */
+  private emitOpenCodeAutoConfig(response: any): void {
+    if (response == null) return;
+    if (typeof response.openCodeAutoSelect !== 'boolean') {
+      this.openCodeAutoConfig$.next(null);
+      return;
+    }
+    this.openCodeAutoConfig$.next({
+      autoSelect: response.openCodeAutoSelect === true,
+      available: response.openCodeAvailable === true,
+      // null = mai scelto: lo decide il server. Non si inventa un nome qui.
+      defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
+
+  private emitClaudeCodeAutoConfig(response: any): void {
+    if (this.claudeCodeRetryTimer) {
+      clearTimeout(this.claudeCodeRetryTimer);
+      this.claudeCodeRetryTimer = null;
+    }
+
+    if (response == null) return;
+    if (typeof response.claudeCodeAutoSelect !== 'boolean') {
+      this.claudeCodeAutoConfig$.next(null);
+      return;
+    }
+
+    const autoSelect = response.claudeCodeAutoSelect === true;
+    const available = response.claudeCodeAvailable === true;
+    const defaultModel = response.claudeCodeDefaultModel ?? null;
+
+    this.claudeCodeAutoConfig$.next({ autoSelect, available, defaultModel });
+
+    if (autoSelect && !available) {
+      this.claudeCodeRetryTimer = setTimeout(() => {
+        this.claudeCodeRetryTimer = null;
+        this.http.get<{ configured: boolean }>('../api/ClaudeCode/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.claudeCodeAutoConfig$.next({ autoSelect: true, available: true, defaultModel });
+            }
+          },
+          error: () => { /* silenzio — resta lo stato provvisorio "non disponibile" */ }
         });
       }, 2000);
     }

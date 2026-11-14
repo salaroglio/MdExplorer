@@ -25,6 +25,7 @@ namespace MdExplorer.Service.Controllers.GIT
     [ApiController]
     [Route("/api/gitservice/branches")]
     [Obsolete("This controller is deprecated. Use ModernGitToolbarController for SSH-based operations.")]
+    [MdExplorer.Services.Git.UserGitOperation]   // N6: il commit automatico di MDE aspetta il suo turno
     public class BranchesController : MdControllerBase<BranchesController>
     {
         private readonly IGitService _gitService;
@@ -61,30 +62,20 @@ namespace MdExplorer.Service.Controllers.GIT
 
         [HttpGet("feat/getdatatopull")]
         [Obsolete("This endpoint is deprecated. Use ModernGitToolbar/get-data-to-pull for SSH-based operations.")]
-        public IActionResult GetDataToPull()
+public async Task<IActionResult> GetDataToPull([FromServices] MdExplorer.Services.Git.Interfaces.IModernGitService modernGit)
         {
+            // Rete solo via git nativo: il conteggio lo fa ModernGitService, come la toolbar moderna.
             var projectPath = GetProjectPath();
-            var howManyFilesAreToPull = 0;
-            var howManyCommitAreToPush = 0;
-            var connectionIsActive = true;
-            IList<FileNameAndAuthor> whatFilesAreChanged = new List<FileNameAndAuthor>();
-            try
-            {
-                howManyFilesAreToPull = _gitService.HowManyFilesAreToPull(projectPath);
-                howManyCommitAreToPush = _gitService.CountCommitsBehindTrackedBranch(projectPath);
-                whatFilesAreChanged = _gitService.GetFilesAndAuthorsToBeChanged(projectPath);
-            }
-            catch (Exception ex)
-            {
-                connectionIsActive = false;
-            }
+            var data = await modernGit.GetPullPushDataAsync(projectPath);
+            var files = (data.FilesToPull ?? Enumerable.Empty<MdExplorer.Services.Git.Interfaces.GitFileChange>())
+                .Select(f => new FileNameAndAuthor { FileName = f.FilePath, Author = f.Author }).ToList();
             return Ok(new
             {
-                somethingIsToPull = howManyFilesAreToPull > 0,
-                howManyFilesAreToPull = howManyFilesAreToPull,
-                connectionIsActive = connectionIsActive,
-                howManyCommitAreToPush = howManyCommitAreToPush,
-                whatFilesWillBeChanged = whatFilesAreChanged
+                somethingIsToPull = data.HasDataToPull,
+                howManyFilesAreToPull = files.Count,
+                connectionIsActive = data.IsRemoteAvailable,
+                howManyCommitAreToPush = data.CommitsAhead,
+                whatFilesWillBeChanged = files
             });
         }
 

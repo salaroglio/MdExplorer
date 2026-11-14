@@ -1,0 +1,398 @@
+using System.ComponentModel;
+using System.Text.Json;
+using ModelContextProtocol.Server;
+
+namespace MdExplorer.Mcp;
+
+/// <summary>
+/// Gruppo <c>agents</c>: la città degli agenti — messaggi fra agenti, richiesta di intervento
+/// a un agente di un altro membro (federazione) e memoria dei fatti appresi.
+/// </summary>
+[McpServerToolType]
+public sealed class AgentTools : McpToolsBase
+{
+    public AgentTools(IHttpClientFactory httpClientFactory) : base(httpClientFactory) { }
+
+    // ============================================================
+    //   Agent-to-agent messaging (città degli agenti, §7)
+    // ============================================================
+
+    // Il RunToken viaggia NELL'AMBIENTE del processo (mai nel prompt): il Service lo
+    // conia al risveglio, lo mette nell'env del processo Copilot, che lo eredita a questo
+    // MCP. Presentandolo, il Service certifica l'identità del mittente (anti-spoofing R2).
+    private const string RunTokenEnvVar = "MDE_RUN_TOKEN";
+    private const string RunTokenHeader = "X-MDE-Run-Token";
+
+    private static string? RunToken()
+    {
+        var t = Environment.GetEnvironmentVariable(RunTokenEnvVar);
+        return string.IsNullOrWhiteSpace(t) ? null : t;
+    }
+
+    [McpServerTool, Description(
+        "Request the intervention of an agent that belongs to ANOTHER member's city (federation). " +
+        "You give a ROLE (the Ruolo column of the project's responsibilities document) and a message; the harness " +
+        "deterministically resolves who has that role and which agent should act, then routes the " +
+        "request to that member's machine — where THEIR human must explicitly authorize it before any " +
+        "agent runs. Only available to an agent woken by a message (identity from the run token). This " +
+        "does NOT return an answer: it returns a routing receipt. Use only when the work belongs to a " +
+        "different owner (see the '# Ownership del progetto' section of your prompt).")]
+    public async Task<string> RequestIntervention(
+        [Description("The role the work belongs to (exact name from the Ruolo column of the responsibilities table).")] string scope,
+        [Description("The request body for the remote agent. Plain text; state clearly what you need.")] string message,
+        [Description("Optional preferred agent name (must be one listed for that role).")] string preferredAgent = null,
+        [Description("When the role has more than one person (a team): the git email of the one who should act. Without it, a team role is refused with the list of its people.")] string owner = null,
+        [Description("Optional topics/tags, comma-separated (context only).")] string topics = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: RequestIntervention is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(scope)) return "Error: scope is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                scope = scope.Trim(),
+                message,
+                preferredAgent = string.IsNullOrWhiteSpace(preferredAgent) ? null : preferredAgent.Trim(),
+                owner = string.IsNullOrWhiteSpace(owner) ? null : owner.Trim(),
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/request-intervention") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Request refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Send a message to ANOTHER agent that lives in the same MdExplorer project (the " +
+        "'city of agents'). Only available to an agent that was itself woken by a message: " +
+        "your identity as the sender is taken from the run environment and cannot be forged. " +
+        "Use ListAgents first to see who you may contact. The recipient must trust you " +
+        "(its 'accepts_messages_from' must include your name or '*'). Delivery is asynchronous: " +
+        "the message is queued and the recipient is woken by the harness. This does NOT return " +
+        "the recipient's answer — it returns a queue receipt (taskId).")]
+    public async Task<string> SendAgentMessage(
+        [Description("The recipient agent's name (kebab-case), as shown by ListAgents.")] string toAgent,
+        [Description("The message body. Plain text; state your intent clearly.")] string message,
+        [Description("Optional topics/tags describing the message, comma-separated (context only).")] string topics = null,
+        [Description(
+            "Only when toAgent is 'user': the replies you propose to the person, as a JSON array. Each item has the 'id' " +
+            "of a reply DECLARED in your card (a2a.replies) plus one value for each {placeholder} of its texts, e.g. " +
+            "[{\"id\":\"avvia-giro\",\"codice\":\"NC-2027-014\"}]. They become buttons under your message. " +
+            "If your card declares replies, this is REQUIRED on every message to 'user': pass [] when the person has " +
+            "nothing to choose; without it the send is refused. " +
+            "An undeclared id or a missing value refuses the send with the reason: fix it and send again.")] string replies = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: SendAgentMessage is only available to an agent woken by a message (no run token in the environment).";
+
+        List<Dictionary<string, string>> proposedReplies = null;
+        if (!string.IsNullOrWhiteSpace(replies))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(replies);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                    return "Error: replies must be a JSON array, e.g. [{\"id\":\"avvia-giro\",\"codice\":\"NC-2027-014\"}].";
+                proposedReplies = new List<Dictionary<string, string>>();
+                foreach (var item in doc.RootElement.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.Object)
+                        return "Error: each reply must be a JSON object with an 'id' and the placeholder values.";
+                    var values = new Dictionary<string, string>();
+                    foreach (var p in item.EnumerateObject())
+                        values[p.Name] = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() : p.Value.ToString();
+                    proposedReplies.Add(values);
+                }
+            }
+            catch (JsonException ex)
+            {
+                return $"Error: replies is not valid JSON ({ex.Message}).";
+            }
+        }
+        if (string.IsNullOrWhiteSpace(toAgent)) return "Error: toAgent is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                toAgent = toAgent.Trim(),
+                message,
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+                replies = proposedReplies,
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/send") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Send refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Remember a fact you learned, so your FUTURE selves recall it across wake-ups (semantic " +
+        "memory). Only available to an agent woken by a message: the fact is stored in YOUR private " +
+        "memory graph, keyed to your stable identity from the run environment — you cannot write to " +
+        "another agent's memory. Admit ONLY facts that are specific, verifiable and operational " +
+        "(e.g. 'the payments batch runs at 02:00 UTC'), never chit-chat or restatements of the " +
+        "prompt. Give 'about' tags that match the topics of the conversation so retrieval finds it " +
+        "later. Provenance (which run, which conversation) is recorded automatically.")]
+    public async Task<string> AssertLearnedFact(
+        [Description("The fact, as a short declarative statement. Specific, verifiable, operational.")] string statement,
+        [Description("Topic tags this fact is about, comma-separated (align them with the message topics).")] string about = null,
+        [Description("Confidence 0..1 (default 0.7). Use ~1.0 only for facts a human confirmed.")] double confidence = 0.7)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: AssertLearnedFact is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(statement)) return "Error: statement is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { statement = statement.Trim(), about, confidence };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/assert") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Assert refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Recall what you (and the shared city memory) already know about some topics, before you " +
+        "start working. Only available to an agent woken by a message: you see ONLY your own memory " +
+        "graph plus the shared one — never another agent's. Pass the topics you care about; you get " +
+        "back the relevant facts with their confidence. Use this to avoid re-deriving what a past " +
+        "run already established.")]
+    public async Task<string> QueryAgentMemory(
+        [Description("Topics/tags to recall facts about, comma-separated. Empty = your most confident facts.")] string topics = null,
+        [Description("Max facts to return (default 20).")] int limit = 20)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: QueryAgentMemory is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+                limit,
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/query") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Query refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "List the other trusted agents you may contact in your MdExplorer project (name, role, " +
+        "skills), plus whether each currently accepts messages from you. Only available to an " +
+        "agent woken by a message: the project and your identity come from the run environment. " +
+        "Call this before SendAgentMessage.")]
+    public async Task<string> ListAgents()
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: ListAgents is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "/api/A2A/messages/roster");
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v3, see the mde-workflow skill) together with " +
+        "the agent cards it names, BEFORE you hand it over, and get back everything that is wrong in one pass. Call it every " +
+        "time you write or edit a workflow OR the a2a interface of one of its cards (skills[].inputs/reads/outputs/replies, " +
+        "replies[].values). It checks the structure, that every skill input receives exactly one value, that every " +
+        "'step.output' exists, that every reply is declared and proposed by the step's skill, that output folders and read " +
+        "documents (with their section) exist, and that every 'person' and 'approval.by' is a role of responsabilita.md. " +
+        "'error' means MdExplorer will not apply the workflow nor draw it: fix each one and check again. " +
+        "'warning' means the workflow runs but something deserves the user's attention: tell them. Each finding has the JSON path, the reason and, " +
+        "when known, the fix. If the answer is an HTTP or connection error, the file was NOT checked: do not change it " +
+        "because of that, report it.")]
+    public async Task<string> CheckWorkflow(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("The workflow file, from the project's root (e.g. 'process/sales.workflow.json') or absolute inside the project.")] string path)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (string.IsNullOrWhiteSpace(path)) return "Error: path is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var url = "/api/A2A/workflow/check?projectPath=" + Uri.EscapeDataString(projectPath.Trim()) +
+                      "&path=" + Uri.EscapeDataString(path.Trim());
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The workflow was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The workflow was NOT checked.";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Check an MdExplorer project template (a git repository with .mde-template/<id>/mde-template.yml, see the mde-template " +
+        "skill) BEFORE you publish it, and get back everything that is wrong in one pass. The branch you are on is checked " +
+        "from its files as they are now (uncommitted too); every other branch the manifest declares (languages: structure and " +
+        "example) from its last commit. It checks the manifest, the zone rule of a method (only .mde-template/<id>/ and " +
+        ".claude/skills/<id>-*/), the CHANGELOG against the version, the files the manifest names, the agent cards (readable, " +
+        "file name = a2a.name, method agents prefixed with the id), the skills (SKILL.md with name = folder), and the " +
+        "workflows read in a project made of the template alone (seeds in place, the manifest's roles as open roles). Also: " +
+        "same id and version on every declared branch, the example containing the structure, the tag v<version>. Returns JSON: " +
+        "ok, id, kind, version, branches[] (branch, from working-tree/commit, files), issues[] (severity error/warning, branch, " +
+        "file, message, fix). 'error' means MdExplorer will not merge the template or merges it broken: fix each one and check " +
+        "again. If the answer is an HTTP or connection error, the template was NOT checked.")]
+    public async Task<string> CheckTemplate(
+        [Description("The template repository's folder (absolute path).")] string templatePath)
+    {
+        if (string.IsNullOrWhiteSpace(templatePath)) return "Error: templatePath is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var resp = await client.GetAsync("/api/MdProjects/CheckTemplate?path=" + Uri.EscapeDataString(templatePath.Trim()));
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The template was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The template was NOT checked.";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Bring into the project the THEORY of one of its methods: the documents that teach the method (how and why, with " +
+        "examples), for the person to read or for you to learn from before guiding them. A project made of methods may have " +
+        "been created without it; the theory travels anyway in .mde-template/<id>/ and this tool copies it, at the version " +
+        "the project uses (no network), into the folder its manifest names (theory.<language>.to, e.g. teoria/<id>/), records " +
+        "it in .development.yml and makes one commit (not pushed). The project's templates and whether their theory is in are " +
+        "the rows of 'templates:' in .development.yml (theory: true). PROPOSE it to the person and call it only after they " +
+        "agree: it changes their project. It refuses, saying why, if the project has uncommitted changes, if the template has " +
+        "no theory in the project's language, or if the theory is already there. Returns JSON: id, title, version, notes " +
+        "(where the theory landed). If the answer is an HTTP or connection error, nothing was added.")]
+    public async Task<string> AddTheory(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("The template's id, as in its row of 'templates:' in .development.yml (e.g. ontologie).")] string id)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (string.IsNullOrWhiteSpace(id)) return "Error: id is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { path = projectPath.Trim(), id = id.Trim() };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/MdProjects/AddTheory", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The theory was NOT added.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The theory was NOT added.";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Check an ontology made of files of the project, in memory (no Fuseki needed): every Turtle file is read (errors with " +
+        "line and column), the data (TBox schema + ABox instances, merged) are validated against the SHACL shapes, and every " +
+        "SPARQL query file (.rq: the competency questions) is run on the data. Each path is a file or a folder from the " +
+        "project root; a folder means every .ttl (data, shapes) or .rq (queries) inside it; shape files are not counted as " +
+        "data. Returns JSON: files[] (path, role, triples, error), shacl (conforms, violations[] with focusNode, path, value, " +
+        "message, shape), queries[] (path, kind ask/select/graph, answer for ASK, variables + rows (first 50) + rowCount for " +
+        "SELECT, error), ok. If a file cannot be read, SHACL and queries are NOT run (note). Whether an answer is the EXPECTED " +
+        "one is yours to judge against the competency question. If the answer is an HTTP or connection error, nothing was checked.")]
+    public async Task<string> RdfCheck(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("Turtle files or folders with the schema and the instances, e.g. ['ontology/TBox', 'ontology/ABox'].")] string[] data,
+        [Description("Turtle files or folders with the SHACL shapes, e.g. ['ontology/Shapes']. Empty = no validation.")] string[]? shapes = null,
+        [Description("SPARQL .rq files or folders with the competency questions. Empty = no queries.")] string[]? queries = null)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (data == null || data.Length == 0) return "Error: data is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { projectPath = projectPath.Trim(), data, shapes = shapes ?? Array.Empty<string>(), queries = queries ?? Array.Empty<string>() };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/ontology/check", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The ontology was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The ontology was NOT checked.";
+        }
+    }
+}
