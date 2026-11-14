@@ -880,6 +880,29 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Choose_by_a_moved_solution_whose_written_path_no_longer_exists()
+        {
+            // 14/11/2026, dal cliente: la soluzione indica l'originale, ma con una risalita di troppo (è stata spostata); la
+            // copia annidata ripete la stessa struttura, quindi la sola parte finale del percorso non basterebbe
+            var root = WriteVs2003Solution(withLibrary: true);
+            var copy = Path.Combine(root, "Dl", "Copia", "Dl");
+            Directory.CreateDirectory(copy);
+            File.Copy(Path.Combine(root, "Dl", "Dl.vbproj"), Path.Combine(copy, "Dl.vbproj"));
+            File.Copy(Path.Combine(root, "Dl", "Dati.vb"), Path.Combine(copy, "Dati.vb"));
+            Directory.CreateDirectory(Path.Combine(root, "Sub"));
+            File.WriteAllText(Path.Combine(root, "Sub", "Acme.sln"),
+                "Microsoft Visual Studio Solution File, Format Version 8.00\n" +
+                "Project(\"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\") = \"Acme.Bl\", \"http://localhost/Bl/Bl.vbproj\", \"{22222222-AAAA-BBBB-CCCC-000000000002}\"\nEndProject\n" +
+                "Project(\"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\") = \"Acme.Dl\", \"..\\..\\Dl\\Dl.vbproj\", \"{11111111-AAAA-BBBB-CCCC-000000000001}\"\nEndProject\nGlobal\nEndGlobal\n");
+
+            var result = ExtractWithoutNetFramework(root);
+
+            Assert.IsTrue(result.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains("..\\..\\Dl\\Dl.vbproj")), "si dice che il percorso scritto non esiste");
+            var dl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("vs2003/Dl/Dati.vb")).Script;
+            Assert.AreEqual(dl.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)").Id, DlCalledByBl(result), "una risalita in meno arriva all'originale");
+        }
+
+        [TestMethod]
         public void Use_the_library_another_project_references_when_the_referenced_project_is_missing_and_say_so()
         {
             // dal cliente: il DL riferisce il blocco applicativo come progetto (che non c'è), la DLL la riferiscono le schermate

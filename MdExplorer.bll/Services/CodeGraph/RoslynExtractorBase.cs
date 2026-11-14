@@ -122,7 +122,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// nomi non risolti.
         /// </summary>
         private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, List<string> warnings,
-            Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk, Lazy<List<(string File, List<(string Guid, string Path)> Projects)>> solutions = null)
+            Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk, Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>> solutions = null)
         {
             var byGuid = groups.Where(g => g.Project?.ProjectGuid != null).GroupBy(g => g.Project.ProjectGuid, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -154,13 +154,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         // 14/11/2026, dal cliente: una copia annidata del progetto con lo stesso GUID. Quale usa Visual Studio lo dice
                         // la soluzione che contiene chi riferisce; se nessuna lo dice, o se due dicono progetti diversi, non si sceglie
-                        var (picked, from) = BySolution(g, guid, found, solutions);
+                        var (picked, from, byTail) = BySolution(g, guid, found, solutions);
                         if (picked.Count == 1)
                         {
                             if (picked[0] != g && !list.Contains(picked[0])) list.Add(picked[0]);
+                            var tailNote = byTail.Count == 0 ? "" : UiText.Say(
+                                $" (il percorso scritto nella soluzione, {string.Join(", ", byTail)}, non esiste: la soluzione è stata spostata; si usa il progetto a cui arriva lo stesso percorso con meno risalite, o il solo con la stessa parte finale)",
+                                $" (the path written in the solution, {string.Join(", ", byTail)}, does not exist: the solution was moved; the project reached by the same path with fewer «..», or the only one with the same end, is used)");
                             warnings.Add(UiText.Say(
-                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto; si usa {picked[0].Project.File}, quello della soluzione {string.Join(", ", from.Select(Path.GetFileName))}.",
-                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}."));
+                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto; si usa {picked[0].Project.File}, quello della soluzione {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}.",
+                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}."));
                         }
                         else
                             warnings.Add(UiText.Say(
@@ -179,30 +182,51 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// suo GUID: un progetto web di Visual Studio 2003 vi sta con un indirizzo, non con un percorso). Torna i progetti
         /// indicati (uno = la risposta) e le soluzioni che li indicano.
         /// </summary>
-        private static (List<ProjectGroup> Picked, List<string> From) BySolution(ProjectGroup g, string guid, List<ProjectGroup> found,
-            Lazy<List<(string File, List<(string Guid, string Path)> Projects)>> solutions)
+        private static (List<ProjectGroup> Picked, List<string> From, List<string> ByTail) BySolution(ProjectGroup g, string guid, List<ProjectGroup> found,
+            Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>> solutions)
         {
-            var picked = new List<ProjectGroup>(); var from = new List<string>();
-            if (solutions == null || g.Project?.ProjectGuid == null) return (picked, from);
+            var picked = new List<ProjectGroup>(); var from = new List<string>(); var byTail = new List<string>();
+            if (solutions == null || g.Project?.ProjectGuid == null) return (picked, from, byTail);
             foreach (var (file, projects) in solutions.Value)
             {
                 if (!projects.Any(p => string.Equals(p.Guid, g.Project.ProjectGuid, StringComparison.OrdinalIgnoreCase))) continue;
                 foreach (var p in projects.Where(p => p.Path != null && string.Equals(p.Guid, guid, StringComparison.OrdinalIgnoreCase)))
                 {
                     var hit = found.FirstOrDefault(f => string.Equals(Path.GetFullPath(f.Project.File), p.Path, StringComparison.OrdinalIgnoreCase));
+                    if (hit == null && !File.Exists(p.Path))
+                    {
+                        // 14/11/2026, dal cliente: la soluzione è stata spostata e il percorso scritto non esiste più. La parte
+                        // finale del percorso (senza le risalite) vale ancora: se uno solo dei progetti con quel GUID finisce
+                        // così, è lui; se nessuno o più d'uno, la soluzione non dice niente
+                        // prima: lo stesso percorso con una, due… risalite in meno (la soluzione spostata più in basso)
+                        foreach (var candidate in VisualStudioSolution.FewerUpLevels(file, p.Written))
+                        {
+                            hit = found.FirstOrDefault(f => string.Equals(Path.GetFullPath(f.Project.File), candidate, StringComparison.OrdinalIgnoreCase));
+                            if (hit != null) break;
+                        }
+                        // poi: la sola parte finale, se è di uno solo
+                        if (hit == null)
+                        {
+                            var tail = VisualStudioSolution.Tail(p.Written);
+                            var byEnd = tail == null ? new List<ProjectGroup>() : found.Where(f => Path.GetFullPath(f.Project.File).Replace('\\', '/')
+                                .EndsWith("/" + tail, StringComparison.OrdinalIgnoreCase)).ToList();
+                            if (byEnd.Count == 1) hit = byEnd[0];
+                        }
+                        if (hit != null && !byTail.Contains(p.Written)) byTail.Add(p.Written);
+                    }
                     if (hit == null) continue;
                     if (!picked.Contains(hit)) picked.Add(hit);
                     if (!from.Contains(file)) from.Add(file);
                 }
             }
-            return (picked, from);
+            return (picked, from, byTail);
         }
 
         /// <summary>
         /// Le soluzioni (<c>.sln</c>) dei sorgenti: sotto la cartella comune dei file analizzati e, senza scendere, nelle cartelle
         /// sopra di lei fino al progetto di documentazione (mai fuori). Una soluzione che non si legge si dice e si salta.
         /// </summary>
-        private static List<(string File, List<(string Guid, string Path)> Projects)> SolutionsAround(string common, string projectPath, List<string> warnings)
+        private static List<(string File, List<(string Guid, string Path, string Written)> Projects)> SolutionsAround(string common, string projectPath, List<string> warnings)
         {
             var files = new List<string>();
             if (common == null || !Directory.Exists(common)) return new();
@@ -217,10 +241,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
                 up = Path.GetDirectoryName(up);
             }
-            var result = new List<(string, List<(string, string)>)>();
+            var result = new List<(string, List<(string, string, string)>)>();
             foreach (var f in files.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
             {
-                try { result.Add((f, VisualStudioSolution.Read(f))); }
+                try { result.Add((f, VisualStudioSolution.Entries(f))); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     warnings.Add(UiText.Say($"{Path.GetFileName(f)}: la soluzione non si legge ({ex.Message}), e non serve a scegliere fra progetti con lo stesso GUID.",
@@ -463,7 +487,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"{Path.GetFileName(projectFile)}: {files.Count} files of the folder are not among those the project compiles, and stay without symbols in the graph: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}"));
             var borrowed = new Dictionary<ProjectGroup, List<string>>();
             var librariesOnDisk = local ? new Lazy<List<string>>(() => LibrariesUnder(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)))) : null;
-            var solutions = local ? new Lazy<List<(string File, List<(string Guid, string Path)> Projects)>>(() =>
+            var solutions = local ? new Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>>(() =>
                 SolutionsAround(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)), request.ProjectPath, result.Warnings)) : null;
             var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk, solutions);
 

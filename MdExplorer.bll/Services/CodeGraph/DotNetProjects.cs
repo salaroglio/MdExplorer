@@ -339,17 +339,49 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// indirizzo (i progetti web di Visual Studio 2003, <c>http://localhost/…</c>): quello non si sa dove sia sul disco.
         /// </summary>
         public static List<(string Guid, string Path)> Read(string solutionFile)
+            => Entries(solutionFile).Select(e => (e.Guid, e.Path)).ToList();
+
+        /// <summary>Come <see cref="Read"/>, con il percorso com'è scritto (relativo alla soluzione, separatori di Windows).</summary>
+        public static List<(string Guid, string Path, string Written)> Entries(string solutionFile)
         {
             var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(solutionFile));
-            var list = new List<(string, string)>();
+            var list = new List<(string, string, string)>();
             foreach (System.Text.RegularExpressions.Match m in ProjectLine.Matches(File.ReadAllText(solutionFile)))
             {
                 var path = m.Groups["path"].Value.Trim();
                 var full = path.Contains("://", StringComparison.Ordinal) ? null
                     : System.IO.Path.GetFullPath(System.IO.Path.Combine(dir, path.Replace('\\', System.IO.Path.DirectorySeparatorChar)));
-                list.Add((DotNetProject.NormalGuid(m.Groups["guid"].Value), full));
+                list.Add((DotNetProject.NormalGuid(m.Groups["guid"].Value), full, path));
             }
             return list;
+        }
+
+        /// <summary>
+        /// Lo stesso percorso con le risalite iniziali tolte una alla volta (<c>..\..\Dl\Dl.vbproj</c> → <c>..\Dl\Dl.vbproj</c> →
+        /// <c>Dl\Dl.vbproj</c>), come percorsi interi a partire dalla cartella della soluzione: dove sarebbe il progetto se la
+        /// soluzione fosse stata spostata più in basso di uno, due… livelli. Il più vicino a quello scritto per primo.
+        /// </summary>
+        public static List<string> FewerUpLevels(string solutionFile, string written)
+        {
+            var result = new List<string>();
+            if (string.IsNullOrWhiteSpace(written) || written.Contains("://", StringComparison.Ordinal)) return result;
+            var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(solutionFile));
+            var parts = written.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            var ups = parts.TakeWhile(p => p == "..").Count();
+            for (var drop = 1; drop <= ups; drop++)
+                result.Add(System.IO.Path.GetFullPath(System.IO.Path.Combine(new[] { dir }.Concat(parts.Skip(drop)).ToArray())));
+            return result;
+        }
+
+        /// <summary>
+        /// Il percorso scritto senza le risalite iniziali (<c>..\..\Dl\Dl.vbproj</c> → <c>Dl/Dl.vbproj</c>): la parte che non dipende
+        /// da dove sta la soluzione. Null per un indirizzo o se non resta niente.
+        /// </summary>
+        public static string Tail(string written)
+        {
+            if (string.IsNullOrWhiteSpace(written) || written.Contains("://", StringComparison.Ordinal)) return null;
+            var parts = written.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).SkipWhile(p => p is ".." or ".").ToList();
+            return parts.Count == 0 ? null : string.Join("/", parts);
         }
     }
 }
