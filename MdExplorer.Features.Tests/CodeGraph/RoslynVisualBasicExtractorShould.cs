@@ -131,6 +131,36 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Call_the_constructor_that_new_runs_and_the_overrides_of_a_virtual_call()
+        {
+            // 14/11/2026, dal cliente: dietro una factory il costruttore privato non aveva chiamanti; una chiamata a un metodo
+            // della base non arrivava agli override delle classi derivate
+            File.WriteAllText(Path.Combine(_src, "Oggetti.vb"),
+                "Namespace Demo\n" +
+                "  Public Class Aiuto\n    Public Shared Sub Fai()\n    End Sub\n  End Class\n" +
+                "  Public Class Prodotto\n    Private Sub New(ByVal nome As String)\n      Aiuto.Fai()\n    End Sub\n" +
+                "    Public Shared Function Crea() As Prodotto\n      Return New Prodotto(\"a\")\n    End Function\n  End Class\n" +
+                "  Public Class Vuoto\n    Public Shared Function Crea() As Vuoto\n      Return New Vuoto()\n    End Function\n  End Class\n" +
+                "  Public MustInherit Class Base\n    Public MustOverride Sub Esegui()\n    Public Overridable Sub Passo()\n    End Sub\n  End Class\n" +
+                "  Public Class Primo\n    Inherits Base\n    Public Overrides Sub Esegui()\n    End Sub\n" +
+                "    Public Overrides Sub Passo()\n      MyBase.Passo()\n    End Sub\n  End Class\n" +
+                "  Public Class Secondo\n    Inherits Primo\n    Public Overrides Sub Esegui()\n    End Sub\n  End Class\n" +
+                "  Public Class Usa\n    Public Sub Tutto(ByVal b As Base)\n      b.Esegui()\n      b.Passo()\n    End Sub\n  End Class\n" +
+                "End Namespace\n");
+
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Oggetti.vb").Script;
+            string Of(string id) => s.Symbols.Single(x => x.Id == id).QualifiedName;
+            string Calls(string from) => string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.QualifiedName == from).Id && e.Relation == "calls")
+                .Select(e => $"{Of(e.TargetId)}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal));
+
+            Assert.AreEqual("Demo.Prodotto.New(String):extracted", Calls("Demo.Prodotto.Crea()"), "New esegue il costruttore privato");
+            Assert.AreEqual("", Calls("Demo.Vuoto.Crea()"), "il costruttore che crea il compilatore non è nel grafo");
+            Assert.AreEqual("Demo.Base.Esegui():extracted | Demo.Base.Passo():extracted | Demo.Primo.Esegui():inferred | Demo.Primo.Passo():inferred | Demo.Secondo.Esegui():inferred",
+                Calls("Demo.Usa.Tutto(Demo.Base)"), "la chiamata virtuale arriva agli override, anche indiretti");
+            Assert.AreEqual("Demo.Base.Passo():extracted", Calls("Demo.Primo.Passo()"), "MyBase.Passo() esegue la base, non gli override");
+        }
+
+        [TestMethod]
         public void Keep_apart_fields_with_the_same_name_in_different_classes()
         {
             // 14/11/2026, dal cliente: ogni classe del data layer ha il suo campo Shared con lo stesso nome e il suo catalogo;

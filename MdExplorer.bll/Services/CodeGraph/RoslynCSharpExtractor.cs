@@ -54,8 +54,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>18 = l'id di un evento è il nome senza parametri, uguale da ogni progetto (13/11/2026).</para>
         /// <para>19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).</para>
         /// <para>20 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).</para>
+        /// <para>21 = new esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</para>
         /// </summary>
-        public override string ExtractorVersion => "20";
+        public override string ExtractorVersion => "21";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

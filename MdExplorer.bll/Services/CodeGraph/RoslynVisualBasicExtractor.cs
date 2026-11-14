@@ -44,8 +44,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 18 = l'id di un Event è il nome senza parametri: Handles da un altro progetto arriva all'evento dichiarato (13/11/2026).
         /// 19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).
         /// 20 = campi omonimi di classi diverse restano distinti nel seguire le stringhe: ognuno col suo catalogo (14/11/2026, dal cliente).
-        /// 21 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).</summary>
-        public override string ExtractorVersion => "21";
+        /// 21 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).
+        /// 22 = New esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</summary>
+        public override string ExtractorVersion => "22";
 
         protected override bool IgnoresCase => true;
 

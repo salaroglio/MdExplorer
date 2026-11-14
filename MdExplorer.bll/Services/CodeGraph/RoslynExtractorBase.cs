@@ -1124,6 +1124,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         private sealed class PerimeterIndex
         {
             private readonly Dictionary<string, List<INamedTypeSymbol>> _implementers = new(StringComparer.Ordinal);
+            /// <summary>Per metodo virtuale o astratto (chiave), gli override nel perimetro, anche indiretti (14/11/2026, dal cliente).</summary>
+            private readonly Dictionary<string, List<IMethodSymbol>> _overriders = new(StringComparer.Ordinal);
 
             public PerimeterIndex(IEnumerable<Compilation> compilations)
             {
@@ -1141,6 +1143,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                             {
                                 stack.Push(t);
                                 if (t.TypeKind == TypeKind.Interface) continue;
+                                foreach (var m0 in t.GetMembers().OfType<IMethodSymbol>().Where(x => x.IsOverride && IsInPerimeter(x)))
+                                    for (var o = m0.OverriddenMethod; o != null; o = o.OverriddenMethod)
+                                    {
+                                        if (!_overriders.TryGetValue(Key(o), out var over)) _overriders[Key(o)] = over = new List<IMethodSymbol>();
+                                        if (!over.Contains(m0)) over.Add(m0);
+                                    }
                                 foreach (var key in t.AllInterfaces.Select(Key).Distinct(StringComparer.Ordinal))
                                 {
                                     if (!_implementers.TryGetValue(key, out var list)) _implementers[key] = list = new List<INamedTypeSymbol>();
@@ -1155,6 +1163,16 @@ namespace MdExplorer.Features.Services.CodeGraph
             private static string Key(ISymbol symbol) => Qualified(symbol.OriginalDefinition);
 
             public bool IsInPerimeter(ISymbol s) => s.Locations.Any(l => l.IsInSource);
+
+            /// <summary>
+            /// Gli override nel perimetro di un metodo virtuale, astratto o già override (non sigillato): quelli che una chiamata
+            /// virtuale può eseguire, oltre al metodo stesso.
+            /// </summary>
+            public IEnumerable<IMethodSymbol> OverridesOf(IMethodSymbol method)
+            {
+                if (!(method.IsVirtual || method.IsAbstract || method.IsOverride) || method.IsSealed) return Enumerable.Empty<IMethodSymbol>();
+                return _overriders.TryGetValue(Key(method), out var list) ? list.Where(o => Key(o) != Key(method)) : Enumerable.Empty<IMethodSymbol>();
+            }
 
             public IEnumerable<ISymbol> ImplementationsOf(ISymbol interfaceMember)
             {
@@ -1318,7 +1336,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         }
                         if (info.Symbol is IMethodSymbol m)
                         {
-                            Call(ownerId, m, line);
+                            Call(ownerId, m, line, _model.GetOperation(node) is IInvocationOperation { IsVirtual: true });
                             ProceduresThrough(ownerId, node, m, line);
                         }
                         else if (info.CandidateSymbols.Length > 0)
@@ -1342,7 +1360,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (createdName != null && createdArguments.Count > 0)
                             AddCallSites(ownerId, line, createdName, null, null, createdArguments, null);
                         if (info.Symbol is IMethodSymbol ctor && ctor.ContainingType != null)
+                        {
                             Edge(ownerId, IdOf(ctor.ContainingType), "instantiates", "extracted", line);
+                            // e il costruttore che esegue (14/11/2026, dal cliente: dietro una factory il costruttore privato
+                            // risultava senza chiamanti, e quello che chiama non si raggiungeva); quello che crea il compilatore no
+                            if (!ctor.IsImplicitlyDeclared && _perimeter.IsInPerimeter(ctor)) Edge(ownerId, IdOf(ctor.OriginalDefinition), "calls", "extracted", line);
+                        }
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
                             Edge(ownerId, IdOf(t), "instantiates", "extracted", line);
                     }
@@ -1371,7 +1394,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                     else if (_x.IsMethodNameOutsideInvocation(node))
                     {
-                        if (_model.GetSymbolInfo(node).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary or MethodKind.ReducedExtension } m) Call(ownerId, m, Line(node));
+                        if (_model.GetSymbolInfo(node).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary or MethodKind.ReducedExtension } m)
+                            Call(ownerId, m, Line(node), (_model.GetOperation(node.Parent) as IMethodReferenceOperation ?? _model.GetOperation(node) as IMethodReferenceOperation)?.IsVirtual == true);
                     }
                 }
                 foreach (var (site, receiver) in chained)
@@ -1654,8 +1678,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 };
             }
 
-            /// <summary>La chiamata risolta; su un'interfaccia, in più, ogni implementazione nel perimetro (inferred).</summary>
-            private void Call(string ownerId, IMethodSymbol m, int line)
+            /// <summary>
+            /// La chiamata risolta; su un'interfaccia, in più, ogni implementazione nel perimetro (inferred); se la chiamata è
+            /// virtuale (<paramref name="virtualDispatch"/>: non <c>MyBase.F()</c>/<c>base.F()</c>), ogni override nel perimetro
+            /// (inferred, 14/11/2026, dal cliente).
+            /// </summary>
+            private void Call(string ownerId, IMethodSymbol m, int line, bool virtualDispatch = false)
             {
                 var target = m.ReducedFrom ?? m.OriginalDefinition ?? m;
                 // il costruttore che il compilatore crea da solo (MyBase.New() verso una classe senza Sub New): non ha codice e non è
@@ -1664,6 +1692,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Edge(ownerId, IdOf(target), "calls", "extracted", line);
                 if (target.ContainingType?.TypeKind == TypeKind.Interface)
                     foreach (var impl in _perimeter.ImplementationsOf(target)) Edge(ownerId, IdOf(impl), "calls", "inferred", line);
+                else if (virtualDispatch)
+                    foreach (var o in _perimeter.OverridesOf(target)) Edge(ownerId, IdOf(o.OriginalDefinition), "calls", "inferred", line);
             }
         }
     }

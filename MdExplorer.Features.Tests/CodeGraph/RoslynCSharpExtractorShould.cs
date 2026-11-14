@@ -42,6 +42,33 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Call_the_constructor_that_new_runs_and_the_overrides_of_a_virtual_call()
+        {
+            // 14/11/2026: il gemello del test VB
+            File.WriteAllText(Path.Combine(_src, "Oggetti.cs"),
+                "namespace Demo {\n" +
+                "  public static class Aiuto { public static void Fai() { } }\n" +
+                "  public class Prodotto { private Prodotto(string nome) { Aiuto.Fai(); } public static Prodotto Crea() { return new Prodotto(\"a\"); } }\n" +
+                "  public class Vuoto { public static Vuoto Crea() { return new Vuoto(); } }\n" +
+                "  public abstract class Base { public abstract void Esegui(); public virtual void Passo() { } }\n" +
+                "  public class Primo : Base { public override void Esegui() { } public override void Passo() { base.Passo(); } }\n" +
+                "  public class Secondo : Primo { public override void Esegui() { } }\n" +
+                "  public class Usa { public void Tutto(Base b) { b.Esegui(); b.Passo(); } }\n" +
+                "}\n");
+
+            var s = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Oggetti.cs").Script;
+            string Of(string id) => s.Symbols.Single(x => x.Id == id).QualifiedName;
+            string Calls(string from) => string.Join(" | ", s.Edges.Where(e => e.SourceId == s.Symbols.Single(x => x.QualifiedName == from).Id && e.Relation == "calls")
+                .Select(e => $"{Of(e.TargetId)}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal));
+
+            Assert.AreEqual("Demo.Prodotto.Prodotto(string):extracted", Calls("Demo.Prodotto.Crea()"));
+            Assert.AreEqual("", Calls("Demo.Vuoto.Crea()"));
+            Assert.AreEqual("Demo.Base.Esegui():extracted | Demo.Base.Passo():extracted | Demo.Primo.Esegui():inferred | Demo.Primo.Passo():inferred | Demo.Secondo.Esegui():inferred",
+                Calls("Demo.Usa.Tutto(Demo.Base)"));
+            Assert.AreEqual("Demo.Base.Passo():extracted", Calls("Demo.Primo.Passo()"), "base.Passo() esegue la base");
+        }
+
+        [TestMethod]
         public void Keep_apart_fields_with_the_same_name_in_different_classes()
         {
             // 14/11/2026: il gemello del test VB, i campi static omonimi di classi diverse hanno ognuno il suo catalogo
@@ -259,7 +286,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  public object Cancella(int id) { var v = \"x\" + id; Log(v); return this.RedirectToAction(nameof(Elenco), \"Ordini\"); }\n} }");
             var result = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request());
             var s = result.Scripts.Single(x => x.File.LogicalPath == "src/Demo/OrdiniController.cs").Script;
-            Assert.AreEqual("20", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
+            Assert.AreEqual("21", new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).ExtractorVersion);
 
             var elenco = s.Symbols.Single(x => x.Name == "Elenco").Id;
             var view = s.CallSites.Single(c => c.Callee == "View");
