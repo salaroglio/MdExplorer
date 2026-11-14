@@ -33,6 +33,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string DataReach = "data-reach";
         public const string WhoReaches = "who-reaches";
         public const string Reachability = "reachability";
+        public const string PagesToData = "pages-to-data";
+        public const string UnreachedCode = "unreached-code";
 
         private static readonly Dictionary<string, string> FolderParam = new() { ["folder"] = "optional: a program folder or path prefix (program/, @core/app); empty = the whole graph" };
 
@@ -98,6 +100,36 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Name = Reachability,
                 Question = "How navigable is a layer? From every page and page control under `from` — a page also runs its life-cycle events (Page_Load…) and its includes — (or, without pages there, every method nobody calls) forward over the execution relations: how many methods/queries under `to` are reached, and for the others why — no-callers (nothing in the graph calls them: framework, reflection, dead code, check) or callers-not-reached (called only by code that is not reached itself, with an example caller).",
                 Parameters = new Dictionary<string, string> { ["from"] = "optional: path prefix of the entries (e.g. the web folder); empty = the whole graph", ["to"] = "required: path prefix of the layer to measure (e.g. the data layer folder)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: unreached listed, 1-500, default 50" },
+            },
+            // i controlli di qualità (14/11/2026, utente: «strumenti di informazioni aggregati, anziché la lista di tutto; poi fare
+            // esplodere a campione»): conti per causa, sempre completi; un campione che si ripete, solo se chiesto
+            new CodeQueryInfo
+            {
+                Name = PagesToData,
+                Question = "QUALITY, aggregated: how many screens reach the database? Every page under `from` (a page = its controls + its life-cycle events + its includes; or every single control with unit=control), by outcome, counts only: data (reaches a table without ambiguous edges), data-only-through-ambiguous, stops-at-unresolved-name (no table, and a road ends on a name the compiler could not resolve — a missing project or library: a GAP of the graph), stops-at-library (no table; the roads that leave the graph end on resolved library members), no-data-in-graph (no table, nothing leaves the graph: it does not touch data). Plus the externals that stop the most entries, unresolved names first. Counts are over the whole closure, never cut. Ask a SAMPLE only for the outcome you want to check: `sample` cases per outcome, the same ones for the same `seed`, each with its numbers and one chain (to the nearest table, or to the nearest external). Then data-reach on a single case.",
+                Parameters = new Dictionary<string, string>
+                {
+                    ["from"] = "optional: path prefix of the pages (the web folder); empty = the whole graph",
+                    ["unit"] = "optional: page (default) or control",
+                    ["outcome"] = "optional: sample only this outcome (data, data-only-through-ambiguous, stops-at-unresolved-name, stops-at-library, no-data-in-graph)",
+                    ["sample"] = "optional: how many cases per outcome, 0-50, default 0 (counts only)",
+                    ["seed"] = "optional: any text; the same seed gives the same sample (default 1). Write it in your report so the sample can be checked again",
+                    ["limit"] = "optional: how many externals in `topExternalStops`, 1-100, default 10",
+                },
+            },
+            new CodeQueryInfo
+            {
+                Name = UnreachedCode,
+                Question = "QUALITY, aggregated: which code of a layer do the pages NOT reach, and why? Methods, constructors and queries under `to`, starting from the pages and controls under `from`: counts by cause — no-callers (nothing in the graph runs it: framework, reflection, code no longer used — check), started-by-other-pages (reached by pages or controls outside `from`), started-by-external (the road starts at an external: a framework event, a library calling back — the graph does not know who raises it), started-by-uncalled-code (the road starts at code nobody calls), only-in-a-cycle — by cause and kind, and by first-level folder under `to` (targets, reached). Counts are complete. Ask a SAMPLE only for the cause you want to check: `sample` cases per cause, the same ones for the same `seed`, each with an example caller and the root where its road starts. Prefer it to `reachability`, which lists every unreached symbol.",
+                Parameters = new Dictionary<string, string>
+                {
+                    ["to"] = "required: path prefix of the layer to measure (e.g. the data layer folder)",
+                    ["from"] = "optional: path prefix of the pages; empty = the whole graph",
+                    ["cause"] = "optional: sample only this cause (no-callers, started-by-other-pages, started-by-external, started-by-uncalled-code, only-in-a-cycle)",
+                    ["sample"] = "optional: how many cases per cause, 0-50, default 0 (counts only)",
+                    ["seed"] = "optional: any text; the same seed gives the same sample (default 1)",
+                    ["limit"] = "optional: how many folders, 1-200, default 30 (`folderCount` says how many there are)",
+                },
             },
             new CodeQueryInfo
             {

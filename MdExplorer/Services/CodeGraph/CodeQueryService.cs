@@ -56,6 +56,12 @@ namespace MdExplorer.Services.CodeGraph
                     throw new CodeQueryException(UiText.Say($"«{key}» vale «{v}»: dev'essere un numero fra {min} e {max}.", $"«{key}» is «{v}»: it must be a number between {min} and {max}."));
                 return n;
             }
+            string OneOf(string key, IReadOnlyCollection<string> allowed)
+            {
+                var v = P(key);
+                if (v == null || allowed.Contains(v)) return v;
+                throw new CodeQueryException(UiText.Say($"«{key}» vale «{v}»: dev'essere uno fra {string.Join(", ", allowed)}.", $"«{key}» is «{v}»: it must be one of {string.Join(", ", allowed)}."));
+            }
             var folder = P("folder")?.Replace('\\', '/').TrimEnd('/');
             var prefix = folder == null ? null : folder + "/";
             return name switch
@@ -81,6 +87,10 @@ namespace MdExplorer.Services.CodeGraph
                     .Select(x => new { symbol = Brief(x.Symbol), confidence = x.Confidence, edges = x.Count }),
                 CodeQueryCatalog.DataReach => await DataReachAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 CodeQueryCatalog.WhoReaches => await WhoReachesAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
+                CodeQueryCatalog.PagesToData => await PagesToDataAsync(projectPath, Prefix(P("from")), OneOf("unit", new[] { "page", "control" }) ?? "page",
+                    OneOf("outcome", CodeNavigation.Outcomes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 100, 10), ct),
+                CodeQueryCatalog.UnreachedCode => await UnreachedCodeAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"),
+                    OneOf("cause", CodeNavigation.Causes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 200, 30), ct),
                 CodeQueryCatalog.Reachability => await ReachabilityAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 _ => throw new InvalidOperationException($"domanda «{name}» nel catalogo ma senza esecuzione"),
             };
@@ -188,6 +198,44 @@ namespace MdExplorer.Services.CodeGraph
                 targets = r.Targets, reached = r.Reached, unreached = r.UnreachedCount, unreachedByWhy = r.UnreachedByWhy, unreachedList = r.Unreached,
                 depthLimit = DepthNote(r.Unexplored, depth),
                 listCut = r.UnreachedCount > limit ? UiText.Say($"elenco tagliato a {limit} su {r.UnreachedCount}: alza limit", $"list cut at {limit} of {r.UnreachedCount}: raise limit") : null,
+            };
+        }
+
+        private static string SampleNote(int sample, string seed) => sample == 0
+            ? UiText.Say("solo conti: per verificare dei casi sul sorgente chiedi sample (e outcome/cause) — gli stessi casi con lo stesso seed", "counts only: to check cases in the source ask for sample (and outcome/cause) — the same cases for the same seed")
+            : UiText.Say($"campione di {sample} per gruppo con seed «{seed}»: lo stesso seed ridà gli stessi casi finché il grafo non cambia; i conti sopra sono di tutti, non del campione",
+                $"sample of {sample} per group with seed «{seed}»: the same seed gives the same cases until the graph changes; the counts above are of all, not of the sample");
+
+        private async Task<object> PagesToDataAsync(string projectPath, string from, string unit, string outcome, int sample, string seed, int top, CancellationToken ct)
+        {
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var symbols = await _store.SymbolsOfKindsAsync(projectPath, new[] { "module", "control" }, from == null ? null : new[] { from }, ct);
+            var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top);
+            return new
+            {
+                from, unit = r.Unit, total = r.Total, byOutcome = r.ByOutcome,
+                distinctExternalStops = r.DistinctExternalStops, topExternalStops = r.TopExternalStops,
+                samples = r.Samples.Count == 0 ? null : r.Samples, sampleNote = SampleNote(sample, seed),
+                next = UiText.Say("data-reach su un caso del campione per tutte le sue tabelle e fermate; unreached-code per lo strato che le pagine non raggiungono",
+                    "data-reach on a sampled case for all its tables and stops; unreached-code for the layer the pages do not reach"),
+            };
+        }
+
+        private async Task<object> UnreachedCodeAsync(string projectPath, string from, string to, string cause, int sample, string seed, int top, CancellationToken ct)
+        {
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var kinds = CodeNavigation.TargetKinds.Append("control").Append("module").ToList();
+            var symbols = await _store.SymbolsOfKindsAsync(projectPath, kinds, from == null ? null : new[] { from, to }, ct);
+            var r = CodeNavigation.UnreachedByCause(g, symbols, from, to, cause, sample, seed, top);
+            return new
+            {
+                from, to, entries = r.EntriesKind, entryCount = r.EntryCount,
+                targets = r.Targets, reached = r.Reached, unreached = r.Unreached, byCause = r.ByCause, byCauseAndKind = r.ByCauseAndKind,
+                folderCount = r.FolderCount, folders = r.Folders,
+                foldersCut = r.FolderCount > top ? UiText.Say($"cartelle tagliate a {top} su {r.FolderCount} (prima quelle con più non raggiunti): alza limit", $"folders cut at {top} of {r.FolderCount} (most unreached first): raise limit") : null,
+                samples = r.Samples.Count == 0 ? null : r.Samples, sampleNote = SampleNote(sample, seed),
+                next = UiText.Say("who-reaches su un caso del campione per vedere da dove ci si arriva; pages-to-data per le pagine che non arrivano ai dati",
+                    "who-reaches on a sampled case to see where it is reached from; pages-to-data for the pages that do not reach the data"),
             };
         }
 

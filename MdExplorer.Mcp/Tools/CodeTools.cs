@@ -210,6 +210,11 @@ public sealed class CodeTools : McpToolsBase
         "method reaches, with one shortest chain each (file:line of every step) and every point where the walk stops before data, counted by cause; " +
         "who-reaches (symbol): the entry points (page controls, framework-called methods) that reach a table, query or method, with their chains; " +
         "reachability (to, from): how many methods of a layer the pages reach, and why the others are not reached. Prefer them to code_sparql for these questions. " +
+        "QUALITY CHECKS, aggregated — start here, never from a full list: pages-to-data (from, unit): how many pages (or controls) reach a table, by outcome " +
+        "(data, only through ambiguous edges, stops at an unresolved name = a gap of the graph, stops at a library, no data in the graph), with the externals that stop the most; " +
+        "unreached-code (to, from): the code of a layer the pages do not reach, by cause (no callers, started by other pages, by an external event, by uncalled code, " +
+        "only in a cycle), by kind and by folder. Both give COUNTS ONLY, always complete; add `sample` (cases per group) with `outcome`/`cause` to open a few cases, " +
+        "the same ones for the same `seed`, then data-reach / who-reaches on one case. " +
         "hotspots, cross-program, cycles, unused (candidates), uncertain. " +
         "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
     public async Task<string> code_query(

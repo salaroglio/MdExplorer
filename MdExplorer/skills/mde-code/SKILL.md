@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 32
+  version: 33
   updatePolicy: replace
 ---
 
@@ -238,6 +238,31 @@ three navigation questions of `code_query` — one call each, exact counts, no S
 A chain is a shortest path, not the only one. A `weakest` of `inferred`/`ambiguous` means at least one step was deduced:
 open that `path:line` before stating the link as certain. `depthLimit` or `listsCut` in the answer: the walk or a list was
 cut — raise `depth`/`limit`, never report a cut list as complete.
+
+## Quality checks: aggregates first, then a sample, then one case
+
+When the question is about the QUALITY of the graph or of the code as a whole — «which screens have no path to the
+database», «how much code is not connected», «how navigable is this layer» — never start from a list of everything.
+Work in three steps, each a `code_query` call:
+
+1. **Aggregate** — counts only, always complete:
+   - `pages-to-data` (`from`: the pages' folder; `unit`: `page` or `control`): how many reach a table, by outcome — `data`,
+     `data-only-through-ambiguous`, `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
+     missing project or library — a GAP of the graph), `stops-at-library` (the roads that leave the graph end on resolved
+     library members), `no-data-in-graph` (nothing leaves the graph and nothing touches data). `topExternalStops` names the
+     externals that stop the most entries, unresolved names first.
+   - `unreached-code` (`to`: the layer's folder, `from`: the pages' folder): the methods, constructors and queries the
+     pages do not reach, by cause — `no-callers`, `started-by-other-pages`, `started-by-external` (the road starts at a
+     framework event or a library callback), `started-by-uncalled-code`, `only-in-a-cycle` — by kind and by folder.
+2. **Sample** — only for the outcome or cause you need to check: the same question with `sample` (cases per group) and
+   `outcome` / `cause`. The cases are the same for the same `seed`: write the seed in your report, so the sample can be
+   checked again in another session. The counts in the answer stay those of ALL the cases, not of the sample.
+3. **One case** — `data-reach` or `who-reaches` on a sampled case, and the source at the `path:line` of its chain.
+
+The causes are computed from the graph, not judged: `no-callers` says that nothing in the graph runs that code, not that
+it is dead (a framework, reflection or a commented call can explain it — that is what the sample is for). State which
+numbers are counts of the graph and which are your findings on the sample, and never extend a finding on the sample to
+the whole group as if it were counted.
 
 ## Enrichment rules: when the graph stops at a string
 
