@@ -164,6 +164,20 @@ xml:
         }
 
         [TestMethod]
+        public void Give_each_line_its_own_edge_when_a_method_reads_the_same_query_twice()
+        {
+            // 14/11/2026, dal cliente: 4 letture dello stesso frammento nello stesso metodo avevano un arco solo, con la prima riga
+            var entries = new List<XmlCatalogLinker.Entry> { new("q2", "web/sql/clienti.xml", "CLIENTI", "CERCA", null) };
+            var sites = new Dictionary<string, List<CodeCallSiteView>>
+            {
+                ["Leggi"] = new() { Site("m1", "Leggi", 10, null, "CLIENTI", "CERCA"), Site("m1", "Leggi", 20, null, "CLIENTI", "CERCA"), Site("m1", "Leggi", 20, null, "CLIENTI", "CERCA") },
+            };
+            var edges = XmlCatalogLinker.Link(Language().Xml.Loaders, m => sites.TryGetValue(m, out var s) ? s : new List<CodeCallSiteView>(), entries, new List<XmlCatalogLinker.Miss>());
+            Assert.AreEqual("m1>q2@10 | m1>q2@20", string.Join(" | ", edges.Select(e => $"{e.SourceId}>{e.TargetId}@{e.Line}")),
+                "una riga, un arco; due punti sulla stessa riga restano uno");
+        }
+
+        [TestMethod]
         public void Link_by_the_reader_class_with_fixed_names_and_the_file_name_only()
         {
             // 13/11/2026, dal cliente: un lettore C# omonimo per un altro XML; un metodo di paginazione che legge sempre la stessa

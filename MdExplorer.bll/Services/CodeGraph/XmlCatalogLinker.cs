@@ -57,7 +57,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             var edges = new Dictionary<string, ScriptEdge>(StringComparer.Ordinal);
             void Add(CodeCallSiteView site, string target, string confidence, string guard)
             {
-                var key = $"{site.CallerId}|{target}";
+                // un arco per riga (14/11/2026, dal cliente): lo stesso metodo che legge lo stesso frammento in più punti ha un
+                // arco per ciascuno, non solo per il primo; i punti della stessa riga (varianti dei valori) restano uno
+                var key = $"{site.CallerId}|{target}|{site.Line}";
                 if (edges.TryGetValue(key, out var existing))
                 {
                     if (Rank(confidence) > Rank(existing.Confidence)) { existing.Confidence = confidence; existing.Line = site.Line; existing.Guard = guard; }
