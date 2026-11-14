@@ -218,9 +218,11 @@ function AiChatComponent_span_7_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtextInterpolate1"]("", ctx_r4.briefingsCount, " ");
   }
 }
-const _c3 = function (a0) {
+const _c3 = function (a0, a1, a2) {
   return {
-    count: a0
+    count: a0,
+    name: a1,
+    version: a2
   };
 };
 function AiChatComponent_div_16_Template(rf, ctx) {
@@ -248,7 +250,7 @@ function AiChatComponent_div_16_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵproperty"]("title", (ctx_r5.seedProposals[0] == null ? null : ctx_r5.seedProposals[0].reason) || "");
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵpipeBind2"](5, 3, ctx_r5.languageProposals.length > 0 ? "CODE_LANG.BANNER" : ctx_r5.ruleProposals.length > 0 ? "CODE_RULE.BANNER" : "SEED.BANNER", _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵpureFunction1"](8, _c3, ctx_r5.languageProposals.length > 0 || ctx_r5.ruleProposals.length > 0 ? ctx_r5.proposalCount : ctx_r5.seedCount)));
+    _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵpipeBind2"](5, 3, ctx_r5.languageProposals.length > 0 ? "CODE_LANG.BANNER" : ctx_r5.ruleProposals.length > 0 ? "CODE_RULE.BANNER" : "SEED.BANNER", _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵpureFunction3"](8, _c3, ctx_r5.languageProposals.length > 0 || ctx_r5.ruleProposals.length > 0 ? ctx_r5.proposalCount : ctx_r5.seedCount, (ctx_r5.languageProposals[0] == null ? null : ctx_r5.languageProposals[0].preview == null ? null : ctx_r5.languageProposals[0].preview.displayName) || (ctx_r5.languageProposals[0] == null ? null : ctx_r5.languageProposals[0].preview == null ? null : ctx_r5.languageProposals[0].preview.languageId) || "", ctx_r5.languageProposals[0] == null ? null : ctx_r5.languageProposals[0].preview == null ? null : ctx_r5.languageProposals[0].preview.version)));
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵpipeBind1"](8, 6, ctx_r5.languageProposals.length > 0 || ctx_r5.ruleProposals.length > 0 ? "CODE_RULE.BUTTON" : "SEED.BANNER_BUTTON"));
   }
@@ -2414,7 +2416,7 @@ class AiChatComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵelementStart"](14, "mat-icon");
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtext"](15, "settings");
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵelementEnd"]()()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtemplate"](16, AiChatComponent_div_16_Template, 9, 10, "div", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtemplate"](16, AiChatComponent_div_16_Template, 9, 12, "div", 9);
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtemplate"](17, AiChatComponent_div_17_Template, 15, 19, "div", 10);
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtemplate"](18, AiChatComponent_div_18_Template, 13, 17, "div", 11);
           _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵtemplate"](19, AiChatComponent_div_19_Template, 16, 21, "div", 12);
@@ -56729,4 +56731,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.24c765ddcb14c57c.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.ba10cfc0f50ecd5b.js.map

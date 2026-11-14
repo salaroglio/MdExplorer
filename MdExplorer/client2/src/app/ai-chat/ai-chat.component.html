@@ -46,7 +46,7 @@
   <!-- D42: compare solo quando MarkAgent ha proposto una regola che chiude un buco del grafo -->
   <div class="improve-graph" *ngIf="proposalCount > 0" role="status">
     <mat-icon>auto_fix_high</mat-icon>
-    <span class="text" [title]="seedProposals[0]?.reason || ''">{{ (languageProposals.length > 0 ? 'CODE_LANG.BANNER' : ruleProposals.length > 0 ? 'CODE_RULE.BANNER' : 'SEED.BANNER') | translate:{ count: (languageProposals.length > 0 || ruleProposals.length > 0) ? proposalCount : seedCount } }}</span>
+    <span class="text" [title]="seedProposals[0]?.reason || ''">{{ (languageProposals.length > 0 ? 'CODE_LANG.BANNER' : ruleProposals.length > 0 ? 'CODE_RULE.BANNER' : 'SEED.BANNER') | translate:{ count: (languageProposals.length > 0 || ruleProposals.length > 0) ? proposalCount : seedCount, name: languageProposals[0]?.preview?.displayName || languageProposals[0]?.preview?.languageId || '', version: languageProposals[0]?.preview?.version } }}</span>
     <button mat-raised-button color="accent" (click)="openRuleWizard()">{{ ((languageProposals.length > 0 || ruleProposals.length > 0) ? 'CODE_RULE.BUTTON' : 'SEED.BANNER_BUTTON') | translate }}</button>
   </div>
 

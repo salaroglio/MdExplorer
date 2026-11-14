@@ -1609,7 +1609,7 @@
     "CLOSE": "Chiudi"
   },
   "CODE_LANG": {
-    "BANNER": "MarkAgent ha trovato delle pagine che il grafo del codice non sa leggere e propone come leggerle ({{count}} in attesa).",
+    "BANNER": "MarkAgent propone la versione {{version}} del linguaggio «{{name}}» per il grafo del codice ({{count}} in attesa).",
     "PROBLEM": {
       "PAGES": "MarkAgent propone di insegnare a MdExplorer a leggere le pagine «{{name}}» ({{extensions}}): i controlli con i loro eventi, le condizioni sotto cui compaiono e le pagine che includono.",
       "LINES": "MarkAgent propone di insegnare a MdExplorer a leggere il linguaggio «{{name}}» ({{extensions}}).",

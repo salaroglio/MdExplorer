@@ -1609,7 +1609,7 @@
     "CLOSE": "Close"
   },
   "CODE_LANG": {
-    "BANNER": "MarkAgent found pages the code graph cannot read and proposes how to read them ({{count}} waiting).",
+    "BANNER": "MarkAgent proposes version {{version}} of the language «{{name}}» for the code graph ({{count}} waiting).",
     "PROBLEM": {
       "PAGES": "MarkAgent proposes to teach MdExplorer to read the «{{name}}» pages ({{extensions}}): the controls with their events, the conditions under which they appear and the pages they include.",
       "LINES": "MarkAgent proposes to teach MdExplorer to read the «{{name}}» language ({{extensions}}).",
