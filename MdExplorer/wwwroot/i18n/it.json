@@ -1642,6 +1642,10 @@
     }
   },
   "AI_CHAT": {
+    "EDIT_WHILE_STREAMING": "MarkAgent sta ancora rispondendo: premi Stop prima di modificare un messaggio.",
+    "EDIT_NOT_CONNECTED": "Connessione al servizio assente: il messaggio modificato non è stato inviato.",
+    "EDIT_NOT_FOUND": "Si possono modificare solo i messaggi inviati, e questo non c'è più nella conversazione.",
+    "EDIT_FAILED": "Il messaggio modificato non è stato inviato: {{error}}",
     "OPENCODE_SERVER_DEFAULT": "Default del server",
     "TITLE": "Assistente AI",
     "READY": "Pronto",

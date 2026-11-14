@@ -1642,6 +1642,10 @@
     }
   },
   "AI_CHAT": {
+    "EDIT_WHILE_STREAMING": "MarkAgent is still answering: press Stop before editing a message.",
+    "EDIT_NOT_CONNECTED": "No connection to the service: the edited message was not sent.",
+    "EDIT_NOT_FOUND": "Only sent messages can be edited, and this one is no longer in the conversation.",
+    "EDIT_FAILED": "The edited message was not sent: {{error}}",
     "OPENCODE_SERVER_DEFAULT": "Server default",
     "TITLE": "AI Assistant",
     "READY": "Ready",

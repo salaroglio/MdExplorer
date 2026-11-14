@@ -325,11 +325,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
 
     // Listen for TruncateMessagesAfter event from backend
+    // La conversazione l'ha già troncata il servizio (editAndRegenerateMessage): qui niente, se no si perderebbe il
+    // segnaposto della risposta che sta arrivando.
     this.aiService['hubConnection'].on('TruncateMessagesAfter', (messageIndex: number) => {
-      console.log('[AiChatComponent] Truncating messages after index:', messageIndex);
-      // Keep only messages up to and including messageIndex
-      this.messages = this.messages.slice(0, messageIndex + 1);
-      this.shouldScrollToBottom = true;
+      console.log('[AiChatComponent] backend truncated history after index:', messageIndex);
     });
 
     // Honor the per-project "Use Copilot CLI automatically" flag emitted by ProjectsService
@@ -1086,42 +1085,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       console.log('[AiChatComponent] Cannot save empty message');
       return;
     }
-
-    console.log('[AiChatComponent] Saving edited message:', message.id);
-
-    // Find the index of this message in the messages array
-    const messageIndex = this.messages.findIndex(m => m.id === message.id);
-
-    if (messageIndex === -1) {
-      console.error('[AiChatComponent] Message not found in messages array');
-      return;
-    }
-
-    // Update the message content locally
-    this.messages[messageIndex].content = this.editedContent;
-
-    // Call backend to regenerate from this point
-    // The backend uses the conversation history index, which matches our messages array index
-    this.aiService.editAndRegenerateMessage(messageIndex, this.editedContent);
-
-    // Reset edit state
+    // Tronca, segnaposto della risposta e chiamata li fa il servizio, che tiene lo stato dello streaming.
+    this.aiService.editAndRegenerateMessage(message.id, this.editedContent);
     this.editingMessageId = null;
     this.editedContent = '';
-
-    // Create placeholder for new assistant response
-    const assistantMessageId = this.generateMessageId();
-    this.messages.push({
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      isStreaming: true
-    });
-
     this.shouldScrollToBottom = true;
   }
 
-  private generateMessageId(): string {
-    return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
 }

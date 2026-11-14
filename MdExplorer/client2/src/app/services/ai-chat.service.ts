@@ -1,3 +1,4 @@
+import { TranslateService } from '@ngx-translate/core';
 import { Injectable, Inject, forwardRef } from '@angular/core';
 import { applySignalrTimeouts } from '../signalR/signalr-timeouts';
 import { HttpClient } from '@angular/common/http';
@@ -162,7 +163,8 @@ export class AiChatService {
 
   constructor(
     private http: HttpClient,
-    @Inject(forwardRef(() => MdServerMessagesService)) private serverMessages: MdServerMessagesService
+    @Inject(forwardRef(() => MdServerMessagesService)) private serverMessages: MdServerMessagesService,
+    private translate: TranslateService
   ) {
     this.initializeSignalR();
   }
@@ -1166,18 +1168,46 @@ export class AiChatService {
    * @param messageIndex Index of the message in the conversation history (0-based)
    * @param newContent New content for the message
    */
-  editAndRegenerateMessage(messageIndex: number, newContent: string): void {
-    console.log('[AiChatService] editAndRegenerateMessage called with index:', messageIndex);
-
-    if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('EditAndRegenerateFromMessage', messageIndex, newContent)
-        .then(() => {
-          console.log('[AiChatService] EditAndRegenerateFromMessage sent to backend');
-        })
-        .catch(err => {
-          console.error('[AiChatService] Error calling EditAndRegenerateFromMessage:', err);
-        });
+  /**
+   * «Modifica e rigenera» un messaggio dell'utente. Lo stato lo tiene il servizio, come in sendMessage: la conversazione
+   * si tronca dopo quel messaggio, il segnaposto della risposta è quello in streaming (i pezzi arrivano lì), e lo Stop
+   * funziona. L'indice per il servizio conta solo i messaggi della storia (utente e risposte), non quelli di sistema.
+   * Prima (14/11/2026, dal cliente) la chiamata mandava 2 argomenti a un metodo che ne ha 3: SignalR la rifiutava e la
+   * chat restava ferma su un segnaposto vuoto.
+   */
+  editAndRegenerateMessage(messageId: string, newContent: string): void {
+    if (this._isStreaming$.value) {
+      this.addMessage('system', this.translate.instant('AI_CHAT.EDIT_WHILE_STREAMING'));
+      return;
     }
+    if (this.hubConnection.state !== 'Connected') {
+      this.addMessage('system', this.translate.instant('AI_CHAT.EDIT_NOT_CONNECTED'));
+      return;
+    }
+    const all = this._messages$.value;
+    const index = all.findIndex(m => m.id === messageId);
+    if (index === -1 || all[index].role !== 'user') {
+      this.addMessage('system', this.translate.instant('AI_CHAT.EDIT_NOT_FOUND'));
+      return;
+    }
+    const historyIndex = all.slice(0, index).filter(m => m.role !== 'system').length;
+
+    const kept = all.slice(0, index + 1);
+    kept[index] = { ...kept[index], content: newContent };
+    const assistantMessageId = this.generateMessageId();
+    this.currentStreamingMessageId = assistantMessageId;
+    kept.push({ id: assistantMessageId, role: 'assistant', content: '', timestamp: new Date(), isStreaming: true,
+                providerType: this.currentStreamingProviderType ?? undefined });
+    this._messages$.next(kept);
+
+    this._isStreaming$.next(true);
+    this.hubConnection.invoke('EditAndRegenerateFromMessage', historyIndex, newContent, 'default')
+      .catch(err => {
+        console.error('[AiChatService] EditAndRegenerateFromMessage failed:', err);
+        this.finalizeStreamingMessage();
+        this.addMessage('system', this.translate.instant('AI_CHAT.EDIT_FAILED', { error: String(err) }));
+        this._isStreaming$.next(false);
+      });
   }
 
   ngOnDestroy(): void {
