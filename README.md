@@ -1,235 +1,117 @@
 # MdExplorer
 
-> Professional Markdown editor and project management tool with Git integration, AI-powered features, and multi-platform support.
+> **The natural-language IDE.** An open source desktop application where people and AI agents work on the same documents: markdown files, kept in git, that have value as data and as algorithms.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
-[![Angular](https://img.shields.io/badge/Angular-11-DD0031)](https://angular.io/)
-[![Electron](https://img.shields.io/badge/Electron-28-47848F)](https://www.electronjs.org/)
+[![Website](https://img.shields.io/badge/site-mdexplorer.net-1a73e8)](https://www.mdexplorer.net)
+[![Download](https://img.shields.io/badge/download-Windows%20%7C%20Linux-e8710a)](https://www.mdexplorer.net/download/)
 
-## Features
+**Site and documentation: [www.mdexplorer.net](https://www.mdexplorer.net)** · [Download](https://www.mdexplorer.net/download/) · [Demo project](https://github.com/salaroglio/mdexplorer-demo) · [Italiano](https://www.mdexplorer.net/it/)
 
-- 📝 **Advanced Markdown Editing** - Live preview with React-based Milkdown editor
-- 📂 **Project-Based Organization** - Manage multiple documentation projects with SQLite backend
-- 🔄 **Integrated Git Workflow** - Commit, push, pull, branches, and tags management
-- 🤖 **AI-Powered Features** - TOC generation and chat assistant with local model support
-- 📊 **PlantUML Diagrams** - Create and preview diagrams directly in your documents
-- 📄 **Professional Export** - Generate PDF and Word documents with custom templates
-- 🔍 **Full-Text Search** - Fast search across all your markdown files
-- 🖥️ **Cross-Platform** - Works on Windows, macOS, and Linux
-- 🚀 **Desktop App** - Native Electron wrapper with auto-update support
+## What it is
 
-## Technology Stack
+A development environment has an editor, a compiler, a runtime, version control and tests. MdExplorer has the same parts, and the language they work on is the one you already write: plain text, in markdown.
 
-- **Backend**: ASP.NET Core 8.0, NHibernate ORM, FluentMigrator
-- **Frontend**: Angular 11 with Material Design
-- **Editor**: React 19 with Milkdown
-- **Desktop**: Electron 28
-- **Database**: SQLite with automatic migrations
-- **Git**: LibGit2Sharp
-- **Export**: Pandoc (PDF), custom DOCX templates (Word)
+- **Documents are data.** A document includes the real files of the project, draws them as diagrams and stays aligned by itself. Nothing is copied, so nothing goes stale.
+- **Documents are algorithms.** A skill, a house rule, a workflow, a test written in plain words: text files that tell an AI agent how to work, reviewed and approved like any other document.
+- **The AI is the runtime.** GitHub Copilot, Claude Code or opencode: one engine, chosen once per project. There is no built-in model.
+- **Git is the control.** Everything an agent writes is a change you read before accepting it. Every change has an author and a date.
 
-## Prerequisites
+It runs on Windows and Linux. Your documents stay on your computer and in your git.
 
-- **.NET SDK 8.0** or later - [Download](https://dotnet.microsoft.com/download)
-- **Node.js 14.21.3** (required for Angular 11 build) - [Download with nvm](https://github.com/nvm-sh/nvm)
-- **Windows**: Windows 10/11, **macOS**: 10.15+, **Linux**: Modern distribution
+## What you do with it
 
-## Quick Start
+| | |
+|---|---|
+| [Living documents](https://www.mdexplorer.net/features/living-documents/) | Include real files, run a command from the page, correct a sentence with a right click, paste a screenshot where it belongs. |
+| [Diagrams that answer](https://www.mdexplorer.net/features/diagrams/) | PlantUML written as text. A click lights up the relations; a right click asks the agent to explain. |
+| [MarkAgent](https://www.mdexplorer.net/features/markagent/) | The AI agent that reads and writes the documents of the project, with the engine and the rules the project carries with it. |
+| [Presentations](https://www.mdexplorer.net/features/presentations/) | Slides are a markdown file with one more line in the header. |
+| [Word, PDF and site](https://www.mdexplorer.net/features/export/) | Markdown stays the only source; the delivery formats are regenerated when needed. |
+| [Git without the terminal](https://www.mdexplorer.net/features/git/) | What changed, who changed it, how to save it, for people who never opened a terminal. |
+| [Rules, skills and MCP](https://www.mdexplorer.net/features/rules-skills-mcp/) | Skills in the repository and an MCP server that gives the agent the project's knowledge. |
+| [Tests in plain language](https://www.mdexplorer.net/features/e2e-tests/) | The agent checks a web site on a real browser and leaves screenshots, a report and a script that replays without AI. |
+| [Integrations](https://www.mdexplorer.net/features/integrations/) | Redmine, Jira and Confluence read and updated by the agent with your personal key; notices on a private Telegram channel. |
 
-### 1. Clone Repository
+### The agent city
+
+AI agents can live in a project, each with a name, a role and a person who answers for it. The agent prepares, the person checks and approves; who works after whom is written in the project's workflow, and MdExplorer runs it. No agent passes work to another by itself, and nothing enters the project without an approval. → [The agent city](https://www.mdexplorer.net/city-of-agents/)
+
+### The code graph
+
+MdExplorer also reads source code. Mark a folder as a development environment and the program becomes a graph of classes, methods and relations, each with its line and with how sure it is. A deterministic parser builds the map (Roslyn for C# and Visual Basic, tree-sitter for TypeScript, JavaScript, Python and Java, declarative language packages for the rest); the AI only reasons over it and answers with file and line.
+
+The graph is stored in git as Turtle (RDF), one file per source file, in `.mde-code/`. Its vocabulary is open: [`https://mdexplorer.net/ns/code#`](https://www.mdexplorer.net/code-graph/ontology/). → [The code graph](https://www.mdexplorer.net/code-graph/)
+
+## Install
+
+Download the installer for Windows or the AppImage for Linux from **[mdexplorer.net/download](https://www.mdexplorer.net/download/)**. Installed copies update themselves.
+
+The fastest way to see everything is the demo project: after installing, open Mark's guide (the question mark) and choose «Create demo project». The same project is public at [salaroglio/mdexplorer-demo](https://github.com/salaroglio/mdexplorer-demo) (branch `main` in Italian, branch `en` in English).
+
+To use the AI functions, install and sign in to one of the command-line tools `copilot`, `claude` or `opencode`. → [Getting started](https://www.mdexplorer.net/docs/)
+
+## For AI agents
+
+Every page of the site is also published as plain markdown: add `index.md` to the address of any page. Start from [`llms.txt`](https://www.mdexplorer.net/llms.txt) or from [the page written for agents](https://www.mdexplorer.net/for-agents/). This repository has its own [`llms.txt`](llms.txt).
+
+## Build from source
 
 ```bash
 git clone --recursive https://github.com/salaroglio/MdExplorer.git
 cd MdExplorer
-```
 
-Note: Use `--recursive` to include submodules (Electron app and website).
+dotnet build                                   # backend, .NET 8
 
-### 2. Build Backend
+cd MdExplorer/client2 && npm install && npm run build && cd ../..   # Angular frontend
 
-```bash
-dotnet restore
-dotnet build
-```
-
-### 3. Build Angular Frontend
-
-**Important**: Angular 11 requires Node.js 14.21.3
-
-```bash
-cd MdExplorer/client2
-
-# Switch to Node 14.21.3 (using nvm)
-nvm use 14.21.3
-
-npm install
-npm run build
-```
-
-### 4. Run Application
-
-```bash
-cd ../..
 dotnet run --project MdExplorer/MdExplorer.Service.csproj
+
+cd ElectronMdExplorer && npm install && npm start                   # desktop application
 ```
 
-Open your browser at: `http://localhost:5000`
+`--recursive` brings in the submodules (the Electron application, the website, the demo project). On Linux, `build-linux.sh` builds everything. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup.
 
-### 5. Build Electron Desktop App (Optional)
+### Technology
 
-```bash
-cd ElectronMdExplorer
-npm install
-npm start           # Development mode
-npm run build       # Production installer
-```
+- **Backend**: ASP.NET Core 8, NHibernate, FluentMigrator, SignalR, SQLite
+- **Frontend**: Angular 15 with Material Design; editor in React 19 with Milkdown
+- **Desktop**: Electron, with automatic updates
+- **Git**: LibGit2Sharp
+- **Code graph**: Roslyn, tree-sitter, RDF/Turtle, SPARQL
+- **Agents**: an MCP server (`MdExplorer.Mcp`) and the command-line tools of GitHub Copilot, Claude Code and opencode
 
-## Configuration
-
-On first run, the application creates default configuration. To customize:
-
-1. Copy `MdExplorer/appsettings.example.json` to `MdExplorer/appsettings.json`
-2. Configure settings:
-   - **PlantUML Server**: URL of PlantUML service (local or remote)
-   - **Git Authentication**: Preferred methods and SSH key paths
-   - **AI Features**: Model paths and GPU acceleration settings
-   - **Jira Integration**: Optional Jira server URL
-
-See [Configuration Guide](docs/configuration.md) for detailed options.
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and setup instructions.
-
-### Key Development Documents
-
-- [Workflow Dati Persistenti](workflow-sviluppo-dati-persistenti.md) - Database patterns and migrations
-- [DAL Evolution](Ad.Tools.Dal/EvoluzioneDal.md) - Data access layer migration guide
-- [CLAUDE.md](CLAUDE.md) - AI-assisted development guidelines
-
-### Project Structure
+### Repository
 
 ```
-MdExplorer/
-├── MdExplorer/                  # ASP.NET Core web service
-│   ├── client2/                 # Angular 11 frontend
-│   ├── Controllers/             # REST API controllers
-│   ├── Services/                # Backend services
-│   └── appsettings.json         # Configuration
-├── MdExplorer.Features/         # Business logic & features
-├── MdExplorer.Abstractions/     # Domain models & interfaces
-├── MDExplorer.dal/              # Data access (legacy)
-├── Ad.Tools.Dal.Evo/            # Modern data access layer
-├── MdExplorer.Migrations/       # Database migrations (User DB)
-├── MdExplorer.Migrations.EngineDb/   # Engine DB migrations
-├── MdExplorer.Migrations.ProjectDb/  # Project DB migrations
-├── ElectronMdExplorer/          # Desktop app wrapper
-└── MdEditor.React/              # React-based Milkdown editor
+MdExplorer/                  ASP.NET Core service
+  client2/                   Angular frontend
+MdExplorer.bll/              features and business logic (code graph included)
+MdExplorer.Abstractions/     domain models and interfaces
+MdExplorer.Mcp/              MCP server for the agents
+MdEditor.React/              Milkdown editor
+ElectronMdExplorer/          desktop application (submodule)
+mdexplorer-demo/             demo project (submodule)
+mdExplorerWebSite/           www.mdexplorer.net (submodule)
+sprints/                     sprint plans, in markdown
 ```
 
-### Running Tests
+## Built with itself
 
-```bash
-# Backend tests
-dotnet test
+MdExplorer is developed with the method it proposes: a sprint plan in markdown, an agent that carries out a phase, a trial in the real application, a commit, and the plan updated. The [`sprints/`](sprints/) folder and [CLAUDE.md](CLAUDE.md) are the working documents.
 
-# Angular tests
-cd MdExplorer/client2
-npm test
+## Contributing, security, support
 
-# Angular linting
-npm run lint
-```
+- Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md)
+- Security: report vulnerabilities to security@mdexplorer.net, see [SECURITY.md](SECURITY.md)
+- [Issues](https://github.com/salaroglio/MdExplorer/issues) · [Discussions](https://github.com/salaroglio/MdExplorer/discussions) · developer@mdexplorer.net
 
-## Architecture Highlights
+## Author and citation
 
-- **Multi-Database**: Separate SQLite databases for user settings, engine data, and projects
-- **FluentMigrator**: Automatic database schema migrations on startup
-- **NHibernate**: ORM with FluentNHibernate mappings
-- **SignalR**: Real-time file monitoring and updates
-- **Command Pattern**: Extensible markdown transformation pipeline
-- **Strangler Fig Pattern**: Gradual migration from legacy DAL to modern repository pattern
+**MdExplorer is created and maintained by [Carlo Salaroglio](https://github.com/salaroglio)**, a software engineer based in Italy. The project began in March 2021 and has been open source under the MIT License since October 2025.
 
-## Export Features
-
-### PDF Export
-- Uses Pandoc with eisvogel template
-- Custom styling and formatting
-- Automatic table of contents
-- Code syntax highlighting
-
-### Word Export
-- Custom DOCX templates
-- Header/footer support
-- Predefined page templates
-- Style preservation
-
-## AI Features
-
-### TOC Generation
-- Automatic description generation for markdown files
-- Batch processing support
-- Configurable prompts
-- GPU acceleration support
-
-### Chat Assistant
-- Local model support (no cloud required)
-- Context-aware responses
-- Project-specific knowledge
-- Configurable model parameters
-
-## Git Integration
-
-- **Authentication**: SSH keys, Git credential helper, system credential store
-- **Operations**: Commit, push, pull, fetch, branches, tags
-- **Visual Diff**: See changes before committing
-- **Remote Management**: Add, remove, and configure remotes
-- **Credential Caching**: Secure credential storage
+If you reference MdExplorer in articles, posts or other publications, please credit Carlo Salaroglio and link to this repository. For academic citation use [CITATION.cff](CITATION.cff) («Cite this repository» in the GitHub sidebar).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Code of Conduct
-
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
-
-## Security
-
-Please report security vulnerabilities to security@mdexplorer.net. See [SECURITY.md](SECURITY.md) for details.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/salaroglio/MdExplorer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/salaroglio/MdExplorer/discussions)
-- **Website**: https://www.mdexplorer.net
-- **Email**: developer@mdexplorer.net
-
-## Author
-
-**MdExplorer is created and maintained by [Carlo Salaroglio](https://github.com/salaroglio)**, a software engineer based in Italy. The project began in March 2021 as an internal tool for Spec Driven Development and was released as open source under the MIT License in October 2025.
-
-- GitHub: [@salaroglio](https://github.com/salaroglio)
-- Project website: [mdexplorer.net](https://www.mdexplorer.net)
-- Project email: info@mdexplorer.net
-
-If you reference MdExplorer in articles, blog posts, or other publications, please credit Carlo Salaroglio as the author and link back to this repository. For academic citation, see [CITATION.cff](CITATION.cff).
-
-## Citation
-
-This repository includes a [CITATION.cff](CITATION.cff) file. To cite MdExplorer, click "Cite this repository" on the GitHub sidebar, or use the metadata in `CITATION.cff` directly.
-
-## Acknowledgments
-
-Built with amazing open-source libraries. See [librerie-licenze.md](librerie-licenze.md) for the complete list of dependencies and their licenses.
-
-Special thanks to all contributors and the open-source community.
-
----
-
-Made with ❤️ by Carlo Salaroglio and contributors
+MIT License, see [LICENSE](LICENSE). Third-party libraries and their licences: [librerie-licenze.md](librerie-licenze.md).

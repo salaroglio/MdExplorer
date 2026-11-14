@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use MdExplorer in your research, project, or publication, please cite it as below."
 title: "MdExplorer"
-abstract: "Professional Markdown editor and project management application for Spec Driven Development. Combines a Markdown editor with Git integration, PlantUML diagrams, AI-powered features (with local LLM support), and PDF/Word export. Cross-platform desktop application for Windows, macOS, and Linux."
+abstract: "MdExplorer is a natural-language IDE: an open source desktop application for Windows and Linux where people and AI agents work on the same documents. Documents are markdown files kept in git, with value as data and as algorithms (skills, rules, workflows and tests in plain language that drive AI agents). It includes interactive PlantUML diagrams, slides, Word/PDF export, git without the terminal, an AI agent running on GitHub Copilot, Claude Code or opencode, an MCP server, multi-agent workflows with human approval, and a code graph stored as RDF/Turtle."
 type: software
 authors:
   - family-names: Salaroglio
@@ -24,4 +24,7 @@ keywords:
   - electron
   - dotnet
   - angular
-  - llamasharp
+  - ai-agents
+  - mcp
+  - rdf
+  - code-graph
