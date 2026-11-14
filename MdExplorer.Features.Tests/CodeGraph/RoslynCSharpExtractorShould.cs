@@ -42,6 +42,25 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Keep_apart_fields_with_the_same_name_in_different_classes()
+        {
+            // 14/11/2026: il gemello del test VB, i campi static omonimi di classi diverse hanno ognuno il suo catalogo
+            File.WriteAllText(Path.Combine(_src, "Lettore.cs"),
+                "namespace Demo { public static class Lettore { public static string Leggi(string file, string g, string n) => \"\"; } }");
+            foreach (var (cls, xml, vis) in new[] { ("Clienti", "clienti.xml", "private"), ("Ordini", "ordini.xml", "private"), ("Fatture", "fatture.xml", "internal"), ("Resi", "resi.xml", "internal") })
+                File.WriteAllText(Path.Combine(_src, cls + ".cs"),
+                    $"namespace Demo {{ public class {cls} {{\n  {vis} static string Catalogo = System.IO.Path.Combine(System.Environment.GetEnvironmentVariable(\"DIR\"), \"{xml}\");\n" +
+                    "  public void A() { Lettore.Leggi(Catalogo, \"G\", \"N\"); } } }\n");
+
+            var scripts = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(Request()).Scripts;
+            foreach (var (cls, xml) in new[] { ("Clienti", "clienti.xml"), ("Ordini", "ordini.xml"), ("Fatture", "fatture.xml"), ("Resi", "resi.xml") })
+            {
+                var site = scripts.Single(x => x.File.LogicalPath == $"src/Demo/{cls}.cs").Script.CallSites.Single(c => c.Callee == "Leggi");
+                Assert.AreEqual(xml, site.Arguments.SingleOrDefault(a => a.Position == 0)?.FileName, cls);
+            }
+        }
+
+        [TestMethod]
         public void Declare_delegate_types_that_the_code_uses()
         {
             File.WriteAllText(Path.Combine(_src, "Notice.cs"),
