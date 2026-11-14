@@ -122,7 +122,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// nomi non risolti.
         /// </summary>
         private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, List<string> warnings,
-            Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk)
+            Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk, Lazy<List<(string File, List<(string Guid, string Path)> Projects)>> solutions = null)
         {
             var byGuid = groups.Where(g => g.Project?.ProjectGuid != null).GroupBy(g => g.Project.ProjectGuid, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -151,12 +151,81 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources{problem ?? ""}: what uses it stays an unresolved name."));
                     }
                     else if (found.Count > 1)
-                        warnings.Add(UiText.Say(
-                            $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale, ciò che ne usa resta un nome non risolto.",
-                            $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown, what uses it stays an unresolved name."));
+                    {
+                        // 14/11/2026, dal cliente: una copia annidata del progetto con lo stesso GUID. Quale usa Visual Studio lo dice
+                        // la soluzione che contiene chi riferisce; se nessuna lo dice, o se due dicono progetti diversi, non si sceglie
+                        var (picked, from) = BySolution(g, guid, found, solutions);
+                        if (picked.Count == 1)
+                        {
+                            if (picked[0] != g && !list.Contains(picked[0])) list.Add(picked[0]);
+                            warnings.Add(UiText.Say(
+                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto; si usa {picked[0].Project.File}, quello della soluzione {string.Join(", ", from.Select(Path.GetFileName))}.",
+                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}."));
+                        }
+                        else
+                            warnings.Add(UiText.Say(
+                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale{(picked.Count > 1 ? $" (le soluzioni {string.Join(", ", from.Select(Path.GetFileName))} ne indicano di diversi)" : ", e nessuna soluzione (.sln) che contiene il progetto lo dice")}, ciò che ne usa resta un nome non risolto.",
+                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown{(picked.Count > 1 ? $" (the solutions {string.Join(", ", from.Select(Path.GetFileName))} point to different ones)" : ", and no solution (.sln) containing the project says")}, what uses it stays an unresolved name."));
+                    }
                     else if (found[0] != g && !list.Contains(found[0])) list.Add(found[0]);
                 }
                 result[g] = list;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Fra i progetti con quel GUID, quelli che indicano le soluzioni che contengono <paramref name="g"/> (riconosciuto per il
+        /// suo GUID: un progetto web di Visual Studio 2003 vi sta con un indirizzo, non con un percorso). Torna i progetti
+        /// indicati (uno = la risposta) e le soluzioni che li indicano.
+        /// </summary>
+        private static (List<ProjectGroup> Picked, List<string> From) BySolution(ProjectGroup g, string guid, List<ProjectGroup> found,
+            Lazy<List<(string File, List<(string Guid, string Path)> Projects)>> solutions)
+        {
+            var picked = new List<ProjectGroup>(); var from = new List<string>();
+            if (solutions == null || g.Project?.ProjectGuid == null) return (picked, from);
+            foreach (var (file, projects) in solutions.Value)
+            {
+                if (!projects.Any(p => string.Equals(p.Guid, g.Project.ProjectGuid, StringComparison.OrdinalIgnoreCase))) continue;
+                foreach (var p in projects.Where(p => p.Path != null && string.Equals(p.Guid, guid, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var hit = found.FirstOrDefault(f => string.Equals(Path.GetFullPath(f.Project.File), p.Path, StringComparison.OrdinalIgnoreCase));
+                    if (hit == null) continue;
+                    if (!picked.Contains(hit)) picked.Add(hit);
+                    if (!from.Contains(file)) from.Add(file);
+                }
+            }
+            return (picked, from);
+        }
+
+        /// <summary>
+        /// Le soluzioni (<c>.sln</c>) dei sorgenti: sotto la cartella comune dei file analizzati e, senza scendere, nelle cartelle
+        /// sopra di lei fino al progetto di documentazione (mai fuori). Una soluzione che non si legge si dice e si salta.
+        /// </summary>
+        private static List<(string File, List<(string Guid, string Path)> Projects)> SolutionsAround(string common, string projectPath, List<string> warnings)
+        {
+            var files = new List<string>();
+            if (common == null || !Directory.Exists(common)) return new();
+            var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive };
+            try { files.AddRange(Directory.EnumerateFiles(common, "*.sln", options)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            var root = projectPath == null ? null : Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar);
+            var up = Path.GetDirectoryName(Path.GetFullPath(common).TrimEnd(Path.DirectorySeparatorChar));
+            while (root != null && up != null && (up + Path.DirectorySeparatorChar).StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                try { files.AddRange(Directory.EnumerateFiles(up, "*.sln", new EnumerationOptions { IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive })); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                up = Path.GetDirectoryName(up);
+            }
+            var result = new List<(string, List<(string, string)>)>();
+            foreach (var f in files.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                try { result.Add((f, VisualStudioSolution.Read(f))); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    warnings.Add(UiText.Say($"{Path.GetFileName(f)}: la soluzione non si legge ({ex.Message}), e non serve a scegliere fra progetti con lo stesso GUID.",
+                        $"{Path.GetFileName(f)}: the solution cannot be read ({ex.Message}), and is not used to choose between projects with the same GUID."));
+                }
             }
             return result;
         }
@@ -394,7 +463,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"{Path.GetFileName(projectFile)}: {files.Count} files of the folder are not among those the project compiles, and stay without symbols in the graph: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}"));
             var borrowed = new Dictionary<ProjectGroup, List<string>>();
             var librariesOnDisk = local ? new Lazy<List<string>>(() => LibrariesUnder(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)))) : null;
-            var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk);
+            var solutions = local ? new Lazy<List<(string File, List<(string Guid, string Path)> Projects)>>(() =>
+                SolutionsAround(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)), request.ProjectPath, result.Warnings)) : null;
+            var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk, solutions);
 
             var trees = new List<(SyntaxTree Tree, Compilation Compilation)>();
             var compilations = new List<Compilation>();

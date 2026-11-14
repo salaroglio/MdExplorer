@@ -819,6 +819,66 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(dl.Edges.Any(e => e.Guard?.Contains("ToString") == true || e.Guard?.Contains("connessione") == true), "la connessione non è mai il nome");
         }
 
+        /// <summary>Una copia annidata del DL con lo stesso GUID (dal cliente, 14/11/2026), e le soluzioni date.</summary>
+        private string WriteVs2003SolutionWithNestedCopy(params (string Name, string DlPath)[] solutions)
+        {
+            var root = WriteVs2003Solution(withLibrary: true);
+            var copy = Path.Combine(root, "Dl", "Copia");
+            Directory.CreateDirectory(copy);
+            File.Copy(Path.Combine(root, "Dl", "Dl.vbproj"), Path.Combine(copy, "Dl.vbproj"));
+            // la copia ha un metodo in più, per sapere quale dei due è stato preso
+            File.WriteAllText(Path.Combine(copy, "Dati.vb"), File.ReadAllText(Path.Combine(root, "Dl", "Dati.vb"))
+                .Replace("    Public Function Segna() As Boolean\n", "    Public Function SoloNellaCopia() As Boolean\n        Return True\n    End Function\n    Public Function Segna() As Boolean\n"));
+            foreach (var (name, dlPath) in solutions)
+                File.WriteAllText(Path.Combine(root, name),
+                    "Microsoft Visual Studio Solution File, Format Version 8.00\n" +
+                    "Project(\"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\") = \"Acme.Bl\", \"http://localhost/Bl/Bl.vbproj\", \"{22222222-AAAA-BBBB-CCCC-000000000002}\"\nEndProject\n" +
+                    $"Project(\"{{F184B08F-C81C-45F6-A57F-5ABD9991F28F}}\") = \"Acme.Dl\", \"{dlPath}\", \"{{11111111-AAAA-BBBB-CCCC-000000000001}}\"\nEndProject\n" +
+                    "Global\nEndGlobal\n");
+            return root;
+        }
+
+        private static string DlCalledByBl(CodeExtractionResult result)
+        {
+            var bl = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("Bl/Logica.vb")).Script;
+            var elenco = bl.Symbols.Single(x => x.QualifiedName == "Acme.Bl.Servizio.Elenco(String)");
+            // risolta, la destinazione è dichiarata nello script del DL; non risolta, è un esterno dello script del BL
+            var targets = bl.Edges.Where(e => e.SourceId == elenco.Id && e.Relation == "calls").Select(e => e.TargetId).ToList();
+            var external = bl.Symbols.Where(x => x.Kind == "external" && targets.Contains(x.Id) && x.Name.Contains("Elenco")).ToList();
+            if (external.Count > 0) return "external";
+            return targets.Single(t => !bl.Symbols.Any(x => x.Id == t && x.Kind == "external"));
+        }
+
+        [TestMethod]
+        public void Choose_between_two_projects_with_the_same_guid_by_the_solution_of_the_referencing_project()
+        {
+            // nessuna soluzione: non si sa quale, e si dice
+            var none = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy());
+            Assert.IsTrue(none.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("(.sln)")), "nessuna soluzione lo dice, e l'avviso lo spiega");
+            Assert.AreEqual("external", DlCalledByBl(none));
+            Cleanup(); Setup();
+
+            // la soluzione indica l'originale (il BL vi sta con un indirizzo, come i progetti web di Visual Studio 2003)
+            var original = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy(("Acme.sln", "Dl\\Dl.vbproj")));
+            Assert.IsTrue(original.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains(Path.Combine("vs2003", "Dl", "Dl.vbproj"))), "si dice quale e perché");
+            var dl = original.Scripts.Single(x => x.File.LogicalPath.EndsWith("vs2003/Dl/Dati.vb")).Script;
+            Assert.AreEqual(dl.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)").Id, DlCalledByBl(original), "BL → il DL della soluzione, non un esterno");
+            Cleanup(); Setup();
+
+            // la soluzione indica la copia
+            var copy = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy(("Acme.sln", "Dl\\Copia\\Dl.vbproj")));
+            Assert.IsTrue(copy.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains(Path.Combine("Dl", "Copia", "Dl.vbproj") + ","))
+                || copy.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains(Path.Combine("Dl", "Copia", "Dl.vbproj") + " ")));
+            var dlCopy = copy.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Copia/Dati.vb")).Script;
+            Assert.AreEqual(dlCopy.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)").Id, DlCalledByBl(copy), "BL → la copia, quella della soluzione");
+            Cleanup(); Setup();
+
+            // due soluzioni che dicono progetti diversi: non si sceglie
+            var both = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy(("A.sln", "Dl\\Dl.vbproj"), ("B.sln", "Dl\\Copia\\Dl.vbproj")));
+            Assert.IsTrue(both.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("A.sln") && x.Contains("B.sln")), "le due soluzioni si nominano");
+            Assert.AreEqual("external", DlCalledByBl(both));
+        }
+
         [TestMethod]
         public void Use_the_library_another_project_references_when_the_referenced_project_is_missing_and_say_so()
         {

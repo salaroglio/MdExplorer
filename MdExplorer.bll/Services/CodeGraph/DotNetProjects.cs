@@ -320,3 +320,36 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
     }
 }
+
+namespace MdExplorer.Features.Services.CodeGraph
+{
+    /// <summary>
+    /// Un file di soluzione di Visual Studio (<c>.sln</c>, 14/11/2026, dal cliente): i progetti che contiene, ciascuno con il
+    /// GUID e il percorso. Quando un GUID è di più file di progetto (una copia annidata del progetto con lo stesso GUID), la
+    /// soluzione che contiene chi riferisce dice quale dei due Visual Studio usa davvero.
+    /// </summary>
+    public static class VisualStudioSolution
+    {
+        private static readonly System.Text.RegularExpressions.Regex ProjectLine = new(
+            "^\\s*Project\\(\"\\{[^}]*\\}\"\\)\\s*=\\s*\"[^\"]*\"\\s*,\\s*\"(?<path>[^\"]+)\"\\s*,\\s*\"\\{(?<guid>[^}]+)\\}\"",
+            System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// I progetti della soluzione: GUID normalizzato e percorso intero del file di progetto, o null se nella soluzione è un
+        /// indirizzo (i progetti web di Visual Studio 2003, <c>http://localhost/…</c>): quello non si sa dove sia sul disco.
+        /// </summary>
+        public static List<(string Guid, string Path)> Read(string solutionFile)
+        {
+            var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(solutionFile));
+            var list = new List<(string, string)>();
+            foreach (System.Text.RegularExpressions.Match m in ProjectLine.Matches(File.ReadAllText(solutionFile)))
+            {
+                var path = m.Groups["path"].Value.Trim();
+                var full = path.Contains("://", StringComparison.Ordinal) ? null
+                    : System.IO.Path.GetFullPath(System.IO.Path.Combine(dir, path.Replace('\\', System.IO.Path.DirectorySeparatorChar)));
+                list.Add((DotNetProject.NormalGuid(m.Groups["guid"].Value), full));
+            }
+            return list;
+        }
+    }
+}
