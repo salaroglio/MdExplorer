@@ -598,6 +598,25 @@ namespace MdExplorer.Features.Services.CodeGraph
                     $"?h a {CodeOntology.ClassCallSite} ; code:caller ?m ; code:callee {Lit(RoslynExtractorBase.OwnEventCallee)} . " +
                     $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . }} }}", ct))
                     links.Add(new CodePageLink { SourceId = SymbolId(page), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(r, "bline"), Path = path });
+
+                // i metodi che la libreria chiama da sé (15/11/2026, dal cliente): Overrides Sub OnLoad, OnInit, Render…, e i
+                // membri di un'interfaccia di libreria. Lungo la catena delle classi base nel perimetro vale, per ogni metodo di
+                // libreria, la ridefinizione più vicina alla classe della pagina: è quella che gira (la base la chiama lei, se vuole)
+                var taken = new HashSet<string>(StringComparer.Ordinal);
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                for (var current = cls; current != null && seen.Add(current);)
+                {
+                    foreach (var h in await RowsAsync(
+                        $"SELECT DISTINCT ?m ?name ?lib WHERE {{ GRAPH {g.DataIri} {{ " +
+                        $"?h a {CodeOntology.ClassCallSite} ; code:caller ?m ; code:callee {Lit(RoslynExtractorBase.LibraryCallbackCallee)} . " +
+                        "?ha code:argumentOf ?h ; code:position 0 ; code:value ?lib . " +
+                        $"?m code:parent <{current}> ; code:kind \"method\" ; code:name ?name . }} }} ORDER BY ?lib ?m", ct))
+                        if (taken.Add(Str(h, "lib")))
+                            // Name = il metodo di libreria: due sovraccarichi nella stessa riga sono due archi certi, non due candidati
+                            links.Add(new CodePageLink { SourceId = SymbolId(page), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "lib"), Line = Count(r, "bline"), Path = path });
+                    var bases = await RowsAsync($"SELECT DISTINCT ?b WHERE {{ GRAPH {g.DataIri} {{ <{current}> code:inherits ?b . ?b code:kind \"class\" . }} }}", ct);
+                    current = bases.Count == 1 ? bases[0]["b"] : null;
+                }
             }
             return links;
         }

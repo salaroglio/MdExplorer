@@ -57,7 +57,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>21 = new esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</para>
         /// <para>22 = un progetto VB riferito (per GUID o percorso) si risolve: gli archi arrivano ai nodi del VB; fra due versioni di una libreria vale quella nel bin del progetto (15/11/2026, dal cliente).</para>
         /// </summary>
-        public override string ExtractorVersion => "22";
+        public override string ExtractorVersion => "23";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
@@ -70,7 +70,9 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         protected override Compilation Compile(string name, IReadOnlyList<SyntaxTree> trees, IReadOnlyList<MetadataReference> references, DotNetProject project)
             => CSharpCompilation.Create(name, trees, references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+                // il codice unsafe è sempre ammesso: qui si legge, non si produce un programma. Senza, un progetto con un blocco
+                // unsafe aveva errori e un progetto dell'altro linguaggio non poteva riferirlo (15/11/2026, dal cliente)
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable, allowUnsafe: true));
 
         /// <summary>Le classi, le interfacce, gli enum… e i <c>delegate</c> (13/11/2026: chi li usava puntava a un tipo mai dichiarato).</summary>
         protected override IEnumerable<SyntaxNode> TypeDeclarations(SyntaxNode root)

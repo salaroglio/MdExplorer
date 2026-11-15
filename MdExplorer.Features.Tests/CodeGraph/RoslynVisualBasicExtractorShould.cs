@@ -161,6 +161,39 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Follow_an_interface_call_to_the_overrides_and_mark_what_a_library_calls_by_itself()
+        {
+            // 15/11/2026, dal cliente: una chiamata per interfaccia si fermava all'implementazione virtuale della classe base;
+            // un metodo che ridefinisce un metodo di libreria (il ciclo di vita di una pagina) non aveva chi lo fa partire
+            File.WriteAllText(Path.Combine(_src, "Elenchi.vb"),
+                "Imports System.Collections.ObjectModel\n" +
+                "Namespace Demo\n" +
+                "  Public Interface IPasso\n    Sub Esegui()\n  End Interface\n" +
+                "  Public Class PassoBase\n    Implements IPasso\n    Public Overridable Sub Esegui() Implements IPasso.Esegui\n    End Sub\n  End Class\n" +
+                "  Public Class PassoVero\n    Inherits PassoBase\n    Public Overrides Sub Esegui()\n    End Sub\n  End Class\n" +
+                "  Public Class Usa\n    Public Sub Tutto(ByVal p As IPasso)\n      p.Esegui()\n    End Sub\n  End Class\n" +
+                "  Public Class Elenco\n    Inherits Collection(Of String)\n    Implements IDisposable\n" +
+                "    Protected Overrides Sub ClearItems()\n    End Sub\n" +
+                "    Public Overrides Function ToString() As String\n      Return \"\"\n    End Function\n" +
+                "    Public Sub Dispose() Implements IDisposable.Dispose\n    End Sub\n" +
+                "    Public Sub Altro()\n    End Sub\n  End Class\n" +
+                "End Namespace\n");
+
+            var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Elenchi.vb").Script;
+            string Of(string id) => s.Symbols.Single(x => x.Id == id).QualifiedName;
+            Assert.AreEqual("Demo.IPasso.Esegui():extracted | Demo.PassoBase.Esegui():inferred | Demo.PassoVero.Esegui():inferred",
+                string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && Of(e.SourceId) == "Demo.Usa.Tutto(Demo.IPasso)").Select(e => $"{Of(e.TargetId)}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal)));
+
+            var marked = s.CallSites.Where(c => c.Callee == RoslynExtractorBase.LibraryCallbackCallee)
+                .Select(c => Of(c.SourceId) + " <- " + string.Join(",", c.Arguments.Select(a => a.Value))).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            CollectionAssert.AreEqual(new[]
+            {
+                "Demo.Elenco.ClearItems() <- System.Collections.ObjectModel.Collection(OfT).ClearItems()",
+                "Demo.Elenco.Dispose() <- System.IDisposable.Dispose()",
+            }, marked, "ToString è di System.Object: lo chiama chiunque; Esegui è di un'interfaccia del perimetro");
+        }
+
+        [TestMethod]
         public void Keep_apart_fields_with_the_same_name_in_different_classes()
         {
             // 14/11/2026, dal cliente: ogni classe del data layer ha il suo campo Shared con lo stesso nome e il suo catalogo;
@@ -1026,7 +1059,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "                <File RelPath = \"Util.cs\" SubType = \"Code\" BuildAction = \"Compile\" />\n            </Include>\n        </Files>\n    </CSHARP>\n</VisualStudioProject>\n");
             File.WriteAllText(Path.Combine(root, "Cs", "Util.cs"),
                 "namespace Acme.Cs {\n  public class Util {\n    public Util(int n) { }\n" +
-                "    public static bool Fai(string nome) { return new Acme.Dl.Ordini().Segna(); }\n  }\n}\n");
+                "    public static bool Fai(string nome) { return new Acme.Dl.Ordini().Segna(); }\n" +
+                // codice unsafe senza l'opzione nel progetto (15/11/2026, dal cliente): due errori, e il progetto non si poteva riferire
+                "    public static unsafe int Punta(int* p) { return *p; }\n  }\n}\n");
             // il BL (VB) riferisce il progetto C# per GUID e lo usa
             var bl = Path.Combine(root, "Bl", "Bl.vbproj");
             File.WriteAllText(bl, File.ReadAllText(bl).Replace("            </References>",

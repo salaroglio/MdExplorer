@@ -210,5 +210,62 @@ template:
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }
+        [TestMethod]
+        public async Task Start_from_the_page_the_methods_a_library_calls_by_itself_the_nearest_redefinition_first()
+        {
+            // 15/11/2026, dal cliente: «Overrides Sub OnLoad» di una pagina non aveva chi lo fa partire, e il codice che
+            // chiama risultava non raggiunto. Lo chiama la libreria della classe base, quindi parte dalla pagina; se lo
+            // ridefinisce anche una classe base del perimetro, gira la ridefinizione più vicina alla pagina
+            var store = FusekiFixture.NewStore();
+            var root = Path.Combine(Path.GetTempPath(), "mde-codebehind-tests", Guid.NewGuid().ToString("N"));
+            var project = Path.Combine(root, "project");
+            try
+            {
+                var web = Path.Combine(project, "web");
+                Directory.CreateDirectory(web);
+                var package = Path.Combine(DeclarativeLanguage.FolderOf(project), "pagine");
+                Directory.CreateDirectory(package);
+                File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Dialect);
+                File.WriteAllText(Path.Combine(web, "Listino.pag"), "<%@ Page Language=\"vb\" AutoEventWireup=\"false\" Inherits=\"Demo.Listino\" %>\n");
+                File.WriteAllText(Path.Combine(web, "Listino.pag.vb"),
+                    "Imports System.Collections.ObjectModel\n" +
+                    "Namespace Demo\n" +
+                    "  Public Class PaginaBase\n    Inherits Collection(Of String)\n" +
+                    "    Protected Overrides Sub ClearItems()\n    End Sub\n" +
+                    "    Protected Overrides Sub InsertItem(ByVal index As Integer, ByVal item As String)\n    End Sub\n  End Class\n" +
+                    "  Public Class Listino\n    Inherits PaginaBase\n    Implements IDisposable\n" +
+                    "    Protected Overrides Sub InsertItem(ByVal index As Integer, ByVal item As String)\n    End Sub\n" +
+                    "    Public Overrides Function ToString() As String\n      Return \"\"\n    End Function\n" +
+                    "    Public Sub Dispose() Implements IDisposable.Dispose\n    End Sub\n" +
+                    "    Public Sub Altro()\n    End Sub\n  End Class\n" +
+                    "End Namespace\n");
+                void Emit(ICodeExtractor extractor, string pattern)
+                {
+                    var files = Directory.GetFiles(web, pattern).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(project, f))).ToList();
+                    foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = project, AllFiles = files, FilesToEmit = files }).Scripts)
+                    {
+                        var path = CodeScriptWriter.ScriptPathFor(project, file.LogicalPath, CodeScriptKind.Ast);
+                        Directory.CreateDirectory(Path.GetDirectoryName(path));
+                        File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                    }
+                }
+                Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), "*.vb");
+                Emit(new TemplatePageExtractor(CodeLanguageCatalog.ForProject(project).ById("pagine").Definition), "*.pag");
+                var load = await store.LoadProjectAsync(project);
+                Assert.AreEqual(0, load.Failed, load.FirstError);
+                await new CodeRuleService(store, NullLogger<CodeRuleService>.Instance).ApplyPageScriptsAsync(project, new[] { "pagine" });
+
+                var page = (await store.ResolveAsync(project, "web/Listino.pag")).Single(x => x.Kind == "module").Id;
+                var started = (await store.NeighborsAsync(project, page, "calls", "out", 1, 20))
+                    .Select(e => e.Other.QualifiedName + ":" + e.Confidence).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+                CollectionAssert.AreEqual(new[]
+                {
+                    "Demo.Listino.Dispose():extracted",
+                    "Demo.Listino.InsertItem(Integer, String):extracted",
+                    "Demo.PaginaBase.ClearItems():extracted",
+                }, started, "non PaginaBase.InsertItem (ridefinito più sotto), non ToString (di System.Object), non Altro");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
     }
 }

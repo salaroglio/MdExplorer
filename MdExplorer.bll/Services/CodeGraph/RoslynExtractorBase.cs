@@ -571,6 +571,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         protected abstract bool IsRaise(SyntaxNode node, out SyntaxNode eventNode);
         /// <summary>Il punto di chiamata di un gestore di un evento della classe stessa (<see cref="OwnEventReceiver"/>).</summary>
         public const string OwnEventCallee = "handles";
+        /// <summary>
+        /// Il punto di chiamata di un metodo che una libreria chiama da sé (15/11/2026, dal cliente): ridefinisce un metodo
+        /// virtuale dichiarato fuori dal perimetro (<c>Overrides Sub OnLoad</c> di una pagina) o implementa il membro di
+        /// un'interfaccia di libreria. Il primo argomento è il metodo di libreria, con la firma. I metodi di
+        /// <c>System.Object</c> non contano: li chiama chiunque, non la libreria della classe base.
+        /// </summary>
+        public const string LibraryCallbackCallee = "library-calls";
 
         /// <summary>Un gestore agganciato a un evento nel codice: <c>AddHandler x.Click, AddressOf H</c>, <c>x.Click += H</c>.</summary>
         protected abstract bool IsSubscription(SyntaxNode node, out SyntaxNode eventNode, out SyntaxNode handlerNode, out bool certain);
@@ -814,6 +821,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                                     // un evento della classe stessa (Handles MyBase.Load): chi usa la classe (la pagina) lo solleva
                                     else if (OwnEventReceiver(handled) is { } own) ctx.OwnEventHandler(id, own, handled.ToString(), Line(handled));
                                 }
+                                if (IsPlainMethod(m))
+                                    foreach (var callback in ctx.LibraryCallbacks(m)) ctx.LibraryCallback(id, callback, Line(decl));
                                 if (IsPlainMethod(m)) ctx.Reference(id, m.ReturnType, Line(decl));
                                 var pos = 0;
                                 foreach (var p in m.Parameters)
@@ -1773,6 +1782,35 @@ namespace MdExplorer.Features.Services.CodeGraph
             public void OwnEventHandler(string handlerId, string receiver, string eventName, int line)
                 => _callSites.Add(handlerId, line, OwnEventCallee, receiver, new[] { eventName }, always: true);
 
+            /// <summary>I metodi di libreria che questo metodo ridefinisce o implementa (<see cref="LibraryCallbackCallee"/>).</summary>
+            public IEnumerable<IMethodSymbol> LibraryCallbacks(IMethodSymbol m)
+            {
+                var found = new List<IMethodSymbol>();
+                if (m.IsOverride)
+                {
+                    var root = m;
+                    while (root.OverriddenMethod != null) root = root.OverriddenMethod;
+                    if (!_perimeter.IsInPerimeter(root) && root.ContainingType?.SpecialType is not (SpecialType.System_Object or SpecialType.System_ValueType)) found.Add(root);
+                }
+                foreach (var explicitMember in m.ExplicitInterfaceImplementations)
+                    if (!_perimeter.IsInPerimeter(explicitMember)) found.Add(explicitMember);
+                if (m.ExplicitInterfaceImplementations.Length == 0 && m.ContainingType is { } type && !m.IsStatic)
+                    foreach (var iface in type.AllInterfaces.Where(i => !_perimeter.IsInPerimeter(i)))
+                        foreach (var member in iface.GetMembers(m.Name).OfType<IMethodSymbol>())
+                            if (SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member)?.OriginalDefinition, m.OriginalDefinition)) found.Add(member);
+                return found.Select(f => f.OriginalDefinition).Distinct<IMethodSymbol>(SymbolEqualityComparer.Default);
+            }
+
+            public void LibraryCallback(string methodId, IMethodSymbol libraryMethod, int line)
+            {
+                // il valore di un punto di chiamata non ha spazi e ha una lunghezza massima: una firma più lunga si accorcia con
+                // la sua impronta, così resta una chiave diversa per ogni metodo di libreria
+                var key = string.Concat(Qualified(libraryMethod).Where(ch => !char.IsWhiteSpace(ch) && !char.IsControl(ch)));
+                if (key.Length > CodeCallSites.MaxValueLength)
+                    key = key[..(CodeCallSites.MaxValueLength - 17)] + "#" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+                _callSites.Add(methodId, line, LibraryCallbackCallee, null, new[] { key }, always: true);
+            }
+
             public void ControlHandler(SyntaxNode containerNode, string handlerId, int line)
             {
                 if (_model.GetSymbolInfo(containerNode).Symbol is { } control and (IPropertySymbol or IFieldSymbol) && _perimeter.IsInPerimeter(control))
@@ -1890,7 +1928,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (target.IsImplicitlyDeclared && _perimeter.IsInPerimeter(target)) return;
                 Edge(ownerId, IdOf(target), "calls", "extracted", line);
                 if (target.ContainingType?.TypeKind == TypeKind.Interface)
-                    foreach (var impl in _perimeter.ImplementationsOf(target)) Edge(ownerId, IdOf(impl), "calls", "inferred", line);
+                    foreach (var impl in _perimeter.ImplementationsOf(target))
+                    {
+                        Edge(ownerId, IdOf(impl), "calls", "inferred", line);
+                        // l'implementazione può essere virtuale e ridefinita più sotto: chi chiama per interfaccia arriva anche lì
+                        // (15/11/2026, dal cliente: il cammino si fermava alla classe base)
+                        if (impl is IMethodSymbol virtualImpl)
+                            foreach (var o in _perimeter.OverridesOf(virtualImpl)) Edge(ownerId, IdOf(o.OriginalDefinition), "calls", "inferred", line);
+                    }
                 else if (virtualDispatch)
                     foreach (var o in _perimeter.OverridesOf(target)) Edge(ownerId, IdOf(o.OriginalDefinition), "calls", "inferred", line);
             }

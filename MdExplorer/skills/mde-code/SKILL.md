@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 35
+  version: 36
   updatePolicy: replace
 ---
 
@@ -233,7 +233,9 @@ three navigation questions of `code_query` — one call each, exact counts, no S
 - `who-reaches` (`symbol`: a table — an external node, find it with `code_find_symbol` — a catalog query, a procedure or a
   method): the entry points (page controls, page modules, framework-called methods) that reach it, each with its chain.
 - `reachability` (`to`: the layer's folder, `from`: the pages' folder): how many methods and queries of the layer the pages
-  reach — a page runs its controls, its life-cycle events (`Page_Load`…) and its includes — and for the others why —
+  reach — a page runs its controls, its life-cycle events (`Page_Load`…), the methods of its class that redefine a
+  library method (`Overrides Sub OnLoad`, `OnInit`, `Render`… — the nearest redefinition along its base classes) or
+  implement a library interface, and its includes — and for the others why —
   `no-callers` or `callers-not-reached` (with an example caller).
 
 A chain is a shortest path, not the only one. A `weakest` of `inferred`/`ambiguous` means at least one step was deduced:
@@ -251,13 +253,15 @@ Work in three steps, each a `code_query` call:
      `data-only-through-ambiguous`, `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
      missing project or library — a GAP of the graph), `stops-at-library` (the roads that leave the graph end on resolved
      library members), `no-data-in-graph` (nothing leaves the graph and nothing touches data). `topUnresolvedNames` and
-     `topLibraryStops` name the externals that stop the most entries without data (an entry can stop at several: the
-     numbers do not add up).
+     `topLibraryStops` name the externals that stop the most entries without data. They count the entries of BOTH
+     `stops-at-…` outcomes that touch that external, and an entry can touch several: the numbers do not add up, and one
+     name can count more entries than `stops-at-unresolved-name` alone.
    - `unreached-code` (`to`: the layer's folder, `from`: the pages' folder): the methods, constructors and queries the
      pages do not reach, by cause — `no-callers`, `started-by-other-pages`, `started-by-external` (the road starts at a
      framework event or a library callback), `started-by-uncalled-code`, `only-in-a-cycle` — by kind and by folder.
-2. **Sample** — only for the outcome or cause you need to check: the same question with `sample` (cases per group) and
-   `outcome` / `cause`. The cases are the same for the same `seed`: write the seed in your report, so the sample can be
+2. **Sample** — only for the outcome or cause you need to check: the same question with `sample` and `outcome` /
+   `cause`. `sample` is the number of cases PER outcome or cause: `sample=10` without a filter returns up to 10 cases for
+   each of them, not 10 in all. The cases are the same for the same `seed`: write the seed in your report, so the sample can be
    checked again in another session. The counts in the answer stay those of ALL the cases, not of the sample.
 3. **One case** — `data-reach` or `who-reaches` on a sampled case, and the source at the `path:line` of its chain.
 
