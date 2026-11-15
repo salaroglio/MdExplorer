@@ -24,6 +24,7 @@ namespace MdExplorer.IntegrationTests
         {
             public IReadOnlyList<CodeNavEdge> Edges;
             public List<(string Id, string Kind, string Name, string Path)> Symbols;
+            public List<string> WithoutClass = new();
 
             protected override object Invoke(MethodInfo method, object[] args) => method.Name switch
             {
@@ -31,6 +32,7 @@ namespace MdExplorer.IntegrationTests
                 nameof(ICodeGraphStore.SymbolsOfKindsAsync) => Task.FromResult(Symbols
                     .Where(s => ((IReadOnlyCollection<string>)args[1]).Contains(s.Kind)
                         && (args[2] is not IReadOnlyCollection<string> prefixes || prefixes.Any(p => s.Path.StartsWith(p, StringComparison.Ordinal)))).ToList()),
+                nameof(ICodeGraphStore.PagesWithoutClassAsync) => Task.FromResult(WithoutClass),
                 _ => throw new NotSupportedException(method.Name),
             };
         }
@@ -65,6 +67,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(2, counts.GetProperty("total").GetInt32());
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("data").GetInt32());
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("stops-at-unresolved-name").GetInt32());
+            Assert.AreEqual(0, counts.GetProperty("byOutcome").GetProperty("page-class-not-in-graph").GetInt32());
             Assert.AreEqual(JsonValueKind.Null, counts.GetProperty("samples").ValueKind, "senza sample: solo conti");
             Assert.AreEqual("Sicurezza.Verifica", counts.GetProperty("topUnresolvedNames")[0].GetProperty("Symbol").GetString());
             Assert.AreEqual((1, 0), (counts.GetProperty("unresolvedNames").GetInt32(), counts.GetProperty("libraryStops").GetInt32()));

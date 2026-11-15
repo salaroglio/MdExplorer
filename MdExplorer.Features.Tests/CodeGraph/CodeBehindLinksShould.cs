@@ -227,6 +227,7 @@ template:
                 Directory.CreateDirectory(package);
                 File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Dialect);
                 File.WriteAllText(Path.Combine(web, "Listino.pag"), "<%@ Page Language=\"vb\" AutoEventWireup=\"false\" Inherits=\"Demo.Listino\" %>\n");
+                File.WriteAllText(Path.Combine(web, "Orfana.pag"), "<%@ Page Language=\"vb\" AutoEventWireup=\"false\" Inherits=\"Demo.NonCompilata\" %>\n");
                 File.WriteAllText(Path.Combine(web, "Listino.pag.vb"),
                     "Imports System.Collections.ObjectModel\n" +
                     "Namespace Demo\n" +
@@ -268,6 +269,11 @@ template:
                     "Demo.PaginaBase.ClearItems():extracted",
                 }, started, "non PaginaBase.InsertItem (ridefinito più sotto), non ToString (di System.Object), non Altro; il gestore " +
                     "«Handles MyBase.Load» della classe base gira anche per la pagina che eredita");
+
+                // la pagina che dichiara una classe che nel grafo non c'è (code-behind escluso dalla compilazione): si sa quale è
+                var orphan = (await store.ResolveAsync(project, "web/Orfana.pag")).Single(x => x.Kind == "module").Id;
+                CollectionAssert.AreEqual(new[] { orphan }, await store.PagesWithoutClassAsync(project, "web/"));
+                Assert.AreEqual(0, (await store.PagesWithoutClassAsync(project, "altro/")).Count);
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

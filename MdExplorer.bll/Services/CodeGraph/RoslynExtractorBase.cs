@@ -326,9 +326,20 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}."));
                         }
                         else
+                        {
+                            // 15/11/2026, dal cliente: due copie con sorgenti diversi e nessuna soluzione che dica quale. Non si
+                            // sceglie una copia; i nomi si risolvono con la libreria compilata (quella nel bin di chi riferisce,
+                            // se ce n'è più d'una), come per un progetto che manca. I cammini non entrano nei sorgenti delle copie
+                            var lib = BorrowLibrary(name, g, groups, librariesOnDisk, out _, out _);
+                            if (lib != null) Add(borrowed, g, lib);
+                            var (endIt, endEn) = lib != null
+                                ? ($"si usa la libreria compilata {lib}: i nomi si risolvono, ma i cammini si fermano lì senza entrare nei sorgenti del progetto.",
+                                   $"the compiled library {lib} is used: the names resolve, but the roads stop there without entering the project's sources.")
+                                : ("ciò che ne usa resta un nome non risolto.", "what uses it stays an unresolved name.");
                             warnings.Add(CodeWarnings.ProjectAmbiguous, UiText.Say(
-                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale{(picked.Count > 1 ? $" (le soluzioni {string.Join(", ", from.Select(Path.GetFileName))} ne indicano di diversi)" : ", e nessuna soluzione (.sln) che contiene il progetto lo dice")}, ciò che ne usa resta un nome non risolto.",
-                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown{(picked.Count > 1 ? $" (the solutions {string.Join(", ", from.Select(Path.GetFileName))} point to different ones)" : ", and no solution (.sln) containing the project says")}, what uses it stays an unresolved name."));
+                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale{(picked.Count > 1 ? $" (le soluzioni {string.Join(", ", from.Select(Path.GetFileName))} ne indicano di diversi)" : ", e nessuna soluzione (.sln) che contiene il progetto lo dice")}; {endIt}",
+                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown{(picked.Count > 1 ? $" (the solutions {string.Join(", ", from.Select(Path.GetFileName))} point to different ones)" : ", and no solution (.sln) containing the project says")}; {endEn}"));
+                        }
                     }
                     else if (found[0] != g && !list.Contains(found[0])) list.Add(found[0]);
                 }

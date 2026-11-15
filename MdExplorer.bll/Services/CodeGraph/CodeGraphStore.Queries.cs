@@ -419,6 +419,17 @@ namespace MdExplorer.Features.Services.CodeGraph
             return rows.Select(r => { var id = SymbolId(r["s"]); return (id, Str(r, "kind"), Str(r, "qn") ?? id, Str(r, "path")); }).ToList();
         }
 
+        public async Task<List<string>> PagesWithoutClassAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var under = string.IsNullOrEmpty(pathPrefix) ? string.Empty : $"FILTER(STRSTARTS(?path, {Lit(pathPrefix)})) ";
+            var rows = await RowsAsync(
+                $"SELECT DISTINCT ?page WHERE {{ GRAPH {g.DataIri} {{ ?c a {CodeOntology.ClassCallSite} ; code:caller ?page ; code:callee \"codebehind\" . " +
+                $"?page code:kind \"module\" ; code:path ?path . {under}" +
+                "FILTER NOT EXISTS { ?e a code:Edge ; code:target ?page ; code:relation \"renders\" } } }", ct);
+            return rows.Select(r => SymbolId(r["page"])).ToList();
+        }
+
         public Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default)
             => SymbolsByIdsAsync(GraphsOf(projectPath), ids, ct);
 

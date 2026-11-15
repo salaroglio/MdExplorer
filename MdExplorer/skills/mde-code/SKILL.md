@@ -251,7 +251,10 @@ Work in three steps, each a `code_query` call:
 
 1. **Aggregate** — counts only, always complete:
    - `pages-to-data` (`from`: the pages' folder; `unit`: `page` or `control`): how many reach a table, by outcome — `data`,
-     `data-only-through-ambiguous`, `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
+     `data-only-through-ambiguous`, `page-class-not-in-graph` (the page declares a code-behind class that is not in the
+     graph: its file is excluded from the project's compilation, see the `files-not-compiled` warnings, or is not among
+     the sources — code the project does not build, neither a gap of the graph nor a page without data),
+     `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
      missing project or library — a GAP of the graph), `stops-at-library` (the roads that leave the graph end on resolved
      library members), `no-data-in-graph` (nothing leaves the graph and nothing touches data). `topUnresolvedNames` and
      `topLibraryStops` name the externals that stop the most entries without data. They count the entries of BOTH

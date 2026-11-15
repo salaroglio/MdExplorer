@@ -149,6 +149,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             ["pa"] = ("module", "admin/Gestione.aspx", "admin/Gestione.aspx"), ["ha"] = ("method", "Admin.Gestione.Page_Load()", "admin/Gestione.aspx.vb"),
             ["dlAdmin"] = ("method", "Dl.Ordini.Azzera()", "dl/Ordini.vb"),
             ["c1"] = ("method", "Dl.Giro.Uno()", "dl/Giro.vb"), ["c2"] = ("method", "Dl.Giro.Due()", "dl/Giro.vb"),
+            // una pagina che senza la sua classe non esegue niente: nessun arco
+            ["p6"] = ("module", "web/Vuota.aspx", "web/Vuota.aspx"),
         };
 
         private static (string Kind, string Name, string Path) Node(string id) => N.TryGetValue(id, out var n) ? n : Q[id];
@@ -188,7 +190,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var r = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10);
 
             Assert.AreEqual(("page", 5), (r.Unit, r.Total), "le cinque pagine di web/; quella di admin/ è fuori");
-            Assert.AreEqual("data=1, data-only-through-ambiguous=1, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
+            Assert.AreEqual("data=1, data-only-through-ambiguous=1, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={r.ByOutcome[o]}")));
             Assert.AreEqual(0, r.Samples.Count, "senza sample: solo conti");
             Assert.AreEqual(("Sicurezza.Verifica:1", "log4net.ILog.Info:1"),
@@ -203,6 +205,13 @@ namespace MdExplorer.Features.Tests.CodeGraph
             CollectionAssert.AreEqual(new[] { "Web.Login.Page_Load()", "Sicurezza.Verifica" }, login.Chain.Select(c => c.Symbol).ToArray(), "la catena fino all'esterno");
             Assert.AreEqual("web/Login.aspx.vb:7", login.Chain[1].At);
             Assert.AreEqual(5, sampled.Total, "i conti restano di tutti, non del campione");
+
+            // 15/11/2026, dal cliente: pagine con il code-behind escluso dalla compilazione. Non sono buchi del grafo né pagine
+            // che non toccano dati: hanno il loro esito, e si contano anche quando senza la classe non eseguono niente
+            var classless = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10, new[] { "page", "p5", "p6" });
+            Assert.AreEqual(6, classless.Total, "entra anche la pagina senza archi");
+            Assert.AreEqual("data=1, data-only-through-ambiguous=1, page-class-not-in-graph=2, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=0",
+                string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={classless.ByOutcome[o]}")), "chi arriva ai dati per un'altra strada resta «data»");
         }
 
         [TestMethod]

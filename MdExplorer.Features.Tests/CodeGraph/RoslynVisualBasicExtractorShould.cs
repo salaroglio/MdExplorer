@@ -932,6 +932,23 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(CodeWarnings.ProjectAmbiguous, none.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("(.sln)")).Kind);
             Assert.AreEqual(CodeWarnings.ProjectMissing, none.Warnings.Typed.Single(x => x.Text.Contains("Mancante")).Kind);
             Assert.AreEqual("external", DlCalledByBl(none));
+            StringAssert.Contains(none.Warnings.Single(x => x.StartsWith("Bl.vbproj") && x.Contains("(.sln)")), "unresolved name");
+            Cleanup(); Setup();
+
+            // 15/11/2026, dal cliente: due copie con sorgenti diversi e nessuna soluzione. Non si sceglie una copia: se chi
+            // riferisce ha la libreria compilata nel suo bin, i nomi si risolvono con quella, e l'avviso resta e lo dice
+            var withLibrary = WriteVs2003SolutionWithNestedCopy();
+            Directory.CreateDirectory(Path.Combine(withLibrary, "Bl", "bin"));
+            var platform = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")).Split(Path.PathSeparator).Select(x => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(x));
+            var compiled = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Acme.Dl",
+                new[] { Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("namespace Acme.Dl { public class Ordini { public bool Segna() { return true; } } }") }, platform,
+                new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+            using (var dll = File.Create(Path.Combine(withLibrary, "Bl", "bin", "Acme.Dl.dll"))) Assert.IsTrue(compiled.Emit(dll).Success);
+            var borrowed = ExtractWithoutNetFramework(withLibrary);
+            var said = borrowed.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("(.sln)"));
+            Assert.AreEqual(CodeWarnings.ProjectAmbiguous, said.Kind, "resta un riferimento ambiguo: nessuna copia è stata scelta");
+            StringAssert.Contains(said.Text, Path.Combine("Bl", "bin", "Acme.Dl.dll"));
+            Assert.AreEqual("external", DlCalledByBl(borrowed), "il cammino non entra nei sorgenti di nessuna delle due copie");
             Cleanup(); Setup();
 
             // la soluzione indica l'originale (il BL vi sta con un indirizzo, come i progetti web di Visual Studio 2003)

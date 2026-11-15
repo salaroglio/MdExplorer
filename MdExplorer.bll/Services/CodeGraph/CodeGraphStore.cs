@@ -92,6 +92,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>I simboli (non esterni) con uno di questi tipi e il file sotto uno dei prefissi (null = ovunque): id, tipo, nome qualificato, file.</summary>
         Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds, IReadOnlyCollection<string> pathPrefixes, CancellationToken ct = default);
+        /// <summary>Le pagine che dichiarano una classe di code-behind (chiamata <c>codebehind</c>) che nessuna classe del grafo «renders».</summary>
+        Task<List<string>> PagesWithoutClassAsync(string projectPath, string pathPrefix, CancellationToken ct = default);
         /// <summary>
         /// Le classi (e i tipi) il cui nome qualificato o semplice è una delle chiavi, ciascuna con i suoi metodi e
         /// funzioni: dove una regola di arricchimento cerca il metodo nominato da una stringa (D42).

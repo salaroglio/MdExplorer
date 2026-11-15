@@ -296,7 +296,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string OutcomeUnresolved = "stops-at-unresolved-name";
         public const string OutcomeLibrary = "stops-at-library";
         public const string OutcomeNoData = "no-data-in-graph";
-        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataAmbiguous, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
+        public const string OutcomeNoClass = "page-class-not-in-graph";
+        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataAmbiguous, OutcomeNoClass, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
 
         public sealed record EntrySample(string Symbol, string Kind, string Path, string Outcome, int Tables, int ExternalStops, int LeafStops, List<CodeNavStep> Chain);
         public sealed record ExternalBlock(string Symbol, int Entries);
@@ -308,6 +309,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <list type="bullet">
         /// <item><c>data</c>: arriva ad almeno una tabella senza attraversare archi ambigui;</item>
         /// <item><c>data-only-through-ambiguous</c>: ci arriva solo seguendo almeno un arco ambiguo;</item>
+        /// <item><c>page-class-not-in-graph</c> (15/11/2026, dal cliente): nessuna tabella, e la pagina dichiara una classe di
+        /// code-behind che nel grafo non c'è (il file è escluso dalla compilazione del progetto, o non è fra i sorgenti): il
+        /// suo codice non si legge, quindi non è un buco del grafo né una pagina che non tocca dati. Vi entrano anche le
+        /// pagine che senza la classe non eseguono niente;</item>
         /// <item><c>stops-at-unresolved-name</c>: nessuna tabella, e almeno una strada finisce su un nome che il compilatore non
         /// ha risolto (arco ambiguo verso un esterno: un progetto o una libreria che mancano): un buco del grafo;</item>
         /// <item><c>stops-at-library</c>: nessuna tabella, e le strade che escono dal grafo finiscono su membri risolti di una
@@ -319,13 +324,17 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// elenchi: i nomi non risolti e le librerie. Il
         /// campione, per esito, porta i numeri del caso e una catena: alla tabella più vicina, o all'esterno più vicino.
         /// </summary>
+        /// <param name="withoutClass">Le pagine che dichiarano una classe di code-behind che nel grafo non c'è; null = nessuna.</param>
         public static EntriesToData EntriesToTables(Graph g, IReadOnlyCollection<(string Id, string Kind, string Name, string Path)> symbols, string fromPrefix, string unit,
-            string onlyOutcome, int sample, string seed, int top)
+            string onlyOutcome, int sample, string seed, int top, IReadOnlyCollection<string> withoutClass = null)
         {
             symbols = OnePerNode(symbols, fromPrefix);
+            var noClass = new HashSet<string>(withoutClass ?? Array.Empty<string>(), StringComparer.Ordinal);
             var entries = unit == "control"
                 ? symbols.Where(s => s.Kind == "control" && Under(s.Path, fromPrefix)).Select(s => s.Id).ToList()
-                : Pages(g, symbols, fromPrefix);
+                // anche le pagine che senza la loro classe non eseguono niente: sono pagine, e si contano
+                : Pages(g, symbols, fromPrefix).Concat(symbols.Where(s => s.Kind == "module" && Under(s.Path, fromPrefix) && noClass.Contains(s.Id)).Select(s => s.Id))
+                    .Distinct(StringComparer.Ordinal).ToList();
             var info = symbols.ToDictionary(s => s.Id, s => s, StringComparer.Ordinal);
 
             // tre visite all'indietro, una volta sola: da chi ha l'SQL (senza e con gli archi ambigui) e dagli esterni dove ci si ferma
@@ -342,6 +351,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var unresolvedNodes = g.In.Where(kv => IsStop(kv.Key) && kv.Value.Any(e => Flow.Contains(e.Relation) && e.Confidence == "ambiguous")).Select(kv => kv.Key).ToHashSet(StringComparer.Ordinal);
 
             string OutcomeOf(string id) => sure.Contains(id) ? OutcomeData : any.Contains(id) ? OutcomeDataAmbiguous
+                : noClass.Contains(id) ? OutcomeNoClass
                 : toUnresolved.Contains(id) ? OutcomeUnresolved : toLibrary.Contains(id) ? OutcomeLibrary : OutcomeNoData;
             var outcome = entries.ToDictionary(id => id, OutcomeOf, StringComparer.Ordinal);
             var byOutcome = Outcomes.ToDictionary(o => o, o => outcome.Count(x => x.Value == o), StringComparer.Ordinal);

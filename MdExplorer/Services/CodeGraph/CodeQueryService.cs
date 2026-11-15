@@ -210,7 +210,8 @@ namespace MdExplorer.Services.CodeGraph
         {
             var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
             var symbols = await _store.SymbolsOfKindsAsync(projectPath, new[] { "module", "control" }, from == null ? null : new[] { from }, ct);
-            var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top);
+            var withoutClass = await _store.PagesWithoutClassAsync(projectPath, from, ct);
+            var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top, withoutClass);
             return new
             {
                 from, unit = r.Unit, total = r.Total, byOutcome = r.ByOutcome,
