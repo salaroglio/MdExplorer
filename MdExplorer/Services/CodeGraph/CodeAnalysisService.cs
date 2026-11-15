@@ -764,6 +764,30 @@ namespace MdExplorer.Services.CodeGraph
                 var written = new List<string>();
                 var renames = new Dictionary<string, string>(StringComparer.Ordinal);
                 var declared = new List<CodeDeclarations>();
+                // ogni linguaggio si estrae una volta sola per analisi: un linguaggio che punta ai simboli di un altro (VB ↔ C#)
+                // ha bisogno di sapere quali file li dichiarano PRIMA di scrivere i suoi script (15/11/2026, dal cliente)
+                var extractions = new Dictionary<string, (CodeExtractionResult Result, CodeDeclarations Declarations)>(StringComparer.OrdinalIgnoreCase);
+                async Task<(CodeExtractionResult Result, CodeDeclarations Declarations)?> ExtractLanguageAsync(string id)
+                {
+                    if (extractions.TryGetValue(id, out var done)) return done;
+                    var l = catalog.Require(id);
+                    var x = extractors.Get(l.Id);
+                    if (x == null) return null;
+                    var files = inPerimeter.Where(f => catalog.LanguageOf(f) == l.Id).ToList();
+                    var resolveWith = bridgeSet.Files.TryGetValue(l.Id, out var bridged) ? files.Concat(bridged).ToList() : files;
+                    // G4: l'estrattore legge tutti i file del programma; per una radice remota arrivano ora dal server
+                    if (remote != null) await remote.LoadAsync(files, ct);
+                    // G4 (27/10/2026): l'id di un simbolo viene dal file che lo dichiara, quindi l'estrattore emette TUTTI i file
+                    // (del programma e dei ponti) per sapere chi dichiara che cosa; su disco va solo ciò che è cambiato.
+                    var result = x.Extract(new CodeExtractionRequest
+                    {
+                        ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings, Sources = remote?.Sources,
+                        Progress = (step, n, total) => Step(progress, step == CodeExtractionRequest.ReadStep ? "reading" : "extracting", l.DisplayName, n, total),
+                    }, ct);
+                    var known = new CodeDeclarations();
+                    foreach (var (file, script) in result.Scripts) known.Add(file.LogicalPath, script);
+                    return extractions[id] = (result, known);
+                }
                 foreach (var languageId in languages)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -796,20 +820,16 @@ namespace MdExplorer.Services.CodeGraph
                             CrossLink(projectPath, lang, new List<(string, CodeScript)>(), new HashSet<string>(StringComparer.Ordinal), written, outcome, orphanSources);
                         continue;
                     }
-                    var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
-                    // G4: l'estrattore legge tutti i file del programma; per una radice remota arrivano ora dal server
-                    if (remote != null) await remote.LoadAsync(all, ct);
-                    // G4 (27/10/2026): l'id di un simbolo viene dal file che lo dichiara, quindi l'estrattore emette TUTTI i file
-                    // (del programma e dei ponti) per sapere chi dichiara che cosa; su disco va solo ciò che è cambiato.
-                    var extracted = extractor.Extract(new CodeExtractionRequest
-                    {
-                        ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = resolveWith, ExtensionEncodings = scope.Encodings, Sources = remote?.Sources,
-                        Progress = (step, done, total) => Step(progress, step == CodeExtractionRequest.ReadStep ? "reading" : "extracting", lang.DisplayName, done, total),
-                    }, ct);
+                    var (extracted, declarations) = (await ExtractLanguageAsync(lang.Id)).Value;
                     outcome.Warnings.AddRange(extracted.Warnings);
-                    var declarations = new CodeDeclarations();
-                    foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
                     declared.Add(declarations);
+                    // i linguaggi a cui questi script puntano, estratti anche loro (se sono fra quelli del programma)
+                    var elsewhere = new List<CodeDeclarations>();
+                    foreach (var other in extracted.ForeignDeclarations.Values.Select(v => v.Language).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.Ordinal))
+                        if (languages.Contains(other, StringComparer.OrdinalIgnoreCase) && !string.Equals(other, lang.Id, StringComparison.OrdinalIgnoreCase)
+                            && await ExtractLanguageAsync(other) is { } foreignExtraction)
+                            elsewhere.Add(foreignExtraction.Declarations);
+                    var foreign = ForeignIds(projectPath, extracted, elsewhere);
                     var shared = declarations.Shared;
                     if (shared.Count > 0)
                     {
@@ -833,7 +853,7 @@ namespace MdExplorer.Services.CodeGraph
                         // non cambiato e di un'altra versione, fuori da questa analisi (all'apertura): resta com'è, è già contato
                         if (!fromSource && (onDisk == null || onDisk.Extractor != extractor.ExtractorName || onDisk.ExtractorVersion != emitter)) { untouched.Add(file.LogicalPath); continue; }
                         var legacy = onDisk != null && onDisk.Schema == CodeScriptParser.CurrentSchema && CodeFileScope.IsLegacy(onDisk.ExtractorVersion) ? folderRelative : null;
-                        outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames);
+                        outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, legacy, renames, foreign);
                         pending.Add((file, script, scriptPath, onDisk, fromSource));
                     }
                     if (CrossLinkable(lang) && (pending.Count > 0 || orphanLanguages.Contains(lang.Id)))
@@ -1169,11 +1189,12 @@ namespace MdExplorer.Services.CodeGraph
                 outcome.Warnings.AddRange(extracted.Warnings);
                 var declarations = new CodeDeclarations();
                 foreach (var (file, script) in extracted.Scripts) declarations.Add(file.LogicalPath, script);
+                var foreign = ForeignIds(projectPath, extracted, Array.Empty<CodeDeclarations>());
                 var pending = new List<(CodeSourceFile File, CodeScript Script, string ScriptPath, CodeScriptHeader OnDisk)>();
                 foreach (var (file, script) in extracted.Scripts)
                 {
                     var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
-                    outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations);
+                    outcome.UnresolvedTargets += CodeFileScope.Apply(script, declarations, foreign: foreign);
                     pending.Add((file, script, scriptPath, CodeScriptTurtle.ReadHeaderLine(scriptPath)));
                 }
                 var written = new List<string>();
@@ -1251,6 +1272,46 @@ namespace MdExplorer.Services.CodeGraph
             public WorkspaceSources(ICodeWorkspace ws) { _ws = ws; }
             public string Read(CodeSourceFile file) => _texts.TryGetValue(file.LogicalPath, out var t) ? t : _texts[file.LogicalPath] = _ws.Read(file.LogicalPath);
             public bool Exists(CodeSourceFile file) => true;
+        }
+
+        /// <summary>
+        /// L'id vero di un simbolo di un altro linguaggio (15/11/2026, dal cliente: gli archi VB → C# finivano su nodi che non
+        /// esistono). Lo decide chi scrive lo script del file che lo dichiara: se quel linguaggio è stato estratto in questa
+        /// analisi valgono le sue dichiarazioni; altrimenti (un altro programma, o un linguaggio non scelto qui) si legge lo
+        /// script già scritto di ciascun file che lo dichiara. Null = non si sa: l'arco resta contato fra quelli senza nodo.
+        /// </summary>
+        private static Func<string, string> ForeignIds(string projectPath, CodeExtractionResult extracted, IReadOnlyList<CodeDeclarations> elsewhere)
+        {
+            if (extracted.ForeignDeclarations.Count == 0) return null;
+            var onDisk = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            HashSet<string> IdsOf(string logicalPath)
+            {
+                if (onDisk.TryGetValue(logicalPath, out var ids)) return ids;
+                ids = new HashSet<string>(StringComparer.Ordinal);
+                var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, logicalPath, CodeScriptKind.Ast);
+                try
+                {
+                    if (File.Exists(scriptPath))
+                        foreach (var symbol in CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath).Symbols)
+                            if (symbol.Id != null) ids.Add(symbol.Id);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FormatException) { }
+                return onDisk[logicalPath] = ids;
+            }
+            return key =>
+            {
+                if (!extracted.ForeignDeclarations.TryGetValue(key, out var declared)) return null;
+                foreach (var d in elsewhere)
+                    if (d.IsDeclared(key)) return d.Resolve(key);
+                foreach (var file in declared.Files)
+                {
+                    var ids = IdsOf(file);
+                    var scoped = CodeFileScope.FileId(file, key);
+                    if (ids.Contains(scoped)) return scoped;
+                    if (ids.Contains(key)) return key;
+                }
+                return null;
+            };
         }
 
         private static bool CrossLinkable(CodeLanguage lang)

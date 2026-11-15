@@ -97,6 +97,13 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public List<(CodeSourceFile File, CodeScript Script)> Scripts { get; } = new();
         public CodeWarnings Warnings { get; } = new();
+        /// <summary>
+        /// Le chiavi di simboli di un ALTRO linguaggio a cui questi script puntano (15/11/2026, dal cliente: VB che usa un
+        /// progetto C# e viceversa), con il linguaggio e i file che le dichiarano per come li vede questo estrattore. L'id
+        /// vero di un simbolo nasce dal file che lo dichiara (<see cref="CodeFileScope"/>) e lo decide l'analisi dell'altro
+        /// linguaggio: senza questo elenco l'arco restava sulla chiave, un nodo che non esiste.
+        /// </summary>
+        public Dictionary<string, (string Language, SortedSet<string> Files)> ForeignDeclarations { get; } = new(StringComparer.Ordinal);
     }
 
     /// <summary>Un produttore di script AST per un linguaggio (D1): Roslyn per il C#, tree-sitter per gli altri.</summary>

@@ -230,7 +230,9 @@ template:
                 File.WriteAllText(Path.Combine(web, "Listino.pag.vb"),
                     "Imports System.Collections.ObjectModel\n" +
                     "Namespace Demo\n" +
-                    "  Public Class PaginaBase\n    Inherits Collection(Of String)\n" +
+                    "  Public Class Radice\n    Inherits Collection(Of String)\n    Public Event Load As EventHandler\n  End Class\n" +
+                    "  Public Class PaginaBase\n    Inherits Radice\n" +
+                    "    Private Sub Base_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load\n    End Sub\n" +
                     "    Protected Overrides Sub ClearItems()\n    End Sub\n" +
                     "    Protected Overrides Sub InsertItem(ByVal index As Integer, ByVal item As String)\n    End Sub\n  End Class\n" +
                     "  Public Class Listino\n    Inherits PaginaBase\n    Implements IDisposable\n" +
@@ -262,8 +264,10 @@ template:
                 {
                     "Demo.Listino.Dispose():extracted",
                     "Demo.Listino.InsertItem(Integer, String):extracted",
+                    "Demo.PaginaBase.Base_Load(Object, System.EventArgs):extracted",
                     "Demo.PaginaBase.ClearItems():extracted",
-                }, started, "non PaginaBase.InsertItem (ridefinito più sotto), non ToString (di System.Object), non Altro");
+                }, started, "non PaginaBase.InsertItem (ridefinito più sotto), non ToString (di System.Object), non Altro; il gestore " +
+                    "«Handles MyBase.Load» della classe base gira anche per la pagina che eredita");
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

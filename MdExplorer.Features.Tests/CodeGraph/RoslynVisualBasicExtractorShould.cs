@@ -177,12 +177,22 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "    Public Overrides Function ToString() As String\n      Return \"\"\n    End Function\n" +
                 "    Public Sub Dispose() Implements IDisposable.Dispose\n    End Sub\n" +
                 "    Public Sub Altro()\n    End Sub\n  End Class\n" +
+                // il gestore agganciato attraverso un campo del tipo dell'interfaccia
+                "  Public Class Bottone\n    Public Event Click As EventHandler\n  End Class\n" +
+                "  Public Interface IGestore\n    Sub Premuto(ByVal sender As Object, ByVal e As EventArgs)\n  End Interface\n" +
+                "  Public Class GestoreBase\n    Implements IGestore\n    Public Overridable Sub Premuto(ByVal sender As Object, ByVal e As EventArgs) Implements IGestore.Premuto\n    End Sub\n  End Class\n" +
+                "  Public Class GestoreVero\n    Inherits GestoreBase\n    Public Overrides Sub Premuto(ByVal sender As Object, ByVal e As EventArgs)\n    End Sub\n  End Class\n" +
+                "  Public Class Modello\n    Private _gestore As IGestore\n    Public Sub Crea(ByVal b As Bottone)\n      AddHandler b.Click, AddressOf _gestore.Premuto\n    End Sub\n  End Class\n" +
                 "End Namespace\n");
 
             var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Elenchi.vb").Script;
             string Of(string id) => s.Symbols.Single(x => x.Id == id).QualifiedName;
             Assert.AreEqual("Demo.IPasso.Esegui():extracted | Demo.PassoBase.Esegui():inferred | Demo.PassoVero.Esegui():inferred",
                 string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && Of(e.SourceId) == "Demo.Usa.Tutto(Demo.IPasso)").Select(e => $"{Of(e.TargetId)}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal)));
+
+            Assert.AreEqual("Demo.GestoreBase.Premuto(Object, System.EventArgs) | Demo.GestoreVero.Premuto(Object, System.EventArgs) | Demo.IGestore.Premuto(Object, System.EventArgs)",
+                string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && Of(e.SourceId) == "Demo.Bottone.Click").Select(e => Of(e.TargetId)).OrderBy(x => x, StringComparer.Ordinal)),
+                "dall'evento al gestore scritto (il membro dell'interfaccia) e a quelli che girano davvero");
 
             var marked = s.CallSites.Where(c => c.Callee == RoslynExtractorBase.LibraryCallbackCallee)
                 .Select(c => Of(c.SourceId) + " <- " + string.Join(",", c.Arguments.Select(a => a.Value))).OrderBy(x => x, StringComparer.Ordinal).ToArray();
@@ -1101,6 +1111,34 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "il metodo VB, col nome che gli dà il VB: " + string.Join(" | ", util.Edges.Where(e => e.SourceId == fai).Select(e => e.Relation + ":" + e.TargetId)));
             var segna = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Dati.vb")).Script.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Segna()").Id;
             Assert.AreEqual(segna, RoslynCSharpExtractor.StableId("visualbasic", "method", "Acme.Dl.Ordini.Segna()"), "ed è proprio il nodo che dichiara l'estrattore VB");
+
+            // 15/11/2026, dal cliente: l'id vero nasce dal file che dichiara il simbolo, e lo decide l'analisi del SUO linguaggio.
+            // Ogni estrattore dice quali chiavi dell'altro linguaggio usa e in quali file stanno; senza, gli archi restavano
+            // sulla chiave: 31 chiamate verso nodi che non esistono
+            var faiKey = RoslynCSharpExtractor.StableId("csharp", "method", "Acme.Cs.Util.Fai(string)");
+            Assert.AreEqual("csharp", vb.ForeignDeclarations[faiKey].Language);
+            Assert.IsTrue(vb.ForeignDeclarations[faiKey].Files.Single().EndsWith("Cs/Util.cs"), string.Join(",", vb.ForeignDeclarations[faiKey].Files));
+            Assert.IsTrue(cs.ForeignDeclarations[segna].Files.Single().EndsWith("Dl/Dati.vb"));
+            CodeDeclarations Declared(CodeExtractionResult r)
+            {
+                var d = new CodeDeclarations();
+                foreach (var (file, script) in r.Scripts) d.Add(file.LogicalPath, script);
+                return d;
+            }
+            var (vbDeclared, csDeclared) = (Declared(vb), Declared(cs));
+            var dangling = 0;
+            foreach (var (_, script) in vb.Scripts) dangling += CodeFileScope.Apply(script, vbDeclared, foreign: k => csDeclared.IsDeclared(k) ? csDeclared.Resolve(k) : null);
+            foreach (var (_, script) in cs.Scripts) dangling += CodeFileScope.Apply(script, csDeclared, foreign: k => vbDeclared.IsDeclared(k) ? vbDeclared.Resolve(k) : null);
+            var allIds = vb.Scripts.Concat(cs.Scripts).SelectMany(x => x.Script.Symbols.Select(y => y.Id)).ToHashSet();
+            var lost = vb.Scripts.Concat(cs.Scripts).SelectMany(x => x.Script.Edges.Where(e => !allIds.Contains(e.TargetId) || !allIds.Contains(e.SourceId))
+                .Select(e => x.File.LogicalPath + " " + e.Relation + " line " + e.Line + " " + e.Written)
+                .Concat(x.Script.Symbols.Where(y => y.ParentId != null && !allIds.Contains(y.ParentId)).Select(y => x.File.LogicalPath + " parent of " + y.QualifiedName))).ToList();
+            Assert.AreEqual(0, dangling, "nessun arco verso un nodo che non esiste: " + string.Join(" | ", lost));
+            var faiNode = util.Symbols.Single(x => x.QualifiedName == "Acme.Cs.Util.Fai(string)").Id;
+            Assert.AreNotEqual(faiKey, faiNode, "l'id del nodo è quello del suo file, non la chiave");
+            Assert.IsTrue(usa.Edges.Any(e => e.Relation == "calls" && e.TargetId == faiNode), "l'arco del VB arriva al nodo vero del metodo C#");
+            var segnaNode = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Dati.vb")).Script.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Segna()").Id;
+            Assert.IsTrue(util.Edges.Any(e => e.Relation == "calls" && e.TargetId == segnaNode), "e quello del C# al nodo vero del metodo VB");
         }
 
         [TestMethod]

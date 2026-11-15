@@ -593,11 +593,16 @@ namespace MdExplorer.Features.Services.CodeGraph
                     "?m code:kind \"method\" ; code:name ?name . " +
                     "FILTER(LCASE(?fname) = LCASE(?cname)) } }", ct))
                     links.Add(new CodePageLink { SourceId = SymbolId(h["ctl"]), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(h, "cline"), Path = path });
+                // anche quelli delle classi base del perimetro (15/11/2026, dal cliente: una base comune a 97 controlli con
+                // «Handles MyBase.Init» e «Handles MyBase.Load», e nessuna delle pagine derivate ci arrivava): un gestore di un
+                // evento gira per ogni classe che eredita, non si ridefinisce. Name = il metodo col suo nome qualificato: due
+                // gestori con lo stesso nome in due classi della catena sono due archi certi
                 foreach (var h in await RowsAsync(
-                    $"SELECT DISTINCT ?m ?name WHERE {{ GRAPH {g.DataIri} {{ " +
+                    $"SELECT DISTINCT ?m ?qn WHERE {{ GRAPH {g.DataIri} {{ " +
                     $"?h a {CodeOntology.ClassCallSite} ; code:caller ?m ; code:callee {Lit(RoslynExtractorBase.OwnEventCallee)} . " +
-                    $"?m code:parent <{cls}> ; code:kind \"method\" ; code:name ?name . }} }}", ct))
-                    links.Add(new CodePageLink { SourceId = SymbolId(page), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "name"), Line = Count(r, "bline"), Path = path });
+                    $"<{cls}> code:inherits* ?owner . ?owner code:kind \"class\" . " +
+                    "?m code:parent ?owner ; code:kind \"method\" ; code:qualifiedName ?qn . } } ORDER BY ?qn", ct))
+                    links.Add(new CodePageLink { SourceId = SymbolId(page), TargetId = SymbolId(h["m"]), Relation = "calls", Name = Str(h, "qn"), Line = Count(r, "bline"), Path = path });
 
                 // i metodi che la libreria chiama da sé (15/11/2026, dal cliente): Overrides Sub OnLoad, OnInit, Render…, e i
                 // membri di un'interfaccia di libreria. Lungo la catena delle classi base nel perimetro vale, per ogni metodo di

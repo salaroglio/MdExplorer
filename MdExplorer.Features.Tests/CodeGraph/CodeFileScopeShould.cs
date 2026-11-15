@@ -42,6 +42,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Send_a_reference_to_another_language_to_the_id_that_language_gives()
+        {
+            // 15/11/2026: greet lo dichiara un file di un altro linguaggio, che questi script non contengono
+            var (main, _) = Pair("@globo/core");
+            Assert.AreEqual(1, CodeFileScope.Apply(Pair("@globo/core").Main, Declare(main)), "senza saperlo: un arco verso un nodo che non esiste");
+            Assert.AreEqual(0, CodeFileScope.Apply(main, Declare(main), foreign: key => key == "greet" ? "id-vero" : null));
+            Assert.AreEqual("id-vero", main.Edges[1].TargetId);
+        }
+
+        [TestMethod]
         public void Give_a_symbol_the_id_of_its_file()
         {
             var (main, greeter) = Pair("@globo/core");

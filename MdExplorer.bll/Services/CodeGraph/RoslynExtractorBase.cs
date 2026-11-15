@@ -718,7 +718,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // i progetti dell'altro linguaggio servono a risolvere i nomi: i loro script li scrive l'altro estrattore
                 if (group.Foreign == null) trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
             }
-            var perimeter = new PerimeterIndex(compilations, groups.Where(g => g.Image != null).Select(g => g.Compilation));
+            var perimeter = new PerimeterIndex(compilations, groups.Where(g => g.Image != null).Select(g => g.Compilation)) { Foreign = result.ForeignDeclarations };
             var compilationOf = trees.ToDictionary(t => t.Tree, t => t.Compilation);
             var models = new Dictionary<SyntaxTree, SemanticModel>();
             SemanticModel ModelOf(SyntaxTree t)
@@ -1353,6 +1353,17 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private static string Key(ISymbol symbol) => Qualified(symbol.OriginalDefinition);
 
+            /// <summary>Dove si annotano le chiavi dei simboli dell'altro linguaggio (<see cref="CodeExtractionResult.ForeignDeclarations"/>).</summary>
+            public Dictionary<string, (string Language, SortedSet<string> Files)> Foreign { get; init; }
+
+            public void NoteForeign(string key, string language, ISymbol source)
+            {
+                if (Foreign == null) return;
+                if (!Foreign.TryGetValue(key, out var known)) Foreign[key] = known = (language, new SortedSet<string>(StringComparer.Ordinal));
+                foreach (var reference in source.DeclaringSyntaxReferences)
+                    if (!string.IsNullOrEmpty(reference.SyntaxTree.FilePath)) known.Files.Add(reference.SyntaxTree.FilePath);
+            }
+
             public bool IsInPerimeter(ISymbol s) => SourceOf(s).Locations.Any(l => l.IsInSource);
 
             /// <summary>
@@ -1433,6 +1444,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var qualified = Qualified(original);
                 // il linguaggio è quello del simbolo: da VB un metodo di un progetto C# ha l'id che gli dà l'estrattore C#
                 var id = kind == "external" ? ExternalId(qualified) : RoslynCSharpExtractor.StableId(LanguageIdOf(original), kind, qualified);
+                if (kind != "external" && LanguageIdOf(original) != _x.LanguageId) _perimeter.NoteForeign(id, LanguageIdOf(original), original);
                 if (kind == "external" && _externals.Add(id))
                 {
                     Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = original.Name, QualifiedName = qualified });
@@ -1572,7 +1584,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             Edge(ownerId, IdOf(ctor.ContainingType), "instantiates", "extracted", line);
                             // e il costruttore che esegue (14/11/2026, dal cliente: dietro una factory il costruttore privato
                             // risultava senza chiamanti, e quello che chiama non si raggiungeva); quello che crea il compilatore no
-                            if (!ctor.IsImplicitlyDeclared && _perimeter.IsInPerimeter(ctor)) Edge(ownerId, IdOf(ctor.OriginalDefinition), "calls", "extracted", line);
+                            if (!_perimeter.SourceOf(ctor.OriginalDefinition).IsImplicitlyDeclared && _perimeter.IsInPerimeter(ctor)) Edge(ownerId, IdOf(ctor.OriginalDefinition), "calls", "extracted", line);
                         }
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
                             Edge(ownerId, IdOf(t), "instantiates", "extracted", line);
@@ -1585,9 +1597,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         if (_model.GetSymbolInfo(handlerNode).Symbol is IMethodSymbol { MethodKind: MethodKind.Ordinary } handler)
                         {
-                            Handler(eventNode, IdOf(handler.OriginalDefinition), Line(node), certain);
-                            // AddHandler btnCerca.Click, AddressOf H: come Handles btnCerca.Click, il controllo porta al gestore
-                            if (_x.SubscriptionContainer(eventNode) is { } container) ControlHandler(container, IdOf(handler.OriginalDefinition), Line(node));
+                            // il gestore scritto e, se è il membro di un'interfaccia o un metodo virtuale (AddressOf campo.Metodo con
+                            // il campo del tipo dell'interfaccia), quelli che girano davvero (15/11/2026, dal cliente: dall'evento si
+                            // arrivava al membro dell'interfaccia e lì ci si fermava)
+                            foreach (var runs in new[] { handler.OriginalDefinition }.Concat(Dispatched(handler.OriginalDefinition, virtualDispatch: true)))
+                            {
+                                Handler(eventNode, IdOf(runs), Line(node), certain);
+                                // AddHandler btnCerca.Click, AddressOf H: come Handles btnCerca.Click, il controllo porta al gestore
+                                if (_x.SubscriptionContainer(eventNode) is { } container) ControlHandler(container, IdOf(runs), Line(node));
+                            }
                         }
                     }
                     else if (_x.IsAssignment(node, out var assigned))
@@ -1925,19 +1943,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var target = m.ReducedFrom ?? m.OriginalDefinition ?? m;
                 // il costruttore che il compilatore crea da solo (MyBase.New() verso una classe senza Sub New): non ha codice e non è
                 // nel grafo, quindi niente arco verso un nodo che non esiste (13/11/2026)
-                if (target.IsImplicitlyDeclared && _perimeter.IsInPerimeter(target)) return;
+                // (visto da un altro linguaggio arriva dai metadati, dove non risulta implicito: si guarda com'è nel suo sorgente)
+                if (_perimeter.SourceOf(target).IsImplicitlyDeclared && _perimeter.IsInPerimeter(target)) return;
                 Edge(ownerId, IdOf(target), "calls", "extracted", line);
+                foreach (var runs in Dispatched(target, virtualDispatch)) Edge(ownerId, IdOf(runs), "calls", "inferred", line);
+            }
+
+            /// <summary>
+            /// I metodi del perimetro che possono girare al posto di quello scritto: per il membro di un'interfaccia le
+            /// implementazioni e, se sono virtuali, i loro override (15/11/2026, dal cliente: il cammino si fermava alla classe
+            /// base); per un metodo virtuale chiamato in modo virtuale, i suoi override.
+            /// </summary>
+            private IEnumerable<IMethodSymbol> Dispatched(IMethodSymbol target, bool virtualDispatch)
+            {
+                var found = new List<IMethodSymbol>();
                 if (target.ContainingType?.TypeKind == TypeKind.Interface)
-                    foreach (var impl in _perimeter.ImplementationsOf(target))
+                    foreach (var impl in _perimeter.ImplementationsOf(target).OfType<IMethodSymbol>())
                     {
-                        Edge(ownerId, IdOf(impl), "calls", "inferred", line);
-                        // l'implementazione può essere virtuale e ridefinita più sotto: chi chiama per interfaccia arriva anche lì
-                        // (15/11/2026, dal cliente: il cammino si fermava alla classe base)
-                        if (impl is IMethodSymbol virtualImpl)
-                            foreach (var o in _perimeter.OverridesOf(virtualImpl)) Edge(ownerId, IdOf(o.OriginalDefinition), "calls", "inferred", line);
+                        found.Add(impl.OriginalDefinition);
+                        found.AddRange(_perimeter.OverridesOf(impl).Select(o => o.OriginalDefinition));
                     }
-                else if (virtualDispatch)
-                    foreach (var o in _perimeter.OverridesOf(target)) Edge(ownerId, IdOf(o.OriginalDefinition), "calls", "inferred", line);
+                else if (virtualDispatch) found.AddRange(_perimeter.OverridesOf(target).Select(o => o.OriginalDefinition));
+                return found.Distinct<IMethodSymbol>(SymbolEqualityComparer.Default);
             }
         }
     }

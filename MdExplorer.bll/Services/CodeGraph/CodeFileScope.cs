@@ -44,7 +44,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// vecchi) annota in <paramref name="renames"/> id vecchio → nuovo di ogni simbolo dello script, per le descrizioni.
         /// Torna quante destinazioni non sono né dichiarate in un file né esterne: archi verso nodi che non esistono.
         /// </summary>
-        public static int Apply(CodeScript script, CodeDeclarations declarations, string legacyProgramFolder = null, IDictionary<string, string> renames = null)
+        /// <param name="foreign">Per una chiave che questi script non dichiarano (un simbolo di un altro linguaggio): il suo id
+        /// vero, o null se non si sa (<see cref="CodeExtractionResult.ForeignDeclarations"/>).</param>
+        public static int Apply(CodeScript script, CodeDeclarations declarations, string legacyProgramFolder = null, IDictionary<string, string> renames = null,
+            Func<string, string> foreign = null)
         {
             if (legacyProgramFolder != null && renames != null)
                 foreach (var s in script.Symbols.Where(s => s.Id != null))
@@ -61,7 +64,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!cache.TryGetValue(id, out var mapped))
                 {
                     cache[id] = mapped = declarations.Resolve(id);
-                    if (!local.Contains(id) && !declarations.IsDeclared(id)) unresolved.Add(id);
+                    if (!local.Contains(id) && !declarations.IsDeclared(id))
+                    {
+                        if (foreign?.Invoke(id) is { } elsewhere) cache[id] = mapped = elsewhere;
+                        else unresolved.Add(id);
+                    }
                 }
                 return mapped;
             }

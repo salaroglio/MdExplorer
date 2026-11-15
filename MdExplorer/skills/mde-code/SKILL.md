@@ -233,7 +233,8 @@ three navigation questions of `code_query` — one call each, exact counts, no S
 - `who-reaches` (`symbol`: a table — an external node, find it with `code_find_symbol` — a catalog query, a procedure or a
   method): the entry points (page controls, page modules, framework-called methods) that reach it, each with its chain.
 - `reachability` (`to`: the layer's folder, `from`: the pages' folder): how many methods and queries of the layer the pages
-  reach — a page runs its controls, its life-cycle events (`Page_Load`…), the methods of its class that redefine a
+  reach — a page runs its controls, its life-cycle events (`Page_Load`…, and the `Handles MyBase.…` handlers of its
+  base classes), the methods of its class that redefine a
   library method (`Overrides Sub OnLoad`, `OnInit`, `Render`… — the nearest redefinition along its base classes) or
   implement a library interface, and its includes — and for the others why —
   `no-callers` or `callers-not-reached` (with an example caller).
