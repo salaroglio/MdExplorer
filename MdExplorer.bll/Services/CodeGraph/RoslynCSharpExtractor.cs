@@ -55,14 +55,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).</para>
         /// <para>20 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).</para>
         /// <para>21 = new esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</para>
+        /// <para>22 = un progetto VB riferito (per GUID o percorso) si risolve: gli archi arrivano ai nodi del VB; fra due versioni di una libreria vale quella nel bin del progetto (15/11/2026, dal cliente).</para>
         /// </summary>
-        public override string ExtractorVersion => "21";
+        public override string ExtractorVersion => "22";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 
         public RoslynCSharpExtractor(ILogger<RoslynCSharpExtractor> logger) : base(logger) { }
 
         protected override string ProjectExtension => ".csproj";
+        protected override RoslynExtractorBase Counterpart() => new RoslynVisualBasicExtractor(Microsoft.Extensions.Logging.Abstractions.NullLogger<RoslynVisualBasicExtractor>.Instance);
 
         protected override SyntaxTree Parse(string text, string path, DotNetProject project) => CSharpSyntaxTree.ParseText(text, ParseOptions, path: path);
 

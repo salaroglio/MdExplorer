@@ -19,6 +19,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string ProjectMissing = "referenced-project-missing";
         /// <summary>Un progetto riferito per GUID che è in più file di progetto, e nessuna soluzione dice quale.</summary>
         public const string ProjectAmbiguous = "referenced-project-ambiguous";
+        /// <summary>Un progetto riferito di un altro linguaggio (C# da VB, VB da C#) che non si compila abbastanza da poterlo riferire.</summary>
+        public const string ProjectNotUsable = "referenced-project-not-usable";
         /// <summary>Un riferimento risolto in un modo che va detto: la libreria di un altro progetto, il progetto della soluzione.</summary>
         public const string ReferenceResolved = "reference-resolved-otherwise";
         /// <summary>Una libreria (o il framework) che non c'è dove il progetto la indica.</summary>

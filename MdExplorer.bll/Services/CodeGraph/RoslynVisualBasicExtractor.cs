@@ -45,8 +45,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 19 = i punti di chiamata dicono la classe del metodo chiamato e, di un percorso che non si sa, il nome del file (13/11/2026).
         /// 20 = campi omonimi di classi diverse restano distinti nel seguire le stringhe: ognuno col suo catalogo (14/11/2026, dal cliente).
         /// 21 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).
-        /// 22 = New esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</summary>
-        public override string ExtractorVersion => "22";
+        /// 22 = New esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).
+        /// 23 = un progetto C# riferito (per GUID o percorso) si risolve: gli archi arrivano ai nodi del C#; fra due versioni di una libreria vale quella nel bin del progetto (15/11/2026, dal cliente).</summary>
+        public override string ExtractorVersion => "23";
 
         protected override bool IgnoresCase => true;
 
@@ -60,6 +61,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public RoslynVisualBasicExtractor(ILogger<RoslynVisualBasicExtractor> logger) : base(logger) { }
 
         protected override string ProjectExtension => ".vbproj";
+        protected override RoslynExtractorBase Counterpart() => new RoslynCSharpExtractor(Microsoft.Extensions.Logging.Abstractions.NullLogger<RoslynCSharpExtractor>.Instance);
 
         /// <summary><c>MyType</c> del progetto accende lo spazio dei nomi <c>My</c> (<c>My.Computer</c>, <c>My.Application</c>…), che il compilatore si porta dentro.</summary>
         private static VisualBasicParseOptions OptionsOf(DotNetProject project)

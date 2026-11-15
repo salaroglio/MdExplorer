@@ -95,6 +95,166 @@ namespace MdExplorer.Features.Services.CodeGraph
             public DotNetProject Project { get; init; }
             public List<SyntaxTree> Trees { get; } = new();
             public Compilation Compilation { get; set; }
+            /// <summary>
+            /// L'estrattore dell'ALTRO linguaggio (C# per il VB e viceversa) quando il progetto è riferito ma non è di questo
+            /// (15/11/2026, dal cliente: un progetto VB che riferisce un progetto C# per GUID, e viceversa): si compila per
+            /// risolvere i nomi, i suoi script li scrive l'altro estrattore. Null = un progetto di questo linguaggio.
+            /// </summary>
+            public RoslynExtractorBase Foreign { get; init; }
+            /// <summary>I metadati della compilazione, per chi la riferisce da un altro linguaggio; <see cref="ImageProblem"/> se non si sono potuti produrre.</summary>
+            public MetadataReference Image { get; set; }
+            public string ImageProblem { get; set; }
+            public bool ImageTried { get; set; }
+        }
+
+        /// <summary>L'altro estrattore Roslyn (C# per il VB, VB per il C#): compila i progetti dell'altro linguaggio che questo riferisce.</summary>
+        protected abstract RoslynExtractorBase Counterpart();
+
+        /// <summary>Il linguaggio del grafo di un simbolo: quello in cui è scritto, non quello di chi lo usa.</summary>
+        private static string LanguageIdOf(ISymbol symbol) => symbol.Language == LanguageNames.VisualBasic ? CodeLanguages.VisualBasic : CodeLanguages.CSharp;
+
+        /// <summary>
+        /// I progetti dell'altro linguaggio che i progetti analizzati riferiscono (per GUID o per percorso), e quelli che loro
+        /// riferiscono a loro volta: un gruppo ciascuno, con i sorgenti che il progetto compila letti dal disco. Roslyn non
+        /// lascia riferire una compilazione di un altro linguaggio: chi la usa ne riferisce i metadati
+        /// (<see cref="ReferenceTo"/>), e ogni simbolo usato si riporta al suo sorgente (<see cref="PerimeterIndex.SourceOf"/>),
+        /// così l'arco arriva al nodo che l'altro estrattore dichiara.
+        /// </summary>
+        private void AddForeignGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, CodeExtractionRequest request, CodeWarnings warnings, CancellationToken ct)
+        {
+            var other = Counterpart();
+            var common = CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath));
+            if (other == null || common == null || !Directory.Exists(common)) return;
+            // i progetti dell'altro linguaggio sotto una cartella, letti una volta
+            var loaded = new Dictionary<string, DotNetProject>(StringComparer.OrdinalIgnoreCase);
+            var under = new Dictionary<string, List<DotNetProject>>(StringComparer.OrdinalIgnoreCase);
+            List<DotNetProject> Under(string dir)
+            {
+                if (under.TryGetValue(dir, out var known)) return known;
+                var list = under[dir] = new List<DotNetProject>();
+                IEnumerable<string> files;
+                try { files = Directory.EnumerateFiles(dir, "*" + other.ProjectExtension, new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive }).ToList(); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return list; }
+                foreach (var f in files.Where(f => f.EndsWith(other.ProjectExtension, StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!loaded.TryGetValue(f, out var project))
+                    {
+                        try { project = DotNetProject.Load(f); }
+                        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or System.Xml.XmlException)
+                        {
+                            warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{Path.GetFileName(f)}: il progetto non si legge ({ex.Message}): chi lo riferisce da un altro linguaggio non lo trova.",
+                                $"{Path.GetFileName(f)}: the project cannot be read ({ex.Message}): what references it from another language does not find it."));
+                        }
+                        loaded[f] = project;
+                    }
+                    if (project != null) list.Add(project);
+                }
+                return list;
+            }
+            // dove cercare: la cartella dei sorgenti analizzati, poi un livello più su alla volta fino al progetto di
+            // documentazione (mai fuori). Vale il livello più vicino che ha il progetto: quello dello stesso programma prima di
+            // una copia in un altro
+            var levels = new List<string> { Path.GetFullPath(common).TrimEnd(Path.DirectorySeparatorChar) };
+            var top = request.ProjectPath == null ? null : Path.GetFullPath(request.ProjectPath).TrimEnd(Path.DirectorySeparatorChar);
+            for (var up = Path.GetDirectoryName(levels[0]);
+                 top != null && up != null && (up + Path.DirectorySeparatorChar).StartsWith(top + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                 up = Path.GetDirectoryName(up))
+                levels.Add(up);
+            List<DotNetProject> Nearest(Func<DotNetProject, bool> match)
+            {
+                foreach (var level in levels)
+                {
+                    var found = Under(level).Where(match).ToList();
+                    if (found.Count > 0) return found;
+                }
+                return new List<DotNetProject>();
+            }
+            var queue = new Queue<ProjectGroup>(groups.Where(g => g.Project != null));
+            while (queue.Count > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                var g = queue.Dequeue();
+                var guids = g.Project.ProjectReferenceGuids.Select(r => r.Guid).Where(guid => guid != null && !groups.Any(x => string.Equals(x.Project?.ProjectGuid, guid, StringComparison.OrdinalIgnoreCase))).ToList();
+                var paths = g.Project.ProjectReferences.Where(r => !byKey.ContainsKey(r)).ToList();
+                if (guids.Count == 0 && paths.Count == 0) continue;
+                var wanted = guids.SelectMany(guid => Nearest(c => string.Equals(c.ProjectGuid, guid, StringComparison.OrdinalIgnoreCase)))
+                    .Concat(paths.SelectMany(path => Nearest(c => string.Equals(c.File, path, StringComparison.OrdinalIgnoreCase))))
+                    .Where(c => !byKey.ContainsKey(c.File)).Distinct().ToList();
+                foreach (var c in wanted)
+                {
+                    var group = new ProjectGroup { Project = c, Foreign = other };
+                    foreach (var file in ForeignSources(c, other))
+                    {
+                        string text;
+                        var logical = CodeGraphPaths.ToProjectRelative(request.ProjectPath, file);
+                        try { text = request.ReadText(new CodeSourceFile(file, logical)); }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{logical}: non leggibile ({ex.Message})", $"{logical}: cannot be read ({ex.Message})"));
+                            continue;
+                        }
+                        group.Trees.Add(other.Parse(text, logical, c));
+                    }
+                    groups.Add(group);
+                    byKey[c.File] = group;
+                    queue.Enqueue(group);   // i progetti che riferisce a sua volta (di questo linguaggio sono già fra i gruppi)
+                }
+            }
+        }
+
+        /// <summary>I sorgenti che un progetto dell'altro linguaggio compila: il suo elenco, o i file della sua cartella se non ne ha uno (bin e obj esclusi).</summary>
+        private static IEnumerable<string> ForeignSources(DotNetProject project, RoslynExtractorBase other)
+        {
+            var extension = other.ProjectExtension[..^4];   // .csproj → .cs, .vbproj → .vb
+            if (project.CompiledFiles != null)
+                return project.CompiledFiles.Where(f => f.EndsWith(extension, StringComparison.OrdinalIgnoreCase) && File.Exists(f)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+            var dir = Path.GetDirectoryName(Path.GetFullPath(project.File));
+            var sep = Path.DirectorySeparatorChar;
+            try
+            {
+                return Directory.EnumerateFiles(dir, "*" + extension, new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, MatchCasing = MatchCasing.CaseInsensitive })
+                    .Where(f => f.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
+                        && !f.Contains($"{sep}bin{sep}", StringComparison.OrdinalIgnoreCase) && !f.Contains($"{sep}obj{sep}", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return Array.Empty<string>(); }
+        }
+
+        /// <summary>
+        /// Come un gruppo ne riferisce un altro: la compilazione stessa se sono dello stesso linguaggio; i suoi metadati se no
+        /// (prodotti una volta). Se i metadati non si producono (il progetto riferito ha errori nelle dichiarazioni: di solito
+        /// librerie che mancano), lo si dice e il riferimento non c'è.
+        /// </summary>
+        private MetadataReference ReferenceTo(ProjectGroup referenced, ProjectGroup from, CodeWarnings warnings, Func<string, (string Library, string From)> borrow)
+        {
+            if (referenced.Compilation == null) return null;
+            if (referenced.Foreign == from.Foreign) return referenced.Compilation.ToMetadataReference();   // stesso linguaggio
+            if (!referenced.ImageTried)
+            {
+                referenced.ImageTried = true;
+                using var stream = new MemoryStream();
+                var emitted = referenced.Compilation.Emit(stream, options: new Microsoft.CodeAnalysis.Emit.EmitOptions(metadataOnly: true));
+                if (emitted.Success) referenced.Image = MetadataReference.CreateFromImage(stream.ToArray());
+                else
+                {
+                    var errors = emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+                    referenced.ImageProblem = $"{errors.Count}: {errors.FirstOrDefault()?.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}";
+                }
+            }
+            if (referenced.Image != null) return referenced.Image;
+            // i metadati non ci sono: la sua libreria compilata, se nel repository c'è (come per un progetto che manca) — i nomi
+            // si risolvono verso la libreria, non verso i sorgenti, e si dice
+            var name = from.Project.ProjectReferenceGuids.FirstOrDefault(r => string.Equals(r.Guid, referenced.Project.ProjectGuid, StringComparison.OrdinalIgnoreCase)).Name
+                ?? Path.GetFileNameWithoutExtension(referenced.Project.File);
+            var (library, libraryFrom) = borrow(name);
+            warnings.Add(CodeWarnings.ProjectNotUsable, library != null
+                ? UiText.Say(
+                    $"{Path.GetFileName(from.Project.File)}: il progetto {Path.GetFileName(referenced.Project.File)} che riferisce è di un altro linguaggio e non si compila abbastanza da poterlo riferire (errori {referenced.ImageProblem}): si usa la sua libreria compilata {Path.GetFileName(library)}, {From(libraryFrom, library, true)}; i nomi si risolvono verso la libreria, non verso i suoi sorgenti.",
+                    $"{Path.GetFileName(from.Project.File)}: the project {Path.GetFileName(referenced.Project.File)} it references is in another language and does not compile enough to be referenced (errors {referenced.ImageProblem}): its compiled library {Path.GetFileName(library)}, {From(libraryFrom, library, false)}, is used; names resolve to the library, not to its sources.")
+                : UiText.Say(
+                    $"{Path.GetFileName(from.Project.File)}: il progetto {Path.GetFileName(referenced.Project.File)} che riferisce è di un altro linguaggio e non si compila abbastanza da poterlo riferire (errori {referenced.ImageProblem}): ciò che ne usa resta un nome non risolto.",
+                    $"{Path.GetFileName(from.Project.File)}: the project {Path.GetFileName(referenced.Project.File)} it references is in another language and does not compile enough to be referenced (errors {referenced.ImageProblem}): what uses it stays an unresolved name."));
+            return library == null ? null : FileReference(library);
         }
 
         /// <summary>Prima i progetti riferiti, poi chi li riferisce: così la compilazione di uno vede i tipi dell'altro.</summary>
@@ -312,7 +472,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// il DL riferiva come progetto un blocco applicativo la cui DLL stava nelle librerie delle schermate); se nessun progetto la
         /// riferisce, una DLL con quel nome di assembly fra quelle nella cartella analizzata (13/11/2026: la DLL c'era, nessun
         /// .vbproj la nominava). Una deduzione: chi la usa lo dice con un avviso. Più DLL con quel nome ma identità diverse
-        /// (versione, chiave) = non si sceglie, e <paramref name="problem"/> lo dice.
+        /// (versione, chiave): vale quella nella cartella <c>bin</c> del progetto stesso, se lì ce n'è una sola; altrimenti non
+        /// si sceglie, e <paramref name="problem"/> lo dice.
         /// </summary>
         private static string BorrowLibrary(string assemblyName, ProjectGroup g, List<ProjectGroup> groups, Lazy<List<string>> librariesOnDisk, out string fromProject, out string problem)
         {
@@ -332,6 +493,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                     .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToList();
             if (found.Count == 0) return null;
             var identities = found.Select(x => x.Name.FullName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (identities.Count > 1 && librariesOnDisk != null && g.Project?.File != null)
+            {
+                // 15/11/2026, dal cliente: due versioni della stessa libreria fra gli altri progetti, e non si sceglieva — così la
+                // chiamata all'helper del database restava un nome non risolto. Quella nella cartella bin del progetto stesso è
+                // quella con cui è stato compilato: se lì ce n'è una sola identità, è lei
+                var bin = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(g.Project.File)), "bin") + Path.DirectorySeparatorChar;
+                var own = librariesOnDisk.Value
+                    .Where(l => Path.GetFullPath(l).StartsWith(bin, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(Path.GetFileNameWithoutExtension(l), assemblyName, StringComparison.OrdinalIgnoreCase))
+                    .Select(l => (Path: l, Name: AssemblyNameOf(l))).Where(x => Named(x.Name))
+                    .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToList();
+                if (own.Select(x => x.Name.FullName).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1) return own[0].Path;
+            }
             if (identities.Count > 1)
             {
                 problem = UiText.Say($" (ci sono {identities.Count} librerie {assemblyName} diverse fra gli altri progetti: {string.Join("; ", identities)})",
@@ -489,6 +663,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var librariesOnDisk = local ? new Lazy<List<string>>(() => LibrariesUnder(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)))) : null;
             var solutions = local ? new Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>>(() =>
                 SolutionsAround(CommonDirectory(request.AllFiles.Select(f => f.AbsolutePath)), request.ProjectPath, result.Warnings)) : null;
+            if (local) AddForeignGroups(groups, groupByKey, request, result.Warnings, ct);
             var referencedGroups = ReferencedGroups(groups, groupByKey, result.Warnings, borrowed, librariesOnDisk, solutions);
 
             var trees = new List<(SyntaxTree Tree, Compilation Compilation)>();
@@ -528,13 +703,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                             $"{Path.GetFileName(p.File)}: {missing.Count} librerie riferite non ci sono su questo computer ({string.Join(", ", missing)}): ciò che ne usa resta un nome non risolto.",
                             $"{Path.GetFileName(p.File)}: {missing.Count} referenced libraries are not on this computer ({string.Join(", ", missing)}): what uses them stays an unresolved name."));
                     foreach (var other in referencedGroups[group])
-                        if (other.Compilation != null) references.Add(other.Compilation.ToMetadataReference());
+                        if (ReferenceTo(other, group, result.Warnings, name => (BorrowLibrary(name, group, groups, librariesOnDisk, out var borrowedFrom, out _), borrowedFrom)) is { } reference)
+                            references.Add(reference);
                 }
-                group.Compilation = Compile("mde-codegraph" + (p == null ? "" : "-" + Path.GetFileNameWithoutExtension(p.File)), group.Trees, references, p);
+                group.Compilation = (group.Foreign ?? this).Compile("mde-codegraph" + (p == null ? "" : "-" + Path.GetFileNameWithoutExtension(p.File)), group.Trees, references, p);
                 compilations.Add(group.Compilation);
-                trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
+                // i progetti dell'altro linguaggio servono a risolvere i nomi: i loro script li scrive l'altro estrattore
+                if (group.Foreign == null) trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
             }
-            var perimeter = new PerimeterIndex(compilations);
+            var perimeter = new PerimeterIndex(compilations, groups.Where(g => g.Image != null).Select(g => g.Compilation));
             var compilationOf = trees.ToDictionary(t => t.Tree, t => t.Compilation);
             var models = new Dictionary<SyntaxTree, SemanticModel>();
             SemanticModel ModelOf(SyntaxTree t)
@@ -1127,8 +1304,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>Per metodo virtuale o astratto (chiave), gli override nel perimetro, anche indiretti (14/11/2026, dal cliente).</summary>
             private readonly Dictionary<string, List<IMethodSymbol>> _overriders = new(StringComparer.Ordinal);
 
-            public PerimeterIndex(IEnumerable<Compilation> compilations)
+            /// <summary>Le compilazioni riferite per metadati da un altro linguaggio, per nome di assembly.</summary>
+            private readonly Dictionary<string, Compilation> _byImage = new(StringComparer.Ordinal);
+            private readonly Dictionary<ISymbol, ISymbol> _sources = new(SymbolEqualityComparer.Default);
+
+            public PerimeterIndex(IEnumerable<Compilation> compilations, IEnumerable<Compilation> referencedByImage = null)
             {
+                foreach (var c in referencedByImage ?? Enumerable.Empty<Compilation>()) _byImage[c.AssemblyName ?? string.Empty] = c;
                 foreach (var compilation in compilations)
                 {
                     var stack = new Stack<INamespaceOrTypeSymbol>();
@@ -1162,7 +1344,23 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private static string Key(ISymbol symbol) => Qualified(symbol.OriginalDefinition);
 
-            public bool IsInPerimeter(ISymbol s) => s.Locations.Any(l => l.IsInSource);
+            public bool IsInPerimeter(ISymbol s) => SourceOf(s).Locations.Any(l => l.IsInSource);
+
+            /// <summary>
+            /// Il simbolo com'è nel suo sorgente. Un simbolo di un progetto di un altro linguaggio arriva dai metadati (Roslyn non
+            /// riferisce una compilazione di un altro linguaggio): si ritrova nella compilazione di quel progetto con il suo
+            /// identificatore di documentazione, che è lo stesso in C# e in VB. Gli altri tornano come sono.
+            /// </summary>
+            public ISymbol SourceOf(ISymbol symbol)
+            {
+                if (symbol == null || _byImage.Count == 0 || symbol.Locations.Any(l => l.IsInSource)) return symbol;
+                var assembly = symbol.ContainingAssembly?.Name;
+                if (assembly == null || !_byImage.TryGetValue(assembly, out var compilation)) return symbol;
+                if (_sources.TryGetValue(symbol, out var known)) return known;
+                var id = symbol.GetDocumentationCommentId();
+                var found = id == null ? null : DocumentationCommentId.GetFirstSymbolForDeclarationId(id, compilation);
+                return _sources[symbol] = found ?? symbol;
+            }
 
             /// <summary>
             /// Gli override nel perimetro di un metodo virtuale, astratto o già override (non sigillato): quelli che una chiamata
@@ -1213,7 +1411,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             public string IdOf(ISymbol symbol)
             {
-                var original = symbol.OriginalDefinition ?? symbol;
+                var original = _perimeter.SourceOf(symbol.OriginalDefinition ?? symbol);
                 var kind = original switch
                 {
                     INamedTypeSymbol t when _perimeter.IsInPerimeter(t) => KindOf(t),
@@ -1224,7 +1422,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     _ => "external",
                 };
                 var qualified = Qualified(original);
-                var id = kind == "external" ? ExternalId(qualified) : RoslynCSharpExtractor.StableId(_x.LanguageId, kind, qualified);
+                // il linguaggio è quello del simbolo: da VB un metodo di un progetto C# ha l'id che gli dà l'estrattore C#
+                var id = kind == "external" ? ExternalId(qualified) : RoslynCSharpExtractor.StableId(LanguageIdOf(original), kind, qualified);
                 if (kind == "external" && _externals.Add(id))
                 {
                     Script.Symbols.Add(new ScriptSymbol { Id = id, Kind = "external", Name = original.Name, QualifiedName = qualified });

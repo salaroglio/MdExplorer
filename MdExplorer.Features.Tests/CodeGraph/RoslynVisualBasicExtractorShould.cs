@@ -1011,6 +1011,120 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Resolve_a_project_of_the_other_language_referenced_by_guid_in_both_directions()
+        {
+            // 15/11/2026, dal cliente: 5 progetti «non fra i sorgenti» che invece c'erano — VB che riferisce C# per GUID, e C# che
+            // riferisce VB. Ogni estrattore conosceva solo i progetti del suo linguaggio
+            var root = WriteVs2003Solution(withLibrary: true);
+            Directory.CreateDirectory(Path.Combine(root, "Cs"));
+            File.WriteAllText(Path.Combine(root, "Cs", "Cs.csproj"),
+                "<VisualStudioProject>\n    <CSHARP\n        ProjectType = \"Local\"\n        ProductVersion = \"7.10.3077\"\n        SchemaVersion = \"2.0\"\n" +
+                "        ProjectGuid = \"{55555555-AAAA-BBBB-CCCC-000000000005}\"\n    >\n        <Build>\n            <Settings\n                AssemblyName = \"Acme.Cs\"\n" +
+                "                RootNamespace = \"Acme.Cs\"\n            >\n            </Settings>\n            <References>\n" +
+                "                <Reference Name = \"Acme.Dl\" Project = \"{11111111-AAAA-BBBB-CCCC-000000000001}\" Package = \"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\" />\n" +
+                "            </References>\n        </Build>\n        <Files>\n            <Include>\n" +
+                "                <File RelPath = \"Util.cs\" SubType = \"Code\" BuildAction = \"Compile\" />\n            </Include>\n        </Files>\n    </CSHARP>\n</VisualStudioProject>\n");
+            File.WriteAllText(Path.Combine(root, "Cs", "Util.cs"),
+                "namespace Acme.Cs {\n  public class Util {\n    public Util(int n) { }\n" +
+                "    public static bool Fai(string nome) { return new Acme.Dl.Ordini().Segna(); }\n  }\n}\n");
+            // il BL (VB) riferisce il progetto C# per GUID e lo usa
+            var bl = Path.Combine(root, "Bl", "Bl.vbproj");
+            File.WriteAllText(bl, File.ReadAllText(bl).Replace("            </References>",
+                "                <Reference Name = \"Acme.Cs\" Project = \"{55555555-aaaa-bbbb-cccc-000000000005}\" Package = \"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\" />\n            </References>"));
+            File.WriteAllText(Path.Combine(root, "Bl", "UsaCs.vb"),
+                "Imports Acme.Cs\nPublic Class UsaCs\n    Public Function Chiama() As Boolean\n        Dim u As New Util(3)\n        Return Util.Fai(\"x\")\n    End Function\nEnd Class\n");
+
+            // dal VB: gli archi arrivano ai nodi che dichiara l'estrattore C#
+            var vb = ExtractWithoutNetFramework(root);
+            Assert.IsFalse(vb.Warnings.Any(w => w.Contains("Acme.Cs")), string.Join(" | ", vb.Warnings.Select(w => w.Replace("{", "(").Replace("}", ")"))));
+            var usa = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Bl/UsaCs.vb")).Script;
+            var chiama = usa.Symbols.Single(x => x.QualifiedName == "Acme.Bl.UsaCs.Chiama()").Id;
+            string Target(string relation, string kind, string language, string qualified)
+                => usa.Edges.Any(e => e.SourceId == chiama && e.Relation == relation && e.TargetId == RoslynCSharpExtractor.StableId(language, kind, qualified)) ? "ok" : "manca " + qualified;
+            Assert.AreEqual("ok", Target("calls", "method", "csharp", "Acme.Cs.Util.Fai(string)"), "il metodo C#, col nome che gli dà il C#");
+            Assert.AreEqual("ok", Target("instantiates", "class", "csharp", "Acme.Cs.Util"));
+            Assert.AreEqual("ok", Target("calls", "constructor", "csharp", "Acme.Cs.Util.Util(int)"), "e il costruttore che New esegue");
+            Assert.IsFalse(usa.Symbols.Any(x => x.Kind == "external" && x.QualifiedName.Contains("Util")), "nessun nome non risolto");
+            Assert.IsFalse(vb.Scripts.Any(x => x.File.LogicalPath.EndsWith(".cs")), "gli script del C# li scrive l'estrattore C#");
+
+            // dal C#: Util.Fai arriva al metodo VB del DL
+            var csFiles = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
+            var before = Environment.GetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable);
+            CodeExtractionResult cs;
+            try
+            {
+                Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, Path.Combine(_root, "non-c-e"));
+                cs = new RoslynCSharpExtractor(Microsoft.Extensions.Logging.Abstractions.NullLogger<RoslynCSharpExtractor>.Instance)
+                    .Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = csFiles, FilesToEmit = csFiles });
+            }
+            finally { Environment.SetEnvironmentVariable(NetFrameworkLibraries.OverrideVariable, before); }
+            Assert.IsFalse(cs.Warnings.Any(w => w.Contains("Acme.Dl") && w.Contains("not among")), string.Join(" | ", cs.Warnings.Select(w => w.Replace("{", "(").Replace("}", ")"))));
+            var util = cs.Scripts.Single().Script;
+            var fai = util.Symbols.Single(x => x.QualifiedName == "Acme.Cs.Util.Fai(string)").Id;
+            Assert.AreEqual(fai, RoslynCSharpExtractor.StableId("csharp", "method", "Acme.Cs.Util.Fai(string)"), "lo stesso id a cui arriva il VB");
+            Assert.IsTrue(util.Edges.Any(e => e.SourceId == fai && e.Relation == "calls" && e.TargetId == RoslynCSharpExtractor.StableId("visualbasic", "method", "Acme.Dl.Ordini.Segna()")),
+                "il metodo VB, col nome che gli dà il VB: " + string.Join(" | ", util.Edges.Where(e => e.SourceId == fai).Select(e => e.Relation + ":" + e.TargetId)));
+            var segna = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Dati.vb")).Script.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Segna()").Id;
+            Assert.AreEqual(segna, RoslynCSharpExtractor.StableId("visualbasic", "method", "Acme.Dl.Ordini.Segna()"), "ed è proprio il nodo che dichiara l'estrattore VB");
+        }
+
+        [TestMethod]
+        public void Say_when_a_project_of_the_other_language_cannot_be_referenced()
+        {
+            // il progetto C# riferito ha un errore in una dichiarazione (una classe madre che non c'è): i suoi metadati non si
+            // producono, e si dice; ciò che ne usa resta un nome non risolto, senza archi inventati
+            var root = WriteVs2003Solution(withLibrary: true);
+            Directory.CreateDirectory(Path.Combine(root, "Cs"));
+            File.WriteAllText(Path.Combine(root, "Cs", "Cs.csproj"),
+                "<VisualStudioProject>\n    <CSHARP ProjectType = \"Local\" ProductVersion = \"7.10.3077\" SchemaVersion = \"2.0\" ProjectGuid = \"{55555555-AAAA-BBBB-CCCC-000000000005}\">\n        <Build>\n" +
+                "            <Settings AssemblyName = \"Acme.Cs\" RootNamespace = \"Acme.Cs\"></Settings>\n            <References></References>\n        </Build>\n    </CSHARP>\n</VisualStudioProject>\n");
+            File.WriteAllText(Path.Combine(root, "Cs", "Util.cs"), "namespace Acme.Cs { public class Util : NonEsiste { public static bool Fai(string nome) { return true; } } }\n");
+            var bl = Path.Combine(root, "Bl", "Bl.vbproj");
+            File.WriteAllText(bl, File.ReadAllText(bl).Replace("            </References>",
+                "                <Reference Name = \"Acme.Cs\" Project = \"{55555555-AAAA-BBBB-CCCC-000000000005}\" Package = \"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\" />\n            </References>"));
+            File.WriteAllText(Path.Combine(root, "Bl", "UsaCs.vb"), "Public Class UsaCs\n    Public Function Chiama() As Boolean\n        Return Acme.Cs.Util.Fai(\"x\")\n    End Function\nEnd Class\n");
+
+            var vb = ExtractWithoutNetFramework(root);
+            var warning = vb.Warnings.Typed.Single(w => w.Text.StartsWith("Bl.vbproj") && w.Text.Contains("Cs.csproj"));
+            Assert.AreEqual(CodeWarnings.ProjectNotUsable, warning.Kind);
+            StringAssert.Contains(warning.Text, "NonEsiste", "con il primo errore, per sapere che cosa manca");
+            var usa = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Bl/UsaCs.vb")).Script;
+            Assert.IsFalse(usa.Edges.Any(e => e.TargetId == RoslynCSharpExtractor.StableId("csharp", "method", "Acme.Cs.Util.Fai(string)")), "nessun arco verso un metodo che non si è potuto risolvere");
+        }
+
+        [TestMethod]
+        public void Choose_between_two_versions_of_a_library_the_one_in_the_projects_own_bin()
+        {
+            // 15/11/2026, dal cliente: il DL riferisce il blocco applicativo come progetto che non c'è, e fra gli altri progetti ci
+            // sono due versioni della sua DLL: non si sceglieva, e il nome della procedura passato all'helper restava «?»
+            var root = WriteVs2003Solution(withLibrary: true, libraryAsMissingProject: true);
+            Directory.CreateDirectory(Path.Combine(root, "Lib2"));
+            Directory.CreateDirectory(Path.Combine(root, "Altro"));
+            var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")).Split(Path.PathSeparator).Select(x => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(x));
+            var v2 = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Acme.Blocks",
+                new[] { Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("[assembly: System.Reflection.AssemblyVersion(\"2.0.0.0\")]\n" + BlocksSource) }, refs,
+                new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+            using (var dll = File.Create(Path.Combine(root, "Lib2", "Acme.Blocks.dll"))) Assert.IsTrue(v2.Emit(dll).Success);
+            File.WriteAllText(Path.Combine(root, "Altro", "Altro.vbproj"), Vs2003Project("44444444-AAAA-BBBB-CCCC-000000000004", "Acme.Altro",
+                "                <Reference Name = \"Acme.Blocks\" AssemblyName = \"Acme.Blocks\" HintPath = \"..\\Lib2\\Acme.Blocks.dll\" />\n"));
+            File.WriteAllText(Path.Combine(root, "Altro", "Altro.vb"), "Public Class Altro\nEnd Class\n");
+
+            // due versioni e nessuna nel bin del DL: non si sceglie
+            var undecided = ExtractWithoutNetFramework(root);
+            Assert.IsTrue(undecided.Warnings.Any(w => w.StartsWith("Dl.vbproj") && w.Contains("2 different Acme.Blocks")), string.Join(" | ", undecided.Warnings.Select(w => w.Replace("{", "(").Replace("}", ")"))));
+            StringAssert.Contains(ProcedureCalls(undecided.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Dati.vb")).Script, "Leggi"), "is not resolved");
+
+            // la versione con cui il DL è stato compilato sta nel suo bin: è lei
+            Directory.CreateDirectory(Path.Combine(root, "Dl", "bin"));
+            File.Copy(Path.Combine(root, "Lib", "Acme.Blocks.dll"), Path.Combine(root, "Dl", "bin", "Acme.Blocks.dll"));
+            var decided = ExtractWithoutNetFramework(root);
+            Assert.IsTrue(decided.Warnings.Any(w => w.StartsWith("Dl.vbproj") && w.Contains("Acme.Blocks.dll") && w.Contains(Path.Combine("Dl", "bin"))), "si dice quale si usa e dove sta");
+            Assert.IsFalse(decided.Warnings.Any(w => w.StartsWith("Dl.vbproj") && w.Contains("2 different Acme.Blocks")));
+            var dl = decided.Scripts.Single(x => x.File.LogicalPath.EndsWith("Dl/Dati.vb")).Script;
+            Assert.AreEqual("14:SCHEMA_1.PKG_2.PROC_1:inferred:Leggi(procedura = \"SCHEMA_1.PKG_2.PROC_1\")", ProcedureCalls(dl, "Elenco"), "ora il nome passato all'helper arriva alla procedura");
+        }
+
+        [TestMethod]
         public void Say_which_argument_is_the_procedure_only_when_the_library_is_not_resolved_and_one_has_its_shape()
         {
             var result = ExtractWithoutNetFramework(WriteVs2003Solution(withLibrary: false));
