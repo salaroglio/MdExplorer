@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 34
+  version: 35
   updatePolicy: replace
 ---
 
@@ -250,8 +250,9 @@ Work in three steps, each a `code_query` call:
    - `pages-to-data` (`from`: the pages' folder; `unit`: `page` or `control`): how many reach a table, by outcome — `data`,
      `data-only-through-ambiguous`, `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
      missing project or library — a GAP of the graph), `stops-at-library` (the roads that leave the graph end on resolved
-     library members), `no-data-in-graph` (nothing leaves the graph and nothing touches data). `topExternalStops` names the
-     externals that stop the most entries, unresolved names first.
+     library members), `no-data-in-graph` (nothing leaves the graph and nothing touches data). `topUnresolvedNames` and
+     `topLibraryStops` name the externals that stop the most entries without data (an entry can stop at several: the
+     numbers do not add up).
    - `unreached-code` (`to`: the layer's folder, `from`: the pages' folder): the methods, constructors and queries the
      pages do not reach, by cause — `no-callers`, `started-by-other-pages`, `started-by-external` (the road starts at a
      framework event or a library callback), `started-by-uncalled-code`, `only-in-a-cycle` — by kind and by folder.

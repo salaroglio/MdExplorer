@@ -66,7 +66,8 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("data").GetInt32());
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("stops-at-unresolved-name").GetInt32());
             Assert.AreEqual(JsonValueKind.Null, counts.GetProperty("samples").ValueKind, "senza sample: solo conti");
-            Assert.AreEqual("Sicurezza.Verifica", counts.GetProperty("topExternalStops")[0].GetProperty("Symbol").GetString());
+            Assert.AreEqual("Sicurezza.Verifica", counts.GetProperty("topUnresolvedNames")[0].GetProperty("Symbol").GetString());
+            Assert.AreEqual((1, 0), (counts.GetProperty("unresolvedNames").GetInt32(), counts.GetProperty("libraryStops").GetInt32()));
 
             var sampled = await Ask("pages-to-data", ("from", "web"), ("outcome", "stops-at-unresolved-name"), ("sample", "5"), ("seed", "verifica"));
             var cases = sampled.GetProperty("samples").GetProperty("stops-at-unresolved-name");

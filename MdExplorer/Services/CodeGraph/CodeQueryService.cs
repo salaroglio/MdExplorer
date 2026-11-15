@@ -214,7 +214,9 @@ namespace MdExplorer.Services.CodeGraph
             return new
             {
                 from, unit = r.Unit, total = r.Total, byOutcome = r.ByOutcome,
-                distinctExternalStops = r.DistinctExternalStops, topExternalStops = r.TopExternalStops,
+                // gli esterni che fermano le pagine SENZA dati, per quante ne fermano; una pagina può fermarsi su più esterni: non si sommano
+                unresolvedNames = r.UnresolvedNames, topUnresolvedNames = r.TopUnresolvedNames,
+                libraryStops = r.LibraryStops, topLibraryStops = r.TopLibraryStops,
                 samples = r.Samples.Count == 0 ? null : r.Samples, sampleNote = SampleNote(sample, seed),
                 next = UiText.Say("data-reach su un caso del campione per tutte le sue tabelle e fermate; unreached-code per lo strato che le pagine non raggiungono",
                     "data-reach on a sampled case for all its tables and stops; unreached-code for the layer the pages do not reach"),

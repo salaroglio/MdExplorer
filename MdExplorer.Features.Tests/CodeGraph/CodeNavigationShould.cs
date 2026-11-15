@@ -191,8 +191,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("data=1, data-only-through-ambiguous=1, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={r.ByOutcome[o]}")));
             Assert.AreEqual(0, r.Samples.Count, "senza sample: solo conti");
-            Assert.AreEqual("Sicurezza.Verifica:True:1 | log4net.ILog.Info:False:1", string.Join(" | ", r.TopExternalStops.Select(x => $"{x.Symbol}:{x.Unresolved}:{x.Entries}")),
-                "gli esterni che fermano le pagine senza dati, prima i nomi non risolti; Ordini arriva ai dati e il suo log non conta");
+            Assert.AreEqual(("Sicurezza.Verifica:1", "log4net.ILog.Info:1"),
+                (string.Join(" | ", r.TopUnresolvedNames.Select(x => $"{x.Symbol}:{x.Entries}")), string.Join(" | ", r.TopLibraryStops.Select(x => $"{x.Symbol}:{x.Entries}"))),
+                "gli esterni che fermano le pagine senza dati, in due elenchi; Ordini arriva ai dati e il suo log non conta");
+            Assert.AreEqual((1, 1), (r.UnresolvedNames, r.LibraryStops));
 
             var sampled = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", CodeNavigation.OutcomeUnresolved, 3, "1", 10);
             Assert.AreEqual(CodeNavigation.OutcomeUnresolved, sampled.Samples.Keys.Single(), "solo l'esito chiesto");

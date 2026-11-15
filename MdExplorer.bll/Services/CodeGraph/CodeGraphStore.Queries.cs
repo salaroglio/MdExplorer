@@ -514,7 +514,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// riconosce e MdExplorer collega, come fa da solo per Angular.
         /// <list type="bullet">
         /// <item><c>codebehind</c>, con la classe come primo argomento (<c>Inherits="Alpina.Web.Ricerca"</c>): la classe
-        /// <c>renders</c> la pagina; la classe si cerca per nome qualificato, poi per nome se è una sola.</item>
+        /// <c>renders</c> la pagina. Se la pagina ha il suo file di code-behind accanto (<c>Ricerca.aspx.vb</c>/<c>.cs</c>, nel
+        /// grafo anche quando il progetto non lo compila), la classe è quella dichiarata lì, o nessuna; se non ce l'ha
+        /// (eredita una classe comune), si cerca per nome qualificato, poi per nome se è una sola.</item>
         /// <item><c>handler</c>, con il nome del metodo (<c>OnClick="btnCerca_Click"</c>): il controllo <c>calls</c> quel metodo
         /// della classe della pagina.</item>
         /// <item><c>autowire</c> (<c>AutoEventWireup="true"</c>): la pagina <c>calls</c> i metodi <c>Page_…</c> della sua classe,
@@ -537,18 +539,35 @@ namespace MdExplorer.Features.Services.CodeGraph
             // le classi candidate, per nome qualificato e per nome semplice
             var names = rows.Select(r => Str(r, "cname")).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.Ordinal).ToList();
             var simple = names.Select(n => n.Split('.').Last()).Distinct(StringComparer.Ordinal).ToList();
-            var classes = await RowsAsync($"SELECT DISTINCT ?cls ?qn ?name WHERE {{ GRAPH {g.DataIri} {{ VALUES ?name {{ {string.Join(" ", simple.Select(Lit))} }} " +
-                "?cls a code:Symbol ; code:kind \"class\" ; code:name ?name ; code:qualifiedName ?qn . } }", ct);
-            string ClassOf(string written)
+            var classes = await RowsAsync($"SELECT DISTINCT ?cls ?qn ?name ?cpath WHERE {{ GRAPH {g.DataIri} {{ VALUES ?name {{ {string.Join(" ", simple.Select(Lit))} }} " +
+                "?cls a code:Symbol ; code:kind \"class\" ; code:name ?name ; code:qualifiedName ?qn . OPTIONAL { ?cls code:path ?cpath } } }", ct);
+            // i file di codice del grafo (anche quelli che il progetto non compila: hanno il nodo, senza simboli), per sapere
+            // se la pagina ha il SUO file di code-behind: «Ricerca.aspx» → «Ricerca.aspx.vb» o «.cs» accanto a lei
+            var codeFiles = (await RowsAsync($"SELECT ?fp WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?fp . " +
+                    "FILTER(STRENDS(LCASE(?fp), \".vb\") || STRENDS(LCASE(?fp), \".cs\")) } }", ct))
+                .Select(r => Str(r, "fp")).Where(x => x != null).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            string ClassOf(string written, string pagePath)
             {
+                var simpleName = written.Split('.').Last();
+                var own = new[] { pagePath + ".vb", pagePath + ".cs" }.Where(codeFiles.Contains).ToList();
+                if (own.Count > 0)
+                {
+                    // la pagina ha il suo file: la classe è quella dichiarata LÌ, o nessuna (14/11/2026, dal cliente: col
+                    // code-behind vuoto o escluso dalla compilazione la pagina si agganciava alla classe omonima di un'altra
+                    // pagina o di un controllo — un collegamento sbagliato, peggio di uno che manca)
+                    var inOwn = classes.Where(c => own.Contains(Str(c, "cpath"), StringComparer.OrdinalIgnoreCase)
+                            && (string.Equals(Str(c, "qn"), written, StringComparison.OrdinalIgnoreCase) || string.Equals(Str(c, "name"), simpleName, StringComparison.OrdinalIgnoreCase)))
+                        .Select(c => c["cls"]).Distinct().ToList();
+                    return inOwn.Count == 1 ? inOwn[0] : null;
+                }
                 var exact = classes.Where(c => Str(c, "qn") == written).Select(c => c["cls"]).Distinct().ToList();
                 if (exact.Count == 1) return exact[0];
-                var byName = classes.Where(c => Str(c, "name") == written.Split('.').Last()).Select(c => c["cls"]).Distinct().ToList();
+                var byName = classes.Where(c => Str(c, "name") == simpleName).Select(c => c["cls"]).Distinct().ToList();
                 return byName.Count == 1 ? byName[0] : null;
             }
             foreach (var r in rows)
             {
-                var cls = ClassOf(Str(r, "cname"));
+                var cls = ClassOf(Str(r, "cname"), Str(r, "path"));
                 if (cls == null) continue;
                 var page = r["page"];
                 var path = Str(r, "path");

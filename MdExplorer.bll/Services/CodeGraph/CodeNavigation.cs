@@ -299,9 +299,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataAmbiguous, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
 
         public sealed record EntrySample(string Symbol, string Kind, string Path, string Outcome, int Tables, int ExternalStops, int LeafStops, List<CodeNavStep> Chain);
-        public sealed record ExternalBlock(string Symbol, bool Unresolved, int Entries);
-        public sealed record EntriesToData(string Unit, int Total, Dictionary<string, int> ByOutcome, int DistinctExternalStops, List<ExternalBlock> TopExternalStops,
-            Dictionary<string, List<EntrySample>> Samples);
+        public sealed record ExternalBlock(string Symbol, int Entries);
+        public sealed record EntriesToData(string Unit, int Total, Dictionary<string, int> ByOutcome, int UnresolvedNames, List<ExternalBlock> TopUnresolvedNames,
+            int LibraryStops, List<ExternalBlock> TopLibraryStops, Dictionary<string, List<EntrySample>> Samples);
 
         /// <summary>
         /// Quante maschere arrivano ai dati, e perché le altre no — solo conti, per esito:
@@ -315,8 +315,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <item><c>no-data-in-graph</c>: nessuna tabella e nessun esterno: tutto quello che esegue è nel grafo e non tocca dati.</item>
         /// </list>
         /// L'unità è la pagina (con i suoi controlli e il ciclo di vita) o il singolo controllo. I conti sono di tutta la
-        /// chiusura, senza limite di profondità. Per gli ingressi fermi su un esterno, gli esterni che ne fermano di più (prima i
-        /// nomi non risolti). Il
+        /// chiusura, senza limite di profondità. Per gli ingressi fermi su un esterno, gli esterni che ne fermano di più, in due
+        /// elenchi: i nomi non risolti e le librerie. Il
         /// campione, per esito, porta i numeri del caso e una catena: alla tabella più vicina, o all'esterno più vicino.
         /// </summary>
         public static EntriesToData EntriesToTables(Graph g, IReadOnlyCollection<(string Id, string Kind, string Name, string Path)> symbols, string fromPrefix, string unit,
@@ -370,10 +370,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     return new EntrySample(n.Name, n.Kind, n.Path, o, r.Tables.Count, r.ExternalStops, r.LeafStops, chain);
                 }).ToList();
             }
-            return new EntriesToData(unit == "control" ? "control" : "page", entries.Count, byOutcome, blocked.Count,
-                blocked.OrderByDescending(x => unresolvedNodes.Contains(x.Key)).ThenByDescending(x => x.Value).ThenBy(x => g.Nodes[x.Key].Name, StringComparer.Ordinal).Take(top)
-                    .Select(x => new ExternalBlock(g.Nodes[x.Key].Name, unresolvedNodes.Contains(x.Key), x.Value)).ToList(),
-                samples);
+            // due elenchi, ognuno per quanti ingressi ferma: i nomi non risolti (i buchi del grafo) e le librerie
+            List<ExternalBlock> Top(bool unresolved) => blocked.Where(x => unresolvedNodes.Contains(x.Key) == unresolved)
+                .OrderByDescending(x => x.Value).ThenBy(x => g.Nodes[x.Key].Name, StringComparer.Ordinal).Take(top).Select(x => new ExternalBlock(g.Nodes[x.Key].Name, x.Value)).ToList();
+            return new EntriesToData(unit == "control" ? "control" : "page", entries.Count, byOutcome,
+                blocked.Keys.Count(unresolvedNodes.Contains), Top(true), blocked.Keys.Count(k => !unresolvedNodes.Contains(k)), Top(false), samples);
         }
 
         public const string CauseNoCallers = "no-callers";

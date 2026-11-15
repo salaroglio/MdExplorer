@@ -91,6 +91,59 @@ template:
         }
 
         [TestMethod]
+        public async Task Take_the_class_from_the_pages_own_code_behind_file_never_a_namesake()
+        {
+            // 14/11/2026, dal cliente: una pagina col code-behind vuoto (o escluso dalla compilazione) si agganciava alla classe
+            // omonima di un'altra pagina o di un controllo. Con il suo file accanto, la classe è quella dichiarata lì, o nessuna
+            var store = FusekiFixture.NewStore();
+            var root = Path.Combine(Path.GetTempPath(), "mde-codebehind-tests", Guid.NewGuid().ToString("N"));
+            var project = Path.Combine(root, "project");
+            try
+            {
+                var web = Path.Combine(project, "web");
+                Directory.CreateDirectory(Path.Combine(web, "altro"));
+                var package = Path.Combine(DeclarativeLanguage.FolderOf(project), "pagine");
+                Directory.CreateDirectory(package);
+                File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Dialect);
+                // Elenco: il suo code-behind c'è ma è vuoto; un'altra pagina, altrove, ha una classe con lo stesso nome
+                File.WriteAllText(Path.Combine(web, "Elenco.pag"), "<%@ Page Language=\"VB\" AutoEventWireup=\"true\" Inherits=\"Elenco\" %>\n");
+                File.WriteAllText(Path.Combine(web, "Elenco.pag.vb"), "' vuoto\n");
+                File.WriteAllText(Path.Combine(web, "altro", "Elenco.pag"), "<%@ Page Language=\"VB\" AutoEventWireup=\"true\" Inherits=\"elenco\" %>\n");
+                File.WriteAllText(Path.Combine(web, "altro", "Elenco.pag.vb"),
+                    "Namespace Demo\n  Public Class Elenco\n    Protected Sub Page_Load(sender As Object, e As EventArgs)\n    End Sub\n  End Class\nEnd Namespace\n");
+                // Comune: nessun file suo, eredita una classe comune dichiarata altrove
+                File.WriteAllText(Path.Combine(web, "Comune.pag"), "<%@ Page Language=\"VB\" Inherits=\"Demo.Base\" %>\n");
+                File.WriteAllText(Path.Combine(web, "Base.vb"), "Namespace Demo\n  Public Class Base\n  End Class\nEnd Namespace\n");
+                void Emit(ICodeExtractor extractor, string pattern)
+                {
+                    var files = Directory.GetFiles(web, pattern, SearchOption.AllDirectories).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(project, f))).ToList();
+                    foreach (var (file, script) in extractor.Extract(new CodeExtractionRequest { ProjectPath = project, AllFiles = files, FilesToEmit = files }).Scripts)
+                    {
+                        var path = CodeScriptWriter.ScriptPathFor(project, file.LogicalPath, CodeScriptKind.Ast);
+                        Directory.CreateDirectory(Path.GetDirectoryName(path));
+                        File.WriteAllText(path, CodeScriptWriter.Serialize(script));
+                    }
+                }
+                Emit(new RoslynVisualBasicExtractor(NullLogger<RoslynVisualBasicExtractor>.Instance), "*.vb");
+                Emit(new TemplatePageExtractor(CodeLanguageCatalog.ForProject(project).ById("pagine").Definition), "*.pag");
+                var load = await store.LoadProjectAsync(project);
+                Assert.AreEqual(0, load.Failed, load.FirstError);
+                await new CodeRuleService(store, NullLogger<CodeRuleService>.Instance).ApplyPageScriptsAsync(project, new[] { "pagine" });
+
+                var elenco = (await store.ResolveAsync(project, "Demo.Elenco")).Single(x => x.Kind == "class").Id;
+                Assert.AreEqual("web/altro/Elenco.pag", string.Join(" | ", (await store.NeighborsAsync(project, elenco, "renders", "out", 1, 5)).Select(e => e.Other.QualifiedName)),
+                    "solo la pagina che ha la classe nel suo file (il nome nella direttiva non distingue le maiuscole); quella col code-behind vuoto resta senza classe");
+                var load2 = (await store.ResolveAsync(project, "Elenco.Page_Load")).Single(x => x.Kind == "method").Id;
+                Assert.AreEqual("web/altro/Elenco.pag", string.Join(" | ", (await store.NeighborsAsync(project, load2, "calls", "in", 1, 5)).Select(e => e.Other.QualifiedName)),
+                    "e Page_Load lo chiama solo la sua pagina");
+                var common = (await store.ResolveAsync(project, "Demo.Base")).Single(x => x.Kind == "class").Id;
+                Assert.AreEqual("web/Comune.pag", (await store.NeighborsAsync(project, common, "renders", "out", 1, 5)).Single().Other.QualifiedName,
+                    "una pagina senza un file suo eredita la classe comune, cercata per nome");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
+        [TestMethod]
         public async Task Link_server_controls_and_the_page_to_the_handlers_wired_in_the_code_behind()
         {
             // 13/11/2026, rilevazione dal cliente (Web Forms 1.1): AutoEventWireup="false", nessun evento nel markup, i gestori
