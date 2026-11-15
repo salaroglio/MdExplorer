@@ -25,7 +25,7 @@ namespace MdExplorer.Services.Git
     /// <c>credential.&lt;scheme://host&gt;.username</c> deve essere quello sotto cui il credential
     /// helper ha salvato la credenziale, altrimenti git non la ritrova e chiede il login a ogni
     /// operazione. Git Credential Manager salva sotto il login GitHub REALE e cerca l'utente
-    /// richiesto con confronto esatto (visto l'08/10/2026 con l'organizzazione «dedabit» scritta
+    /// richiesto con confronto esatto (visto l'08/10/2026 con l'organizzazione «acmeorg» scritta
     /// al posto dell'account).
     /// </summary>
     public interface IGitAccountAligner

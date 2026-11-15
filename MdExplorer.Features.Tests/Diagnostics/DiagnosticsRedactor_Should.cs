@@ -5,14 +5,14 @@ namespace MdExplorer.Features.Tests.Diagnostics
 {
     /// <summary>
     /// L'oscuramento dei log prima di «Invia diagnostica». I casi vengono dai log veri del 06/11/2026 (Windows dell'utente,
-    /// utente di dominio NCO\SLRCLM72P) più i segreti che MDE maneggia (relay, GitHub, Telegram, chiavi dei modelli).
+    /// utente di dominio ACME\RSSMRA80A) più i segreti che MDE maneggia (relay, GitHub, Telegram, chiavi dei modelli).
     /// </summary>
     [TestClass]
     public class DiagnosticsRedactor_Should
     {
         private static readonly RedactionContext Windows = new RedactionContext
         {
-            UserName = "SLRCLM72P", Domain = "NCO", UserProfile = @"C:\Users\SLRCLM72P",
+            UserName = "RSSMRA80A", Domain = "ACME", UserProfile = @"C:\Users\RSSMRA80A",
         };
 
         private static string R(string text, RedactionContext ctx = null) => DiagnosticsRedactor.Redact(text, ctx ?? Windows).Text;
@@ -21,27 +21,27 @@ namespace MdExplorer.Features.Tests.Diagnostics
         public void Hide_the_user_folder_in_every_form_it_appears_in_the_logs()
         {
             Assert.AreEqual(@"[git] repository <utente>\AppData\Local\MdExplorer\Logs",
-                R(@"[git] repository C:\Users\SLRCLM72P\AppData\Local\MdExplorer\Logs"));
-            Assert.AreEqual("<utente>/AppData/Roaming/mdexplorer", R("C:/Users/SLRCLM72P/AppData/Roaming/mdexplorer"));
-            Assert.AreEqual(@"{""path"":""<utente>\\AppData""}", R(@"{""path"":""C:\\Users\\SLRCLM72P\\AppData""}"));
-            Assert.AreEqual("<utente>/Documents/x.md", R("/home/carlo/Documents/x.md", new RedactionContext { UserName = "carlo", UserProfile = "/home/carlo" }));
+                R(@"[git] repository C:\Users\RSSMRA80A\AppData\Local\MdExplorer\Logs"));
+            Assert.AreEqual("<utente>/AppData/Roaming/mdexplorer", R("C:/Users/RSSMRA80A/AppData/Roaming/mdexplorer"));
+            Assert.AreEqual(@"{""path"":""<utente>\\AppData""}", R(@"{""path"":""C:\\Users\\RSSMRA80A\\AppData""}"));
+            Assert.AreEqual("<utente>/Documents/x.md", R("/home/mario/Documents/x.md", new RedactionContext { UserName = "mario", UserProfile = "/home/mario" }));
         }
 
         [TestMethod]
         public void Hide_the_user_name_alone_and_with_the_domain()
         {
-            Assert.AreEqual("Si è collegato <utente> da 192.168.41.140", R(@"Si è collegato nco\slrclm72p da 192.168.41.140"));
-            Assert.AreEqual("utente <utente>, ok", R("utente SLRCLM72P, ok"));
+            Assert.AreEqual("Si è collegato <utente> da 192.168.41.140", R(@"Si è collegato acme\rssmra80a da 192.168.41.140"));
+            Assert.AreEqual("utente <utente>, ok", R("utente RSSMRA80A, ok"));
         }
 
         [TestMethod]
         public void Hide_the_person_s_name_with_any_separator()
         {
-            var ctx = new RedactionContext { UserName = "SLRCLM72P", OtherNames = new[] { "carlo.salaroglio" } };
-            Assert.AreEqual("User <utente> opened project", R("User carlo.salaroglio opened project", ctx));
-            Assert.AreEqual("origin -> https://github.com/<utente>_dedagrp/ifad", R("origin -> https://github.com/carlo-salaroglio_dedagrp/ifad", ctx));
-            Assert.AreEqual("autore <utente>", R("autore Carlo Salaroglio", ctx));
-            Assert.AreEqual("carlotta e salarogliosi restano", R("carlotta e salarogliosi restano", ctx));
+            var ctx = new RedactionContext { UserName = "RSSMRA80A", OtherNames = new[] { "mario.rossi" } };
+            Assert.AreEqual("User <utente> opened project", R("User mario.rossi opened project", ctx));
+            Assert.AreEqual("origin -> https://github.com/<utente>_acme/ordini", R("origin -> https://github.com/mario-rossi_acme/ordini", ctx));
+            Assert.AreEqual("autore <utente>", R("autore Mario Rossi", ctx));
+            Assert.AreEqual("mariolina e rossini restano", R("mariolina e rossini restano", ctx));
         }
 
         [TestMethod]
@@ -54,8 +54,8 @@ namespace MdExplorer.Features.Tests.Diagnostics
         [TestMethod]
         public void Hide_email_addresses()
         {
-            var r = DiagnosticsRedactor.Redact("User carlo.salaroglio opened project, author carlo.salaroglio@deda.com", Windows);
-            Assert.AreEqual("User carlo.salaroglio opened project, author <email>", r.Text);
+            var r = DiagnosticsRedactor.Redact("User mario.rossi opened project, author mario.rossi@example.com", Windows);
+            Assert.AreEqual("User mario.rossi opened project, author <email>", r.Text);
             Assert.AreEqual(1, r.Counts[DiagnosticsRedactor.Email]);
         }
 
@@ -80,8 +80,8 @@ namespace MdExplorer.Features.Tests.Diagnostics
         [TestMethod]
         public void Hide_credentials_inside_a_url_but_keep_the_host()
         {
-            Assert.AreEqual("clone https://<segreto>@repository.dedabit.it/scm/repo/x.git",
-                R("clone https://carlo:Segreta123@repository.dedabit.it/scm/repo/x.git"));
+            Assert.AreEqual("clone https://<segreto>@repository.example.com/scm/repo/x.git",
+                R("clone https://mario:Segreta123@repository.example.com/scm/repo/x.git"));
         }
 
         [TestMethod]
@@ -89,9 +89,9 @@ namespace MdExplorer.Features.Tests.Diagnostics
         {
             const string perf = "[PERF] 18:05:26.596 [DB-HOLD commit] MdExplorer.db: 6553 ms | ProjectsManager.McpGroupsArgument < SetNewProject";
             Assert.AreEqual(perf, R(perf));
-            const string project = @"Opening project for connection E3xXL3rxbCzobTipvY0iKw: C:\sviluppo\dedagroup\ifad";
+            const string project = @"Opening project for connection E3xXL3rxbCzobTipvY0iKw: C:\sviluppo\acme\ordini";
             Assert.AreEqual(project, R(project));
-            const string git = "Remote found: origin -> https://github.com/carlo-salaroglio_dedagrp/ifad";
+            const string git = "Remote found: origin -> https://github.com/mario-rossi_acme/ordini";
             Assert.AreEqual(git, R(git));
             Assert.AreEqual(0, DiagnosticsRedactor.Redact(perf + "\n" + project, Windows).Total);
         }
@@ -99,7 +99,7 @@ namespace MdExplorer.Features.Tests.Diagnostics
         [TestMethod]
         public void Count_what_it_hid_by_kind()
         {
-            var r = DiagnosticsRedactor.Redact("a@b.it c@d.it roomSecret: abcdefgh C:\\Users\\SLRCLM72P\\x", Windows);
+            var r = DiagnosticsRedactor.Redact("a@b.it c@d.it roomSecret: abcdefgh C:\\Users\\RSSMRA80A\\x", Windows);
             Assert.AreEqual(2, r.Counts[DiagnosticsRedactor.Email]);
             Assert.AreEqual(1, r.Counts[DiagnosticsRedactor.Secret]);
             Assert.AreEqual(1, r.Counts[DiagnosticsRedactor.User]);

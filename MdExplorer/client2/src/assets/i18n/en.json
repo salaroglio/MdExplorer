@@ -759,7 +759,7 @@
     "HELP_STEP4_DESC": "“Connect” writes the remote and pushes. If git needs a login, git does it: MdExplorer keeps no password.",
     "URL_INVALID": "Invalid URL",
     "ACCOUNT_USERNAME": "Your login on this host (not the organization)",
-    "ACCOUNT_USERNAME_PLACEHOLDER": "e.g. carlo-salaroglio_dedagrp",
+    "ACCOUNT_USERNAME_PLACEHOLDER": "e.g. mario-rossi_acme",
     "ACCOUNT_USERNAME_HINT": "The account you log in with in the browser, spelled exactly. With several accounts on the same host git must know which one to use. Empty = MdExplorer finds it out at the first push.",
     "KNOWN_ACCOUNTS": "Accounts git already knows:",
     "CHECK_REMOTE": "Check the remote",

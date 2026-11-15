@@ -11,7 +11,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.IntegrationTests
 {
     /// <summary>
-    /// Il pull da origin quando <c>.development.yml</c> è modificato senza commit (06/11/2026, BCCSI-Docs fermo da 18 giorni):
+    /// Il pull da origin quando <c>.development.yml</c> è modificato senza commit (06/11/2026, un progetto di documentazione fermo da 18 giorni):
     /// MdExplorer aveva scritto da sé il segreto della chat nel file, un collega aveva pubblicato una voce Atlassian nello
     /// stesso file, e git rifiutava il pull («Your local changes … would be overwritten by merge»).
     /// <para>Richiede <c>git</c> nel PATH.</para>
@@ -94,7 +94,7 @@ namespace MdExplorer.IntegrationTests
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
-            var (project, colleague) = Setup(ctx, "bccsi");
+            var (project, colleague) = Setup(ctx, "docs");
             // il collega: il suo MdExplorer pubblica l'indirizzo di Confluence (come il 03/11)
             Publish(colleague, ".development.yml", Start.Replace("  confluenceSpaceKeys: []\n", "  confluenceBaseUrl: https://deda-bit.atlassian.net/\n  confluenceSpaceKeys: []\n"), "confluence");
             Publish(colleague, "nuovo.md", "# nuovo\n", "documento");

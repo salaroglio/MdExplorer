@@ -8,18 +8,18 @@ namespace MdExplorer.Features.Diagnostics
     /// <summary>Chi è la persona sul computer: serve a togliere il suo nome e la sua cartella dai log.</summary>
     public sealed class RedactionContext
     {
-        /// <summary>Il nome utente del sistema (<c>Environment.UserName</c>, per esempio <c>SLRCLM72P</c> o <c>carlo</c>).</summary>
+        /// <summary>Il nome utente del sistema (<c>Environment.UserName</c>, per esempio <c>RSSMRA80A</c> o <c>mario</c>).</summary>
         public string UserName { get; init; }
 
         /// <summary>Il dominio, se c'è (<c>Environment.UserDomainName</c>, per esempio <c>NCO</c>).</summary>
         public string Domain { get; init; }
 
-        /// <summary>La cartella dell'utente (<c>C:\Users\SLRCLM72P</c>, <c>/home/carlo</c>).</summary>
+        /// <summary>La cartella dell'utente (<c>C:\Users\RSSMRA80A</c>, <c>/home/mario</c>).</summary>
         public string UserProfile { get; init; }
 
         /// <summary>
         /// Altri nomi della persona: il <c>user.name</c> di git, la parte prima della @ della sua email. Riconosciuti con qualunque
-        /// separatore (<c>carlo.salaroglio</c>, <c>carlo-salaroglio_dedagrp</c>, <c>Carlo Salaroglio</c>): 06/11/2026, 291 volte nel
+        /// separatore (<c>mario.rossi</c>, <c>mario-rossi_acme</c>, <c>Mario Rossi</c>): 06/11/2026, 291 volte nel
         /// log di un giorno.
         /// </summary>
         public IReadOnlyList<string> OtherNames { get; init; } = Array.Empty<string>();

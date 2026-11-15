@@ -256,15 +256,15 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public async Task PrimoCollegamento_AccountDiversoDaQuelloDelLogin_MdeLoAllineaEGitNonRichiedeIlLogin()
         {
-            // Windows, 08/10/2026: repository sotto l'organizzazione «dedabit», la maschera scrive
-            // `credential.<host>.username = dedabit`. Git Credential Manager fa il login nel browser,
+            // Windows, 08/10/2026: repository sotto l'organizzazione «acmeorg», la maschera scrive
+            // `credential.<host>.username = acmeorg`. Git Credential Manager fa il login nel browser,
             // il push passa, ma salva la credenziale sotto il login REALE e, quando git gli richiede
-            // «dedabit», non la trova: login a ogni operazione, per sempre. Dopo il primo push
+            // «acmeorg», non la trova: login a ogni operazione, per sempre. Dopo il primo push
             // MdExplorer deve accorgersene e scrivere l'account vero.
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
             using var server = NewServer(ctx);
-            var url = server.CreateBareRepository("dedabit/techdocs");
+            var url = server.CreateBareRepository("acmeorg/techdocs");
             var (_, path) = ctx.SeedProject("sotto-organizzazione");
             Git(path, "init", "-q", "-b", "main");
             File.WriteAllText(Path.Combine(path, "README.md"), "# techdocs\n");
@@ -290,7 +290,7 @@ namespace MdExplorer.IntegrationTests
             Git(path, "config", "--add", "credential.helper", helper);
 
             var setup = await PostJson(ctx, "/api/ModernGit/setup-remote-generic",
-                new { repositoryPath = path, remoteUrl = url, remoteName = "origin", accountUsername = "dedabit", pushAfterAdd = true });
+                new { repositoryPath = path, remoteUrl = url, remoteName = "origin", accountUsername = "acmeorg", pushAfterAdd = true });
             Assert.IsTrue(setup.Success, "setup-remote-generic: " + setup.Error + " | " + setup.Raw);
             Assert.AreEqual(1, LoginCount(logins), "il primo push fa UN login: " + setup.Raw);
 
@@ -298,7 +298,7 @@ namespace MdExplorer.IntegrationTests
             var (_, written) = Git(path, "config", "--get", $"credential.{server.BaseUrl}.username");
             Assert.AreEqual(User, written.Trim(), "l'account nel repository deve essere quello sotto cui il helper ha salvato");
             Assert.IsTrue(setup.Raw.Contains($"\"accountUsername\":\"{User}\""), "la risposta deve dire l'account corretto: " + setup.Raw);
-            Assert.IsTrue(setup.Raw.Contains("not 'dedabit'"), "la risposta deve dire che l'account è stato corretto: " + setup.Raw);
+            Assert.IsTrue(setup.Raw.Contains("not 'acmeorg'"), "la risposta deve dire che l'account è stato corretto: " + setup.Raw);
 
             // Da qui in poi nessun login: il push dalla toolbar trova la credenziale.
             File.WriteAllText(Path.Combine(path, "secondo.md"), "# secondo\n");
@@ -363,7 +363,7 @@ namespace MdExplorer.IntegrationTests
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
             using var server = NewServer(ctx);
-            var url = server.CreateBareRepository("dedabit/da-clonare-con-login");
+            var url = server.CreateBareRepository("acmeorg/da-clonare-con-login");
             SeedRemoteContent(ctx, server, url, "da-clonare-con-login");
             var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato-con-login");
 

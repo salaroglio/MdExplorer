@@ -3,7 +3,7 @@ name: mde-abox
 description: "Convention for generating ABox (instance data) files inside an MDE project. Use when extracting instance triples from a source document (analyses, requirements, mapping tables) into `ontology/ABox/`: produces a `.ttl` with concrete instances conforming to a referenced TBox plus a `.md` companion with description + runnable PowerShell load + sample SPARQL query. Triggers on \"extract instances\", \"generate ABox\", \"create RDF data from doc\", \"populate ontology with examples\", \"instance data for ontology\". NOT for MdExplorer's code graph (source code, programs, symbols, the scan or the description of code): that one is answered only with the `code_*` tools, see the mde-code skill."
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -61,8 +61,8 @@ ontology/ABox/<dataset-name>.md     ← descrizione + runnable di caricamento + 
 Importare i **prefissi TBox** che si useranno (uno o più dei `https://<authority>/ontology/<domain>/<package>#`) e definire un **namespace locale** per le istanze:
 
 ```turtle
-@prefix stem: <https://dedagroup.it/ontology/cobol2java/stem#> .
-@prefix call: <https://dedagroup.it/ontology/cobol2java/cobol/callable#> .
+@prefix stem: <https://example.org/ontology/cobol2java/stem#> .
+@prefix call: <https://example.org/ontology/cobol2java/cobol/callable#> .
 @prefix :     <urn:mde:abox:<dataset-name>#> .
 ```
 
@@ -168,7 +168,7 @@ date: DD/MM/YYYY
    $dataset = "<DATASET>"
    $fuseki = "<FUSEKI_URI>"
    $query = @"
-   PREFIX stem: <https://dedagroup.it/ontology/cobol2java/stem#>
+   PREFIX stem: <https://example.org/ontology/cobol2java/stem#>
    SELECT ?stem ?canonicalName ?usageCount
    FROM <urn:mde:abox:<dataset-name>>
    WHERE {

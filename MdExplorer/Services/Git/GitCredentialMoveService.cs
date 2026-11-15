@@ -333,7 +333,7 @@ namespace MdExplorer.Services.Git
         /// il prefisso alla lettera. Una voce già presente con un altro maiuscolo (<c>Git:https://host</c>,
         /// lasciata da un programma precedente) fa sì che lo store di GCM sovrascriva la voce (Windows
         /// confronta i nomi senza maiuscole) ma poi non la ritrovi: visto dal vivo il 21/10/2026 con
-        /// <c>Git:https://repository.dedabit.it</c>. Ritorna il nome di quella voce, o null.
+        /// <c>Git:https://repository.example.com</c>. Ritorna il nome di quella voce, o null.
         /// </summary>
         private string ForeignWindowsCredentialTarget(Uri uri)
         {

@@ -759,7 +759,7 @@
     "HELP_STEP4_DESC": "«Collega» scrive il remote e fa il primo push. Se git chiede un login, lo fa lui: MdExplorer non conserva nessuna password.",
     "URL_INVALID": "URL non valido",
     "ACCOUNT_USERNAME": "Il tuo login su questo host (non l'organizzazione)",
-    "ACCOUNT_USERNAME_PLACEHOLDER": "es. carlo-salaroglio_dedagrp",
+    "ACCOUNT_USERNAME_PLACEHOLDER": "es. mario-rossi_acme",
     "ACCOUNT_USERNAME_HINT": "L'account con cui fai il login nel browser, scritto esattamente. Con più account sullo stesso host git deve sapere quale usare. Vuoto = lo scopre MdExplorer col primo push.",
     "KNOWN_ACCOUNTS": "Account che git conosce già:",
     "CHECK_REMOTE": "Verifica il remoto",
