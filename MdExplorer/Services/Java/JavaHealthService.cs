@@ -177,7 +177,7 @@ namespace MdExplorer.Services.Java
                     break;
                 case JavaHealthOutcome.NoSuitableJava:
                     _logger.LogError("[JavaHealth] nessun Java {Min} sul computer ('JavaPath' = '{Old}': {Problem}). Grafo del codice e memoria degli agenti non partono finché non si installa Temurin {Min}.",
-                        r.MinimumMajor, r.ConfiguredPath, r.ConfiguredProblem);
+                        r.MinimumMajor, r.ConfiguredPath, r.ConfiguredProblem, r.MinimumMajor);
                     _notices.Set(new StartupNotice { Id = Guid.NewGuid().ToString("N"), Level = "error", Kind = "java-missing", Params = p, At = DateTime.UtcNow });
                     break;
             }
