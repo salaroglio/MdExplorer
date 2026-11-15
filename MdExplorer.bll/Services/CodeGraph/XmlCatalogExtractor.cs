@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 request.Report(CodeExtractionRequest.EmitStep, ++emitted, request.FilesToEmit.Count);
                 string text;
                 try { text = request.ReadText(file); }
-                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{file.LogicalPath}: non leggibile ({ex.Message})", $"{file.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{file.LogicalPath}: non leggibile ({ex.Message})", $"{file.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var script = new FileReader(this, file, text, result.Warnings).Read();
                 result.Scripts.Add((file, script));
             }
@@ -62,7 +62,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly XmlCatalogExtractor _owner;
             private readonly CodeSourceFile _file;
             private readonly string _text;
-            private readonly List<string> _warnings;
+            private readonly CodeWarnings _warnings;
             private readonly CodeScript _script = new();
             private readonly HashSet<string> _qualified = new(StringComparer.Ordinal);
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
@@ -71,7 +71,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private string _moduleId;
             private Regex _hole;
 
-            public FileReader(XmlCatalogExtractor owner, CodeSourceFile file, string text, List<string> warnings)
+            public FileReader(XmlCatalogExtractor owner, CodeSourceFile file, string text, CodeWarnings warnings)
             {
                 _owner = owner; _file = file; _text = text; _warnings = warnings;
                 _hole = new Regex(@"[\w$#]*(?:" + owner._lang.Xml.Placeholder + @")[\w$#]*", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
@@ -100,7 +100,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 catch (XmlException ex)
                 {
                     // un XML che non si legge non è un catalogo: il file c'è, senza query, e lo si dice
-                    _warnings.Add(UiText.Say($"{_file.LogicalPath}: XML non valido alla riga {ex.LineNumber} ({ex.Message}): nessuna query letta",
+                    _warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{_file.LogicalPath}: XML non valido alla riga {ex.LineNumber} ({ex.Message}): nessuna query letta",
                         $"{_file.LogicalPath}: invalid XML at line {ex.LineNumber} ({ex.Message}): no query read"));
                     return _script;
                 }
@@ -141,7 +141,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var name = Text(element, rule.Name);
                 if (name == null)
                 {
-                    _warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: elemento <{element.Name.LocalName}> preso come query, ma senza nome (xml.queries name): saltato",
+                    _warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{line}: elemento <{element.Name.LocalName}> preso come query, ma senza nome (xml.queries name): saltato",
                         $"{_file.LogicalPath}:{line}: element <{element.Name.LocalName}> taken as a query, but without a name (xml.queries name): skipped"));
                     return;
                 }
@@ -180,7 +180,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!_qualified.Add(qualified))
                 {
                     // lo stesso nome due volte nello stesso file: si tengono entrambi, distinti dalla riga, e lo si dice
-                    _warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{local}' è già dichiarato in questo file", $"{_file.LogicalPath}:{line}: '{local}' is already declared in this file"));
+                    _warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{line}: '{local}' è già dichiarato in questo file", $"{_file.LogicalPath}:{line}: '{local}' is already declared in this file"));
                     qualified += "@" + line;
                     declared = local + "@" + line;
                     _qualified.Add(qualified);

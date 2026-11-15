@@ -76,11 +76,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
-                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var tree = parser.Parse(text);
-                if (tree == null) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: tree-sitter non ha prodotto un albero", $"{f.LogicalPath}: tree-sitter produced no tree")); continue; }
+                if (tree == null) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: tree-sitter non ha prodotto un albero", $"{f.LogicalPath}: tree-sitter produced no tree")); continue; }
                 // C6: quello che la grammatica non legge manca dal grafo; lo si dice invece di perderlo in silenzio.
-                if (TreeSitterParseErrors.Describe(tree.RootNode, text, f.LogicalPath, g.DisplayName) is string unread) result.Warnings.Add(unread);
+                if (TreeSitterParseErrors.Describe(tree.RootNode, text, f.LogicalPath, g.DisplayName) is string unread) result.Warnings.Add(CodeWarnings.LanguageRules, unread);
                 parsed.Add(new ParsedFile(f, text, tree, PackageOf(tree.RootNode)));
             }
             var index = new PerimeterIndex();
@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 try { result.Scripts.Add((pf.File, new FileEmitter(this, pf, index).Emit())); }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
+                    result.Warnings.Add(CodeWarnings.FileUnreadable, $"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
                     _logger?.LogWarning(ex, "[CodeGraph/tree-sitter] estrazione fallita per {File}", pf.File.LogicalPath);
                 }
             }

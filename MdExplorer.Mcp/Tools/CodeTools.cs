@@ -154,19 +154,23 @@ public sealed class CodeTools : McpToolsBase
 
     [McpServerTool, Description(
         "What is in the project's code graph, per program folder: languages, whether the folder is linked on this machine, how many files " +
-        "and symbols were scanned and how many already have a description, when it was last scanned, the WARNINGS of the last extraction that reread files " +
-        "(`lastExtraction`: missing libraries, referenced projects not found, blocks never closed…; null = none recorded yet, not «no warnings»; " +
-        "`reparsed` of `files` says how much was reread), the programs it USES according to its build " +
+        "and symbols were scanned and how many already have a description, when it was last scanned, a SUMMARY of the warnings of the last extraction that reread files " +
+        "(`lastExtraction.warningsByKind`: per kind — referenced-project-missing, referenced-project-ambiguous, library-missing, files-not-compiled, " +
+        "unresolved-references, names-declared-in-several-files, language-rules, bridges… — how many and one example; `warningCount` counts them all; " +
+        "null = none recorded yet, not «no warnings»; `reparsed` of `files` says how much was reread). To read the warnings of ONE kind in full call again with " +
+        "`warnings` = that kind (`all` = every warning: it can be very long). The programs it USES according to its build " +
         "files (`uses`: pom.xml / Gradle / .csproj, with the line that says so; `linked` = calls into it reach that program's real symbols), the last description run (`interrupted` = " +
         "MdExplorer was closed while describing, or it failed: the user is asked at project open whether to continue); plus the description jobs " +
         "running now (file reached out of the total). Use it for 'what programs are in the graph?', 'how far did the description get?', 'is it done?'. " +
         "The code graph is MdExplorer's own: answer ONLY from code_* tools, never with an HTTP call to a Fuseki server.")]
     public async Task<string> code_inventory(
-        [Description("Project name.")] string project)
+        [Description("Project name.")] string project,
+        [Description("Optional: a warning kind from `warningsByKind` (e.g. referenced-project-missing), or `all`: each folder's `lastExtraction.warnings` then lists those warnings in full. Empty = the summary only.")] string warnings = null)
     {
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
-        return await GetAsync(client, Q(path, "inventory"), "code_inventory", project, "");
+        var rest = string.IsNullOrWhiteSpace(warnings) ? "inventory" : $"inventory?warnings={Uri.EscapeDataString(warnings.Trim())}";
+        return await GetAsync(client, Q(path, rest), "code_inventory", project, warnings ?? "");
     }
 
     [McpServerTool, Description(

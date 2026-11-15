@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 33
+  version: 34
   updatePolicy: replace
 ---
 
@@ -109,6 +109,7 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
 | The user asks | Tool |
 |---|---|
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
+| Which limits did the last analysis report (missing projects or libraries, files not compiled, unresolved references…)? | `code_inventory`: `lastExtraction.warningsByKind` is a SUMMARY — per kind, how many and one example. Read it first; then, only for the kind you need, call `code_inventory` again with `warnings` = that kind to get those warnings in full (`all` gives every warning and can be very long) |
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
 | How the graph is organised: classes of nodes, their properties, what each parser of this project produces | `code_ontology` (once, first) |

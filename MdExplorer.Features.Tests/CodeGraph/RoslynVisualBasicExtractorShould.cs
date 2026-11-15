@@ -885,12 +885,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
             // nessuna soluzione: non si sa quale, e si dice
             var none = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy());
             Assert.IsTrue(none.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("(.sln)")), "nessuna soluzione lo dice, e l'avviso lo spiega");
+            // ogni avviso dice il suo tipo dove nasce (14/11/2026): è quello che code_inventory conta
+            Assert.AreEqual(CodeWarnings.ProjectAmbiguous, none.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("(.sln)")).Kind);
+            Assert.AreEqual(CodeWarnings.ProjectMissing, none.Warnings.Typed.Single(x => x.Text.Contains("Mancante")).Kind);
             Assert.AreEqual("external", DlCalledByBl(none));
             Cleanup(); Setup();
 
             // la soluzione indica l'originale (il BL vi sta con un indirizzo, come i progetti web di Visual Studio 2003)
             var original = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy(("Acme.sln", "Dl\\Dl.vbproj")));
             Assert.IsTrue(original.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains(Path.Combine("vs2003", "Dl", "Dl.vbproj"))), "si dice quale e perché");
+            Assert.AreEqual(CodeWarnings.ReferenceResolved, original.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("Acme.sln")).Kind);
             var dl = original.Scripts.Single(x => x.File.LogicalPath.EndsWith("vs2003/Dl/Dati.vb")).Script;
             Assert.AreEqual(dl.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)").Id, DlCalledByBl(original), "BL → il DL della soluzione, non un esterno");
             Cleanup(); Setup();

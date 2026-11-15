@@ -76,11 +76,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
-                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 try { models.Add(new StructureReader(_lang, f, text, _fragmentAbove).Read()); }
                 catch (RegexMatchTimeoutException ex)
                 {
-                    result.Warnings.Add(UiText.Say($"{f.LogicalPath}: una regola di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); file saltato", $"{f.LogicalPath}: a rule of {_lang.DefinitionPath} takes too long ({ex.Pattern}); file skipped"));
+                    result.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{f.LogicalPath}: una regola di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); file saltato", $"{f.LogicalPath}: a rule of {_lang.DefinitionPath} takes too long ({ex.Pattern}); file skipped"));
                 }
             }
             var index = new PerimeterIndex(_lang, models);
@@ -95,7 +95,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 try { result.Scripts.Add((model.File, new FileEmitter(this, model, index).Emit(CodeSourceText.Hash(model.Text)))); }
                 catch (RegexMatchTimeoutException ex)
                 {
-                    result.Warnings.Add(UiText.Say($"{model.File.LogicalPath}: una regola di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); file saltato", $"{model.File.LogicalPath}: a rule of {_lang.DefinitionPath} takes too long ({ex.Pattern}); file skipped"));
+                    result.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{model.File.LogicalPath}: una regola di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); file saltato", $"{model.File.LogicalPath}: a rule of {_lang.DefinitionPath} takes too long ({ex.Pattern}); file skipped"));
                 }
                 // dopo l'emissione: i salti verso etichette che non ci sono li trova lei
                 result.Warnings.AddRange(model.Warnings);
@@ -342,7 +342,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>Per ogni riga logica: il simbolo più interno (anche un'etichetta) e il blocco più interno.</summary>
             public Sym[] Owner;
             public Sym[] Block;
-            public List<string> Warnings = new();
+            public CodeWarnings Warnings = new();
             /// <summary>Riga (inizio della riga logica) → dove sta, nel testo, il nome che quella riga dichiara: lì non c'è un riferimento.</summary>
             public Dictionary<int, List<(int Index, int Length)>> DeclaredNames = new();
         }
@@ -438,7 +438,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var open = stack[k];
                     CloseLabel(open, physicalCount);
                     open.End = physicalCount;
-                    _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}: il blocco '{open.RuleId}' {open.Name} aperto alla riga {open.Start} non si chiude", $"{_m.File.LogicalPath}: the '{open.RuleId}' block {open.Name} opened at line {open.Start} is never closed"));
+                    _m.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_m.File.LogicalPath}: il blocco '{open.RuleId}' {open.Name} aperto alla riga {open.Start} non si chiude", $"{_m.File.LogicalPath}: the '{open.RuleId}' block {open.Name} opened at line {open.Start} is never closed"));
                 }
                 CloseLabel(module, physicalCount);
                 if (_lang.Fragments != null)
@@ -749,7 +749,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 else if (!_qualified.Add(qualified))
                 {
                     // Lo stesso nome due volte nello stesso posto: si tengono entrambi, distinti dalla riga, e lo si dice.
-                    _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line.Start}: '{name}' è già dichiarato in {(parent == _m.Module ? "questo file" : parent.Name)}", $"{_m.File.LogicalPath}:{line.Start}: '{name}' is already declared in {(parent == _m.Module ? "this file" : parent.Name)}"));
+                    _m.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_m.File.LogicalPath}:{line.Start}: '{name}' è già dichiarato in {(parent == _m.Module ? "questo file" : parent.Name)}", $"{_m.File.LogicalPath}:{line.Start}: '{name}' is already declared in {(parent == _m.Module ? "this file" : parent.Name)}"));
                     qualified += "@" + line.Start;
                     _qualified.Add(qualified);
                 }
@@ -1077,7 +1077,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         {
                             var target = j.Groups["target"].Value.Trim();
                             if (byKey.TryGetValue(target, out var to)) _pending.Add((_m.Owner[i], to.Id, DeclarativeLanguage.JumpsRelation, "extracted", line.Start, null));
-                            else _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line.Start}: salto verso '{target}', che in {block.Name} non c'è", $"{_m.File.LogicalPath}:{line.Start}: jump to '{target}', which is not in {block.Name}"));
+                            else _m.Warnings.Add(CodeWarnings.Unresolved, UiText.Say($"{_m.File.LogicalPath}:{line.Start}: salto verso '{target}', che in {block.Name} non c'è", $"{_m.File.LogicalPath}:{line.Start}: jump to '{target}', which is not in {block.Name}"));
                         }
                     }
                     foreach (var f in block.Fragments)
@@ -1164,7 +1164,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 // la fine del file chiude l'elenco (una vista senza «;»): l'avviso solo se si è fermato al limite di righe
                 if (!closed && lineIndex + MaxSpanLines < _m.Lines.Count)
-                    _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{_m.Lines[lineIndex].Start}: l'elenco dopo il modello non finisce entro {MaxSpanLines} righe: letti i primi pezzi",
+                    _m.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_m.File.LogicalPath}:{_m.Lines[lineIndex].Start}: l'elenco dopo il modello non finisce entro {MaxSpanLines} righe: letti i primi pezzi",
                         $"{_m.File.LogicalPath}:{_m.Lines[lineIndex].Start}: the list after the pattern does not end within {MaxSpanLines} lines: its first items were read"));
                 Flush();
                 foreach (var (at, text) in items)
@@ -1279,7 +1279,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var fit = found.Where(s => !s.ParamsKnown || args.Fits(s.Parameters.Select(p => (p.Name, p.DefaultValue != null)).ToList(), Lang.NameComparer)).ToList();
                     if (fit.Count > 0) found = fit;
-                    else _m.Warnings.Add(UiText.Say($"{_m.File.LogicalPath}:{line}: '{target}' chiamato con {Describe(args)}: nessuno dei {found.Count} candidati li accetta, restano tutti (ambiguous)",
+                    else _m.Warnings.Add(CodeWarnings.Unresolved, UiText.Say($"{_m.File.LogicalPath}:{line}: '{target}' chiamato con {Describe(args)}: nessuno dei {found.Count} candidati li accetta, restano tutti (ambiguous)",
                         $"{_m.File.LogicalPath}:{line}: '{target}' called with {Describe(args)}: none of the {found.Count} candidates accepts them, all are kept (ambiguous)"));
                 }
                 var written = owner == null ? target : owner + "." + target;

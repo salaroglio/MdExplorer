@@ -71,7 +71,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
-                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 var ast = Parser.ParseInput(text, f.AbsolutePath, out _, out var errors);
                 parsed.Add(new ParsedFile(f, text, ast, errors));
             }
@@ -88,12 +88,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (pf.Errors.Length > 0)
                 {
                     var e = pf.Errors[0];
-                    result.Warnings.Add(UiText.Say($"{pf.File.LogicalPath}: {pf.Errors.Length} errori di sintassi PowerShell (riga {e.Extent.StartLineNumber}: {e.Message}); emesso con l'albero parziale", $"{pf.File.LogicalPath}: {pf.Errors.Length} PowerShell syntax errors (line {e.Extent.StartLineNumber}: {e.Message}); emitted with the partial tree"));
+                    result.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{pf.File.LogicalPath}: {pf.Errors.Length} errori di sintassi PowerShell (riga {e.Extent.StartLineNumber}: {e.Message}); emesso con l'albero parziale", $"{pf.File.LogicalPath}: {pf.Errors.Length} PowerShell syntax errors (line {e.Extent.StartLineNumber}: {e.Message}); emitted with the partial tree"));
                 }
                 try { result.Scripts.Add((pf.File, new FileEmitter(this, pf, index).Emit())); }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
+                    result.Warnings.Add(CodeWarnings.FileUnreadable, $"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
                     _logger?.LogWarning(ex, "[CodeGraph/powershell] estrazione fallita per {File}", pf.File.LogicalPath);
                 }
             }

@@ -1033,7 +1033,7 @@ namespace MdExplorer.Controllers.CodeGraph
         /// descritti (contati in Fuseki, veri anche dopo un riavvio), l'ultima scansione; poi le descrizioni in corso.
         /// </summary>
         [HttpGet("inventory")]
-        public Task<IActionResult> Inventory([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Inventory([FromQuery] string projectPath, [FromQuery] string warnings = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var programs = new List<object>();
@@ -1053,7 +1053,18 @@ namespace MdExplorer.Controllers.CodeGraph
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
                     lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges, sourceControl = scan.SourceControl },
                     // gli avvisi dell'ultima estrazione che ha riletto dei file; null = nessuna ancora registrata (non «nessun avviso»)
-                    lastExtraction = warned == null ? null : new { at = warned.At, reparsed = warned.Reparsed, files = warned.Files, warningCount = warned.Warnings.Count, warnings = warned.Warnings },
+                    // 14/11/2026: di default la SINTESI — per tipo, quanti e un esempio — e non l'elenco (dal cliente erano 70 KB
+                    // prima di quello che serviva); gli avvisi di un tipo, interi, con warnings=<tipo> (all = tutti)
+                    lastExtraction = warned == null ? null : new
+                    {
+                        at = warned.At, reparsed = warned.Reparsed, files = warned.Files, warningCount = warned.Warnings.Count,
+                        warningsByKind = CodeAnalysisWarnings.Summary(warned),
+                        warnings = string.IsNullOrWhiteSpace(warnings) ? null : CodeAnalysisWarnings.OfKind(warned, warnings.Trim()),
+                        kindsNote = warned.Warnings.Count > 0 && warned.Kinds == null
+                            ? UiText.Say("avvisi di un'analisi fatta prima che avessero un tipo: rifai l'analisi della cartella per averli per tipo; intanto warnings=all li dà tutti",
+                                "warnings of an analysis made before they had a kind: analyse the folder again to get them by kind; meanwhile warnings=all gives them all")
+                            : null,
+                    },
                     // i programmi da cui questo dipende secondo il build; «linked» = il ponte è attivo nel grafo dall'ultima analisi
                     uses = bridges.Where(b => b.From == p.Folder).Select(b => new
                     {

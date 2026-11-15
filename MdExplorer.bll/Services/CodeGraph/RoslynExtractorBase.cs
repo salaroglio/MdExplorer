@@ -121,7 +121,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// progetto dei sorgenti, o che è di più d'uno (una copia del progetto in un archivio), si dice: i suoi tipi restano
         /// nomi non risolti.
         /// </summary>
-        private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, List<string> warnings,
+        private static Dictionary<ProjectGroup, List<ProjectGroup>> ReferencedGroups(List<ProjectGroup> groups, Dictionary<string, ProjectGroup> byKey, CodeWarnings warnings,
             Dictionary<ProjectGroup, List<string>> borrowed, Lazy<List<string>> librariesOnDisk, Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>> solutions = null)
         {
             var byGuid = groups.Where(g => g.Project?.ProjectGuid != null).GroupBy(g => g.Project.ProjectGuid, StringComparer.OrdinalIgnoreCase)
@@ -141,12 +141,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (lib != null)
                         {
                             Add(borrowed, g, lib);
-                            warnings.Add(UiText.Say(
+                            warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
                                 $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: si usa la libreria {Path.GetFileName(lib)} con lo stesso nome di assembly, {From(from, lib, true)}.",
                                 $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: the library {Path.GetFileName(lib)} with the same assembly name, {From(from, lib, false)}, is used."));
                         }
                         else
-                            warnings.Add(UiText.Say(
+                            warnings.Add(CodeWarnings.ProjectMissing, UiText.Say(
                                 $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati{problem ?? ""}: ciò che ne usa resta un nome non risolto.",
                                 $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources{problem ?? ""}: what uses it stays an unresolved name."));
                     }
@@ -161,12 +161,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var tailNote = byTail.Count == 0 ? "" : UiText.Say(
                                 $" (il percorso scritto nella soluzione, {string.Join(", ", byTail)}, non esiste: la soluzione è stata spostata; si usa il progetto a cui arriva lo stesso percorso con meno risalite, o il solo con la stessa parte finale)",
                                 $" (the path written in the solution, {string.Join(", ", byTail)}, does not exist: the solution was moved; the project reached by the same path with fewer «..», or the only one with the same end, is used)");
-                            warnings.Add(UiText.Say(
+                            warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
                                 $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto; si usa {picked[0].Project.File}, quello della soluzione {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}.",
                                 $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}."));
                         }
                         else
-                            warnings.Add(UiText.Say(
+                            warnings.Add(CodeWarnings.ProjectAmbiguous, UiText.Say(
                                 $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto ({string.Join(", ", found.Select(f => f.Project.File))}): non si sa quale{(picked.Count > 1 ? $" (le soluzioni {string.Join(", ", from.Select(Path.GetFileName))} ne indicano di diversi)" : ", e nessuna soluzione (.sln) che contiene il progetto lo dice")}, ciò che ne usa resta un nome non risolto.",
                                 $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files ({string.Join(", ", found.Select(f => f.Project.File))}): which one is unknown{(picked.Count > 1 ? $" (the solutions {string.Join(", ", from.Select(Path.GetFileName))} point to different ones)" : ", and no solution (.sln) containing the project says")}, what uses it stays an unresolved name."));
                     }
@@ -226,7 +226,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Le soluzioni (<c>.sln</c>) dei sorgenti: sotto la cartella comune dei file analizzati e, senza scendere, nelle cartelle
         /// sopra di lei fino al progetto di documentazione (mai fuori). Una soluzione che non si legge si dice e si salta.
         /// </summary>
-        private static List<(string File, List<(string Guid, string Path, string Written)> Projects)> SolutionsAround(string common, string projectPath, List<string> warnings)
+        private static List<(string File, List<(string Guid, string Path, string Written)> Projects)> SolutionsAround(string common, string projectPath, CodeWarnings warnings)
         {
             var files = new List<string>();
             if (common == null || !Directory.Exists(common)) return new();
@@ -247,7 +247,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 try { result.Add((f, VisualStudioSolution.Entries(f))); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    warnings.Add(UiText.Say($"{Path.GetFileName(f)}: la soluzione non si legge ({ex.Message}), e non serve a scegliere fra progetti con lo stesso GUID.",
+                    warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{Path.GetFileName(f)}: la soluzione non si legge ({ex.Message}), e non serve a scegliere fra progetti con lo stesso GUID.",
                         $"{Path.GetFileName(f)}: the solution cannot be read ({ex.Message}), and is not used to choose between projects with the same GUID."));
                 }
             }
@@ -465,7 +465,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 request.Report(CodeExtractionRequest.ReadStep, ++read, request.AllFiles.Count);
                 string text;
                 try { text = request.ReadText(f); }
-                catch (Exception ex) { result.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { result.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 contents[f.LogicalPath] = text;
                 var project = projects?.Of(f.AbsolutePath);
                 // un file che il suo progetto non compila (una copia lasciata in un'altra cartella): fuori dalla compilazione,
@@ -480,9 +480,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!groupByKey.TryGetValue(key, out var group)) { groupByKey[key] = group = new ProjectGroup { Project = project }; groups.Add(group); }
                 group.Trees.Add(Parse(text, f.LogicalPath, project));
             }
-            if (projects != null) result.Warnings.AddRange(projects.Problems);
+            if (projects != null) result.Warnings.AddRange(CodeWarnings.FileUnreadable, projects.Problems);
             foreach (var (projectFile, files) in notCompiled.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-                result.Warnings.Add(UiText.Say(
+                result.Warnings.Add(CodeWarnings.FilesNotCompiled, UiText.Say(
                     $"{Path.GetFileName(projectFile)}: {files.Count} file della cartella non sono fra quelli che il progetto compila, e nel grafo restano senza simboli: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}",
                     $"{Path.GetFileName(projectFile)}: {files.Count} files of the folder are not among those the project compiles, and stay without symbols in the graph: {string.Join(", ", files.Select(f => f.LogicalPath).OrderBy(p => p, StringComparer.Ordinal))}"));
             var borrowed = new Dictionary<ProjectGroup, List<string>>();
@@ -505,7 +505,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     references.AddRange(RuntimeReferences());
                     if (p is { IsNetFramework: true } && missingFrameworks.Add(p.FrameworkVersion))
-                        result.Warnings.Add(UiText.Say(
+                        result.Warnings.Add(CodeWarnings.LibraryMissing, UiText.Say(
                             $"{Path.GetFileName(p.File)}: il progetto è .NET Framework {p.FrameworkVersion} ma su questo computer non ci sono le sue librerie: ciò che eredita o chiama dal framework (System.Web, Windows Forms…) resta un nome non risolto. Le porta il «Developer Pack» di .NET Framework, o indica una cartella con {NetFrameworkLibraries.OverrideVariable}.",
                             $"{Path.GetFileName(p.File)}: the project targets .NET Framework {p.FrameworkVersion} but its libraries are not on this computer: what it inherits or calls from the framework (System.Web, Windows Forms…) stays an unresolved name. The .NET Framework «Developer Pack» brings them, or point {NetFrameworkLibraries.OverrideVariable} to a folder."));
                 }
@@ -518,13 +518,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var lib = BorrowLibrary(Path.GetFileNameWithoutExtension(m), group, groups, librariesOnDisk, out var from, out var problem);
                         if (lib == null) { missing.Add(Path.GetFileName(m) + (problem ?? "")); continue; }
                         Add(borrowed, group, lib);
-                        result.Warnings.Add(UiText.Say(
+                        result.Warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
                             $"{Path.GetFileName(p.File)}: la libreria {Path.GetFileName(m)} non c'è dove la indica (HintPath): si usa quella con lo stesso nome di assembly, {From(from, lib, true)}.",
                             $"{Path.GetFileName(p.File)}: the library {Path.GetFileName(m)} is not where its HintPath says: the one with the same assembly name, {From(from, lib, false)}, is used."));
                     }
                     if (borrowed.TryGetValue(group, out var extra)) references.AddRange(extra.Select(FileReference).Where(r => r != null));
                     if (missing.Count > 0)
-                        result.Warnings.Add(UiText.Say(
+                        result.Warnings.Add(CodeWarnings.LibraryMissing, UiText.Say(
                             $"{Path.GetFileName(p.File)}: {missing.Count} librerie riferite non ci sono su questo computer ({string.Join(", ", missing)}): ciò che ne usa resta un nome non risolto.",
                             $"{Path.GetFileName(p.File)}: {missing.Count} referenced libraries are not on this computer ({string.Join(", ", missing)}): what uses them stays an unresolved name."));
                     foreach (var other in referencedGroups[group])
@@ -561,7 +561,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{tree.FilePath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
+                    result.Warnings.Add(CodeWarnings.FileUnreadable, $"{tree.FilePath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
                     _logger?.LogWarning(ex, "[CodeGraph/roslyn] estrazione fallita per {File}", tree.FilePath);
                 }
             }

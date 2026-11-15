@@ -77,17 +77,17 @@ namespace MdExplorer.Features.Services.CodeGraph
                 pages.Add(page);
                 string text;
                 try { text = request.ReadText(f); }
-                catch (Exception ex) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
+                catch (Exception ex) { page.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{f.LogicalPath}: non leggibile ({ex.Message})", $"{f.LogicalPath}: cannot be read ({ex.Message})")); continue; }
                 if (CodeInlinePages.IsInline(f.LogicalPath))
                 {
                     // una pagina dentro un altro file: solo i suoi pezzi, con le righe del file
-                    if (_lang.Template.Inline == null) { page.Warnings.Add(UiText.Say($"{f.LogicalPath}: {_lang.DefinitionPath} non ha template.inline", $"{f.LogicalPath}: {_lang.DefinitionPath} has no template.inline")); continue; }
+                    if (_lang.Template.Inline == null) { page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{f.LogicalPath}: {_lang.DefinitionPath} non ha template.inline", $"{f.LogicalPath}: {_lang.DefinitionPath} has no template.inline")); continue; }
                     text = CodeInlinePages.Blank(text, _lang.Template.Inline.Match);
                 }
                 try { page.Script = new PageReader(this, f, text, index, page, request).Read(); }
                 catch (RegexMatchTimeoutException ex)
                 {
-                    page.Warnings.Add(UiText.Say($"{f.LogicalPath}: template.directive di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); pagina saltata", $"{f.LogicalPath}: template.directive of {_lang.DefinitionPath} takes too long ({ex.Pattern}); page skipped"));
+                    page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{f.LogicalPath}: template.directive di {_lang.DefinitionPath} impiega troppo ({ex.Pattern}); pagina saltata", $"{f.LogicalPath}: template.directive of {_lang.DefinitionPath} takes too long ({ex.Pattern}); page skipped"));
                 }
             }
             return pages;
@@ -315,7 +315,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var warnings = _page.Warnings.Count;
                     ApplyEvents(events, null, named);
-                    _page.Warnings.RemoveRange(warnings, _page.Warnings.Count - warnings);
+                    _page.Warnings.TruncateTo(warnings);
                     _guards.RemoveRange(1, _guards.Count - 1);
                 }
                 ApplyEvents(events, named, null);
@@ -358,7 +358,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var at = stack.FindLastIndex(f => f.Key == e.Key);
                             if (at < 0)
                             {
-                                _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' chiude un blocco che non è aperto", $"{_file.LogicalPath}:{line}: '{e.Label}' closes a block that is not open"));
+                                _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' chiude un blocco che non è aperto", $"{_file.LogicalPath}:{line}: '{e.Label}' closes a block that is not open"));
                                 break;
                             }
                             for (var k = stack.Count - 1; k > at; k--) Unclosed(stack[k]);
@@ -382,7 +382,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var frame = e.BranchOf != null ? stack.LastOrDefault(f => f.Key == e.BranchOf) : stack.LastOrDefault(f => f.Guard);
                             if (frame == null)
                             {
-                                _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' fuori da un blocco", $"{_file.LogicalPath}:{line}: '{e.Label}' outside a block"));
+                                _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{line}: '{e.Label}' fuori da un blocco", $"{_file.LogicalPath}:{line}: '{e.Label}' outside a block"));
                                 break;
                             }
                             frame.Condition = e.Else
@@ -487,7 +487,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var tag = _tags.FirstOrDefault(t => t.Start <= m.Index && m.Index < t.End);
                         if (tag == null)
                         {
-                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude all'elemento ma non sta dentro un tag", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the element but is not inside a tag"));
+                            _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude all'elemento ma non sta dentro un tag", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the element but is not inside a tag"));
                             continue;
                         }
                         braceKey = "e:" + tag.Start;
@@ -500,7 +500,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         var open = _text.IndexOf('{', m.Index);
                         if (open < 0 || open > end + 2)
                         {
-                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude alla graffa ma la graffa non c'è", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the brace but there is no brace"));
+                            _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' chiude alla graffa ma la graffa non c'è", $"{_file.LogicalPath}:{LineOf(m.Index)}: '{r.Id}' closes at the brace but there is no brace"));
                             continue;
                         }
                         var close = MatchingBrace(open);
@@ -509,7 +509,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (close < 0)
                         {
                             // senza la graffa che chiude non si sa dove il blocco finisce: meglio non aprirlo
-                            _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{LineOf(open)}: la graffa di '{r.Id}' non si chiude", $"{_file.LogicalPath}:{LineOf(open)}: the brace of '{r.Id}' never closes"));
+                            _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{LineOf(open)}: la graffa di '{r.Id}' non si chiude", $"{_file.LogicalPath}:{LineOf(open)}: the brace of '{r.Id}' never closes"));
                             continue;
                         }
                         events.Add(new Event { Kind = EventKind.Close, Offset = close, End = close + 1, Key = braceKey, Label = "}" });
@@ -590,7 +590,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             private void Unclosed(Frame f)
-                => _page.Warnings.Add(UiText.Say($"{_file.LogicalPath}:{f.Line}: '{f.Label}' non si chiude ('{f.CloseLabel}')", $"{_file.LogicalPath}:{f.Line}: '{f.Label}' is never closed ('{f.CloseLabel}')"));
+                => _page.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_file.LogicalPath}:{f.Line}: '{f.Label}' non si chiude ('{f.CloseLabel}')", $"{_file.LogicalPath}:{f.Line}: '{f.Label}' is never closed ('{f.CloseLabel}')"));
 
             private static string Current(List<Frame> stack)
             {
@@ -1058,7 +1058,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeSourceFile File { get; init; }
         /// <summary>Null se la pagina non si è potuta leggere (l'avviso dice perché).</summary>
         public CodeScript Script { get; set; }
-        public List<string> Warnings { get; } = new();
+        public CodeWarnings Warnings { get; } = new();
         public int Controls { get; set; }
         public int GuardedControls { get; set; }
         public int Functions { get; set; }

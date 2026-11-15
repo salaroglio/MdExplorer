@@ -53,7 +53,7 @@ namespace MdExplorer.Services.CodeGraph
         public int OutdatedScripts { get; set; }
         /// <summary>File del perimetro di un linguaggio scelto che oggi non ha un estrattore: contati e dichiarati, non saltati.</summary>
         public Dictionary<string, int> FilesWithoutExtractor { get; set; } = new();
-        public List<string> Warnings { get; set; } = new();
+        public CodeWarnings Warnings { get; set; } = new();
         public CodeScriptLoadOutcome Load { get; set; }
         public string Error { get; set; }
     }
@@ -612,18 +612,18 @@ namespace MdExplorer.Services.CodeGraph
         {
             var set = new BridgeSet();
             var (all, warnings) = await BridgesAsync(projectPath, ct);
-            outcome.Warnings.AddRange(warnings.Select(w => "ponti: " + w));
+            outcome.Warnings.AddRange(CodeWarnings.Bridges, warnings.Select(w => "ponti: " + w));
             var active = new List<string>();
             foreach (var bridge in all.Where(b => b.From == folder && languages.Contains(b.Language, StringComparer.OrdinalIgnoreCase)))
             {
                 var label = $"{bridge.To}@{bridge.Language}";
                 if (await _store.GetScanStateAsync(projectPath, bridge.To, ct) == null)
                 {
-                    outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} ({bridge.Evidence}) rimandato: {bridge.To} non è ancora stato analizzato; si fa alla prossima analisi", $"bridge to {bridge.To} ({bridge.Evidence}) postponed: {bridge.To} has not been analysed yet; it is done at the next analysis"));
+                    outcome.Warnings.Add(CodeWarnings.Bridges, UiText.Say($"ponte verso {bridge.To} ({bridge.Evidence}) rimandato: {bridge.To} non è ancora stato analizzato; si fa alla prossima analisi", $"bridge to {bridge.To} ({bridge.Evidence}) postponed: {bridge.To} has not been analysed yet; it is done at the next analysis"));
                     continue;
                 }
                 var depScope = await ScopeOfAsync(projectPath, bridge.To, ct);
-                if (depScope.Unusable != null) { outcome.Warnings.Add(UiText.Say($"ponte verso {bridge.To} non fatto: {depScope.Unusable}", $"bridge to {bridge.To} not made: {depScope.Unusable}")); continue; }
+                if (depScope.Unusable != null) { outcome.Warnings.Add(CodeWarnings.Bridges, UiText.Say($"ponte verso {bridge.To} non fatto: {depScope.Unusable}", $"bridge to {bridge.To} not made: {depScope.Unusable}")); continue; }
                 var scan = await _scanner.ScanAsync(projectPath, depScope.FolderAbs, previousCommit: null, ct, depScope.ToLogical);
                 var files = scan.AllFiles.Where(f => CodeLanguageCatalog.ForProject(projectPath).ForFile(f.AbsolutePath)?.Id == bridge.Language).ToList();
                 if (!set.Files.TryGetValue(bridge.Language, out var list)) set.Files[bridge.Language] = list = new List<CodeSourceFile>();
@@ -659,7 +659,7 @@ namespace MdExplorer.Services.CodeGraph
             // Le radici esterne non collegate restano col loro grafo (gli script sono su Git) e l'esito dice perché, come
             // avviso — un collega senza il codice non ha un errore.
             foreach (var p in programs.Where(p => !p.Linked))
-                outcomes.Add(new CodeFolderAnalysisOutcome { Folder = p.Folder, Languages = p.Languages, Warnings = { UiText.Say($"{p.Folder} non analizzata su questa macchina: {p.Reason}", $"{p.Folder} not analysed on this machine: {p.Reason}") } });
+                outcomes.Add(new CodeFolderAnalysisOutcome { Folder = p.Folder, Languages = p.Languages, Warnings = { { CodeWarnings.NotAnalyzedHere, UiText.Say($"{p.Folder} non analizzata su questa macchina: {p.Reason}", $"{p.Folder} not analysed on this machine: {p.Reason}") } } });
             // Le dipendenze prima (punto 3b): il ponte verso un programma richiede che sia già nel grafo.
             var (bridges, _) = await BridgesAsync(projectPath, ct);
             foreach (var key in DependenciesFirst(programs.Where(p => p.Linked).Select(p => p.Folder).ToList(), bridges))
@@ -751,7 +751,7 @@ namespace MdExplorer.Services.CodeGraph
                 // archi verso di loro vanno ai loro simboli. Se i ponti sono cambiati, tutto il programma si riscrive.
                 var bridgeSet = await BridgesForAsync(projectPath, folderRelative, languages, outcome, ct);
                 var bridgesChanged = !string.Equals(previous?.Bridges ?? string.Empty, bridgeSet.Signature, StringComparison.Ordinal);
-                if (bridgesChanged) outcome.Warnings.Add(UiText.Say($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto", $"bridges changed ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "none" : bridgeSet.Signature)}): the whole program is rewritten"));
+                if (bridgesChanged) outcome.Warnings.Add(CodeWarnings.Bridges, UiText.Say($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto", $"bridges changed ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "none" : bridgeSet.Signature)}): the whole program is rewritten"));
 
                 // 1c) F1b: gli script orfani si decidono PRIMA (sorgente sparito, o fuori dai linguaggi di questo contesto e non
                 // voluto da nessun altro contesto): escono dall'indice del ricollegamento e chi li usava torna esterno.
@@ -773,7 +773,7 @@ namespace MdExplorer.Services.CodeGraph
                     if (extractor == null)
                     {
                         if (all.Count > 0) outcome.FilesWithoutExtractor[lang.Id] = all.Count;
-                        outcome.Warnings.Add($"{lang.DisplayName}: {all.Count} file, {extractors.Availability(lang.Id)}");
+                        outcome.Warnings.Add(CodeWarnings.ExtractorUnavailable, $"{lang.DisplayName}: {all.Count} file, {extractors.Availability(lang.Id)}");
                         continue;
                     }
                     // Candidati: ciò che git (o l'hash) dice cambiato, PIÙ ogni file il cui script l'ha scritto un altro
@@ -815,7 +815,7 @@ namespace MdExplorer.Services.CodeGraph
                     {
                         outcome.SharedNames += shared.Count;
                         var first = shared[0];
-                        outcome.Warnings.Add(UiText.Say($"{lang.DisplayName}: {shared.Count} nomi dichiarati in più file (classi partial o duplicati), un nodo solo per nome; es. {string.Join(", ", first.Files.Take(3))}",
+                        outcome.Warnings.Add(CodeWarnings.DuplicateNames, UiText.Say($"{lang.DisplayName}: {shared.Count} nomi dichiarati in più file (classi partial o duplicati), un nodo solo per nome; es. {string.Join(", ", first.Files.Take(3))}",
                             $"{lang.DisplayName}: {shared.Count} names declared in several files (partial classes or duplicates), one node per name; e.g. {string.Join(", ", first.Files.Take(3))}"));
                     }
                     var own = new HashSet<string>(all.Select(f => f.LogicalPath), StringComparer.Ordinal);
@@ -860,7 +860,7 @@ namespace MdExplorer.Services.CodeGraph
                 }
 
                 if (outcome.UnresolvedTargets > 0)
-                    outcome.Warnings.Add(UiText.Say($"{outcome.UnresolvedTargets} riferimenti verso nomi che nessun file analizzato dichiara: archi verso nodi che non esistono",
+                    outcome.Warnings.Add(CodeWarnings.Unresolved, UiText.Say($"{outcome.UnresolvedTargets} riferimenti verso nomi che nessun file analizzato dichiara: archi verso nodi che non esistono",
                         $"{outcome.UnresolvedTargets} references to names no analysed file declares: edges to nodes that do not exist"));
 
                 // 2b) Le descrizioni seguono i simboli che hanno cambiato id (G4): migrazione esatta, vecchio → nuovo.
@@ -887,7 +887,7 @@ namespace MdExplorer.Services.CodeGraph
                     written.AddRange(moved);
                     removed.AddRange(emptied);
                     if (left > 0)
-                        outcome.Warnings.Add(UiText.Say($"{left} descrizioni di file spariti non ritrovate (simbolo rinominato o cancellato): restano negli script doc orfani",
+                        outcome.Warnings.Add(CodeWarnings.Descriptions, UiText.Say($"{left} descrizioni di file spariti non ritrovate (simbolo rinominato o cancellato): restano negli script doc orfani",
                             $"{left} descriptions of vanished files not found again (symbol renamed or deleted): they stay in the orphan doc scripts"));
                 }
 
@@ -914,7 +914,7 @@ namespace MdExplorer.Services.CodeGraph
                 // Gli script che Fuseki non ha preso: negli avvisi dell'analisi (log, report, code_inventory), così li vede anche
                 // MarkAgent (13/11/2026, dal cliente: «gli strumenti non espongono il conteggio degli script falliti»)
                 foreach (var failed in outcome.Load.Results.Where(r => r.HasError))
-                    outcome.Warnings.Add(UiText.Say($"caricamento nel grafo fallito, lo script non c'è: {failed.Error}", $"loading into the graph failed, the script is missing: {failed.Error}"));
+                    outcome.Warnings.Add(CodeWarnings.StepFailed, UiText.Say($"caricamento nel grafo fallito, lo script non c'è: {failed.Error}", $"loading into the graph failed, the script is missing: {failed.Error}"));
                 // da quale stato dei sorgenti viene il grafo (30/10/2026): git o SVN, rilevati da soli
                 var sourceControl = scope.Remote != null
                     ? new SourceControlInfo { Kind = SourceControlInfo.Unknown, Note = UiText.Say("radice remota: MDE Remote non dice ancora la revisione", "remote root: MDE Remote does not report the revision yet") }
@@ -944,15 +944,15 @@ namespace MdExplorer.Services.CodeGraph
                             var (_, catalogMisses) = await rules.ApplyXmlCatalogsAsync(projectPath, xmlCatalogs.Select(l => l.Definition).ToList(), ct);
                             var catalogNames = string.Join(", ", xmlCatalogs.Select(l => l.DisplayName));
                             if (catalogMisses.Count > 0)
-                                outcome.Warnings.Add(UiText.Say($"{catalogNames}: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
+                                outcome.Warnings.Add(CodeWarnings.Unresolved, UiText.Say($"{catalogNames}: {catalogMisses.Count} letture di una query che nessun catalogo analizzato ha (es. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})",
                                     $"{catalogNames}: {catalogMisses.Count} reads of a query no analysed catalog has (e.g. {catalogMisses[0].Text} in {catalogMisses[0].Path}:{catalogMisses[0].Line})"));
                         }
                         if (rules != null) Step(progress, "rules");
                         if (rules != null)
                             foreach (var p in await rules.ReapplyAllAsync(projectPath, ct))
-                                if (!p.Accepted) outcome.Warnings.Add(UiText.Say($"la regola '{p.RuleId}' ora collega {p.Resolved} chiamate su {p.Resolved + p.Unresolved}", $"rule '{p.RuleId}' now links {p.Resolved} calls out of {p.Resolved + p.Unresolved}"));
+                                if (!p.Accepted) outcome.Warnings.Add(CodeWarnings.EnrichmentRules, UiText.Say($"la regola '{p.RuleId}' ora collega {p.Resolved} chiamate su {p.Resolved + p.Unresolved}", $"rule '{p.RuleId}' now links {p.Resolved} calls out of {p.Resolved + p.Unresolved}"));
                     }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] regole di arricchimento non riapplicate"); outcome.Warnings.Add("regole di arricchimento: " + ex.Message); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] regole di arricchimento non riapplicate"); outcome.Warnings.Add(CodeWarnings.EnrichmentRules, "regole di arricchimento: " + ex.Message); }
                 // Le registrazioni (30/10/2026): interfaccia → implementazioni registrate (ServiceLoader), da tutto il progetto
                 if (!targeted) try
                 {
@@ -962,13 +962,13 @@ namespace MdExplorer.Services.CodeGraph
                         Step(progress, "registrations");
                         var (files, skipped) = await RegistrationFilesAsync(projectPath, ct);
                         var (edges, misses) = await rules.ApplyRegistrationsAsync(projectPath, files, ct);
-                        outcome.Warnings.AddRange(skipped);
+                        outcome.Warnings.AddRange(CodeWarnings.EnrichmentRules, skipped);
                         if (misses.Count > 0)
-                            outcome.Warnings.Add(UiText.Say($"registrazioni: {misses.Count} righe con una classe fuori dal grafo (es. {misses[0]})",
+                            outcome.Warnings.Add(CodeWarnings.EnrichmentRules, UiText.Say($"registrazioni: {misses.Count} righe con una classe fuori dal grafo (es. {misses[0]})",
                                 $"registrations: {misses.Count} lines with a class outside the graph (e.g. {misses[0]})"));
                     }
                 }
-                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] registrazioni non applicate"); outcome.Warnings.Add("registrazioni: " + ex.Message); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] registrazioni non applicate"); outcome.Warnings.Add(CodeWarnings.EnrichmentRules, "registrazioni: " + ex.Message); }
                 // Gli avvisi dell'analisi completa: nel log, e per cartella in .md/codegraph/warnings (report, code_inventory).
                 Step(progress, "report");
                 if (!targeted && outcome.Reparsed > 0)
@@ -985,7 +985,7 @@ namespace MdExplorer.Services.CodeGraph
                     var notes = new List<string> { $"{folderRelative}: {scan.Mode}, {scan.Reason}; {outcome.FilesInPerimeter} file, {outcome.Candidates} candidati, {outcome.Reparsed} riparsati, {outcome.ScriptsRemoved} script tolti" };
                     await _report.WriteAsync(projectPath, notes, ct);
                 }
-                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] report non scritto"); outcome.Warnings.Add("report non scritto: " + ex.Message); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] report non scritto"); outcome.Warnings.Add(CodeWarnings.StepFailed, "report non scritto: " + ex.Message); }
                 _logger.LogInformation("[CodeGraph] '{Folder}' ({Mode}, {Reason}): {Files} file, {Cand} candidati, {Rep} riparsati, {Rem} script tolti, caricati {Loaded}",
                     folderRelative, scan.Mode, scan.Reason, outcome.FilesInPerimeter, outcome.Candidates, outcome.Reparsed, outcome.ScriptsRemoved, outcome.Load.Loaded);
                 return outcome;
@@ -1006,7 +1006,7 @@ namespace MdExplorer.Services.CodeGraph
                     if (outcome.Error == null)
                     {
                         try { await MaybeDescribeAsync(projectPath, folderRelative, outcome); }
-                        catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] '{Folder}': controllo della descrizione automatica fallito", folderRelative); outcome.Warnings.Add("descrizione automatica: " + ex.Message); }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] '{Folder}': controllo della descrizione automatica fallito", folderRelative); outcome.Warnings.Add(CodeWarnings.Descriptions, "descrizione automatica: " + ex.Message); }
                     }
                 }
             }
@@ -1277,7 +1277,7 @@ namespace MdExplorer.Services.CodeGraph
                         continue;
                     }
                     try { others.Add((header.Source, CodeScriptTurtle.Read(File.ReadAllText(scriptPath), scriptPath), scriptPath)); }
-                    catch (Exception ex) { outcome.Warnings.Add(UiText.Say($"{header.Source}: script non leggibile per il ricollegamento ({ex.Message})", $"{header.Source}: script not readable for relinking ({ex.Message})")); }
+                    catch (Exception ex) { outcome.Warnings.Add(CodeWarnings.FileUnreadable, UiText.Say($"{header.Source}: script non leggibile per il ricollegamento ({ex.Message})", $"{header.Source}: script not readable for relinking ({ex.Message})")); }
                 }
             var otherScripts = others.Select(o => (o.Path, o.Script)).ToList();
             var changed = lang.Definition != null

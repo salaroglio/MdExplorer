@@ -96,7 +96,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class CodeExtractionResult
     {
         public List<(CodeSourceFile File, CodeScript Script)> Scripts { get; } = new();
-        public List<string> Warnings { get; } = new();
+        public CodeWarnings Warnings { get; } = new();
     }
 
     /// <summary>Un produttore di script AST per un linguaggio (D1): Roslyn per il C#, tree-sitter per gli altri.</summary>

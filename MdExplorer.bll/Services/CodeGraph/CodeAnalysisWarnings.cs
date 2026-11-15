@@ -26,6 +26,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             public int Reparsed { get; set; }
             public int Files { get; set; }
             public List<string> Warnings { get; set; } = new();
+            /// <summary>
+            /// Il tipo di ogni avviso (<see cref="CodeWarnings"/>), nello stesso ordine di <see cref="Warnings"/> (14/11/2026); null
+            /// nei file scritti prima dei tipi: allora di quegli avvisi il tipo non si sa.
+            /// </summary>
+            public List<string> Kinds { get; set; }
+
+            /// <summary>Il tipo dell'avviso alla posizione data; null se il file è di prima dei tipi.</summary>
+            public string KindAt(int index) => Kinds != null && index < Kinds.Count ? Kinds[index] : null;
         }
 
         public static string FolderPath(string projectPath) => Path.Combine(projectPath, ".md", "codegraph", "warnings");
@@ -37,13 +45,58 @@ namespace MdExplorer.Features.Services.CodeGraph
             return Path.Combine(FolderPath(projectPath), hash + ".json");
         }
 
-        public static void Write(string projectPath, string folder, int reparsed, int files, IEnumerable<string> warnings)
+        public static void Write(string projectPath, string folder, int reparsed, int files, CodeWarnings warnings)
         {
             var path = FileOf(projectPath, folder);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var entry = new Entry { Folder = folder, At = DateTime.UtcNow, Reparsed = reparsed, Files = files, Warnings = warnings.Where(w => !string.IsNullOrWhiteSpace(w)).Distinct().ToList() };
+            // lo stesso testo una volta sola, col tipo della prima volta
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var kept = warnings.Typed.Where(w => !string.IsNullOrWhiteSpace(w.Text) && seen.Add(w.Text)).ToList();
+            var entry = new Entry
+            {
+                Folder = folder, At = DateTime.UtcNow, Reparsed = reparsed, Files = files,
+                Warnings = kept.Select(w => w.Text).ToList(), Kinds = kept.Select(w => w.Kind).ToList(),
+            };
             File.WriteAllText(path, JsonSerializer.Serialize(entry, new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
         }
+
+        /// <summary>Avvisi senza tipo (testi e basta): finiscono tutti in <see cref="CodeWarnings.Other"/>.</summary>
+        public static void Write(string projectPath, string folder, int reparsed, int files, IEnumerable<string> warnings)
+        {
+            var typed = new CodeWarnings();
+            typed.AddRange(warnings);
+            Write(projectPath, folder, reparsed, files, typed);
+        }
+
+        /// <summary>Un tipo di avviso nella sintesi: quanti sono e uno d'esempio (il primo), accorciato se è lungo — è un esempio, l'elenco intero si chiede per tipo.</summary>
+        public sealed record KindSummary(string Kind, int Count, string Example);
+
+        /// <summary>Quanto è lungo al massimo l'esempio di un tipo: un avviso con un elenco di file può essere di migliaia di caratteri.</summary>
+        public const int ExampleChars = 300;
+
+        /// <summary>Il tipo usato nella sintesi per gli avvisi scritti prima dei tipi: di loro il tipo non si sa.</summary>
+        public const string KindNotRecorded = "kind-not-recorded";
+
+        /// <summary>
+        /// La sintesi degli avvisi di una cartella (14/11/2026, utente: «anziché una lista sarebbe meglio dargli una sintesi,
+        /// perché in maniera progressiva sappia come esplorare»): per tipo, quanti e un esempio; prima i più numerosi. I conti
+        /// sono di tutti gli avvisi.
+        /// </summary>
+        public static List<KindSummary> Summary(Entry entry)
+            => entry.Warnings.Select((text, i) => (Kind: entry.KindAt(i) ?? KindNotRecorded, Text: text))
+                .GroupBy(w => w.Kind, StringComparer.Ordinal)
+                .Select(g =>
+                {
+                    var first = g.First().Text;
+                    var example = first.Length <= ExampleChars ? first
+                        : first[..ExampleChars] + UiText.Say($"… (+{first.Length - ExampleChars} caratteri: è un esempio accorciato)", $"… (+{first.Length - ExampleChars} characters: a shortened example)");
+                    return new KindSummary(g.Key, g.Count(), example);
+                })
+                .OrderByDescending(k => k.Count).ThenBy(k => k.Kind, StringComparer.Ordinal).ToList();
+
+        /// <summary>Gli avvisi di un tipo, interi; <c>all</c> = tutti.</summary>
+        public static List<string> OfKind(Entry entry, string kind)
+            => entry.Warnings.Where((_, i) => kind == "all" || (entry.KindAt(i) ?? KindNotRecorded) == kind).ToList();
 
         /// <summary>Gli avvisi dell'ultima analisi completa della cartella; null se non ce n'è ancora una (non «nessun avviso»).</summary>
         public static Entry Read(string projectPath, string folder)
