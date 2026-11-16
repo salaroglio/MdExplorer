@@ -1705,6 +1705,7 @@
     "THINKING": "Thinking",
     "SAVE_REGENERATE": "Save & Regenerate",
     "PLACEHOLDER_COMPACT": "Ask Mark Agent...",
+    "RESIZE_INPUT": "Drag to change the height of the box",
     "PLACEHOLDER_FULL": "Type your message... (Shift+Enter for new line)",
     "DICTATION_START": "Dictate a message",
     "DICTATION_STOP": "Stop and transcribe",

@@ -504,7 +504,68 @@
     background: var(--mde-bg-secondary);
     border-top: 2px solid var(--mde-border-color);
     gap: 10px;
-    align-items: flex-end;
+    // la casella e i pulsanti hanno la stessa altezza
+    align-items: stretch;
+    position: relative;
+
+    // Il bordo sopra si trascina per l'altezza della casella: stessa maniglia del bordo dell'albero, in orizzontale
+    .input-resize-handle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: -5px;
+      height: 8px;
+      cursor: row-resize;
+      z-index: 2;
+
+      &:before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 2px;
+        background: var(--mde-border-color);
+        border-radius: 1px;
+        transition: all 0.2s ease;
+      }
+
+      &:hover:before {
+        background: var(--mde-accent-primary);
+        width: 50px;
+        box-shadow: 0 0 4px var(--mde-shadow-color);
+      }
+
+      &.dragging:before {
+        background: var(--mde-accent-hover);
+        width: 100%;
+        height: 3px;
+        box-shadow: 0 0 8px var(--mde-shadow-color);
+      }
+    }
+
+    // Invia, ferma e microfono: rettangoli alti quanto la casella, con l'icona al centro
+    .input-action {
+      flex: 0 0 auto;
+      align-self: stretch;
+      width: 56px;
+      min-width: 56px;
+      height: auto;
+      padding: 0;
+      margin: 0;
+      border-radius: 4px;
+      line-height: normal;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      ::ng-deep .mat-button-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
 
     .configuring-provider-banner {
       flex-basis: 100%;
@@ -528,20 +589,18 @@
 
       ::ng-deep .mat-form-field-wrapper {
         padding-bottom: 0;
+        // senza il margine del contorno, la casella comincia e finisce dove i pulsanti accanto
+        margin: 0;
       }
 
       ::ng-deep textarea {
         background: var(--mde-bg-primary);
         border-radius: 4px;
-        // Let the user drag the prompt box taller for long inputs.
-        resize: vertical;
+        // l'altezza si cambia trascinando il bordo sopra (.input-resize-handle), non con la maniglia del browser
+        resize: none;
         min-height: 48px;
         max-height: 40vh;
       }
-    }
-
-    .send-button {
-      margin-bottom: 4px;
     }
   }
 }
@@ -727,13 +786,14 @@
       }
     }
 
-    .send-button {
-      ::ng-deep .mat-button-wrapper {
-        padding: 0;
+    .input-action {
+      width: 40px;
+      min-width: 40px;
 
-        mat-icon {
-          font-size: 18px;
-        }
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
       }
     }
   }
@@ -868,7 +928,6 @@
 /* Dettatura: il microfono sta accanto al Send e pulsa mentre registra, cosi' si vede a colpo
    d'occhio che il microfono e' aperto. */
 .dictation-button {
-  margin-right: 8px;
   flex: 0 0 auto;
 
   &.dictation-recording {

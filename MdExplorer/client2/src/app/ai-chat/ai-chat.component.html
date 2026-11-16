@@ -312,6 +312,9 @@
 
   <!-- Input Area -->
   <div class="chat-input-container">
+    <!-- il bordo sopra la casella si trascina per farla più alta o più bassa: come il bordo dell'albero per la larghezza -->
+    <div class="input-resize-handle" [class.dragging]="inputResizing" (mousedown)="startInputResize($event)"
+         [title]="'AI_CHAT.RESIZE_INPUT' | translate"></div>
     <div *ngIf="isConfiguringProvider" class="configuring-provider-banner">
       <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
       <span>{{ 'AI_CHAT.CONFIGURING_PROVIDER' | translate }}</span>
@@ -338,28 +341,13 @@
     </mat-form-field>
 
     <!-- Microfono: compare solo se il Service ha un modello di dettatura. Un clic registra, il
-         clic dopo trascrive. Il testo finisce nella casella e lo invia l'utente, non noi. -->
+         clic dopo trascrive. Il testo finisce nella casella e lo invia l'utente, non noi.
+         I pulsanti sono rettangolari e alti quanto la casella (16/11/2026): riempiono lo spazio accanto. -->
     <button
-      *ngIf="dictationAvailable && !isStreaming && !compactMode"
-      mat-fab
+      *ngIf="dictationAvailable && !isStreaming"
+      mat-flat-button
       [color]="dictationState === 'recording' ? 'warn' : 'accent'"
-      class="dictation-button"
-      [class.dictation-recording]="dictationState === 'recording'"
-      (click)="toggleDictation()"
-      [disabled]="!isModelLoaded || isConfiguringProvider || dictationState === 'transcribing'"
-      [matTooltip]="(dictationState === 'recording' ? 'AI_CHAT.DICTATION_STOP' :
-                     dictationState === 'transcribing' ? 'AI_CHAT.DICTATION_WORKING' :
-                     'AI_CHAT.DICTATION_START') | translate">
-      <mat-spinner *ngIf="dictationState === 'transcribing'" diameter="20"></mat-spinner>
-      <mat-icon *ngIf="dictationState !== 'transcribing'">
-        {{ dictationState === 'recording' ? 'stop' : 'mic' }}
-      </mat-icon>
-    </button>
-    <button
-      *ngIf="dictationAvailable && !isStreaming && compactMode"
-      mat-mini-fab
-      [color]="dictationState === 'recording' ? 'warn' : 'accent'"
-      class="dictation-button"
+      class="input-action dictation-button"
       [class.dictation-recording]="dictationState === 'recording'"
       (click)="toggleDictation()"
       [disabled]="!isModelLoaded || isConfiguringProvider || dictationState === 'transcribing'"
@@ -374,40 +362,22 @@
 
     <!-- Send (hidden while a response is streaming) -->
     <button
-      *ngIf="!compactMode && !isStreaming"
-      mat-fab
+      *ngIf="!isStreaming"
+      mat-flat-button
       color="primary"
       (click)="sendMessage()"
       [disabled]="!inputMessage.trim() || !isModelLoaded || isConfiguringProvider"
-      class="send-button">
-      <mat-icon>send</mat-icon>
-    </button>
-    <button
-      *ngIf="compactMode && !isStreaming"
-      mat-mini-fab
-      color="primary"
-      (click)="sendMessage()"
-      [disabled]="!inputMessage.trim() || !isModelLoaded || isConfiguringProvider"
-      class="send-button">
+      class="input-action send-button">
       <mat-icon>send</mat-icon>
     </button>
     <!-- Stop (shown while a response is streaming) -->
     <button
-      *ngIf="!compactMode && isStreaming"
-      mat-fab
+      *ngIf="isStreaming"
+      mat-flat-button
       color="warn"
       (click)="stopStreaming()"
       [title]="'AI_CHAT.STOP' | translate"
-      class="send-button stop-button">
-      <mat-icon>stop</mat-icon>
-    </button>
-    <button
-      *ngIf="compactMode && isStreaming"
-      mat-mini-fab
-      color="warn"
-      (click)="stopStreaming()"
-      [title]="'AI_CHAT.STOP' | translate"
-      class="send-button stop-button">
+      class="input-action send-button stop-button">
       <mat-icon>stop</mat-icon>
     </button>
   </div>

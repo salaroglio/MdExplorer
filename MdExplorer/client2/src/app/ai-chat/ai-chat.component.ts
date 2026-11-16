@@ -585,6 +585,38 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /** Abort the prompt currently streaming (Stop button). */
+  /** Vero mentre si trascina il bordo sopra la casella del messaggio. */
+  inputResizing = false;
+
+  /**
+   * Il bordo sopra la casella del messaggio si trascina in verticale (16/11/2026, utente: la maniglia del browser
+   * nell'angolo della casella era brutta; stessa cosa del bordo dell'albero per la larghezza). Trascinare in su alza la
+   * casella, fra l'altezza minima e il 40% della finestra.
+   */
+  startInputResize(event: MouseEvent): void {
+    const box = this.messageInput?.nativeElement as HTMLTextAreaElement;
+    if (!box) { return; }
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = box.offsetHeight;
+    const max = Math.round(window.innerHeight * 0.4);
+    this.inputResizing = true;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    const move = (e: MouseEvent) => {
+      box.style.height = Math.min(max, Math.max(48, startHeight + (startY - e.clientY))) + 'px';
+    };
+    const stop = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', stop);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      this.inputResizing = false;
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', stop);
+  }
+
   stopStreaming(): void {
     this.aiService.cancelPrompt();
   }
