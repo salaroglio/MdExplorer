@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 39
+  version: 40
   updatePolicy: replace
 ---
 
@@ -361,6 +361,9 @@ or offer it in one line when step 2 found facts that are not recorded.
 the customer; no queries, connection strings or configuration values. Describe SHAPES (a regular expression, or a 5-15
 line skeleton with placeholders: `IServizio1`, `Classe1`, `Metodo1`) and NUMBERS. Names of public libraries and
 frameworks (the DI container, the UI toolkit) are not the customer's: write them exactly, with the version.
+
+Tables: in the separator row put a space on both sides of every pipe when a column has an alignment colon
+(`| --- | --: |`, never `|---:|`): MdExplorer reads `:|` as a smiley and the table does not render.
 
 What to put in it (TL;DR on top, as in every MdExplorer document), measured with `code_schema`, `code_query` and the
 search tools, not estimated:

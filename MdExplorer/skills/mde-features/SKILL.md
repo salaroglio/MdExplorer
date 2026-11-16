@@ -3,7 +3,7 @@ name: mde-features
 description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown", "add an image / GIF found on the internet".
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -409,6 +409,25 @@ file.
 
 ---
 
+## 7. Tables — write the alignment row with spaces
+
+MdExplorer renders smileys: `:|` is one (😐). In the row that separates the header of a table, an alignment colon
+written right against the pipe is read as that smiley, and the table breaks.
+
+| Written | What happens |
+| --- | --- |
+| `\|--:\|--:\|` | NOT a table: the page shows the raw lines, with 😐 in them |
+| `\|:-:\|:-:\|` | NOT a table, same reason |
+| `\|---:\|:---\|` | A table, but the alignment is lost (both columns left) |
+| `\| --: \| --: \|` | Correct: right-aligned columns |
+| `\| :-: \| :-- \|` | Correct: centred, then left |
+| `\|---\|---\|` | Correct: no colon, nothing to confuse |
+
+**Rule**: in the separator row, put a space on both sides of every pipe whenever a cell has a colon:
+`| --- | --: | :-: |`. The same in the body: never write `:|` at the end of a cell — leave a space, `: |`.
+
+---
+
 ## Common patterns
 
 ### Documenting a code file with prose and showing the file
@@ -478,3 +497,4 @@ Il contratto del servizio:
 - Don't use `html(path)` for a feature that pure markdown can express
 - Don't put destructive shell commands in runnable blocks without warning
 - Don't use the `;line:#color` PlantUML extension — it breaks across versions
+- Don't write a table alignment colon against the pipe (`|--:|`): `:|` is a smiley and the table breaks — write `| --: |`

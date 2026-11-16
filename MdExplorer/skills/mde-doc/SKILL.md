@@ -3,7 +3,7 @@ name: mde-doc
 description: Write technical and analysis documents using MdExplorer conventions. Use whenever you author or update an analysis, design, sprint, how-to, or any narrative `.md` document (NOT a README — see the mde-readme skill for that). Every such document opens with a self-contained TL;DR header.
 mde:
   origin: mdexplorer
-  version: 8
+  version: 9
   updatePolicy: replace
 ---
 
@@ -41,3 +41,5 @@ The TL;DR must be **self-contained**: a reader who reads only the TL;DR should l
 - [ ] The document opens with a `## TL;DR` section, before any other content.
 - [ ] TL;DR is at most 3 lines of prose, followed by exactly 3 bullet points.
 - [ ] The TL;DR conveys the gist on its own, without the reader needing the body.
+- [ ] In every table the separator row has a space on both sides of each pipe when a cell has an alignment colon:
+      `| --- | --: | :-: |`, never `|---:|`. MdExplorer reads `:|` as a smiley (😐) and the table does not render.
