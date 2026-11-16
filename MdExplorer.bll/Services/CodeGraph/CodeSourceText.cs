@@ -1,3 +1,4 @@
+using System.Linq;
 using MdExplorer.Features.Services;
 using MdExplorer.RemoteProtocol;
 using System.Collections.Generic;
@@ -21,7 +22,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             var bytes = File.ReadAllBytes(path);
             var assigned = TextDecoding.ForExtension(path, bytes, extensionEncodings);
             var decoded = assigned != null ? TextDecoding.DecodeAs(bytes, assigned) : TextDecoding.Decode(bytes);
-            return decoded?.Text ?? throw new InvalidDataException(UiText.Say($"{path}: non è un file di testo (contiene byte NUL)", $"{path}: not a text file (it contains NUL bytes)"));
+            return decoded?.Text ?? throw new InvalidDataException(NotText(path, bytes));
+        }
+
+        /// <summary>
+        /// Perché non è testo, con i numeri (16/11/2026, dal cliente: 58 file «con byte NUL», e per sapere che uno era
+        /// TUTTO a zero — un file rovinato, non una codifica sconosciuta — bisognava aprirlo a mano).
+        /// </summary>
+        internal static string NotText(string path, byte[] bytes)
+        {
+            var zeros = bytes.Count(b => b == 0);
+            return zeros == bytes.Length
+                ? UiText.Say($"{path}: non è un file di testo: è interamente a zero ({bytes.Length} byte NUL) — un file rovinato o mai scritto, non una codifica sconosciuta",
+                    $"{path}: not a text file: it is entirely zero ({bytes.Length} NUL bytes) — a damaged or never written file, not an unknown encoding")
+                : UiText.Say($"{path}: non è un file di testo (contiene {zeros} byte NUL su {bytes.Length})", $"{path}: not a text file (it contains {zeros} NUL bytes out of {bytes.Length})");
         }
 
         /// <summary>L'hash che va nell'intestazione degli script AST (D14) e che conferma un candidato.</summary>

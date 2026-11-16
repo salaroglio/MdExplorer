@@ -139,6 +139,9 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>Ricerca a testo pieno (jena-text) su nomi, nomi qualificati, descrizioni e descrizioni dei parametri.</summary>
         Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default);
+        /// <summary>La ricerca ristretta a una cartella (prefisso del percorso) e/o a un tipo di simbolo; null = senza quel filtro.</summary>
+        Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, string pathPrefix, string kind, int limit = 20, CancellationToken ct = default);
+        Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, string pathPrefix, string kind, int limit = 10, CancellationToken ct = default);
         /// <summary>Il simbolo per id, nome qualificato o nome; con parametri e descrizioni. Più candidati = ambiguità da sciogliere.</summary>
         Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, int limit = 10, CancellationToken ct = default);
         Task<CodeSymbolView> DescribeAsync(string projectPath, string symbolId, CancellationToken ct = default);

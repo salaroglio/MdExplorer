@@ -960,14 +960,21 @@ namespace MdExplorer.Controllers.CodeGraph
             return new { e.Relation, e.Confidence, e.Guard, e.Path, absolutePath = abs, pathUnavailable = why, e.Line, e.Depth, symbol = View(e.Other, at) };
         }
 
-        /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>
+        /// <summary>Una cartella scritta in qualunque modo (barre rovesciate, con o senza la barra in fondo) come prefisso dei percorsi del grafo; null = nessun filtro.</summary>
+        private static string FolderPrefix(string folder)
+        {
+            var f = (folder ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+            return f.Length == 0 ? null : f + "/";
+        }
+
+        /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q[&amp;folder][&amp;kind] — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>
         [HttpGet("symbols/resolve")]
-        public Task<IActionResult> Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10, [FromQuery] string folder = null, [FromQuery] string kind = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = UiText.Say("q è obbligatorio", "q is required") });
             var at = await LocatorAsync(projectPath, ct);
-            return Ok((await _store.ResolveAsync(projectPath, q.Trim(), limit, ct)).Select(x => View(x, at)));
+            return Ok((await _store.ResolveAsync(projectPath, q.Trim(), FolderPrefix(folder), kind, limit, ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/symbols/{id}?projectPath — la firma per esteso con le descrizioni.</summary>
@@ -1355,14 +1362,14 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>GET /api/codegraph/symbols/search?projectPath=…&amp;q=…&amp;limit=20 — testo pieno (jena-text) su nomi e descrizioni.</summary>
         [HttpGet("symbols/search")]
-        public Task<IActionResult> Search([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 20, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Search([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 20, [FromQuery] string folder = null, [FromQuery] string kind = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath);
             if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
                 return BadRequest(new { error = UiText.Say("q deve avere almeno 2 caratteri", "q must have at least 2 characters") });
             var at = await LocatorAsync(projectPath, ct);
-            return Ok((await _store.SearchSymbolsAsync(projectPath, q, limit, ct)).Select(h =>
+            return Ok((await _store.SearchSymbolsAsync(projectPath, q, FolderPrefix(folder), kind, limit, ct)).Select(h =>
             {
                 var (abs, why) = at.Of(h.Path);
                 return new { h.Id, h.Kind, h.Name, h.QualifiedName, h.Path, absolutePath = abs, pathUnavailable = why, h.LineStart, h.Signature, h.Summary };

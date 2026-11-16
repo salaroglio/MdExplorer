@@ -54,16 +54,19 @@ public sealed class CodeTools : McpToolsBase
     public async Task<string> code_find_symbol(
         [Description("Project name (see GetProjects).")] string project,
         [Description("Qualified name, simple name, or free-text fragment (min 3 chars for free text).")] string query,
-        [Description("Max candidates (default 10).")] int? limit = null)
+        [Description("Max candidates (default 10).")] int? limit = null,
+        [Description("Optional: only symbols declared under this folder (a program folder or any sub-folder, as in the paths the tools return). Use it when the same name exists in several programs.")] string folder = null,
+        [Description("Optional: only symbols of this kind: class, interface, method, constructor, property, field, function, module (a file or a page), control, query…")] string kind = null)
     {
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
         var n = limit ?? 10;
+        var only = (string.IsNullOrWhiteSpace(folder) ? "" : $"&folder={Uri.EscapeDataString(folder.Trim())}") + (string.IsNullOrWhiteSpace(kind) ? "" : $"&kind={Uri.EscapeDataString(kind.Trim())}");
         // Prima l'esatto (id, nome qualificato, nome); se niente, il testo libero su nomi e descrizioni.
-        var exact = await GetAsync(client, Q(path, $"symbols/resolve?q={Uri.EscapeDataString(query ?? string.Empty)}&limit={n}"), "code_find_symbol", project, query);
+        var exact = await GetAsync(client, Q(path, $"symbols/resolve?q={Uri.EscapeDataString(query ?? string.Empty)}&limit={n}{only}"), "code_find_symbol", project, query);
         if (exact.TrimStart().StartsWith("[") && exact.Trim() != "[]") return exact;
         if ((query ?? string.Empty).Trim().Length < 3) return exact;
-        return await GetAsync(client, Q(path, $"symbols/search?q={Uri.EscapeDataString(query)}&limit={n}"), "code_find_symbol", project, query);
+        return await GetAsync(client, Q(path, $"symbols/search?q={Uri.EscapeDataString(query)}&limit={n}{only}"), "code_find_symbol", project, query);
     }
 
     [McpServerTool, Description(
@@ -216,6 +219,9 @@ public sealed class CodeTools : McpToolsBase
         "method reaches, with one shortest chain each (file:line of every step) and every point where the walk stops before data, counted by cause; " +
         "who-reaches (symbol): the entry points (page controls, framework-called methods) that reach a table, query or method, with their chains; " +
         "reachability (to, from): how many methods of a layer the pages reach, and why the others are not reached. Prefer them to code_sparql for these questions. " +
+        "CHECK A DOCUMENT — check-claims (claims, folder): up to 100 claims in ONE call, one per line: `exists: Symbol`, `calls: A -> B`, `reads|writes|touches: A -> TABLE`, " +
+        "`file: path`; each comes back `true` (with the chain and file:line), `false` or `undetermined` (ambiguous name, symbol not in the graph, only through an ambiguous edge). " +
+        "Use it instead of one call per claim: it checks LINKS, not meaning. " +
         "QUALITY CHECKS, aggregated — start here, never from a full list: pages-to-data (from, unit): how many pages (or controls) reach a table, by outcome " +
         "(data, only through deduced starts = created objects the library calls back and handlers registered in code, only through ambiguous edges, the page's code-behind class is not in the graph, stops at an unresolved name = a gap of the graph, stops at a library, no data in the graph), with the unresolved names and the library members that stop the most, and `topTables` — the tables by how many pages reach them: " +
         "the ones nearly every page reaches (configuration, translation) say nothing about what a page does; pass them back as `support` and the pages reaching only them are counted apart; " +

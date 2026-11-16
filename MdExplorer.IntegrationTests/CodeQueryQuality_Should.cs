@@ -33,6 +33,13 @@ namespace MdExplorer.IntegrationTests
                     .Where(s => ((IReadOnlyCollection<string>)args[1]).Contains(s.Kind)
                         && (args[2] is not IReadOnlyCollection<string> prefixes || prefixes.Any(p => s.Path.StartsWith(p, StringComparison.Ordinal)))).ToList()),
                 nameof(ICodeGraphStore.PagesWithoutClassAsync) => Task.FromResult(WithoutClass),
+                // per nome o per id, sotto la cartella chiesta; «Doppio» è il nome di due simboli
+                nameof(ICodeGraphStore.ResolveAsync) when args.Length == 6 => Task.FromResult(Symbols
+                    .Where(s => (s.Name == (string)args[1] || s.Id == (string)args[1] || (string)args[1] == "Doppio" && s.Name.StartsWith("Dl.Ordini.", StringComparison.Ordinal))
+                        && (args[2] is not string prefix || s.Path.StartsWith(prefix, StringComparison.Ordinal)))
+                    .Select(s => new CodeSymbolView { Id = s.Id, Kind = s.Kind, QualifiedName = s.Name, Name = s.Name, Path = s.Path, LineStart = 3 }).ToList()),
+                nameof(ICodeGraphStore.FilesUnderAsync) => Task.FromResult(Symbols.Where(s => s.Path.StartsWith((string)args[1], StringComparison.Ordinal))
+                    .GroupBy(s => s.Path).Select(x => (Path: x.Key, Symbols: x.Key.EndsWith("Login.aspx.vb", StringComparison.Ordinal) ? 0 : x.Count(), Summary: (string)null)).ToList()),
                 _ => throw new NotSupportedException(method.Name),
             };
         }
@@ -48,11 +55,11 @@ namespace MdExplorer.IntegrationTests
         private static CodeNavEdge E(string s, string t, string rel, string conf = "extracted")
             => new(s, N[s].Kind, N[s].Name, N[s].Path, t, N[t].Kind, N[t].Name, N[t].Path, rel, conf, N[s].Path, 1);
 
-        private static CodeQueryService Service()
+        private static CodeQueryService Service(params CodeNavEdge[] more)
         {
             var store = DispatchProxy.Create<ICodeGraphStore, FakeStore>();
             var fake = (FakeStore)(object)store;
-            fake.Edges = new[] { E("p1", "h1", "calls"), E("h1", "dl", "calls"), E("dl", "t", "reads"), E("p2", "h2", "calls"), E("h2", "x", "calls", "ambiguous") };
+            fake.Edges = new[] { E("p1", "h1", "calls"), E("h1", "dl", "calls"), E("dl", "t", "reads"), E("p2", "h2", "calls"), E("h2", "x", "calls", "ambiguous") }.Concat(more).ToList();
             fake.Symbols = N.Where(n => n.Value.Kind != "external").Select(n => (n.Key, n.Value.Kind, n.Value.Name, n.Value.Path)).ToList();
             return new CodeQueryService(store, null, null);
         }
@@ -80,6 +87,37 @@ namespace MdExplorer.IntegrationTests
             var cases = sampled.GetProperty("samples").GetProperty("stops-at-unresolved-name");
             Assert.AreEqual("web/Login.aspx", cases[0].GetProperty("Symbol").GetString());
             StringAssert.Contains(sampled.GetProperty("sampleNote").GetString(), "verifica");
+        }
+
+        [TestMethod]
+        public async Task Check_many_claims_of_a_document_in_one_call_saying_true_false_or_undetermined()
+        {
+            // 16/11/2026, dal cliente: un documento con cinquanta affermazioni, una chiamata per ciascuna, e il contesto di
+            // MarkAgent finiva prima. Qui tutte insieme, con un esito certo per riga
+            var claims = string.Join("\n",
+                "exists: Web.Ordini.Page_Load()", "exists: Non.Esiste", "exists: Doppio",
+                "calls: web/Ordini.aspx -> Dl.Ordini.Leggi()", "calls: web/Login.aspx -> Dl.Ordini.Leggi()", "calls: web/Login.aspx -> Dl.Ordini.Mai()",
+                "reads: web/Ordini.aspx -> ordini", "writes: web/Ordini.aspx -> ORDINI", "touches: Web.Ordini.Page_Load() -> ORDINI",
+                "file: dl/Ordini.vb; file: web/Login.aspx.vb; file: dl/Manca.vb");
+            var r = JsonSerializer.SerializeToElement(await Service(E("h2", "mai", "calls", "ambiguous"))
+                .RunAsync("/progetto", "check-claims", new Dictionary<string, string> { ["claims"] = claims }, CancellationToken.None));
+
+            string Verdict(int n) => r.GetProperty("results")[n - 1].GetProperty("verdict").GetString();
+            string Why(int n) => r.GetProperty("results")[n - 1].GetProperty("why").GetString();
+            Assert.AreEqual(12, r.GetProperty("checked").GetInt32());
+            Assert.AreEqual("true false undetermined | true false undetermined | true false true | true true false",
+                $"{Verdict(1)} {Verdict(2)} {Verdict(3)} | {Verdict(4)} {Verdict(5)} {Verdict(6)} | {Verdict(7)} {Verdict(8)} {Verdict(9)} | {Verdict(10)} {Verdict(11)} {Verdict(12)}");
+            StringAssert.Contains(Why(3), "more than one symbol", "due simboli con quel nome: non si sa di quale parla il documento");
+            var chain = r.GetProperty("results")[3].GetProperty("chain");
+            Assert.AreEqual("Web.Ordini.Page_Load() > Dl.Ordini.Leggi()", string.Join(" > ", chain.EnumerateArray().Select(s => s.GetProperty("Symbol").GetString())));
+            StringAssert.Contains(r.GetProperty("results")[4].GetProperty("caveat").GetString(), "unresolved names", "falso, ma da Login parte una chiamata che il grafo non ha risolto");
+            StringAssert.Contains(Why(6), "ambiguous edge", "il cammino c'è solo per un arco ambiguo: non è né vero né falso");
+            Assert.AreEqual("ORDINI", r.GetProperty("results")[6].GetProperty("chain").EnumerateArray().Last().GetProperty("Symbol").GetString());
+            StringAssert.Contains(Why(11), "WITHOUT symbols", "il file c'è ma il progetto non lo compila");
+            Assert.AreEqual((6, 4, 2), (r.GetProperty("counts").GetProperty("true").GetInt32(), r.GetProperty("counts").GetProperty("false").GetInt32(), r.GetProperty("counts").GetProperty("undetermined").GetInt32()));
+
+            // con la cartella, il nome doppio non lo è più se uno solo sta lì; una forma sconosciuta si rifiuta dicendo quali ci sono
+            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Service().RunAsync("/progetto", "check-claims", new Dictionary<string, string> { ["claims"] = "usa: A -> B" }, CancellationToken.None));
         }
 
         [TestMethod]

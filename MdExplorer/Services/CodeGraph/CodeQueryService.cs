@@ -92,6 +92,7 @@ namespace MdExplorer.Services.CodeGraph
                     (P("support") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), ct),
                 CodeQueryCatalog.UnreachedCode => await UnreachedCodeAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"),
                     OneOf("cause", CodeNavigation.Causes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 200, 30), ct),
+                CodeQueryCatalog.CheckClaims => await CheckClaimsAsync(projectPath, P("claims") ?? throw Required("claims"), Prefix(P("folder")), ct),
                 CodeQueryCatalog.Reachability => await ReachabilityAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 _ => throw new InvalidOperationException($"domanda «{name}» nel catalogo ma senza esecuzione"),
             };
@@ -216,7 +217,7 @@ namespace MdExplorer.Services.CodeGraph
             var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top, withoutClass, support);
             return new
             {
-                from, unit = r.Unit, total = r.Total, byOutcome = r.ByOutcome,
+                from, unit = r.Unit, total = r.Total, byFileType = r.ByFileType, byOutcome = r.ByOutcome,
                 // le tabelle per quante pagine ci arrivano: quelle di tutti (configurazione, traduzione) non dicono che cosa fa la
                 // pagina; ripetendo la domanda con support=<nomi> le pagine che arrivano solo lì si contano a parte
                 supportTables = support.Count == 0 ? null : support, tables = r.Tables, topTables = r.TopTables,
@@ -226,6 +227,112 @@ namespace MdExplorer.Services.CodeGraph
                 samples = r.Samples.Count == 0 ? null : r.Samples, sampleNote = SampleNote(sample, seed),
                 next = UiText.Say("data-reach su un caso del campione per tutte le sue tabelle e fermate; unreached-code per lo strato che le pagine non raggiungono",
                     "data-reach on a sampled case for all its tables and stops; unreached-code for the layer the pages do not reach"),
+            };
+        }
+
+        /// <summary>Quante affermazioni in una chiamata: oltre, la risposta non starebbe nel contesto di chi chiede.</summary>
+        public const int MaxClaims = 100;
+
+        /// <summary>
+        /// La verifica a lotti (16/11/2026, dal cliente: MarkAgent controllava un documento un'affermazione per chiamata e finiva
+        /// il contesto prima delle affermazioni). Ogni riga è un controllo sui COLLEGAMENTI del grafo, con un esito certo:
+        /// vero (con la catena), falso, o non determinabile — nome con più simboli, simbolo assente, solo per un arco ambiguo.
+        /// </summary>
+        private async Task<object> CheckClaimsAsync(string projectPath, string claims, string folder, CancellationToken ct)
+        {
+            var lines = claims.Split(new[] { '\n', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            if (lines.Count > MaxClaims)
+                throw new CodeQueryException(UiText.Say($"{lines.Count} affermazioni: al massimo {MaxClaims} per chiamata. Dividile in più chiamate.",
+                    $"{lines.Count} claims: at most {MaxClaims} per call. Split them into several calls."));
+            var graph = new Lazy<Task<CodeNavigation.Graph>>(async () => new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct)));
+            var resolved = new Dictionary<string, (CodeSymbolView One, string Why, bool Several)>(StringComparer.Ordinal);
+
+            // un nome → un simbolo solo, o il motivo per cui non lo è
+            async Task<(CodeSymbolView One, string Why, bool Several)> SymbolAsync(string written)
+            {
+                if (resolved.TryGetValue(written, out var known)) return known;
+                var found = (await _store.ResolveAsync(projectPath, written, folder, null, 8, ct)).Where(s => s.Kind != "external").ToList();
+                (CodeSymbolView, string, bool) answer = found.Count switch
+                {
+                    1 => (found[0], null, false),
+                    0 => (null, UiText.Say($"«{written}» non è nel grafo{(folder == null ? "" : " sotto " + folder)}: non analizzato, escluso dalla compilazione del suo progetto, o scritto diversamente",
+                        $"«{written}» is not in the graph{(folder == null ? "" : " under " + folder)}: not analysed, excluded from its project's compilation, or written differently"), false),
+                    _ => (null, UiText.Say($"«{written}» è più di un simbolo: ripeti con l'id o con folder. {string.Join("; ", found.Take(6).Select(s => $"{s.Id} {s.Kind} {s.QualifiedName} ({s.Path})"))}",
+                        $"«{written}» is more than one symbol: ask again with the id or with folder. {string.Join("; ", found.Take(6).Select(s => $"{s.Id} {s.Kind} {s.QualifiedName} ({s.Path})"))}"), true),
+                };
+                return resolved[written] = answer;
+            }
+            static object Steps(List<CodeNavStep> chain) => chain?.Select(s => new { s.Symbol, s.Kind, s.Relation, s.Confidence, s.At });
+            object Answer(int n, string claim, string verdict, string why, object chain = null, string caveat = null, string at = null)
+                => new { n, claim, verdict, why, at, caveat, chain };
+
+            var results = new List<object>();
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal) { ["true"] = 0, ["false"] = 0, ["undetermined"] = 0 };
+            void Add(object answer, string verdict) { results.Add(answer); counts[verdict]++; }
+            for (var i = 0; i < lines.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var line = lines[i];
+                var colon = line.IndexOf(':');
+                var form = colon < 0 ? null : line[..colon].Trim().ToLowerInvariant();
+                var rest = colon < 0 ? string.Empty : line[(colon + 1)..].Trim();
+                var arrow = rest.IndexOf("->", StringComparison.Ordinal);
+                var left = arrow < 0 ? rest : rest[..arrow].Trim();
+                var right = arrow < 0 ? null : rest[(arrow + 2)..].Trim();
+                if (form is not ("exists" or "calls" or "reads" or "writes" or "touches" or "file") || left.Length == 0 || (form is "calls" or "reads" or "writes" or "touches") && string.IsNullOrEmpty(right))
+                    throw new CodeQueryException(UiText.Say($"Riga {i + 1} «{line}»: le forme sono «exists: Simbolo», «calls: A -> B», «reads|writes|touches: A -> TABELLA», «file: percorso».",
+                        $"Line {i + 1} «{line}»: the forms are «exists: Symbol», «calls: A -> B», «reads|writes|touches: A -> TABLE», «file: path»."));
+
+                if (form == "file")
+                {
+                    var path = left.Replace('\\', '/').TrimStart('/');
+                    var file = (await _store.FilesUnderAsync(projectPath, path, 5, ct)).FirstOrDefault(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase));
+                    if (file.Path == null) Add(Answer(i + 1, line, "false", UiText.Say("il file non è nel grafo", "the file is not in the graph")), "false");
+                    else Add(Answer(i + 1, line, "true", file.Symbols > 0
+                        ? UiText.Say($"nel grafo, con {file.Symbols} simboli", $"in the graph, with {file.Symbols} symbols")
+                        : UiText.Say("nel grafo ma SENZA simboli: il suo progetto non lo compila, o non si legge (vedi gli avvisi files-not-compiled e file-unreadable)",
+                            "in the graph but WITHOUT symbols: its project does not compile it, or it cannot be read (see the files-not-compiled and file-unreadable warnings)"), at: file.Path), "true");
+                    continue;
+                }
+
+                var (a, whyA, several) = await SymbolAsync(left);
+                if (form == "exists")
+                {
+                    // più simboli con quel nome: esiste di certo, ma non si sa di quale parla il documento
+                    if (a != null) Add(Answer(i + 1, line, "true", $"{a.Kind} {a.QualifiedName}", at: a.Path == null ? null : $"{a.Path}:{a.LineStart}"), "true");
+                    else Add(Answer(i + 1, line, several ? "undetermined" : "false", whyA), several ? "undetermined" : "false");
+                    continue;
+                }
+                if (a == null) { Add(Answer(i + 1, line, "undetermined", whyA), "undetermined"); continue; }
+
+                var g = await graph.Value;
+                CodeNavigation.PathCheck check;
+                if (form == "calls")
+                {
+                    var (b, whyB, _) = await SymbolAsync(right);
+                    if (b == null) { Add(Answer(i + 1, line, "undetermined", whyB), "undetermined"); continue; }
+                    check = CodeNavigation.PathTo(g, a.Id, n => n == b.Id);
+                }
+                else
+                {
+                    // la tabella o la procedura per nome: intero, o l'ultima parte dopo lo schema
+                    bool Named(string n) => g.Nodes.TryGetValue(n, out var node)
+                        && (string.Equals(node.Name, right, StringComparison.OrdinalIgnoreCase) || node.Name.EndsWith("." + right, StringComparison.OrdinalIgnoreCase));
+                    check = CodeNavigation.PathTo(g, a.Id, Named, e => form == "touches" ? CodeNavigation.Data.Contains(e.Relation) : e.Relation == form);
+                }
+                if (check.Found && check.Sure) Add(Answer(i + 1, line, "true", UiText.Say($"cammino di {check.Chain.Count} passi", $"a road of {check.Chain.Count} steps"), Steps(check.Chain)), "true");
+                else if (check.Found) Add(Answer(i + 1, line, "undetermined",
+                    UiText.Say("c'è un cammino, ma solo passando per almeno un arco ambiguo: apri il sorgente di quel passo prima di affermarlo",
+                        "there is a road, but only through at least one ambiguous edge: open the source of that step before stating it"), Steps(check.Chain)), "undetermined");
+                else Add(Answer(i + 1, line, "false", UiText.Say("nessun cammino nel grafo", "no road in the graph"), caveat: check.UnresolvedStops == 0 ? null
+                    : UiText.Say($"{check.UnresolvedStops} strade da «{left}» finiscono su nomi non risolti: una chiamata che il grafo non vede è possibile",
+                        $"{check.UnresolvedStops} roads from «{left}» end on unresolved names: a call the graph does not see is possible")), "false");
+            }
+            return new
+            {
+                folder, @checked = results.Count, counts, results,
+                note = UiText.Say("controlla i COLLEGAMENTI, non il significato; «undetermined» non è «false»: riportalo così, con il suo motivo",
+                    "it checks LINKS, not meaning; «undetermined» is not «false»: report it as such, with its reason"),
             };
         }
 

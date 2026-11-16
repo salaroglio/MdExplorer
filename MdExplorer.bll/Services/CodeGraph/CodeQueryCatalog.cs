@@ -34,6 +34,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string WhoReaches = "who-reaches";
         public const string Reachability = "reachability";
         public const string PagesToData = "pages-to-data";
+        public const string CheckClaims = "check-claims";
         public const string UnreachedCode = "unreached-code";
 
         private static readonly Dictionary<string, string> FolderParam = new() { ["folder"] = "optional: a program folder or path prefix (program/, @core/app); empty = the whole graph" };
@@ -97,6 +98,23 @@ namespace MdExplorer.Features.Services.CodeGraph
             },
             new CodeQueryInfo
             {
+                Name = CheckClaims,
+                Question = "CHECK A DOCUMENT, many claims in ONE call: is each of these statements true in the graph? One claim per line (or separated by `;`), up to 100. " +
+                    "Forms: `exists: Symbol` — the symbol is in the graph; `calls: A -> B` — executing A reaches B, directly or through other methods; " +
+                    "`reads: A -> TABLE`, `writes: A -> TABLE`, `touches: A -> TABLE` (either) — executing A reaches a read/write of that table or procedure; " +
+                    "`file: path/to/File.ext` — the file is in the graph, and whether it has symbols (no symbols = excluded from its project's compilation, or unreadable). " +
+                    "A symbol is a qualified name, a simple name or an id; a page is its path. Each answer has a `verdict`: `true` (with the shortest chain and its `path:line`), " +
+                    "`false` (not in the graph; `caveat` says when roads from A end on unresolved names, so a call the graph does not see is possible) or `undetermined` " +
+                    "(the name matches several symbols — the candidates are listed, ask again with the id or with `folder`; the symbol is not in the graph; the only road passes an ambiguous edge). " +
+                    "It checks LINKS, not meaning: «this procedure computes VAT» is not a claim it can check — read the source for that. `undetermined` is not `false`: report it as such.",
+                Parameters = new Dictionary<string, string>
+                {
+                    ["claims"] = "required: the claims, one per line or separated by `;` — e.g. `exists: Acme.Bl.Orders; calls: web/Orders.aspx -> Acme.Dl.Orders.Insert; writes: Acme.Bl.Orders.Save -> ORDERS; file: web/Old.aspx.vb`",
+                    ["folder"] = "optional: resolve the symbol names only under this folder (a program), when the same name exists in several programs",
+                },
+            },
+            new CodeQueryInfo
+            {
                 Name = Reachability,
                 Question = "How navigable is a layer? From every page and page control under `from` — a page also runs its life-cycle events (Page_Load…) and its includes — (or, without pages there, every method nobody calls) forward over the execution relations: how many methods/queries under `to` are reached, and for the others why — no-callers (nothing in the graph calls them: framework, reflection, dead code, check) or callers-not-reached (called only by code that is not reached itself, with an example caller).",
                 Parameters = new Dictionary<string, string> { ["from"] = "optional: path prefix of the entries (e.g. the web folder); empty = the whole graph", ["to"] = "required: path prefix of the layer to measure (e.g. the data layer folder)", ["depth"] = "optional: max hops, 1-100, default 50", ["limit"] = "optional: unreached listed, 1-500, default 50" },
@@ -106,7 +124,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             new CodeQueryInfo
             {
                 Name = PagesToData,
-                Question = "QUALITY, aggregated: how many screens reach the database? Every page under `from` (a page = its controls + its life-cycle events + its includes; or every single control with unit=control), by outcome, counts only: data (reaches a table without ambiguous edges), data-only-through-deduced-starts (reaches a table without ambiguous edges, but only through a deduced start: an object created whose methods the library calls by itself, or a handler registered to an event in code — it CAN run; open the source before stating it does), data-only-through-ambiguous, data-only-support-tables (only when you pass `support`: it reaches nothing but the tables you declared as support), page-class-not-in-graph (no table, and the page declares a code-behind class that is not in the graph — its file is excluded from the project's compilation or is not among the sources: neither a gap of the graph nor a page without data; pages that execute nothing without their class are counted here too), stops-at-unresolved-name (no table, and a road ends on a name the compiler could not resolve — a missing project or library: a GAP of the graph), stops-at-library (no table; the roads that leave the graph end on resolved library members), no-data-in-graph (no table, nothing leaves the graph: it does not touch data). Plus the externals that stop the entries WITHOUT data, by how many they stop, in two lists: `topUnresolvedNames` (the gaps) and `topLibraryStops` (an entry can stop at several: do not add them up). Counts are over the whole closure, never cut. Ask a SAMPLE only for the outcome you want to check: `sample` cases per outcome, the same ones for the same `seed`, each with its numbers and one chain (to the nearest table, or to the nearest external). Then data-reach on a single case.",
+                Question = "QUALITY, aggregated: how many screens reach the database? Every page under `from` (a page = its controls + its life-cycle events + its includes; or every single control with unit=control), by outcome, counts only: data (reaches a table without ambiguous edges), data-only-through-deduced-starts (reaches a table without ambiguous edges, but only through a deduced start: an object created whose methods the library calls by itself, or a handler registered to an event in code — it CAN run; open the source before stating it does), data-only-through-ambiguous, data-only-support-tables (only when you pass `support`: it reaches nothing but the tables you declared as support), page-class-not-in-graph (no table, and the page declares a code-behind class that is not in the graph — its file is excluded from the project's compilation or is not among the sources: neither a gap of the graph nor a page without data; pages that execute nothing without their class are counted here too), stops-at-unresolved-name (no table, and a road ends on a name the compiler could not resolve — a missing project or library: a GAP of the graph), stops-at-library (no table; the roads that leave the graph end on resolved library members), no-data-in-graph (no table, nothing leaves the graph: it does not touch data). `byFileType` splits the total by file extension (.aspx pages, .ascx user controls, .master…): a «page» here is any of them, so compare like with like. Plus the externals that stop the entries WITHOUT data, by how many they stop, in two lists: `topUnresolvedNames` (the gaps) and `topLibraryStops` (an entry can stop at several: do not add them up). Counts are over the whole closure, never cut. Ask a SAMPLE only for the outcome you want to check: `sample` cases per outcome, the same ones for the same `seed`, each with its numbers and one chain (to the nearest table, or to the nearest external). Then data-reach on a single case.",
                 Parameters = new Dictionary<string, string>
                 {
                     ["from"] = "optional: path prefix of the pages (the web folder); empty = the whole graph",

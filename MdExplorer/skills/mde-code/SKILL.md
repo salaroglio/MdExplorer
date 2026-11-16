@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 40
+  version: 41
   updatePolicy: replace
 ---
 
@@ -117,7 +117,8 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
 | What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
 | A ready-made question (the catalog is in `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
 | A question no tool above answers: a count across relations or languages, a combination of conditions | `code_sparql` (last resort, read-only) |
-| Where is X? Find a class/method by name or by what it does | `code_find_symbol` |
+| Where is X? Find a class/method by name or by what it does | `code_find_symbol` (`folder` = a program or sub-folder and `kind` = class, method, module… when the name exists in several places) |
+| Is this document true to the code? Many statements to check | `code_query` → `check-claims`: all the link claims in one call (see «Checking a document against the code») |
 | Does this document (design, analysis, specification) match the code? | see «Checking a document against the code» |
 | Plan a change or write its analysis: which files and methods to touch, what else must change | `code_find_symbol` → `code_impact` (and `code_neighbors`), then read the source at `absolutePath` |
 | Signature, parameters and description of one symbol | `code_describe` |
@@ -196,7 +197,18 @@ When the user asks whether a document is true to the code (document-driven devel
 and the document is under review:
 
 1. List the document's concrete claims: classes, methods, fields, flows («A calls B», «the page saves through X»).
-2. For each one: `code_find_symbol`, then `code_describe` for what it does, `code_neighbors` / `code_path` for the flows.
+2. Check the LINKS all together, not one call per claim: `code_query` → `check-claims`, with `claims` = one line per
+   claim (up to 100 per call):
+   `exists: Symbol` · `calls: A -> B` (A reaches B, also through other methods) · `reads: A -> TABLE`,
+   `writes: A -> TABLE`, `touches: A -> TABLE` · `file: path/File.ext` (in the graph? with symbols, or excluded from the
+   compilation?). A page is its path; a symbol is a qualified name, a simple name or an id. Add `folder` = the program
+   when the same name exists in several programs. Each line comes back `true` (with the shortest chain and its
+   `path:line`), `false` (with a `caveat` when roads from A end on unresolved names) or `undetermined`: the name is
+   several symbols (the candidates are listed: ask again with the id), the symbol is not in the graph, or the only road
+   passes an ambiguous edge. `undetermined` is NOT `false`: write it as such in your answer, with its reason.
+   Then, only for the claims that need MEANING («computes the total», «only when the order is closed») and for the
+   `undetermined` ones: `code_find_symbol` (with `folder` / `kind` to get the right one), `code_describe`,
+   `code_neighbors` / `code_path`, and the source at the `path:line`.
 3. Answer claim by claim: **confirmed** (with `path:line`), **different** (what the code really does), **not in the graph**
    (then search the files: it may be generated code or a file with no parser — say which).
 4. Then what the code does and the document does not say: `code_outline` of the files involved, `code_impact` of the

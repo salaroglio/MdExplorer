@@ -88,11 +88,20 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ risoluzione e descrizione
 
-        public async Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, int limit = 10, CancellationToken ct = default)
+        public Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, int limit = 10, CancellationToken ct = default)
+            => ResolveAsync(projectPath, idOrName, null, null, limit, ct);
+
+        /// <summary>
+        /// Come sopra, ma solo fra i simboli sotto una cartella e/o di un tipo (16/11/2026, dal cliente: con più programmi nel
+        /// grafo lo stesso nome torna più volte, e la ricerca dava quello sbagliato). Un id esatto vale sempre.
+        /// </summary>
+        public async Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, string pathPrefix, string kind, int limit = 10, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
             limit = Math.Clamp(limit, 1, 100);
             var lit = Lit(idOrName);
+            var only = (string.IsNullOrWhiteSpace(pathPrefix) ? string.Empty : $" ?s code:path ?fp0 . FILTER(STRSTARTS(?fp0, {Lit(pathPrefix.Trim())}))")
+                + (string.IsNullOrWhiteSpace(kind) ? string.Empty : $" ?s code:kind {Lit(kind.Trim())} .");
             // Per id solo se può stare in un IRI: «Demo.Foo.Bar(string, int)» non lo è, e Fuseki risponderebbe 400.
             var idBranch = System.Text.RegularExpressions.Regex.IsMatch(idOrName, "^[A-Za-z0-9._:~-]+$")
                 ? $"BIND({Iri(Symbol(idOrName))} AS ?s)"
@@ -100,9 +109,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var (where, tail) in new[]
             {
                 (idBranch, string.Empty),
-                ($"?s code:qualifiedName {lit} .", string.Empty),
-                ($"?s code:name {lit} ; code:kind ?k0 . FILTER(?k0 != \"external\")", $"ORDER BY ?qn LIMIT {limit}"),
-                ($"?s code:qualifiedName ?qn0 ; code:kind ?k0 . FILTER(?k0 != \"external\" && CONTAINS(LCASE(?qn0), LCASE({lit})))", $"ORDER BY STRLEN(?qn) LIMIT {limit}"),
+                ($"?s code:qualifiedName {lit} .{only}", string.Empty),
+                ($"?s code:name {lit} ; code:kind ?k0 . FILTER(?k0 != \"external\"){only}", $"ORDER BY ?qn LIMIT {limit}"),
+                ($"?s code:qualifiedName ?qn0 ; code:kind ?k0 . FILTER(?k0 != \"external\" && CONTAINS(LCASE(?qn0), LCASE({lit}))){only}", $"ORDER BY STRLEN(?qn) LIMIT {limit}"),
             })
             {
                 var list = await SymbolsWhereAsync(g, where, tail, ct);
@@ -903,8 +912,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             return sb.ToString();
         }
 
-        public async Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default)
+        public Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default)
+            => SearchSymbolsAsync(projectPath, query, null, null, limit, ct);
+
+        public async Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, string pathPrefix, string kind, int limit = 20, CancellationToken ct = default)
         {
+            var only = (string.IsNullOrWhiteSpace(pathPrefix) ? string.Empty : $" ?s code:path ?fp0 . FILTER(STRSTARTS(?fp0, {Lit(pathPrefix.Trim())}))")
+                + (string.IsNullOrWhiteSpace(kind) ? string.Empty : $" ?s code:kind {Lit(kind.Trim())} .");
             if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
                 throw new ArgumentException(UiText.Say("La ricerca richiede almeno 2 caratteri.", "The search needs at least 2 characters."), nameof(query));
             var g = GraphsOf(projectPath);
@@ -917,7 +931,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 $"SELECT ?s (MAX(?score) AS ?rank) WHERE {{ GRAPH {g.DataIri} {{ " +
                 $"{{ (?hit ?score) text:query (code:name {prefixQuery}) }} UNION {{ (?hit ?score) text:query (code:qualifiedName {prefixQuery}) }} " +
                 $"UNION {{ (?hit ?score) text:query (code:summary {wordQuery}) }} UNION {{ (?hit ?score) text:query (code:description {wordQuery}) }} " +
-                "OPTIONAL { ?hit code:describes ?via } BIND(COALESCE(?via, ?hit) AS ?s) ?s a code:Symbol . } } GROUP BY ?s ORDER BY DESC(?rank) LIMIT " + limit, ct);
+                "OPTIONAL { ?hit code:describes ?via } BIND(COALESCE(?via, ?hit) AS ?s) ?s a code:Symbol ." + only + " } } GROUP BY ?s ORDER BY DESC(?rank) LIMIT " + limit, ct);
             var order = rows.Select(r => SymbolId(r["s"])).ToList();
             var symbols = await SymbolsByIdsAsync(g, order, ct);
             return order.Where(symbols.ContainsKey).Select(id => symbols[id]).Select(s => new CodeSymbolHit

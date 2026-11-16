@@ -275,6 +275,14 @@ template:
                 var orphan = (await store.ResolveAsync(project, "web/Orfana.pag")).Single(x => x.Kind == "module").Id;
                 CollectionAssert.AreEqual(new[] { orphan }, await store.PagesWithoutClassAsync(project, "web/"));
                 Assert.AreEqual(0, (await store.PagesWithoutClassAsync(project, "altro/")).Count);
+
+                // 16/11/2026, dal cliente: con più programmi lo stesso nome torna più volte. La ricerca si restringe a una
+                // cartella e a un tipo di simbolo
+                Assert.AreEqual("class:Demo.Listino", string.Join(",", (await store.ResolveAsync(project, "Listino", "web/", "class", 10)).Select(x => x.Kind + ":" + x.QualifiedName)));
+                Assert.AreEqual(0, (await store.ResolveAsync(project, "Listino", "altro/", null, 10)).Count, "sotto un'altra cartella non c'è");
+                var methods = await store.ResolveAsync(project, "Listino", "web/", "method", 10);
+                Assert.IsTrue(methods.Count > 0 && methods.All(x => x.Kind == "method" && x.QualifiedName.Contains("Listino")), "fra i metodi: quelli che hanno quel testo nel nome, mai la classe");
+                Assert.IsTrue((await store.ResolveAsync(project, "Listino", 10)).Count >= 1, "senza filtri, come prima");
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

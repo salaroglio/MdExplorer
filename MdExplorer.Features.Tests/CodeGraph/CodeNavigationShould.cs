@@ -190,6 +190,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var r = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10);
 
             Assert.AreEqual(("page", 5), (r.Unit, r.Total), "le cinque pagine di web/; quella di admin/ è fuori");
+            Assert.AreEqual(".aspx=5", string.Join(", ", r.ByFileType.Select(x => $"{x.Key}={x.Value}")), "il totale per tipo di file: pagine, controlli utente, master");
             Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, data-only-support-tables=0, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={r.ByOutcome[o]}")));
             Assert.AreEqual(0, r.Samples.Count, "senza sample: solo conti");

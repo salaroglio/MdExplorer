@@ -113,6 +113,48 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private static int Rank(string c) => c switch { "ambiguous" => 0, CodeOntology.LlmResolved => 1, "inferred" => 2, "rule" => 3, _ => 4 };
 
+        // ------------------------------------------------------------------ un'affermazione alla volta: c'è un cammino?
+
+        /// <summary>
+        /// L'esito di un controllo su un cammino: trovato senza archi ambigui (<see cref="Sure"/>), trovato solo passando per
+        /// almeno un arco ambiguo, o non trovato — e allora quante strade della partenza finiscono su un nome non risolto
+        /// (una chiamata che il grafo non vede è possibile).
+        /// </summary>
+        public sealed record PathCheck(bool Found, bool Sure, List<CodeNavStep> Chain, int UnresolvedStops);
+
+        /// <summary>
+        /// Da <paramref name="from"/> si arriva, eseguendo, a un nodo che soddisfa <paramref name="arrives"/>? Con
+        /// <paramref name="last"/> l'arrivo è un arco dati (lettura o scrittura) verso quel nodo, dall'ultimo metodo del cammino.
+        /// Prima senza archi ambigui, poi con: così si sa se il cammino è certo.
+        /// </summary>
+        public static PathCheck PathTo(Graph g, string from, Func<string, bool> arrives, Func<CodeNavEdge, bool> last = null)
+        {
+            PathCheck Try(bool withAmbiguous)
+            {
+                bool Ok(CodeNavEdge e) => withAmbiguous || e.Confidence != "ambiguous";
+                var (via, depth, _) = Visit(new[] { from }, n => g.OutOf(n).Where(e => Flow.Contains(e.Relation) && Ok(e)), e => e.Target, int.MaxValue);
+                if (last == null)
+                {
+                    var hit = depth.Keys.Where(n => n != from && arrives(n)).OrderBy(n => depth[n]).ThenBy(n => g.Nodes[n].Name, StringComparer.Ordinal).FirstOrDefault();
+                    return hit == null ? null : new PathCheck(true, !withAmbiguous, Chain(g, via, hit, forward: true), 0);
+                }
+                var final = depth.Keys.OrderBy(n => depth[n]).ThenBy(n => g.Nodes[n].Name, StringComparer.Ordinal)
+                    .SelectMany(n => g.OutOf(n).Where(e => last(e) && Ok(e) && arrives(e.Target))).FirstOrDefault();
+                if (final == null) return null;
+                var chain = Chain(g, via, final.Source, forward: true);
+                var target = g.Nodes[final.Target];
+                chain.Add(new CodeNavStep(target.Name, target.Kind, final.Relation, final.Confidence, At(final)));
+                return new PathCheck(true, !withAmbiguous, chain, 0);
+            }
+            if (!g.Nodes.ContainsKey(from)) return new PathCheck(false, false, null, 0);
+            var found = Try(false) ?? Try(true);
+            if (found != null) return found;
+            var (_, reached, _) = Visit(new[] { from }, n => g.OutOf(n).Where(e => Flow.Contains(e.Relation)), e => e.Target, int.MaxValue);
+            var unresolved = reached.Keys.SelectMany(n => g.OutOf(n)).Count(e => Flow.Contains(e.Relation) && e.Confidence == "ambiguous"
+                && g.Nodes[e.Target].Kind == "external" && g.OutOf(e.Target).Count == 0);
+            return new PathCheck(false, false, null, unresolved);
+        }
+
         // ------------------------------------------------------------------ in avanti: fino ai dati
 
         public sealed record TableReach(string Table, bool Reads, bool Writes, int SqlIn, List<string> SqlExamples, List<CodeNavStep> Chain, string Weakest);
@@ -315,7 +357,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Una tabella (o procedura) e quanti ingressi ci arrivano, anche in percentuale sul totale.</summary>
         public sealed record TableShare(string Table, int Entries, int Percent);
         public sealed record EntriesToData(string Unit, int Total, Dictionary<string, int> ByOutcome, int UnresolvedNames, List<ExternalBlock> TopUnresolvedNames,
-            int LibraryStops, List<ExternalBlock> TopLibraryStops, Dictionary<string, List<EntrySample>> Samples, int Tables = 0, List<TableShare> TopTables = null);
+            int LibraryStops, List<ExternalBlock> TopLibraryStops, Dictionary<string, List<EntrySample>> Samples, int Tables = 0, List<TableShare> TopTables = null,
+            Dictionary<string, int> ByFileType = null);
 
         /// <summary>
         /// Quante maschere arrivano ai dati, e perché le altre no — solo conti, per esito:
@@ -421,7 +464,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             var topTables = reachedBy.OrderByDescending(x => x.Value).ThenBy(x => g.Nodes[x.Key].Name, StringComparer.Ordinal).Take(top)
                 .Select(x => new TableShare(g.Nodes[x.Key].Name, x.Value, entries.Count == 0 ? 0 : (int)Math.Round(x.Value * 100.0 / entries.Count))).ToList();
             return new EntriesToData(unit == "control" ? "control" : "page", entries.Count, byOutcome,
-                blocked.Keys.Count(unresolvedNodes.Contains), Top(true), blocked.Keys.Count(k => !unresolvedNodes.Contains(k)), Top(false), samples, reachedBy.Count, topTables);
+                blocked.Keys.Count(unresolvedNodes.Contains), Top(true), blocked.Keys.Count(k => !unresolvedNodes.Contains(k)), Top(false), samples, reachedBy.Count, topTables,
+                // quanti ingressi per tipo di file (.aspx, .ascx, .master…): una «pagina» qui è anche un controllo utente, e chi
+                // confronta con un documento che conta le sole pagine deve poterli separare (16/11/2026, dal cliente)
+                entries.Select(id => info.TryGetValue(id, out var s) ? s.Path : g.Nodes[id].Path).GroupBy(p => System.IO.Path.GetExtension(p ?? string.Empty).ToLowerInvariant(), StringComparer.Ordinal)
+                    .OrderByDescending(x => x.Count()).ThenBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key.Length == 0 ? "(none)" : x.Key, x => x.Count(), StringComparer.Ordinal));
         }
 
         public const string CauseNoCallers = "no-callers";
