@@ -951,6 +951,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("external", DlCalledByBl(borrowed), "il cammino non entra nei sorgenti di nessuna delle due copie");
             Cleanup(); Setup();
 
+            // 16/11/2026, dal cliente: nessuna soluzione contiene il BL, ma l'unica che nomina il DL lo indica con un percorso
+            // di prima dello spostamento, che ha in comune con l'originale la cartella e il file, con la copia solo il file
+            var elsewhere = WriteVs2003SolutionWithNestedCopy();
+            File.WriteAllText(Path.Combine(elsewhere, "Altra.sln"),
+                "Microsoft Visual Studio Solution File, Format Version 8.00\n" +
+                "Project(\"{F184B08F-C81C-45F6-A57F-5ABD9991F28F}\") = \"Acme.Dl\", \"..\\..\\Vecchia\\Dl\\Dl.vbproj\", \"{11111111-AAAA-BBBB-CCCC-000000000001}\"\nEndProject\n" +
+                "Global\nEndGlobal\n");
+            var agreed = ExtractWithoutNetFramework(elsewhere);
+            var how = agreed.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("Altra.sln"));
+            Assert.AreEqual(CodeWarnings.ReferenceResolved, how.Kind, how.Text);
+            var dlAgreed = agreed.Scripts.Single(x => x.File.LogicalPath.EndsWith("vs2003/Dl/Dati.vb")).Script;
+            Assert.AreEqual(dlAgreed.Symbols.Single(x => x.QualifiedName == "Acme.Dl.Ordini.Elenco(String)").Id, DlCalledByBl(agreed), "BL → l'originale, indicato dalla sola soluzione che lo nomina");
+            Cleanup(); Setup();
+
             // la soluzione indica l'originale (il BL vi sta con un indirizzo, come i progetti web di Visual Studio 2003)
             var original = ExtractWithoutNetFramework(WriteVs2003SolutionWithNestedCopy(("Acme.sln", "Dl\\Dl.vbproj")));
             Assert.IsTrue(original.Warnings.Any(x => x.StartsWith("Bl.vbproj") && x.Contains("Acme.sln") && x.Contains(Path.Combine("vs2003", "Dl", "Dl.vbproj"))), "si dice quale e perché");

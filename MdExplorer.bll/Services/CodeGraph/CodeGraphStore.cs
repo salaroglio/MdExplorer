@@ -237,6 +237,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, CancellationToken ct)
             => SparqlResults.Parse(await QueryAsync(sparql, ct));
 
+        /// <summary>Una lettura lunga (tutti gli archi di un grafo): con il suo tempo, non i 15 secondi delle domande brevi.</summary>
+        private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, TimeSpan timeout, CancellationToken ct)
+        {
+            var baseUri = await _fuseki.EnsureRunningAsync(ct);
+            return SparqlResults.Parse(await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, timeout, ct));
+        }
+
         /// <summary>
         /// Quante scritture sono passate da qui (tutte quelle sul grafo del codice): una cache costruita prima di una scrittura
         /// non vale più (<see cref="NavigationEdgesAsync"/>). Statico: le istanze del store parlano con lo stesso Fuseki.

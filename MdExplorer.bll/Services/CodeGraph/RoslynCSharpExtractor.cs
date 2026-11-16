@@ -57,7 +57,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>21 = new esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).</para>
         /// <para>22 = un progetto VB riferito (per GUID o percorso) si risolve: gli archi arrivano ai nodi del VB; fra due versioni di una libreria vale quella nel bin del progetto (15/11/2026, dal cliente).</para>
         /// </summary>
-        public override string ExtractorVersion => "23";
+        public override string ExtractorVersion => "24";
 
         private static readonly CSharpParseOptions ParseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
 

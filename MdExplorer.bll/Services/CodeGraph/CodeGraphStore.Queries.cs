@@ -379,7 +379,22 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Gli archi della navigazione per grafo dati, con il numero di scritture di quando si sono letti.</summary>
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Writes, IReadOnlyList<CodeNavEdge> Edges)> _navigation = new(StringComparer.Ordinal);
 
+        /// <summary>Chi legge gli archi di un grafo, uno alla volta: gli altri aspettano e trovano la copia pronta.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _navigationLoading = new(StringComparer.Ordinal);
+        /// <summary>Il tempo per leggere tutti gli archi di un grafo grande.</summary>
+        private static readonly TimeSpan NavigationTimeout = TimeSpan.FromMinutes(3);
+
         public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
+        {
+            // 16/11/2026, dal cliente: quattro domande aggregate insieme a grafo appena ricalcolato leggevano gli archi quattro
+            // volte in parallelo, e tutte e quattro cadevano dopo 15 secondi (errore 500). Ora la lettura è una sola
+            var gate = _navigationLoading.GetOrAdd(GraphsOf(projectPath).Data, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try { return await LoadNavigationEdgesAsync(projectPath, ct); }
+            finally { gate.Release(); }
+        }
+
+        private async Task<IReadOnlyList<CodeNavEdge>> LoadNavigationEdgesAsync(string projectPath, CancellationToken ct)
         {
             var g = GraphsOf(projectPath);
             // in cache finché nessuno scrive sul grafo (14/11/2026, dal cliente: ogni domanda rileggeva tutti gli archi)
@@ -392,9 +407,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 "?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:confidence ?conf0 . " + EffectiveConfidence +
                 "?s code:kind ?sk . ?t code:kind ?tk . FILTER(?rel != \"contains\" || ?tk = \"control\") " +
                 "OPTIONAL { ?s code:qualifiedName ?sqn } OPTIONAL { ?s code:path ?sp } OPTIONAL { ?t code:qualifiedName ?tqn } OPTIONAL { ?t code:path ?tp } " +
-                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } } }", ct);
+                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } } }", NavigationTimeout, ct);
             // i membri delle interfacce a parte: una query sola, non un EXISTS per ogni arco
-            var abstracts = (await RowsAsync($"SELECT ?m WHERE {{ GRAPH {g.DataIri} {{ ?m code:parent ?p . ?p code:kind \"interface\" }} }}", ct))
+            var abstracts = (await RowsAsync($"SELECT ?m WHERE {{ GRAPH {g.DataIri} {{ ?m code:parent ?p . ?p code:kind \"interface\" }} }}", NavigationTimeout, ct))
                 .Select(r => SymbolId(r["m"])).ToHashSet(StringComparer.Ordinal);
             var edges = rows.Select(r =>
             {

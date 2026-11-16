@@ -325,6 +325,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto; si usa {picked[0].Project.File}, quello della soluzione {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}.",
                                 $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files; {picked[0].Project.File} is used, the one of the solution {string.Join(", ", from.Select(Path.GetFileName))}{tailNote}."));
                         }
+                        // 16/11/2026, dal cliente: nessuna soluzione contiene chi riferisce, ma tutte le soluzioni dei sorgenti che
+                        // nominano quel progetto indicano lo stesso file: è lui (se ne indicano di diversi, non si sceglie)
+                        else if (picked.Count == 0 && BySolution(g, guid, found, solutions, everySolution: true) is { Picked: { Count: 1 } agreed, From: var agreedFrom })
+                        {
+                            if (agreed[0] != g && !list.Contains(agreed[0])) list.Add(agreed[0]);
+                            warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
+                                $"{Path.GetFileName(g.Project.File)}: il progetto {name} ({{{guid}}}) che riferisce è in {found.Count} file di progetto, e nessuna soluzione (.sln) contiene chi lo riferisce; si usa {agreed[0].Project.File}, l'unico indicato dalle soluzioni che nominano quel progetto ({string.Join(", ", agreedFrom.Select(Path.GetFileName))}).",
+                                $"{Path.GetFileName(g.Project.File)}: the project {name} ({{{guid}}}) it references is in {found.Count} project files, and no solution (.sln) contains what references it; {agreed[0].Project.File} is used, the only one the solutions naming that project point to ({string.Join(", ", agreedFrom.Select(Path.GetFileName))})."));
+                        }
                         else
                         {
                             // 15/11/2026, dal cliente: due copie con sorgenti diversi e nessuna soluzione che dica quale. Non si
@@ -353,14 +362,15 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// suo GUID: un progetto web di Visual Studio 2003 vi sta con un indirizzo, non con un percorso). Torna i progetti
         /// indicati (uno = la risposta) e le soluzioni che li indicano.
         /// </summary>
+        /// <param name="everySolution">Anche le soluzioni che non contengono <paramref name="g"/>: tutte quelle che nominano il GUID.</param>
         private static (List<ProjectGroup> Picked, List<string> From, List<string> ByTail) BySolution(ProjectGroup g, string guid, List<ProjectGroup> found,
-            Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>> solutions)
+            Lazy<List<(string File, List<(string Guid, string Path, string Written)> Projects)>> solutions, bool everySolution = false)
         {
             var picked = new List<ProjectGroup>(); var from = new List<string>(); var byTail = new List<string>();
             if (solutions == null || g.Project?.ProjectGuid == null) return (picked, from, byTail);
             foreach (var (file, projects) in solutions.Value)
             {
-                if (!projects.Any(p => string.Equals(p.Guid, g.Project.ProjectGuid, StringComparison.OrdinalIgnoreCase))) continue;
+                if (!everySolution && !projects.Any(p => string.Equals(p.Guid, g.Project.ProjectGuid, StringComparison.OrdinalIgnoreCase))) continue;
                 foreach (var p in projects.Where(p => p.Path != null && string.Equals(p.Guid, guid, StringComparison.OrdinalIgnoreCase)))
                 {
                     var hit = found.FirstOrDefault(f => string.Equals(Path.GetFullPath(f.Project.File), p.Path, StringComparison.OrdinalIgnoreCase));
@@ -382,6 +392,22 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var byEnd = tail == null ? new List<ProjectGroup>() : found.Where(f => Path.GetFullPath(f.Project.File).Replace('\\', '/')
                                 .EndsWith("/" + tail, StringComparison.OrdinalIgnoreCase)).ToList();
                             if (byEnd.Count == 1) hit = byEnd[0];
+                        }
+                        // poi (16/11/2026, dal cliente: una copia annidata con lo stesso nome di file): quello che ha in comune
+                        // con il percorso scritto più cartelle finali, se è uno solo e ha in comune almeno la sua cartella
+                        if (hit == null)
+                        {
+                            var written = p.Written.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+                            int Shared(ProjectGroup f)
+                            {
+                                var parts = Path.GetFullPath(f.Project.File).Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+                                var n = 0;
+                                while (n < parts.Length && n < written.Length && string.Equals(parts[^(n + 1)], written[^(n + 1)], StringComparison.OrdinalIgnoreCase)) n++;
+                                return n;
+                            }
+                            var best = found.Max(Shared);
+                            var withBest = found.Where(f => Shared(f) == best).ToList();
+                            if (best >= 2 && withBest.Count == 1) hit = withBest[0];
                         }
                         if (hit != null && !byTail.Contains(p.Written)) byTail.Add(p.Written);
                     }
