@@ -2952,6 +2952,10 @@
       "report": "Writing the analysis warnings and report"
     },
     "SCAN_DONE": "Done: {{files}} files, {{reparsed}} re-read",
+    "SCAN_OUTDATED_ONE": "1 file was analysed by a previous version of the extractor: its graph is the old one.",
+    "SCAN_OUTDATED": "{{n}} files were analysed by a previous version of the extractor: their graph is the old one.",
+    "UPGRADE": "Update",
+    "LATER": "Later",
     "DESCRIPTION_DONE": "Finished: {{described}} of {{total}} questions answered",
     "INTERRUPTED": "It stopped after {{index}} of {{total}} questions ({{when}}, {{described}} answered): MdExplorer was closed or stopped while it was working.",
     "STOPPED": "Stopped by you after {{index}} of {{total}} questions ({{when}}).",

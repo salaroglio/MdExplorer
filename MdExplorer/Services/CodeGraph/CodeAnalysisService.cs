@@ -268,6 +268,9 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     projectPath, folder, phase,
                     files = outcome?.FilesInPerimeter, reparsed = outcome?.Reparsed, error = outcome?.Error,
+                    // gli script di una versione precedente dell'estrattore lasciati come sono (16/11/2026, utente: la finestra
+                    // di avanzamento finiva «fatto» e il grafo restava quello vecchio): il pannello lo dice e offre «Aggiorna»
+                    outdated = outcome?.OutdatedScripts,
                     progress,
                 });
             }

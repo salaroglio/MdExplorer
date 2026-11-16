@@ -2952,6 +2952,10 @@
       "report": "Scrivo gli avvisi e il report dell'analisi"
     },
     "SCAN_DONE": "Fatto: {{files}} file, {{reparsed}} riletti",
+    "SCAN_OUTDATED_ONE": "1 file è stato analizzato con una versione precedente dell'estrattore: il suo grafo è quello vecchio.",
+    "SCAN_OUTDATED": "{{n}} file sono stati analizzati con una versione precedente dell'estrattore: il loro grafo è quello vecchio.",
+    "UPGRADE": "Aggiorna",
+    "LATER": "Più tardi",
     "DESCRIPTION_DONE": "Finita: {{described}} domande riuscite su {{total}}",
     "INTERRUPTED": "Si è fermata dopo {{index}} domande su {{total}} ({{when}}, {{described}} riuscite): MdExplorer è stato chiuso o si è interrotto mentre lavorava.",
     "STOPPED": "Fermata da te dopo {{index}} domande su {{total}} ({{when}}).",

@@ -4,7 +4,7 @@ import { distinctUntilChanged, map } from 'rxjs/operators';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { ProjectsService } from './projects.service';
 import { IndexingProgressService, IndexingProgressState } from './indexing-progress.service';
-import { CodeGraphService, DescriptionRun, ScanProgress } from './code-graph.service';
+import { CodeGraphService, DescriptionRun, OutdatedScripts, ScanProgress } from './code-graph.service';
 import { ProjectOpeningGate } from '../../shared/project-opening-gate';
 
 /** Una riga del pannello dei lavori in sfondo. */
@@ -34,6 +34,11 @@ export interface BackgroundRow {
   language?: string;
   /** La frase del passo scritta dal pacchetto: al posto del testo di MdExplorer. */
   label?: string;
+  /**
+   * Scansione finita, ma con file estratti da una versione precedente dell'estrattore e lasciati come sono (16/11/2026):
+   * quanti, e per linguaggio da quale versione a quale. La riga resta finché l'utente non sceglie «Aggiorna» o la chiude.
+   */
+  outdated?: { files: number; changes: { language: string; from: string; to: string; files: number }[] };
 }
 
 /**
@@ -119,11 +124,53 @@ export class BackgroundWorkService {
         if (row?.state === 'running' && e.progress) { this.upsert(this.scanRow(e.progress)); }
       } else if (e.phase === 'failed') {
         this.upsert({ id, kind: 'scan', folder: e.folder, state: 'failed', percent: null, error: e.error });
+      } else if (e.outdated > 0) {
+        // finita, ma il grafo di alcuni file è quello dell'estrattore di prima: la riga resta e lo dice
+        this.upsert({ id, kind: 'scan', folder: e.folder, state: 'done', percent: 100, total: e.files, index: e.reparsed, outdated: { files: e.outdated, changes: [] } });
+        this.loadOutdated(e.folder);
       } else {
         this.upsert({ id, kind: 'scan', folder: e.folder, state: 'done', percent: 100, total: e.files, index: e.reparsed });
         this.removeLater(id, 4000);
       }
     });
+  }
+
+  /** «Aggiorna»: rifà i file estratti da una versione precedente; l'avanzamento torna in questa stessa riga. */
+  upgrade(row: BackgroundRow): Observable<any> {
+    return this.codeGraph.upgradeOutdated(this.projectPath, row.folder);
+  }
+
+  /** Gli script di una versione precedente, per cartella: una riga ciascuna, se non ce n'è già una viva. */
+  private loadOutdated(folder: string): void {
+    const path = this.projectPath;
+    if (!path) { return; }
+    this.codeGraph.outdated(path, folder).subscribe({
+      next: o => {
+        if (this.projectPath !== path) { return; }
+        for (const [key, outdated] of this.outdatedByFolder(o)) {
+          const id = 'scan:' + key;
+          const row = this.codeRows$.value.find(r => r.id === id);
+          if (row?.state === 'running') { continue; }   // la sta già rifacendo
+          this.upsert({ id, kind: 'scan', folder: key, state: 'done', percent: 100, total: row?.total, index: row?.index, outdated });
+        }
+      },
+      // il conto c'è già nella riga (dall'evento): senza il dettaglio resta quello, e l'errore va in console
+      error: err => console.warn('[BackgroundWork] elenco degli script da aggiornare non letto', err),
+    });
+  }
+
+  private outdatedByFolder(o: OutdatedScripts): Map<string, NonNullable<BackgroundRow['outdated']>> {
+    const byFolder = new Map<string, NonNullable<BackgroundRow['outdated']>>();
+    for (const s of o?.scripts ?? []) {
+      let entry = byFolder.get(s.folder);
+      if (!entry) { entry = { files: 0, changes: [] }; byFolder.set(s.folder, entry); }
+      entry.files++;
+      const from = `${s.extractor ?? ''} ${s.version ?? ''}`.trim();
+      const to = `${s.currentExtractor ?? ''} ${s.currentVersion ?? ''}`.trim();
+      const change = entry.changes.find(c => c.language === s.language && c.from === from && c.to === to);
+      if (change) { change.files++; } else { entry.changes.push({ language: s.language, from, to, files: 1 }); }
+    }
+    return byFolder;
   }
 
   /** «Riprendi» da una riga interrotta, fermata o fallita. */
@@ -155,6 +202,8 @@ export class BackgroundWorkService {
           ...(b.descriptions ?? []).map(d => this.descriptionRow(d.run, d.state)),
         ];
         this.codeRows$.next(rows);
+        // e ciò che è rimasto di una versione precedente dell'estrattore (dopo un aggiornamento di MdExplorer)
+        this.loadOutdated('');
       },
       // il pannello non deve bloccare niente: l'errore si vede come riga
       error: err => this.upsert({ id: 'error', kind: 'description', state: 'failed', percent: null, error: err?.error?.error || err?.message || String(err) }),

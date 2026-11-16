@@ -44,7 +44,12 @@
 
         <!-- finita -->
         <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'description'">{{ 'BACKGROUND_WORK.DESCRIPTION_DONE' | translate: { described: r.filesDescribed, total: r.total } }}</div>
-        <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'scan'">{{ 'BACKGROUND_WORK.SCAN_DONE' | translate: { files: r.total ?? 0, reparsed: r.index ?? 0 } }}</div>
+        <div class="bg-work__detail" *ngIf="r.state === 'done' && r.kind === 'scan' && !r.outdated">{{ 'BACKGROUND_WORK.SCAN_DONE' | translate: { files: r.total ?? 0, reparsed: r.index ?? 0 } }}</div>
+        <!-- finita, ma con file dell'estrattore di prima: il grafo di quei file è quello vecchio -->
+        <div class="bg-work__note" *ngIf="r.state === 'done' && r.kind === 'scan' && r.outdated">
+          {{ (r.outdated.files === 1 ? 'BACKGROUND_WORK.SCAN_OUTDATED_ONE' : 'BACKGROUND_WORK.SCAN_OUTDATED') | translate: { n: r.outdated.files } }}
+          <div class="bg-work__file" *ngFor="let c of r.outdated.changes">{{ c.language }}: {{ c.from }} → {{ c.to }} ({{ c.files }})</div>
+        </div>
 
         <!-- da decidere -->
         <div class="bg-work__note" *ngIf="r.state === 'interrupted'">{{ 'BACKGROUND_WORK.INTERRUPTED' | translate: { index: r.index, total: r.total, when: when(r.updatedAt), described: r.filesDescribed } }}</div>
@@ -58,6 +63,10 @@
             <button mat-flat-button color="primary" type="button" [disabled]="busy.has(r.id)" (click)="resume(r)">{{ 'BACKGROUND_WORK.RESUME' | translate }}</button>
           </ng-container>
           <button mat-button type="button" *ngIf="r.state === 'failed' && !needsDecision(r)" (click)="close(r)">{{ 'BACKGROUND_WORK.CLOSE' | translate }}</button>
+          <ng-container *ngIf="r.state === 'done' && r.kind === 'scan' && r.outdated">
+            <button mat-button type="button" [disabled]="busy.has(r.id)" (click)="close(r)">{{ 'BACKGROUND_WORK.LATER' | translate }}</button>
+            <button mat-flat-button color="primary" type="button" [disabled]="busy.has(r.id)" (click)="upgrade(r)">{{ 'BACKGROUND_WORK.UPGRADE' | translate }}</button>
+          </ng-container>
         </div>
       </div>
     </section>

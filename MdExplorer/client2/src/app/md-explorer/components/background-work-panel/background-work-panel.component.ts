@@ -28,7 +28,7 @@ export class BackgroundWorkPanelComponent implements OnDestroy {
     this.work.rows$.pipe(takeUntil(this.destroy$)).subscribe(rows => {
       // una riga che chiede una decisione apre il pannello, una volta per riga
       for (const r of rows) {
-        if ((r.state === 'interrupted' || r.state === 'failed') && !this.alerted.has(r.id)) {
+        if ((r.state === 'interrupted' || r.state === 'failed' || r.outdated) && !this.alerted.has(r.id)) {
           this.alerted.add(r.id);
           this.collapsed = false;
           this.cdr.markForCheck();
@@ -65,6 +65,7 @@ export class BackgroundWorkPanelComponent implements OnDestroy {
   dismiss(r: BackgroundRow): void { this.act(r, this.work.dismiss(r)); }
   stop(r: BackgroundRow): void { this.act(r, this.work.stop(r)); }
   close(r: BackgroundRow): void { this.work.close(r); }
+  upgrade(r: BackgroundRow): void { this.act(r, this.work.upgrade(r)); }
 
   private act(r: BackgroundRow, call: Observable<any>): void {
     this.busy.add(r.id);

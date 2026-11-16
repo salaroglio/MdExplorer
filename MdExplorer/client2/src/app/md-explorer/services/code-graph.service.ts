@@ -161,7 +161,7 @@ export interface OutdatedScripts {
   count: number;
   /** Per linguaggio: da quale estrattore a quale, quanti file. */
   changes: { language: string; from: string; to: string; files: number }[];
-  scripts: { folder: string; source: string; language: string }[];
+  scripts: { folder: string; source: string; language: string; extractor?: string; version?: string; currentExtractor?: string; currentVersion?: string }[];
 }
 
 export interface CodeGraphStatus {

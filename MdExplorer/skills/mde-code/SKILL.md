@@ -109,6 +109,7 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
 | The user asks | Tool |
 |---|---|
 | What is in the graph? Which programs? How far did the scan / description get? Is it done? | `code_inventory` |
+| Was the graph recomputed after MdExplorer was updated? | `code_inventory`: `outdatedScripts.files` of each folder — 0 = every file is of today's extractor; otherwise `changes` says per language from which version to which. Not 0 = the graph of those files is the OLD one: tell the user to press «Aggiorna» in the background-work panel (or «Estrai la struttura») BEFORE you measure anything |
 | Which limits did the last analysis report (missing projects or libraries, files not compiled, unresolved references…)? | `code_inventory`: `lastExtraction.warningsByKind` is a SUMMARY — per kind, how many and one example. Read it first; then, only for the kind you need, call `code_inventory` again with `warnings` = that kind to get those warnings in full (`all` gives every warning and can be very long) |
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
 | The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |

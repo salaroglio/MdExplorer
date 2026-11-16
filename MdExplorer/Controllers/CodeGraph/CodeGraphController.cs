@@ -1041,8 +1041,13 @@ namespace MdExplorer.Controllers.CodeGraph
             var runs = await _store.GetDescriptionRunsAsync(projectPath, ct);
             var interrupted = (await docJobs.InterruptedAsync(projectPath, ct)).Select(r => r.ProgramFolder).ToHashSet();
             var (bridges, bridgeWarnings) = await _analysis.BridgesAsync(projectPath, ct);
+            // gli script scritti da una versione precedente dell'estrattore, per cartella (16/11/2026: MarkAgent doveva
+            // scrivere una SPARQL per sapere se il grafo era stato ricalcolato dopo un aggiornamento di MdExplorer)
+            var outdatedByFolder = (await _analysis.ListOutdatedScriptsAsync(projectPath, string.Empty, ct)).GroupBy(o => o.Folder, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
             foreach (var p in await _analysis.ListProgramsAsync(projectPath, ct))
             {
+                outdatedByFolder.TryGetValue(p.Folder, out var old);
                 var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);
                 var scan = await _store.GetScanStateAsync(projectPath, p.Folder, ct);
                 var lastRun = runs.FirstOrDefault(r => r.ProgramFolder == p.Folder);
@@ -1052,6 +1057,15 @@ namespace MdExplorer.Controllers.CodeGraph
                     folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
                     lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges, sourceControl = scan.SourceControl },
+                    // 0 = tutti gli script sono dell'estrattore di oggi; altrimenti il grafo di quei file è quello di prima
+                    // dell'aggiornamento, e la cartella va rianalizzata («Aggiorna» nel pannello dei lavori, o «Estrai la struttura»)
+                    outdatedScripts = new
+                    {
+                        files = old?.Count ?? 0,
+                        changes = (old ?? new List<MdExplorer.Services.CodeGraph.CodeOutdatedScript>())
+                            .GroupBy(o => (o.Language, o.Extractor, o.Version, o.CurrentExtractor, o.CurrentVersion))
+                            .Select(g => new { language = g.Key.Language, from = g.Key.Extractor + " " + g.Key.Version, to = g.Key.CurrentExtractor + " " + g.Key.CurrentVersion, files = g.Count() }),
+                    },
                     // gli avvisi dell'ultima estrazione che ha riletto dei file; null = nessuna ancora registrata (non «nessun avviso»)
                     // 14/11/2026: di default la SINTESI — per tipo, quanti e un esempio — e non l'elenco (dal cliente erano 70 KB
                     // prima di quello che serviva); gli avvisi di un tipo, interi, con warnings=<tipo> (all = tutti)

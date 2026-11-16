@@ -154,7 +154,9 @@ public sealed class CodeTools : McpToolsBase
 
     [McpServerTool, Description(
         "What is in the project's code graph, per program folder: languages, whether the folder is linked on this machine, how many files " +
-        "and symbols were scanned and how many already have a description, when it was last scanned, a SUMMARY of the warnings of the last extraction that reread files " +
+        "and symbols were scanned and how many already have a description, when it was last scanned, whether the graph is of TODAY'S extractors " +
+        "(`outdatedScripts.files`: how many files were extracted by a previous extractor version and not redone yet — 0 = up to date; `changes` says per language " +
+        "from which version to which; if it is not 0 the graph of those files is the OLD one: say so and ask the user to press «Aggiorna» / re-extract before measuring), a SUMMARY of the warnings of the last extraction that reread files " +
         "(`lastExtraction.warningsByKind`: per kind — referenced-project-missing, referenced-project-ambiguous, library-missing, files-not-compiled, " +
         "unresolved-references, names-declared-in-several-files, language-rules, bridges… — how many and one example; `warningCount` counts them all; " +
         "null = none recorded yet, not «no warnings»; `reparsed` of `files` says how much was reread). To read the warnings of ONE kind in full call again with " +
