@@ -47,7 +47,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// 21 = un GUID di più progetti (una copia annidata) si risolve con la soluzione .sln che contiene chi riferisce (14/11/2026, dal cliente).
         /// 22 = New esegue il costruttore (calls); una chiamata virtuale arriva agli override nel perimetro (inferred) (14/11/2026, dal cliente).
         /// 23 = un progetto C# riferito (per GUID o percorso) si risolve: gli archi arrivano ai nodi del C#; fra due versioni di una libreria vale quella nel bin del progetto (15/11/2026, dal cliente).</summary>
-        public override string ExtractorVersion => "25";
+        public override string ExtractorVersion => "26";
 
         protected override bool IgnoresCase => true;
 

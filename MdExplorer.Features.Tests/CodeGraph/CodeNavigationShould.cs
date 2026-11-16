@@ -190,7 +190,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var r = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10);
 
             Assert.AreEqual(("page", 5), (r.Unit, r.Total), "le cinque pagine di web/; quella di admin/ è fuori");
-            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
+            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, data-only-support-tables=0, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={r.ByOutcome[o]}")));
             Assert.AreEqual(0, r.Samples.Count, "senza sample: solo conti");
             Assert.AreEqual(("Sicurezza.Verifica:1", "log4net.ILog.Info:1"),
@@ -210,7 +210,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             // che non toccano dati: hanno il loro esito, e si contano anche quando senza la classe non eseguono niente
             var classless = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10, new[] { "page", "p5", "p6" });
             Assert.AreEqual(6, classless.Total, "entra anche la pagina senza archi");
-            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, page-class-not-in-graph=2, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=0",
+            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, data-only-support-tables=0, page-class-not-in-graph=2, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=0",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={classless.ByOutcome[o]}")), "chi arriva ai dati per un'altra strada resta «data»");
         }
 
@@ -231,6 +231,21 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual((1, 1, 0), (r.ByOutcome[CodeNavigation.OutcomeData], r.ByOutcome[CodeNavigation.OutcomeDataDeduced], r.ByOutcome[CodeNavigation.OutcomeDataAmbiguous]));
             Assert.AreEqual("web/Info.aspx", r.Samples[CodeNavigation.OutcomeDataDeduced].Single().Symbol);
             Assert.AreEqual("web/Stampa.aspx", r.Samples[CodeNavigation.OutcomeData].Single().Symbol, "con una strada scritta resta fra le certe");
+        }
+
+        [TestMethod]
+        public void Rank_the_tables_by_the_pages_that_reach_them_and_count_apart_the_pages_that_reach_only_support_tables()
+        {
+            // 16/11/2026, dal cliente: ogni pagina arrivava alle tabelle di configurazione e di traduzione attraverso i messaggi
+            // dell'interfaccia, e risultava «data» anche senza toccare i dati della sua funzione
+            var r = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10);
+            Assert.AreEqual("ORDINI:1:20 | RIGHE:1:20 | STORICO:2:40", string.Join(" | ", r.TopTables.OrderBy(t => t.Table, System.StringComparer.Ordinal).Select(t => $"{t.Table}:{t.Entries}:{t.Percent}")));
+            Assert.AreEqual(3, r.Tables);
+            Assert.AreEqual("STORICO", r.TopTables[0].Table, "prima quella a cui arrivano più pagine");
+
+            var declared = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10, supportTables: new[] { "storico" });
+            Assert.AreEqual((1, 0, 1), (declared.ByOutcome[CodeNavigation.OutcomeData], declared.ByOutcome[CodeNavigation.OutcomeDataAmbiguous], declared.ByOutcome[CodeNavigation.OutcomeSupportOnly]),
+                "Ordini arriva anche ai suoi dati e resta data; Storico arrivava solo alla tabella dichiarata di supporto");
         }
 
         [TestMethod]

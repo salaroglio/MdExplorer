@@ -88,7 +88,8 @@ namespace MdExplorer.Services.CodeGraph
                 CodeQueryCatalog.DataReach => await DataReachAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 CodeQueryCatalog.WhoReaches => await WhoReachesAsync(projectPath, P("symbol") ?? throw Required("symbol"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 CodeQueryCatalog.PagesToData => await PagesToDataAsync(projectPath, Prefix(P("from")), OneOf("unit", new[] { "page", "control" }) ?? "page",
-                    OneOf("outcome", CodeNavigation.Outcomes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 100, 10), ct),
+                    OneOf("outcome", CodeNavigation.Outcomes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 100, 10),
+                    (P("support") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), ct),
                 CodeQueryCatalog.UnreachedCode => await UnreachedCodeAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"),
                     OneOf("cause", CodeNavigation.Causes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 200, 30), ct),
                 CodeQueryCatalog.Reachability => await ReachabilityAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
@@ -206,15 +207,19 @@ namespace MdExplorer.Services.CodeGraph
             : UiText.Say($"campione di {sample} per gruppo con seed «{seed}»: lo stesso seed ridà gli stessi casi finché il grafo non cambia; i conti sopra sono di tutti, non del campione",
                 $"sample of {sample} per group with seed «{seed}»: the same seed gives the same cases until the graph changes; the counts above are of all, not of the sample");
 
-        private async Task<object> PagesToDataAsync(string projectPath, string from, string unit, string outcome, int sample, string seed, int top, CancellationToken ct)
+        private async Task<object> PagesToDataAsync(string projectPath, string from, string unit, string outcome, int sample, string seed, int top,
+            IReadOnlyCollection<string> support, CancellationToken ct)
         {
             var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
             var symbols = await _store.SymbolsOfKindsAsync(projectPath, new[] { "module", "control" }, from == null ? null : new[] { from }, ct);
             var withoutClass = await _store.PagesWithoutClassAsync(projectPath, from, ct);
-            var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top, withoutClass);
+            var r = CodeNavigation.EntriesToTables(g, symbols, from, unit, outcome, sample, seed, top, withoutClass, support);
             return new
             {
                 from, unit = r.Unit, total = r.Total, byOutcome = r.ByOutcome,
+                // le tabelle per quante pagine ci arrivano: quelle di tutti (configurazione, traduzione) non dicono che cosa fa la
+                // pagina; ripetendo la domanda con support=<nomi> le pagine che arrivano solo lì si contano a parte
+                supportTables = support.Count == 0 ? null : support, tables = r.Tables, topTables = r.TopTables,
                 // gli esterni che fermano le pagine SENZA dati, per quante ne fermano; una pagina può fermarsi su più esterni: non si sommano
                 unresolvedNames = r.UnresolvedNames, topUnresolvedNames = r.TopUnresolvedNames,
                 libraryStops = r.LibraryStops, topLibraryStops = r.TopLibraryStops,

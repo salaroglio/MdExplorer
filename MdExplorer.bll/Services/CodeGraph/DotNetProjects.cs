@@ -41,6 +41,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         public string ProjectGuid { get; init; }
         public IReadOnlyList<(string Guid, string Name)> ProjectReferenceGuids { get; init; } = Array.Empty<(string, string)>();
+        /// <summary>
+        /// Il nome dell'assembly che il progetto produce (<c>AssemblyName</c>; senza, il nome del file di progetto): è il nome
+        /// con cui una libreria compilata si ritrova nei suoi sorgenti (16/11/2026, dal cliente: sorgenti decompilati).
+        /// </summary>
+        public string AssemblyName { get; init; }
+        public string EffectiveAssemblyName => string.IsNullOrWhiteSpace(AssemblyName) ? Path.GetFileNameWithoutExtension(File) : AssemblyName;
 
         /// <summary>
         /// I file che il progetto compila, assoluti (13/11/2026, rilevazione dal cliente: copie di pagine in altre cartelle con la
@@ -81,7 +87,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             return new DotNetProject
             {
                 File = path, CompiledFiles = compiled,
-                RootNamespace = Property("RootNamespace"),
+                RootNamespace = Property("RootNamespace"), AssemblyName = Property("AssemblyName"),
                 Imports = doc.Descendants().Where(e => e.Name.LocalName == "Import" && e.Parent?.Name.LocalName == "ItemGroup")
                     .Select(e => e.Attribute("Include")?.Value?.Trim()).Where(v => !string.IsNullOrEmpty(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 MyType = Property("MyType"),
@@ -144,7 +150,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             return new DotNetProject
             {
                 File = path, CompiledFiles = files.Count == 0 ? null : new HashSet<string>(files.Select(full), StringComparer.OrdinalIgnoreCase),
-                RootNamespace = Attr(settings, "RootNamespace"),
+                RootNamespace = Attr(settings, "RootNamespace"), AssemblyName = Attr(settings, "AssemblyName"),
                 Imports = build?.Elements().Where(e => Is(e, "Imports")).SelectMany(e => e.Elements().Where(i => Is(i, "Import")))
                     .Select(i => Attr(i, "Namespace")).Where(v => v != null).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? new List<string>(),
                 OptionStrict = Switch("OptionStrict"), OptionExplicit = Switch("OptionExplicit"), OptionInfer = false,

@@ -306,13 +306,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string OutcomeUnresolved = "stops-at-unresolved-name";
         public const string OutcomeLibrary = "stops-at-library";
         public const string OutcomeNoData = "no-data-in-graph";
+        public const string OutcomeSupportOnly = "data-only-support-tables";
         public const string OutcomeNoClass = "page-class-not-in-graph";
-        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataDeduced, OutcomeDataAmbiguous, OutcomeNoClass, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
+        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataDeduced, OutcomeDataAmbiguous, OutcomeSupportOnly, OutcomeNoClass, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
 
         public sealed record EntrySample(string Symbol, string Kind, string Path, string Outcome, int Tables, int ExternalStops, int LeafStops, List<CodeNavStep> Chain);
         public sealed record ExternalBlock(string Symbol, int Entries);
+        /// <summary>Una tabella (o procedura) e quanti ingressi ci arrivano, anche in percentuale sul totale.</summary>
+        public sealed record TableShare(string Table, int Entries, int Percent);
         public sealed record EntriesToData(string Unit, int Total, Dictionary<string, int> ByOutcome, int UnresolvedNames, List<ExternalBlock> TopUnresolvedNames,
-            int LibraryStops, List<ExternalBlock> TopLibraryStops, Dictionary<string, List<EntrySample>> Samples);
+            int LibraryStops, List<ExternalBlock> TopLibraryStops, Dictionary<string, List<EntrySample>> Samples, int Tables = 0, List<TableShare> TopTables = null);
 
         /// <summary>
         /// Quante maschere arrivano ai dati, e perché le altre no — solo conti, per esito:
@@ -321,6 +324,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <item><c>data-only-through-deduced-starts</c> (16/11/2026): ci arriva senza archi ambigui, ma solo passando per una
         /// partenza dedotta — un oggetto creato i cui metodi li chiama la libreria, o un gestore agganciato a un evento;</item>
         /// <item><c>data-only-through-ambiguous</c>: ci arriva solo seguendo almeno un arco ambiguo;</item>
+        /// <item><c>data-only-support-tables</c> (16/11/2026, dal cliente: «raggiunge dati» non vuol dire che la funzione sia
+        /// ricostruita — ogni pagina arrivava alle tabelle di configurazione e di traduzione attraverso i messaggi
+        /// dell'interfaccia): arriva solo a tabelle che chi chiede ha dichiarato di supporto (<paramref name="supportTables"/>).
+        /// Quali lo siano non lo decide MdExplorer: <c>TopTables</c> dà le tabelle per quanti ingressi ci arrivano, e sceglie
+        /// chi guarda;</item>
         /// <item><c>page-class-not-in-graph</c> (15/11/2026, dal cliente): nessuna tabella, e la pagina dichiara una classe di
         /// code-behind che nel grafo non c'è (il file è escluso dalla compilazione del progetto, o non è fra i sorgenti): il
         /// suo codice non si legge, quindi non è un buco del grafo né una pagina che non tocca dati. Vi entrano anche le
@@ -337,9 +345,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// campione, per esito, porta i numeri del caso e una catena: alla tabella più vicina, o all'esterno più vicino.
         /// </summary>
         /// <param name="withoutClass">Le pagine che dichiarano una classe di code-behind che nel grafo non c'è; null = nessuna.</param>
+        /// <param name="supportTables">I nomi delle tabelle di supporto, come li dà <c>TopTables</c>; null = nessuna.</param>
         public static EntriesToData EntriesToTables(Graph g, IReadOnlyCollection<(string Id, string Kind, string Name, string Path)> symbols, string fromPrefix, string unit,
-            string onlyOutcome, int sample, string seed, int top, IReadOnlyCollection<string> withoutClass = null)
+            string onlyOutcome, int sample, string seed, int top, IReadOnlyCollection<string> withoutClass = null, IReadOnlyCollection<string> supportTables = null)
         {
+            var support = new HashSet<string>((supportTables ?? Array.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()), StringComparer.OrdinalIgnoreCase);
+            bool IsSupport(CodeNavEdge e) => Data.Contains(e.Relation) && support.Contains(g.Nodes[e.Target].Name);
+            bool IsData(CodeNavEdge e) => Data.Contains(e.Relation) && !support.Contains(g.Nodes[e.Target].Name);
             symbols = OnePerNode(symbols, fromPrefix);
             var noClass = new HashSet<string>(withoutClass ?? Array.Empty<string>(), StringComparer.Ordinal);
             var entries = unit == "control"
@@ -350,8 +362,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             var info = symbols.ToDictionary(s => s.Id, s => s, StringComparer.Ordinal);
 
             // tre visite all'indietro, una volta sola: da chi ha l'SQL (senza e con gli archi ambigui) e dagli esterni dove ci si ferma
-            var withSqlSure = g.Out.Where(kv => kv.Value.Any(e => Data.Contains(e.Relation) && e.Confidence != "ambiguous")).Select(kv => kv.Key);
-            var withSql = g.Out.Where(kv => kv.Value.Any(e => Data.Contains(e.Relation))).Select(kv => kv.Key);
+            var withSqlSure = g.Out.Where(kv => kv.Value.Any(e => IsData(e) && e.Confidence != "ambiguous")).Select(kv => kv.Key);
+            var withSql = g.Out.Where(kv => kv.Value.Any(IsData)).Select(kv => kv.Key);
+            var toSupport = support.Count == 0 ? new HashSet<string>(StringComparer.Ordinal) : Upstream(g, g.Out.Where(kv => kv.Value.Any(IsSupport)).Select(kv => kv.Key), _ => true);
             var sure = Upstream(g, withSqlSure, e => e.Confidence != "ambiguous" && !IsDeducedStart(e));
             var deduced = Upstream(g, withSqlSure, e => e.Confidence != "ambiguous");
             var any = Upstream(g, withSql, _ => true);
@@ -364,6 +377,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var unresolvedNodes = g.In.Where(kv => IsStop(kv.Key) && kv.Value.Any(e => Flow.Contains(e.Relation) && e.Confidence == "ambiguous")).Select(kv => kv.Key).ToHashSet(StringComparer.Ordinal);
 
             string OutcomeOf(string id) => sure.Contains(id) ? OutcomeData : deduced.Contains(id) ? OutcomeDataDeduced : any.Contains(id) ? OutcomeDataAmbiguous
+                : toSupport.Contains(id) ? OutcomeSupportOnly
                 : noClass.Contains(id) ? OutcomeNoClass
                 : toUnresolved.Contains(id) ? OutcomeUnresolved : toLibrary.Contains(id) ? OutcomeLibrary : OutcomeNoData;
             var outcome = entries.ToDictionary(id => id, OutcomeOf, StringComparer.Ordinal);
@@ -396,8 +410,18 @@ namespace MdExplorer.Features.Services.CodeGraph
             // due elenchi, ognuno per quanti ingressi ferma: i nomi non risolti (i buchi del grafo) e le librerie
             List<ExternalBlock> Top(bool unresolved) => blocked.Where(x => unresolvedNodes.Contains(x.Key) == unresolved)
                 .OrderByDescending(x => x.Value).ThenBy(x => g.Nodes[x.Key].Name, StringComparer.Ordinal).Take(top).Select(x => new ExternalBlock(g.Nodes[x.Key].Name, x.Value)).ToList();
+            // le tabelle per quanti ingressi ci arrivano (tutte, anche quelle di supporto): chi guarda vede quali sono di tutti
+            var reachedBy = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var id in entries)
+            {
+                var (_, depth, _) = Visit(new[] { id }, n => g.OutOf(n).Where(e => Flow.Contains(e.Relation)), e => e.Target, int.MaxValue);
+                foreach (var table in depth.Keys.SelectMany(n => g.OutOf(n).Where(e => Data.Contains(e.Relation)).Select(e => e.Target)).Distinct(StringComparer.Ordinal))
+                    reachedBy[table] = reachedBy.TryGetValue(table, out var c) ? c + 1 : 1;
+            }
+            var topTables = reachedBy.OrderByDescending(x => x.Value).ThenBy(x => g.Nodes[x.Key].Name, StringComparer.Ordinal).Take(top)
+                .Select(x => new TableShare(g.Nodes[x.Key].Name, x.Value, entries.Count == 0 ? 0 : (int)Math.Round(x.Value * 100.0 / entries.Count))).ToList();
             return new EntriesToData(unit == "control" ? "control" : "page", entries.Count, byOutcome,
-                blocked.Keys.Count(unresolvedNodes.Contains), Top(true), blocked.Keys.Count(k => !unresolvedNodes.Contains(k)), Top(false), samples);
+                blocked.Keys.Count(unresolvedNodes.Contains), Top(true), blocked.Keys.Count(k => !unresolvedNodes.Contains(k)), Top(false), samples, reachedBy.Count, topTables);
         }
 
         public const string CauseNoCallers = "no-callers";

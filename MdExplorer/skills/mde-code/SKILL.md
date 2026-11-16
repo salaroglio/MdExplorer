@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 38
+  version: 39
   updatePolicy: replace
 ---
 
@@ -257,7 +257,8 @@ Work in three steps, each a `code_query` call:
      on it by itself, e.g. the `InstantiateIn` of a grid template — or «runs when the event it is registered to here
      fires» — who writes `AddHandler x.Click, AddressOf H` starts `H`. It means the code CAN run from there, not that
      it does for that instance: open the source of the step before stating it),
-     `data-only-through-ambiguous`, `page-class-not-in-graph` (the page declares a code-behind class that is not in the
+     `data-only-through-ambiguous`, `data-only-support-tables` (only with `support`, see below),
+     `page-class-not-in-graph` (the page declares a code-behind class that is not in the
      graph: its file is excluded from the project's compilation, see the `files-not-compiled` warnings, or is not among
      the sources — code the project does not build, neither a gap of the graph nor a page without data),
      `stops-at-unresolved-name` (a road ends on a name the compiler could not resolve: a
@@ -266,6 +267,12 @@ Work in three steps, each a `code_query` call:
      `topLibraryStops` name the externals that stop the most entries without data. They count the entries of BOTH
      `stops-at-…` outcomes that touch that external, and an entry can touch several: the numbers do not add up, and one
      name can count more entries than `stops-at-unresolved-name` alone.
+     «Reaches data» is NOT «the business function is reconstructed»: a page can reach only configuration or
+     translation tables, through the helper that writes its messages. `topTables` lists the tables by how many pages
+     reach them (with the percent): look at the ones nearly every page reaches, check in the source that they are
+     support tables, then ask again with `support` = their names (comma-separated, written as in `topTables`) — the
+     pages that reach only those are then counted as `data-only-support-tables`. Which tables are support is YOUR
+     judgement from the source, not a threshold: say in the report which ones you declared and why.
    - `unreached-code` (`to`: the layer's folder, `from`: the pages' folder): the methods, constructors and queries the
      pages do not reach, by cause — `no-callers`, `started-by-other-pages`, `started-by-external` (the road starts at a
      framework event or a library callback), `started-by-uncalled-code`, `only-in-a-cycle` — by kind and by folder.

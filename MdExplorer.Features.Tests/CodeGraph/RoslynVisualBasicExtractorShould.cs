@@ -1183,6 +1183,51 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Lead_the_symbols_of_a_compiled_library_to_its_sources_in_a_project_with_the_same_assembly_name()
+        {
+            // 16/11/2026, dal cliente: il progetto VB riferisce per identificativo un progetto che nessuno dichiara; la sua DLL
+            // c'è, e il suo codice DECOMPILATO sta in un progetto C# senza identificativo, con lo stesso nome di assembly. La
+            // chiamata si fermava sul simbolo della libreria mentre il metodo vero era nel grafo, scollegato
+            foreach (var withLibrary in new[] { true, false })
+            {
+                var root = WriteVs2003Solution(withLibrary: true);
+                var decompiled = Path.Combine(root, "Decompilati", "Acme.Cs");
+                Directory.CreateDirectory(decompiled);
+                File.WriteAllText(Path.Combine(decompiled, "Progetto.csproj"),
+                    "<Project><PropertyGroup><AssemblyName>Acme.Cs</AssemblyName></PropertyGroup><ItemGroup><Compile Include=\"Util.cs\" /></ItemGroup></Project>");
+                const string Source = "namespace Acme.Cs {\n  public class Util {\n    public Util(int n) { }\n    public static bool Fai(string nome) { return nome == null; }\n  }\n}\n";
+                File.WriteAllText(Path.Combine(decompiled, "Util.cs"), Source);
+                if (withLibrary)
+                {
+                    Directory.CreateDirectory(Path.Combine(root, "Bl", "bin"));
+                    var platform = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")).Split(Path.PathSeparator).Select(x => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(x));
+                    var compiled = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("Acme.Cs", new[] { Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(Source) }, platform,
+                        new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
+                    using var dll = File.Create(Path.Combine(root, "Bl", "bin", "Acme.Cs.dll"));
+                    Assert.IsTrue(compiled.Emit(dll).Success);
+                }
+                var bl = Path.Combine(root, "Bl", "Bl.vbproj");
+                File.WriteAllText(bl, File.ReadAllText(bl).Replace("            </References>",
+                    "                <Reference Name = \"Acme.Cs\" Project = \"{99999999-AAAA-BBBB-CCCC-000000000009}\" Package = \"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\" />\n            </References>"));
+                File.WriteAllText(Path.Combine(root, "Bl", "UsaCs.vb"),
+                    "Imports Acme.Cs\nPublic Class UsaCs\n    Public Function Chiama() As Boolean\n        Dim u As New Util(3)\n        Return Util.Fai(\"x\")\n    End Function\nEnd Class\n");
+
+                var vb = ExtractWithoutNetFramework(root);
+                var said = vb.Warnings.Typed.Single(x => x.Text.StartsWith("Bl.vbproj") && x.Text.Contains("Acme.Cs"));
+                Assert.AreEqual(CodeWarnings.ReferenceResolved, said.Kind, said.Text);
+                StringAssert.Contains(said.Text, Path.Combine("Decompilati", "Acme.Cs", "Progetto.csproj"));
+                var usa = vb.Scripts.Single(x => x.File.LogicalPath.EndsWith("Bl/UsaCs.vb")).Script;
+                var chiama = usa.Symbols.Single(x => x.QualifiedName == "Acme.Bl.UsaCs.Chiama()").Id;
+                var faiKey = RoslynCSharpExtractor.StableId("csharp", "method", "Acme.Cs.Util.Fai(string)");
+                Assert.IsTrue(usa.Edges.Any(e => e.SourceId == chiama && e.Relation == "calls" && e.TargetId == faiKey),
+                    (withLibrary ? "con la libreria: " : "senza: ") + "il metodo dei sorgenti, col nome che gli dà il C#, non un esterno");
+                Assert.IsFalse(usa.Symbols.Any(x => x.Kind == "external" && x.QualifiedName.Contains("Util")));
+                Assert.IsTrue(vb.ForeignDeclarations[faiKey].Files.Single().EndsWith("Decompilati/Acme.Cs/Util.cs"), "e il file che lo dichiara, per l'id vero");
+                Cleanup(); Setup();
+            }
+        }
+
+        [TestMethod]
         public void Say_when_a_project_of_the_other_language_cannot_be_referenced()
         {
             // il progetto C# riferito ha un errore in una dichiarazione (una classe madre che non c'è): i suoi metadati non si

@@ -101,6 +101,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// risolvere i nomi, i suoi script li scrive l'altro estrattore. Null = un progetto di questo linguaggio.
             /// </summary>
             public RoslynExtractorBase Foreign { get; init; }
+            /// <summary>
+            /// Il nome dell'assembly di cui questo progetto è il SORGENTE (16/11/2026, dal cliente: una libreria riferita come
+            /// compilata, e il suo codice decompilato in un progetto dell'altro linguaggio senza identificativo): i nomi si
+            /// risolvono con la libreria, e ogni simbolo usato si riporta al suo sorgente qui (<see cref="PerimeterIndex.SourceOf"/>).
+            /// </summary>
+            public string SourceOfAssembly { get; init; }
             /// <summary>I metadati della compilazione, per chi la riferisce da un altro linguaggio; <see cref="ImageProblem"/> se non si sono potuti produrre.</summary>
             public MetadataReference Image { get; set; }
             public string ImageProblem { get; set; }
@@ -176,13 +182,35 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var g = queue.Dequeue();
                 var guids = g.Project.ProjectReferenceGuids.Select(r => r.Guid).Where(guid => guid != null && !groups.Any(x => string.Equals(x.Project?.ProjectGuid, guid, StringComparison.OrdinalIgnoreCase))).ToList();
                 var paths = g.Project.ProjectReferences.Where(r => !byKey.ContainsKey(r)).ToList();
-                if (guids.Count == 0 && paths.Count == 0) continue;
+                // per NOME di assembly (16/11/2026, dal cliente): un progetto riferito per identificativo che nessun progetto
+                // dichiara, o una libreria riferita con un percorso, i cui sorgenti (decompilati) stanno in un progetto dell'altro
+                // linguaggio che produce un assembly con quel nome. Vale solo se al livello più vicino ce n'è UNO
+                var names = g.Project.ProjectReferenceGuids
+                    .Where(r => r.Guid != null && r.Name != null && !groups.Any(x => string.Equals(x.Project?.ProjectGuid, r.Guid, StringComparison.OrdinalIgnoreCase))
+                        && Nearest(c => string.Equals(c.ProjectGuid, r.Guid, StringComparison.OrdinalIgnoreCase)).Count == 0)
+                    .Select(r => r.Name)
+                    .Concat(g.Project.Libraries.Concat(g.Project.MissingLibraries).Select(Path.GetFileNameWithoutExtension))
+                    .Where(n => !string.IsNullOrWhiteSpace(n) && !groups.Any(x => string.Equals(x.SourceOfAssembly, n, StringComparison.OrdinalIgnoreCase)))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var n in names)
+                {
+                    var sources = Nearest(c => string.Equals(c.EffectiveAssemblyName, n, StringComparison.OrdinalIgnoreCase));
+                    if (sources.Count == 1 && !byKey.ContainsKey(sources[0].File)) byName[sources[0].File] = n;
+                }
+                if (guids.Count == 0 && paths.Count == 0 && byName.Count == 0) continue;
                 var wanted = guids.SelectMany(guid => Nearest(c => string.Equals(c.ProjectGuid, guid, StringComparison.OrdinalIgnoreCase)))
                     .Concat(paths.SelectMany(path => Nearest(c => string.Equals(c.File, path, StringComparison.OrdinalIgnoreCase))))
+                    .Concat(byName.Keys.Select(file => loaded[file]))
                     .Where(c => !byKey.ContainsKey(c.File)).Distinct().ToList();
                 foreach (var c in wanted)
                 {
-                    var group = new ProjectGroup { Project = c, Foreign = other };
+                    var group = new ProjectGroup { Project = c, Foreign = other, SourceOfAssembly = byName.TryGetValue(c.File, out var assembly) ? assembly : null };
+                    // per una libreria riferita con un percorso lo si dice qui (per un progetto che manca lo dice chi lo cerca)
+                    if (assembly != null && !g.Project.ProjectReferenceGuids.Any(r => string.Equals(r.Name, assembly, StringComparison.OrdinalIgnoreCase)))
+                        warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
+                            $"{Path.GetFileName(g.Project.File)}: la libreria {assembly} che riferisce ha i suoi sorgenti in {c.File}, che produce un assembly con lo stesso nome: i suoi simboli portano lì.",
+                            $"{Path.GetFileName(g.Project.File)}: the library {assembly} it references has its sources in {c.File}, which produces an assembly with the same name: its symbols lead there."));
                     foreach (var file in ForeignSources(c, other))
                     {
                         string text;
@@ -298,12 +326,26 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         // il progetto non c'è (la libreria di un altro, compilata): la sua DLL, se un altro progetto la riferisce
                         var lib = BorrowLibrary(name, g, groups, librariesOnDisk, out var from, out var problem);
+                        // e i suoi sorgenti, se un progetto dell'altro linguaggio produce un assembly con quel nome (decompilati)
+                        var sources = groups.Where(x => x != g && string.Equals(x.SourceOfAssembly, name, StringComparison.OrdinalIgnoreCase)).ToList();
+                        var (toIt, toEn) = sources.Count == 1
+                            ? ($" I suoi simboli portano ai sorgenti di {sources[0].Project.File}, che produce un assembly con lo stesso nome.",
+                               $" Its symbols lead to the sources of {sources[0].Project.File}, which produces an assembly with the same name.")
+                            : (string.Empty, string.Empty);
                         if (lib != null)
                         {
                             Add(borrowed, g, lib);
                             warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
-                                $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: si usa la libreria {Path.GetFileName(lib)} con lo stesso nome di assembly, {From(from, lib, true)}.",
-                                $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: the library {Path.GetFileName(lib)} with the same assembly name, {From(from, lib, false)}, is used."));
+                                $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che non è fra i sorgenti analizzati: si usa la libreria {Path.GetFileName(lib)} con lo stesso nome di assembly, {From(from, lib, true)}.{toIt}",
+                                $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which is not among the analysed sources: the library {Path.GetFileName(lib)} with the same assembly name, {From(from, lib, false)}, is used.{toEn}"));
+                        }
+                        else if (sources.Count == 1)
+                        {
+                            // nessuna libreria compilata: si riferisce il progetto dei sorgenti, come un progetto dell'altro linguaggio
+                            if (!list.Contains(sources[0])) list.Add(sources[0]);
+                            warnings.Add(CodeWarnings.ReferenceResolved, UiText.Say(
+                                $"{Path.GetFileName(g.Project.File)}: riferisce il progetto {name} ({{{guid}}}), che nessun progetto dichiara: si usa {sources[0].Project.File}, che produce un assembly con lo stesso nome.",
+                                $"{Path.GetFileName(g.Project.File)}: references the project {name} ({{{guid}}}), which no project declares: {sources[0].Project.File}, which produces an assembly with the same name, is used."));
                         }
                         else
                             warnings.Add(CodeWarnings.ProjectMissing, UiText.Say(
@@ -755,7 +797,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // i progetti dell'altro linguaggio servono a risolvere i nomi: i loro script li scrive l'altro estrattore
                 if (group.Foreign == null) trees.AddRange(group.Trees.Select(t => (t, group.Compilation)));
             }
-            var perimeter = new PerimeterIndex(compilations, groups.Where(g => g.Image != null).Select(g => g.Compilation)) { Foreign = result.ForeignDeclarations };
+            var perimeter = new PerimeterIndex(compilations, groups.Where(g => g.Image != null).Select(g => g.Compilation),
+                groups.Where(g => g.SourceOfAssembly != null && g.Compilation != null).GroupBy(g => g.SourceOfAssembly, StringComparer.OrdinalIgnoreCase)
+                    .Where(x => x.Count() == 1).ToDictionary(x => x.Key, x => x.Single().Compilation, StringComparer.OrdinalIgnoreCase))
+            { Foreign = result.ForeignDeclarations };
             var compilationOf = trees.ToDictionary(t => t.Tree, t => t.Compilation);
             var models = new Dictionary<SyntaxTree, SemanticModel>();
             SemanticModel ModelOf(SyntaxTree t)
@@ -1354,9 +1399,12 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly Dictionary<string, Compilation> _byImage = new(StringComparer.Ordinal);
             private readonly Dictionary<ISymbol, ISymbol> _sources = new(SymbolEqualityComparer.Default);
 
-            public PerimeterIndex(IEnumerable<Compilation> compilations, IEnumerable<Compilation> referencedByImage = null)
+            /// <param name="sourcesOfLibraries">Per nome di assembly di una libreria compilata, la compilazione dei suoi sorgenti.</param>
+            public PerimeterIndex(IEnumerable<Compilation> compilations, IEnumerable<Compilation> referencedByImage = null,
+                IReadOnlyDictionary<string, Compilation> sourcesOfLibraries = null)
             {
                 foreach (var c in referencedByImage ?? Enumerable.Empty<Compilation>()) _byImage[c.AssemblyName ?? string.Empty] = c;
+                foreach (var (assembly, c) in sourcesOfLibraries ?? new Dictionary<string, Compilation>()) _byImage[assembly] = c;
                 foreach (var compilation in compilations)
                 {
                     var stack = new Stack<INamespaceOrTypeSymbol>();
