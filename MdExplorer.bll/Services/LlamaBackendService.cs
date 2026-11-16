@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Formats.Tar;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -42,6 +43,21 @@ namespace MdExplorer.Features.Services
         Task<bool> DeleteBackendAsync();
         string GetRecommendedBackend();
         string GetVersion();
+
+        /// <summary>
+        /// Il percorso di <c>llama-server</c> nel motore installato, o <c>null</c> se non c'è. Lo usa
+        /// chi deve dare al modello anche un'immagine (l'OCR): stesso pacchetto e stessa versione
+        /// della chat, ma come processo a parte.
+        /// </summary>
+        string GetServerPath();
+
+        /// <summary>
+        /// Fa in modo che <c>llama-server</c> ci sia. Se il motore è già installato ma senza
+        /// l'eseguibile (installazioni fatte prima che venisse tenuto), aggiunge solo quello, senza
+        /// toccare le librerie che la chat può avere in uso. Se il motore manca, scarica la variante
+        /// consigliata per questo computer.
+        /// </summary>
+        Task<bool> EnsureServerAsync(IProgress<DownloadProgress> progress, CancellationToken ct = default);
     }
 
     public class LlamaBackendService : ILlamaBackendService
@@ -52,8 +68,15 @@ namespace MdExplorer.Features.Services
         private readonly string _version;
         private readonly string _backendsBaseDir;
 
-        // GitHub release URL pattern
-        private const string GitHubUrlTemplate = "https://github.com/ggml-org/llama.cpp/releases/download/{0}/llama-{0}-bin-{1}.zip";
+        // GitHub release URL pattern. L'estensione dipende dal sistema: .zip per Windows, .tar.gz per
+        // Linux e macOS (verificato su b8781 il 15/11/2026: il .zip per Linux non esiste, 404).
+        private const string GitHubUrlTemplate = "https://github.com/ggml-org/llama.cpp/releases/download/{0}/llama-{0}-bin-{1}{2}";
+
+        private static string ArchiveExtension =>
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".zip" : ".tar.gz";
+
+        private static string ServerFileName =>
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "llama-server.exe" : "llama-server";
 
         // Backend variants per platform
         private static readonly Dictionary<string, (string name, string description, long winSize, long linuxSize)> Variants = new()
@@ -114,6 +137,165 @@ namespace MdExplorer.Features.Services
         public bool IsBackendInstalled()
         {
             return GetBackendPath() != null;
+        }
+
+        private string VersionDirectory => Path.Combine(_backendsBaseDir, _version);
+
+        public string GetServerPath()
+        {
+            var path = Path.Combine(VersionDirectory, ServerFileName);
+            return File.Exists(path) ? path : null;
+        }
+
+        /// <summary>
+        /// Le librerie del motore sono nella cartella della versione. Su Linux si chiamano
+        /// <c>libllama.so</c>, che <see cref="ResolveBackendPath"/> (pensato per <c>llama.dll</c>) non vede.
+        /// </summary>
+        private bool HasLibraries() =>
+            Directory.Exists(VersionDirectory)
+            && Directory.EnumerateFiles(VersionDirectory, "*llama.*").Any(f =>
+            {
+                var name = Path.GetFileName(f);
+                return name.StartsWith("llama.") || name.StartsWith("libllama.");
+            });
+
+        private string InstalledVariantOnDisk()
+        {
+            if (Directory.EnumerateFiles(VersionDirectory, "*ggml-cuda*").Any()) return "cuda-12.4";
+            if (Directory.EnumerateFiles(VersionDirectory, "*ggml-vulkan*").Any()) return "vulkan";
+            return "cpu";
+        }
+
+        public async Task<bool> EnsureServerAsync(IProgress<DownloadProgress> progress, CancellationToken ct = default)
+        {
+            if (GetServerPath() != null)
+            {
+                return true;
+            }
+            if (!HasLibraries())
+            {
+                return await DownloadBackendAsync(GetRecommendedBackend(), progress, ct);
+            }
+
+            // Motore già installato, manca solo l'eseguibile: stessa variante, e della cartella non si
+            // cancella niente (su Windows le dll possono essere caricate dalla chat, non si toccano).
+            var variant = InstalledVariantOnDisk();
+            var archive = await DownloadArchiveAsync(variant, progress, ct);
+            await ExtractAsync(archive, VersionDirectory, name => name == ServerFileName, ct);
+            File.Delete(archive);
+            if (GetServerPath() == null)
+            {
+                throw new InvalidOperationException(UiText.Say(
+                    $"Nel pacchetto del motore ({variant}, {_version}) non c'è {ServerFileName}.",
+                    $"The engine package ({variant}, {_version}) does not contain {ServerFileName}."));
+            }
+            _logger.LogInformation("Added {Server} to the installed backend {Variant}", ServerFileName, variant);
+            progress?.Report(new DownloadProgress { ModelId = $"backend-{variant}", BytesDownloaded = 1, TotalBytes = 1, Status = "Complete" });
+            return true;
+        }
+
+        /// <summary>Ciò che del pacchetto si tiene: le librerie e <c>llama-server</c>; gli altri strumenti no.</summary>
+        private static bool IsEngineFile(string name)
+        {
+            if (name == ServerFileName) return true;
+            var lower = name.ToLowerInvariant();
+            // Su Linux le librerie hanno la versione dopo l'estensione (libllama.so.0.0.8781).
+            return lower.EndsWith(".dll") || lower.EndsWith(".dylib") || lower.EndsWith(".metal")
+                || lower.EndsWith(".so") || lower.Contains(".so.");
+        }
+
+        /// <summary>Scarica il pacchetto della variante e restituisce dove l'ha messo. Riprende un download interrotto.</summary>
+        private async Task<string> DownloadArchiveAsync(string variant, IProgress<DownloadProgress> progress, CancellationToken ct)
+        {
+            var platformSuffix = GetPlatformSuffix(variant) ?? throw new PlatformNotSupportedException(UiText.Say(
+                $"Il motore llama.cpp «{variant}» non è previsto per questo sistema.",
+                $"The llama.cpp engine \"{variant}\" is not available for this system."));
+            var url = string.Format(GitHubUrlTemplate, _version, platformSuffix, ArchiveExtension);
+            var archive = Path.Combine(_backendsBaseDir, $"{_version}-{variant}{ArchiveExtension}.download");
+
+            _logger.LogInformation("Downloading llama.cpp backend {Variant} from {Url}", variant, url);
+            progress?.Report(new DownloadProgress { ModelId = $"backend-{variant}", BytesDownloaded = 0, TotalBytes = 0, Status = "Connecting" });
+
+            long startByte = File.Exists(archive) ? new FileInfo(archive).Length : 0;
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (startByte > 0)
+            {
+                request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(startByte, null);
+            }
+
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable && File.Exists(archive))
+            {
+                _logger.LogInformation("Archive appears complete, proceeding to extract");
+                return archive;
+            }
+            response.EnsureSuccessStatusCode();
+
+            // Chiesto un pezzo ma arrivato tutto (200 invece di 206): si ricomincia, non si accoda.
+            var resuming = startByte > 0 && response.StatusCode == System.Net.HttpStatusCode.PartialContent;
+            var totalBytes = (response.Content.Headers.ContentLength ?? 0) + (resuming ? startByte : 0);
+            long totalBytesRead = resuming ? startByte : 0;
+            using (var contentStream = await response.Content.ReadAsStreamAsync(ct))
+            using (var fileStream = new FileStream(archive, resuming ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                var buffer = new byte[81920];
+                int bytesRead;
+                var lastProgressUpdate = DateTime.UtcNow;
+                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer, 0, bytesRead, ct);
+                    totalBytesRead += bytesRead;
+                    if ((DateTime.UtcNow - lastProgressUpdate).TotalMilliseconds >= 100)
+                    {
+                        progress?.Report(new DownloadProgress
+                        {
+                            ModelId = $"backend-{variant}", BytesDownloaded = totalBytesRead, TotalBytes = totalBytes, Status = "Downloading"
+                        });
+                        lastProgressUpdate = DateTime.UtcNow;
+                    }
+                }
+            }
+            return archive;
+        }
+
+        /// <summary>
+        /// Estrae i file scelti, tutti nella stessa cartella (il pacchetto ha una cartella radice che
+        /// qui non serve). Nel .tar.gz di Linux le librerie sono catene di collegamenti
+        /// (<c>libllama.so → libllama.so.0 → libllama.so.0.0.8781</c>): vanno ricreati, non copiati.
+        /// </summary>
+        private static async Task ExtractAsync(string archive, string targetDir, Func<string, bool> keep, CancellationToken ct)
+        {
+            Directory.CreateDirectory(targetDir);
+            if (ArchiveExtension == ".zip")
+            {
+                using var zip = ZipFile.OpenRead(archive);
+                foreach (var entry in zip.Entries)
+                {
+                    if (string.IsNullOrEmpty(entry.Name) || !keep(entry.Name)) continue;
+                    entry.ExtractToFile(Path.Combine(targetDir, entry.Name), true);
+                }
+                return;
+            }
+
+            await using var file = File.OpenRead(archive);
+            await using var gzip = new GZipStream(file, CompressionMode.Decompress);
+            await using var tar = new TarReader(gzip);
+            TarEntry tarEntry;
+            while ((tarEntry = await tar.GetNextEntryAsync(cancellationToken: ct)) != null)
+            {
+                var name = Path.GetFileName(tarEntry.Name);
+                if (string.IsNullOrEmpty(name) || !keep(name)) continue;
+                var destination = Path.Combine(targetDir, name);
+                if (tarEntry.EntryType == TarEntryType.SymbolicLink)
+                {
+                    if (File.Exists(destination) || new FileInfo(destination).LinkTarget != null) File.Delete(destination);
+                    File.CreateSymbolicLink(destination, Path.GetFileName(tarEntry.LinkName));
+                }
+                else if (tarEntry.EntryType == TarEntryType.RegularFile || tarEntry.EntryType == TarEntryType.V7RegularFile)
+                {
+                    await tarEntry.ExtractToFileAsync(destination, overwrite: true, ct);
+                }
+            }
         }
 
         public LlamaBackendStatus GetInstalledBackend()
@@ -201,96 +383,26 @@ namespace MdExplorer.Features.Services
                 return false;
             }
 
-            var platformSuffix = GetPlatformSuffix(variant);
-            if (platformSuffix == null)
+            if (GetPlatformSuffix(variant) == null)
             {
                 _logger.LogError("Unsupported platform for variant: {Variant}", variant);
                 return false;
             }
 
-            var url = string.Format(GitHubUrlTemplate, _version, platformSuffix);
-            var targetDir = Path.Combine(_backendsBaseDir, _version);
-            var tempZip = Path.Combine(_backendsBaseDir, $"{_version}-{variant}.zip.download");
+            var targetDir = VersionDirectory;
             long totalBytesRead = 0;
 
             try
             {
-                _logger.LogInformation("Downloading llama.cpp backend {Variant} from {Url}", variant, url);
-
-                progress?.Report(new DownloadProgress
-                {
-                    ModelId = $"backend-{variant}",
-                    BytesDownloaded = 0,
-                    TotalBytes = 0,
-                    Status = "Connecting"
-                });
-
                 // Clean up target directory if it exists (switching variant)
                 if (Directory.Exists(targetDir))
                 {
                     Directory.Delete(targetDir, true);
                 }
 
-                // Download the zip file with resume support
-                long startByte = 0;
-                if (File.Exists(tempZip))
-                {
-                    startByte = new FileInfo(tempZip).Length;
-                }
+                var archive = await DownloadArchiveAsync(variant, progress, ct);
+                totalBytesRead = new FileInfo(archive).Length;
 
-                var request = new HttpRequestMessage(HttpMethod.Get, url);
-                // GitHub redirects to CDN, need to follow redirects
-                if (startByte > 0)
-                {
-                    request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(startByte, null);
-                }
-
-                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
-                {
-                    // File might be complete
-                    if (File.Exists(tempZip))
-                    {
-                        _logger.LogInformation("Zip file appears complete, proceeding to extract");
-                        goto Extract;
-                    }
-                }
-
-                response.EnsureSuccessStatusCode();
-
-                var totalBytes = response.Content.Headers.ContentLength ?? 0;
-                if (startByte > 0) totalBytes += startByte;
-
-                totalBytesRead = startByte;
-                using (var contentStream = await response.Content.ReadAsStreamAsync())
-                using (var fileStream = new FileStream(tempZip, startByte > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-                {
-                    var buffer = new byte[81920];
-                    int bytesRead;
-                    var lastProgressUpdate = DateTime.UtcNow;
-
-                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
-                    {
-                        await fileStream.WriteAsync(buffer, 0, bytesRead, ct);
-                        totalBytesRead += bytesRead;
-
-                        if ((DateTime.UtcNow - lastProgressUpdate).TotalMilliseconds >= 100)
-                        {
-                            progress?.Report(new DownloadProgress
-                            {
-                                ModelId = $"backend-{variant}",
-                                BytesDownloaded = totalBytesRead,
-                                TotalBytes = totalBytes,
-                                Status = "Downloading"
-                            });
-                            lastProgressUpdate = DateTime.UtcNow;
-                        }
-                    }
-                }
-
-                Extract:
-                // Extract the zip
                 progress?.Report(new DownloadProgress
                 {
                     ModelId = $"backend-{variant}",
@@ -300,25 +412,9 @@ namespace MdExplorer.Features.Services
                 });
 
                 _logger.LogInformation("Extracting backend to {Dir}", targetDir);
-                Directory.CreateDirectory(targetDir);
-
-                using (var archive = ZipFile.OpenRead(tempZip))
-                {
-                    // GitHub zips have a single root directory - extract DLLs/SOs flat into targetDir
-                    foreach (var entry in archive.Entries)
-                    {
-                        // Skip directories and executables, keep only libraries
-                        if (string.IsNullOrEmpty(entry.Name)) continue;
-
-                        var ext = Path.GetExtension(entry.Name).ToLowerInvariant();
-                        var isLibrary = ext == ".dll" || ext == ".so" || ext == ".dylib" || ext == ".metal";
-
-                        if (!isLibrary) continue;
-
-                        var destPath = Path.Combine(targetDir, entry.Name);
-                        entry.ExtractToFile(destPath, true);
-                    }
-                }
+                // Librerie e llama-server: la chat usa le prime, l'OCR il secondo.
+                await ExtractAsync(archive, targetDir, IsEngineFile, ct);
+                var tempZip = archive;
 
                 // Verify extraction: llama.dll or libllama.so must exist
                 var llamaFiles = Directory.GetFiles(targetDir, "llama.*");

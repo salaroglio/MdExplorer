@@ -682,7 +682,7 @@
             <p class="model-description">{{ model.description }}</p>
             
             <div class="model-info">
-              <span class="file-size">{{ 'MODEL_MANAGER.SIZE' | translate }} {{ formatBytes(model.fileSize) }}</span>
+              <span class="file-size">{{ 'MODEL_MANAGER.SIZE' | translate }} {{ formatBytes(model.totalSize || model.fileSize) }}</span>
               <mat-chip-list>
                 <mat-chip *ngIf="model.isInstalled" color="primary" selected>
                   <mat-icon>check_circle</mat-icon>
@@ -725,7 +725,7 @@
             <button
               mat-button
               color="accent"
-              *ngIf="model.isInstalled && !isCurrentModel(model)"
+              *ngIf="model.isInstalled && !isCurrentModel(model) && (!model.category || model.category === 'chat')"
               (click)="loadModel(model)"
               [disabled]="loading">
               <mat-icon>play_arrow</mat-icon>

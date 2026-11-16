@@ -38,6 +38,13 @@
          quindi non serve il download a richiesta che llama.cpp invece pretende. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <!-- Documenti -> markdown. Word: Mammoth (BSD-2) + ReverseMarkdown (MIT), le stesse due tappe
+         (docx -> html -> markdown) di MarkItDown di Microsoft, il cui port .NET pretende .NET 10 e
+         trascina gli SDK di AWS/Azure/Google. Pdf: PDFtoImage (MIT, PDFium) per le pagine da dare
+         all'OCR; ferma alla 4.1.1 perche' dalla 5 pretende SkiaSharp 3+, qui e' in uso la 2.88. -->
+    <PackageReference Include="Mammoth" Version="1.13.0" />
+    <PackageReference Include="ReverseMarkdown" Version="6.3.0" />
+    <PackageReference Include="PDFtoImage" Version="4.1.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="5.9.0" />

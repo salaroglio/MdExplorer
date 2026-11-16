@@ -3,7 +3,7 @@
 
 
 <mat-dialog-content>
-  <div class="simple-container">
+  <div class="simple-container" *ngIf="step === 'files'">
     <mat-form-field appearance="outline" style="width:500px;">
       <input matInput [(ngModel)]="fullPath" [placeholder]="'ADD_FILE.PLACEHOLDER' | translate">
       <mat-hint>{{ 'ADD_FILE.HINT' | translate }}</mat-hint>
@@ -24,12 +24,69 @@
         </button>
       </div>
     </div>
+
+    <!-- La versione markdown: proposta solo se fra i file c'è un pdf o un Word -->
+    <div class="also-markdown" *ngIf="hasConvertible">
+      <mat-checkbox [(ngModel)]="alsoMarkdown">{{ 'ADD_FILE.ALSO_MARKDOWN' | translate }}</mat-checkbox>
+      <div class="also-markdown-hint">{{ 'ADD_FILE.ALSO_MARKDOWN_HINT' | translate }}</div>
+      <div class="also-markdown-hint" *ngIf="hasWord">{{ 'ADD_FILE.WORD_STYLES_HINT' | translate }}</div>
+    </div>
+  </div>
+
+  <!-- Secondo passo: quale modello OCR legge i pdf, e il suo download -->
+  <div class="ocr-step" *ngIf="step === 'ocr'">
+    <div class="ocr-title">{{ 'ADD_FILE.OCR.TITLE' | translate }}</div>
+    <div class="ocr-intro">{{ 'ADD_FILE.OCR.INTRO' | translate }}</div>
+
+    <div class="ocr-error" *ngIf="ocrLoadError">{{ 'ADD_FILE.OCR.LOAD_FAILED' | translate:{ error: ocrLoadError } }}</div>
+
+    <mat-radio-group class="ocr-models" [(ngModel)]="ocrModelId" [disabled]="installing">
+      <div class="ocr-model" *ngFor="let model of ocrModels" [class.ocr-model-selected]="model.id === ocrModelId">
+        <mat-radio-button [value]="model.id">
+          <span class="ocr-model-name">{{ model.name }}</span>
+        </mat-radio-button>
+        <span class="ocr-model-state" [class.ocr-model-ready]="model.ready">
+          {{ model.ready ? ('ADD_FILE.OCR.INSTALLED' | translate)
+                         : ('ADD_FILE.OCR.TO_DOWNLOAD' | translate:{ mb: megabytes(model.downloadBytes) }) }}
+        </span>
+        <div class="ocr-model-text">
+          <div><b>{{ 'ADD_FILE.OCR.PROS' | translate }}.</b> {{ 'ADD_FILE.OCR.MODELS.' + model.id + '.PROS' | translate }}</div>
+          <div><b>{{ 'ADD_FILE.OCR.CONS' | translate }}.</b> {{ 'ADD_FILE.OCR.MODELS.' + model.id + '.CONS' | translate }}</div>
+        </div>
+      </div>
+    </mat-radio-group>
+
+    <div class="ocr-download" *ngIf="selectedOcrModel && !selectedOcrModel.ready">
+      <div *ngIf="!installing">{{ 'ADD_FILE.OCR.NEEDS_DOWNLOAD' | translate }}</div>
+      <button mat-stroked-button color="primary" *ngIf="!installing" (click)="downloadSelectedModel()">
+        <mat-icon>download</mat-icon>{{ 'ADD_FILE.OCR.DOWNLOAD' | translate }}
+      </button>
+      <div class="ocr-download-progress" *ngIf="installing">
+        <div>
+          {{ (install.phase === 'engine' ? 'ADD_FILE.OCR.DOWNLOADING_ENGINE' : 'ADD_FILE.OCR.DOWNLOADING_MODEL')
+             | translate:{ percent: installPercent } }}
+        </div>
+        <mat-progress-bar mode="determinate" [value]="installPercent"></mat-progress-bar>
+      </div>
+      <div class="ocr-error" *ngIf="install?.phase === 'error'">
+        {{ 'ADD_FILE.OCR.DOWNLOAD_FAILED' | translate:{ error: install.error } }}
+      </div>
+    </div>
   </div>
 
 </mat-dialog-content>
 <mat-dialog-actions>
-  <button mat-button color="primary" (click)="add()">
-    <mat-icon>add</mat-icon>{{ 'ADD_FILE.ADD_BTN' | translate }}
+  <button mat-button color="primary" *ngIf="step === 'ocr'" [disabled]="adding || installing" (click)="back()">
+    <mat-icon>arrow_back</mat-icon>{{ 'ADD_FILE.BACK' | translate }}
+  </button>
+  <button mat-button color="primary" *ngIf="step === 'files' && needsOcrStep" (click)="next()">
+    <mat-icon>arrow_forward</mat-icon>{{ 'ADD_FILE.NEXT' | translate }}
+  </button>
+  <button mat-button color="primary" *ngIf="step === 'files' && !needsOcrStep" [disabled]="adding" (click)="add()">
+    <mat-icon>add</mat-icon>{{ (alsoMarkdown && hasConvertible ? 'ADD_FILE.ADD_AND_CONVERT' : 'ADD_FILE.ADD_BTN') | translate }}
+  </button>
+  <button mat-button color="primary" *ngIf="step === 'ocr'" [disabled]="adding || !selectedOcrModel?.ready" (click)="add()">
+    <mat-icon>add</mat-icon>{{ 'ADD_FILE.ADD_AND_CONVERT' | translate }}
   </button>
   <button mat-button color="primary" (click)="dismiss()">
     <mat-icon>cancel</mat-icon>{{ 'COMMON.CANCEL' | translate }}

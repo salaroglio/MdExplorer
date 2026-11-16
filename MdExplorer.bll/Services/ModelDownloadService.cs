@@ -31,6 +31,29 @@ namespace MdExplorer.Features.Services
         public int ContextLength { get; set; }
         public string Parameters { get; set; }
         public string SystemPrompt { get; set; }
+
+        /// <summary>
+        /// A cosa serve il modello: <c>chat</c>, <c>embedding</c>, <c>speech</c>, <c>ocr</c>. La UI
+        /// la usa per mostrare a ogni funzione solo i modelli che le servono.
+        /// </summary>
+        public string Category { get; set; } = "chat";
+
+        /// <summary>
+        /// File che il modello pretende accanto al principale (per un modello che legge immagini, il
+        /// proiettore della vista). Il modello è installato solo se ci sono TUTTI: con un file solo
+        /// partirebbe e fallirebbe alla prima pagina.
+        /// </summary>
+        public ModelFile[] Companions { get; set; } = Array.Empty<ModelFile>();
+
+        /// <summary>Quanto si scarica in tutto: file principale più quelli che lo accompagnano.</summary>
+        public long TotalSize => FileSize + Companions.Sum(c => c.FileSize);
+    }
+
+    public class ModelFile
+    {
+        public string Url { get; set; }
+        public string FileName { get; set; }
+        public long FileSize { get; set; }
     }
 
     public interface IModelDownloadService
@@ -53,6 +76,12 @@ namespace MdExplorer.Features.Services
         /// nessuno. Preferisce <c>small</c> a <c>base</c>.
         /// </summary>
         string GetInstalledSpeechModelPath();
+
+        /// <summary>
+        /// Il modello del catalogo con questo id, con <c>IsInstalled</c> e <c>LocalPath</c> aggiornati,
+        /// o <c>null</c> se il catalogo non lo conosce.
+        /// </summary>
+        ModelInfo FindModel(string modelId);
     }
 
     public class ModelDownloadService : IModelDownloadService
@@ -76,39 +105,6 @@ namespace MdExplorer.Features.Services
             // Initialize available models catalog
             _availableModels = new Dictionary<string, ModelInfo>
             {
-                ["llama3.2-1b"] = new ModelInfo
-                {
-                    Id = "llama3.2-1b",
-                    Name = "Llama 3.2 1B Instruct Q4_K_M",
-                    Description = "Ultra-compact Meta model for edge devices with 128K context",
-                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct.Q4_K_M.gguf",
-                    FileName = "Llama-3.2-1B-Instruct.Q4_K_M.gguf",
-                    FileSize = 808_000_000, // ~808MB
-                    ContextLength = 128000,
-                    Parameters = "1B"
-                },
-                ["llama3.2-1b-q5"] = new ModelInfo
-                {
-                    Id = "llama3.2-1b-q5",
-                    Name = "Llama 3.2 1B Instruct Q5_K_M",
-                    Description = "Higher quality 1B Meta model with excellent summarization",
-                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct.Q5_K_M.gguf",
-                    FileName = "Llama-3.2-1B-Instruct.Q5_K_M.gguf",
-                    FileSize = 912_000_000, // ~912MB
-                    ContextLength = 128000,
-                    Parameters = "1B"
-                },
-                ["llama3.2-3b"] = new ModelInfo
-                {
-                    Id = "llama3.2-3b",
-                    Name = "Llama 3.2 3B Instruct Q4_K_M",
-                    Description = "Powerful 3B Meta model for complex tasks with massive context",
-                    Url = "https://huggingface.co/QuantFactory/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct.Q4_K_M.gguf",
-                    FileName = "Llama-3.2-3B-Instruct.Q4_K_M.gguf",
-                    FileSize = 2_020_000_000, // ~2.02GB
-                    ContextLength = 128000,
-                    Parameters = "3B"
-                },
                 ["qwen3.5-2b"] = new ModelInfo
                 {
                     Id = "qwen3.5-2b",
@@ -128,17 +124,6 @@ namespace MdExplorer.Features.Services
                     Url = "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf",
                     FileName = "Qwen3.5-9B-Q4_K_M.gguf",
                     FileSize = 5_680_000_000,
-                    ContextLength = 262144,
-                    Parameters = "9B"
-                },
-                ["qwen3.5-9b-q5"] = new ModelInfo
-                {
-                    Id = "qwen3.5-9b-q5",
-                    Name = "Qwen 3.5 9B Q5_K_M",
-                    Description = "Higher quality 9B hybrid model (Alibaba) - 262K context, 201 languages, reasoning",
-                    Url = "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q5_K_M.gguf",
-                    FileName = "Qwen3.5-9B-Q5_K_M.gguf",
-                    FileSize = 6_520_000_000,
                     ContextLength = 262144,
                     Parameters = "9B"
                 },
@@ -210,8 +195,44 @@ namespace MdExplorer.Features.Services
                     FileName = "ggml-base.bin",
                     FileSize = 148_000_000,
                     Parameters = "74M"
+                },
+                // Lettura dei pdf (OCR). Numeri misurati il 15/11/2026 su una pagina A4 a 150 dpi,
+                // sola CPU, 8 thread: 27 s a pagina, 1,6 GB di RAM. È l'unico dei tre provati
+                // (con PaddleOCR-VL 1.6 e MiniCPM-OCR 1.0) che da una pagina intera restituisce
+                // markdown con titoli e tabelle: gli altri due danno testo piatto finché non c'è un
+                // modello di impaginazione che ritaglia la pagina in zone.
+                ["xiaomi-ocr-0"] = new ModelInfo
+                {
+                    Id = "xiaomi-ocr-0",
+                    Name = "Xiaomi-OCR-0 (lettura dei pdf)",
+                    Description = "Legge le pagine di un pdf e le restituisce in markdown, con titoli, " +
+                                  "elenchi, tabelle e formule. Lavora in locale, anche senza scheda grafica.",
+                    Url = "https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF/resolve/main/Xiaomi-OCR-0.Q4_K_M.gguf",
+                    FileName = "Xiaomi-OCR-0.Q4_K_M.gguf",
+                    FileSize = 529_297_664,
+                    Parameters = "0.8B",
+                    ContextLength = 8192,
+                    Category = "ocr",
+                    Companions = new[]
+                    {
+                        new ModelFile
+                        {
+                            Url = "https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF/resolve/main/Xiaomi-OCR-0.mmproj-bf16.gguf",
+                            FileName = "Xiaomi-OCR-0.mmproj-bf16.gguf",
+                            FileSize = 207_346_624
+                        }
+                    }
                 }
             };
+
+            foreach (var id in new[] { "nomic-embed-text", "multilingual-e5-large-instruct" })
+            {
+                _availableModels[id].Category = "embedding";
+            }
+            foreach (var id in new[] { "whisper-small", "whisper-base" })
+            {
+                _availableModels[id].Category = "speech";
+            }
         }
 
         public async Task<ModelInfo[]> GetAvailableModelsAsync()
@@ -221,7 +242,8 @@ namespace MdExplorer.Features.Services
             // Check which models are installed
             foreach (var model in models)
             {
-                model.IsInstalled = IsModelInstalled(model.FileName);
+                model.IsInstalled = IsModelInstalled(model.FileName)
+                    && model.Companions.All(c => IsModelInstalled(c.FileName));
                 if (model.IsInstalled)
                 {
                     model.LocalPath = GetModelPath(model.FileName);
@@ -235,6 +257,18 @@ namespace MdExplorer.Features.Services
         {
             var allModels = await GetAvailableModelsAsync();
             return allModels.Where(m => m.IsInstalled).ToArray();
+        }
+
+        public ModelInfo FindModel(string modelId)
+        {
+            if (modelId == null || !_availableModels.TryGetValue(modelId, out var model))
+            {
+                return null;
+            }
+            model.IsInstalled = IsModelInstalled(model.FileName)
+                && model.Companions.All(c => IsModelInstalled(c.FileName));
+            model.LocalPath = model.IsInstalled ? GetModelPath(model.FileName) : null;
+            return model;
         }
 
         public bool IsModelInstalled(string modelName)
@@ -252,14 +286,32 @@ namespace MdExplorer.Features.Services
         {
             try
             {
-                var modelPath = GetModelPath(modelName);
-                if (File.Exists(modelPath))
+                // Un modello fatto di più file si cancella intero: il proiettore rimasto solo
+                // occuperebbe disco senza che nessuna schermata lo mostri.
+                var files = new List<string> { modelName };
+                var entry = _availableModels.Values.FirstOrDefault(m => m.FileName == modelName);
+                if (entry != null)
                 {
-                    File.Delete(modelPath);
-                    _logger.LogInformation($"Deleted model: {modelName}");
-                    return Task.FromResult(true);
+                    files.AddRange(entry.Companions.Select(c => c.FileName));
                 }
-                return Task.FromResult(false);
+
+                var deleted = false;
+                foreach (var file in files)
+                {
+                    foreach (var path in new[] { GetModelPath(file), GetModelPath(file) + ".download" })
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                            deleted = true;
+                        }
+                    }
+                }
+                if (deleted)
+                {
+                    _logger.LogInformation($"Deleted model: {modelName}");
+                }
+                return Task.FromResult(deleted);
             }
             catch (Exception ex)
             {
@@ -322,22 +374,76 @@ namespace MdExplorer.Features.Services
                 return false;
             }
 
-            var modelPath = GetModelPath(modelInfo.FileName);
+            if (modelInfo.Companions.Length == 0)
+            {
+                return await DownloadFileAsync(modelId, modelInfo.Name, modelInfo.Url, modelInfo.FileName, modelInfo.FileSize, progress, ct);
+            }
+
+            // Più file: l'avanzamento che arriva alla UI è quello dell'insieme, altrimenti la barra
+            // tornerebbe a zero a ogni file e «Complete» arriverebbe col primo.
+            var files = new List<ModelFile>
+            {
+                new ModelFile { Url = modelInfo.Url, FileName = modelInfo.FileName, FileSize = modelInfo.FileSize }
+            };
+            files.AddRange(modelInfo.Companions);
+            var total = modelInfo.TotalSize;
+            long done = 0;
+            for (var n = 0; n < files.Count; n++)
+            {
+                var file = files[n];
+                var offset = done;
+                var last = n == files.Count - 1;
+                var partial = new SynchronousProgress(p =>
+                {
+                    var failed = p.Status == "Cancelled" || (p.Status?.StartsWith("Error") ?? false);
+                    var finished = p.Status == "Complete" || p.Status == "Already installed";
+                    progress?.Report(new DownloadProgress
+                    {
+                        ModelId = modelId,
+                        BytesDownloaded = failed ? 0 : Math.Min(total, offset + (finished ? file.FileSize : p.BytesDownloaded)),
+                        TotalBytes = failed ? 0 : total,
+                        Status = failed || (finished && last) ? p.Status : "Downloading"
+                    });
+                });
+                if (!await DownloadFileAsync(modelId, modelInfo.Name, file.Url, file.FileName, file.FileSize, partial, ct))
+                {
+                    return false;
+                }
+                done += file.FileSize;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// <c>Progress&lt;T&gt;</c> consegna sul pool di thread, quindi fuori ordine: qui l'ordine conta
+        /// (l'ultimo stato deve essere davvero l'ultimo), perciò la consegna è immediata.
+        /// </summary>
+        private sealed class SynchronousProgress : IProgress<DownloadProgress>
+        {
+            private readonly Action<DownloadProgress> _report;
+            public SynchronousProgress(Action<DownloadProgress> report) => _report = report;
+            public void Report(DownloadProgress value) => _report(value);
+        }
+
+        private async Task<bool> DownloadFileAsync(string modelId, string displayName, string url, string fileName,
+            long fileSize, IProgress<DownloadProgress> progress, CancellationToken ct)
+        {
+            var modelPath = GetModelPath(fileName);
             var tempPath = modelPath + ".download";
 
             try
             {
-                _logger.LogInformation($"Starting download of {modelInfo.Name} from {modelInfo.Url}");
+                _logger.LogInformation($"Starting download of {displayName} from {url}");
                 
                 // Check if model already exists
                 if (File.Exists(modelPath))
                 {
-                    _logger.LogInformation($"Model {modelInfo.Name} already exists at {modelPath}");
+                    _logger.LogInformation($"Model {displayName} already exists at {modelPath}");
                     progress?.Report(new DownloadProgress
                     {
                         ModelId = modelId,
-                        BytesDownloaded = modelInfo.FileSize,
-                        TotalBytes = modelInfo.FileSize,
+                        BytesDownloaded = fileSize,
+                        TotalBytes = fileSize,
                         Status = "Already installed"
                     });
                     return true;
@@ -351,20 +457,20 @@ namespace MdExplorer.Features.Services
                     startByte = fileInfo.Length;
                     
                     // Check if temp file is already complete or larger than expected
-                    if (startByte >= modelInfo.FileSize)
+                    if (startByte >= fileSize)
                     {
-                        _logger.LogInformation($"Temp file appears complete or corrupted (size: {startByte}, expected: {modelInfo.FileSize})");
+                        _logger.LogInformation($"Temp file appears complete or corrupted (size: {startByte}, expected: {fileSize})");
                         
                         // If size matches, just rename it
-                        if (startByte == modelInfo.FileSize)
+                        if (startByte == fileSize)
                         {
                             _logger.LogInformation($"Temp file is complete, moving to final location");
                             File.Move(tempPath, modelPath);
                             progress?.Report(new DownloadProgress
                             {
                                 ModelId = modelId,
-                                BytesDownloaded = modelInfo.FileSize,
-                                TotalBytes = modelInfo.FileSize,
+                                BytesDownloaded = fileSize,
+                                TotalBytes = fileSize,
                                 Status = "Complete"
                             });
                             return true;
@@ -379,12 +485,12 @@ namespace MdExplorer.Features.Services
                     }
                     else
                     {
-                        _logger.LogInformation($"Resuming download from byte {startByte} of {modelInfo.FileSize}");
+                        _logger.LogInformation($"Resuming download from byte {startByte} of {fileSize}");
                     }
                 }
 
                 // Create HTTP request with range header for resume support
-                var request = new HttpRequestMessage(HttpMethod.Get, modelInfo.Url);
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
                 if (startByte > 0)
                 {
                     request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(startByte, null);
@@ -399,9 +505,9 @@ namespace MdExplorer.Features.Services
                     _logger.LogWarning($"Server returned 416 - file might be complete or range invalid. Checking file integrity.");
                     
                     // Try to get the actual file size from server
-                    var headRequest = new HttpRequestMessage(HttpMethod.Head, modelInfo.Url);
+                    var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
                     using var headResponse = await _httpClient.SendAsync(headRequest, ct);
-                    var actualSize = headResponse.Content.Headers.ContentLength ?? modelInfo.FileSize;
+                    var actualSize = headResponse.Content.Headers.ContentLength ?? fileSize;
                     
                     _logger.LogInformation($"Server reports file size: {actualSize}, temp file size: {startByte}");
                     
@@ -428,13 +534,13 @@ namespace MdExplorer.Features.Services
                     {
                         _logger.LogInformation($"Deleting incomplete temp file and retrying from scratch");
                         File.Delete(tempPath);
-                        return await DownloadModelAsync(modelId, progress, ct);
+                        return await DownloadFileAsync(modelId, displayName, url, fileName, fileSize, progress, ct);
                     }
                 }
                 
                 response.EnsureSuccessStatusCode();
 
-                var totalBytes = response.Content.Headers.ContentLength ?? modelInfo.FileSize;
+                var totalBytes = response.Content.Headers.ContentLength ?? fileSize;
                 if (startByte > 0)
                 {
                     totalBytes += startByte;
@@ -507,7 +613,7 @@ namespace MdExplorer.Features.Services
                     }
                 }
 
-                _logger.LogInformation($"Successfully downloaded {modelInfo.Name}");
+                _logger.LogInformation($"Successfully downloaded {displayName}");
                 
                 // Report completion
                 progress?.Report(new DownloadProgress
@@ -522,7 +628,7 @@ namespace MdExplorer.Features.Services
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation($"Download cancelled for {modelInfo.Name}");
+                _logger.LogInformation($"Download cancelled for {displayName}");
                 progress?.Report(new DownloadProgress
                 {
                     ModelId = modelId,
@@ -534,7 +640,7 @@ namespace MdExplorer.Features.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error downloading {modelInfo.Name}");
+                _logger.LogError(ex, $"Error downloading {displayName}");
                 progress?.Report(new DownloadProgress
                 {
                     ModelId = modelId,

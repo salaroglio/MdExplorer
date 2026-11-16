@@ -18,6 +18,10 @@ export interface ModelInfo {
   localPath?: string;
   contextLength: number;
   parameters: string;
+  /** A cosa serve: `chat`, `embedding`, `speech`, `ocr`. Solo i `chat` si caricano nella chat. */
+  category?: string;
+  /** Quanto si scarica in tutto, compresi i file che accompagnano il modello. */
+  totalSize?: number;
 }
 
 export interface GpuInfo {

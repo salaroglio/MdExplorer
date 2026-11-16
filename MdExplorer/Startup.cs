@@ -310,6 +310,12 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
             services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
             services.AddSingleton<Features.Services.ILlamaBackendService, Features.Services.LlamaBackendService>();
+            // Documenti (pdf, Word) in markdown: il motore OCR e' il llama-server dello stesso llama.cpp
+            // della chat, come processo a parte; le conversioni girano in sottofondo una alla volta.
+            services.AddSingleton<Features.Services.Ocr.IOcrEngine, Features.Services.Ocr.OcrEngine>();
+            services.AddSingleton<Features.Services.Ocr.IPdfOcrService, Features.Services.Ocr.PdfOcrService>();
+            services.AddSingleton<MdExplorer.Service.Services.Ocr.IDocumentConversionJobs, MdExplorer.Service.Services.Ocr.DocumentConversionJobs>();
+            services.AddHostedService<MdExplorer.Service.Services.Ocr.OcrOrphanCleanup>();
             // Test e2e (F3): prerequisiti sul computer e download fuori dal pacchetto (Playwright MCP, Chromium).
             services.AddSingleton(new Features.E2e.E2eEnvironment());
             services.AddSingleton<Services.E2e.E2eLaunchService>();

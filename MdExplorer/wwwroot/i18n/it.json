@@ -1331,7 +1331,40 @@
     "FILES_ADDED": "{{count}} file aggiunti",
     "NO_FILE": "Seleziona almeno un file",
     "SELECTED_FILES_HEADER": "File selezionati ({{count}})",
-    "ADD_ERROR": "Errore: {{error}}"
+    "ADD_ERROR": "Errore: {{error}}",
+    "ALSO_MARKDOWN": "Crea anche la versione markdown dei pdf e dei Word",
+    "ALSO_MARKDOWN_HINT": "Il markdown nasce accanto a questo documento, con un collegamento. I Word si convertono subito; i pdf li legge un modello OCR in locale, in sottofondo.",
+    "WORD_STYLES_HINT": "Se il Word non usa gli stili per i titoli, salvalo in PDF da Word e aggiungi il pdf: lo leggerà il modello OCR.",
+    "NEXT": "Avanti",
+    "BACK": "Indietro",
+    "ADD_AND_CONVERT": "Aggiungi e converti",
+    "OCR": {
+      "TITLE": "Modello che legge i pdf",
+      "INTRO": "Il pdf viene letto pagina per pagina da un modello OCR che gira su questo computer: il documento non esce da qui.",
+      "PROS": "Pregi",
+      "CONS": "Limiti",
+      "INSTALLED": "Installato",
+      "TO_DOWNLOAD": "Da scaricare: {{mb}} MB",
+      "DOWNLOAD": "Scarica",
+      "DOWNLOADING_ENGINE": "Scarico il motore OCR… {{percent}}%",
+      "DOWNLOADING_MODEL": "Scarico il modello… {{percent}}%",
+      "DOWNLOAD_FAILED": "Download non riuscito: {{error}}",
+      "LOAD_FAILED": "Non riesco a leggere l'elenco dei modelli OCR: {{error}}",
+      "NEEDS_DOWNLOAD": "Scarica il modello per poter convertire i pdf.",
+      "MODELS": {
+        "xiaomi-ocr-0": {
+          "PROS": "Restituisce markdown già strutturato: titoli, elenchi, tabelle e formule. Leggero: 1,6 GB di RAM, gira anche senza scheda grafica.",
+          "CONS": "Circa mezzo minuto a pagina su sola CPU. Una pagina con il solo titolo può tornare vuota. Provato su pagine nitide, non ancora su scansioni storte o sbiadite."
+        }
+      }
+    },
+    "CONVERT": {
+      "STARTED": "Conversione in markdown avviata: {{file}}",
+      "NOT_STARTED": "La conversione in markdown non è partita: {{error}}",
+      "DONE": "Markdown creato: {{file}}",
+      "DONE_TRUNCATED": "Markdown creato: {{file}}. Pagine incomplete, da controllare: {{pages}}",
+      "FAILED": "Conversione di {{file}} non riuscita: {{error}}"
+    }
   },
   "CLIPBOARD": {
     "TITLE": "Copia dagli appunti",

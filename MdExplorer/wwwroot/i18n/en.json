@@ -1331,7 +1331,40 @@
     "FILES_ADDED": "{{count}} files added",
     "NO_FILE": "Select at least one file",
     "SELECTED_FILES_HEADER": "Selected files ({{count}})",
-    "ADD_ERROR": "Error: {{error}}"
+    "ADD_ERROR": "Error: {{error}}",
+    "ALSO_MARKDOWN": "Also create the markdown version of pdf and Word files",
+    "ALSO_MARKDOWN_HINT": "The markdown file is created next to this document, with a link. Word files are converted right away; pdf files are read by a local OCR model, in the background.",
+    "WORD_STYLES_HINT": "If the Word file does not use heading styles, save it as PDF from Word and add the pdf: the OCR model will read it.",
+    "NEXT": "Next",
+    "BACK": "Back",
+    "ADD_AND_CONVERT": "Add and convert",
+    "OCR": {
+      "TITLE": "Model that reads pdf files",
+      "INTRO": "The pdf is read page by page by an OCR model running on this computer: the document never leaves it.",
+      "PROS": "Strengths",
+      "CONS": "Limits",
+      "INSTALLED": "Installed",
+      "TO_DOWNLOAD": "To download: {{mb}} MB",
+      "DOWNLOAD": "Download",
+      "DOWNLOADING_ENGINE": "Downloading the OCR engine… {{percent}}%",
+      "DOWNLOADING_MODEL": "Downloading the model… {{percent}}%",
+      "DOWNLOAD_FAILED": "Download failed: {{error}}",
+      "LOAD_FAILED": "Cannot read the list of OCR models: {{error}}",
+      "NEEDS_DOWNLOAD": "Download the model to convert pdf files.",
+      "MODELS": {
+        "xiaomi-ocr-0": {
+          "PROS": "Returns structured markdown: headings, lists, tables and formulas. Light: 1.6 GB of RAM, runs without a graphics card.",
+          "CONS": "About half a minute per page on CPU only. A page holding just a title may come back empty. Tested on clean pages, not yet on skewed or faded scans."
+        }
+      }
+    },
+    "CONVERT": {
+      "STARTED": "Markdown conversion started: {{file}}",
+      "NOT_STARTED": "The markdown conversion did not start: {{error}}",
+      "DONE": "Markdown created: {{file}}",
+      "DONE_TRUNCATED": "Markdown created: {{file}}. Incomplete pages to check: {{pages}}",
+      "FAILED": "Conversion of {{file}} failed: {{error}}"
+    }
   },
   "CLIPBOARD": {
     "TITLE": "Copy from clipboard",

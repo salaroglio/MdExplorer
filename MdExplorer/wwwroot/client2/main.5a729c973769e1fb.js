@@ -15566,6 +15566,7 @@ class MdFileService {
   }
   addExistingFileToMDEProject(node, path, options) {
     const url = '../api/mdfiles/addExistingFileToMDEProject';
+    // copiedFullPath: la copia dentro il progetto, da passare alla conversione in markdown.
     return this.http.post(url, {
       mdFile: node,
       fullPath: path,
@@ -21557,8 +21558,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.15.1',
-  buildTime: '2026.11.15 12:12:03'
+  version: '2026.11.15.4',
+  buildTime: '2026.11.15 21:37:43'
 };
 
 /***/ }),
@@ -21592,4 +21593,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.4be5337393a2e0ac.js.map
+//# sourceMappingURL=main.5a729c973769e1fb.js.map

@@ -12,6 +12,18 @@
         public bool IsFirst { get; set; }
     }
 
+    public class RequestConvertDocumentToMarkdown
+    {
+        /// <summary>Il documento markdown che riceve il collegamento al file convertito.</summary>
+        public RequestAddExistingFileMdFileDto MdFile { get; set; }
+
+        /// <summary>Il pdf o il Word, già dentro il progetto.</summary>
+        public string SourceFullPath { get; set; }
+
+        /// <summary>Il modello OCR scelto; serve solo ai pdf.</summary>
+        public string? ModelId { get; set; }
+    }
+
     public class RequestAddExistingFileMdFileDto
     {
         public string FullPath { get; set; }

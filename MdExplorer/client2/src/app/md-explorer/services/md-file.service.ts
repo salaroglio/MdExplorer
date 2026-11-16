@@ -1380,7 +1380,8 @@ export class MdFileService {
 
   addExistingFileToMDEProject(node: MdFile, path: String, options?: { asBulletList?: boolean; isFirst?: boolean }) {
     const url = '../api/mdfiles/addExistingFileToMDEProject';
-    return this.http.post<string>(url, {
+    // copiedFullPath: la copia dentro il progetto, da passare alla conversione in markdown.
+    return this.http.post<{ message: string; copiedFullPath: string }>(url, {
       mdFile: node,
       fullPath: path,
       asBulletList: options?.asBulletList ?? false,

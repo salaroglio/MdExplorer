@@ -403,6 +403,37 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Avvia la conversione in markdown di un pdf (OCR) o di un Word già copiato nel progetto.
+        /// Risponde subito con la conversione avviata: lo stato si legge da
+        /// <c>api/DocumentConversion/jobs/{id}</c>.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ConvertDocumentToMarkdown([FromBody] RequestConvertDocumentToMarkdown request,
+            [FromServices] MdExplorer.Service.Services.Ocr.IDocumentConversionJobs jobs)
+        {
+            try
+            {
+                var job = jobs.Start(new MdExplorer.Service.Services.Ocr.DocumentConversionRequest
+                {
+                    SourceFullPath = request.SourceFullPath,
+                    MdDocumentFullPath = request.MdFile?.FullPath,
+                    ProjectPath = GetProjectPath(),
+                    ModelId = request.ModelId
+                });
+                return Ok(job);
+            }
+            catch (MdExplorer.Features.Services.Ocr.OcrNotReadyException ex)
+            {
+                // 409: la richiesta è giusta, manca il modello che l'utente può scaricare.
+                return Conflict(new { error = ex.Message, needsModel = true });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost]
         public IActionResult AddExistingFileToMDEProject([FromBody] RequestAddExistingFileToMdeproject request)
         {
@@ -458,7 +489,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 allText += Environment.NewLine + linkText;
             }
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
-            return  Ok(new { message = "done" });
+            // copiedFullPath: la copia nel progetto, che il wizard passa alla conversione in markdown.
+            return  Ok(new { message = "done", copiedFullPath = fullPathFileName });
 
         }
 
