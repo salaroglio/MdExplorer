@@ -39,7 +39,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         // 5: punti di chiamata con stringhe (D42); 6: templateUrl e selector di Angular come punti di chiamata (D42 B) e un
         // nodo solo per get/set e overload dello stesso nome (prima lo script era rifiutato al caricamento, anche in JS);
         // 7: il template inline (template: `…`) come templateUrl verso la pagina dentro il file (CodeInlinePages)
-        public string ExtractorVersion => "7";
+        public string ExtractorVersion => "8";
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -152,6 +152,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Modules[pf.Module] = StableId("module", pf.Module);
                 foreach (var node in Walk(pf.Tree.RootNode))
                 {
+                    // solo ciò che diventa un nodo: le dichiarazioni del file, anche esportate. Una funzione dichiarata dentro
+                    // un'altra non ha un nodo suo (il suo codice è di quella che la contiene): con lei nell'indice, chi la
+                    // chiamava aveva un arco verso un nodo che non esiste (16/11/2026, dal cliente)
+                    var parent = node.Parent;
+                    if (parent != null && parent.Type == "export_statement") parent = parent.Parent;
+                    if (parent == null || parent.Type != "program") continue;
                     switch (node.Type)
                     {
                         case "class_declaration":
@@ -707,6 +713,9 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             private void WalkBody(Node decl, string ownerId, string className)
             {
+                // le funzioni dichiarate qui dentro: chiamarle è eseguire codice di questa stessa dichiarazione, non un arco
+                var inner = new HashSet<string>(Walk(decl).Where(x => x.Type == "function_declaration" && x.StartIndex != decl.StartIndex)
+                    .Select(NameOf).Where(x => x != null), StringComparer.Ordinal);
                 foreach (var n in Walk(decl))
                 {
                     if (n.Type == "call_expression")
@@ -715,6 +724,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (callee == null) continue;
                         var line = Line(n);
                         RecordCallSite(n, callee, ownerId, line);
+                        if (callee.Type == "identifier" && inner.Contains(callee.Text)) continue;
                         if (callee.Type == "identifier")
                         {
                             var fname = callee.Text;

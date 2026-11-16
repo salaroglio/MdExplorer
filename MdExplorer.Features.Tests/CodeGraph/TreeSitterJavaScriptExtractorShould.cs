@@ -116,6 +116,28 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Keep_a_function_declared_inside_another_out_of_the_graph()
+        {
+            // 16/11/2026, dal cliente: una funzione dichiarata dentro un'altra non ha un nodo suo, ma era nell'indice dei nomi:
+            // chi la chiamava aveva un arco verso un nodo che non esiste
+            var source = NuGetGrammar(_store);
+            if (!File.Exists(source)) Assert.Inconclusive("grammatica javascript non trovata nel NuGet in cache: " + source);
+            _store.Install(GrammarCatalog.ById("javascript"), source, "1.3.0", "nuget");
+            File.WriteAllText(Path.Combine(_src, "date.js"),
+                "function mostra(d) {\n  function settimana(x) { return helper(x); }\n  return settimana(d);\n}\n" +
+                "function altra(d) { return settimana(d); }\n");
+            var result = new TreeSitterJavaScriptExtractor(_store, NullLogger<TreeSitterJavaScriptExtractor>.Instance).Extract(Request());
+            var s = result.Scripts.Single(x => x.File.LogicalPath == "src/date.js").Script;
+            var declared = result.Scripts.SelectMany(x => x.Script.Symbols.Select(y => y.Id)).ToHashSet();
+            Assert.AreEqual(0, s.Edges.Count(e => !declared.Contains(e.TargetId)), "nessun arco verso un nodo che non esiste");
+            Assert.IsFalse(s.Symbols.Any(x => x.Kind == "function" && x.Name == "settimana"), "non ha un nodo suo");
+            string Calls(string from) => string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && e.SourceId == s.Symbols.Single(x => x.Name == from && x.Kind == "function").Id)
+                .Select(e => result.Scripts.SelectMany(x => x.Script.Symbols).First(y => y.Id == e.TargetId).Name + ":" + e.Confidence).OrderBy(x => x, StringComparer.Ordinal));
+            Assert.AreEqual("helper:inferred", Calls("mostra"), "ciò che chiama la funzione interna lo chiama quella che la contiene; chiamarla non è un arco");
+            Assert.AreEqual("settimana:ambiguous", Calls("altra"), "da fuori non si vede: resta un nome non risolto");
+        }
+
+        [TestMethod]
         public void Record_call_sites_with_name_like_string_arguments()
         {
             // D42: inviaPagina('alias.metodo') nel JavaScript delle pagine porta al controller solo con una regola.
