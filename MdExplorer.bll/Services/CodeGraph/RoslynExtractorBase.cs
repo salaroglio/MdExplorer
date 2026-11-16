@@ -1622,9 +1622,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                             // e il costruttore che esegue (14/11/2026, dal cliente: dietro una factory il costruttore privato
                             // risultava senza chiamanti, e quello che chiama non si raggiungeva); quello che crea il compilatore no
                             if (!_perimeter.SourceOf(ctor.OriginalDefinition).IsImplicitlyDeclared && _perimeter.IsInPerimeter(ctor)) Edge(ownerId, IdOf(ctor.OriginalDefinition), "calls", "extracted", line);
+                            CreatedObjectCallbacks(ownerId, ctor.ContainingType, line);
                         }
                         else if (_model.GetTypeInfo(node).Type is INamedTypeSymbol t && t.TypeKind != TypeKind.Error)
+                        {
                             Edge(ownerId, IdOf(t), "instantiates", "extracted", line);
+                            CreatedObjectCallbacks(ownerId, t, line);
+                        }
                     }
                     else if (_x.IsRaise(node, out var raisedNode))
                     {
@@ -1637,9 +1641,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                             // il gestore scritto e, se è il membro di un'interfaccia o un metodo virtuale (AddressOf campo.Metodo con
                             // il campo del tipo dell'interfaccia), quelli che girano davvero (15/11/2026, dal cliente: dall'evento si
                             // arrivava al membro dell'interfaccia e lì ci si fermava)
+                            var isEvent = certain || _model.GetSymbolInfo(eventNode).Symbol is IEventSymbol;
                             foreach (var runs in new[] { handler.OriginalDefinition }.Concat(Dispatched(handler.OriginalDefinition, virtualDispatch: true)))
                             {
                                 Handler(eventNode, IdOf(runs), Line(node), certain);
+                                // chi aggancia il gestore lo fa partire (16/11/2026, dal cliente: i gestori dei pulsanti creati nel
+                                // codice risultavano avviati solo dall'evento di libreria, che è lo stesso nodo per tutti i pulsanti,
+                                // e nessuna pagina ci arrivava). Dedotto: il gestore gira se l'evento scatta
+                                if (isEvent) Edge(ownerId, IdOf(runs), "calls", "inferred", Line(node), CodeNavigation.GuardRegisteredHandler);
                                 // AddHandler btnCerca.Click, AddressOf H: come Handles btnCerca.Click, il controllo porta al gestore
                                 if (_x.SubscriptionContainer(eventNode) is { } container) ControlHandler(container, IdOf(runs), Line(node));
                             }
@@ -1836,6 +1845,23 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// </summary>
             public void OwnEventHandler(string handlerId, string receiver, string eventName, int line)
                 => _callSites.Add(handlerId, line, OwnEventCallee, receiver, new[] { eventName }, always: true);
+
+            /// <summary>
+            /// Chi crea un oggetto fa partire i metodi di quell'oggetto che una libreria chiama da sé (16/11/2026, dal cliente:
+            /// <c>New Modello(Me)</c> dato a una griglia, e la libreria chiama il suo <c>InstantiateIn</c>): quelli della classe
+            /// e, lungo le classi base del perimetro, la ridefinizione più vicina. Dedotto: girano se la libreria li chiama.
+            /// </summary>
+            private void CreatedObjectCallbacks(string ownerId, INamedTypeSymbol created, int line)
+            {
+                var taken = new HashSet<string>(StringComparer.Ordinal);
+                for (var type = _perimeter.SourceOf(created.OriginalDefinition) as INamedTypeSymbol; type != null && _perimeter.IsInPerimeter(type); type = type.BaseType)
+                    foreach (var m in type.GetMembers().OfType<IMethodSymbol>().Where(x => IsPlainMethod(x) && !x.IsImplicitlyDeclared && !x.IsAbstract))
+                    {
+                        var isCallback = false;
+                        foreach (var library in LibraryCallbacks(m)) isCallback |= taken.Add(Qualified(library));
+                        if (isCallback) Edge(ownerId, IdOf(m.OriginalDefinition), "calls", "inferred", line, CodeNavigation.GuardCreatedObject);
+                    }
+            }
 
             /// <summary>I metodi di libreria che questo metodo ridefinisce o implementa (<see cref="LibraryCallbackCallee"/>).</summary>
             public IEnumerable<IMethodSymbol> LibraryCallbacks(IMethodSymbol m)

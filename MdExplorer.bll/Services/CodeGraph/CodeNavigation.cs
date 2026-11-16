@@ -7,7 +7,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <summary>Un arco del grafo che conta per la navigazione, con quello che serve a mostrarlo (tipo, nome e file dei due capi).</summary>
     public sealed record CodeNavEdge(string Source, string SourceKind, string SourceName, string SourcePath,
         string Target, string TargetKind, string TargetName, string TargetPath,
-        string Relation, string Confidence, string Path, int? Line, bool SourceAbstract = false, bool TargetAbstract = false);
+        string Relation, string Confidence, string Path, int? Line, bool SourceAbstract = false, bool TargetAbstract = false, string Guard = null);
 
     /// <summary>Un passo di una catena: verso chi, per quale relazione, quanto è sicuro, dove è scritto.</summary>
     public sealed record CodeNavStep(string Symbol, string Kind, string Relation, string Confidence, string At);
@@ -291,13 +291,23 @@ namespace MdExplorer.Features.Services.CodeGraph
             return seen;
         }
 
+        /// <summary>
+        /// La condizione scritta sugli archi di due partenze dedotte (16/11/2026): chi crea un oggetto fa partire i metodi che
+        /// la libreria chiama su di lui, e chi aggancia un gestore a un evento lo fa partire. Sono vere nel senso «può
+        /// girare»: chi arriva ai dati solo per queste strade si conta a parte.
+        /// </summary>
+        public const string GuardCreatedObject = "the library calls it on the object created here";
+        public const string GuardRegisteredHandler = "runs when the event it is registered to here fires";
+        private static bool IsDeducedStart(CodeNavEdge e) => e.Guard is GuardCreatedObject or GuardRegisteredHandler;
+
         public const string OutcomeData = "data";
+        public const string OutcomeDataDeduced = "data-only-through-deduced-starts";
         public const string OutcomeDataAmbiguous = "data-only-through-ambiguous";
         public const string OutcomeUnresolved = "stops-at-unresolved-name";
         public const string OutcomeLibrary = "stops-at-library";
         public const string OutcomeNoData = "no-data-in-graph";
         public const string OutcomeNoClass = "page-class-not-in-graph";
-        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataAmbiguous, OutcomeNoClass, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
+        public static readonly IReadOnlyList<string> Outcomes = new[] { OutcomeData, OutcomeDataDeduced, OutcomeDataAmbiguous, OutcomeNoClass, OutcomeUnresolved, OutcomeLibrary, OutcomeNoData };
 
         public sealed record EntrySample(string Symbol, string Kind, string Path, string Outcome, int Tables, int ExternalStops, int LeafStops, List<CodeNavStep> Chain);
         public sealed record ExternalBlock(string Symbol, int Entries);
@@ -308,6 +318,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Quante maschere arrivano ai dati, e perché le altre no — solo conti, per esito:
         /// <list type="bullet">
         /// <item><c>data</c>: arriva ad almeno una tabella senza attraversare archi ambigui;</item>
+        /// <item><c>data-only-through-deduced-starts</c> (16/11/2026): ci arriva senza archi ambigui, ma solo passando per una
+        /// partenza dedotta — un oggetto creato i cui metodi li chiama la libreria, o un gestore agganciato a un evento;</item>
         /// <item><c>data-only-through-ambiguous</c>: ci arriva solo seguendo almeno un arco ambiguo;</item>
         /// <item><c>page-class-not-in-graph</c> (15/11/2026, dal cliente): nessuna tabella, e la pagina dichiara una classe di
         /// code-behind che nel grafo non c'è (il file è escluso dalla compilazione del progetto, o non è fra i sorgenti): il
@@ -340,7 +352,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             // tre visite all'indietro, una volta sola: da chi ha l'SQL (senza e con gli archi ambigui) e dagli esterni dove ci si ferma
             var withSqlSure = g.Out.Where(kv => kv.Value.Any(e => Data.Contains(e.Relation) && e.Confidence != "ambiguous")).Select(kv => kv.Key);
             var withSql = g.Out.Where(kv => kv.Value.Any(e => Data.Contains(e.Relation))).Select(kv => kv.Key);
-            var sure = Upstream(g, withSqlSure, e => e.Confidence != "ambiguous");
+            var sure = Upstream(g, withSqlSure, e => e.Confidence != "ambiguous" && !IsDeducedStart(e));
+            var deduced = Upstream(g, withSqlSure, e => e.Confidence != "ambiguous");
             var any = Upstream(g, withSql, _ => true);
             // un esterno dove ci si ferma: non risolto se ci si arriva con un arco ambiguo (il compilatore non ha trovato chi è)
             bool IsStop(string n) => g.Nodes[n].Kind == "external" && g.OutOf(n).Count == 0;
@@ -350,7 +363,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var toLibrary = Upstream(g, callsLibrary, _ => true);
             var unresolvedNodes = g.In.Where(kv => IsStop(kv.Key) && kv.Value.Any(e => Flow.Contains(e.Relation) && e.Confidence == "ambiguous")).Select(kv => kv.Key).ToHashSet(StringComparer.Ordinal);
 
-            string OutcomeOf(string id) => sure.Contains(id) ? OutcomeData : any.Contains(id) ? OutcomeDataAmbiguous
+            string OutcomeOf(string id) => sure.Contains(id) ? OutcomeData : deduced.Contains(id) ? OutcomeDataDeduced : any.Contains(id) ? OutcomeDataAmbiguous
                 : noClass.Contains(id) ? OutcomeNoClass
                 : toUnresolved.Contains(id) ? OutcomeUnresolved : toLibrary.Contains(id) ? OutcomeLibrary : OutcomeNoData;
             var outcome = entries.ToDictionary(id => id, OutcomeOf, StringComparer.Ordinal);

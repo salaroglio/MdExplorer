@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 36
+  version: 37
   updatePolicy: replace
 ---
 
@@ -251,6 +251,11 @@ Work in three steps, each a `code_query` call:
 
 1. **Aggregate** — counts only, always complete:
    - `pages-to-data` (`from`: the pages' folder; `unit`: `page` or `control`): how many reach a table, by outcome — `data`,
+     `data-only-through-deduced-starts` (no ambiguous edge, but the road passes a DEDUCED START: an edge whose condition
+     says «the library calls it on the object created here» — who creates an object starts the methods a library calls
+     on it by itself, e.g. the `InstantiateIn` of a grid template — or «runs when the event it is registered to here
+     fires» — who writes `AddHandler x.Click, AddressOf H` starts `H`. It means the code CAN run from there, not that
+     it does for that instance: open the source of the step before stating it),
      `data-only-through-ambiguous`, `page-class-not-in-graph` (the page declares a code-behind class that is not in the
      graph: its file is excluded from the project's compilation, see the `files-not-compiled` warnings, or is not among
      the sources — code the project does not build, neither a gap of the graph nor a page without data),

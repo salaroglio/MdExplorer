@@ -201,9 +201,10 @@ template:
                         .Where(e => e.Other.Kind is "control" or "module" or "method").Select(e => e.Other.Kind + ":" + e.Other.Name).OrderBy(x => x, StringComparer.Ordinal));
                 }
                 Assert.AreEqual("control:btnSalva", await Callers("Ordini.btnSalva_Click"), "Handles btnSalva.Click: il controllo della pagina con quell'id");
-                Assert.AreEqual("control:btnAltro", await Callers("Ordini.btnAltro_Click"), "AddHandler: il controllo sì, Page_Load che lo registra no (AddressOf non è una chiamata)");
+                Assert.AreEqual("control:btnAltro method:Page_Load", await Callers("Ordini.btnAltro_Click"),
+                    "AddHandler: il controllo, e (16/11/2026) chi aggancia il gestore: dedotto, lo fa partire se l'evento scatta");
                 Assert.AreEqual("module:Ordini.pag", await Callers("Ordini.Page_Load"), "Handles MyBase.Load: la pagina, che solleva il suo Load");
-                Assert.AreEqual("control:btnTerzo", await Callers("Servizio.Esegui"), "AddHandler verso un gestore di un'altra classe: il controllo ci arriva lo stesso");
+                Assert.AreEqual("control:btnTerzo method:Page_Load", await Callers("Servizio.Esegui"), "AddHandler verso un gestore di un'altra classe: il controllo ci arriva lo stesso");
 
                 var page = (await store.OutlineAsync(project, "web/Ordini.pag")).Where(x => x.Kind == "control").Select(x => x.Name).OrderBy(x => x, StringComparer.Ordinal);
                 CollectionAssert.AreEqual(new[] { "btnAltro", "btnSalva", "btnTerzo", "lblNota" }, page.ToArray(), "i controlli runat=server con un id; non il div");

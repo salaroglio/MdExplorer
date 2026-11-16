@@ -190,7 +190,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var r = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10);
 
             Assert.AreEqual(("page", 5), (r.Unit, r.Total), "le cinque pagine di web/; quella di admin/ è fuori");
-            Assert.AreEqual("data=1, data-only-through-ambiguous=1, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
+            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, page-class-not-in-graph=0, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=1",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={r.ByOutcome[o]}")));
             Assert.AreEqual(0, r.Samples.Count, "senza sample: solo conti");
             Assert.AreEqual(("Sicurezza.Verifica:1", "log4net.ILog.Info:1"),
@@ -210,8 +210,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
             // che non toccano dati: hanno il loro esito, e si contano anche quando senza la classe non eseguono niente
             var classless = CodeNavigation.EntriesToTables(QualityGraph(), QualitySymbols(), "web/", "page", null, 0, "1", 10, new[] { "page", "p5", "p6" });
             Assert.AreEqual(6, classless.Total, "entra anche la pagina senza archi");
-            Assert.AreEqual("data=1, data-only-through-ambiguous=1, page-class-not-in-graph=2, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=0",
+            Assert.AreEqual("data=1, data-only-through-deduced-starts=0, data-only-through-ambiguous=1, page-class-not-in-graph=2, stops-at-unresolved-name=1, stops-at-library=1, no-data-in-graph=0",
                 string.Join(", ", CodeNavigation.Outcomes.Select(o => $"{o}={classless.ByOutcome[o]}")), "chi arriva ai dati per un'altra strada resta «data»");
+        }
+
+        [TestMethod]
+        public void Count_apart_the_pages_that_reach_the_data_only_through_a_deduced_start()
+        {
+            // 16/11/2026: chi crea un oggetto fa partire i metodi che la libreria chiama su di lui, e chi aggancia un gestore lo
+            // fa partire. Sono archi dedotti: una pagina che arriva ai dati solo così non si conta fra quelle certe
+            var edges = new[]
+            {
+                // Info crea un modello (dedotto) che salva
+                E2("p5", "h5", "calls"), E2("h5", "bl", "calls", "inferred") with { Guard = CodeNavigation.GuardCreatedObject },
+                // Stampa aggancia un gestore (dedotto) che salva, ma ci arriva anche con una chiamata scritta
+                E2("p4", "h4", "calls"), E2("h4", "bl", "calls", "inferred") with { Guard = CodeNavigation.GuardRegisteredHandler }, E2("h4", "bl", "calls", line: 3),
+                E("bl", "dl", "calls", line: 22), E("dl", "q", "dispatches", "inferred", 30), E("q", "T_ORD", "writes"),
+            };
+            var r = CodeNavigation.EntriesToTables(new CodeNavigation.Graph(edges), QualitySymbols(), "web/", "page", null, 1, "1", 10);
+            Assert.AreEqual((1, 1, 0), (r.ByOutcome[CodeNavigation.OutcomeData], r.ByOutcome[CodeNavigation.OutcomeDataDeduced], r.ByOutcome[CodeNavigation.OutcomeDataAmbiguous]));
+            Assert.AreEqual("web/Info.aspx", r.Samples[CodeNavigation.OutcomeDataDeduced].Single().Symbol);
+            Assert.AreEqual("web/Stampa.aspx", r.Samples[CodeNavigation.OutcomeData].Single().Symbol, "con una strada scritta resta fra le certe");
         }
 
         [TestMethod]

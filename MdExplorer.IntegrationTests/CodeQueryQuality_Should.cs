@@ -68,6 +68,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("data").GetInt32());
             Assert.AreEqual(1, counts.GetProperty("byOutcome").GetProperty("stops-at-unresolved-name").GetInt32());
             Assert.AreEqual(0, counts.GetProperty("byOutcome").GetProperty("page-class-not-in-graph").GetInt32());
+            Assert.AreEqual(0, counts.GetProperty("byOutcome").GetProperty("data-only-through-deduced-starts").GetInt32());
             Assert.AreEqual(JsonValueKind.Null, counts.GetProperty("samples").ValueKind, "senza sample: solo conti");
             Assert.AreEqual("Sicurezza.Verifica", counts.GetProperty("topUnresolvedNames")[0].GetProperty("Symbol").GetString());
             Assert.AreEqual((1, 0), (counts.GetProperty("unresolvedNames").GetInt32(), counts.GetProperty("libraryStops").GetInt32()));

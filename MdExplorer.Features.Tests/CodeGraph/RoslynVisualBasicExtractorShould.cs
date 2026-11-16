@@ -183,6 +183,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "  Public Class GestoreBase\n    Implements IGestore\n    Public Overridable Sub Premuto(ByVal sender As Object, ByVal e As EventArgs) Implements IGestore.Premuto\n    End Sub\n  End Class\n" +
                 "  Public Class GestoreVero\n    Inherits GestoreBase\n    Public Overrides Sub Premuto(ByVal sender As Object, ByVal e As EventArgs)\n    End Sub\n  End Class\n" +
                 "  Public Class Modello\n    Private _gestore As IGestore\n    Public Sub Crea(ByVal b As Bottone)\n      AddHandler b.Click, AddressOf _gestore.Premuto\n    End Sub\n  End Class\n" +
+                "  Public Class Fabbrica\n    Public Function Nuovo() As Elenco\n      Return New Elenco()\n    End Function\n  End Class\n" +
                 "End Namespace\n");
 
             var s = Extractor().Extract(Request()).Scripts.Single(x => x.File.LogicalPath == "src/Demo/Elenchi.vb").Script;
@@ -193,6 +194,15 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("Demo.GestoreBase.Premuto(Object, System.EventArgs) | Demo.GestoreVero.Premuto(Object, System.EventArgs) | Demo.IGestore.Premuto(Object, System.EventArgs)",
                 string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && Of(e.SourceId) == "Demo.Bottone.Click").Select(e => Of(e.TargetId)).OrderBy(x => x, StringComparer.Ordinal)),
                 "dall'evento al gestore scritto (il membro dell'interfaccia) e a quelli che girano davvero");
+
+            // 16/11/2026, dal cliente: chi aggancia il gestore lo fa partire; chi crea un oggetto fa partire i metodi che la
+            // libreria chiama su di lui. Archi dedotti, con la loro condizione scritta
+            string Deduced(string from, string guard) => string.Join(" | ", s.Edges.Where(e => e.Relation == "calls" && Of(e.SourceId) == from && e.Guard == guard)
+                .Select(e => $"{Of(e.TargetId)}:{e.Confidence}").OrderBy(x => x, StringComparer.Ordinal));
+            Assert.AreEqual("Demo.GestoreBase.Premuto(Object, System.EventArgs):inferred | Demo.GestoreVero.Premuto(Object, System.EventArgs):inferred | Demo.IGestore.Premuto(Object, System.EventArgs):inferred",
+                Deduced("Demo.Modello.Crea(Demo.Bottone)", CodeNavigation.GuardRegisteredHandler));
+            Assert.AreEqual("Demo.Elenco.ClearItems():inferred | Demo.Elenco.Dispose():inferred", Deduced("Demo.Fabbrica.Nuovo()", CodeNavigation.GuardCreatedObject),
+                "non ToString (di System.Object) né Altro (non lo chiama nessuna libreria)");
 
             var marked = s.CallSites.Where(c => c.Callee == RoslynExtractorBase.LibraryCallbackCallee)
                 .Select(c => Of(c.SourceId) + " <- " + string.Join(",", c.Arguments.Select(a => a.Value))).OrderBy(x => x, StringComparer.Ordinal).ToArray();
