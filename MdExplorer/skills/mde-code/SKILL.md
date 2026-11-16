@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 37
+  version: 38
   updatePolicy: replace
 ---
 
@@ -457,7 +457,9 @@ stops before the user's click. Only for a concrete question of the user:
 2. Read a few pages and write the dialect. Directive pages (`$include[x]$`, `$if[X]$`): how a directive looks (a regex
    with `word` and `arg`), which words include another page, which open and close a block, which blocks are conditions.
    Pages that mix server code and HTML (Razor, JSP, Thymeleaf…): `recognizers`, one regex per role (include, open with
-   `close: brace`, `close: element` or a close recognizer, else, case, call with `a0…a9`), `events` for attributes like
+   `close: brace`, `close: element` or a close recognizer, else, case, call with `a0…a9`; `markup: true` on a recognizer
+   whose match is read by the BROWSER, e.g. `<frame src>`: it is then ignored inside an HTML comment, while a server
+   directive counts there too), `events` for attributes like
    Angular `(click)`, `dynamic` for server-written strings. Angular templates (`.html`): `*ngIf` → open with
    `close: element, guard: true`, with the groups `then`/`else` for `*ngIf="x; else other"`, and
    `<ng-template #other>` → a recognizer with `role: named` (group `name`, `close: element`); templates written in the

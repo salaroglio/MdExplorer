@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>La versione del motore: cambia quando cambia il modo di leggere le pagine, non il dialetto. 3 = il &lt;script src&gt;
         /// punta all'id del modulo JS legato al suo file (13/11/2026). 4 = un include scritto con altre maiuscole va al percorso vero
         /// del file (13/11/2026).</summary>
-        public const string EngineVersion = "4";
+        public const string EngineVersion = "5";
         public const int MaxSignatureLength = 200;
 
         private readonly DeclarativeLanguage _lang;
@@ -474,6 +474,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (Match m in r.Match.Matches(_text))
                 {
                     if (m.Length == 0) continue;
+                    // markup che legge il browser: dentro un commento HTML non c'è (16/11/2026, dal cliente: un frame commentato
+                    // dava un arco includes)
+                    if (r.Markup && InHtmlComment(m.Index)) continue;
                     Count(_page.Words, r.Id);
                     var end = m.Index + m.Length;
                     var argGroup = m.Groups["arg"];
@@ -615,6 +618,30 @@ namespace MdExplorer.Features.Services.CodeGraph
             private bool HasDirective(string s) => s != null && Rule.Dynamic != null && Rule.Dynamic.IsMatch(s);
 
             // -------------------------------------------------------------- HTML
+
+            private List<(int Start, int End)> _htmlComments;
+
+            /// <summary>La posizione sta dentro un commento HTML <c>&lt;!-- … --&gt;</c> (uno non chiuso arriva alla fine della pagina).</summary>
+            private bool InHtmlComment(int offset)
+            {
+                if (_htmlComments == null)
+                {
+                    _htmlComments = new List<(int, int)>();
+                    for (var i = _text.IndexOf("<!--", StringComparison.Ordinal); i >= 0;)
+                    {
+                        var close = _text.IndexOf("-->", i + 4, StringComparison.Ordinal);
+                        var end = close < 0 ? _text.Length : close + 3;
+                        _htmlComments.Add((i, end));
+                        i = end >= _text.Length ? -1 : _text.IndexOf("<!--", end, StringComparison.Ordinal);
+                    }
+                }
+                foreach (var (start, end) in _htmlComments)
+                {
+                    if (start > offset) break;
+                    if (offset > start && offset < end) return true;
+                }
+                return false;
+            }
 
             /// <summary>I tag di apertura (gli script con la fine del loro contenuto), fuori dai commenti.</summary>
             private List<(Tag Tag, int ContentEnd)> ReadTags()

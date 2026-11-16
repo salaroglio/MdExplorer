@@ -211,6 +211,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             public IReadOnlyList<int> ArgGroups { get; init; }
             /// <summary>Un <c>open</c> con condizione che nomina blocchi <c>named</c>: i gruppi <c>then</c> e <c>else</c>.</summary>
             public bool NamesBlocks { get; init; }
+            /// <summary>
+            /// <c>markup: true</c> (motore 5, 16/11/2026): ciò che riconosce lo legge il browser (un <c>&lt;frame src&gt;</c>), quindi
+            /// dentro un commento HTML non vale. Senza, la corrispondenza vale ovunque: una direttiva la esegue il server anche lì.
+            /// </summary>
+            public bool Markup { get; init; }
         }
 
         public const string BraceClose = "brace";
@@ -677,6 +682,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         Id = r.Id ?? $"{role.ToString().ToLowerInvariant()}#{i}", Role = role, Match = match, Close = r.Close, Guard = r.Guard,
                         Callee = string.IsNullOrWhiteSpace(r.Callee) ? null : r.Callee.Trim(), ArgGroups = argGroups, NamesBlocks = namesBlocks,
+                        Markup = r.Markup,
                     });
                 }
                 if (directive == null && recognizers.Count == 0) throw Fail("template: serve directive (forma a direttive) o recognizers (forma a riconoscitori)", "template: directive (directive form) or recognizers (recognizer form) is needed");
@@ -1001,6 +1007,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Close { get; set; }
                 public bool Guard { get; set; }
                 public string Callee { get; set; }
+                public bool Markup { get; set; }
             }
             public sealed class TemplateBlock
             {

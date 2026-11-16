@@ -166,6 +166,37 @@ var apri = function(x) { mostra(""popup.dettaglio""); };
         }
 
         [TestMethod]
+        public void Skip_inside_an_html_comment_what_a_recognizer_declares_as_markup()
+        {
+            // 16/11/2026, dal cliente: un frame dentro un commento HTML dava un arco includes. Ciò che legge il browser
+            // (markup: true) lì dentro non c'è; una direttiva che esegue il server vale anche dentro il commento
+            var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "pagine");
+            File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), @"schema: 1
+id: pagine
+name: Pagine
+version: 2
+extensions: [.page]
+template:
+  recognizers:
+    - role: include
+      match: '<frame\b[^>]*?\bsrc\s*=\s*""(?<arg>[^""]+)""'
+      markup: true
+    - role: include
+      match: '<!--\s*#include\s+file\s*=\s*""(?<arg>[^""]+)""\s*-->'
+");
+            Write("web/pagine/riquadri.page",
+                "<frame src=\"parti/testata.page\">\n<!-- <frame src=\"../altro/parti/admin.page\"> -->\n<!--\n  <frame src=\"ordini.page\">\n-->\n" +
+                "<!-- #include file=\"ordini.page\" -->\n");
+
+            var page = Read("web/pagine/riquadri.page");
+
+            Assert.AreEqual(0, page.Warnings.Count, string.Join("\n", page.Warnings));
+            CollectionAssert.AreEquivalent(new[] { Id("module", "web/pagine/parti/testata.page"), Id("module", "web/pagine/ordini.page") },
+                page.Script.Edges.Where(e => e.Relation == "includes").Select(e => e.TargetId).ToArray(),
+                "il frame vivo e la direttiva include (che è lei stessa un commento); non i due frame commentati");
+        }
+
+        [TestMethod]
         public void Link_included_pages_and_imported_scripts()
         {
             var page = Read();
