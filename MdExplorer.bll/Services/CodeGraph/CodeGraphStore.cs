@@ -236,7 +236,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         private async Task<string> QueryAsync(string sparql, CancellationToken ct)
         {
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
-            return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, string.Empty, string.Empty);
+            try { return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, string.Empty, string.Empty); }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // la scadenza del client HTTP arriva come un annullamento: detta così nessuno capisce che cosa è scaduto
+                throw new TimeoutException(UiText.Say("Fuseki non ha risposto in tempo a una lettura breve del grafo del codice: è occupato (un caricamento in corso?) o il grafo è molto grande. Riprova fra poco.",
+                    "Fuseki did not answer a short read of the code graph in time: it is busy (a load in progress?) or the graph is very large. Try again shortly."), ex);
+            }
         }
 
         private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, CancellationToken ct)
@@ -269,8 +275,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
             // Gli update costruiti dal writer portano già i PREFIX; quelli di stato no.
             var body = sparqlUpdate.StartsWith("PREFIX", StringComparison.Ordinal) ? sparqlUpdate : CodeOntology.SparqlPrefixes + sparqlUpdate;
-            await _client.UpdateAsync(baseUri, CodeOntology.Dataset, body, string.Empty, string.Empty);
+            try { await _client.UpdateAsync(baseUri, CodeOntology.Dataset, body, WriteTimeout, ct); }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                throw new CodeGraphWriteTimeoutException(body.Length, WriteTimeout, ex);
+            }
         }
+
+        /// <summary>
+        /// Il tempo di una scrittura nel grafo. Una scrittura è una transazione di TDB2 e può portare un lotto intero di script
+        /// (<see cref="BatchChars"/>): non è una domanda breve. Con i 15 secondi delle richieste brevi un progetto di oltre 2.000
+        /// script grossi non si caricava mai (17/11/2026, dal cliente): MdExplorer smetteva di aspettare, Fuseki continuava a
+        /// scrivere e il tentativo dopo lo trovava occupato.
+        /// </summary>
+        public static readonly TimeSpan WriteTimeout = TimeSpan.FromMinutes(10);
 
         private SemaphoreSlim GateFor(string projectPath) => _locks.GetOrAdd(Path.GetFullPath(projectPath), _ => new SemaphoreSlim(1, 1));
 
@@ -595,6 +613,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             catch (FusekiUnavailableException) { throw; }
             catch (OperationCanceledException) { throw; }
+            catch (CodeGraphWriteTimeoutException) { throw; }   // Fuseki sta ancora scrivendo: gli altri si metterebbero in coda dietro
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "[CodeGraph] lotto di {Count} script rifiutato da Fuseki", batch.Count);
@@ -619,6 +638,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             catch (FusekiUnavailableException) { throw; }
             catch (OperationCanceledException) { throw; }
+            catch (CodeGraphWriteTimeoutException) { throw; }   // Fuseki sta ancora scrivendo: gli altri si metterebbero in coda dietro
             catch (Exception ex)
             {
                 result.Error = $"'{rel}': {ex.Message}";
@@ -640,6 +660,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             catch (FusekiUnavailableException) { throw; }
             catch (OperationCanceledException) { throw; }
+            catch (CodeGraphWriteTimeoutException) { throw; }   // Fuseki sta ancora scrivendo: gli altri si metterebbero in coda dietro
             catch (Exception ex)
             {
                 result.Error = $"'{rel}': {ex.Message}";

@@ -42,6 +42,13 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         /// <summary>SPARQL Update (INSERT/DELETE) su <c>POST /{ds}/update</c>.</summary>
         Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain);
 
+        /// <summary>
+        /// Come <see cref="UpdateAsync(string, string, string, string, string)"/>, senza credenziali (il Fuseki di MdExplorer), con
+        /// il tempo deciso da chi scrive: un lotto di script è una transazione sola e su un grafo grande non sta nei 15 secondi
+        /// delle richieste brevi. L'annullamento ferma l'attesa, non la transazione già partita in Fuseki.
+        /// </summary>
+        Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, System.TimeSpan timeout, System.Threading.CancellationToken ct);
+
         /// <summary>Carica Turtle in un named graph via Graph Store Protocol
         /// (<c>POST /{ds}/data?graph=...</c>): append idempotente di triple.</summary>
         Task LoadGraphAsync(string baseUri, string dataset, string graphUri, string turtle, string username, string passwordPlain);

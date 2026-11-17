@@ -392,6 +392,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _navigationLoading = new(StringComparer.Ordinal);
         /// <summary>Il tempo per leggere tutti gli archi di un grafo grande.</summary>
         private static readonly TimeSpan NavigationTimeout = TimeSpan.FromMinutes(3);
+        /// <summary>
+        /// Il tempo dei conteggi su tutto il grafo (panoramica, numeri di un programma, rapporto): su un grafo grande i 15 secondi
+        /// delle domande brevi non bastano (17/11/2026, dal cliente: «report non scritto» su oltre 2.000 script).
+        /// </summary>
+        private static readonly TimeSpan WholeGraphTimeout = NavigationTimeout;
 
         public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
         {
@@ -860,30 +865,30 @@ namespace MdExplorer.Features.Services.CodeGraph
             var o = new CodeOverview();
             var counts = (await RowsAsync(
                 $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?sym) AS ?symbols) (COUNT(DISTINCT ?ext) AS ?externals) (COUNT(DISTINCT ?e) AS ?edges) (COUNT(DISTINCT ?d) AS ?described) (COUNT(DISTINCT ?fd) AS ?describedFiles) WHERE {{ GRAPH {g.DataIri} {{ " +
-                "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } UNION { ?fd a code:FileDescription } } }", ct)).FirstOrDefault();
+                "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } UNION { ?fd a code:FileDescription } } }", WholeGraphTimeout, ct)).FirstOrDefault();
             if (counts != null)
             {
                 o.Files = Count(counts, "files"); o.Symbols = Count(counts, "symbols"); o.ExternalSymbols = Count(counts, "externals");
                 o.Edges = Count(counts, "edges"); o.DescribedSymbols = Count(counts, "described");
                 o.DescribedFiles = Count(counts, "describedFiles");
             }
-            foreach (var r in await RowsAsync($"SELECT ?lang (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang", ct))
+            foreach (var r in await RowsAsync($"SELECT ?lang (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang", WholeGraphTimeout, ct))
                 o.SymbolsByLanguage[Str(r, "lang") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k }} }} GROUP BY ?k", ct))
+            foreach (var r in await RowsAsync($"SELECT ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k }} }} GROUP BY ?k", WholeGraphTimeout, ct))
                 o.SymbolsByKind[Str(r, "k") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel . {NotRejected}}} }} GROUP BY ?rel", ct))
+            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel . {NotRejected}}} }} GROUP BY ?rel", WholeGraphTimeout, ct))
                 o.EdgesByRelation[Str(r, "rel") ?? "?"] = Count(r, "n");
 
             var degrees = await RowsAsync(
                 $"SELECT ?s (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") {NotRejected}" +
-                "{ ?e code:source ?s } UNION { ?e code:target ?s } ?s code:kind ?k . FILTER(?k != \"external\") } } GROUP BY ?s ORDER BY DESC(?n) LIMIT 15", ct);
+                "{ ?e code:source ?s } UNION { ?e code:target ?s } ?s code:kind ?k . FILTER(?k != \"external\") } } GROUP BY ?s ORDER BY DESC(?n) LIMIT 15", WholeGraphTimeout, ct);
             var symbols = await SymbolsByIdsAsync(g, degrees.Select(r => SymbolId(r["s"])), ct);
             foreach (var r in degrees)
                 if (symbols.TryGetValue(SymbolId(r["s"]), out var s)) o.MostConnected.Add((s, Count(r, "n")));
 
             foreach (var r in await RowsAsync(
                 $"SELECT ?p ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p ; code:symbolCount ?n . " +
-                "OPTIONAL { ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } } } ORDER BY DESC(?n) LIMIT 10", ct))
+                "OPTIONAL { ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } } } ORDER BY DESC(?n) LIMIT 10", WholeGraphTimeout, ct))
                 o.LargestFiles.Add((Str(r, "p"), Count(r, "n"), Str(r, "sum")));
             return o;
         }
@@ -898,7 +903,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 $"{{ ?f a code:File ; code:path ?p . {under} }} " +
                 $"UNION {{ ?fd a code:FileDescription ; code:describes ?df . ?df code:path ?p . {under} }} " +
                 $"UNION {{ ?s a code:Symbol ; code:kind ?k ; code:path ?p . FILTER(?k != \"external\") {under} }} " +
-                $"UNION {{ ?d a code:Description ; code:describes ?ds . ?ds code:path ?p . {under} }} }} }}", ct)).FirstOrDefault();
+                $"UNION {{ ?d a code:Description ; code:describes ?ds . ?ds code:path ?p . {under} }} }} }}", WholeGraphTimeout, ct)).FirstOrDefault();
             return r == null ? new CodeProgramCounts() : new CodeProgramCounts
             {
                 Files = Count(r, "files"), DescribedFiles = Count(r, "describedFiles"), Symbols = Count(r, "symbols"), DescribedSymbols = Count(r, "described"),
@@ -992,19 +997,19 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             var data = new CodeReportData { Overview = await OverviewAsync(projectPath, ct) };
             const string undescribedWhere = "?s a code:Symbol ; code:kind ?k ; code:qualifiedName ?qn . FILTER(?k NOT IN (\"external\",\"module\",\"field\")) FILTER NOT EXISTS { ?d a code:Description ; code:describes ?s } OPTIONAL { ?s code:path ?p } OPTIONAL { ?s code:lineStart ?l }";
-            data.Undescribed = Count((await RowsAsync($"SELECT (COUNT(DISTINCT ?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {undescribedWhere} }} }}", ct)).FirstOrDefault() ?? new(), "n");
-            foreach (var r in await RowsAsync($"SELECT ?k ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ {undescribedWhere} }} }} ORDER BY ?p ?l LIMIT 40", ct))
+            data.Undescribed = Count((await RowsAsync($"SELECT (COUNT(DISTINCT ?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {undescribedWhere} }} }}", WholeGraphTimeout, ct)).FirstOrDefault() ?? new(), "n");
+            foreach (var r in await RowsAsync($"SELECT ?k ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ {undescribedWhere} }} }} ORDER BY ?p ?l LIMIT 40", WholeGraphTimeout, ct))
                 data.UndescribedList.Add(new[] { Str(r, "k"), Str(r, "qn"), Str(r, "p") ?? string.Empty, Str(r, "l") ?? string.Empty });
 
-            var conf = (await RowsAsync($"SELECT ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence ?conf0 . {EffectiveConfidence}}} }} GROUP BY ?conf", ct)).ToDictionary(r => Str(r, "conf"), r => Count(r, "n"));
+            var conf = (await RowsAsync($"SELECT ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence ?conf0 . {EffectiveConfidence}}} }} GROUP BY ?conf", WholeGraphTimeout, ct)).ToDictionary(r => Str(r, "conf"), r => Count(r, "n"));
             data.Ambiguous = conf.TryGetValue("ambiguous", out var amb) ? amb : 0;
             data.Inferred = conf.TryGetValue("inferred", out var inf) ? inf : 0;
             data.LlmResolved = conf.TryGetValue(CodeOntology.LlmResolved, out var llm) ? llm : 0;
             foreach (var r in await RowsAsync(
-                $"SELECT ?sq ?rel ?tq ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence \"ambiguous\" ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:path ?p . OPTIONAL {{ ?e code:line ?l }} ?a code:qualifiedName ?sq . ?b code:qualifiedName ?tq FILTER NOT EXISTS {{ ?rejectedBy code:rejects ?e }} FILTER NOT EXISTS {{ ?chosenBy code:chooses ?e }} }} }} ORDER BY ?p ?l LIMIT 30", ct))
+                $"SELECT ?sq ?rel ?tq ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:confidence \"ambiguous\" ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:path ?p . OPTIONAL {{ ?e code:line ?l }} ?a code:qualifiedName ?sq . ?b code:qualifiedName ?tq FILTER NOT EXISTS {{ ?rejectedBy code:rejects ?e }} FILTER NOT EXISTS {{ ?chosenBy code:chooses ?e }} }} }} ORDER BY ?p ?l LIMIT 30", WholeGraphTimeout, ct))
                 data.AmbiguousList.Add(new[] { Str(r, "sq"), Str(r, "rel"), Str(r, "tq"), Str(r, "p") ?? string.Empty, Str(r, "l") ?? string.Empty });
             foreach (var r in await RowsAsync(
-                $"SELECT ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?d a code:Description ; code:describes ?s ; code:signatureHash ?dh . ?s code:signatureHash ?sh ; code:qualifiedName ?qn . OPTIONAL {{ ?s code:bodyHash ?bh }} OPTIONAL {{ ?d code:bodyHash ?dbh }} FILTER(?dh != ?sh || (BOUND(?bh) && BOUND(?dbh) && ?bh != ?dbh)) OPTIONAL {{ ?s code:path ?p }} OPTIONAL {{ ?s code:lineStart ?l }} }} }} ORDER BY ?p ?l LIMIT 40", ct))
+                $"SELECT ?qn ?p ?l WHERE {{ GRAPH {g.DataIri} {{ ?d a code:Description ; code:describes ?s ; code:signatureHash ?dh . ?s code:signatureHash ?sh ; code:qualifiedName ?qn . OPTIONAL {{ ?s code:bodyHash ?bh }} OPTIONAL {{ ?d code:bodyHash ?dbh }} FILTER(?dh != ?sh || (BOUND(?bh) && BOUND(?dbh) && ?bh != ?dbh)) OPTIONAL {{ ?s code:path ?p }} OPTIONAL {{ ?s code:lineStart ?l }} }} }} ORDER BY ?p ?l LIMIT 40", WholeGraphTimeout, ct))
                 data.StaleList.Add(new[] { Str(r, "qn"), Str(r, "p") ?? string.Empty, Str(r, "l") ?? string.Empty });
             return data;
         }

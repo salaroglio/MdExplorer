@@ -15,6 +15,20 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int Line { get; }
     }
 
+    /// <summary>
+    /// Fuseki non ha finito una scrittura nel grafo entro il tempo dato. Non è un annullamento: la transazione può essere
+    /// ancora in corso, quindi il caricamento si ferma qui (i lotti dopo si metterebbero in coda dietro) e si dice che cosa fare.
+    /// </summary>
+    public sealed class CodeGraphWriteTimeoutException : TimeoutException
+    {
+        public CodeGraphWriteTimeoutException(int characters, TimeSpan timeout, Exception inner)
+            : base(UiText.Say($"Fuseki non ha finito una scrittura nel grafo del codice ({characters / 1_000_000.0:0.0} milioni di caratteri) in {timeout.TotalMinutes:0} minuti. La scrittura può essere ancora in corso: aspetta qualche minuto e rilancia l'analisi. Gli script sono su disco, non si perde niente.",
+                $"Fuseki did not finish a write to the code graph ({characters / 1_000_000.0:0.0} million characters) in {timeout.TotalMinutes:0} minutes. The write may still be running: wait a few minutes and run the analysis again. The scripts are on disk, nothing is lost."), inner)
+        { Characters = characters; Timeout = timeout; }
+        public int Characters { get; }
+        public TimeSpan Timeout { get; }
+    }
+
     /// <summary><c>Rule</c>: gli archi prodotti da una regola di arricchimento (D42), in <c>.mde-code/_rules/</c>.</summary>
     public enum CodeScriptKind { Ast, Doc, Rule }
 

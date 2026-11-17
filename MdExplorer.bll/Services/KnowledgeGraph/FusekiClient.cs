@@ -173,6 +173,20 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
                 throw new FusekiRequestException("update", (int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
 
+        public async Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, TimeSpan timeout, System.Threading.CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
+            if (string.IsNullOrWhiteSpace(sparqlUpdate)) throw new ArgumentException("SPARQL update is required", nameof(sparqlUpdate));
+
+            using var http = CreateClient(null, null);
+            http.Timeout = timeout;
+            var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/update";
+            using var content = new StringContent(sparqlUpdate, Encoding.UTF8, "application/sparql-update");
+            using var resp = await http.PostAsync(url, content, ct);
+            if (!resp.IsSuccessStatusCode)
+                throw new FusekiRequestException("update", (int)resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+        }
+
         public async Task LoadGraphAsync(string baseUri, string dataset, string graphUri, string turtle, string username, string passwordPlain)
         {
             if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
