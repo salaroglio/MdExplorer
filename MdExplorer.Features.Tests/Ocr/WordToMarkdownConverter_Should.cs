@@ -1,8 +1,11 @@
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Features.Services.Ocr;
+using MdExplorer.Features.Services.SourceMapping;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace MdExplorer.Features.Tests.Ocr
@@ -152,6 +155,103 @@ namespace MdExplorer.Features.Tests.Ocr
             var result = WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img");
 
             StringAssert.Contains(result.Markdown, "1. Primo requisito");
+        }
+
+        [TestMethod]
+        public void TurnTheWordIndexIntoANestedListWithoutPageNumbers()
+        {
+            var result = WordToMarkdownConverter.Convert(DocumentWithIndex(), Path.Combine(_folder, "img"), "/img");
+
+            StringAssert.Contains(result.Markdown, "**Sommario**");
+            StringAssert.Contains(result.Markdown, "- [1 Introduzione](#introduzione)\n  - [1.1 Scopo](#scopo)\n- [2 Requisiti (bozza)](#requisiti-bozza)");
+            Assert.AreEqual(0, result.Warnings.Count, string.Join(" | ", result.Warnings));
+        }
+
+        [TestMethod]
+        public void MakeEveryInternalLinkLandOnAnAnchorOfTheRenderedPage()
+        {
+            var result = WordToMarkdownConverter.Convert(DocumentWithIndex(), Path.Combine(_folder, "img"), "/img");
+
+            var page = Markdig.Markdown.ToHtml(result.Markdown, DocumentViewPipeline.Build(null));
+            var targets = Regex.Matches(result.Markdown, @"\]\(#([^)]+)\)").Select(m => m.Groups[1].Value).Distinct().ToList();
+            CollectionAssert.AreEquivalent(new[] { "introduzione", "scopo", "requisiti-bozza", "_Ref201" }, targets);
+            foreach (var target in targets)
+            {
+                StringAssert.Contains(page, $"id=\"{target}\"", $"il link #{target} non ha un bersaglio nella pagina");
+            }
+            // Un segnalibro che nessuno cita non lascia traccia.
+            Assert.IsFalse(result.Markdown.Contains("_Toc"), result.Markdown);
+        }
+
+        [TestMethod]
+        public void WarnAboutALinkWhoseBookmarkIsMissing()
+        {
+            var docx = Path.Combine(_folder, "appeso.docx");
+            using (var word = WordprocessingDocument.Create(docx, WordprocessingDocumentType.Document))
+            {
+                word.AddMainDocumentPart().Document = new Document(new Body(new Paragraph(
+                    new Hyperlink(new Run(new Text("vedi oltre"))) { Anchor = "_Ref999" })));
+            }
+
+            var result = WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img");
+
+            StringAssert.Contains(result.Markdown, "[vedi oltre](#_Ref999)");
+            Assert.AreEqual(1, result.Warnings.Count);
+            StringAssert.Contains(result.Warnings[0], "_Ref999");
+        }
+
+        // Indice di Word (titolo, due livelli, numeri di pagina), tre titoli con segnalibro, un rimando a un
+        // titolo e uno a un punto dentro un paragrafo.
+        private string DocumentWithIndex()
+        {
+            var docx = Path.Combine(_folder, "indice.docx");
+            using (var word = WordprocessingDocument.Create(docx, WordprocessingDocumentType.Document))
+            {
+                var main = word.AddMainDocumentPart();
+                main.AddNewPart<StyleDefinitionsPart>().Styles = new Styles(
+                    NamedStyle("Heading1", "heading 1"), NamedStyle("Heading2", "heading 2"),
+                    NamedStyle("TOCHeading", "TOC Heading"), NamedStyle("TOC1", "toc 1"), NamedStyle("TOC2", "toc 2"));
+                main.Document = new Document(new Body(
+                    Styled("TOCHeading", new Run(new Text("Sommario"))),
+                    IndexEntry("TOC1", "1", "Introduzione", "_Toc100", "3"),
+                    IndexEntry("TOC2", "1.1", "Scopo", "_Toc101", "3"),
+                    IndexEntry("TOC1", "2", "Requisiti (bozza)", "_Toc102", "4"),
+                    Styled("Heading1", new BookmarkStart { Id = "1", Name = "_Toc100" }, new Run(new Text("Introduzione")), new BookmarkEnd { Id = "1" }),
+                    Styled("Heading2", new BookmarkStart { Id = "2", Name = "_Toc101" }, new Run(new Text("Scopo")), new BookmarkEnd { Id = "2" }),
+                    new Paragraph(
+                        new Run(new Text("Come detto in ") { Space = SpaceProcessingModeValues.Preserve }),
+                        new Hyperlink(new Run(new Text("Requisiti (bozza)"))) { Anchor = "_Ref200" },
+                        new Run(new Text(" e nella ") { Space = SpaceProcessingModeValues.Preserve }),
+                        new Hyperlink(new Run(new Text("Tabella 1"))) { Anchor = "_Ref201" }),
+                    Styled("Heading1",
+                        new BookmarkStart { Id = "3", Name = "_Toc102" }, new BookmarkStart { Id = "4", Name = "_Ref200" },
+                        new Run(new Text("Requisiti (bozza)")), new BookmarkEnd { Id = "3" }, new BookmarkEnd { Id = "4" }),
+                    new Paragraph(
+                        new BookmarkStart { Id = "5", Name = "_Ref201" }, new Run(new Text("Tabella 1")), new BookmarkEnd { Id = "5" },
+                        new Run(new Text(" Elenco delle prove") { Space = SpaceProcessingModeValues.Preserve })),
+                    Styled("Heading1", new BookmarkStart { Id = "6", Name = "_Toc103" }, new Run(new Text("Appendice")), new BookmarkEnd { Id = "6" })));
+            }
+            return docx;
+        }
+
+        private static Style NamedStyle(string id, string name)
+        {
+            return new Style(new StyleName { Val = name }) { Type = StyleValues.Paragraph, StyleId = id };
+        }
+
+        private static Paragraph Styled(string styleId, params OpenXmlElement[] content)
+        {
+            var paragraph = new Paragraph(new ParagraphProperties(new ParagraphStyleId { Val = styleId }));
+            paragraph.Append(content);
+            return paragraph;
+        }
+
+        // Come le scrive Word: numero, tabulazione, titolo, tabulazione, pagina, tutto dentro il collegamento.
+        private static Paragraph IndexEntry(string styleId, string number, string title, string bookmark, string page)
+        {
+            return Styled(styleId, new Hyperlink(
+                new Run(new Text(number)), new Run(new TabChar()), new Run(new Text(title)),
+                new Run(new TabChar()), new Run(new Text(page))) { Anchor = bookmark });
         }
 
         private string TwoListsClaimingRequisito(int? styleNumId)

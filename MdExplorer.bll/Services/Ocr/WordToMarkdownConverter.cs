@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Services.Ocr
 {
@@ -18,15 +17,12 @@ namespace MdExplorer.Features.Services.Ocr
     /// <para>
     /// Due tappe, le stesse di MarkItDown di Microsoft: Mammoth porta il documento in HTML seguendo
     /// gli stili (Titolo 1 → h1, elenchi, tabelle), ReverseMarkdown porta l'HTML in markdown. Le
-    /// immagini escono come file nella cartella indicata, non come dati dentro il markdown.
+    /// immagini escono come file nella cartella indicata, non come dati dentro il markdown. L'indice
+    /// e i rimandi interni restano attivi: puntano alle ancore dei titoli.
     /// </para>
     /// </summary>
     public static class WordToMarkdownConverter
     {
-        // Ogni titolo di Word porta un segnalibro: in HTML è un'ancora vuota, in markdown diventerebbe «[]()».
-        private static readonly Regex EmptyAnchor =
-            new Regex(@"<a\s+id=""[^""]*""\s*>\s*</a>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
         /// <param name="docxPath">Il documento Word.</param>
         /// <param name="imagesDirectory">Dove scrivere le immagini del documento; creata solo se ce ne sono.</param>
         /// <param name="imagesLinkPrefix">Come il markdown indirizza quella cartella (termina senza «/»).</param>
@@ -39,7 +35,8 @@ namespace MdExplorer.Features.Services.Ocr
             }
 
             var result = new WordToMarkdownResult();
-            var converter = new Mammoth.DocumentConverter().ImageConverter(image =>
+            var links = new WordLinkRepair(result.Warnings);
+            var converter = new Mammoth.DocumentConverter().AddStyleMap(WordLinkRepair.StyleMap).ImageConverter(image =>
             {
                 Directory.CreateDirectory(imagesDirectory);
                 result.Images++;
@@ -67,14 +64,15 @@ namespace MdExplorer.Features.Services.Ocr
                 result.Warnings.Add(warning);
             }
 
-            var cleanHtml = EmptyAnchor.Replace(html.Value, string.Empty);
+            // Segnalibri e indice: i rimandi di Word vanno portati sulle ancore dei titoli (WordLinkRepair).
+            var cleanHtml = links.PrepareHtml(html.Value);
             var markdown = new ReverseMarkdown.Converter(new ReverseMarkdown.Config
             {
                 GithubFlavored = true,
                 RemoveComments = true
             }).Convert(cleanHtml);
 
-            result.Markdown = markdown.Replace("\r\n", "\n").Trim() + "\n";
+            result.Markdown = links.FinishMarkdown(markdown.Replace("\r\n", "\n")).Trim() + "\n";
             return result;
         }
 
