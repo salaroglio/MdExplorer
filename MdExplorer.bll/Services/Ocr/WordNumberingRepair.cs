@@ -12,9 +12,9 @@ namespace MdExplorer.Features.Services.Ocr
     /// <para>
     /// Uno stile numerato dice lui quale elenco usa (in styles.xml); l'elenco a sua volta porta il nome
     /// dello stile su uno dei suoi livelli (in numbering.xml). Dopo un copia/incolla fra documenti capita
-    /// che DUE elenchi portino lo stesso nome: Word guarda lo stile e non si confonde, Mammoth indicizza
+    /// che due elenchi, o due livelli dello stesso elenco, portino lo stesso nome: Word guarda lo stile e non si confonde, Mammoth indicizza
     /// gli elenchi per nome dello stile e si ferma sulla chiave doppia. Qui si fa come Word: il nome resta
-    /// solo sull'elenco che lo stile indica.
+    /// solo sul livello che lo stile indica.
     /// </para>
     /// </summary>
     public static class WordNumberingRepair
@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Services.Ocr
                     .Select(level => level.Element(w + "pStyle"))
                     .Where(link => link?.Attribute(w + "val") != null)
                     .GroupBy(link => link.Attribute(w + "val").Value)
-                    .Where(links => links.Select(link => link.Parent.Parent).Distinct().Count() > 1)
+                    .Where(links => links.Count() > 1)
                     .ToList();
                 if (contended.Count == 0)
                 {
@@ -61,13 +61,12 @@ namespace MdExplorer.Features.Services.Ocr
 
                 foreach (var links in contended)
                 {
-                    var owner = OwnerOf(links.Key, styles, numbering, w);
-                    var ownLinks = links.Where(link => link.Parent.Parent == owner).ToList();
-                    if (ownLinks.Count != 1)
+                    var ownLevel = LevelOf(links.Key, styles, numbering, w);
+                    if (!links.Any(link => link.Parent == ownLevel))
                     {
                         throw Ambiguous(links.Key);
                     }
-                    foreach (var link in links.Where(link => link.Parent.Parent != owner).ToList())
+                    foreach (var link in links.Where(link => link.Parent != ownLevel).ToList())
                     {
                         link.Remove();
                     }
@@ -91,15 +90,19 @@ namespace MdExplorer.Features.Services.Ocr
             return copy;
         }
 
-        // L'elenco che lo stile indica: stile (o lo stile da cui deriva) → numId → num → abstractNum; se
-        // quell'abstractNum rimanda a uno stile di elenco (numStyleLink), vale l'abstractNum che lo definisce.
-        private static XElement OwnerOf(string styleId, XDocument styles, XDocument numbering, XNamespace w)
+        // Il livello di elenco che lo stile indica: stile (o gli stili da cui deriva) → numId e ilvl → num →
+        // abstractNum → livello; se quell'abstractNum rimanda a uno stile di elenco (numStyleLink), vale
+        // l'abstractNum che lo definisce.
+        private static XElement LevelOf(string styleId, XDocument styles, XDocument numbering, XNamespace w)
         {
-            var numId = NumIdOf(styleId, styles, w);
+            // Elenco e livello si ereditano ciascuno per conto suo: uno stile che deriva da «Titolo 2» e
+            // cambia solo l'elenco resta al livello di «Titolo 2».
+            var numId = InheritedNumbering(styleId, "numId", styles, w);
             if (numId == null)
             {
                 throw Ambiguous(styleId);
             }
+            var levelIndex = InheritedNumbering(styleId, "ilvl", styles, w) ?? "0";
 
             var abstractNumId = numbering.Root.Elements(w + "num")
                 .Where(num => (string)num.Attribute(w + "numId") == numId)
@@ -121,10 +124,17 @@ namespace MdExplorer.Features.Services.Ocr
                     throw Ambiguous(styleId);
                 }
             }
-            return owner;
+
+            var levels = owner.Elements(w + "lvl").Where(level => (string)level.Attribute(w + "ilvl") == levelIndex).ToList();
+            if (levels.Count != 1)
+            {
+                throw Ambiguous(styleId);
+            }
+            return levels[0];
         }
 
-        private static string NumIdOf(string styleId, XDocument styles, XNamespace w)
+        // Il valore di numPr/«property» dello stile o, se non lo dichiara, del primo stile da cui deriva che lo fa.
+        private static string InheritedNumbering(string styleId, string property, XDocument styles, XNamespace w)
         {
             var seen = new HashSet<string>();
             while (styles != null && styleId != null && seen.Add(styleId))
@@ -135,10 +145,10 @@ namespace MdExplorer.Features.Services.Ocr
                 {
                     return null;
                 }
-                var numId = (string)style.Element(w + "pPr")?.Element(w + "numPr")?.Element(w + "numId")?.Attribute(w + "val");
-                if (numId != null)
+                var value = (string)style.Element(w + "pPr")?.Element(w + "numPr")?.Element(w + property)?.Attribute(w + "val");
+                if (value != null)
                 {
-                    return numId;
+                    return value;
                 }
                 styleId = (string)style.Element(w + "basedOn")?.Attribute(w + "val");
             }
@@ -148,9 +158,9 @@ namespace MdExplorer.Features.Services.Ocr
         private static InvalidDataException Ambiguous(string styleId)
         {
             return new InvalidDataException(UiText.Say(
-                $"Nel Word più elenchi numerati dichiarano lo stile «{styleId}» e lo stile non dice quale usa. " +
+                $"Nel Word più livelli di elenco numerato dichiarano lo stile «{styleId}» e lo stile non dice quale usa. " +
                 $"Apri il documento in Word, riapplica la numerazione allo stile «{styleId}», salva e riprova.",
-                $"In the Word document several numbered lists claim the style \"{styleId}\" and the style does not say which one it uses. " +
+                $"In the Word document several numbered list levels claim the style \"{styleId}\" and the style does not say which one it uses. " +
                 $"Open the document in Word, apply the numbering to the style \"{styleId}\" again, save and retry."));
         }
 

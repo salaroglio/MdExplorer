@@ -82,6 +82,78 @@ namespace MdExplorer.Features.Tests.Ocr
             StringAssert.Contains(error.Message, "Requisito");
         }
 
+        [TestMethod]
+        public void NumberAStyleClaimedByTwoLevelsOfTheSameList()
+        {
+            var docx = Path.Combine(_folder, "livelli.docx");
+            using (var word = WordprocessingDocument.Create(docx, WordprocessingDocumentType.Document))
+            {
+                var main = word.AddMainDocumentPart();
+                main.Document = new Document(new Body(new Paragraph(
+                    new ParagraphProperties(new ParagraphStyleId { Val = "Requisito" }),
+                    new Run(new Text("Primo requisito")))));
+                main.AddNewPart<StyleDefinitionsPart>().Styles = new Styles(
+                    new Style(
+                        new StyleName { Val = "Requisito" },
+                        new StyleParagraphProperties(new NumberingProperties(
+                            new NumberingLevelReference { Val = 1 },
+                            new NumberingId { Val = 1 }))) { Type = StyleValues.Paragraph, StyleId = "Requisito" });
+                main.AddNewPart<NumberingDefinitionsPart>().Numbering = new Numbering(
+                    new AbstractNum(
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Bullet },
+                            new ParagraphStyleIdInLevel { Val = "Requisito" }) { LevelIndex = 0 },
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Decimal },
+                            new ParagraphStyleIdInLevel { Val = "Requisito" }) { LevelIndex = 1 }) { AbstractNumberId = 0 },
+                    new NumberingInstance(new AbstractNumId { Val = 0 }) { NumberID = 1 });
+            }
+
+            var result = WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img");
+
+            // Lo stile indica il livello 1 (numerato), non lo 0 (puntato).
+            StringAssert.Contains(result.Markdown, "1. Primo requisito");
+        }
+
+        [TestMethod]
+        public void TakeTheLevelFromTheParentStyle_WhenTheStyleOnlyNamesTheList()
+        {
+            // «Requisito» deriva da «Heading2» (livello 1 di un altro elenco) e dichiara solo il suo elenco:
+            // il livello resta quello ereditato, 1 (numerato), non lo 0 (puntato).
+            var docx = Path.Combine(_folder, "ereditato.docx");
+            using (var word = WordprocessingDocument.Create(docx, WordprocessingDocumentType.Document))
+            {
+                var main = word.AddMainDocumentPart();
+                main.Document = new Document(new Body(new Paragraph(
+                    new ParagraphProperties(new ParagraphStyleId { Val = "Requisito" }),
+                    new Run(new Text("Primo requisito")))));
+                main.AddNewPart<StyleDefinitionsPart>().Styles = new Styles(
+                    new Style(
+                        new StyleName { Val = "heading 2" },
+                        new StyleParagraphProperties(new NumberingProperties(
+                            new NumberingLevelReference { Val = 1 },
+                            new NumberingId { Val = 1 }))) { Type = StyleValues.Paragraph, StyleId = "Heading2" },
+                    new Style(
+                        new StyleName { Val = "Requisito" },
+                        new BasedOn { Val = "Heading2" },
+                        new StyleParagraphProperties(new NumberingProperties(
+                            new NumberingId { Val = 7 }))) { Type = StyleValues.Paragraph, StyleId = "Requisito" });
+                main.AddNewPart<NumberingDefinitionsPart>().Numbering = new Numbering(
+                    new AbstractNum(
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Decimal }) { LevelIndex = 0 },
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Decimal }) { LevelIndex = 1 }) { AbstractNumberId = 0 },
+                    new AbstractNum(
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Bullet },
+                            new ParagraphStyleIdInLevel { Val = "Requisito" }) { LevelIndex = 0 },
+                        new Level(new NumberingFormat { Val = NumberFormatValues.Decimal },
+                            new ParagraphStyleIdInLevel { Val = "Requisito" }) { LevelIndex = 1 }) { AbstractNumberId = 45 },
+                    new NumberingInstance(new AbstractNumId { Val = 0 }) { NumberID = 1 },
+                    new NumberingInstance(new AbstractNumId { Val = 45 }) { NumberID = 7 });
+            }
+
+            var result = WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img");
+
+            StringAssert.Contains(result.Markdown, "1. Primo requisito");
+        }
+
         private string TwoListsClaimingRequisito(int? styleNumId)
         {
             var docx = Path.Combine(_folder, "requisiti.docx");
