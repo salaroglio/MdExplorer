@@ -65,7 +65,8 @@ namespace MdExplorer.Features.Services.Ocr
             }
 
             // Segnalibri e indice: i rimandi di Word vanno portati sulle ancore dei titoli (WordLinkRepair).
-            var cleanHtml = links.PrepareHtml(html.Value);
+            // Prima le tabelle che in markdown non reggono (WordTableCards): i titoli delle schede sono titoli come gli altri.
+            var cleanHtml = links.PrepareHtml(WordTableCards.Apply(html.Value, result.Warnings));
             var markdown = new ReverseMarkdown.Converter(new ReverseMarkdown.Config
             {
                 GithubFlavored = true,

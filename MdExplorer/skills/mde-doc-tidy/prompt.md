@@ -2,7 +2,7 @@
 description: "Prompt usato da Mark dopo la conversione di un Word in markdown: guarda un'immagine del documento e dice se è uno schema (e lo ridisegna in PlantUML) o la descrive."
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -28,7 +28,7 @@ tell MdExplorer what it is. You do not edit any file: MdExplorer writes the docu
 3. Answer with these parts only, in this order, and nothing before or after them:
 
 ```
-KIND: diagram | screenshot | photo | decorative
+KIND: diagram | text | screenshot | photo | decorative
 TITLE: one line, at most 12 words, no square brackets
 (only for a diagram you can reproduce) a fenced plantuml block
 DESCRIPTION:
@@ -39,6 +39,8 @@ How to choose KIND:
 
 - `diagram` — boxes and arrows, a flow, a sequence, an architecture, classes, a data model, states,
   a deployment, a mind map, an organisation chart, a timeline or Gantt.
+- `text` — the image is mostly written text: a scanned or pasted page, a paragraph, a list, a table of
+  words or numbers, a piece of code, a formula, a message. If reading it gives you everything it says, it is `text`.
 - `screenshot` — a picture of a program window, a web page, a form, a terminal.
 - `photo` — a photograph, a drawing, a map, a floor plan, a chart of numbers, anything else with content.
 - `decorative` — a logo, an icon, a separator, a background: nothing a reader needs described.
@@ -55,7 +57,15 @@ The PlantUML block (only when KIND is `diagram`):
 - Keep it sober: `!theme plain` or no theme, no colours unless the image uses colour to mean something.
 - Never write three backticks in a row inside the diagram.
 
-The DESCRIPTION (always, except for `decorative`):
+The DESCRIPTION when KIND is `text` is the TRANSCRIPTION of the image, not a description of it:
+
+- Copy the text exactly as written, in its own language, word for word. Do not summarise, translate,
+  correct or comment. Keep the order and the line breaks that matter (paragraphs, list items).
+- A table becomes a markdown table with the same rows and columns. A list becomes a markdown list.
+  Code becomes a fenced code block (open and close it).
+- No markdown headings, no HTML tags. What cannot be read is written as `[illeggibile]`, never guessed.
+
+The DESCRIPTION for the other kinds (always, except for `decorative`):
 
 - Plain sentences, no markdown headings, no code blocks, no HTML tags.
 - Say what the image shows so that a reader who cannot see it understands it: the elements, how they are

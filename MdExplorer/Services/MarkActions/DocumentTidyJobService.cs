@@ -98,7 +98,7 @@ namespace MdExplorer.Services.MarkActions
         {
             var ct = cts.Token;
             var documentName = Path.GetFileName(documentFullPath);
-            int redrawn = 0, described = 0, captioned = 0, skipped = 0, failed = 0;
+            int redrawn = 0, described = 0, transcribed = 0, captioned = 0, skipped = 0, failed = 0;
             try
             {
                 if (PathContainment.RelativeOrNull(projectPath, documentFullPath) == null || !File.Exists(documentFullPath))
@@ -164,10 +164,13 @@ namespace MdExplorer.Services.MarkActions
                     {
                         case DocumentImageTidier.Redrawn: redrawn++; break;
                         case DocumentImageTidier.Described: described++; break;
+                        case DocumentImageTidier.Transcribed: transcribed++; break;
                         case DocumentImageTidier.Captioned: captioned++; break;
                         case DocumentImageTidier.Skipped: skipped++; break;
                         default: failed++; break;
                     }
+                    // Una riga per immagine: è da qui che si capisce perché uno schema non è stato ridisegnato.
+                    _logger.LogInformation("[DocumentTidy] {Document}: {Image} -> {Action}: {Comment}", documentName, path, action, comment);
                     await SendAsync(connectionId, new { phase = "comment", index = i + 1, total = todo.Count, image = path, action, text = $"{label}: {comment}" });
                 }
 
@@ -177,10 +180,11 @@ namespace MdExplorer.Services.MarkActions
                     document = documentName,
                     redrawn,
                     described,
+                    transcribed,
                     captioned,
                     skipped,
                     failed,
-                    text = Summary(redrawn, described, captioned, skipped, failed),
+                    text = Summary(redrawn, described, transcribed, captioned, skipped, failed),
                 });
                 _logger.LogInformation("[DocumentTidy] {Document}: ridisegnate {R}, descritte {D}, con testo alternativo {C}, lasciate {S}, non riuscite {F}",
                     documentName, redrawn, described, captioned, skipped, failed);
@@ -201,11 +205,12 @@ namespace MdExplorer.Services.MarkActions
             }
         }
 
-        private static string Summary(int redrawn, int described, int captioned, int skipped, int failed)
+        private static string Summary(int redrawn, int described, int transcribed, int captioned, int skipped, int failed)
         {
             var parts = new List<string>();
             if (redrawn > 0) parts.Add(UiText.Say($"{redrawn} ridisegnate in PlantUML", $"{redrawn} redrawn in PlantUML"));
             if (described > 0) parts.Add(UiText.Say($"{described} descritte", $"{described} described"));
+            if (transcribed > 0) parts.Add(UiText.Say($"{transcribed} trascritte", $"{transcribed} transcribed"));
             if (captioned > 0) parts.Add(UiText.Say($"{captioned} con il testo alternativo", $"{captioned} given an alternative text"));
             if (skipped > 0) parts.Add(UiText.Say($"{skipped} lasciate com'erano", $"{skipped} left as they were"));
             if (failed > 0) parts.Add(UiText.Say($"{failed} non riuscite", $"{failed} not done"));

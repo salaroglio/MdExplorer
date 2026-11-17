@@ -28,6 +28,9 @@ namespace MdExplorer.Features.Services.Ocr
         public const string Photo = "photo";
         public const string Decorative = "decorative";
 
+        /// <summary>Un'immagine che è soprattutto testo (una pagina, una tabella, del codice): la DESCRIPTION è la trascrizione.</summary>
+        public const string Text = "text";
+
         private static readonly Regex KindLine = new Regex(@"^\s*KIND:\s*(\w+)\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
         private static readonly Regex TitleLine = new Regex(@"^\s*TITLE:\s*(.+?)\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
         private static readonly Regex DescriptionPart = new Regex(@"^\s*DESCRIPTION:\s*(.*)\z", RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase);
@@ -51,9 +54,9 @@ namespace MdExplorer.Features.Services.Ocr
                 throw new FormatException("manca la riga KIND:");
             }
             var verdict = new ImageVerdict { Kind = kind.Groups[1].Value.ToLowerInvariant() };
-            if (verdict.Kind != Diagram && verdict.Kind != Screenshot && verdict.Kind != Photo && verdict.Kind != Decorative)
+            if (verdict.Kind != Diagram && verdict.Kind != Screenshot && verdict.Kind != Photo && verdict.Kind != Decorative && verdict.Kind != Text)
             {
-                throw new FormatException($"KIND «{verdict.Kind}» non è fra diagram, screenshot, photo, decorative");
+                throw new FormatException($"KIND «{verdict.Kind}» non è fra diagram, text, screenshot, photo, decorative");
             }
             if (verdict.Kind == Decorative)
             {
@@ -73,9 +76,21 @@ namespace MdExplorer.Features.Services.Ocr
             {
                 throw new FormatException("manca la parte DESCRIPTION:");
             }
-            if (verdict.Description.IndexOf("</details", StringComparison.OrdinalIgnoreCase) >= 0 || verdict.Description.Contains("```"))
+            if (verdict.Description.IndexOf("</details", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                throw new FormatException("la DESCRIPTION contiene un blocco di codice o un </details>: deve essere solo testo");
+                throw new FormatException("la DESCRIPTION contiene un </details>");
+            }
+            // Una trascrizione può portare del codice; un blocco lasciato aperto si mangerebbe il resto del documento.
+            var fences = Regex.Matches(verdict.Description, @"^\s*```", RegexOptions.Multiline).Count;
+            if (verdict.Kind == Text ? fences % 2 != 0 : fences > 0)
+            {
+                throw new FormatException(verdict.Kind == Text
+                    ? "nella trascrizione un blocco di codice resta aperto"
+                    : "la DESCRIPTION contiene un blocco di codice: deve essere solo testo");
+            }
+            if (verdict.Kind == Text)
+            {
+                return verdict;
             }
 
             var beforeDescription = description.Success ? answer.Substring(0, description.Index) : answer;
@@ -171,6 +186,16 @@ namespace MdExplorer.Features.Services.Ocr
             RequireStandalone(image);
             var block = ImageText(image, verdict) + "\n\n"
                 + "<details>\n<summary>" + UiText.Say("Descrizione dell'immagine", "Image description") + "</summary>\n\n"
+                + verdict.Description + "\n\n</details>";
+            return Replace(markdown, image, block);
+        }
+
+        /// <summary>L'immagine resta; sotto, ripiegato, il testo che contiene, trascritto.</summary>
+        public static string WithTranscription(string markdown, DocumentImage image, ImageVerdict verdict)
+        {
+            RequireStandalone(image);
+            var block = ImageText(image, verdict) + "\n\n"
+                + "<details>\n<summary>" + UiText.Say("Testo dell'immagine", "Text of the image") + "</summary>\n\n"
                 + verdict.Description + "\n\n</details>";
             return Replace(markdown, image, block);
         }

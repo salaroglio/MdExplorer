@@ -22,6 +22,7 @@ namespace MdExplorer.Features.Services.Ocr
     {
         public const string Redrawn = "plantuml";
         public const string Described = "described";
+        public const string Transcribed = "transcribed";
         public const string Captioned = "captioned";
         public const string Skipped = "skipped";
         public const string Failed = "failed";
@@ -81,6 +82,12 @@ namespace MdExplorer.Features.Services.Ocr
             {
                 await WriteAsync(_documentFullPath, imagePath, (text, current) => DocumentImageTidy.WithAlternativeText(text, current, verdict), ct);
                 return (Captioned, UiText.Say($"sta in mezzo al testo, le ho dato il testo alternativo «{verdict.Title}».", $"it sits inside the text, I gave it the alternative text \"{verdict.Title}\"."));
+            }
+
+            if (verdict.Kind == ImageVerdict.Text)
+            {
+                await WriteAsync(_documentFullPath, imagePath, (text, current) => DocumentImageTidy.WithTranscription(text, current, verdict), ct);
+                return (Transcribed, UiText.Say($"«{verdict.Title}» è un'immagine di testo: l'ho trascritta sotto l'immagine, ripiegata.", $"\"{verdict.Title}\" is an image of text: I transcribed it under the image, folded."));
             }
 
             string whyNotDiagram = null;

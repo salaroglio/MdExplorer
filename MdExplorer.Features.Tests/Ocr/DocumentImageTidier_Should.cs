@@ -133,6 +133,16 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         [TestMethod]
+        public async Task TranscribeAnImageOfText()
+        {
+            var (action, _) = await Tidier("KIND: text\nTITLE: Avviso\nDESCRIPTION:\nIl negozio resta chiuso lunedì.").TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.Transcribed, action);
+            StringAssert.Contains(File.ReadAllText(_document), "![Avviso](/assets/doc_img/img1.png)\n\n<details>");
+            StringAssert.Contains(File.ReadAllText(_document), "Il negozio resta chiuso lunedì.\n\n</details>");
+        }
+
+        [TestMethod]
         public async Task RefuseAnImageOutsideTheProject()
         {
             File.WriteAllText(_document, "![](../../fuori.png)\n");

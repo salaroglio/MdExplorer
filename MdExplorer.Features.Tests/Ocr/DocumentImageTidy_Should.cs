@@ -69,6 +69,21 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         [TestMethod]
+        public void PutTheTranscriptionOfATextImageUnderIt_TablesAndCodeIncluded()
+        {
+            var image = DocumentImageTidy.Find(Document)[0];
+            var verdict = Verdict("KIND: text\nTITLE: Listino prezzi\nDESCRIPTION:\n| Voce | Prezzo |\n| --- | --- |\n| Vite | 2 |\n\n```\nsconto = 10\n```");
+
+            var result = DocumentImageTidy.WithTranscription(Document, image, verdict);
+
+            StringAssert.Contains(result, "![Listino prezzi](assets/doc_img/img1.png)\n\n<details>\n<summary>");
+            StringAssert.Contains(result, "</summary>\n\n| Voce | Prezzo |\n| --- | --- |\n| Vite | 2 |\n\n```\nsconto = 10\n```\n\n</details>\n\nPoi c'è il logo");
+            Assert.IsTrue(DocumentImageTidy.Find(result).Single(i => i.Path.EndsWith("img1.png")).Treated);
+            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+                () => Verdict("KIND: text\nTITLE: x\nDESCRIPTION:\n```\naperto")).Message, "aperto");
+        }
+
+        [TestMethod]
         public void ReadADecorativeVerdictWithoutAnythingElse()
         {
             Assert.AreEqual(ImageVerdict.Decorative, Verdict("KIND: decorative").Kind);
