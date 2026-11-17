@@ -25,10 +25,12 @@ namespace MdExplorer.Controllers.MarkActions
     public class MarkActionsController : MdControllerBase<MarkActionsController>
     {
         private readonly IMarkFolderJobService _markFolderJobService;
+        private readonly IDocumentTidyJobService _documentTidyJobService;
 
         public MarkActionsController(
             ILogger<MarkActionsController> logger,
             IMarkFolderJobService markFolderJobService,
+            IDocumentTidyJobService documentTidyJobService,
             IOptions<MdExplorerAppSettings> options,
             IHubContext<MonitorMDHub> hubContext,
             IUserSettingsDB userSettingsDB,
@@ -38,6 +40,7 @@ namespace MdExplorer.Controllers.MarkActions
                   databaseManager: databaseManager)
         {
             _markFolderJobService = markFolderJobService;
+            _documentTidyJobService = documentTidyJobService;
         }
 
         [HttpPost("summarize-folder")]
@@ -72,6 +75,37 @@ namespace MdExplorer.Controllers.MarkActions
             return Ok(new { started = true });
         }
 
+        /// <summary>
+        /// Mark sistema le immagini di un documento appena convertito (schemi ridisegnati in PlantUML, descrizioni
+        /// ripiegate) e lo commenta sul canale <c>documentTidyProgress</c>.
+        /// </summary>
+        [HttpPost("tidy-document")]
+        public IActionResult TidyDocument([FromBody] TidyDocumentRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.DocumentPath))
+                return BadRequest("documentPath is required");
+            if (string.IsNullOrWhiteSpace(request.ConnectionId))
+                return BadRequest("connectionId is required");
+
+            var projectPath = GetProjectPath();
+            var relative = request.DocumentPath.Replace('\\', '/').TrimStart('/');
+            var documentFullPath = Path.IsPathRooted(request.DocumentPath) && System.IO.File.Exists(request.DocumentPath)
+                ? Path.GetFullPath(request.DocumentPath)
+                : Path.GetFullPath(Path.Combine(projectPath, relative));
+            if (!System.IO.File.Exists(documentFullPath))
+                return NotFound($"Document not found: {request.DocumentPath}");
+
+            try
+            {
+                _ = _documentTidyJobService.RunAsync(request.ConnectionId, documentFullPath, projectPath, CancellationToken.None);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            return Ok(new { started = true });
+        }
+
         [HttpPost("cancel")]
         public IActionResult Cancel([FromBody] CancelRequest request)
         {
@@ -79,6 +113,7 @@ namespace MdExplorer.Controllers.MarkActions
                 return BadRequest("connectionId is required");
 
             _markFolderJobService.Cancel(request.ConnectionId);
+            _documentTidyJobService.Cancel(request.ConnectionId);
             return Ok(new { cancelled = true });
         }
     }
@@ -86,6 +121,13 @@ namespace MdExplorer.Controllers.MarkActions
     public class SummarizeFolderRequest
     {
         public string FolderFullPath { get; set; }
+        public string ConnectionId { get; set; }
+    }
+
+    public class TidyDocumentRequest
+    {
+        /// <summary>Il documento markdown: percorso dalla radice del progetto («/cartella/doc.md») o assoluto.</summary>
+        public string DocumentPath { get; set; }
         public string ConnectionId { get; set; }
     }
 

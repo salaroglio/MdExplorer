@@ -21,6 +21,14 @@ export class MarkActionsService {
     });
   }
 
+  /** Mark sistema le immagini di un documento appena convertito; i commenti arrivano su documentTidyProgress. */
+  tidyDocument(documentPath: string, connectionId: string): Observable<{ started: boolean }> {
+    return this.http.post<{ started: boolean }>(`${this.baseUrl}/tidy-document`, {
+      documentPath,
+      connectionId,
+    });
+  }
+
   /** Requests cancellation of the running job for this connection. */
   cancel(connectionId: string): Observable<{ cancelled: boolean }> {
     return this.http.post<{ cancelled: boolean }>(`${this.baseUrl}/cancel`, {

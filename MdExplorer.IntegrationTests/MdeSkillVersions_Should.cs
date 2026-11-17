@@ -21,6 +21,7 @@ namespace MdExplorer.IntegrationTests
             ["agent/mde-skillcreator"] = (4, "f9346eaf140f8548"),
             ["prompt/mde-code-doc"] = (12, "b093e8a244d73267"),
             ["prompt/mde-codegen-graph"] = (1, "b8d892587efab736"),
+            ["prompt/mde-doc-tidy"] = (1, "ef4f60e3a3582eb1"),
             ["prompt/mde-mark-folder-synthesis"] = (2, "1526a5a6329b9195"),
             ["prompt/mde-mark-summarize"] = (2, "c69e11c1bca86639"),
             ["skill/mde-abox"] = (4, "4c3cb1d565119c1f"),

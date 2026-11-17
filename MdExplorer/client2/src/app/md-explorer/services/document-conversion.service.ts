@@ -5,6 +5,7 @@ import { switchMap, takeWhile } from 'rxjs/operators';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { MdFile } from '../models/md-file';
+import { MarkAssistantService } from '../../mark-assistant/mark-assistant.service';
 
 /** Un modello OCR del catalogo, come lo racconta il Service. */
 export interface OcrModel {
@@ -58,7 +59,8 @@ export class DocumentConversionService {
   constructor(
     private http: HttpClient,
     private snackBar: MatSnackBar,
-    private translate: TranslateService) { }
+    private translate: TranslateService,
+    private mark: MarkAssistantService) { }
 
   /** Le estensioni che il Service sa portare in markdown. */
   static isConvertible(path: string): boolean {
@@ -102,6 +104,10 @@ export class DocumentConversionService {
       next: state => {
         if (state.status === 'done') {
           this.announceDone(state);
+          // Un Word convertito: Mark guarda le immagini e commenta quello che sistema.
+          if (state.outputRelativePath && !DocumentConversionService.isPdf(state.fileName)) {
+            this.mark.beginDocumentTidy(state.outputRelativePath);
+          }
         } else if (state.status === 'error') {
           this.snackBar.open(
             this.translate.instant('ADD_FILE.CONVERT.FAILED', { file: state.fileName, error: state.error }), 'OK');

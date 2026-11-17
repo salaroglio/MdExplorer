@@ -51142,13 +51142,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "DocumentConversionService": () => (/* binding */ DocumentConversionService)
 /* harmony export */ });
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ 8947);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ 2673);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 2566);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ 8947);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 2673);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 2566);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../mark-assistant/mark-assistant.service */ 5270);
+
 
 
 
@@ -51164,10 +51166,11 @@ class DocumentConversionService {
   static {
     this.POLL_MS = 2000;
   }
-  constructor(http, snackBar, translate) {
+  constructor(http, snackBar, translate, mark) {
     this.http = http;
     this.snackBar = snackBar;
     this.translate = translate;
+    this.mark = mark;
   }
   /** Le estensioni che il Service sa portare in markdown. */
   static isConvertible(path) {
@@ -51184,7 +51187,7 @@ class DocumentConversionService {
   }
   /** Lo stato del download, riletto finché non finisce (bene o male). L'ultimo valore è quello finale. */
   watchInstall() {
-    return (0,rxjs__WEBPACK_IMPORTED_MODULE_0__.timer)(0, 1000).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.switchMap)(() => this.http.get('../api/DocumentConversion/install-state')), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.takeWhile)(state => state.phase === 'engine' || state.phase === 'model', true));
+    return (0,rxjs__WEBPACK_IMPORTED_MODULE_1__.timer)(0, 1000).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.switchMap)(() => this.http.get('../api/DocumentConversion/install-state')), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.takeWhile)(state => state.phase === 'engine' || state.phase === 'model', true));
   }
   /** Avvia la conversione di un file già copiato nel progetto. */
   convert(mdFile, sourceFullPath, modelId) {
@@ -51198,10 +51201,14 @@ class DocumentConversionService {
   }
   /** Segue la conversione fino alla fine e dice all'utente com'è andata. */
   follow(job) {
-    (0,rxjs__WEBPACK_IMPORTED_MODULE_0__.timer)(DocumentConversionService.POLL_MS, DocumentConversionService.POLL_MS).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.switchMap)(() => this.http.get(`../api/DocumentConversion/jobs/${job.id}`)), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.takeWhile)(state => state.status === 'queued' || state.status === 'running', true)).subscribe({
+    (0,rxjs__WEBPACK_IMPORTED_MODULE_1__.timer)(DocumentConversionService.POLL_MS, DocumentConversionService.POLL_MS).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.switchMap)(() => this.http.get(`../api/DocumentConversion/jobs/${job.id}`)), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.takeWhile)(state => state.status === 'queued' || state.status === 'running', true)).subscribe({
       next: state => {
         if (state.status === 'done') {
           this.announceDone(state);
+          // Un Word convertito: Mark guarda le immagini e commenta quello che sistema.
+          if (state.outputRelativePath && !DocumentConversionService.isPdf(state.fileName)) {
+            this.mark.beginDocumentTidy(state.outputRelativePath);
+          }
         } else if (state.status === 'error') {
           this.snackBar.open(this.translate.instant('ADD_FILE.CONVERT.FAILED', {
             file: state.fileName,
@@ -51232,11 +51239,11 @@ class DocumentConversionService {
   }
   static {
     this.ɵfac = function DocumentConversionService_Factory(t) {
-      return new (t || DocumentConversionService)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_5__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslateService));
+      return new (t || DocumentConversionService)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_6__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_7__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__.MarkAssistantService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
       token: DocumentConversionService,
       factory: DocumentConversionService.ɵfac,
       providedIn: 'root'
@@ -57428,4 +57435,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.07c7b048a8032ad1.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.8e52ae14e16983f7.js.map

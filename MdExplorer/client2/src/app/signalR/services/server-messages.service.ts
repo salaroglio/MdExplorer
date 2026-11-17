@@ -43,6 +43,8 @@ export class MdServerMessagesService {
 
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
+  /** Mark sistema un documento appena convertito: un evento per immagine (DocumentTidyJobService). */
+  public documentTidyProgress$ = new Subject<any>();
   /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
   public codeDocProgress$ = new Subject<any>();
   /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
@@ -317,6 +319,9 @@ export class MdServerMessagesService {
       // Mark folder-summarizer job progress
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
+      });
+      this.hubConnection.on('documentTidyProgress', (data) => {
+        this.documentTidyProgress$.next(data);
       });
       this.hubConnection.on('codeDocProgress', (data) => {
         this.codeDocProgress$.next(data);

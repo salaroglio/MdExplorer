@@ -130,6 +130,9 @@ export class MarkAssistantService {
 
   /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
   private folderProgressSub: Subscription | null = null;
+  private tidyProgressSub: Subscription | null = null;
+  /** I commenti di Mark su un documento convertito, scritti uno dopo l'altro anche se arrivano ravvicinati. */
+  private tidyQueue: Promise<void> = Promise.resolve();
 
   /** Subscription to the SignalR diagram-explanation stream (active while explaining a box). */
   private diagramSub: Subscription | null = null;
@@ -762,6 +765,78 @@ export class MarkAssistantService {
       default:
         return this._text.getValue();
     }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  Un documento appena convertito: Mark sistema le immagini e lo commenta
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Dopo la conversione di un Word il servizio guarda le immagini una a una (schema → PlantUML, altrimenti
+   * una descrizione ripiegata) e scrive subito nel documento; Mark compare e commenta ogni cosa che cambia,
+   * senza chiedere conferma (sprint 2026-11-17-Mark-Sistema-Il-Documento-Convertito).
+   *
+   * Mark resta nascosto finché il servizio non dice che c'è qualcosa da fare: senza immagini o senza un
+   * motore configurato non compare affatto.
+   */
+  beginDocumentTidy(documentPath: string): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId || !documentPath) { return; }
+
+    // In ascolto PRIMA della richiesta, così nessun evento si perde.
+    this.tidyProgressSub?.unsubscribe();
+    this.tidyQueue = Promise.resolve();
+    this.tidyProgressSub = this.serverMessages.documentTidyProgress$.subscribe(p => this.onDocumentTidyProgress(p));
+
+    this.markActions.tidyDocument(documentPath, connectionId).subscribe({
+      error: (err) => {
+        console.warn('[Mark] tidy-document request failed', err);
+        this.endDocumentTidy();
+      },
+    });
+  }
+
+  private onDocumentTidyProgress(p: any): void {
+    if (!p) { return; }
+    switch (p.phase) {
+      case 'nothing':
+      case 'no-engine':
+        // Niente da guardare, o nessun motore per farlo: Mark non compare.
+        this.endDocumentTidy();
+        return;
+      case 'started':
+        this.takeOverDialog();
+        // takeOverDialog ferma per 60 ms chi sta scrivendo: il primo testo parte dopo.
+        this.tidyQueue = this.sleep(80).then(() => this.typewriter(p.text));
+        return;
+      case 'looking':
+        this.tidyQueue = this.tidyQueue.then(() => { this._isResponding.next(true); });
+        return;
+      case 'comment':
+        this.tidyQueue = this.tidyQueue.then(() => {
+          this._isResponding.next(false);
+          return this.typewriter(p.text);
+        });
+        return;
+      case 'done':
+      case 'error':
+      case 'cancelled': {
+        const text = p.phase === 'done' ? p.text
+          : p.phase === 'error' ? this.translate.instant('MARK.TIDY.ERROR', { error: p.message })
+          : this.translate.instant('MARK.TIDY.CANCELLED');
+        this.tidyQueue = this.tidyQueue.then(() => {
+          this._isResponding.next(false);
+          return this.typewriter(text);
+        });
+        this.endDocumentTidy();
+        return;
+      }
+    }
+  }
+
+  private endDocumentTidy(): void {
+    this.tidyProgressSub?.unsubscribe();
+    this.tidyProgressSub = null;
   }
 
   // ──────────────────────────────────────────────────────────────────────

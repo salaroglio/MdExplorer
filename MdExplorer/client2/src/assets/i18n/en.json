@@ -2066,6 +2066,10 @@
   },
   "MARK": {
     "TRANSMITTING": "▌ TRANSMITTING",
+    "TIDY": {
+      "ERROR": "I stopped while tidying the document: {{error}}",
+      "CANCELLED": "I stopped: the document stays as it is now."
+    },
     "FOLDER": {
       "PROMPT": "I'm on \"{{name}}\". What would you like me to do?",
       "SUMMARIZE": "Summarize documentation",

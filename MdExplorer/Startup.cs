@@ -93,6 +93,7 @@ namespace MdExplorer
 
             // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
             services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
+            services.AddSingleton<Services.MarkActions.IDocumentTidyJobService, Services.MarkActions.DocumentTidyJobService>();
             services.AddSingleton<Services.LlmSessions.OneShotReadOnlySession>();
             services.AddSingleton<Services.MarkDiagram.MarkDiagramSessions>();
             services.AddSingleton<Services.MarkDiagram.MarkAgentBriefings>();
