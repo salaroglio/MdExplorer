@@ -92,6 +92,8 @@ namespace MdExplorer.Services.CodeGraph
                     (P("support") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), ct),
                 CodeQueryCatalog.UnreachedCode => await UnreachedCodeAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"),
                     OneOf("cause", CodeNavigation.Causes), Int("sample", 0, 50, 0), P("seed") ?? "1", Int("limit", 1, 200, 30), ct),
+                CodeQueryCatalog.UnitMap => await UnitMapAsync(projectPath, OneOf("unit", new[] { CodeUnitMap.ByProject, CodeUnitMap.ByFolder }) ?? CodeUnitMap.ByProject,
+                    Prefix(P("from")), Int("depth", 1, 10, 1), P("pair"), Int("sample", 0, 50, 10), P("seed") ?? "1", Int("limit", 1, 500, 50), ct),
                 CodeQueryCatalog.CheckClaims => await CheckClaimsAsync(projectPath, P("claims") ?? throw Required("claims"), Prefix(P("folder")), ct),
                 CodeQueryCatalog.Reachability => await ReachabilityAsync(projectPath, Prefix(P("from")), Prefix(P("to")) ?? throw Required("to"), Int("depth", 1, 100, 50), Int("limit", 1, 500, 50), ct),
                 _ => throw new InvalidOperationException($"domanda «{name}» nel catalogo ma senza esecuzione"),
@@ -351,6 +353,41 @@ namespace MdExplorer.Services.CodeGraph
                 samples = r.Samples.Count == 0 ? null : r.Samples, sampleNote = SampleNote(sample, seed),
                 next = UiText.Say("who-reaches su un caso del campione per vedere da dove ci si arriva; pages-to-data per le pagine che non arrivano ai dati",
                     "who-reaches on a sampled case to see where it is reached from; pages-to-data for the pages that do not reach the data"),
+            };
+        }
+
+        private async Task<object> UnitMapAsync(string projectPath, string unit, string from, int depth, string pair, int sample, string seed, int limit, CancellationToken ct)
+        {
+            string pairFrom = null, pairTo = null;
+            if (pair != null)
+            {
+                var sides = pair.Split("->", StringSplitOptions.TrimEntries);
+                if (sides.Length != 2 || sides[0].Length == 0 || sides[1].Length == 0)
+                    throw new CodeQueryException(UiText.Say($"«pair» vale «{pair}»: dev'essere `UnitàA -> UnitàB`, scritte come in rows.", $"«pair» is «{pair}»: it must be `UnitA -> UnitB`, written as in rows."));
+                (pairFrom, pairTo) = (sides[0], sides[1]);
+            }
+            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var files = await _store.FileProjectsAsync(projectPath, ct);
+            var r = CodeUnitMap.Build(g, files, unit, from, depth, pairFrom, pairTo, sample, seed, limit);
+            if (pair != null && r.PairEdges == 0)
+                throw new CodeQueryException(UiText.Say($"Nessun arco da «{pairFrom}» a «{pairTo}»: i nomi vanno scritti come in rows (con unit={unit}{(from == null ? string.Empty : $", from={from}")}).",
+                    $"No edge from «{pairFrom}» to «{pairTo}»: the names must be written as in rows (with unit={unit}{(from == null ? string.Empty : $", from={from}")})."));
+            string Cut(string what, int count) => count > limit ? UiText.Say($"{what} tagliate a {limit} su {count}: alza limit", $"{what} cut at {limit} of {count}: raise limit") : null;
+            return new
+            {
+                unit = r.UnitKind, from, depth = unit == CodeUnitMap.ByFolder ? depth : (int?)null,
+                // i file il cui script non dice il progetto: scritti prima che si registrasse, o di una radice che non è su questo disco
+                filesWithoutProjectRecorded = r.FilesWithoutRecord == 0 ? (int?)null : r.FilesWithoutRecord,
+                recordNote = r.FilesWithoutRecord == 0 ? null : UiText.Say($"{r.FilesWithoutRecord} file senza progetto registrato, raccolti in «{CodeUnitMap.NotRecorded}»: rifai «Estrai la struttura» (una radice remota non lo registra); intanto usa unit=folder",
+                    $"{r.FilesWithoutRecord} files without a recorded project, gathered in «{CodeUnitMap.NotRecorded}»: run «Extract the structure» again (a remote root does not record it); meanwhile use unit=folder"),
+                totals = r.Totals,
+                unitCount = r.UnitCount, units = r.Units, unitsCut = Cut(UiText.Say("unità", "units"), r.UnitCount),
+                rowCount = r.RowCount, rows = r.Rows, rowsCut = Cut(UiText.Say("righe", "rows"), r.RowCount),
+                cycleCount = r.Cycles.Count, cycles = r.Cycles.Take(limit), cyclesCountingAmbiguous = r.CyclesCountingAmbiguous,
+                pair, pairEdges = r.PairEdges, samples = r.Samples,
+                sampleNote = pair == null ? null : SampleNote(sample, seed),
+                next = UiText.Say("pair + sample su una riga per vederne gli archi, poi il sorgente; pages-to-data e unreached-code per la qualità del grafo sotto questa mappa",
+                    "pair + sample on a row to see its edges, then the source; pages-to-data and unreached-code for the quality of the graph under this map"),
             };
         }
 

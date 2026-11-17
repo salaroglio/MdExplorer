@@ -98,7 +98,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         internal static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
-            ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount"),
+            ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount", "project"),
             ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
@@ -184,7 +184,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 Schema = file.Int("schema", path), Kind = CodeScriptKind.Ast, Source = file.Str("path", path), Language = file.Str("language", path),
                 SourceHash = file.Str("contentHash", path), Extractor = file.Str("extractor", path), ExtractorVersion = file.Str("extractorVersion", path),
-                GeneratedAt = file.Str("parsedAt", path),
+                GeneratedAt = file.Str("parsedAt", path), Project = file.OptStr("project"),
             };
             foreach (var n in nodes.Where(n => n.Class == "Symbol"))
             {

@@ -57,6 +57,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["parsedAt"] = ("dateTime", "when the file was read"),
             ["schema"] = ("integer", "version of the script format"),
             ["symbolCount"] = ("integer", "symbols declared in the file, externals excluded"),
+            ["project"] = ("string", "logical path of the project file the source belongs to: the nearest project file going up the folders (.vbproj/.csproj for VB and C#, pom.xml/build.gradle, package.json, pyproject.toml); empty = none above the file; absent = not recorded yet (extract the structure again)"),
             ["kind"] = ("string", "what the symbol is: one of code:SymbolKind"),
             ["name"] = ("string", "simple name"),
             ["qualifiedName"] = ("string", "full name: namespace and type for C#/VB/Java (with parameter types for methods), file:name for declarative languages; for an external, the name as written"),

@@ -31,6 +31,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Extractor { get; set; }
         public string ExtractorVersion { get; set; }
         public string GeneratedAt { get; set; }
+        /// <summary>
+        /// Il file di progetto a cui il sorgente appartiene, come percorso logico (<see cref="CodeProjectFiles"/>, 17/11/2026):
+        /// vuoto = cercato e non c'è; null = non registrato (script di prima, o una radice che non è su questo disco).
+        /// </summary>
+        public string Project { get; set; }
         // doc
         public string WrittenBy { get; set; }
         public string WrittenAt { get; set; }

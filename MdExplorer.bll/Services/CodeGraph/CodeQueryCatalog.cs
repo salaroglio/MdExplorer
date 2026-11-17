@@ -36,6 +36,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string PagesToData = "pages-to-data";
         public const string CheckClaims = "check-claims";
         public const string UnreachedCode = "unreached-code";
+        public const string UnitMap = "unit-map";
 
         private static readonly Dictionary<string, string> FolderParam = new() { ["folder"] = "optional: a program folder or path prefix (program/, @core/app); empty = the whole graph" };
 
@@ -148,6 +149,27 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ["sample"] = "optional: how many cases per cause, 0-50, default 0 (counts only)",
                     ["seed"] = "optional: any text; the same seed gives the same sample (default 1)",
                     ["limit"] = "optional: how many folders, 1-200, default 30 (`folderCount` says how many there are)",
+                },
+            },
+            // la mappa di architettura (17/11/2026, utente: «un grafo di architettura»): somma gli archi per coppia di unità, non interpreta
+            new CodeQueryInfo
+            {
+                Name = UnitMap,
+                Question = "ARCHITECTURE, aggregated: which part of the program calls which other part, and how many times? A unit is a PROJECT (the project file each source belongs to: .vbproj/.csproj, pom.xml/build.gradle, package.json, pyproject.toml — the nearest one going up the folders) or a FOLDER at a chosen depth. It only ADDS UP the execution and data edges of the graph, it interprets nothing: layers and responsibilities are yours to state, with the source. " +
+                    "`rows`: one per pair of units that are linked — `Edges` (all), `Ambiguous` (the part the compiler did not resolve to one target: do not count it as certain), `Callers`/`Called` (distinct symbols on each side), `Relations`. " +
+                    "`units`: for each unit its files, the edges inside it, out of it and into it, and what leaves the graph from it — `Tables` (distinct tables/procedures it reads or writes directly), `LibraryCalls`, `UnresolvedCalls`/`UnresolvedNames` (gaps of the graph), `StartedByExternal`. " +
+                    "`cycles`: groups of units that call each other in a circle over certain edges (`cyclesCountingAmbiguous` = how many with the ambiguous ones too). `totals` places every edge in exactly one bucket, so the sums can be checked. " +
+                    "Units in brackets are not projects: `(no project file above)`, `(project not recorded)` — the scripts were written before this was recorded: extract the structure again —, `(outside from)`. " +
+                    "A row that surprises you (a page project calling the data project directly, a cycle): ask a SAMPLE of its edges with `pair` + `sample`, the same ones for the same `seed`, then read the source. Prefer it to cross-program.",
+                Parameters = new Dictionary<string, string>
+                {
+                    ["unit"] = "optional: project (default) or folder",
+                    ["from"] = "optional: path prefix; what is outside becomes the single unit `(outside from)`",
+                    ["depth"] = "optional, unit=folder only: how many folder levels below `from` (or below the root) make a unit, 1-10, default 1",
+                    ["pair"] = "optional: `UnitA -> UnitB`, written exactly as in `rows`: sample the edges of that row",
+                    ["sample"] = "optional, with `pair`: how many edges, 0-50, default 10",
+                    ["seed"] = "optional: any text; the same seed gives the same sample (default 1)",
+                    ["limit"] = "optional: how many rows, units and cycles are listed, 1-500, default 50 (`rowCount`, `unitCount`, `cycleCount` say how many there are)",
                 },
             },
             new CodeQueryInfo

@@ -40,6 +40,8 @@ namespace MdExplorer.IntegrationTests
                     .Select(s => new CodeSymbolView { Id = s.Id, Kind = s.Kind, QualifiedName = s.Name, Name = s.Name, Path = s.Path, LineStart = 3 }).ToList()),
                 nameof(ICodeGraphStore.FilesUnderAsync) => Task.FromResult(Symbols.Where(s => s.Path.StartsWith((string)args[1], StringComparison.Ordinal))
                     .GroupBy(s => s.Path).Select(x => (Path: x.Key, Symbols: x.Key.EndsWith("Login.aspx.vb", StringComparison.Ordinal) ? 0 : x.Count(), Summary: (string)null)).ToList()),
+                nameof(ICodeGraphStore.FileProjectsAsync) => Task.FromResult(Symbols.Select(x => x.Path).Distinct()
+                    .Select(p => (Path: p, Project: p.StartsWith("web/", StringComparison.Ordinal) ? "web/Web.vbproj" : "dl/Dl.vbproj")).ToList()),
                 _ => throw new NotSupportedException(method.Name),
             };
         }
@@ -128,6 +130,27 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(1, r.GetProperty("byCause").GetProperty("no-callers").GetInt32());
             Assert.AreEqual("Dl.Ordini.Mai()", r.GetProperty("samples").GetProperty("no-callers")[0].GetProperty("Symbol").GetString());
             Assert.AreEqual("dl/", r.GetProperty("folders")[0].GetProperty("Folder").GetString());
+        }
+
+        [TestMethod]
+        public async Task Answer_unit_map_with_rows_between_projects_and_a_sample_of_one_row()
+        {
+            var map = await Ask("unit-map");
+            Assert.AreEqual("project", map.GetProperty("unit").GetString());
+            var row = map.GetProperty("rows")[0];
+            Assert.AreEqual(("web/Web.vbproj", "dl/Dl.vbproj", 1), (row.GetProperty("From").GetString(), row.GetProperty("To").GetString(), row.GetProperty("Edges").GetInt32()));
+            Assert.AreEqual(5, map.GetProperty("totals").GetProperty("Edges").GetInt32());
+            Assert.AreEqual(JsonValueKind.Null, map.GetProperty("samples").ValueKind);
+
+            var sampled = await Ask("unit-map", ("pair", "web/Web.vbproj -> dl/Dl.vbproj"), ("sample", "5"));
+            Assert.AreEqual("Dl.Ordini.Leggi()", sampled.GetProperty("samples")[0].GetProperty("Target").GetString());
+
+            var folders = await Ask("unit-map", ("unit", "folder"));
+            Assert.AreEqual("web/", folders.GetProperty("rows")[0].GetProperty("From").GetString());
+
+            var none = await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "dl/Dl.vbproj -> web/Web.vbproj")));
+            StringAssert.Contains(none.Message, "rows");
+            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "solo-una")));
         }
 
         [TestMethod]

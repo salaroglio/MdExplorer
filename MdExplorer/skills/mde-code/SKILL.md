@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 41
+  version: 42
   updatePolicy: replace
 ---
 
@@ -298,6 +298,30 @@ The causes are computed from the graph, not judged: `no-callers` says that nothi
 it is dead (a framework, reflection or a commented call can explain it — that is what the sample is for). State which
 numbers are counts of the graph and which are your findings on the sample, and never extend a finding on the sample to
 the whole group as if it were counted.
+
+### The map between units: `unit-map`
+
+For «how is this program made?», «which project depends on which?», «what moves together in a migration?» do not list
+symbols: ask `code_query unit-map`. It adds up the edges of the graph per pair of UNITS and interprets nothing.
+
+- `unit=project` (default): a unit is the project file a source belongs to — the nearest one going up the folders
+  (`.vbproj`/`.csproj`, `pom.xml`/`build.gradle`, `package.json`, `pyproject.toml`). `unit=folder` with `depth`: a unit
+  is a folder, `depth` levels below `from`. Use folders for languages without project files (database scripts, a
+  language package), or to look inside one project.
+- `rows`: one per pair of linked units — `Edges`, of which `Ambiguous` (not resolved to one target: never add them to
+  the certain ones without saying so), `Callers` / `Called` (distinct symbols), `Relations`.
+- `units`: files, edges inside, out and in, and what leaves the graph from that unit: `Tables` it reads or writes
+  directly, `LibraryCalls`, `UnresolvedCalls` / `UnresolvedNames` (gaps of the graph), `StartedByExternal`.
+- `cycles`: units that call each other in a circle over certain edges; `cyclesCountingAmbiguous` with the others too.
+- `totals` puts every edge in exactly one bucket: check that your numbers add up to it.
+- Units in brackets are not projects. `(project not recorded)` means the scripts were written before the project was
+  recorded: tell the user to run «Estrai la struttura» again, and use `unit=folder` meanwhile.
+
+Then sample: `pair` = `UnitA -> UnitB` (written exactly as in `rows`) with `sample` and `seed` gives edges of that row
+with their `path:line` — open the source there. The map is as exact as the graph under it: a unit with many
+`UnresolvedNames` looks less connected than it is, so read `pages-to-data` first. The NAMES of the layers («data
+layer», «business layer») and what is allowed between them are NOT in the graph: they are your statement, to write as
+such, with the rows that support it and the rows that contradict it.
 
 ## Enrichment rules: when the graph stops at a string
 

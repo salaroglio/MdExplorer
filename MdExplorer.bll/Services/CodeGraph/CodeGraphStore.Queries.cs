@@ -443,6 +443,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             return rows.Select(r => { var id = SymbolId(r["s"]); return (id, Str(r, "kind"), Str(r, "qn") ?? id, Str(r, "path")); }).ToList();
         }
 
+        public async Task<List<(string Path, string Project)>> FileProjectsAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync($"SELECT ?path ?project WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?path . OPTIONAL {{ ?f code:project ?project }} }} }}", NavigationTimeout, ct);
+            return rows.Select(r => (Str(r, "path"), Str(r, "project"))).ToList();
+        }
+
         public async Task<List<string>> PagesWithoutClassAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);

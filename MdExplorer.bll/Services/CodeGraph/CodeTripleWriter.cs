@@ -46,6 +46,7 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:parsedAt ").Append(Lit(h.GeneratedAt ?? DateTime.UtcNow.ToString("o")))
               .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema))
               .Append(" ; code:symbolCount ").Append(Int(script.Symbols.Count(s => !s.IsExternal)));
+            if (h.Project != null) sb.Append(" ; code:project ").Append(Lit(h.Project));
             FromScript(sb, fromScriptLit).Append(" .\n");
 
             var parametersBySymbol = script.Parameters.GroupBy(p => p.SymbolId, StringComparer.Ordinal)

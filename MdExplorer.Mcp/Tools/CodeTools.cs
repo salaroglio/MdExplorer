@@ -228,6 +228,9 @@ public sealed class CodeTools : McpToolsBase
         "unreached-code (to, from): the code of a layer the pages do not reach, by cause (no callers, started by other pages, by an external event, by uncalled code, " +
         "only in a cycle), by kind and by folder. Both give COUNTS ONLY, always complete; add `sample` (cases per group) with `outcome`/`cause` to open a few cases, " +
         "the same ones for the same `seed`, then data-reach / who-reaches on one case. " +
+        "ARCHITECTURE, aggregated — unit-map (unit=project|folder, from, depth): which part of the program calls which other, and how many times: one row per pair of " +
+        "units with the edges (the ambiguous ones apart), the edges inside each unit, the tables and the unresolved names each unit touches, the cycles between units; " +
+        "it only adds up the graph, it names no layers. `pair` (`A -> B`) + `sample` opens the edges of one row. " +
         "hotspots, cross-program, cycles, unused (candidates), uncertain. " +
         "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
     public async Task<string> code_query(

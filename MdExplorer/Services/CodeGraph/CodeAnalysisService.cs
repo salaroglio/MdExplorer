@@ -765,6 +765,8 @@ namespace MdExplorer.Services.CodeGraph
 
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
                 var written = new List<string>();
+                // di quale progetto è ogni file (17/11/2026): ogni cartella si legge una volta sola
+                var projectFiles = CodeProjectFiles.CachedDisk();
                 var renames = new Dictionary<string, string>(StringComparer.Ordinal);
                 var declared = new List<CodeDeclarations>();
                 // ogni linguaggio si estrae una volta sola per analisi: un linguaggio che punta ai simboli di un altro (VB ↔ C#)
@@ -871,6 +873,7 @@ namespace MdExplorer.Services.CodeGraph
                         CodeBodyHash.Apply(script, sourceText);
                         script.Header.SourceHash = CodeSourceText.Hash(sourceText);
                         script.Header.ExtractorVersion = emitter;
+                        script.Header.Project = CodeProjectFiles.Of(file, lang.Id, projectPath, projectFiles);
                         // sorgente fermo: lo script cambia solo se è cambiato il file che dichiara una sua destinazione
                         if (!fromSource) script.Header.GeneratedAt = onDisk.GeneratedAt;
                         if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script)))
@@ -1204,12 +1207,14 @@ namespace MdExplorer.Services.CodeGraph
                 if (CrossLinkable(lang))
                     CrossLink(projectPath, lang, pending.Select(p => (p.File.LogicalPath, p.Script)).ToList(), new HashSet<string>(StringComparer.Ordinal), written, outcome, orphanSources);
                 var emitter = CodeBodyHash.EmitterVersion(extractor.ExtractorVersion);
+                var seedProjectFiles = CodeProjectFiles.CachedDisk();
                 foreach (var (file, script, scriptPath, onDisk) in pending)
                 {
                     var text = sources.Read(file);
                     CodeBodyHash.Apply(script, text);
                     script.Header.SourceHash = CodeSourceText.Hash(text);
                     script.Header.ExtractorVersion = emitter;
+                    script.Header.Project = CodeProjectFiles.Of(file, lang.Id, projectPath, seedProjectFiles);
                     // sorgente e estrattore fermi: lo script cambia solo se cambia un collegamento, e tiene la sua data
                     var same = onDisk != null && onDisk.SourceHash == script.Header.SourceHash && onDisk.ExtractorVersion == emitter;
                     if (same) script.Header.GeneratedAt = onDisk.GeneratedAt; else outcome.Reparsed++;
