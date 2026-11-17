@@ -59,6 +59,66 @@ namespace MdExplorer.Features.Tests.Ocr
             StringAssert.Contains(error.Message, "non-c-e.docx");
         }
 
+        [TestMethod]
+        public void NumberAStyleClaimedByTwoLists_WithTheListTheStyleUses()
+        {
+            // Lo stile usa il secondo elenco (numerato): il primo (puntato) porta il suo nome per errore.
+            var docx = TwoListsClaimingRequisito(styleNumId: 2);
+
+            var result = WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img");
+
+            StringAssert.Contains(result.Markdown, "1. Primo requisito");
+            StringAssert.Contains(result.Markdown, "Testo normale");
+        }
+
+        [TestMethod]
+        public void NameTheStyle_WhenItDoesNotSayWhichListItUses()
+        {
+            var docx = TwoListsClaimingRequisito(styleNumId: null);
+
+            var error = Assert.ThrowsException<InvalidDataException>(
+                () => WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img"));
+
+            StringAssert.Contains(error.Message, "Requisito");
+        }
+
+        private string TwoListsClaimingRequisito(int? styleNumId)
+        {
+            var docx = Path.Combine(_folder, "requisiti.docx");
+            using (var word = WordprocessingDocument.Create(docx, WordprocessingDocumentType.Document))
+            {
+                var main = word.AddMainDocumentPart();
+                main.Document = new Document(new Body(
+                    new Paragraph(
+                        new ParagraphProperties(new ParagraphStyleId { Val = "Requisito" }),
+                        new Run(new Text("Primo requisito"))),
+                    new Paragraph(new Run(new Text("Testo normale")))));
+
+                var style = new Style(new StyleName { Val = "Requisito" }) { Type = StyleValues.Paragraph, StyleId = "Requisito" };
+                if (styleNumId != null)
+                {
+                    style.Append(new StyleParagraphProperties(
+                        new NumberingProperties(new NumberingId { Val = styleNumId.Value })));
+                }
+                main.AddNewPart<StyleDefinitionsPart>().Styles = new Styles(style);
+
+                main.AddNewPart<NumberingDefinitionsPart>().Numbering = new Numbering(
+                    ListClaimingRequisito(0, NumberFormatValues.Bullet),
+                    ListClaimingRequisito(1, NumberFormatValues.Decimal),
+                    new NumberingInstance(new AbstractNumId { Val = 0 }) { NumberID = 1 },
+                    new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 2 });
+            }
+            return docx;
+        }
+
+        private static AbstractNum ListClaimingRequisito(int id, NumberFormatValues format)
+        {
+            return new AbstractNum(
+                new Level(
+                    new NumberingFormat { Val = format },
+                    new ParagraphStyleIdInLevel { Val = "Requisito" }) { LevelIndex = 0 }) { AbstractNumberId = id };
+        }
+
         private static TableRow Row(params string[] cells)
         {
             var row = new TableRow();

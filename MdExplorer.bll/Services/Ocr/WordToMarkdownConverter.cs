@@ -57,7 +57,11 @@ namespace MdExplorer.Features.Services.Ocr
                 return attributes;
             });
 
-            var html = converter.ConvertToHtml(docxPath);
+            Mammoth.IResult<string> html;
+            using (var repaired = WordNumberingRepair.RepairedCopy(docxPath))
+            {
+                html = repaired == null ? converter.ConvertToHtml(docxPath) : converter.ConvertToHtml(repaired);
+            }
             foreach (var warning in html.Warnings)
             {
                 result.Warnings.Add(warning);
