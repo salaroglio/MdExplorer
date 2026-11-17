@@ -28,6 +28,13 @@ namespace MdExplorer.Features.Services.Ocr
         /// <param name="imagesLinkPrefix">Come il markdown indirizza quella cartella (termina senza «/»).</param>
         public static WordToMarkdownResult Convert(string docxPath, string imagesDirectory, string imagesLinkPrefix)
         {
+            return Convert(docxPath, imagesDirectory, imagesLinkPrefix, MetafileToPng.Convert);
+        }
+
+        /// <param name="metafileToPng">Chi rende un EMF/WMF come PNG (byte, estensione, file da scrivere): null se ci è riuscito, altrimenti perché no.</param>
+        internal static WordToMarkdownResult Convert(string docxPath, string imagesDirectory, string imagesLinkPrefix,
+            Func<byte[], string, string, string> metafileToPng)
+        {
             if (!File.Exists(docxPath))
             {
                 throw new FileNotFoundException(
@@ -36,15 +43,41 @@ namespace MdExplorer.Features.Services.Ocr
 
             var result = new WordToMarkdownResult();
             var links = new WordLinkRepair(result.Warnings);
+            var metafilesLeft = 0;
+            string whyMetafilesLeft = null;
             var converter = new Mammoth.DocumentConverter().AddStyleMap(WordLinkRepair.StyleMap).ImageConverter(image =>
             {
                 Directory.CreateDirectory(imagesDirectory);
                 result.Images++;
-                var fileName = $"img{result.Images}{ExtensionOf(image.ContentType)}";
+                var extension = ExtensionOf(image.ContentType);
+                byte[] bytes;
                 using (var source = image.GetStream())
-                using (var target = File.Create(Path.Combine(imagesDirectory, fileName)))
+                using (var buffer = new MemoryStream())
                 {
-                    source.CopyTo(target);
+                    source.CopyTo(buffer);
+                    bytes = buffer.ToArray();
+                }
+
+                // I disegni vettoriali di Windows non si vedono in una pagina: escono come PNG, se si riesce.
+                var fileName = $"img{result.Images}{extension}";
+                if (extension == ".emf" || extension == ".wmf")
+                {
+                    var png = $"img{result.Images}.png";
+                    var whyNot = metafileToPng(bytes, extension, Path.Combine(imagesDirectory, png));
+                    if (whyNot == null)
+                    {
+                        fileName = png;
+                        bytes = null;
+                    }
+                    else
+                    {
+                        metafilesLeft++;
+                        whyMetafilesLeft = whyNot;
+                    }
+                }
+                if (bytes != null)
+                {
+                    File.WriteAllBytes(Path.Combine(imagesDirectory, fileName), bytes);
                 }
                 var attributes = new Dictionary<string, string> { ["src"] = imagesLinkPrefix + "/" + fileName };
                 if (!string.IsNullOrEmpty(image.AltText))
@@ -61,7 +94,17 @@ namespace MdExplorer.Features.Services.Ocr
             }
             foreach (var warning in html.Warnings)
             {
-                result.Warnings.Add(warning);
+                // Di EMF e WMF risponde l'avviso qui sotto, che conta solo quelli rimasti tali.
+                if (warning.IndexOf("unlikely to display in web browsers", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    result.Warnings.Add(warning);
+                }
+            }
+            if (metafilesLeft > 0)
+            {
+                result.Warnings.Add(UiText.Say(
+                    $"{metafilesLeft} immagini in formato EMF o WMF sono rimaste in quel formato, che nella pagina non si vede: {whyMetafilesLeft}.",
+                    $"{metafilesLeft} images in EMF or WMF format stayed in that format, which a page cannot show: {whyMetafilesLeft}."));
             }
 
             // Segnalibri e indice: i rimandi di Word vanno portati sulle ancore dei titoli (WordLinkRepair).

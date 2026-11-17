@@ -254,6 +254,78 @@ namespace MdExplorer.Features.Tests.Ocr
                 new Run(new TabChar()), new Run(new Text(page))) { Anchor = bookmark });
         }
 
+        [TestMethod]
+        public void SaveAWindowsMetafileAsPng_SoThatThePageCanShowIt()
+        {
+            var docx = DocumentWithAMetafile();
+            var images = Path.Combine(_folder, "img");
+
+            var result = WordToMarkdownConverter.Convert(docx, images, "/img", (bytes, extension, png) =>
+            {
+                Assert.AreEqual(".emf", extension);
+                CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, bytes);
+                File.WriteAllBytes(png, new byte[] { 9 });
+                return null;
+            });
+
+            StringAssert.Contains(result.Markdown, "![Schema](/img/img1.png)");
+            CollectionAssert.AreEqual(new[] { "img1.png" }, Directory.GetFiles(images).Select(Path.GetFileName).ToArray());
+            Assert.AreEqual(0, result.Warnings.Count, string.Join(" | ", result.Warnings));
+        }
+
+        [TestMethod]
+        public void KeepTheMetafileAndSayWhy_WhenItCannotBecomeAPng()
+        {
+            var docx = DocumentWithAMetafile();
+            var images = Path.Combine(_folder, "img");
+
+            var result = WordToMarkdownConverter.Convert(docx, images, "/img", (bytes, extension, png) => "manca il convertitore");
+
+            StringAssert.Contains(result.Markdown, "![Schema](/img/img1.emf)");
+            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(Path.Combine(images, "img1.emf")));
+            Assert.AreEqual(1, result.Warnings.Count, string.Join(" | ", result.Warnings));
+            StringAssert.Contains(result.Warnings[0], "manca il convertitore");
+            StringAssert.Contains(result.Warnings[0], "1 ");
+        }
+
+        // Un Word con una sola immagine EMF (quattro byte: chi la disegna, qui, è finto).
+        private string DocumentWithAMetafile()
+        {
+            const string w = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+            const string relationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+            var docx = Path.Combine(_folder, "disegno.docx");
+            using (var zip = System.IO.Compression.ZipFile.Open(docx, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                void Part(string name, string xml)
+                {
+                    using (var writer = new StreamWriter(zip.CreateEntry(name).Open()))
+                    {
+                        writer.Write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + xml);
+                    }
+                }
+                Part("[Content_Types].xml", "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                    + "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+                    + "<Default Extension=\"emf\" ContentType=\"image/x-emf\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+                    + "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/></Types>");
+                Part("_rels/.rels", "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                    + $"<Relationship Id=\"rId1\" Type=\"{relationships}/officeDocument\" Target=\"word/document.xml\"/></Relationships>");
+                Part("word/_rels/document.xml.rels", "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                    + $"<Relationship Id=\"rId9\" Type=\"{relationships}/image\" Target=\"media/image1.emf\"/></Relationships>");
+                Part("word/document.xml", $"<w:document {w} xmlns:r=\"{relationships}\""
+                    + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
+                    + " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+                    + " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><w:body><w:p><w:r><w:drawing><wp:inline>"
+                    + "<wp:docPr id=\"1\" name=\"x\" descr=\"Schema\"/><a:graphic>"
+                    + "<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:blipFill>"
+                    + "<a:blip r:embed=\"rId9\"/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:body></w:document>");
+                using (var media = zip.CreateEntry("word/media/image1.emf").Open())
+                {
+                    media.Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+                }
+            }
+            return docx;
+        }
+
         private string TwoListsClaimingRequisito(int? styleNumId)
         {
             var docx = Path.Combine(_folder, "requisiti.docx");
