@@ -105,7 +105,10 @@ namespace MdExplorer.Services.MarkActions
                 if (PathContainment.RelativeOrNull(projectPath, documentFullPath) == null || !File.Exists(documentFullPath))
                     throw new FileNotFoundException(UiText.Say($"Il documento non c'è: {documentFullPath}", $"The document does not exist: {documentFullPath}"));
 
-                var todo = DocumentImageTidier.PendingImages(await File.ReadAllTextAsync(documentFullPath, ct));
+                var source = await File.ReadAllTextAsync(documentFullPath, ct);
+                var todo = DocumentImageTidier.PendingImages(source);
+                // Le immagini in mezzo al testo che hanno già il testo alternativo non si guardano: lo si dice, non si tace.
+                var alreadyCaptioned = DocumentImageTidy.InlineWithAlternativeText(source);
                 if (todo.Count == 0)
                 {
                     await SendAsync(connectionId, new { phase = "nothing", document = documentName });
@@ -214,7 +217,11 @@ namespace MdExplorer.Services.MarkActions
                     captioned,
                     skipped,
                     failed,
-                    text = Summary(redrawn, toCheck, described, transcribed, captioned, skipped, failed),
+                    alreadyCaptioned,
+                    text = Summary(redrawn, toCheck, described, transcribed, captioned, skipped, failed)
+                        + (alreadyCaptioned == 0 ? string.Empty : UiText.Say(
+                            $" Altre {alreadyCaptioned} stanno in mezzo al testo e hanno già il loro testo alternativo: non le ho guardate.",
+                            $" Another {alreadyCaptioned} sit inside the text and already have their alternative text: I did not look at them.")),
                 });
                 _logger.LogInformation("[DocumentTidy] {Document}: ridisegnate {R}, ridisegnate da controllare {K}, descritte {D}, trascritte {T}, con testo alternativo {C}, lasciate {S}, non riuscite {F}",
                     documentName, redrawn, toCheck, described, transcribed, captioned, skipped, failed);

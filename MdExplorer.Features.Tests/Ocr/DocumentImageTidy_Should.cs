@@ -100,5 +100,40 @@ namespace MdExplorer.Features.Tests.Ocr
             StringAssert.Contains(Assert.ThrowsException<FormatException>(
                 () => Verdict("KIND: photo\nTITLE: x\nDESCRIPTION:\ny\n</details>")).Message, "details");
         }
+
+        [TestMethod]
+        public void TreatAnImageWrappedOnlyInEmphasisAsStandingAlone_AndReplaceTheWholeLine()
+        {
+            var markdown = "Prima.\n\n**![Filtro](/a/img1.png)**\n\n  _![](/a/img2.png)_\n\nTesto **![Icona](/a/img3.png)** in mezzo.\n";
+
+            var images = DocumentImageTidy.Find(markdown);
+
+            Assert.IsTrue(images[0].Standalone && !images[0].Treated);
+            Assert.IsTrue(images[1].Standalone);
+            Assert.IsFalse(images[2].Standalone);
+            Assert.AreEqual(1, DocumentImageTidy.InlineWithAlternativeText(markdown));
+
+            var changed = DocumentImageTidy.WithDescription(markdown, images[0],
+                new ImageVerdict { Kind = ImageVerdict.Screenshot, Title = "Un filtro", Description = "Una tendina." });
+
+            StringAssert.Contains(changed, "Prima.\n\n![Filtro](/a/img1.png)\n\n<details>");
+            Assert.IsFalse(changed.Contains("**![Filtro]") || changed.Contains("img1.png)**"), changed);
+            Assert.IsTrue(DocumentImageTidy.Find(changed)[0].Treated);
+        }
+
+        [TestMethod]
+        public void SeeAnImageWhoseAlternativeTextGoesOnTwoLines_AndPutItBackOnOne()
+        {
+            var markdown = "Prima.\n\n![Immagine che contiene testo, schermata\nIl contenuto potrebbe non essere corretto.](/a/img1.png)\n\nDopo.\n";
+
+            var image = DocumentImageTidy.Find(markdown).Single();
+            Assert.IsTrue(image.Standalone && !image.Treated);
+
+            var changed = DocumentImageTidy.WithDescription(markdown, image,
+                new ImageVerdict { Kind = ImageVerdict.Screenshot, Title = "Una finestra", Description = "Una finestra." });
+
+            StringAssert.Contains(changed, "Prima.\n\n![Immagine che contiene testo, schermata Il contenuto potrebbe non essere corretto.](/a/img1.png)\n\n<details>");
+            Assert.IsTrue(DocumentImageTidy.Find(changed).Single().Treated);
+        }
     }
 }

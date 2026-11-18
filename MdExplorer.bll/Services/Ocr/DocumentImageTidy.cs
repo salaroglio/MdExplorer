@@ -128,7 +128,9 @@ namespace MdExplorer.Features.Services.Ocr
     /// </summary>
     public static class DocumentImageTidy
     {
-        private static readonly Regex Image = new Regex(@"!\[(?<alt>[^\]\r\n]*)\]\((?<path>[^)\s]+)(?:\s+""[^""\r\n]*"")?\)", RegexOptions.Compiled);
+        // Il testo alternativo può andare a capo: quello che Word genera da solo («Immagine che contiene…», riga
+        // vuota esclusa, «Il contenuto generato dall'IA…») sta su due righe, e un'immagine così restava invisibile.
+        private static readonly Regex Image = new Regex(@"!\[(?<alt>(?:[^\]\r\n]|\r?\n(?!\s*\r?\n)){0,1000})\]\((?<path>[^)\s]+)(?:\s+""[^""\r\n]*"")?\)", RegexOptions.Compiled);
 
         /// <summary>Le immagini locali del documento, fuori dal codice, nell'ordine in cui compaiono.</summary>
         public static IReadOnlyList<DocumentImage> Find(string markdown)
@@ -148,19 +150,23 @@ namespace MdExplorer.Features.Services.Ocr
                 {
                     lineStart = 0;
                 }
-                var lineEnd = markdown.IndexOf('\n', match.Index);
+                var lineEnd = markdown.IndexOf('\n', match.Index + match.Length);
                 if (lineEnd < 0)
                 {
                     lineEnd = markdown.Length;
                 }
+                // «Da sola sulla riga» anche se Word l'aveva messa in grassetto o corsivo («**![…](…)**») o rientrata di
+                // poco: intorno ha solo i segni dell'enfasi. Allora il tratto da sostituire è tutta la riga, segni compresi.
+                var before = markdown.Substring(lineStart, match.Index - lineStart);
+                var after = markdown.Substring(match.Index + match.Length, lineEnd - match.Index - match.Length);
+                var standalone = OnlyEmphasis(before) && OnlyEmphasis(after) && before.Length - before.TrimStart(' ').Length <= 3;
                 var image = new DocumentImage
                 {
-                    Start = match.Index,
-                    Length = match.Length,
+                    Start = standalone ? lineStart : match.Index,
+                    Length = standalone ? (markdown.Substring(lineStart, lineEnd - lineStart).TrimEnd().Length) : match.Length,
                     Alt = match.Groups["alt"].Value,
                     Path = path,
-                    Standalone = lineStart == match.Index
-                        && markdown.Substring(match.Index + match.Length, lineEnd - match.Index - match.Length).Trim().Length == 0,
+                    Standalone = standalone,
                 };
                 image.Treated = image.Standalone
                     ? NextLine(markdown, lineEnd).StartsWith("<details", StringComparison.OrdinalIgnoreCase)
@@ -169,6 +175,18 @@ namespace MdExplorer.Features.Services.Ocr
                 images.Add(image);
             }
             return images;
+        }
+
+        private static bool OnlyEmphasis(string text)
+        {
+            var marks = text.Trim();
+            return marks.Length <= 3 && marks.All(c => c == '*' || c == '_');
+        }
+
+        /// <summary>Quante immagini in mezzo al testo hanno già un testo alternativo (di Word o di Mark): quelle non si toccano.</summary>
+        public static int InlineWithAlternativeText(string markdown)
+        {
+            return Find(markdown).Count(image => !image.Standalone && image.Treated);
         }
 
         /// <summary>Lo schema ridisegnato al posto dell'immagine; l'originale resta sotto, ripiegata.</summary>
@@ -250,7 +268,7 @@ namespace MdExplorer.Features.Services.Ocr
 
         private static string ImageText(DocumentImage image, ImageVerdict verdict)
         {
-            var alt = image.Alt.Trim().Length > 0 ? image.Alt : ImageVerdict.OneLine(verdict.Title);
+            var alt = image.Alt.Trim().Length > 0 ? Regex.Replace(image.Alt.Trim(), @"\s+", " ") : ImageVerdict.OneLine(verdict.Title);
             return "![" + alt + "](" + image.Path + ")";
         }
 

@@ -17,7 +17,58 @@
 @import url('/highlight_within_textarea/highlight-within-textarea.css');
 @import url('/mermaid/mermaid.css');
 
+/* === Blocchi ripiegati (<details>) ===
+   Con lo stile nudo del browser un blocco ripiegato è una riga grigia con un triangolino: chi legge non lo vede
+   (18/11/2026, le descrizioni delle immagini scritte da Mark sembravano mancare). Qui il titolo è una linguetta
+   che si riconosce e si capisce che si apre. */
+details {
+  margin: 0.6em 0 1.1em;
+  border-left: 4px solid #1976d2;
+  border-radius: 4px;
+  background: rgba(25, 118, 210, 0.07);
+}
 
+details > summary {
+  cursor: pointer;
+  padding: 0.45em 0.8em;
+  font-weight: 600;
+  color: #1565c0;
+  list-style: none;
+  user-select: none;
+  border-radius: 0 4px 4px 0;
+}
 
+details > summary::-webkit-details-marker {
+  display: none;
+}
 
+details > summary::before {
+  content: "\25B8";
+  display: inline-block;
+  width: 1em;
+  margin-right: 0.3em;
+  text-align: center;
+  transition: transform 0.15s ease;
+}
 
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+details > summary:hover {
+  background: rgba(25, 118, 210, 0.14);
+}
+
+details[open] {
+  padding-bottom: 0.5em;
+}
+
+details[open] > summary {
+  border-bottom: 1px solid rgba(25, 118, 210, 0.25);
+  margin-bottom: 0.7em;
+}
+
+details > :not(summary) {
+  margin-left: 0.9em;
+  margin-right: 0.9em;
+}

@@ -378,11 +378,20 @@ body.dark-theme .footnote-backref {
 
 /* === Details/Summary === */
 body.dark-theme details {
-  border-color: #444;
+  border-left-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.08);
 }
 
-body.dark-theme summary {
-  color: #e0e0e0;
+body.dark-theme details > summary {
+  color: #4fc3f7;
+}
+
+body.dark-theme details > summary:hover {
+  background: rgba(79, 195, 247, 0.16);
+}
+
+body.dark-theme details[open] > summary {
+  border-bottom-color: rgba(79, 195, 247, 0.3);
 }
 
 /* === Edit overlay (H1 popup) === */

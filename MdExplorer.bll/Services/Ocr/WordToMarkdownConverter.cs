@@ -10,6 +10,9 @@ namespace MdExplorer.Features.Services.Ocr
         public string Markdown { get; set; }
         public List<string> Warnings { get; set; } = new List<string>();
         public int Images { get; set; }
+
+        /// <summary>Gli allegati incorporati nel Word usciti come file accanto alle immagini.</summary>
+        public int Attachments { get; set; }
     }
 
     /// <summary>
@@ -17,7 +20,8 @@ namespace MdExplorer.Features.Services.Ocr
     /// <para>
     /// Due tappe, le stesse di MarkItDown di Microsoft: Mammoth porta il documento in HTML seguendo
     /// gli stili (Titolo 1 → h1, elenchi, tabelle), ReverseMarkdown porta l'HTML in markdown. Le
-    /// immagini escono come file nella cartella indicata, non come dati dentro il markdown. L'indice
+    /// immagini escono come file nella cartella indicata, non come dati dentro il markdown; gli allegati
+    /// incorporati (PDF, Excel, altri Word) pure, con un collegamento al posto dell'icona. L'indice
     /// e i rimandi interni restano attivi: puntano alle ancore dei titoli.
     /// </para>
     /// </summary>
@@ -82,16 +86,36 @@ namespace MdExplorer.Features.Services.Ocr
                 var attributes = new Dictionary<string, string> { ["src"] = imagesLinkPrefix + "/" + fileName };
                 if (!string.IsNullOrEmpty(image.AltText))
                 {
-                    attributes["alt"] = image.AltText;
+                    // Su una riga sola: il testo alternativo che Word genera da solo va a capo, e in markdown un'immagine
+                    // con il testo su più righe non la riconosce nessuno (nemmeno Mark, che non la descriveva).
+                    attributes["alt"] = System.Text.RegularExpressions.Regex.Replace(image.AltText.Trim(), @"\s+", " ");
                 }
                 return attributes;
             });
 
+            // Due passate sul docx prima di Mammoth, ognuna su una copia: la numerazione che lo fa cadere
+            // (WordNumberingRepair) e gli allegati incorporati, che escono come file (WordAttachments).
+            var attachments = new WordAttachments();
             Mammoth.IResult<string> html;
             using (var repaired = WordNumberingRepair.RepairedCopy(docxPath))
+            using (var original = repaired == null ? File.OpenRead(docxPath) : null)
+            using (var withoutAttachments = attachments.Extract((Stream)repaired ?? original, imagesDirectory, imagesLinkPrefix, result.Warnings))
             {
-                html = repaired == null ? converter.ConvertToHtml(docxPath) : converter.ConvertToHtml(repaired);
+                if (withoutAttachments != null)
+                {
+                    html = converter.ConvertToHtml(withoutAttachments);
+                }
+                else if (repaired != null)
+                {
+                    repaired.Position = 0;
+                    html = converter.ConvertToHtml(repaired);
+                }
+                else
+                {
+                    html = converter.ConvertToHtml(docxPath);
+                }
             }
+            result.Attachments = attachments.Count;
             foreach (var warning in html.Warnings)
             {
                 // Di EMF e WMF risponde l'avviso qui sotto, che conta solo quelli rimasti tali.
@@ -116,7 +140,7 @@ namespace MdExplorer.Features.Services.Ocr
                 RemoveComments = true
             }).Convert(cleanHtml);
 
-            result.Markdown = links.FinishMarkdown(markdown.Replace("\r\n", "\n")).Trim() + "\n";
+            result.Markdown = attachments.FinishMarkdown(links.FinishMarkdown(markdown.Replace("\r\n", "\n"))).Trim() + "\n";
             return result;
         }
 
