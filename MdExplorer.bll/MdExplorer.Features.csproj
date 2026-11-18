@@ -123,7 +123,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Neo4j.Driver" Version="6.1.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
-    <PackageReference Include="NHibernate" Version="5.3.9" />
+    <PackageReference Include="NHibernate" Version="5.7.1" />
     <PackageReference Include="PlantUml.Net" Version="1.4.80" />
     <PackageReference Include="PuppeteerSharp" Version="25.14.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
