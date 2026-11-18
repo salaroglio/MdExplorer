@@ -115,6 +115,10 @@ namespace MdExplorer.Services.Diagnostics
             {
                 Add("electron/electron_main.log", Path.Combine(_electronUserData, "electron_main.log"), ElectronLogTail);
                 Add("electron/main.log", Path.Combine(_electronUserData, "logs", "main.log"), ElectronLogTail);
+                // Il registro di chi chiude finestre e applicazione; «prev» è il giro prima dell'ultimo avvio,
+                // cioè quello che racconta una chiusura inattesa.
+                Add("electron/detach-diag.log", Path.Combine(_electronUserData, "detach-diag.log"), ElectronLogTail);
+                Add("electron/detach-diag.prev.log", Path.Combine(_electronUserData, "detach-diag.prev.log"), ElectronLogTail);
             }
 
             if (findingsOf != null)
