@@ -545,12 +545,21 @@
       }
     }
 
-    // Invia, ferma e microfono: rettangoli alti quanto la casella, con l'icona al centro
-    .input-action {
+    // La colonna dei pulsanti accanto alla casella: microfono sopra, invio sotto; alta quanto la casella
+    .input-actions {
       flex: 0 0 auto;
       align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    // Invia, ferma e microfono: rettangoli che si dividono l'altezza della casella, con l'icona al centro
+    .input-action {
+      flex: 1 1 0;
       width: 56px;
       min-width: 56px;
+      min-height: 28px;
       height: auto;
       padding: 0;
       margin: 0;
@@ -585,7 +594,9 @@
     }
 
     .chat-input {
-      flex: 1;
+      // si stringe quanto serve: in una barra laterale stretta i pulsanti restano accanto, non vanno a capo sotto
+      flex: 1 1 0;
+      min-width: 0;
 
       ::ng-deep .mat-form-field-wrapper {
         padding-bottom: 0;
@@ -925,11 +936,9 @@
   to { transform: rotate(360deg); }
 }
 
-/* Dettatura: il microfono sta accanto al Send e pulsa mentre registra, cosi' si vede a colpo
+/* Dettatura: il microfono sta sopra il Send e pulsa mentre registra, cosi' si vede a colpo
    d'occhio che il microfono e' aperto. */
 .dictation-button {
-  flex: 0 0 auto;
-
   &.dictation-recording {
     animation: dictation-pulse 1.4s ease-in-out infinite;
   }

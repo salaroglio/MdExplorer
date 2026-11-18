@@ -354,7 +354,9 @@
     <!-- Microfono: c'è sempre. Se il Service non ha un modello di dettatura è attenuato, e il clic
          spiega che cosa scaricare e porta al gestore dei modelli. Un clic registra, il
          clic dopo trascrive. Il testo finisce nella casella e lo invia l'utente, non noi.
-         I pulsanti sono rettangolari e alti quanto la casella (16/11/2026): riempiono lo spazio accanto. -->
+         I pulsanti sono rettangolari e stanno uno sopra l'altro accanto alla casella (18/11/2026): microfono
+         sopra, invio sotto, insieme alti quanto la casella. -->
+    <div class="input-actions">
     <button
       *ngIf="!isStreaming"
       mat-flat-button
@@ -395,5 +397,6 @@
       class="input-action send-button stop-button">
       <mat-icon>stop</mat-icon>
     </button>
+    </div>
   </div>
 </div>
