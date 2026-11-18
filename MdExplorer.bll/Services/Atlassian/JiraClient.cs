@@ -429,7 +429,9 @@ namespace MdExplorer.Features.Services.Atlassian
                 {
                     await AddMatches(tokens[tokens.Length - 1]);          // surname
                     await AddMatches(tokens[0]);                          // first name
-                    await AddMatches(string.Join(" ", tokens.Reverse())); // reversed order
+                    // Enumerable.Reverse esplicito: con C# 14 `tokens.Reverse()` su un array si lega a MemoryExtensions.Reverse,
+                    // che rovescia l'array sul posto e restituisce void (sprint .NET 10, F2).
+                    await AddMatches(string.Join(" ", Enumerable.Reverse(tokens))); // reversed order
                 }
             }
 

@@ -698,7 +698,11 @@ namespace MdExplorer.Services.IndexingPipeline
             var dal = engineDB.GetDal<MarkdownFile>();
             foreach (var idChunk in work.Select(w => w.Id).Distinct().Chunk(500))
             {
-                foreach (var entity in dal.GetList().Where(m => idChunk.Contains(m.Id)).ToList())
+                // Lista, non array: con C# 14 `array.Contains` dentro la query si lega a MemoryExtensions.Contains, e
+                // NHibernate 5.3.9 cadeva («Evaluation failure on op_Implicit(Guid[])»: indicizzazione persa). La 5.7.1 la
+                // traduce, ma la query non deve dipendere dalla versione del fornitore (sprint .NET 10, F2).
+                var ids = idChunk.ToList();
+                foreach (var entity in dal.GetList().Where(m => ids.Contains(m.Id)).ToList())
                 {
                     entitiesById[entity.Id] = entity;
                 }
