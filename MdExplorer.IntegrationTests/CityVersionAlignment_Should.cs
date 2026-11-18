@@ -87,6 +87,7 @@ namespace MdExplorer.IntegrationTests
         {
             [2] = "d415107d2c0c4165",
             [3] = "d415107d2c0c4165",   // la città non è cambiata: lo schema 3 aggiunge solo agentCards
+            [4] = "d415107d2c0c4165",   // la città non è cambiata nemmeno con lo schema 4
         };
 
         private static readonly Type[] Shared =
