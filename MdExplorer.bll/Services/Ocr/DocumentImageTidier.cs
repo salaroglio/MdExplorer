@@ -46,6 +46,14 @@ namespace MdExplorer.Features.Services.Ocr
         private readonly Func<string, Task<string>> _ask;
         private readonly PlantumlBlockVerifier _verifier;
 
+        /// <summary>
+        /// A che punto è il lavoro su un'immagine, una riga per tappa: chi guarda (Mark, nel fumetto del pensiero) sa
+        /// che si sta lavorando anche quando il modello non manda il suo ragionamento.
+        /// </summary>
+        public Action<string> OnStage { get; set; }
+
+        private void Stage(string italian, string english) => OnStage?.Invoke(UiText.Say(italian, english));
+
         /// <param name="instructions">Il prompt <c>mde-doc-tidy</c>.</param>
         /// <param name="redrawInstructions">Il prompt <c>mde-doc-tidy-redraw</c>: lo schema dalla descrizione.</param>
         /// <param name="ask">Una domanda al motore del progetto, in sola lettura: torna il testo della risposta.</param>
@@ -84,6 +92,7 @@ namespace MdExplorer.Features.Services.Ocr
                 + "\nAlternative text in the source document: " + (image.Alt.Trim().Length > 0 ? image.Alt : "(none)")
                 + "\n\n---- TEXT AROUND THE IMAGE ----\n" + Around(markdown, image);
 
+            Stage("Guardo l'immagine…", "Looking at the image…");
             var (verdict, answer) = await AskAsync(prompt, _ask, ImageVerdict.Parse);
             if (verdict.Kind == ImageVerdict.Decorative)
                 return (Skipped, UiText.Say("è decorativa (un logo o simile): la lascio com'è.", "it is decorative (a logo or similar): I leave it as it is."));
@@ -105,9 +114,11 @@ namespace MdExplorer.Features.Services.Ocr
                 PlantumlVerification check = null;
                 if (verdict.PlantUml != null)
                 {
+                    Stage("È uno schema: verifico che il PlantUML si disegni…", "It is a diagram: checking that the PlantUML draws…");
                     check = await VerifyAsync(_verifier, verdict.PlantUml, ct);
                     if (check.ToolUnavailable == null && check.HasProblems)
                     {
+                        Stage("Non si disegna: chiedo una correzione…", "It does not draw: asking for a correction…");
                         // Una sola correzione: il modello rilegge che cosa non va e riscrive.
                         var (second, _) = await AskAsync(prompt + "\n\n---- YOUR PREVIOUS ANSWER ----\n" + answer + "\n\n---- CHECK ----\n" + check.ForModel()
                             + "\n\nAnswer again, in the same format, with the diagram corrected.", _ask, ImageVerdict.Parse);
@@ -146,6 +157,8 @@ namespace MdExplorer.Features.Services.Ocr
         /// </summary>
         private async Task<(string Action, string Comment)> RedrawFromDescriptionAsync(string imagePath, string markdown, DocumentImage image, ImageVerdict seen, CancellationToken ct)
         {
+            Stage("Dall'immagine lo schema non esce: lo ridisegno dalla descrizione, leggendo il capitolo del documento…",
+                "The diagram does not come out of the image: redrawing it from the description, reading the section of the document…");
             var (outline, section) = DocumentContext.Of(markdown, image);
             var prompt = _redrawInstructions + "\n\n---- DESCRIPTION OF THE IMAGE ----\nTitle: " + seen.Title + "\n" + seen.Description
                 + "\n\n---- DOCUMENT OUTLINE ----\n" + outline
@@ -173,9 +186,11 @@ namespace MdExplorer.Features.Services.Ocr
                     $"\"{seen.Title}\" is a diagram that PlantUML cannot reproduce, not even from the description: I put the description, corrected with the text of the document, under the image, folded."));
             }
 
+            Stage("Verifico che lo schema si disegni…", "Checking that the diagram draws…");
             var check = await VerifyAsync(_verifier, redraw.PlantUml, ct);
             if (check.ToolUnavailable == null && check.HasProblems)
             {
+                Stage("Non si disegna: chiedo una correzione…", "It does not draw: asking for a correction…");
                 var (second, _) = await AskAsync(prompt + "\n\n---- YOUR PREVIOUS ANSWER ----\n" + answer + "\n\n---- CHECK ----\n" + check.ForModel()
                     + "\n\nAnswer again, in the same format, with the diagram corrected.", _ask, RedrawVerdict.Parse);
                 if (second.PlantUml != null)
@@ -197,6 +212,7 @@ namespace MdExplorer.Features.Services.Ocr
             }
 
             // Si disegna. Che dica le stesse cose lo si può controllare solo per nomi; il resto lo dichiara il modello.
+            Stage("Confronto i nomi dello schema con la descrizione e il documento…", "Comparing the names in the diagram with the description and the document…");
             var toCheck = DiagramFidelity.Check(redraw.PlantUml, redraw.Elements, redraw.Relations, redraw.Description, markdown);
             toCheck.AddRange(redraw.Doubts);
             await WriteAsync(_documentFullPath, imagePath, (text, current) => DocumentImageTidy.WithDiagramFromDescription(text, current, result, toCheck), ct);

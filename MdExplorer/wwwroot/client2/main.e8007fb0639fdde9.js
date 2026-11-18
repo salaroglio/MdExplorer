@@ -12990,6 +12990,10 @@ class MarkAssistantService {
       }
     });
   }
+  /** Quante righe di pensiero restano nel fumetto mentre Mark sistema un'immagine. */
+  static {
+    this.TIDY_THINKING_LINES = 8;
+  }
   onDocumentTidyProgress(p) {
     if (!p) {
       return;
@@ -13006,11 +13010,21 @@ class MarkAssistantService {
         this.tidyQueue = this.sleep(80).then(() => this.typewriter(p.text));
         return;
       case 'looking':
+        this.clearThinkingTimer();
+        this._thinking.next([]);
         this.tidyQueue = this.tidyQueue.then(() => {
           this._isResponding.next(true);
         });
         return;
+      case 'thinking':
+        // Le tappe di MdExplorer e il ragionamento del modello sull'immagine in corso: le ultime righe,
+        // nel fumetto del pensiero. Si vede subito, anche mentre il commento di prima si sta ancora scrivendo.
+        if (p.text) {
+          this._thinking.next([...this._thinking.getValue(), p.text].slice(-MarkAssistantService.TIDY_THINKING_LINES));
+        }
+        return;
       case 'comment':
+        this._thinking.next([]);
         this.tidyQueue = this.tidyQueue.then(() => {
           this._isResponding.next(false);
           return this.typewriter(p.text);
@@ -13023,6 +13037,7 @@ class MarkAssistantService {
           const text = p.phase === 'done' ? p.text : p.phase === 'error' ? this.translate.instant('MARK.TIDY.ERROR', {
             error: p.message
           }) : this.translate.instant('MARK.TIDY.CANCELLED');
+          this._thinking.next([]);
           this.tidyQueue = this.tidyQueue.then(() => {
             this._isResponding.next(false);
             return this.typewriter(text);
@@ -21646,8 +21661,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.17.1',
-  buildTime: '2026.11.17 12:54:11'
+  version: '2026.11.18.1',
+  buildTime: '2026.11.18 10:05:35'
 };
 
 /***/ }),
@@ -21681,4 +21696,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.f826e8bb69392463.js.map
+//# sourceMappingURL=main.e8007fb0639fdde9.js.map

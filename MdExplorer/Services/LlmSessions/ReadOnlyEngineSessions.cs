@@ -114,6 +114,9 @@ namespace MdExplorer.Services.LlmSessions
     /// </summary>
     public sealed class OneShotReadOnlySession
     {
+        public const string ActivityThinking = "thinking";
+        public const string ActivityTool = "tool";
+
         private readonly ClaudeCodeSessionPool _claude;
         private readonly CopilotChatSessionPool _copilot;
         private readonly ILoggerFactory _loggerFactory;
@@ -153,8 +156,12 @@ namespace MdExplorer.Services.LlmSessions
 
         /// <summary>The text of the answer to <paramref name="prompt"/>, with the engine and model given.</summary>
         /// <param name="noFiles">Nessun file si legge (le descrizioni del codice): il modello lavora solo con il prompt.</param>
+        /// <param name="onActivity">
+        /// Chi vuole vedere il modello al lavoro: riceve i pezzi del ragionamento (<see cref="ActivityThinking"/>, a
+        /// frammenti come arrivano) e le righe degli strumenti usati (<see cref="ActivityTool"/>). Non fa parte della risposta.
+        /// </param>
         public async Task<string> AskAsync(string projectPath, MarkAgentEngine engine, string model, string prompt,
-            string profileKey, string denyReason, CancellationToken ct, bool noFiles = false)
+            string profileKey, string denyReason, CancellationToken ct, bool noFiles = false, Action<string, string> onActivity = null)
         {
             var key = profileKey + "|" + Guid.NewGuid().ToString("N");
             var answer = new StringBuilder();
@@ -165,7 +172,11 @@ namespace MdExplorer.Services.LlmSessions
                     {
                         var session = await _claude.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.ClaudeOptions(profileKey, mcpConfigPath: ClaudeMcpConfig(projectPath), noFiles: noFiles), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
+                            {
                             if (chunk.Kind == ClaudeCodeChunk.KindMessage) answer.Append(chunk.Text);
+                            else if (chunk.Kind == ClaudeCodeChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
+                            else if (chunk.Kind == ClaudeCodeChunk.KindTool) onActivity?.Invoke(ActivityTool, chunk.Text);
+                        }
                     }
                     finally { await _claude.ReleaseAsync(key).ConfigureAwait(false); }
                     break;
@@ -174,7 +185,11 @@ namespace MdExplorer.Services.LlmSessions
                     {
                         var session = await _copilot.GetOrCreateAsync(key, projectPath, model, ReadOnlyEngineSessions.CopilotProfile(profileKey, denyReason, onlyMcpServers: OnlyMdExplorer, noFiles: noFiles), ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
+                            {
                             if (chunk.Kind == CopilotChatChunk.KindMessage) answer.Append(chunk.Text);
+                            else if (chunk.Kind == CopilotChatChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
+                            else if (chunk.Kind == CopilotChatChunk.KindTool) onActivity?.Invoke(ActivityTool, chunk.Text);
+                        }
                     }
                     finally { await _copilot.ReleaseAsync(key).ConfigureAwait(false); }
                     break;
@@ -185,7 +200,11 @@ namespace MdExplorer.Services.LlmSessions
                     await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), server,
                         projectPath, model, null, rejectPermissions: true);
                     await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
-                        if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
+                        {
+                            if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
+                            else if (chunk.Kind == OpenCodeChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
+                            else if (chunk.Kind == OpenCodeChunk.KindTool) onActivity?.Invoke(ActivityTool, chunk.Text);
+                        }
                     break;
                 }
                 default:

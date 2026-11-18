@@ -124,11 +124,36 @@ namespace MdExplorer.Services.MarkActions
                     _logger.LogInformation("[DocumentTidy] {Document}: {Why}", documentName, whyNot);
                     return;
                 }
-                Task<string> Ask(string prompt) => _llm.AskAsync(projectPath, engine, model, prompt, "document-tidy",
-                    "le immagini del documento si guardano soltanto: nel documento scrive MdExplorer", ct);
+                // Il fumetto del pensiero di Mark: le tappe di MdExplorer e il ragionamento del modello, una riga alla volta
+                // e nell'ordine in cui nascono (gli invii si accodano: il motore chiama da un suo thread).
+                var thinkingLock = new object();
+                var thinkingSends = Task.CompletedTask;
+                void Think(string line)
+                {
+                    lock (thinkingLock)
+                        thinkingSends = thinkingSends.ContinueWith(_ => SendAsync(connectionId, new { phase = "thinking", text = line }),
+                            CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
+                }
+                Task ThinkingSent() { lock (thinkingLock) return thinkingSends; }
+
+                async Task<string> Ask(string prompt)
+                {
+                    var reasoning = new ThinkingLines(Think);
+                    try
+                    {
+                        return await _llm.AskAsync(projectPath, engine, model, prompt, "document-tidy",
+                            "le immagini del documento si guardano soltanto: nel documento scrive MdExplorer", ct,
+                            onActivity: (kind, text) =>
+                            {
+                                if (kind == LlmSessions.OneShotReadOnlySession.ActivityThinking) reasoning.Add(text);
+                                else { reasoning.Flush(); Think(text); }
+                            });
+                    }
+                    finally { reasoning.Flush(); }
+                }
 
                 var tidier = new DocumentImageTidier(documentFullPath, projectPath, LoadPromptBody(projectPath, PromptName), LoadPromptBody(projectPath, RedrawPromptName), Ask,
-                    new PlantumlBlockVerifier(_plantuml.CheckAsync));
+                    new PlantumlBlockVerifier(_plantuml.CheckAsync)) { OnStage = Think };
 
                 await SendAsync(connectionId, new
                 {
@@ -171,6 +196,8 @@ namespace MdExplorer.Services.MarkActions
                         case DocumentImageTidier.Skipped: skipped++; break;
                         default: failed++; break;
                     }
+                    // Il commento arriva dopo l'ultima riga di pensiero, mai prima.
+                    try { await ThinkingSent(); } catch (Exception ex) { _logger.LogDebug(ex, "[DocumentTidy] una riga di pensiero non è partita"); }
                     // Una riga per immagine: è da qui che si capisce perché uno schema non è stato ridisegnato.
                     _logger.LogInformation("[DocumentTidy] {Document}: {Image} -> {Action}: {Comment}", documentName, path, action, comment);
                     await SendAsync(connectionId, new { phase = "comment", index = i + 1, total = todo.Count, image = path, action, text = $"{label}: {comment}" });

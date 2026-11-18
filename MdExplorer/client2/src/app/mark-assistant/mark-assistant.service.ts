@@ -796,6 +796,9 @@ export class MarkAssistantService {
     });
   }
 
+  /** Quante righe di pensiero restano nel fumetto mentre Mark sistema un'immagine. */
+  private static readonly TIDY_THINKING_LINES = 8;
+
   private onDocumentTidyProgress(p: any): void {
     if (!p) { return; }
     switch (p.phase) {
@@ -810,9 +813,19 @@ export class MarkAssistantService {
         this.tidyQueue = this.sleep(80).then(() => this.typewriter(p.text));
         return;
       case 'looking':
+        this.clearThinkingTimer();
+        this._thinking.next([]);
         this.tidyQueue = this.tidyQueue.then(() => { this._isResponding.next(true); });
         return;
+      case 'thinking':
+        // Le tappe di MdExplorer e il ragionamento del modello sull'immagine in corso: le ultime righe,
+        // nel fumetto del pensiero. Si vede subito, anche mentre il commento di prima si sta ancora scrivendo.
+        if (p.text) {
+          this._thinking.next([...this._thinking.getValue(), p.text].slice(-MarkAssistantService.TIDY_THINKING_LINES));
+        }
+        return;
       case 'comment':
+        this._thinking.next([]);
         this.tidyQueue = this.tidyQueue.then(() => {
           this._isResponding.next(false);
           return this.typewriter(p.text);
@@ -824,6 +837,7 @@ export class MarkAssistantService {
         const text = p.phase === 'done' ? p.text
           : p.phase === 'error' ? this.translate.instant('MARK.TIDY.ERROR', { error: p.message })
           : this.translate.instant('MARK.TIDY.CANCELLED');
+        this._thinking.next([]);
         this.tidyQueue = this.tidyQueue.then(() => {
           this._isResponding.next(false);
           return this.typewriter(text);

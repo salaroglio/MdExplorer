@@ -118,6 +118,20 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         [TestMethod]
+        public async Task SayAtWhichStageItIs_SoThatWhoWatchesKnowsItIsWorking()
+        {
+            var stages = new List<string>();
+            var tidier = Tidier(Broken, Broken, Redraw("Cliente -> Negozio : ordine"));
+            tidier.OnStage = stages.Add;
+
+            await tidier.TidyAsync("/assets/doc_img/img1.png");
+
+            // immagine, verifica, correzione, dalla descrizione, verifica, confronto dei nomi
+            Assert.AreEqual(6, stages.Count, string.Join(" | ", stages));
+            Assert.IsTrue(stages.TrueForAll(stage => stage.Trim().Length > 0));
+        }
+
+        [TestMethod]
         public async Task KeepTheDiagramWithAWarning_WhenItDoesNotMatchTheDescription()
         {
             // «Magazzino» non è né nella descrizione né nel documento; «Negozio» è dichiarato ma non disegnato.
