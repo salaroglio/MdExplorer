@@ -17339,6 +17339,9 @@ class AiChatService {
     this.savedAtBottom = true;
     this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     this.downloadProgress$ = this._downloadProgress$.asObservable();
+    /** Un modello ha finito di scaricarsi (il suo id): chi dipende dai modelli installati rilegge lo stato. */
+    this._downloadComplete$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
+    this.downloadComplete$ = this._downloadComplete$.asObservable();
     this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.currentModel$ = this._currentModel$.asObservable();
     this._isModelLoaded$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
@@ -17413,6 +17416,7 @@ class AiChatService {
     });
     this.hubConnection.on('DownloadComplete', modelId => {
       console.log(`Model ${modelId} download complete`);
+      this._downloadComplete$.next(modelId);
       this.getAvailableModels().subscribe(); // Refresh model list
     });
     this.hubConnection.on('DownloadError', (modelId, error) => {
@@ -21661,8 +21665,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.18.1',
-  buildTime: '2026.11.18 10:05:35'
+  version: '2026.11.18.3',
+  buildTime: '2026.11.18 12:10:54'
 };
 
 /***/ }),
@@ -21696,4 +21700,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.e8007fb0639fdde9.js.map
+//# sourceMappingURL=main.7e60ae421b08d0c5.js.map

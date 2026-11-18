@@ -327,6 +327,17 @@
       </button>
     </div>
 
+    <div *ngIf="dictationNeedsModel" class="dictation-error dictation-needs-model">
+      <mat-icon class="dictation-error-icon">mic_off</mat-icon>
+      <span>{{ 'AI_CHAT.DICTATION_NEEDS_MODEL' | translate }}</span>
+      <button mat-stroked-button (click)="openModelManagerForDictation()">
+        {{ 'AI_CHAT.DICTATION_OPEN_MODELS' | translate }}
+      </button>
+      <button mat-icon-button (click)="dictationNeedsModel = false" [attr.aria-label]="'COMMON.CLOSE' | translate">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
     <mat-form-field [appearance]="compactMode ? 'fill' : 'outline'" class="chat-input">
       <textarea
         matInput
@@ -340,23 +351,27 @@
       <mat-hint *ngIf="!isModelLoaded && !isConfiguringProvider && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
     </mat-form-field>
 
-    <!-- Microfono: compare solo se il Service ha un modello di dettatura. Un clic registra, il
+    <!-- Microfono: c'è sempre. Se il Service non ha un modello di dettatura è attenuato, e il clic
+         spiega che cosa scaricare e porta al gestore dei modelli. Un clic registra, il
          clic dopo trascrive. Il testo finisce nella casella e lo invia l'utente, non noi.
          I pulsanti sono rettangolari e alti quanto la casella (16/11/2026): riempiono lo spazio accanto. -->
     <button
-      *ngIf="dictationAvailable && !isStreaming"
+      *ngIf="!isStreaming"
       mat-flat-button
       [color]="dictationState === 'recording' ? 'warn' : 'accent'"
       class="input-action dictation-button"
       [class.dictation-recording]="dictationState === 'recording'"
+      [class.dictation-unavailable]="!dictationAvailable"
       (click)="toggleDictation()"
-      [disabled]="!isModelLoaded || isConfiguringProvider || dictationState === 'transcribing'"
-      [matTooltip]="(dictationState === 'recording' ? 'AI_CHAT.DICTATION_STOP' :
+      [disabled]="dictationState === 'transcribing' ||
+                  (dictationState !== 'recording' && (isConfiguringProvider || (dictationAvailable && !isModelLoaded)))"
+      [matTooltip]="(!dictationAvailable ? 'AI_CHAT.DICTATION_NEEDS_MODEL_TIP' :
+                     dictationState === 'recording' ? 'AI_CHAT.DICTATION_STOP' :
                      dictationState === 'transcribing' ? 'AI_CHAT.DICTATION_WORKING' :
                      'AI_CHAT.DICTATION_START') | translate">
       <mat-spinner *ngIf="dictationState === 'transcribing'" diameter="20"></mat-spinner>
       <mat-icon *ngIf="dictationState !== 'transcribing'">
-        {{ dictationState === 'recording' ? 'stop' : 'mic' }}
+        {{ dictationState === 'recording' ? 'stop' : (dictationAvailable ? 'mic' : 'mic_off') }}
       </mat-icon>
     </button>
 

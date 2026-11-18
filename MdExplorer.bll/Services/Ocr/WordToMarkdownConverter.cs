@@ -140,8 +140,32 @@ namespace MdExplorer.Features.Services.Ocr
                 RemoveComments = true
             }).Convert(cleanHtml);
 
-            result.Markdown = attachments.FinishMarkdown(links.FinishMarkdown(markdown.Replace("\r\n", "\n"))).Trim() + "\n";
+            result.Markdown = ColonBeforeEmphasis(attachments.FinishMarkdown(links.FinishMarkdown(markdown.Replace("\r\n", "\n")))).Trim() + "\n";
             return result;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex ColonThenAsterisks =
+            new System.Text.RegularExpressions.Regex(@"(?<=^|[ \t]):(?<marks>\*+)", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        /// <summary>
+        /// «:*» dopo uno spazio o a inizio riga per Markdig è una faccina (😗), e il grassetto che seguiva resta con gli
+        /// asterischi a vista: «Stato :**aperto**». Dove gli asterischi APRONO l'enfasi basta uno spazio (« : **aperto**»,
+        /// utente 18/11/2026); dove la CHIUDONO («**Stato :** aperto») uno spazio la romperebbe, e allora si protegge il
+        /// due punti («\:»), che nella pagina resta un due punti. Fuori dal codice, per posizione.
+        /// </summary>
+        internal static string ColonBeforeEmphasis(string markdown)
+        {
+            var code = MdExplorer.Features.Utilities.MarkdownCodeRegions.Of(markdown);
+            return ColonThenAsterisks.Replace(markdown, match =>
+            {
+                if (code.IsCode(match.Index))
+                {
+                    return match.Value;
+                }
+                var after = match.Index + match.Length;
+                var opens = after < markdown.Length && !char.IsWhiteSpace(markdown[after]);
+                return opens ? ": " + match.Groups["marks"].Value : "\\:" + match.Groups["marks"].Value;
+            });
         }
 
         private static string ExtensionOf(string contentType)

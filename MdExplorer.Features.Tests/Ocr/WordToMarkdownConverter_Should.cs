@@ -1,4 +1,5 @@
 using System.IO;
+using Markdig;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
@@ -286,6 +287,23 @@ namespace MdExplorer.Features.Tests.Ocr
             Assert.AreEqual(1, result.Warnings.Count, string.Join(" | ", result.Warnings));
             StringAssert.Contains(result.Warnings[0], "manca il convertitore");
             StringAssert.Contains(result.Warnings[0], "1 ");
+        }
+
+        [TestMethod]
+        public void KeepAColonAwayFromTheAsterisksThatFollowIt_SoThatItDoesNotBecomeASmiley()
+        {
+            var pipeline = new Markdig.MarkdownPipelineBuilder().UseAdvancedExtensions().UseEmojiAndSmiley().Build();
+            string Html(string markdown) => Markdig.Markdown.ToHtml(WordToMarkdownConverter.ColonBeforeEmphasis(markdown), pipeline).Trim();
+
+            Assert.AreEqual("Stato : **aperto** ok", WordToMarkdownConverter.ColonBeforeEmphasis("Stato :**aperto** ok"));
+            Assert.AreEqual("<p>Stato : <strong>aperto</strong> ok</p>", Html("Stato :**aperto** ok"));
+            Assert.AreEqual("<p>x : <em>corsivo</em> y</p>", Html("x :*corsivo* y"));
+            Assert.AreEqual("<p>: <strong>a</strong> inizio</p>", Html(":**a** inizio"));
+            // Dove gli asterischi chiudono il grassetto, uno spazio lo romperebbe.
+            Assert.AreEqual("<p><strong>Stato :</strong> aperto</p>", Html("**Stato :** aperto"));
+            // Quello che già funziona, e il codice, restano come sono.
+            Assert.AreEqual("**Stato:** aperto e a:*b*", WordToMarkdownConverter.ColonBeforeEmphasis("**Stato:** aperto e a:*b*"));
+            Assert.AreEqual("`x :**y**`\n\n```\n :**z**\n```\n", WordToMarkdownConverter.ColonBeforeEmphasis("`x :**y**`\n\n```\n :**z**\n```\n"));
         }
 
         // Un Word con una sola immagine EMF (quattro byte: chi la disegna, qui, è finto).

@@ -47,6 +47,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   dictationState: 'idle' | 'recording' | 'transcribing' = 'idle';
   dictationAvailable = false;
   dictationError: string | null = null;
+  /** Il microfono è stato premuto ma manca il modello di dettatura: si spiega e si porta al gestore dei modelli. */
+  dictationNeedsModel = false;
   private recording: VoiceRecording | null = null;
   isModelLoaded = false;
   isConfiguringProvider = false;
@@ -253,8 +255,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           : '';
       });
 
-    // Il microfono compare solo se il Service ha un modello di dettatura installato.
+    // Il microfono c'è sempre; funziona se il Service ha un modello di dettatura installato, e lo si
+    // rilegge quando un download finisce: così si accende senza riaprire la chat.
     this.loadDictationAvailability();
+    this.aiService.downloadComplete$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.loadDictationAvailability());
 
     // Subscribe to messages
     this.aiService.messages$
@@ -511,6 +517,24 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     this.dictationError = null;
+    if (!this.dictationAvailable) {
+      // Il modello può essere arrivato da un'altra finestra o da un download finito adesso: si richiede
+      // al Service prima di dire che manca.
+      this.speech.status().subscribe({
+        next: (s) => {
+          this.dictationAvailable = s.available;
+          this.dictationNeedsModel = !s.available;
+          // Si parte subito solo se la chat è pronta a ricevere il testo: è la stessa condizione che
+          // tiene acceso il pulsante, sennò partirebbe una registrazione che non si può fermare.
+          if (s.available && this.isModelLoaded && !this.isConfiguringProvider) { this.toggleDictation(); }
+        },
+        error: (err) => {
+          this.dictationError = this.translate.instant('AI_CHAT.DICTATION_STATUS_UNKNOWN');
+          console.error('Stato della dettatura non disponibile:', err);
+        }
+      });
+      return;
+    }
     try {
       this.recording = await this.speech.record();
       this.dictationState = 'recording';
@@ -564,11 +588,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private loadDictationAvailability(): void {
     this.speech.status().subscribe({
-      next: (s) => { this.dictationAvailable = s.available; },
-      // Se lo stato non si sa, il microfono resta spento: meglio un pulsante che non c'è di uno
-      // che promette qualcosa e poi dà errore.
+      next: (s) => {
+        this.dictationAvailable = s.available;
+        if (s.available) { this.dictationNeedsModel = false; }
+      },
+      // Se lo stato non si sa, il microfono resta «da attivare»: al clic lo si richiede di nuovo e,
+      // se ancora non si sa, lo si dice.
       error: () => { this.dictationAvailable = false; }
     });
+  }
+
+  /** Dall'avviso «manca il modello di dettatura»: apre il gestore dei modelli, dove lo si scarica. */
+  openModelManagerForDictation(): void {
+    this.dictationNeedsModel = false;
+    if (!this.showModelManager) { this.toggleModelManager(); }
   }
 
   sendMessage(): void {
@@ -957,7 +990,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
   
   onModelManagerContentChanged(): void {
-    // Event listener for content changes - currently no action needed
+    // Un modello installato o tolto cambia anche se si può dettare.
+    this.loadDictationAvailability();
   }
 
   private scrollToBottom(): void {

@@ -937,6 +937,11 @@
   mat-spinner {
     margin: 0 auto;
   }
+
+  /* Manca il modello di dettatura: il pulsante c'e' ma attenuato, il clic spiega che cosa scaricare. */
+  &.dictation-unavailable {
+    opacity: 0.55;
+  }
 }
 
 @keyframes dictation-pulse {
@@ -964,6 +969,11 @@
 
   span { flex: 1; }
 }
+/* Non e' un errore ma una cosa da fare (scaricare il modello): stesso posto, colore neutro. */
+.dictation-error.dictation-needs-model {
+  background: rgba(128, 128, 128, 0.16);
+}
+
 
 /* «Ragguagli» waiting for the tab (D9): small, next to the header buttons. */
 .briefings {

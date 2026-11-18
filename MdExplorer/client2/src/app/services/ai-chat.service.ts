@@ -87,6 +87,9 @@ export class AiChatService {
   
   private _downloadProgress$ = new Subject<DownloadProgress>();
   public downloadProgress$ = this._downloadProgress$.asObservable();
+  /** Un modello ha finito di scaricarsi (il suo id): chi dipende dai modelli installati rilegge lo stato. */
+  private _downloadComplete$ = new Subject<string>();
+  public downloadComplete$ = this._downloadComplete$.asObservable();
   
   private _currentModel$ = new BehaviorSubject<string | null>(null);
   public currentModel$ = this._currentModel$.asObservable();
@@ -187,6 +190,7 @@ export class AiChatService {
 
     this.hubConnection.on('DownloadComplete', (modelId: string) => {
       console.log(`Model ${modelId} download complete`);
+      this._downloadComplete$.next(modelId);
       this.getAvailableModels().subscribe(); // Refresh model list
     });
 
