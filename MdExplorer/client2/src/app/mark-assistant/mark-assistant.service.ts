@@ -779,9 +779,11 @@ export class MarkAssistantService {
    * Mark resta nascosto finché il servizio non dice che c'è qualcosa da fare: senza immagini o senza un
    * motore configurato non compare affatto.
    */
-  beginDocumentTidy(documentPath: string): void {
+  beginDocumentTidy(documentPath: string, then: string[] = []): void {
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId || !documentPath) { return; }
+    // Gli allegati convertiti insieme al documento: uno dopo l'altro, quando questo è finito.
+    this.tidyNext = [...then];
 
     // In ascolto PRIMA della richiesta, così nessun evento si perde.
     this.tidyProgressSub?.unsubscribe();
@@ -805,7 +807,7 @@ export class MarkAssistantService {
       case 'nothing':
       case 'no-engine':
         // Niente da guardare, o nessun motore per farlo: Mark non compare.
-        this.endDocumentTidy();
+        this.endDocumentTidy(p.phase === 'no-engine');
         return;
       case 'started':
         this.takeOverDialog();
@@ -842,15 +844,27 @@ export class MarkAssistantService {
           this._isResponding.next(false);
           return this.typewriter(text);
         });
-        this.endDocumentTidy();
+        this.endDocumentTidy(p.phase === 'cancelled');
         return;
       }
     }
   }
 
-  private endDocumentTidy(): void {
+  private tidyNext: string[] = [];
+
+  /**
+   * Finito un documento (o trovato senza immagini), tocca al prossimo della fila. `stop` la svuota: senza
+   * motore o dopo un annullamento non ha senso riprovare con gli allegati.
+   */
+  private endDocumentTidy(stop = false): void {
     this.tidyProgressSub?.unsubscribe();
     this.tidyProgressSub = null;
+    if (stop) { this.tidyNext = []; }
+    const [next, ...rest] = this.tidyNext;
+    if (!next) { return; }
+    this.tidyNext = [];
+    // Dopo che l'ultimo commento è stato scritto, e un attimo per leggerlo.
+    this.tidyQueue = this.tidyQueue.then(() => this.sleep(2500)).then(() => this.beginDocumentTidy(next, rest));
   }
 
   // ──────────────────────────────────────────────────────────────────────

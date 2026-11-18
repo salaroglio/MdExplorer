@@ -114,12 +114,17 @@ namespace MdExplorer.Features.Services.Ocr
                 {
                     link.SetAttributeValue("href", "#" + token);
                 }
-                else if (!known.Contains(bookmark) && missing.Add(bookmark))
+                else if (!known.Contains(bookmark))
                 {
-                    _warnings.Add(UiText.Say(
-                        $"Un rimando punta al segnalibro «{bookmark}», che nel documento non c'è: il link resta ma non porta da nessuna parte.",
-                        $"A cross-reference points to the bookmark \"{bookmark}\", which is not in the document: the link stays but leads nowhere."));
+                    missing.Add(bookmark);
                 }
+            }
+            // Un avviso solo, con i nomi: uno per rimando erano decine di righe uguali.
+            if (missing.Count > 0)
+            {
+                _warnings.Add(UiText.Say(
+                    $"{missing.Count} rimandi puntano a segnalibri che nel documento non ci sono ({Some(missing)}): i link restano ma non portano da nessuna parte.",
+                    $"{missing.Count} cross-references point to bookmarks that are not in the document ({Some(missing)}): the links stay but lead nowhere."));
             }
 
             RebuildIndex(root);
@@ -163,16 +168,26 @@ namespace MdExplorer.Features.Services.Ocr
                     return "#" + anchor;
                 }
                 var bookmark = _bookmarkOfHeadingToken[token];
-                if (unresolved.Add(bookmark))
-                {
-                    _warnings.Add(UiText.Say(
-                        $"Un rimando punta a un titolo (segnalibro «{bookmark}») che in markdown non è più un titolo, per esempio perché sta in una tabella: il link resta ma non porta da nessuna parte.",
-                        $"A cross-reference points to a heading (bookmark \"{bookmark}\") that is no longer a heading in markdown, for example because it sits in a table: the link stays but leads nowhere."));
-                }
+                unresolved.Add(bookmark);
                 return "#" + bookmark;
             });
 
+            if (unresolved.Count > 0)
+            {
+                _warnings.Add(UiText.Say(
+                    $"{unresolved.Count} rimandi puntano a titoli che in markdown non sono più titoli, per esempio perché stanno in una tabella (segnalibri {Some(unresolved)}): i link restano ma non portano da nessuna parte.",
+                    $"{unresolved.Count} cross-references point to headings that are no longer headings in markdown, for example because they sit in a table (bookmarks {Some(unresolved)}): the links stay but lead nowhere."));
+            }
+
             return AnchorToken.Replace(clean, match => $"<a id=\"{_bookmarkOfAnchorToken[match.Value]}\"></a>");
+        }
+
+        // I primi nomi, e quanti ne restano: bastano a ritrovarli nel Word.
+        private static string Some(ICollection<string> names)
+        {
+            const int shown = 5;
+            var first = string.Join(", ", names.Take(shown).Select(name => "«" + name + "»"));
+            return names.Count <= shown ? first : first + UiText.Say($" e altri {names.Count - shown}", $" and {names.Count - shown} more");
         }
 
         // I paragrafi dell'indice di Word, che arrivano uno per voce con il numero di pagina in coda,

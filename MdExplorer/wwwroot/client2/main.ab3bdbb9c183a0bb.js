@@ -12443,6 +12443,7 @@ class MarkAssistantService {
         this.recomputeSpotlight();
       });
     };
+    this.tidyNext = [];
     this.lessonRegistry = (0,_lessons__WEBPACK_IMPORTED_MODULE_2__.buildLessonRegistry)({
       launch: id => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
@@ -12974,11 +12975,13 @@ class MarkAssistantService {
    * Mark resta nascosto finché il servizio non dice che c'è qualcosa da fare: senza immagini o senza un
    * motore configurato non compare affatto.
    */
-  beginDocumentTidy(documentPath) {
+  beginDocumentTidy(documentPath, then = []) {
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId || !documentPath) {
       return;
     }
+    // Gli allegati convertiti insieme al documento: uno dopo l'altro, quando questo è finito.
+    this.tidyNext = [...then];
     // In ascolto PRIMA della richiesta, così nessun evento si perde.
     this.tidyProgressSub?.unsubscribe();
     this.tidyQueue = Promise.resolve();
@@ -13002,7 +13005,7 @@ class MarkAssistantService {
       case 'nothing':
       case 'no-engine':
         // Niente da guardare, o nessun motore per farlo: Mark non compare.
-        this.endDocumentTidy();
+        this.endDocumentTidy(p.phase === 'no-engine');
         return;
       case 'started':
         this.takeOverDialog();
@@ -13042,14 +13045,28 @@ class MarkAssistantService {
             this._isResponding.next(false);
             return this.typewriter(text);
           });
-          this.endDocumentTidy();
+          this.endDocumentTidy(p.phase === 'cancelled');
           return;
         }
     }
   }
-  endDocumentTidy() {
+  /**
+   * Finito un documento (o trovato senza immagini), tocca al prossimo della fila. `stop` la svuota: senza
+   * motore o dopo un annullamento non ha senso riprovare con gli allegati.
+   */
+  endDocumentTidy(stop = false) {
     this.tidyProgressSub?.unsubscribe();
     this.tidyProgressSub = null;
+    if (stop) {
+      this.tidyNext = [];
+    }
+    const [next, ...rest] = this.tidyNext;
+    if (!next) {
+      return;
+    }
+    this.tidyNext = [];
+    // Dopo che l'ultimo commento è stato scritto, e un attimo per leggerlo.
+    this.tidyQueue = this.tidyQueue.then(() => this.sleep(2500)).then(() => this.beginDocumentTidy(next, rest));
   }
   // ──────────────────────────────────────────────────────────────────────
   //  "Ask to MarkAgent" on a PlantUML diagram box
@@ -21665,8 +21682,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.18.3',
-  buildTime: '2026.11.18 12:10:54'
+  version: '2026.11.18.4',
+  buildTime: '2026.11.18 12:37:11'
 };
 
 /***/ }),
@@ -21700,4 +21717,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.7e60ae421b08d0c5.js.map
+//# sourceMappingURL=main.ab3bdbb9c183a0bb.js.map

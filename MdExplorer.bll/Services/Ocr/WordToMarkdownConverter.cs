@@ -13,6 +13,9 @@ namespace MdExplorer.Features.Services.Ocr
 
         /// <summary>Gli allegati incorporati nel Word usciti come file accanto alle immagini.</summary>
         public int Attachments { get; set; }
+
+        /// <summary>Quegli allegati, uno per uno, con il collegamento che il markdown porta al loro posto.</summary>
+        public IReadOnlyList<WordAttachmentFile> AttachmentFiles { get; set; } = new List<WordAttachmentFile>();
     }
 
     /// <summary>
@@ -116,6 +119,7 @@ namespace MdExplorer.Features.Services.Ocr
                 }
             }
             result.Attachments = attachments.Count;
+            result.AttachmentFiles = attachments.Files;
             foreach (var warning in html.Warnings)
             {
                 // Di EMF e WMF risponde l'avviso qui sotto, che conta solo quelli rimasti tali.

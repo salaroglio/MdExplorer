@@ -45,6 +45,10 @@ export interface DocumentConversionJob {
   warnings: string[];
   error: string | null;
   needsModel: boolean;
+  /** I markdown degli allegati Word convertiti insieme al documento: Mark sistema anche le loro immagini. */
+  attachmentDocuments?: string[];
+  /** Le conversioni dei pdf allegati, in coda a questa: si seguono come questa. */
+  followUpJobIds?: string[];
 }
 
 /**
@@ -106,7 +110,11 @@ export class DocumentConversionService {
           this.announceDone(state);
           // Un Word convertito: Mark guarda le immagini e commenta quello che sistema.
           if (state.outputRelativePath && !DocumentConversionService.isPdf(state.fileName)) {
-            this.mark.beginDocumentTidy(state.outputRelativePath);
+            this.mark.beginDocumentTidy(state.outputRelativePath, state.attachmentDocuments || []);
+          }
+          // I pdf allegati al Word si convertono dopo, uno alla volta: ognuno annuncia la sua fine.
+          for (const id of state.followUpJobIds || []) {
+            this.follow({ id, fileName: state.fileName } as DocumentConversionJob);
           }
         } else if (state.status === 'error') {
           this.snackBar.open(

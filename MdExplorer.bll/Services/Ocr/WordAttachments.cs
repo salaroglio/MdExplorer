@@ -19,6 +19,28 @@ namespace MdExplorer.Features.Services.Ocr
     /// a estrarre resta com'era, con la sua icona, e lo si dice fra gli avvisi.
     /// </para>
     /// </summary>
+    /// <summary>Un allegato di un Word uscito come file.</summary>
+    public sealed class WordAttachmentFile
+    {
+        public int Number { get; set; }
+
+        /// <summary>Il nome che Word mostrava sotto l'icona (di solito il nome del file allegato).</summary>
+        public string Name { get; set; }
+
+        /// <summary>Con il punto, minuscola: «.pdf».</summary>
+        public string Extension { get; set; }
+        public string FullPath { get; set; }
+
+        /// <summary>Come il markdown indirizza il file.</summary>
+        public string Link { get; set; }
+
+        /// <summary>Il testo del collegamento, già protetto per il markdown: «📎 nome».</summary>
+        public string LinkText { get; set; }
+
+        /// <summary>Il collegamento così com'è scritto nel markdown convertito: chi converte anche l'allegato lo sostituisce.</summary>
+        public string MarkdownLink => "[" + LinkText + "](" + Link + ")";
+    }
+
     public sealed class WordAttachments
     {
         private static readonly XNamespace W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -28,9 +50,12 @@ namespace MdExplorer.Features.Services.Ocr
         private static readonly XNamespace Rel = "http://schemas.openxmlformats.org/package/2006/relationships";
         private static readonly Regex Token = new Regex(@"MDEATTACH(\d{4})X", RegexOptions.Compiled);
 
-        private readonly List<(string Text, string Link)> _links = new List<(string Text, string Link)>();
+        private readonly List<WordAttachmentFile> _links = new List<WordAttachmentFile>();
 
         public int Count => _links.Count;
+
+        /// <summary>Gli allegati usciti come file, nell'ordine del documento.</summary>
+        public IReadOnlyList<WordAttachmentFile> Files => _links;
 
         /// <param name="docx">Il docx (o la sua copia già riparata): non viene toccato.</param>
         /// <returns>La copia con i gettoni al posto degli allegati estratti; null se non c'era niente da estrarre.</returns>
@@ -95,7 +120,16 @@ namespace MdExplorer.Features.Services.Ocr
                             : !string.IsNullOrWhiteSpace(originalName) ? originalName
                             : UiText.Say($"Allegato {number}", $"Attachment {number}");
                         var kind = name.EndsWith(extension, StringComparison.OrdinalIgnoreCase) ? string.Empty : $" ({extension.TrimStart('.').ToUpperInvariant()})";
-                        _links.Add(($"📎 {name}{kind}", linkPrefix + "/" + fileName));
+                        var text = $"📎 {name}{kind}".Replace("\\", "\\\\").Replace("[", "\\[").Replace("]", "\\]");
+                        _links.Add(new WordAttachmentFile
+                        {
+                            Number = number,
+                            Name = name,
+                            Extension = extension,
+                            FullPath = Path.Combine(directory, fileName),
+                            Link = linkPrefix + "/" + fileName,
+                            LinkText = text,
+                        });
                         holder.ReplaceWith(new XElement(W + "t", new XAttribute(XNamespace.Xml + "space", "preserve"), $" MDEATTACH{number:0000}X "));
                     }
                     catch (InvalidDataException ex)
@@ -189,8 +223,7 @@ namespace MdExplorer.Features.Services.Ocr
                 {
                     return match.Value;
                 }
-                var text = _links[index].Text.Replace("\\", "\\\\").Replace("[", "\\[").Replace("]", "\\]");
-                return "[" + text + "](" + _links[index].Link + ")";
+                return _links[index].MarkdownLink;
             });
         }
 

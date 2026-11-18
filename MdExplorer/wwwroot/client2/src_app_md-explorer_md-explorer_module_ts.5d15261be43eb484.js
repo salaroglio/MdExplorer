@@ -51284,7 +51284,14 @@ class DocumentConversionService {
           this.announceDone(state);
           // Un Word convertito: Mark guarda le immagini e commenta quello che sistema.
           if (state.outputRelativePath && !DocumentConversionService.isPdf(state.fileName)) {
-            this.mark.beginDocumentTidy(state.outputRelativePath);
+            this.mark.beginDocumentTidy(state.outputRelativePath, state.attachmentDocuments || []);
+          }
+          // I pdf allegati al Word si convertono dopo, uno alla volta: ognuno annuncia la sua fine.
+          for (const id of state.followUpJobIds || []) {
+            this.follow({
+              id,
+              fileName: state.fileName
+            });
           }
         } else if (state.status === 'error') {
           this.snackBar.open(this.translate.instant('ADD_FILE.CONVERT.FAILED', {
@@ -57512,4 +57519,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.0e7468e11f5d4828.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5d15261be43eb484.js.map

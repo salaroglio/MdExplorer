@@ -52,6 +52,18 @@ namespace MdExplorer.Service.Services.Ocr
 
         /// <summary>L'errore si risolve scaricando il modello: l'interfaccia propone il download.</summary>
         public bool NeedsModel { get; set; }
+
+        /// <summary>
+        /// I markdown degli allegati Word convertiti insieme al documento (percorsi del progetto): hanno immagini
+        /// che Mark può sistemare, dopo quelle del documento principale.
+        /// </summary>
+        public List<string> AttachmentDocuments { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Le conversioni dei pdf allegati, avviate in coda a questa: il documento è già pronto, loro vogliono
+        /// mezzo minuto a pagina. Chi segue questa conversione segue anche quelle.
+        /// </summary>
+        public List<string> FollowUpJobIds { get; set; } = new List<string>();
     }
 
     /// <summary>Lo stato dell'installazione di un modello OCR (motore più file del modello).</summary>
@@ -172,13 +184,40 @@ namespace MdExplorer.Service.Services.Ocr
                 }
 
                 string markdown;
+                var attachedPdfs = new List<PendingPdfAttachment>();
+                string attachedPdfModel = null;
                 if (Path.GetExtension(request.SourceFullPath).Equals(".docx", StringComparison.OrdinalIgnoreCase))
                 {
-                    var imagesDirectory = Path.Combine(documentFolder, "assets", baseName + "_img");
-                    var word = WordToMarkdownConverter.Convert(request.SourceFullPath, imagesDirectory,
-                        ProjectLink(request.ProjectPath, imagesDirectory));
-                    markdown = word.Markdown;
-                    job.Warnings = word.Warnings;
+                    // Il Word e, in modo ricorsivo, i suoi allegati: Word ed Excel subito, i pdf in coda (vogliono l'OCR).
+                    string whyNoPdf = null;
+                    if (!_engine.GetStatus().IsInstalled)
+                    {
+                        whyNoPdf = UiText.Say(
+                            "il motore OCR non è installato (si installa convertendo un pdf da «Aggiungi come collegamento»).",
+                            "the OCR engine is not installed (it gets installed by converting a pdf from \"Add as link\").");
+                    }
+                    else
+                    {
+                        var model = !string.IsNullOrEmpty(request.ModelId) ? _models.FindModel(request.ModelId)
+                            : (await _models.GetAvailableModelsAsync()).FirstOrDefault(candidate => candidate.Category == "ocr" && candidate.IsInstalled);
+                        if (model == null || model.Category != "ocr" || !model.IsInstalled)
+                        {
+                            whyNoPdf = UiText.Say(
+                                "nessun modello OCR è scaricato (si scarica convertendo un pdf da «Aggiungi come collegamento»).",
+                                "no OCR model has been downloaded (one gets downloaded by converting a pdf from \"Add as link\").");
+                        }
+                        else
+                        {
+                            attachedPdfModel = model.Id;
+                        }
+                    }
+
+                    var tree = new WordAttachmentTree(documentFolder, path => ProjectLink(request.ProjectPath, path), whyNoPdf)
+                        .Convert(request.SourceFullPath, baseName);
+                    markdown = tree.Markdown;
+                    job.Warnings = tree.Warnings;
+                    job.AttachmentDocuments = tree.WordDocuments.Select(path => ProjectLink(request.ProjectPath, path)).ToList();
+                    attachedPdfs = tree.Pdfs;
                 }
                 else
                 {
@@ -194,13 +233,69 @@ namespace MdExplorer.Service.Services.Ocr
                 File.WriteAllText(outputPath, markdown);
                 job.OutputRelativePath = ProjectLink(request.ProjectPath, outputPath);
                 AppendLink(request.MdDocumentFullPath, Path.GetFileName(outputPath), job.OutputRelativePath);
+                foreach (var pdf in attachedPdfs)
+                {
+                    var followUp = new DocumentConversionJob { Id = Guid.NewGuid().ToString("N"), FileName = PdfName(pdf.Name) };
+                    _jobs[followUp.Id] = followUp;
+                    job.FollowUpJobIds.Add(followUp.Id);
+                    var modelId = attachedPdfModel;
+                    _ = Task.Run(() => RunAttachedPdfAsync(followUp, pdf, modelId, request.ProjectPath));
+                }
                 job.Status = "done";
-                _logger.LogInformation("[Conversione] {Source} -> {Output}", request.SourceFullPath, outputPath);
+                _logger.LogInformation("[Conversione] {Source} -> {Output} (allegati: {Words} Word, {Pdfs} pdf in coda)",
+                    request.SourceFullPath, outputPath, job.AttachmentDocuments.Count, attachedPdfs.Count);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Conversione] {Source} non convertito", request.SourceFullPath);
                 job.NeedsModel = ex is OcrNotReadyException;
+                job.Error = ex.Message;
+                job.Status = "error";
+            }
+            finally
+            {
+                _oneAtATime.Release();
+            }
+        }
+
+        // Chi segue la conversione decide dal nome che cosa fare dopo: un pdf non passa da Mark.
+        private static string PdfName(string name) => name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? name : name + ".pdf";
+
+        /// <summary>
+        /// Un pdf allegato a un Word già convertito: il suo markdown esiste, con scritto che la conversione è in corso.
+        /// Qui lo si riempie; se non riesce, nella pagina resta scritto perché, con il collegamento all'originale.
+        /// </summary>
+        private async Task RunAttachedPdfAsync(DocumentConversionJob job, PendingPdfAttachment attachment, string modelId, string projectPath)
+        {
+            await _oneAtATime.WaitAsync();
+            var heading = "# " + attachment.Name + "\n\n[" + UiText.Say("Il pdf originale", "The original pdf") + "](" + attachment.PdfLink + ")\n\n";
+            try
+            {
+                job.Status = "running";
+                var pdf = await _pdf.ConvertAsync(attachment.PdfFullPath, modelId, (page, pages) =>
+                {
+                    job.Page = page;
+                    job.Pages = pages;
+                }, CancellationToken.None);
+                File.WriteAllText(attachment.MarkdownFullPath, heading + pdf.Markdown);
+                job.TruncatedPages = pdf.TruncatedPages;
+                job.OutputRelativePath = ProjectLink(projectPath, attachment.MarkdownFullPath);
+                job.Status = "done";
+                _logger.LogInformation("[Conversione] allegato {Source} -> {Output}", attachment.PdfFullPath, attachment.MarkdownFullPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Conversione] allegato {Source} non convertito", attachment.PdfFullPath);
+                try
+                {
+                    File.WriteAllText(attachment.MarkdownFullPath, heading + UiText.Say(
+                        $"_La conversione di questo pdf in markdown non è riuscita: {ex.Message}_\n",
+                        $"_The conversion of this pdf to markdown failed: {ex.Message}_\n"));
+                }
+                catch (IOException write)
+                {
+                    _logger.LogWarning(write, "[Conversione] non riesco a scrivere l'esito in {Output}", attachment.MarkdownFullPath);
+                }
                 job.Error = ex.Message;
                 job.Status = "error";
             }

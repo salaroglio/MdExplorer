@@ -167,7 +167,7 @@ namespace MdExplorer.Features.Tests.Ocr
             return file.ToArray();
         }
 
-        private static byte[] Padded(string text)
+        internal static byte[] Padded(string text)
         {
             var bytes = new byte[4500];
             Encoding.ASCII.GetBytes(text).CopyTo(bytes, 0);
@@ -175,7 +175,7 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         // Un file di Office finto: uno zip con le voci che ne dicono il tipo.
-        private static byte[] Office(params string[] entries)
+        internal static byte[] Office(params string[] entries)
         {
             using (var buffer = new MemoryStream())
             {
@@ -216,7 +216,7 @@ namespace MdExplorer.Features.Tests.Ocr
         /// Un file composto minimo, settori da 512: 0 = tabella dei settori, 1 = elenco delle voci, 2 = mini tabella,
         /// 3 = mini flusso, dal 4 i flussi grandi. I flussi sotto i 4096 byte vanno nel mini flusso (al più 512 byte in tutto).
         /// </summary>
-        private static byte[] Compound(params (string Name, byte[] Content)[] streams)
+        internal static byte[] Compound(params (string Name, byte[] Content)[] streams)
         {
             const uint end = 0xFFFFFFFE, free = 0xFFFFFFFF;
             var fat = new List<uint> { 0xFFFFFFFD, end, end, end };
@@ -296,8 +296,12 @@ namespace MdExplorer.Features.Tests.Ocr
         // Un Word con un paragrafo «Vedi <allegato> e <allegato>…»: ogni allegato è un oggetto incorporato con la sua icona.
         private string Document(params (string ProgId, string Title, byte[] Container)[] attachments)
         {
+            return WriteDocument(Path.Combine(_folder, "allegati.docx"), attachments);
+        }
+
+        internal static string WriteDocument(string docx, params (string ProgId, string Title, byte[] Container)[] attachments)
+        {
             const string relationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-            var docx = Path.Combine(_folder, "allegati.docx");
             using (var zip = ZipFile.Open(docx, ZipArchiveMode.Create))
             {
                 void Part(string name, string xml)
