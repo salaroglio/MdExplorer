@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using MdExplorer.Features.Utilities;
 
@@ -177,6 +178,38 @@ namespace MdExplorer.Features.Services.Ocr
             var block = "```plantuml\n" + verdict.PlantUml + "\n```\n\n"
                 + "<details>\n<summary>" + UiText.Say("Immagine originale", "Original image") + "</summary>\n\n"
                 + ImageText(image, verdict) + "\n\n</details>";
+            return Replace(markdown, image, block);
+        }
+
+        /// <summary>
+        /// Lo schema ridisegnato dalla descrizione al posto dell'immagine; sotto, ripiegate, l'immagine originale e la
+        /// descrizione da cui è nato, perché chi legge possa confrontare. Con <paramref name="toCheck"/> una riga sopra
+        /// lo schema dice che cosa non torna.
+        /// </summary>
+        public static string WithDiagramFromDescription(string markdown, DocumentImage image, ImageVerdict verdict, IReadOnlyList<string> toCheck)
+        {
+            RequireStandalone(image);
+            var note = toCheck == null || toCheck.Count == 0 ? string.Empty
+                : "> **" + UiText.Say("Schema ricostruito dalla descrizione dell'immagine, da controllare", "Diagram rebuilt from the description of the image, to be checked")
+                    + ":** " + string.Join("; ", toCheck.Select(ImageVerdict.OneLine)) + ".\n\n";
+            var block = note + "```plantuml\n" + verdict.PlantUml + "\n```\n\n"
+                + "<details>\n<summary>" + UiText.Say("Immagine originale e descrizione", "Original image and description") + "</summary>\n\n"
+                + ImageText(image, verdict) + "\n\n" + verdict.Description + "\n\n</details>";
+            return Replace(markdown, image, block);
+        }
+
+        /// <summary>
+        /// L'immagine resta; sotto, ripiegati, la descrizione e il sorgente di uno schema che non si disegna: come
+        /// testo, perché un blocco plantuml rotto nella pagina è un riquadro d'errore.
+        /// </summary>
+        public static string WithDescriptionAndBrokenDiagram(string markdown, DocumentImage image, ImageVerdict verdict)
+        {
+            RequireStandalone(image);
+            var block = ImageText(image, verdict) + "\n\n"
+                + "<details>\n<summary>" + UiText.Say("Descrizione dell'immagine", "Image description") + "</summary>\n\n"
+                + verdict.Description + "\n\n"
+                + "**" + UiText.Say("Schema PlantUML che non si disegna, da correggere a mano", "PlantUML diagram that does not draw, to be fixed by hand") + "**\n\n"
+                + "```text\n" + verdict.PlantUml + "\n```\n\n</details>";
             return Replace(markdown, image, block);
         }
 

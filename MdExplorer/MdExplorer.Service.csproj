@@ -323,6 +323,7 @@
     <EmbeddedResource Include="skills\mde-mark-summarize\prompt.md" />
     <EmbeddedResource Include="skills\mde-mark-folder-synthesis\prompt.md" />
     <EmbeddedResource Include="skills\mde-doc-tidy\prompt.md" />
+    <EmbeddedResource Include="skills\mde-doc-tidy-redraw\prompt.md" />
     <EmbeddedResource Include="skills\mde-code-doc\prompt.md" />
     </ItemGroup>
 

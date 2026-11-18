@@ -22,6 +22,7 @@ namespace MdExplorer.IntegrationTests
             ["prompt/mde-code-doc"] = (12, "b093e8a244d73267"),
             ["prompt/mde-codegen-graph"] = (1, "b8d892587efab736"),
             ["prompt/mde-doc-tidy"] = (2, "8e0082344957edb7"),
+            ["prompt/mde-doc-tidy-redraw"] = (1, "c399c9958bd7cd5e"),
             ["prompt/mde-mark-folder-synthesis"] = (2, "1526a5a6329b9195"),
             ["prompt/mde-mark-summarize"] = (2, "c69e11c1bca86639"),
             ["skill/mde-abox"] = (4, "4c3cb1d565119c1f"),

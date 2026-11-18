@@ -45,6 +45,7 @@ namespace MdExplorer.Services.MarkActions
     {
         private const string ProgressEvent = "documentTidyProgress";
         private const string PromptName = "mde-doc-tidy";
+        private const string RedrawPromptName = "mde-doc-tidy-redraw";
 
         private readonly ILogger<DocumentTidyJobService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -98,7 +99,7 @@ namespace MdExplorer.Services.MarkActions
         {
             var ct = cts.Token;
             var documentName = Path.GetFileName(documentFullPath);
-            int redrawn = 0, described = 0, transcribed = 0, captioned = 0, skipped = 0, failed = 0;
+            int redrawn = 0, toCheck = 0, described = 0, transcribed = 0, captioned = 0, skipped = 0, failed = 0;
             try
             {
                 if (PathContainment.RelativeOrNull(projectPath, documentFullPath) == null || !File.Exists(documentFullPath))
@@ -126,7 +127,7 @@ namespace MdExplorer.Services.MarkActions
                 Task<string> Ask(string prompt) => _llm.AskAsync(projectPath, engine, model, prompt, "document-tidy",
                     "le immagini del documento si guardano soltanto: nel documento scrive MdExplorer", ct);
 
-                var tidier = new DocumentImageTidier(documentFullPath, projectPath, LoadPromptBody(projectPath, PromptName), Ask,
+                var tidier = new DocumentImageTidier(documentFullPath, projectPath, LoadPromptBody(projectPath, PromptName), LoadPromptBody(projectPath, RedrawPromptName), Ask,
                     new PlantumlBlockVerifier(_plantuml.CheckAsync));
 
                 await SendAsync(connectionId, new
@@ -163,6 +164,7 @@ namespace MdExplorer.Services.MarkActions
                     switch (action)
                     {
                         case DocumentImageTidier.Redrawn: redrawn++; break;
+                        case DocumentImageTidier.RedrawnToCheck: toCheck++; break;
                         case DocumentImageTidier.Described: described++; break;
                         case DocumentImageTidier.Transcribed: transcribed++; break;
                         case DocumentImageTidier.Captioned: captioned++; break;
@@ -179,15 +181,16 @@ namespace MdExplorer.Services.MarkActions
                     phase = "done",
                     document = documentName,
                     redrawn,
+                    toCheck,
                     described,
                     transcribed,
                     captioned,
                     skipped,
                     failed,
-                    text = Summary(redrawn, described, transcribed, captioned, skipped, failed),
+                    text = Summary(redrawn, toCheck, described, transcribed, captioned, skipped, failed),
                 });
-                _logger.LogInformation("[DocumentTidy] {Document}: ridisegnate {R}, descritte {D}, con testo alternativo {C}, lasciate {S}, non riuscite {F}",
-                    documentName, redrawn, described, captioned, skipped, failed);
+                _logger.LogInformation("[DocumentTidy] {Document}: ridisegnate {R}, ridisegnate da controllare {K}, descritte {D}, trascritte {T}, con testo alternativo {C}, lasciate {S}, non riuscite {F}",
+                    documentName, redrawn, toCheck, described, transcribed, captioned, skipped, failed);
             }
             catch (OperationCanceledException)
             {
@@ -205,10 +208,11 @@ namespace MdExplorer.Services.MarkActions
             }
         }
 
-        private static string Summary(int redrawn, int described, int transcribed, int captioned, int skipped, int failed)
+        private static string Summary(int redrawn, int toCheck, int described, int transcribed, int captioned, int skipped, int failed)
         {
             var parts = new List<string>();
             if (redrawn > 0) parts.Add(UiText.Say($"{redrawn} ridisegnate in PlantUML", $"{redrawn} redrawn in PlantUML"));
+            if (toCheck > 0) parts.Add(UiText.Say($"{toCheck} ridisegnate dalla descrizione, da controllare", $"{toCheck} redrawn from the description, to be checked"));
             if (described > 0) parts.Add(UiText.Say($"{described} descritte", $"{described} described"));
             if (transcribed > 0) parts.Add(UiText.Say($"{transcribed} trascritte", $"{transcribed} transcribed"));
             if (captioned > 0) parts.Add(UiText.Say($"{captioned} con il testo alternativo", $"{captioned} given an alternative text"));

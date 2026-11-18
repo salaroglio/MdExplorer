@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Diagrams;
@@ -14,6 +15,10 @@ namespace MdExplorer.Features.Tests.Ocr
     {
         private const string Good = "KIND: diagram\nTITLE: Flusso degli ordini\n```plantuml\n@startuml\nCliente -> Negozio : ordine\n@enduml\n```\nDESCRIPTION:\nIl cliente manda l'ordine al negozio.";
         private const string Broken = "KIND: diagram\nTITLE: Flusso degli ordini\n```plantuml\n@startuml\nROTTO\n@enduml\n```\nDESCRIPTION:\nIl cliente manda l'ordine al negozio.";
+
+        private const string Undrawn = "KIND: diagram\nTITLE: Flusso degli ordini\nDESCRIPTION:\nQualcuno manda qualcosa a un negozio.";
+
+        private static string Redraw(string body) => "DESCRIPTION:\nIl cliente manda l'ordine al negozio.\nELEMENTS:\n- Cliente\n- Negozio\nRELATIONS:\n- Cliente -> Negozio\nDOUBTS:\n- none\n```plantuml\n@startuml\n" + body + "\n@enduml\n```";
 
         private string _project;
         private string _document;
@@ -40,7 +45,7 @@ namespace MdExplorer.Features.Tests.Ocr
         private DocumentImageTidier Tidier(params string[] answers)
         {
             var queue = new Queue<string>(answers);
-            return new DocumentImageTidier(_document, _project, "ISTRUZIONI",
+            return new DocumentImageTidier(_document, _project, "ISTRUZIONI", "RIDISEGNA",
                 prompt => { _prompts.Add(prompt); return Task.FromResult(queue.Dequeue()); },
                 new PlantumlBlockVerifier(source => Task.FromResult(source.Contains("ROTTO")
                     ? PlantumlCheckOutcome.FromProcess(200, "ERROR\n2\nSyntax Error?\n")
@@ -83,15 +88,93 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         [TestMethod]
-        public async Task FallBackToTheDescriptionWhenTheDiagramNeverPasses_AndSaySo()
+        public async Task RedrawFromTheDescriptionAndTheDocument_WhenTheImageGaveNoDiagram_WithoutShowingTheImageAgain()
         {
-            var (action, comment) = await Tidier(Broken, Broken).TidyAsync("/assets/doc_img/img1.png");
+            var (action, comment) = await Tidier(Undrawn, Redraw("Cliente -> Negozio : ordine")).TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.Redrawn, action, comment);
+            Assert.AreEqual(2, _prompts.Count);
+            StringAssert.Contains(_prompts[1], "RIDISEGNA");
+            StringAssert.Contains(_prompts[1], "Qualcuno manda qualcosa a un negozio.");
+            StringAssert.Contains(_prompts[1], "---- DOCUMENT OUTLINE ----\n# Ordini");
+            StringAssert.Contains(_prompts[1], "Come funziona.\n\n[THE IMAGE IS HERE]");
+            Assert.IsFalse(_prompts[1].Contains("img1.png"), "il secondo tentativo non deve guardare l'immagine");
+
+            var text = File.ReadAllText(_document);
+            StringAssert.Contains(text, "Come funziona.\n\n```plantuml\n@startuml\nCliente -> Negozio : ordine\n@enduml\n```");
+            StringAssert.Contains(text, "![Flusso degli ordini](/assets/doc_img/img1.png)\n\nIl cliente manda l'ordine al negozio.\n\n</details>");
+            Assert.IsFalse(text.Contains("> **"), text);
+            Assert.AreEqual(0, DocumentImageTidy.Find(text).Count(image => image.Path.EndsWith("img1.png") && !image.Treated));
+        }
+
+        [TestMethod]
+        public async Task RedrawFromTheDescription_WhenTheDiagramFromTheImageNeverPasses()
+        {
+            var (action, _) = await Tidier(Broken, Broken, Redraw("Cliente -> Negozio : ordine")).TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.Redrawn, action);
+            Assert.AreEqual(3, _prompts.Count);
+            Assert.IsFalse(File.ReadAllText(_document).Contains("ROTTO"));
+        }
+
+        [TestMethod]
+        public async Task KeepTheDiagramWithAWarning_WhenItDoesNotMatchTheDescription()
+        {
+            // «Magazzino» non è né nella descrizione né nel documento; «Negozio» è dichiarato ma non disegnato.
+            var (action, comment) = await Tidier(Undrawn, Redraw("Cliente -> Magazzino : ordine")).TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.RedrawnToCheck, action);
+            StringAssert.Contains(comment, "Magazzino");
+            StringAssert.Contains(comment, "Negozio");
+            var text = File.ReadAllText(_document);
+            StringAssert.Contains(text, "> **");
+            StringAssert.Contains(text, "«Magazzino»");
+            StringAssert.Contains(text, "```plantuml\n@startuml\nCliente -> Magazzino : ordine\n@enduml\n```");
+        }
+
+        [TestMethod]
+        public async Task KeepTheDiagramWithAWarning_WhenTheModelDeclaresADoubt()
+        {
+            var answer = Redraw("Cliente -> Negozio : ordine").Replace("- none", "- il documento parla di un fornitore, la descrizione no");
+
+            var (action, _) = await Tidier(Undrawn, answer).TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.RedrawnToCheck, action);
+            StringAssert.Contains(File.ReadAllText(_document), "il documento parla di un fornitore, la descrizione no.\n\n```plantuml");
+        }
+
+        [TestMethod]
+        public async Task KeepTheSourceFoldedAsText_WhenTheDiagramFromTheDescriptionDoesNotDraw()
+        {
+            var (action, comment) = await Tidier(Undrawn, Redraw("ROTTO"), Redraw("ROTTO ancora")).TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.Described, action, comment);
+            Assert.AreEqual(3, _prompts.Count);
+            StringAssert.Contains(_prompts[2], "---- CHECK ----");
+            var text = File.ReadAllText(_document);
+            Assert.IsFalse(text.Contains("```plantuml"), text);
+            StringAssert.Contains(text, "![Flusso degli ordini](/assets/doc_img/img1.png)\n\n<details>");
+            StringAssert.Contains(text, "Il cliente manda l'ordine al negozio.");
+            StringAssert.Contains(text, "```text\n@startuml\nROTTO ancora\n@enduml\n```\n\n</details>");
+        }
+
+        [TestMethod]
+        public async Task KeepTheFirstDescription_WhenTheSecondAttemptAnswersOutOfFormat_AndSaySo()
+        {
+            var (action, comment) = await Tidier(Undrawn, "Non saprei.", "Davvero non saprei.").TidyAsync("/assets/doc_img/img1.png");
 
             Assert.AreEqual(DocumentImageTidier.Described, action);
-            Assert.IsTrue(comment.Contains("non passa la verifica") || comment.Contains("does not pass the check"), comment);
-            var text = File.ReadAllText(_document);
-            Assert.IsFalse(text.Contains("plantuml"), text);
-            StringAssert.Contains(text, "Il cliente manda l'ordine al negozio.\n\n</details>");
+            StringAssert.Contains(comment, "DESCRIPTION");
+            StringAssert.Contains(File.ReadAllText(_document), "Qualcuno manda qualcosa a un negozio.\n\n</details>");
+        }
+
+        [TestMethod]
+        public async Task NotAskForADiagramFromTheDescription_ForAScreenshot()
+        {
+            var (action, _) = await Tidier("KIND: screenshot\nTITLE: Finestra\nDESCRIPTION:\nUna finestra.").TidyAsync("/assets/doc_img/img1.png");
+
+            Assert.AreEqual(DocumentImageTidier.Described, action);
+            Assert.AreEqual(1, _prompts.Count);
         }
 
         [TestMethod]

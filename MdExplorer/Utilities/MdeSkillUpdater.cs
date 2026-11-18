@@ -243,6 +243,7 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-mark-folder-synthesis", Shared("MdExplorer.Service.skills.mde_mark_folder_synthesis.prompt.md")),
             new CatalogEntry("mde-code-doc", Shared("MdExplorer.Service.skills.mde_code_doc.prompt.md")),
             new CatalogEntry("mde-doc-tidy", Shared("MdExplorer.Service.skills.mde_doc_tidy.prompt.md")),
+            new CatalogEntry("mde-doc-tidy-redraw", Shared("MdExplorer.Service.skills.mde_doc_tidy_redraw.prompt.md")),
         };
 
         /// <summary>Un file che MDE distribuisce, come esce dal pacchetto: per il test che vuole il numero alzato a ogni cambio (N5).</summary>

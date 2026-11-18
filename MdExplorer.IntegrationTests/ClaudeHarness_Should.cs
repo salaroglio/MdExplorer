@@ -80,6 +80,7 @@ namespace MdExplorer.IntegrationTests
                     ".claude/agents/mde-skillcreator.md",
                     ".claude/commands/mde-code-doc.md",
                     ".claude/commands/mde-codegen-graph.md",
+                    ".claude/commands/mde-doc-tidy-redraw.md",
                     ".claude/commands/mde-doc-tidy.md",
                     ".claude/commands/mde-mark-folder-synthesis.md",
                     ".claude/commands/mde-mark-summarize.md",
