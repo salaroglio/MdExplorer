@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 42
+  version: 43
   updatePolicy: replace
 ---
 
@@ -79,7 +79,11 @@ on you know exactly what a symbol, an edge, a call site or a description carries
   where the parser reads SQL, `resolvesTo` only where registrations are read) cannot answer for that language — say
   so, and read the source;
 - do not miss what is there: an edge has a `confidence`, a `line`, maybe a `rule` and a `guard`; a symbol has `bodyHash`,
-  `signature`, `visibility`; an `external` has only a name. Use them in the answer.
+  `signature`, `visibility`, maybe a `comment`; an `external` has only a name. Use them in the answer.
+- `comment` (`code:comment`) is what the SOURCE says about a symbol, as its author wrote it: the comment on the line that
+  declares a field, the lines above a record, the header of a file. Where a language reads them (its TBox says for which
+  kinds), a data file — an archive, a record layout — tells there what it is for and what each field holds: quote it,
+  and say it comes from the source. It is not a `summary`, which is written afterwards by the project's AI.
 
 A language added with a package (`.mde-languages/<id>/`) has its own TBox in `languagePackages`: which kinds and
 relations its rules produce, each with the rule of `language.yml` it comes from. The same text is the package's

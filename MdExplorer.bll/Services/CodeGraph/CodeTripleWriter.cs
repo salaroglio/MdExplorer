@@ -81,6 +81,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.BodyHash != null) sb.Append(" ; code:bodyHash ").Append(Lit(s.BodyHash));
                 if (s.Guard != null) sb.Append(" ; code:guard ").Append(Lit(s.Guard));
                 if (s.ReturnTypeName != null) sb.Append(" ; code:returnTypeName ").Append(Lit(s.ReturnTypeName));
+                if (s.Comment != null) sb.Append(" ; code:comment ").Append(Lit(s.Comment));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
                 FromScript(sb, fromScriptLit).Append(" .\n");

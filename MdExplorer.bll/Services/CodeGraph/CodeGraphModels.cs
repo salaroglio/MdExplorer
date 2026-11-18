@@ -242,6 +242,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Language { get; set; }
         /// <summary>La condizione sotto cui il simbolo esiste (un controllo dentro <c>$if[…]$</c> di una pagina, D42 passo 2); null = sempre.</summary>
         public string Guard { get; set; }
+        /// <summary>I commenti che il sorgente porta per il simbolo, com'è scritto (<see cref="ScriptSymbol.Comment"/>); null se non ne ha.</summary>
+        public string Comment { get; set; }
         public string Summary { get; set; }
         public string ReturnsDescription { get; set; }
         public string Remarks { get; set; }

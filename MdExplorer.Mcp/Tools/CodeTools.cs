@@ -73,6 +73,7 @@ public sealed class CodeTools : McpToolsBase
         "Describe a code symbol in full: signature, return type, every parameter with type/direction/default, and the functional " +
         "descriptions written by the project's AI (summary, what it returns, what each parameter means, remarks). " +
         "`descriptionStale` = true means the description was written for an older signature or body: trust the code, double-check the prose. " +
+        "`comment` = the comments the SOURCE carries for the symbol, as written by its author (where the language reads them: what a data file is for, what a field holds); it is not a description written afterwards. " +
         "Answers 'what does X do, what do I pass it, what does it return' without opening the file.")]
     public async Task<string> code_describe(
         [Description("Project name.")] string project,

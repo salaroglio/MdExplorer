@@ -72,6 +72,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public IReadOnlyDictionary<string, string> Types { get; private init; }
         public IReadOnlyList<ReferenceRule> References { get; private init; }
         public FragmentRule Fragments { get; private init; }
+        /// <summary>I commenti che descrivono i simboli (<see cref="CommentRule"/>); null = i commenti non entrano nel grafo.</summary>
+        public CommentRule Comments { get; private init; }
         /// <summary>Le pagine a direttive (D42 passo 2): con questa sezione il linguaggio è un dialetto di pagine, letto da <see cref="TemplatePageExtractor"/>; null per i linguaggi a righe.</summary>
         public TemplateRule Template { get; private init; }
         /// <summary>I cataloghi di SQL in XML (13/11/2026): con questa sezione il linguaggio è letto da <see cref="XmlCatalogExtractor"/>; null altrimenti.</summary>
@@ -243,6 +245,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// <summary>La riga che chiude il blocco; null quando il blocco si chiude per profondità (<see cref="Nesting"/>).</summary>
             public Regex End { get; init; }
             public NestingRule Nesting { get; init; }
+            /// <summary>
+            /// <c>until</c> (motore 11, 18/11/2026, rilevazione dal cliente: un tracciato record comincia con una riga e finisce
+            /// dove comincia altro, o con il file): il blocco non ha una riga di chiusura sua. Si chiude PRIMA della riga che
+            /// corrisponde (che resta di chi lo conteneva: può aprire un altro blocco, anche della stessa regola) e alla fine del
+            /// file, senza avviso. Al posto di <see cref="End"/> e di <see cref="Nesting"/>.
+            /// </summary>
+            public Regex Until { get; init; }
             public IReadOnlyList<string> In { get; init; }
             public string NameTemplate { get; init; }
             public string SignatureTemplate { get; init; }
@@ -276,6 +285,30 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Regex Body { get; init; }
             public Regex Header { get; init; }
             public Regex Declaration { get; init; }
+        }
+
+        /// <summary>
+        /// I commenti del sorgente che descrivono un simbolo (motore 11, 18/11/2026, rilevazione dal cliente: ogni campo di un
+        /// tracciato ha la sua spiegazione nel commento a fine riga, e il file dice in testa a che cosa serve l'archivio).
+        /// Finiscono in <see cref="ScriptSymbol.Comment"/>, com'è scritto: non li riassume nessuno. Solo i commenti di riga
+        /// (<c>lexical.lineComment</c>).
+        /// <list type="bullet">
+        /// <item><see cref="Trailing"/>: le regole i cui simboli prendono il commento che sta sulla riga che li dichiara;</item>
+        /// <item><see cref="Leading"/>: le regole i cui simboli prendono le righe di solo commento subito sopra, senza righe vuote in mezzo;</item>
+        /// <item><see cref="Header"/>: le righe di solo commento in testa al file, prima della prima riga di codice, descrivono il file;</item>
+        /// <item><see cref="Module"/>: le righe di commento, ovunque nel file, che descrivono il file. Il gruppo <c>text</c> è
+        /// il testo; con il gruppo <c>tag</c> la riga diventa <c>tag: testo</c>.</item>
+        /// </list>
+        /// Con <c>trailing</c> e <c>leading</c> insieme, prima le righe sopra e poi quella della dichiarazione; con
+        /// <c>header</c> e <c>module</c> insieme, prima l'intestazione e poi le righe riconosciute che stanno più sotto. Una
+        /// riga di commento senza lettere né cifre (una fila di trattini) è decorazione e non conta.
+        /// </summary>
+        public sealed class CommentRule
+        {
+            public ISet<string> Trailing { get; init; }
+            public ISet<string> Leading { get; init; }
+            public bool Header { get; init; }
+            public Regex Module { get; init; }
         }
 
         public sealed class LabelRule
@@ -505,6 +538,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var l in labels) CheckIn($"labels[{l.Id}].in", l.In, containers);
                 foreach (var x in declarations) CheckIn($"declarations[{x.Id}].in", x.In, containers);
                 var fragments = BuildFragments(blocks);
+                var comments = BuildComments(lexical, blocks, labels, declarations);
                 var template = BuildTemplate();
                 var xml = BuildXml();
                 if (xml != null && template != null) throw Fail("xml e template: uno solo dei due", "xml and template: only one of the two");
@@ -524,7 +558,36 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Parameters = BuildParameters(),
                     Types = new Dictionary<string, string>(_d.Types ?? new Dictionary<string, string>(), StringComparer.Ordinal),
                     References = (_d.References ?? new List<Yaml.Reference>()).Select((r, i) => BuildReference(r, i, ruleIds, declarations)).ToList(),
-                    Fragments = fragments, Template = template, Xml = xml,
+                    Fragments = fragments, Comments = comments, Template = template, Xml = xml,
+                };
+            }
+
+            /// <summary>La sezione <c>comments</c>: vuole il commento di riga, e regole che producono simboli.</summary>
+            private CommentRule BuildComments(Yaml.Lexical lexical, List<BlockRule> blocks, List<LabelRule> labels, List<DeclarationRule> declarations)
+            {
+                var c = _d.Comments;
+                if (c == null) return null;
+                if (string.IsNullOrEmpty(lexical.LineComment))
+                    throw Fail("comments: serve lexical.lineComment (si leggono i commenti di riga)", "comments: lexical.lineComment is required (line comments are read)");
+                if (c.Trailing == null && c.Leading == null && c.Module == null && !c.Header)
+                    throw Fail("comments: serve almeno uno fra trailing, leading, header e module", "comments: at least one of trailing, leading, header and module is required");
+                var emitting = new HashSet<string>(blocks.Select(b => b.Id).Concat(labels.Select(l => l.Id)).Concat(declarations.Where(x => x.Emit).Select(x => x.Id)), StringComparer.Ordinal);
+                ISet<string> Rules(string where, List<string> ids)
+                {
+                    var set = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var id in ids ?? new List<string>())
+                    {
+                        if (!emitting.Contains(id))
+                            throw Fail($"{where}: '{id}' non è una regola che produce simboli (un blocco, un'etichetta, una dichiarazione senza emit: false)",
+                                $"{where}: '{id}' is not a rule that produces symbols (a block, a label, a declaration without emit: false)");
+                        set.Add(id);
+                    }
+                    return set;
+                }
+                return new CommentRule
+                {
+                    Trailing = Rules("comments.trailing", c.Trailing), Leading = Rules("comments.leading", c.Leading), Header = c.Header,
+                    Module = c.Module == null ? null : Rx("comments.module", c.Module, "text"),
                 };
             }
 
@@ -540,7 +603,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
                     ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
-                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null), ("comments", _d.Comments != null),
                 };
                 foreach (var (name, present) in lineRules)
                     if (present) throw Fail($"{name}: con xml non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with xml (it is for line-based languages); remove one of the two sections");
@@ -595,7 +658,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     ("lexical", _d.Lexical != null), ("module", _d.Module != null), ("blocks", _d.Blocks != null), ("labels", _d.Labels != null),
                     ("declarations", _d.Declarations != null), ("parameters", _d.Parameters != null), ("types", _d.Types != null),
-                    ("references", _d.References != null), ("fragments", _d.Fragments != null),
+                    ("references", _d.References != null), ("fragments", _d.Fragments != null), ("comments", _d.Comments != null),
                 };
                 foreach (var (name, present) in lineRules)
                     if (present) throw Fail($"{name}: con template non vale (è dei linguaggi a righe); togli una delle due sezioni", $"{name}: does not apply with template (it is for line-based languages); remove one of the two sections");
@@ -744,7 +807,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (string.IsNullOrWhiteSpace(b.Id)) throw Fail($"{where}.id: obbligatorio", $"{where}.id: required");
                 where = $"blocks[{b.Id}]";
                 if (b.Begin == null) throw Fail($"{where}: serve begin", $"{where}: begin is required");
-                if ((b.End == null) == (b.Nesting == null)) throw Fail($"{where}: serve end oppure nesting, uno dei due", $"{where}: either end or nesting is required, exactly one");
+                if (new object[] { b.End, b.Nesting, b.Until }.Count(x => x != null) != 1)
+                    throw Fail($"{where}: serve uno solo fra end, nesting e until", $"{where}: exactly one of end, nesting and until is required");
                 NestingRule nesting = null;
                 if (b.Nesting != null)
                 {
@@ -763,6 +827,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     Id = b.Id, Kind = Kind(where, b.Kind), Begin = Rx(where + ".begin", b.Begin, "name"),
                     End = b.End == null ? null : Rx(where + ".end", b.End), Nesting = nesting,
+                    Until = b.Until == null ? null : Rx(where + ".until", b.Until),
                     In = b.In is { Count: > 0 } ? b.In : new List<string> { ModuleRule },
                     NameTemplate = b.Name ?? "{name}", SignatureTemplate = b.Signature,
                     Completes = string.IsNullOrWhiteSpace(b.Completes) ? null : b.Completes.Trim(),
@@ -953,6 +1018,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public Dictionary<string, string> Types { get; set; }
                 public List<Reference> References { get; set; }
                 public Fragments Fragments { get; set; }
+                public Comments Comments { get; set; }
                 public Template Template { get; set; }
                 public Xml Xml { get; set; }
             }
@@ -1048,6 +1114,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Declaration { get; set; }
             }
             public sealed class Module { public string Name { get; set; } }
+            public sealed class Comments
+            {
+                public List<string> Trailing { get; set; }
+                public List<string> Leading { get; set; }
+                public bool Header { get; set; }
+                public string Module { get; set; }
+            }
             public sealed class Block
             {
                 public string Id { get; set; }
@@ -1055,6 +1128,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Begin { get; set; }
                 public string End { get; set; }
                 public Nesting Nesting { get; set; }
+                public string Until { get; set; }
                 public List<string> In { get; set; }
                 public string Name { get; set; }
                 public string Signature { get; set; }

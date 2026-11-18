@@ -950,6 +950,8 @@ namespace MdExplorer.Controllers.CodeGraph
                 descriptionStale = s.DescriptionStale,
                 // la condizione di un controllo di una pagina (D42 passo 2); null = sempre
                 guard = s.Guard,
+                // i commenti che il sorgente porta per il simbolo, com'è scritto (18/11/2026); null se non ne ha
+                comment = s.Comment,
                 parameters = s.Parameters.Count == 0 ? null : s.Parameters.Select(p => new { p.Position, p.Name, p.Type, p.Direction, p.DefaultValue, p.IsNullable, p.Description }),
             };
         }

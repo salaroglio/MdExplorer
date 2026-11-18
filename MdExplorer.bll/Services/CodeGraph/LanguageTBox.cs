@@ -34,14 +34,25 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append("  rdfs:comment \"What the parser of this language package writes in MdExplorer's code graph. The classes of nodes and their properties are those of the code ontology (tool code_ontology); here: which symbol kinds and which relations this language produces, and from which rule of language.yml. A kind or a relation not listed here does not exist for this language.\" .\n\n");
 
             sb.Append("# ---- symbols\n");
-            Kind(sb, Node("kind-module"), "module", "module", "one per source file" + (lang.ModuleName != null ? "; its name is the one the file declares (rule module.name), else the file name" : "; its name is the file name"));
+            // i commenti del sorgente che il linguaggio porta nei simboli (comments): chi legge il grafo sa dove cercarli
+            string Commented(string ruleId)
+            {
+                var c = lang.Comments;
+                if (c == null) return "";
+                var trailing = c.Trailing.Contains(ruleId); var leading = c.Leading.Contains(ruleId);
+                if (!trailing && !leading) return "";
+                return "; code:comment holds " + (leading && trailing ? "the comment lines right above it and the comment on its line" : leading ? "the comment lines right above it" : "the comment on its line") + ", as written in the source";
+            }
+            Kind(sb, Node("kind-module"), "module", "module", "one per source file" + (lang.ModuleName != null ? "; its name is the one the file declares (rule module.name), else the file name" : "; its name is the file name")
+                + (lang.Comments is { } fileComments && (fileComments.Header || fileComments.Module != null) ? "; code:comment holds the comment lines that say what the file is ("
+                    + (fileComments.Header && fileComments.Module != null ? "the header of the file and the lines rule comments.module recognizes" : fileComments.Header ? "the header of the file" : "the lines rule comments.module recognizes") + "), as written in the source" : ""));
             foreach (var b in lang.Blocks)
-                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, (b.Nesting != null ? "a block, from its begin line to the line where its nesting closes (open and close words counted outside comments and strings)" : "a block, from its begin line to its end line") + In(b.In) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : "")
+                Kind(sb, Node("kind-" + b.Id), b.Kind, "blocks." + b.Id, (b.Nesting != null ? "a block, from its begin line to the line where its nesting closes (open and close words counted outside comments and strings)" : b.Until != null ? "a block with no closing line of its own: from its begin line to the last line before something else begins (rule until), or to the end of the file" : "a block, from its begin line to its end line") + In(b.In) + Commented(b.Id) + (lang.Parameters != null ? "; its parameters are code:Parameter nodes" : "")
                     + (b.Completes != null ? $"; it implements the {b.Completes} block with the same name: the name (and every reference to it) belongs to this block, and in the same file the {b.Completes} block is named NAME@{b.Completes}" : ""));
             foreach (var l in lang.Labels)
-                Kind(sb, Node("kind-" + l.Id), l.Kind, "labels." + l.Id, "a label inside a block, up to the next label or the end of the block" + In(l.In) + (l.OnlyIfReferenced ? "; a symbol only if something in the same file refers to it" : ""));
+                Kind(sb, Node("kind-" + l.Id), l.Kind, "labels." + l.Id, "a label inside a block, up to the next label or the end of the block" + In(l.In) + Commented(l.Id) + (l.OnlyIfReferenced ? "; a symbol only if something in the same file refers to it" : ""));
             foreach (var d in lang.Declarations.Where(d => d.Emit))
-                Kind(sb, Node("kind-" + d.Id), d.Kind, "declarations." + d.Id, "a name declared on one line" + In(d.In));
+                Kind(sb, Node("kind-" + d.Id), d.Kind, "declarations." + d.Id, "a name declared on one line" + In(d.In) + Commented(d.Id));
             if (lang.Fragments != null)
                 Kind(sb, Node("kind-fragment"), DeclarativeLanguage.FragmentKind, "fragments", "a piece of a block too long to describe in one go" + In(lang.Fragments.In) + ": the block contains its fragments");
             if (lang.Xml != null)

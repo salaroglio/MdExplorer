@@ -100,6 +100,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// piattaforma, parametro di tipo, ambiguo). Non entra nell'impronta della firma: quella resta su <see cref="ReturnType"/>.
         /// </summary>
         public string ReturnTypeName { get; set; }
+        /// <summary>
+        /// I commenti che il sorgente porta per questo simbolo (18/11/2026), com'è scritto: la riga della dichiarazione, le righe
+        /// sopra, le righe di intestazione del file. È ciò che chi ha scritto il codice dice del simbolo (a che cosa serve un
+        /// archivio, che cosa contiene un campo), non una descrizione scritta dopo: quella sta negli script <c>doc</c>. Non entra
+        /// nelle impronte della firma e del corpo. Null = nessun commento, o un estrattore che non li legge.
+        /// </summary>
+        public string Comment { get; set; }
         /// <summary><c>external</c> = fuori perimetro: nessun file, nessuna riga, condiviso fra gli script.</summary>
         public bool IsExternal => string.Equals(Kind, "external", StringComparison.OrdinalIgnoreCase);
     }

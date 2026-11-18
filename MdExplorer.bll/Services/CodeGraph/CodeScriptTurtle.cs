@@ -99,7 +99,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         internal static readonly Dictionary<string, HashSet<string>> Allowed = new(StringComparer.Ordinal)
         {
             ["File"] = Set("path", "language", "contentHash", "extractor", "extractorVersion", "parsedAt", "schema", "symbolCount", "project"),
-            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName" }
+            ["Symbol"] = Set(new[] { "kind", "name", "qualifiedName", "language", "inFile", "path", "isStatic", "isAsync", "lineStart", "lineEnd", "signature", "returnType", "visibility", "parent", "signatureHash", "trivial", "trivialOf", "bodyHash", "guard", "returnTypeName", "comment" }
                              .Concat(CodeScriptParser.Relations).ToArray()),
             ["Parameter"] = Set("parameterOf", "position", "name", "direction", "isNullable", "type", "defaultValue"),
             ["Edge"] = Set("source", "target", "relation", "relationIri", "confidence", "path", "line", "rule", "guard", "written"),
@@ -201,6 +201,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     BodyHash = n.OptStr("bodyHash"),
                     Guard = n.OptStr("guard"),
                     ReturnTypeName = n.OptStr("returnTypeName"),
+                    Comment = n.OptStr("comment"),
                     Language = kind == "external" && n.OptStr("language") is { } lang && lang != script.Header.Language ? lang : null,
                 });
             }

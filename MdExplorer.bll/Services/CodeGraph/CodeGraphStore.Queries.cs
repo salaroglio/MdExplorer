@@ -32,11 +32,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             "?s a code:Symbol ; code:kind ?kind ; code:name ?name ; code:qualifiedName ?qn . " +
             "OPTIONAL { ?s code:language ?lang } OPTIONAL { ?s code:path ?path } OPTIONAL { ?s code:lineStart ?ls } OPTIONAL { ?s code:lineEnd ?le } " +
             "OPTIONAL { ?s code:signature ?sig } OPTIONAL { ?s code:returnType ?ret } OPTIONAL { ?s code:visibility ?vis } " +
-            "OPTIONAL { ?s code:isStatic ?st } OPTIONAL { ?s code:isAsync ?as } OPTIONAL { ?s code:parent ?parent } OPTIONAL { ?s code:signatureHash ?sh } OPTIONAL { ?s code:bodyHash ?bh } OPTIONAL { ?s code:guard ?guard } " +
+            "OPTIONAL { ?s code:isStatic ?st } OPTIONAL { ?s code:isAsync ?as } OPTIONAL { ?s code:parent ?parent } OPTIONAL { ?s code:signatureHash ?sh } OPTIONAL { ?s code:bodyHash ?bh } OPTIONAL { ?s code:guard ?guard } OPTIONAL { ?s code:comment ?comment } " +
             "OPTIONAL { ?d a code:Description ; code:describes ?s . OPTIONAL { ?d code:summary ?summary } OPTIONAL { ?d code:returnsDescription ?retd } " +
             "OPTIONAL { ?d code:remarks ?rem } OPTIONAL { ?d code:writtenBy ?by } OPTIONAL { ?d code:signatureHash ?dsh } OPTIONAL { ?d code:bodyHash ?dbh } } ";
 
-        private const string SymbolVars = "?s ?kind ?name ?qn ?lang ?path ?ls ?le ?sig ?ret ?vis ?st ?as ?parent ?sh ?summary ?retd ?rem ?by ?dsh ?bh ?dbh ?guard";
+        private const string SymbolVars = "?s ?kind ?name ?qn ?lang ?path ?ls ?le ?sig ?ret ?vis ?st ?as ?parent ?sh ?summary ?retd ?rem ?by ?dsh ?bh ?dbh ?guard ?comment";
 
         private static CodeSymbolView ReadSymbol(Dictionary<string, string> r)
         {
@@ -46,7 +46,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 Id = SymbolId(Str(r, "s")), Kind = Str(r, "kind"), Name = Str(r, "name"), QualifiedName = Str(r, "qn"), Language = Str(r, "lang"),
                 Path = Str(r, "path"), LineStart = Int(r, "ls"), LineEnd = Int(r, "le"), Signature = Str(r, "sig"), ReturnType = Str(r, "ret"),
                 Visibility = Str(r, "vis"), IsStatic = Bool(r, "st"), IsAsync = Bool(r, "as"), ParentId = SymbolId(Str(r, "parent")),
-                Summary = Str(r, "summary"), ReturnsDescription = Str(r, "retd"), Remarks = Str(r, "rem"), WrittenBy = Str(r, "by"), Guard = Str(r, "guard"),
+                Summary = Str(r, "summary"), ReturnsDescription = Str(r, "retd"), Remarks = Str(r, "rem"), WrittenBy = Str(r, "by"), Guard = Str(r, "guard"), Comment = Str(r, "comment"),
                 // «da rivedere»: la descrizione fu scritta per un'altra firma o per un altro corpo (F12b; un'impronta che manca
                 // da una delle due parti non si confronta); senza descrizione non c'è niente da confrontare
                 DescriptionStale = dsh == null ? null : !string.Equals(dsh, sh, StringComparison.OrdinalIgnoreCase) || bh != null && dbh != null && bh != dbh,

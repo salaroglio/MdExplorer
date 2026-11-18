@@ -42,7 +42,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>3 (10/11/2026): gli archi che si risolvono per nome portano il riferimento scritto (<see cref="ScriptEdge.Written"/>).</para>
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
-        public const string EngineVersion = "10";
+        /// <para>11 (18/11/2026): blocchi che finiscono dove comincia altro o con il file (<c>until</c>); i commenti del sorgente nel simbolo (<c>comments</c>).</para>
+        public const string EngineVersion = "11";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -208,7 +209,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         internal sealed record LogicalLine(int Start, int End, string Code, string Raw);
 
         /// <summary>Le righe logiche di un testo: continuazione unita, commenti tolti, stringhe svuotate nel testo «code».</summary>
-        internal static List<LogicalLine> LogicalLines(DeclarativeLanguage lang, string text)
+        internal static List<LogicalLine> LogicalLines(DeclarativeLanguage lang, string text) => LogicalLines(lang, text, null);
+
+        /// <summary>Una riga fisica per i commenti: il testo del suo commento di riga (null se non ne ha) e se porta anche codice.</summary>
+        internal readonly record struct PhysicalLine(string Comment, bool HasCode);
+
+        /// <param name="physicalLines">Se non è null si riempie con una voce per riga fisica, nell'ordine (<see cref="DeclarativeLanguage.CommentRule"/>).</param>
+        internal static List<LogicalLine> LogicalLines(DeclarativeLanguage lang, string text, List<PhysicalLine> physicalLines)
         {
             var lines = new List<LogicalLine>();
             var physical = text.Split('\n');
@@ -217,7 +224,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             var state = new LexState();
             for (var i = 0; i < physical.Length; i++)
             {
-                var (c, r) = Strip(lang, physical[i].TrimEnd('\r'), state);
+                var (c, r, comment) = Strip(lang, physical[i].TrimEnd('\r'), state);
+                physicalLines?.Add(new PhysicalLine(comment, !string.IsNullOrWhiteSpace(r)));
                 if (code == null) { code = new StringBuilder(); raw = new StringBuilder(); start = i + 1; }
                 var cont = lang.Continuation?.Match(c);
                 if (cont is { Success: true } && i < physical.Length - 1)
@@ -245,8 +253,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// (in «code» e in «raw», così le posizioni restano le stesse) e le stringhe svuotate nel «code». Un delimitatore di
         /// commento dentro una stringa è testo della stringa; una virgoletta dentro un commento non apre una stringa.
         /// </summary>
-        private static (string Code, string Raw) Strip(DeclarativeLanguage lang, string line, LexState state)
+        private static (string Code, string Raw, string Comment) Strip(DeclarativeLanguage lang, string line, LexState state)
         {
+            string lineCommentText = null;
             var delimiter = lang.StringDelimiter;
             var comment = lang.LineComment;
             var open = lang.BlockCommentOpen;
@@ -269,7 +278,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                     continue;
                 }
                 if (delimiter.HasValue && ch == delimiter.Value) { state.InString = !state.InString; code.Append(ch); raw.Append(ch); continue; }
-                if (!state.InString && comment != null && string.CompareOrdinal(line, i, comment, 0, comment.Length) == 0) break;
+                if (!state.InString && comment != null && string.CompareOrdinal(line, i, comment, 0, comment.Length) == 0)
+                {
+                    lineCommentText = line.Substring(i + comment.Length).Trim();
+                    break;
+                }
                 if (!state.InString && open != null && string.CompareOrdinal(line, i, open, 0, open.Length) == 0)
                 {
                     code.Append(' ', open.Length); raw.Append(' ', open.Length);
@@ -280,7 +293,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 code.Append(state.InString ? ' ' : ch);
                 raw.Append(ch);
             }
-            return (code.ToString(), raw.ToString());
+            return (code.ToString(), raw.ToString(), lineCommentText);
         }
 
         // ------------------------------------------------------------------ struttura
@@ -299,6 +312,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public Sym Parent;
             public string Signature;
             public string ReturnType;
+            /// <summary>I commenti del sorgente che descrivono il simbolo (<see cref="DeclarativeLanguage.CommentRule"/>); null se non ne ha.</summary>
+            public string Comment;
             public List<ScriptParameter> Parameters = new();
             public bool OnlyIfReferenced;
             /// <summary>Il nome del programma (<c>module.name</c>) se il file lo dichiara: è quello che <c>resolve: module</c> cerca.</summary>
@@ -336,6 +351,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public string Text;
             public Sym Module;
             public List<LogicalLine> Lines;
+            /// <summary>Le righe fisiche, in ordine (la riga 1 è la voce 0): il commento e se c'è codice. Vuota senza la sezione <c>comments</c>.</summary>
+            public List<PhysicalLine> Physical = new();
             public List<Sym> Symbols = new();
             /// <summary>Le dichiarazioni con <c>emit: false</c>: solo nell'indice, mai nello script.</summary>
             public List<Sym> Hidden = new();
@@ -359,7 +376,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             public StructureReader(DeclarativeLanguage lang, CodeSourceFile file, string text, int fragmentAbove)
             {
                 _lang = lang;
-                _m = new FileModel { File = file, Text = text, Lines = LogicalLines(lang, text) };
+                _m = new FileModel { File = file, Text = text };
+                _m.Lines = LogicalLines(lang, text, lang.Comments == null ? null : _m.Physical);
                 _qualified = new HashSet<string>(lang.NameComparer);
                 _fragmentAbove = fragmentAbove;
             }
@@ -392,10 +410,19 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var line = lines[i];
                     _current = i;
                     var top = stack[^1];
+                    var until = top == module ? null : BlockRule(top).Until;
+                    // … o prima della riga che chiude il blocco che lo contiene (ENDPROC con un tracciato ancora aperto)
+                    if (until != null && (until.IsMatch(line.Code) || (top.Parent != module && BlockRule(top.Parent).End is { } parentEnd && parentEnd.IsMatch(line.Code))))
+                    {
+                        CloseOpenEnded(top, i - 1);
+                        stack.RemoveAt(stack.Count - 1);
+                        i--;   // la riga è di chi conteneva il blocco: può aprirne un altro
+                        continue;
+                    }
                     var nesting = top == module ? null : BlockRule(top).Nesting;
                     if (nesting == null)
                     {
-                        if (top != module && BlockRule(top).End.IsMatch(line.Code))
+                        if (top != module && until == null && BlockRule(top).End.IsMatch(line.Code))
                         {
                             CloseLabel(top, line.Start - 1);
                             top.End = line.End;
@@ -436,11 +463,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                 for (var k = stack.Count - 1; k >= 1; k--)
                 {
                     var open = stack[k];
+                    if (BlockRule(open).Until != null) { CloseOpenEnded(open, lines.Count - 1); continue; }   // finisce con il file: è la sua regola
                     CloseLabel(open, physicalCount);
                     open.End = physicalCount;
                     _m.Warnings.Add(CodeWarnings.LanguageRules, UiText.Say($"{_m.File.LogicalPath}: il blocco '{open.RuleId}' {open.Name} aperto alla riga {open.Start} non si chiude", $"{_m.File.LogicalPath}: the '{open.RuleId}' block {open.Name} opened at line {open.Start} is never closed"));
                 }
                 CloseLabel(module, physicalCount);
+                ReadComments();
                 if (_lang.Fragments != null)
                 {
                     var physical = _m.Text.Split('\n');
@@ -448,6 +477,77 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (Chars(physical, block) > _fragmentAbove) Fragment(block, physical);
                 }
                 return _m;
+            }
+
+            /// <summary>
+            /// Chiude un blocco <c>until</c>: finisce all'ultima riga con qualcosa dentro, non alle righe vuote o di solo commento
+            /// che lo separano da quello che viene dopo. <paramref name="lastIndex"/> è l'ultima riga logica che può essere sua.
+            /// </summary>
+            private void CloseOpenEnded(Sym block, int lastIndex)
+            {
+                var last = lastIndex;
+                while (last >= 0 && _m.Lines[last].Start > block.Start && string.IsNullOrWhiteSpace(_m.Lines[last].Raw)) last--;
+                var end = last >= 0 ? Math.Max(block.Start, _m.Lines[last].End) : block.Start;
+                CloseLabel(block, end);
+                block.End = end;
+                // le righe vuote dopo la fine tornano a chi lo conteneva
+                for (var j = lastIndex; j > last && j >= 0; j--)
+                    if (_m.Block[j] == block) { _m.Block[j] = block.Parent; _m.Owner[j] = block.Parent.OpenLabel ?? block.Parent; }
+            }
+
+            /// <summary>I commenti che descrivono i simboli (<see cref="DeclarativeLanguage.CommentRule"/>), com'è scritto nel sorgente.</summary>
+            private void ReadComments()
+            {
+                var rule = _lang.Comments;
+                if (rule == null) return;
+                var physical = _m.Physical;
+                // una fila di trattini o di asterischi è decorazione, non un commento
+                static bool Says(string comment) => !string.IsNullOrEmpty(comment) && comment.Any(char.IsLetterOrDigit);
+                if (rule.Header || rule.Module != null)
+                {
+                    var parts = new List<string>();
+                    string Recognized(string comment)
+                    {
+                        if (rule.Module == null) return null;
+                        var m = rule.Module.Match(comment);
+                        if (!m.Success) return null;
+                        var text = m.Groups["text"].Value.Trim();
+                        var tag = m.Groups["tag"].Success ? m.Groups["tag"].Value.Trim() : null;
+                        if (text.Length == 0 && string.IsNullOrEmpty(tag)) return null;
+                        return string.IsNullOrEmpty(tag) ? text : text.Length == 0 ? tag : tag + ": " + text;
+                    }
+                    // l'intestazione: le righe di solo commento (e le vuote fra loro) prima della prima riga di codice
+                    var headerEnd = 0;
+                    if (rule.Header)
+                        while (headerEnd < physical.Count && !physical[headerEnd].HasCode) headerEnd++;
+                    for (var l = 0; l < physical.Count; l++)
+                    {
+                        var comment = physical[l].Comment;
+                        if (!Says(comment)) continue;
+                        var recognized = Recognized(comment);
+                        if (recognized != null) parts.Add(recognized);
+                        else if (l < headerEnd) parts.Add(comment);
+                    }
+                    if (parts.Count > 0) _m.Module.Comment = string.Join("\n", parts);
+                }
+                if (rule.Trailing.Count == 0 && rule.Leading.Count == 0) return;
+                var declaredAt = new Dictionary<int, LogicalLine>();
+                foreach (var l in _m.Lines) declaredAt[l.Start] = l;
+                foreach (var s in _m.Symbols)
+                {
+                    var parts = new List<string>();
+                    if (rule.Leading.Contains(s.RuleId))
+                    {
+                        var first = s.Start - 1;   // la riga fisica sopra la dichiarazione, da 1
+                        while (first >= 1 && physical[first - 1].Comment != null && !physical[first - 1].HasCode) first--;
+                        for (var l = first + 1; l < s.Start; l++)
+                            if (Says(physical[l - 1].Comment)) parts.Add(physical[l - 1].Comment);
+                    }
+                    if (rule.Trailing.Contains(s.RuleId) && declaredAt.TryGetValue(s.Start, out var line))
+                        for (var l = line.Start; l <= line.End && l <= physical.Count; l++)
+                            if (Says(physical[l - 1].Comment)) parts.Add(physical[l - 1].Comment);
+                    if (parts.Count > 0) s.Comment = string.Join("\n", parts);
+                }
             }
 
             private static long Chars(string[] physical, Sym s)
@@ -1016,7 +1116,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 => _script.Symbols.Add(new ScriptSymbol
                 {
                     Id = s.Id, Kind = s.Kind, Name = s.Name, QualifiedName = s.QualifiedName, LineStart = s.Start, LineEnd = s.End,
-                    Signature = s.Signature, ReturnType = s.ReturnType, Visibility = "public", ParentId = parentId,
+                    Signature = s.Signature, ReturnType = s.ReturnType, Visibility = "public", ParentId = parentId, Comment = s.Comment,
                 });
 
             private void CollectReferences()
