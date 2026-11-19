@@ -46264,6 +46264,8 @@ class ToolbarComponent {
     this.slideDeckShown = false;
     this.connectionIsActive = true;
     this.isCheckingConnection = false;
+    /** Il progetto per cui lo stato git della toolbar è stato azzerato e controllato: una ri-emissione dello stesso non lo rifà. */
+    this.gitStateProjectPath = null;
     /** N6: MDE sta facendo le sue operazioni git su questo repository: i pulsanti git aspettano. */
     this.mdeGitBusy = false;
     /**
@@ -46439,26 +46441,31 @@ class ToolbarComponent {
     }));
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
     this.citySubscriptions.add(this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n));
-    // Set initial project path if available
-    const currentProject = this.projectService.currentProjects$.value;
-    if (currentProject && currentProject.path) {
-      this.gitservice.setProjectPath(currentProject.path);
-      this.mailboxNotifications.setProject(currentProject.path);
-    }
-    // Subscribe to project changes to update Git service
+    // Il progetto già aperto arriva subito dalla sottoscrizione qui sotto (BehaviorSubject): percorso, polling e
+    // controllo partono da lì, una volta sola.
     this.citySubscriptions.add(this.projectService.currentProjects$.subscribe(project => {
       if (project && project.path) {
-        // Reset Git state immediately when switching projects
-        this.resetGitState();
-        // Then set new project path and trigger poll
-        this.gitservice.setProjectPath(project.path);
+        // Lo stato git si azzera solo quando il progetto CAMBIA (19/11/2026). Lo stesso progetto viene ri-emesso
+        // (di nuovo registrato dopo una riconnessione SignalR, impostazioni aggiornate): azzerarlo accendeva
+        // «sto controllando» senza che nessuno controllasse, e senza origin il polling non lo spegneva mai
+        // (lo spegne commmitsToPull$, che senza remote non arriva): la gif lampeggiava per sempre.
+        if (project.path !== this.gitStateProjectPath) {
+          this.gitStateProjectPath = project.path;
+          // Reset Git state immediately when switching projects
+          this.resetGitState();
+          // Then set new project path and trigger poll
+          this.gitservice.setProjectPath(project.path);
+          // Chi accende «sto controllando» lancia anche il controllo: ogni suo esito lo spegne.
+          this.checkConnection();
+        }
         // Ricarica il badge non-letti per il nuovo progetto
         this.mailboxNotifications.setProject(project.path);
         // Identità effettiva (banner impersonazione)
         this.loadIdentity();
       }
     }));
-    this.checkConnection();
+    // Senza progetto aperto: il controllo esce subito e spegne «sto controllando».
+    if (!this.gitStateProjectPath) this.checkConnection();
     this.reportCredentialMove();
     // manage resize fullscreen
     document.onfullscreenchange = event => {
@@ -57907,4 +57914,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.c5ba98dc040a3ddc.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.9b6257a9a978203a.js.map

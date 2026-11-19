@@ -107,6 +107,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
   public isCheckingConnection: boolean = false;
+  /** Il progetto per cui lo stato git della toolbar è stato azzerato e controllato: una ri-emissione dello stesso non lo rifà. */
+  private gitStateProjectPath: string | null = null;
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
   /** N6: MDE sta facendo le sue operazioni git su questo repository: i pulsanti git aspettano. */
@@ -326,20 +328,23 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
     this.citySubscriptions.add(this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n));
 
-    // Set initial project path if available
-    const currentProject = this.projectService.currentProjects$.value;
-    if (currentProject && currentProject.path) {
-      this.gitservice.setProjectPath(currentProject.path);
-      this.mailboxNotifications.setProject(currentProject.path);
-    }
-
-    // Subscribe to project changes to update Git service
+    // Il progetto già aperto arriva subito dalla sottoscrizione qui sotto (BehaviorSubject): percorso, polling e
+    // controllo partono da lì, una volta sola.
     this.citySubscriptions.add(this.projectService.currentProjects$.subscribe((project: any) => {
       if (project && project.path) {
-        // Reset Git state immediately when switching projects
-        this.resetGitState();
-        // Then set new project path and trigger poll
-        this.gitservice.setProjectPath(project.path);
+        // Lo stato git si azzera solo quando il progetto CAMBIA (19/11/2026). Lo stesso progetto viene ri-emesso
+        // (di nuovo registrato dopo una riconnessione SignalR, impostazioni aggiornate): azzerarlo accendeva
+        // «sto controllando» senza che nessuno controllasse, e senza origin il polling non lo spegneva mai
+        // (lo spegne commmitsToPull$, che senza remote non arriva): la gif lampeggiava per sempre.
+        if (project.path !== this.gitStateProjectPath) {
+          this.gitStateProjectPath = project.path;
+          // Reset Git state immediately when switching projects
+          this.resetGitState();
+          // Then set new project path and trigger poll
+          this.gitservice.setProjectPath(project.path);
+          // Chi accende «sto controllando» lancia anche il controllo: ogni suo esito lo spegne.
+          this.checkConnection();
+        }
         // Ricarica il badge non-letti per il nuovo progetto
         this.mailboxNotifications.setProject(project.path);
         // Identità effettiva (banner impersonazione)
@@ -348,7 +353,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       }
     }));
 
-    this.checkConnection();
+    // Senza progetto aperto: il controllo esce subito e spegne «sto controllando».
+    if (!this.gitStateProjectPath) this.checkConnection();
     this.reportCredentialMove();
 
     // manage resize fullscreen
