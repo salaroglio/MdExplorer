@@ -39,6 +39,7 @@ import { DocumentRefreshService } from '../../services/document-refresh.service'
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
+import { FileEventsService } from '../../services/file-events.service';
 import { Observable, Subscription, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
@@ -80,6 +81,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   TitleToShow: string;
   absolutePath: string;
   relativePath: string;
+  /** Il documento aperto è stato cancellato dal disco: i comandi del documento spariscono finché non se ne apre un altro. */
+  private documentDeleted = false;
   connectionId: string;
   somethingIsChangedInTheBranch: boolean;
   somethingIsToPull: boolean;
@@ -184,8 +187,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private documentRefreshService: DocumentRefreshService,
     private mailboxNotifications: AgentMailboxNotificationService,
     private agentCityState: AgentCityStateService,
-    private agentActivity: AgentActivityService
-
+    private agentActivity: AgentActivityService,
+    private fileEvents: FileEventsService
   ) {
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
@@ -328,6 +331,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
     this.citySubscriptions.add(this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n));
 
+    // Il documento aperto cancellato dal disco: non c'è più un documento a cui applicare i comandi.
+    this.citySubscriptions.add(this.fileEvents.fileDeleted$.subscribe(event => {
+      const norm = (path: string) => (path || '').replace(/\\/g, '/').toLowerCase();
+      if (this.absolutePath && norm(event.fullPath) === norm(this.absolutePath)) this.documentDeleted = true;
+    }));
+
     // Il progetto già aperto arriva subito dalla sottoscrizione qui sotto (BehaviorSubject): percorso, polling e
     // controllo partono da lì, una volta sola.
     this.citySubscriptions.add(this.projectService.currentProjects$.subscribe((project: any) => {
@@ -376,6 +385,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // something is selected from treeview/sidenav
     this.mdFileService.selectedMdFileFromSideNav.subscribe(_ => {
       if (_ != null) {
+        this.documentDeleted = false;
         this.currentMdFile = _;
         this.mdFileService.navigationArray = [];
         this.absolutePath = _.fullPath;
@@ -396,6 +406,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         }
 
         this.navService.setNewNavigation(current);
+        this.documentDeleted = false;
         this.absolutePath = current.fullPath;
         this.relativePath = current.relativePath;
         this.currentMdFile = current;
@@ -1746,6 +1757,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   seeTheDifferences(): void {
     this.closePanels();
     this.reviewContext.showChanges();
+  }
+
+  /**
+   * C'è un documento aperto, a cui si applicano i comandi del documento (modifica, export, segnalibri, aggiorna, stacca…)?
+   * No al primo ingresso nel progetto (niente scelto), sulla pagina di benvenuto, sul grafo del codice (una pagina del
+   * visualizzatore, non un documento) e dopo che il file aperto è stato cancellato (19/11/2026).
+   */
+  get hasDocument(): boolean {
+    if (!this.currentMdFile || !this.relativePath || this.documentDeleted) return false;
+    if (this.currentMdFile.type === 'codegraph') return false;
+    return !/(^|[\/\\])welcome\.html$/i.test(this.relativePath);
   }
 
   isTocDirectoryFile(): boolean {

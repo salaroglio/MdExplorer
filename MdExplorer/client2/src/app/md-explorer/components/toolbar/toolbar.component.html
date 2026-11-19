@@ -3,30 +3,34 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.HIDE_SHOW_MENU' | translate" (click)="toggleSidenav()" class="toolbar-btn btn-menu">
       <mat-icon>vertical_split</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.EDIT_DOCUMENT' | translate" (click)="OpenEditor()" class="toolbar-btn btn-edit">
-      <mat-icon>edit</mat-icon>
-    </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_WORD' | translate" [disabled]="isTextFileShown()" (click)="Export()" class="toolbar-btn btn-export">
-      <mat-icon>directions</mat-icon>
-    </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.BOOKMARKS' | translate" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
-      <mat-icon>bookmark</mat-icon>
-    </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" [disabled]="isTextFileShown()" (click)="openReactEditor()" class="toolbar-btn btn-editor">
-      <mat-icon>article</mat-icon>
-    </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="refreshDocument()" class="toolbar-btn btn-refresh">
-      <mat-icon>refresh</mat-icon>
-    </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.DETACH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="detachDocument()" class="toolbar-btn btn-detach">
-      <mat-icon>open_in_new</mat-icon>
-    </button>
-    <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_SLIDES_PDF' | translate" (click)="exportSlidesPdf()" class="toolbar-btn btn-slides-pdf">
-      <mat-icon>picture_as_pdf</mat-icon>
-    </button>
-    <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_STATIC_SITE' | translate" [disabled]="staticSiteExporting" (click)="exportStaticSite()" class="toolbar-btn btn-static-site">
-      <mat-icon>folder_zip</mat-icon>
-    </button>
+    <!-- I comandi del DOCUMENTO si vedono solo con un documento aperto (19/11/2026): la toolbar è contestuale. La pagina di
+         benvenuto e il grafo del codice non sono documenti. I comandi del progetto (barra laterale, città, Git) restano. -->
+    <ng-container *ngIf="hasDocument">
+      <button mat-icon-button [matTooltip]="'TOOLBAR.EDIT_DOCUMENT' | translate" (click)="OpenEditor()" class="toolbar-btn btn-edit">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_WORD' | translate" [disabled]="isTextFileShown()" (click)="Export()" class="toolbar-btn btn-export">
+        <mat-icon>directions</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'TOOLBAR.BOOKMARKS' | translate" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
+        <mat-icon>bookmark</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" [disabled]="isTextFileShown()" (click)="openReactEditor()" class="toolbar-btn btn-editor">
+        <mat-icon>article</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="refreshDocument()" class="toolbar-btn btn-refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'TOOLBAR.DETACH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="detachDocument()" class="toolbar-btn btn-detach">
+        <mat-icon>open_in_new</mat-icon>
+      </button>
+      <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_SLIDES_PDF' | translate" (click)="exportSlidesPdf()" class="toolbar-btn btn-slides-pdf">
+        <mat-icon>picture_as_pdf</mat-icon>
+      </button>
+      <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_STATIC_SITE' | translate" [disabled]="staticSiteExporting" (click)="exportStaticSite()" class="toolbar-btn btn-static-site">
+        <mat-icon>folder_zip</mat-icon>
+      </button>
+    </ng-container>
     <!-- Comandi della città degli agenti: visibili solo dove il progetto ha
          agentCity.enabled acceso (.development.yml). -->
     <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
@@ -56,10 +60,12 @@
       <mat-icon>smart_toy</mat-icon>
       <span class="agents-running-ring"></span>
     </button>
-    <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
-      <mat-icon>refresh</mat-icon>
-    </button>
-    <span>{{currentMdFile?.name}}</span>
+    <ng-container *ngIf="hasDocument">
+      <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <span>{{currentMdFile?.name}}</span>
+    </ng-container>
 
 
     <span class="flexExpand"></span>
