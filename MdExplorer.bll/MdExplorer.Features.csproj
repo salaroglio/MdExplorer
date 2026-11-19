@@ -4,7 +4,7 @@
     <!-- L'SDK di Copilot scaricherebbe un proprio CLI (oltre 300 MB) nell'output.
          MdExplorer usa quello installato dall'utente, che ha gia' la sua autenticazione. -->
     <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>annotations</Nullable>
   </PropertyGroup>
@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>
@@ -45,7 +45,7 @@
     <PackageReference Include="Mammoth" Version="1.13.0" />
     <PackageReference Include="ReverseMarkdown" Version="6.3.0" />
     <PackageReference Include="PDFtoImage" Version="4.1.1" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="5.9.0" />
     <!-- Tree-sitter (grafo del codice, D8): nel pacchetto SOLO il binding managed e il core (240 KB); le grammatiche
@@ -56,9 +56,9 @@
     <!-- PowerShell (grafo del codice): il parser ufficiale del linguaggio, in-process come Roslyn. Basta S.M.A, non il
          Microsoft.PowerShell.SDK: +10 MB Linux / +13 MB Windows contro +45/+50 (misurato il 12/10/2026 su un publish
          self-contained net8). La 7.4 è l'ultima linea per net8. -->
-    <PackageReference Include="System.Management.Automation" Version="7.4.20" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.Management.Automation" Version="7.6.10" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.15" />
+    <PackageReference Include="System.Management" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>
@@ -117,12 +117,12 @@
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Hosting.Server.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.Bcl.HashCode" Version="1.1.1" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Neo4j.Driver" Version="6.1.0" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.15" />
     <PackageReference Include="NHibernate" Version="5.7.1" />
     <PackageReference Include="PlantUml.Net" Version="1.4.80" />
     <PackageReference Include="PuppeteerSharp" Version="25.14.0" />

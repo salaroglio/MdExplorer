@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Progetto di controllo dello strumento (F2): casi scritti apposta. Lo strumento lo analizza solo quando glielo si
-       passa per nome; non si compila in nessun pacchetto. net8.0 come i progetti di MDE prima di F3. -->
+       passa per nome; non si compila in nessun pacchetto. Stesso framework dei progetti di MDE (net10.0 da F3); la
+       versione di C# la forza lo strumento (14 per il controllo positivo, 13 per quello negativo). -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>disable</Nullable>
   </PropertyGroup>
 
