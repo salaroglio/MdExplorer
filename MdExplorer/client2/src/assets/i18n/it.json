@@ -1321,6 +1321,18 @@
     "MOVE_ERROR": "Errore nello spostamento del file: {{error}}"
   },
   "ADD_FILE": {
+    "ATTACHED_PDFS": {
+      "TITLE": "Pdf allegati da convertire",
+      "INTRO": "In «{{file}}» ci sono {{count}} pdf allegati. Per trasformarli in markdown serve il modello OCR, che su questo computer non è ancora scaricato.",
+      "INTRO_ONE": "In «{{file}}» c'è un pdf allegato. Per trasformarlo in markdown serve il modello OCR, che su questo computer non è ancora scaricato.",
+      "LATER": "Se scegli «Non ora» i pdf restano come allegati: la pagina di ognuno dice che cosa manca.",
+      "DOWNLOAD_AND_CONVERT": "Scarica e converti",
+      "CONVERT": "Converti",
+      "NOT_NOW": "Non ora",
+      "START_FAILED": "Non riesco ad avviare la conversione dei pdf allegati: {{error}}",
+      "STARTED": "Conversione dei pdf allegati avviata: {{count}}. Ognuno avvisa quando ha finito.",
+      "LEFT": "{{count}} pdf allegati a «{{file}}» non sono stati convertiti in markdown: manca il modello OCR. Restano come allegati."
+    },
     "TITLE": "Aggiungi file esistente al progetto MDE",
     "PLACEHOLDER": "file system locale",
     "HINT": "Aggiungi file esistente",

@@ -106,16 +106,18 @@ namespace MdExplorer.Features.Tests.Ocr
         }
 
         [TestMethod]
-        public void LeaveAnAttachedPdfAsAFile_AndSayWhy_WhenThereIsNoOcr()
+        public void PrepareThePageOfAnAttachedPdfAnyway_AndSayWhatIsMissing_WhenThereIsNoOcr()
         {
             var main = WordAttachments_Should.WriteDocument(Path.Combine(_folder, "principale.docx"), ("Acrobat.Document.DC", "Contratto.pdf", Pdf()));
 
             var result = Tree("manca il modello.").Convert(main, "Doc");
 
-            Assert.AreEqual(0, result.Pdfs.Count);
-            Assert.IsFalse(File.Exists(Path.Combine(_folder, "Doc.attach1.md")));
-            StringAssert.Contains(result.Markdown, "[📎 Contratto.pdf](/assets/Doc_img/attach1.pdf)");
-            Assert.AreEqual(1, result.Warnings.Count(warning => warning.Contains("manca il modello.")), string.Join(" | ", result.Warnings));
+            var pdf = result.Pdfs.Single();
+            var page = File.ReadAllText(pdf.MarkdownFullPath);
+            StringAssert.Contains(page, "manca il modello.");
+            StringAssert.Contains(page, "(/assets/Doc_img/attach1.pdf)");
+            StringAssert.Contains(result.Markdown, "](/Doc.attach1.md) · [");
+            Assert.AreEqual(1, result.Warnings.Count(warning => warning.Contains("manca il modello.") && warning.StartsWith("1 ")), string.Join(" | ", result.Warnings));
         }
 
         [TestMethod]
