@@ -689,14 +689,15 @@
     "LOADING": "Loading commit history...",
     "TABLE": "Table",
     "GRAPH": "Graph",
-    "HASH": "Hash",
     "CLICK_TO_COPY": "Click to copy",
     "MERGE_COMMIT": "Merge commit",
     "DATE": "Date",
     "AUTHOR": "Author",
     "MESSAGE": "Message",
     "NO_COMMITS": "No commits found",
-    "LOAD_ERROR": "Error loading commit history"
+    "LOAD_ERROR": "Error loading commit history",
+    "NO_DETAIL": "No detail beyond the title.",
+    "COPIED": "Copied"
   },
   "GIT_INIT": {
     "TITLE": "Initialize Git Repository",

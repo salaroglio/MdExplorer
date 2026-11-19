@@ -689,14 +689,15 @@
     "LOADING": "Caricamento cronologia commit...",
     "TABLE": "Tabella",
     "GRAPH": "Grafico",
-    "HASH": "Hash",
     "CLICK_TO_COPY": "Clicca per copiare",
     "MERGE_COMMIT": "Merge commit",
     "DATE": "Data",
     "AUTHOR": "Autore",
     "MESSAGE": "Messaggio",
     "NO_COMMITS": "Nessun commit trovato",
-    "LOAD_ERROR": "Errore nel caricamento della cronologia dei commit"
+    "LOAD_ERROR": "Errore nel caricamento della cronologia dei commit",
+    "NO_DETAIL": "Nessun dettaglio oltre alla testata.",
+    "COPIED": "Copiato"
   },
   "GIT_INIT": {
     "TITLE": "Inizializza Repository Git",
