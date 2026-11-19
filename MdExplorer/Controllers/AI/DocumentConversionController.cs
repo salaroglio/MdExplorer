@@ -76,6 +76,29 @@ namespace MdExplorer.Controllers.AI
         [HttpGet("install-state")]
         public IActionResult InstallState() => Ok(_jobs.InstallState);
 
+        public class StartAttachedPdfsRequest
+        {
+            public string ModelId { get; set; }
+        }
+
+        /// <summary>I pdf allegati a un Word convertito senza OCR: scaricato il modello, partono da qui.</summary>
+        [HttpPost("jobs/{id}/attached-pdfs")]
+        public IActionResult StartAttachedPdfs(string id, [FromBody] StartAttachedPdfsRequest request)
+        {
+            try
+            {
+                return Ok(_jobs.StartAttachedPdfs(id, request?.ModelId));
+            }
+            catch (OcrNotReadyException ex)
+            {
+                return Conflict(new { error = ex.Message, needsModel = true });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpGet("jobs/{id}")]
         public IActionResult Job(string id)
         {

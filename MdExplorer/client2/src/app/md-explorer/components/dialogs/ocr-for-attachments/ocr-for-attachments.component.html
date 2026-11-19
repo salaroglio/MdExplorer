@@ -1,0 +1,52 @@
+<h2 mat-dialog-title>{{ 'ADD_FILE.ATTACHED_PDFS.TITLE' | translate }}</h2>
+<mat-dialog-content>
+  <div class="ocr-step">
+    <div class="ocr-intro">
+      {{ (data.pdfs === 1 ? 'ADD_FILE.ATTACHED_PDFS.INTRO_ONE' : 'ADD_FILE.ATTACHED_PDFS.INTRO') | translate:{ file: data.fileName, count: data.pdfs } }}
+    </div>
+    <div class="ocr-intro">{{ 'ADD_FILE.OCR.INTRO' | translate }}</div>
+
+    <div class="ocr-error" *ngIf="loadError">{{ 'ADD_FILE.OCR.LOAD_FAILED' | translate:{ error: loadError } }}</div>
+
+    <mat-radio-group class="ocr-models" [(ngModel)]="modelId" [disabled]="installing || starting">
+      <div class="ocr-model" *ngFor="let model of models" [class.ocr-model-selected]="model.id === modelId">
+        <mat-radio-button [value]="model.id">
+          <span class="ocr-model-name">{{ model.name }}</span>
+        </mat-radio-button>
+        <span class="ocr-model-state" [class.ocr-model-ready]="model.ready">
+          {{ model.ready ? ('ADD_FILE.OCR.INSTALLED' | translate)
+                         : ('ADD_FILE.OCR.TO_DOWNLOAD' | translate:{ mb: megabytes(model.downloadBytes) }) }}
+        </span>
+        <div class="ocr-model-text">
+          <div><b>{{ 'ADD_FILE.OCR.PROS' | translate }}.</b> {{ 'ADD_FILE.OCR.MODELS.' + model.id + '.PROS' | translate }}</div>
+          <div><b>{{ 'ADD_FILE.OCR.CONS' | translate }}.</b> {{ 'ADD_FILE.OCR.MODELS.' + model.id + '.CONS' | translate }}</div>
+        </div>
+      </div>
+    </mat-radio-group>
+
+    <div class="ocr-download" *ngIf="installing">
+      <div class="ocr-download-progress">
+        <div>
+          {{ (install.phase === 'engine' ? 'ADD_FILE.OCR.DOWNLOADING_ENGINE' : 'ADD_FILE.OCR.DOWNLOADING_MODEL')
+             | translate:{ percent: installPercent } }}
+        </div>
+        <mat-progress-bar mode="determinate" [value]="installPercent"></mat-progress-bar>
+      </div>
+    </div>
+    <div class="ocr-error" *ngIf="install?.phase === 'error'">
+      {{ 'ADD_FILE.OCR.DOWNLOAD_FAILED' | translate:{ error: install.error } }}
+    </div>
+    <div class="ocr-error" *ngIf="startError">{{ 'ADD_FILE.ATTACHED_PDFS.START_FAILED' | translate:{ error: startError } }}</div>
+
+    <div class="ocr-intro">{{ 'ADD_FILE.ATTACHED_PDFS.LATER' | translate }}</div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button mat-button color="primary" [disabled]="!selected || installing || starting" (click)="downloadAndConvert()">
+    <mat-icon>{{ selected?.ready ? 'play_arrow' : 'download' }}</mat-icon>
+    {{ (selected?.ready ? 'ADD_FILE.ATTACHED_PDFS.CONVERT' : 'ADD_FILE.ATTACHED_PDFS.DOWNLOAD_AND_CONVERT') | translate }}
+  </button>
+  <button mat-button color="primary" [disabled]="starting" (click)="notNow()">
+    <mat-icon>schedule</mat-icon>{{ 'ADD_FILE.ATTACHED_PDFS.NOT_NOW' | translate }}
+  </button>
+</mat-dialog-actions>

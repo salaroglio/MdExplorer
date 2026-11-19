@@ -1321,6 +1321,18 @@
     "MOVE_ERROR": "Error moving file: {{error}}"
   },
   "ADD_FILE": {
+    "ATTACHED_PDFS": {
+      "TITLE": "Attached pdf files to convert",
+      "INTRO": "\"{{file}}\" has {{count}} attached pdf files. Turning them into markdown needs the OCR model, which has not been downloaded on this computer yet.",
+      "INTRO_ONE": "\"{{file}}\" has one attached pdf file. Turning it into markdown needs the OCR model, which has not been downloaded on this computer yet.",
+      "LATER": "If you choose \"Not now\" the pdf files stay as attachments: the page of each one says what is missing.",
+      "DOWNLOAD_AND_CONVERT": "Download and convert",
+      "CONVERT": "Convert",
+      "NOT_NOW": "Not now",
+      "START_FAILED": "Could not start the conversion of the attached pdf files: {{error}}",
+      "STARTED": "Conversion of the attached pdf files started: {{count}}. Each one tells you when it is done.",
+      "LEFT": "{{count}} pdf files attached to \"{{file}}\" were not converted to markdown: the OCR model is missing. They stay as attachments."
+    },
     "TITLE": "Add existing file to MDE project",
     "PLACEHOLDER": "local filesystem",
     "HINT": "Add existing file",

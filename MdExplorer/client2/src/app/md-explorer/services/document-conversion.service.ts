@@ -3,9 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, timer } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
 import { MdFile } from '../models/md-file';
 import { MarkAssistantService } from '../../mark-assistant/mark-assistant.service';
+import { OcrForAttachmentsComponent, OcrForAttachmentsData } from '../components/dialogs/ocr-for-attachments/ocr-for-attachments.component';
 
 /** Un modello OCR del catalogo, come lo racconta il Service. */
 export interface OcrModel {
@@ -49,6 +51,8 @@ export interface DocumentConversionJob {
   attachmentDocuments?: string[];
   /** Le conversioni dei pdf allegati, in coda a questa: si seguono come questa. */
   followUpJobIds?: string[];
+  /** Quanti pdf allegati aspettano il modello OCR, che non è scaricato. */
+  pdfsWaitingForOcr?: number;
 }
 
 /**
@@ -64,6 +68,7 @@ export class DocumentConversionService {
     private http: HttpClient,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
+    private dialog: MatDialog,
     private mark: MarkAssistantService) { }
 
   /** Le estensioni che il Service sa portare in markdown. */
@@ -99,6 +104,30 @@ export class DocumentConversionService {
     });
   }
 
+  /** Fa partire i pdf allegati che una conversione finita ha lasciato in attesa del modello OCR. */
+  startAttachedPdfs(jobId: string, modelId: string | null): Observable<DocumentConversionJob[]> {
+    return this.http.post<DocumentConversionJob[]>(`../api/DocumentConversion/jobs/${encodeURIComponent(jobId)}/attached-pdfs`, { modelId });
+  }
+
+  /**
+   * Il Word aveva dei pdf allegati e l'OCR non è scaricato: lo si propone. Se l'utente lo scarica i pdf
+   * partono e si seguono come le altre conversioni; altrimenti resta l'avviso, e la pagina di ogni pdf
+   * dice che cosa manca.
+   */
+  private proposeOcrForAttachedPdfs(state: DocumentConversionJob): void {
+    const data: OcrForAttachmentsData = { jobId: state.id, fileName: state.fileName, pdfs: state.pdfsWaitingForOcr || 0 };
+    this.dialog.open<OcrForAttachmentsComponent, OcrForAttachmentsData, DocumentConversionJob[]>(OcrForAttachmentsComponent, {
+      width: '640px', disableClose: true, data
+    }).afterClosed().subscribe(started => {
+      if (started?.length) {
+        started.forEach(job => this.follow(job));
+        this.snackBar.open(this.translate.instant('ADD_FILE.ATTACHED_PDFS.STARTED', { count: started.length }), null, { duration: 8000 });
+      } else {
+        this.snackBar.open(this.translate.instant('ADD_FILE.ATTACHED_PDFS.LEFT', { count: data.pdfs, file: state.fileName }), 'OK');
+      }
+    });
+  }
+
   /** Segue la conversione fino alla fine e dice all'utente com'è andata. */
   follow(job: DocumentConversionJob): void {
     timer(DocumentConversionService.POLL_MS, DocumentConversionService.POLL_MS).pipe(
@@ -115,6 +144,9 @@ export class DocumentConversionService {
           // I pdf allegati al Word si convertono dopo, uno alla volta: ognuno annuncia la sua fine.
           for (const id of state.followUpJobIds || []) {
             this.follow({ id, fileName: state.fileName } as DocumentConversionJob);
+          }
+          if (state.pdfsWaitingForOcr) {
+            this.proposeOcrForAttachedPdfs(state);
           }
         } else if (state.status === 'error') {
           this.snackBar.open(

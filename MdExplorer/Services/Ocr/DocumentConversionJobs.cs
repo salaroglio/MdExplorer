@@ -64,6 +64,12 @@ namespace MdExplorer.Service.Services.Ocr
         /// mezzo minuto a pagina. Chi segue questa conversione segue anche quelle.
         /// </summary>
         public List<string> FollowUpJobIds { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Quanti pdf allegati aspettano il modello OCR, che non è scaricato: chi segue la conversione propone di
+        /// scaricarlo, e poi li fa partire con <see cref="IDocumentConversionJobs.StartAttachedPdfs"/>.
+        /// </summary>
+        public int PdfsWaitingForOcr { get; set; }
     }
 
     /// <summary>Lo stato dell'installazione di un modello OCR (motore più file del modello).</summary>
@@ -83,6 +89,12 @@ namespace MdExplorer.Service.Services.Ocr
     {
         DocumentConversionJob Start(DocumentConversionRequest request);
         DocumentConversionJob Find(string id);
+
+        /// <summary>
+        /// Avvia la conversione dei pdf allegati che una conversione finita ha lasciato in attesa del modello OCR.
+        /// Torna le conversioni avviate (da seguire come le altre).
+        /// </summary>
+        List<DocumentConversionJob> StartAttachedPdfs(string jobId, string modelId);
 
         OcrInstallState InstallState { get; }
 
@@ -106,6 +118,9 @@ namespace MdExplorer.Service.Services.Ocr
         private readonly ILogger<DocumentConversionJobs> _logger;
         private readonly ConcurrentDictionary<string, DocumentConversionJob> _jobs = new ConcurrentDictionary<string, DocumentConversionJob>();
         private readonly SemaphoreSlim _oneAtATime = new SemaphoreSlim(1, 1);
+        // conversione finita → i suoi pdf allegati rimasti senza OCR, finché il servizio resta acceso
+        private readonly ConcurrentDictionary<string, (List<PendingPdfAttachment> Pdfs, string ProjectPath)> _waitingPdfs
+            = new ConcurrentDictionary<string, (List<PendingPdfAttachment> Pdfs, string ProjectPath)>();
         private readonly object _installLock = new object();
         private bool _installing;
 
@@ -193,8 +208,8 @@ namespace MdExplorer.Service.Services.Ocr
                     if (!_engine.GetStatus().IsInstalled)
                     {
                         whyNoPdf = UiText.Say(
-                            "il motore OCR non è installato (si installa convertendo un pdf da «Aggiungi come collegamento»).",
-                            "the OCR engine is not installed (it gets installed by converting a pdf from \"Add as link\").");
+                            "il motore OCR non è installato.",
+                            "the OCR engine is not installed.");
                     }
                     else
                     {
@@ -203,8 +218,8 @@ namespace MdExplorer.Service.Services.Ocr
                         if (model == null || model.Category != "ocr" || !model.IsInstalled)
                         {
                             whyNoPdf = UiText.Say(
-                                "nessun modello OCR è scaricato (si scarica convertendo un pdf da «Aggiungi come collegamento»).",
-                                "no OCR model has been downloaded (one gets downloaded by converting a pdf from \"Add as link\").");
+                                "il modello OCR non è scaricato.",
+                                "the OCR model has not been downloaded.");
                         }
                         else
                         {
@@ -233,13 +248,14 @@ namespace MdExplorer.Service.Services.Ocr
                 File.WriteAllText(outputPath, markdown);
                 job.OutputRelativePath = ProjectLink(request.ProjectPath, outputPath);
                 AppendLink(request.MdDocumentFullPath, Path.GetFileName(outputPath), job.OutputRelativePath);
-                foreach (var pdf in attachedPdfs)
+                if (attachedPdfModel != null)
                 {
-                    var followUp = new DocumentConversionJob { Id = Guid.NewGuid().ToString("N"), FileName = PdfName(pdf.Name) };
-                    _jobs[followUp.Id] = followUp;
-                    job.FollowUpJobIds.Add(followUp.Id);
-                    var modelId = attachedPdfModel;
-                    _ = Task.Run(() => RunAttachedPdfAsync(followUp, pdf, modelId, request.ProjectPath));
+                    job.FollowUpJobIds = QueueAttachedPdfs(attachedPdfs, attachedPdfModel, request.ProjectPath).Select(queued => queued.Id).ToList();
+                }
+                else if (attachedPdfs.Count > 0)
+                {
+                    _waitingPdfs[job.Id] = (attachedPdfs, request.ProjectPath);
+                    job.PdfsWaitingForOcr = attachedPdfs.Count;
                 }
                 job.Status = "done";
                 _logger.LogInformation("[Conversione] {Source} -> {Output} (allegati: {Words} Word, {Pdfs} pdf in coda)",
@@ -256,6 +272,49 @@ namespace MdExplorer.Service.Services.Ocr
             {
                 _oneAtATime.Release();
             }
+        }
+
+        public List<DocumentConversionJob> StartAttachedPdfs(string jobId, string modelId)
+        {
+            var model = _models.FindModel(modelId);
+            if (model == null || model.Category != "ocr")
+            {
+                throw new ArgumentException(UiText.Say(
+                    $"«{modelId}» non è un modello OCR del catalogo.", $"\"{modelId}\" is not an OCR model of the catalog."));
+            }
+            if (!model.IsInstalled || !_engine.GetStatus().IsInstalled)
+            {
+                throw new OcrNotReadyException(UiText.Say(
+                    $"Il modello OCR «{model.Name}» non è ancora scaricato.",
+                    $"The OCR model \"{model.Name}\" has not been downloaded yet."));
+            }
+            if (jobId == null || !_waitingPdfs.TryRemove(jobId, out var waiting))
+            {
+                throw new ArgumentException(UiText.Say(
+                    "Questa conversione non ha pdf allegati in attesa (MdExplorer è stato riavviato, o sono già partiti).",
+                    "This conversion has no attached pdf files waiting (MdExplorer was restarted, or they have already started)."));
+            }
+            var parent = Find(jobId);
+            var queued = QueueAttachedPdfs(waiting.Pdfs, model.Id, waiting.ProjectPath);
+            if (parent != null)
+            {
+                parent.PdfsWaitingForOcr = 0;
+                parent.FollowUpJobIds = queued.Select(job => job.Id).ToList();
+            }
+            return queued;
+        }
+
+        private List<DocumentConversionJob> QueueAttachedPdfs(List<PendingPdfAttachment> pdfs, string modelId, string projectPath)
+        {
+            var queued = new List<DocumentConversionJob>();
+            foreach (var pdf in pdfs)
+            {
+                var followUp = new DocumentConversionJob { Id = Guid.NewGuid().ToString("N"), FileName = PdfName(pdf.Name) };
+                _jobs[followUp.Id] = followUp;
+                queued.Add(followUp);
+                _ = Task.Run(() => RunAttachedPdfAsync(followUp, pdf, modelId, projectPath));
+            }
+            return queued;
         }
 
         // Chi segue la conversione decide dal nome che cosa fare dopo: un pdf non passa da Mark.

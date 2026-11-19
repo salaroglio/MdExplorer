@@ -26,6 +26,10 @@ namespace MdExplorer.Features.Services.Ocr
 
         /// <summary>I markdown scritti per gli allegati Excel.</summary>
         public List<string> ExcelDocuments { get; } = new List<string>();
+        /// <summary>
+        /// I pdf allegati, ognuno con la sua pagina già scritta. Con l'OCR pronto vanno convertiti subito; senza
+        /// (<see cref="WordAttachmentTree"/> costruito con un «perché no») aspettano che l'utente lo scarichi.
+        /// </summary>
         public List<PendingPdfAttachment> Pdfs { get; } = new List<PendingPdfAttachment>();
     }
 
@@ -35,8 +39,8 @@ namespace MdExplorer.Features.Services.Ocr
     /// <para>
     /// Un allegato Word si converte con lo stesso algoritmo, e i suoi allegati con lui, fino a
     /// <see cref="MaxDepth"/> livelli. Un Excel diventa tabelle (<see cref="ExcelToMarkdown"/>). Un pdf vuole l'OCR, che
-    /// è lento: qui gli si prepara il markdown con scritto «conversione in corso» e lo si consegna a chi ha chiamato,
-    /// che lo riempie dopo. Gli altri allegati restano file.
+    /// è lento: qui gli si prepara il markdown con scritto «conversione in corso» (o che cosa manca per farla) e lo si
+    /// consegna a chi ha chiamato, che lo riempie dopo. Gli altri allegati restano file.
     /// </para>
     /// <para>
     /// Ogni markdown di allegato sta accanto al documento principale e ne porta il nome: «Documento.attach1.md», con
@@ -103,7 +107,6 @@ namespace MdExplorer.Features.Services.Ocr
                 if (kind == ".pdf" && _whyNoPdf != null)
                 {
                     pdfsLeft++;
-                    continue;
                 }
                 if (isWord && depth >= MaxDepth)
                 {
@@ -131,9 +134,16 @@ namespace MdExplorer.Features.Services.Ocr
                     }
                     else
                     {
-                        File.WriteAllText(childPath, "# " + attachment.Name + "\n\n" + UiText.Say(
-                            $"_La conversione di questo pdf in markdown è in corso: la pagina si riempie quando finisce._\n\n[Il pdf originale]({attachment.Link})\n",
-                            $"_This pdf is being converted to markdown: the page fills in when it is done._\n\n[The original pdf]({attachment.Link})\n"));
+                        // La pagina c'è comunque: o dice che la conversione è in corso, o che cosa manca per farla.
+                        var state = _whyNoPdf == null
+                            ? UiText.Say(
+                                "_La conversione di questo pdf in markdown è in corso: la pagina si riempie quando finisce._",
+                                "_This pdf is being converted to markdown: the page fills in when it is done._")
+                            : UiText.Say(
+                                "_Questo pdf non è ancora stato convertito in markdown: " + _whyNoPdf + " Con il modello scaricato, aggiungi il pdf da «Aggiungi come collegamento» scegliendo anche la versione markdown._",
+                                "_This pdf has not been converted to markdown yet: " + _whyNoPdf + " Once the model is downloaded, add the pdf from \"Add as link\" choosing the markdown version too._");
+                        File.WriteAllText(childPath, "# " + attachment.Name + "\n\n" + state + "\n\n["
+                            + UiText.Say("Il pdf originale", "The original pdf") + "](" + attachment.Link + ")\n");
                         _result.Pdfs.Add(new PendingPdfAttachment { Name = attachment.Name, PdfFullPath = attachment.FullPath, MarkdownFullPath = childPath, PdfLink = attachment.Link });
                     }
                 }
@@ -154,8 +164,8 @@ namespace MdExplorer.Features.Services.Ocr
             if (pdfsLeft > 0)
             {
                 _result.Warnings.Add(UiText.Say(
-                    $"{pdfsLeft} pdf allegati non sono stati convertiti in markdown, restano come file: {_whyNoPdf}",
-                    $"{pdfsLeft} attached pdf files were not converted to markdown, they stay files: {_whyNoPdf}"));
+                    $"{pdfsLeft} pdf allegati aspettano di essere convertiti in markdown: {_whyNoPdf}",
+                    $"{pdfsLeft} attached pdf files are waiting to be converted to markdown: {_whyNoPdf}"));
             }
             if (tooDeep > 0)
             {
