@@ -1,0 +1,140 @@
+// «Che cosa installare» (19/11/2026). Colori solo dai token del tema: la pagina segue chiaro e scuro.
+:host { display: block; color: var(--mde-text-primary); }
+
+.sg { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px 16px; }
+
+.sg-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  .sg-head-text { flex: 1; min-width: 0; }
+  .sg-title { margin: 0 0 4px; font-size: 1.35rem; font-weight: 600; }
+  .sg-subtitle { margin: 0; color: var(--mde-text-secondary); line-height: 1.5; }
+}
+
+.sg-dots {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  .sg-dot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--mde-border-color); background: transparent; color: var(--mde-text-secondary);
+    font: inherit; font-size: 0.9rem;
+    &.active { border-color: var(--mde-accent-primary); color: var(--mde-text-primary); background: var(--mde-hover-overlay); }
+  }
+  .sg-dot-state { width: 10px; height: 10px; border-radius: 50%; background: var(--st, var(--mde-text-hint)); }
+  .sg-dot-state.st-checking { animation: sg-pulse 1.2s ease-in-out infinite; }
+}
+
+// Il colore dello stato, per pallini, righe e riquadro.
+.st-ok { --st: var(--mde-success-fg); --st-bg: var(--mde-success-bg); }
+.st-missing, .st-attention, .st-restart { --st: var(--mde-warning-fg); --st-bg: var(--mde-warning-bg); }
+.st-error { --st: var(--mde-error-fg); --st-bg: var(--mde-error-bg); }
+.st-checking { --st: var(--mde-text-hint); --st-bg: var(--mde-bg-secondary); }
+
+// Altezza minima: passando da una scheda all'altra la finestra non salta su e giù.
+.sg-body { display: grid; grid-template-columns: 260px 1fr; gap: 22px; align-items: start; min-height: 330px; }
+@media (max-width: 720px) { .sg-body { grid-template-columns: 1fr; } .sg-scene { max-width: 260px; margin: 0 auto; } }
+
+.sg-scene {
+  background: var(--mde-bg-secondary); border-radius: 14px; padding: 8px;
+  svg { width: 100%; height: auto; display: block; }
+}
+
+.sg-content { min-width: 0; }
+.sg-step-title { margin: 2px 0 6px; font-size: 1.15rem; font-weight: 600; }
+.sg-why { margin: 0 0 14px; color: var(--mde-text-secondary); line-height: 1.55; }
+
+.sg-status {
+  display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: 10px; background: var(--st-bg); border-left: 4px solid var(--st);
+  line-height: 1.45; word-break: break-word;
+  > mat-icon { color: var(--st); flex: none; }
+  > span { flex: 1; min-width: 0; }
+}
+
+.sg-engines { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.sg-engine {
+  display: grid; grid-template-columns: 24px auto 1fr; column-gap: 8px; align-items: center;
+  mat-icon { color: var(--st); font-size: 20px; width: 20px; height: 20px; }
+  .sg-engine-name { font-weight: 600; }
+  .sg-engine-state { color: var(--mde-text-secondary); }
+  .sg-engine-detail { grid-column: 2 / -1; font-size: 0.85rem; color: var(--mde-text-secondary); }
+}
+.sg-verdict { width: 100%; margin: 4px 0 0; font-weight: 500; }
+
+.sg-how { margin-top: 16px; }
+.sg-how-title { margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; }
+.sg-how-hint { margin: 6px 0; font-size: 0.88rem; color: var(--mde-text-secondary); line-height: 1.5; }
+.sg-restart-hint { margin-top: 10px; font-style: italic; }
+.sg-cmd {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 6px; margin: 6px 0;
+  padding: 4px 4px 4px 10px; border-radius: 8px; background: var(--mde-bg-tertiary); border: 1px solid var(--mde-border-color);
+  .sg-cmd-label { grid-column: 1 / -1; padding-top: 2px; font-size: 0.78rem; color: var(--mde-text-secondary); }
+  // Il comando va a capo invece di scorrere: si legge tutto, e il pulsante copia lo prende intero.
+  .sg-cmd-text { min-width: 0; font-family: 'Cascadia Code', Consolas, 'DejaVu Sans Mono', monospace; font-size: 0.86rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sg-cmd-copy { grid-column: 2; }
+}
+.sg-link { margin-top: 8px; mat-icon { margin-right: 4px; } }
+
+.sg-actions {
+  display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--mde-border-color);
+  .sg-spacer { flex: 1; }
+  mat-icon { margin-right: 4px; }
+}
+.spinning { animation: sg-spin 1s linear infinite; }
+
+// ── Scene ────────────────────────────────────────────────────────────────
+.scene {
+  .sc-panel, .sc-doc, .sc-cup, .sc-box, .sc-bot-head { fill: var(--mde-bg-primary); stroke: var(--mde-border-strong); stroke-width: 2; }
+  .sc-bar { fill: var(--mde-bg-tertiary); }
+  .sc-line { fill: var(--mde-text-hint); opacity: 0.55; transform-box: fill-box; transform-origin: left center; }
+  .sc-mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 11px; fill: var(--mde-text-secondary); }
+  .sc-mono.big { font-size: 15px; font-weight: 700; fill: var(--mde-accent-primary); }
+  .sc-label { font-size: 13px; font-weight: 600; fill: var(--mde-text-secondary); }
+  .sc-flow, .sc-arrow { stroke: var(--mde-accent-primary); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 6; animation: sg-dash 1.2s linear infinite; }
+}
+
+.scene-harness {
+  .sc-led { fill: var(--mde-icon-accent-orange); animation: sg-blink 1.6s ease-in-out infinite; }
+  .sc-led.d2 { fill: var(--mde-icon-accent-gold); animation-delay: 0.2s; }
+  .sc-led.d3 { fill: var(--mde-icon-accent-green); animation-delay: 0.4s; }
+  .sc-line { animation: sg-grow 2.4s ease-out infinite; }
+  .sc-line.l2 { animation-delay: 0.4s; } .sc-line.l3 { animation-delay: 0.8s; }
+  .sc-bot { animation: sg-rise 0.9s cubic-bezier(.2,.9,.3,1.2) 0.3s both; }
+  .sc-eye { fill: var(--mde-accent-primary); animation: sg-wink 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .sc-antenna { stroke: var(--mde-border-strong); stroke-width: 2; }
+  .sc-tip { fill: var(--mde-icon-accent-blue); animation: sg-blink 1.1s ease-in-out infinite; }
+}
+
+.scene-java {
+  .sc-cup { fill: var(--mde-bg-primary); }
+  .sc-handle { fill: none; stroke: var(--mde-border-strong); stroke-width: 3; }
+  .sc-steam { fill: none; stroke: var(--mde-text-hint); stroke-width: 3; stroke-linecap: round; animation: sg-steam 2.4s ease-in-out infinite; }
+  .sc-steam.s2 { animation-delay: 0.8s; }
+  .sc-box { opacity: 0; animation: sg-pop 0.5s ease-out forwards; }
+  .sc-box.b1 { animation-delay: 0.3s; } .sc-box.b2 { animation-delay: 0.8s; } .sc-box.b3 { animation-delay: 1.3s; }
+  .sc-box.b1 { stroke: var(--mde-icon-accent-blue); } .sc-box.b2 { stroke: var(--mde-icon-accent-green); } .sc-box.b3 { stroke: var(--mde-icon-accent-orange); }
+}
+
+.scene-pandoc {
+  .sc-doc.out { opacity: 0; animation: sg-pop 0.6s ease-out 0.9s forwards; }
+  .sc-word { fill: var(--mde-icon-accent-blue); }
+  .sc-word-w { fill: var(--mde-text-on-primary); font-weight: 700; font-size: 14px; }
+  .sc-gear { fill: none; stroke: var(--mde-accent-primary); stroke-width: 5; stroke-dasharray: 5 4; }
+  .sc-gear-hole { fill: var(--mde-accent-primary); }
+  .sc-mover { transform-box: fill-box; transform-origin: center; animation: sg-spin 3s linear infinite; }
+  .sc-line.o1, .sc-line.o2, .sc-line.o3 { animation: sg-grow 0.8s ease-out both; }
+  .sc-line.o1 { animation-delay: 1.3s; } .sc-line.o2 { animation-delay: 1.5s; } .sc-line.o3 { animation-delay: 1.7s; }
+}
+
+@keyframes sg-spin { to { transform: rotate(360deg); } }
+@keyframes sg-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes sg-blink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes sg-dash { to { stroke-dashoffset: -24; } }
+@keyframes sg-grow { 0% { transform: scaleX(0); } 60%, 100% { transform: scaleX(1); } }
+@keyframes sg-rise { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes sg-wink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+@keyframes sg-steam { 0% { opacity: 0; transform: translateY(6px); } 40% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes sg-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene *, .spinning, .sg-dot-state { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

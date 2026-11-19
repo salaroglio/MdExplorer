@@ -88,6 +88,10 @@
       <mat-icon>storefront</mat-icon>
       <span>{{ 'TITLE_BAR.APP_STORE_SETTINGS' | translate }}</span>
     </button>
+    <button mat-menu-item (click)="openSetupGuide()">
+      <mat-icon>checklist</mat-icon>
+      <span>{{ 'TITLE_BAR.SETUP_GUIDE' | translate }}</span>
+    </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="navigateToProjects()">
       <mat-icon>folder_open</mat-icon>

@@ -1,0 +1,158 @@
+<div class="sg">
+  <header class="sg-head">
+    <div class="sg-head-text">
+      <h2 class="sg-title">{{ 'SETUP_GUIDE.TITLE' | translate }}</h2>
+      <p class="sg-subtitle">{{ (allReady ? 'SETUP_GUIDE.SUBTITLE_READY' : 'SETUP_GUIDE.SUBTITLE') | translate }}</p>
+    </div>
+    <button mat-icon-button class="sg-close" (click)="close()" [attr.aria-label]="'COMMON.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <nav class="sg-dots" role="tablist">
+    <button *ngFor="let s of steps; let i = index"
+            class="sg-dot" role="tab"
+            [class.active]="i === index"
+            [attr.aria-selected]="i === index"
+            (click)="goTo(i)">
+      <span class="sg-dot-state" [ngClass]="'st-' + stateOf(s)"></span>
+      <span class="sg-dot-label">{{ ('SETUP_GUIDE.' + s.toUpperCase() + '_SHORT') | translate }}</span>
+    </button>
+  </nav>
+
+  <div class="sg-body">
+    <!-- Le scene si ridisegnano a ogni cambio di scheda (ngSwitch): così l'animazione riparte quando la scheda entra. -->
+    <div class="sg-scene" [ngSwitch]="step" aria-hidden="true">
+      <svg *ngSwitchCase="'harness'" class="scene scene-harness" viewBox="0 0 240 200">
+        <rect class="sc-panel" x="20" y="34" width="200" height="132" rx="12" />
+        <rect class="sc-bar" x="20" y="34" width="200" height="22" rx="12" />
+        <circle class="sc-led" cx="36" cy="45" r="4" /><circle class="sc-led d2" cx="50" cy="45" r="4" /><circle class="sc-led d3" cx="64" cy="45" r="4" />
+        <text class="sc-mono" x="34" y="84">$ npm install -g …</text>
+        <rect class="sc-line l1" x="34" y="96" width="120" height="7" rx="3.5" />
+        <rect class="sc-line l2" x="34" y="112" width="150" height="7" rx="3.5" />
+        <rect class="sc-line l3" x="34" y="128" width="96" height="7" rx="3.5" />
+        <g class="sc-bot">
+          <rect class="sc-bot-head" x="160" y="118" width="44" height="34" rx="9" />
+          <circle class="sc-eye" cx="174" cy="135" r="4" /><circle class="sc-eye" cx="190" cy="135" r="4" />
+          <line class="sc-antenna" x1="182" y1="118" x2="182" y2="106" /><circle class="sc-tip" cx="182" cy="103" r="4" />
+        </g>
+      </svg>
+
+      <svg *ngSwitchCase="'java'" class="scene scene-java" viewBox="0 0 240 200">
+        <path class="sc-steam s1" d="M70 58 q-8 -12 0 -24 q8 -12 0 -24" />
+        <path class="sc-steam s2" d="M88 58 q-8 -12 0 -24 q8 -12 0 -24" />
+        <path class="sc-cup" d="M52 64 h56 v38 a22 22 0 0 1 -22 22 h-12 a22 22 0 0 1 -22 -22 z" />
+        <path class="sc-handle" d="M108 74 h8 a10 10 0 0 1 0 20 h-8" />
+        <line class="sc-flow" x1="128" y1="96" x2="150" y2="96" />
+        <rect class="sc-box b1" x="152" y="40" width="64" height="26" rx="5" />
+        <rect class="sc-box b2" x="152" y="84" width="64" height="26" rx="5" />
+        <rect class="sc-box b3" x="152" y="128" width="64" height="26" rx="5" />
+        <line class="sc-arrow a1" x1="184" y1="66" x2="184" y2="84" />
+        <line class="sc-arrow a2" x1="184" y1="110" x2="184" y2="128" />
+        <text class="sc-label" x="80" y="150" text-anchor="middle">Java 21</text>
+      </svg>
+
+      <svg *ngSwitchCase="'pandoc'" class="scene scene-pandoc" viewBox="0 0 240 200">
+        <rect class="sc-doc" x="26" y="40" width="72" height="96" rx="8" />
+        <text class="sc-mono big" x="62" y="66" text-anchor="middle">.md</text>
+        <rect class="sc-line l1" x="38" y="80" width="48" height="6" rx="3" />
+        <rect class="sc-line l2" x="38" y="94" width="40" height="6" rx="3" />
+        <rect class="sc-line l3" x="38" y="108" width="46" height="6" rx="3" />
+        <g class="sc-mover">
+          <circle class="sc-gear" cx="120" cy="88" r="13" />
+          <circle class="sc-gear-hole" cx="120" cy="88" r="5" />
+        </g>
+        <line class="sc-flow" x1="100" y1="88" x2="140" y2="88" />
+        <rect class="sc-doc out" x="142" y="40" width="72" height="96" rx="8" />
+        <rect class="sc-word" x="152" y="52" width="26" height="22" rx="3" />
+        <text class="sc-word-w" x="165" y="68" text-anchor="middle">W</text>
+        <rect class="sc-line o1" x="154" y="84" width="48" height="6" rx="3" />
+        <rect class="sc-line o2" x="154" y="98" width="40" height="6" rx="3" />
+        <rect class="sc-line o3" x="154" y="112" width="46" height="6" rx="3" />
+        <text class="sc-label" x="120" y="166" text-anchor="middle">Pandoc</text>
+      </svg>
+    </div>
+
+    <section class="sg-content" [ngSwitch]="step">
+      <h3 class="sg-step-title">{{ ('SETUP_GUIDE.' + step.toUpperCase() + '_TITLE') | translate }}</h3>
+      <p class="sg-why">{{ ('SETUP_GUIDE.' + step.toUpperCase() + '_WHY') | translate }}</p>
+
+      <!-- Com'è il computer adesso -->
+      <div class="sg-status" [ngClass]="'st-' + stateOf(step)" role="status">
+        <ng-container *ngIf="checking && !status">
+          <mat-spinner diameter="18"></mat-spinner>
+          <span>{{ 'SETUP_GUIDE.CHECKING' | translate }}</span>
+        </ng-container>
+        <ng-container *ngIf="!status && !checking">
+          <mat-icon>error</mat-icon>
+          <span>{{ 'SETUP_GUIDE.CHECK_FAILED' | translate: { error: loadError } }}</span>
+        </ng-container>
+
+        <ng-container *ngIf="status">
+          <ng-container *ngSwitchCase="'harness'">
+            <div class="sg-engines">
+              <div *ngFor="let e of engines()" class="sg-engine" [ngClass]="'st-' + engineState(e)">
+                <mat-icon>{{ e.usable ? 'check_circle' : (e.installed ? 'error_outline' : 'radio_button_unchecked') }}</mat-icon>
+                <span class="sg-engine-name">{{ engineNames[e.id] || e.id }}</span>
+                <span class="sg-engine-state">{{ (e.usable ? 'SETUP_GUIDE.ENGINE_READY' : (e.installed ? 'SETUP_GUIDE.ENGINE_NOT_READY' : 'SETUP_GUIDE.ENGINE_MISSING')) | translate }}</span>
+                <span class="sg-engine-detail" *ngIf="e.installed && !e.usable && e.detail">{{ e.detail }}</span>
+              </div>
+              <div *ngIf="status.harness.error" class="sg-engine st-error">
+                <mat-icon>error</mat-icon><span>{{ status.harness.error }}</span>
+              </div>
+            </div>
+            <p class="sg-verdict">{{ (stateOf('harness') === 'ok' ? 'SETUP_GUIDE.HARNESS_OK' : 'SETUP_GUIDE.HARNESS_MISSING') | translate }}</p>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'java'">
+            <mat-icon>{{ stateOf('java') === 'ok' ? 'check_circle' : (stateOf('java') === 'error' ? 'error' : 'error_outline') }}</mat-icon>
+            <span *ngIf="status.java.error">{{ status.java.error }}</span>
+            <span *ngIf="!status.java.error && status.java.ok">{{ 'SETUP_GUIDE.JAVA_OK' | translate: { major: status.java.major, path: status.java.path } }}</span>
+            <span *ngIf="!status.java.error && status.java.outcome === 'UserPathNotSuitable'">{{ 'SETUP_GUIDE.JAVA_USER_PATH' | translate: { configured: status.java.configuredPath, major: status.java.bestMajor, path: status.java.bestPath } }}</span>
+            <span *ngIf="!status.java.error && !status.java.ok && status.java.outcome !== 'UserPathNotSuitable'">{{ 'SETUP_GUIDE.JAVA_MISSING' | translate: { min: status.java.minimum } }}</span>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'pandoc'">
+            <mat-icon>{{ status.pandoc.usable ? 'check_circle' : (status.pandoc.needsRestart ? 'restart_alt' : (status.pandoc.error ? 'error' : 'error_outline')) }}</mat-icon>
+            <span *ngIf="status.pandoc.usable">{{ 'SETUP_GUIDE.PANDOC_OK' | translate: { version: status.pandoc.version, path: status.pandoc.path } }}</span>
+            <span *ngIf="status.pandoc.needsRestart">{{ 'SETUP_GUIDE.PANDOC_RESTART' | translate: { path: status.pandoc.path } }}</span>
+            <span *ngIf="!status.pandoc.usable && !status.pandoc.needsRestart && status.pandoc.error">{{ status.pandoc.error }}</span>
+            <span *ngIf="!status.pandoc.usable && !status.pandoc.needsRestart && !status.pandoc.error">{{ 'SETUP_GUIDE.PANDOC_MISSING' | translate }}</span>
+          </ng-container>
+        </ng-container>
+      </div>
+
+      <!-- Come installarlo: solo se manca qualcosa -->
+      <div class="sg-how" *ngIf="status && stateOf(step) !== 'ok'">
+        <h4 class="sg-how-title">{{ 'SETUP_GUIDE.HOW' | translate }}</h4>
+        <p class="sg-how-hint" *ngIf="step === 'harness'">{{ 'SETUP_GUIDE.HARNESS_HOW_HINT' | translate }}</p>
+        <div class="sg-cmd" *ngFor="let c of commands(step)">
+          <span class="sg-cmd-label" *ngIf="c.label">{{ c.label }}</span>
+          <code class="sg-cmd-text">{{ c.command }}</code>
+          <button mat-icon-button class="sg-cmd-copy" (click)="copy(c.command)"
+                  [matTooltip]="(copied === c.command ? 'SETUP_GUIDE.COPIED' : 'SETUP_GUIDE.COPY') | translate">
+            <mat-icon>{{ copied === c.command ? 'done' : 'content_copy' }}</mat-icon>
+          </button>
+        </div>
+        <p class="sg-how-hint" *ngIf="step === 'harness'">{{ 'SETUP_GUIDE.HARNESS_LOGIN_HINT' | translate }}</p>
+        <button mat-stroked-button class="sg-link" (click)="openLink(link(step))">
+          <mat-icon>open_in_new</mat-icon>
+          {{ ('SETUP_GUIDE.' + step.toUpperCase() + '_LINK') | translate }}
+        </button>
+        <p class="sg-how-hint sg-restart-hint">{{ 'SETUP_GUIDE.RESTART_HINT' | translate }}</p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="sg-actions">
+    <button mat-stroked-button (click)="recheck()" [disabled]="checking">
+      <mat-icon [class.spinning]="checking">refresh</mat-icon>
+      {{ (checking ? 'SETUP_GUIDE.CHECKING' : 'SETUP_GUIDE.RECHECK') | translate }}
+    </button>
+    <span class="sg-spacer"></span>
+    <button mat-button (click)="back()" *ngIf="index > 0">{{ 'SETUP_GUIDE.BACK' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="next()">
+      {{ (isLast ? 'SETUP_GUIDE.DONE' : 'SETUP_GUIDE.NEXT') | translate }}
+    </button>
+  </footer>
+</div>

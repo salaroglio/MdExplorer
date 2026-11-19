@@ -36,6 +36,7 @@ import { AppStoreSettingsDialogComponent } from './components/app-store-settings
 import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
 import { LanguageLibraryModule } from './components/language-library/language-library.module';
 import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
+import { SetupGuideDialogComponent } from './components/setup-guide/setup-guide-dialog.component';
 
 
 const routes: Routes = [
@@ -65,7 +66,8 @@ const routes: Routes = [
     UnifiedSettingsDialogComponent,
     TelegramSettingsComponent,
     AppStoreSettingsDialogComponent,
-    RunCommandDialogComponent
+    RunCommandDialogComponent,
+    SetupGuideDialogComponent
   ],
   imports: [
     BrowserModule,

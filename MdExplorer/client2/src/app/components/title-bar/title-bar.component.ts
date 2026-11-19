@@ -13,6 +13,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
 import { Participant } from '../../md-explorer/models/participant';
 import { MarkAssistantService } from '../../mark-assistant/mark-assistant.service';
+import { SetupGuideService } from '../setup-guide/setup-guide.service';
 
 @Component({
   selector: 'app-title-bar',
@@ -47,7 +48,8 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private translate: TranslateService,
     private projectsService: ProjectsService,
-    private markAssistant: MarkAssistantService
+    private markAssistant: MarkAssistantService,
+    private setupGuide: SetupGuideService
   ) {
     // Check if running in Electron
     this.isElectron = !!(window && (window as any).electronAPI);
@@ -202,6 +204,11 @@ export class TitleBarComponent implements OnInit, OnDestroy {
     if (this.isElectron && (window as any).electronAPI) {
       (window as any).electronAPI.closeWindow();
     }
+  }
+
+  /** «Che cosa installare»: la stessa pagina della prima installazione, riaperta quando si vuole. */
+  openSetupGuide(): void {
+    this.setupGuide.open();
   }
 
   openSettings(tab: string = 'application'): void {
