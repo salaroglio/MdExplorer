@@ -78,7 +78,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var r = lang.References[i];
                 var target = r.Resolve switch
                 {
-                    DeclarativeLanguage.ResolveKind.File => "the module of a file, found by file name among the analysed files",
+                    DeclarativeLanguage.ResolveKind.File => "the module of a file, found by file name among the analysed files"
+                        + (lang.FileNameWithoutExtension ? ", written with or without its extension (fileNameWithoutExtension: true)" : string.Empty),
                     DeclarativeLanguage.ResolveKind.Module => "a module, found by the name it declares",
                     _ => "a symbol of the rules " + string.Join(", ", r.Rules) + ", searched " + r.Scope switch
                     {

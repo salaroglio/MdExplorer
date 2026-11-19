@@ -31,7 +31,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         private readonly Dictionary<string, List<(string Name, bool Optional)>> _parameters = new(StringComparer.Ordinal);
         private bool _ignoreCase;
 
-        private CodeLinkIndex(bool ignoreCase, bool allSymbols) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; _ignoreCase = ignoreCase; }
+        private readonly bool _fileStems;
+        private CodeLinkIndex(bool ignoreCase, bool allSymbols, bool fileStems) { _norm = ignoreCase ? n => n.ToUpperInvariant() : n => n; AllSymbols = allSymbols; _ignoreCase = ignoreCase; _fileStems = fileStems; }
 
         /// <summary>
         /// Un linguaggio database (<see cref="DeclarativeLanguage.Database"/>, 12/11/2026): si cercano per nome TUTTI i suoi simboli,
@@ -41,9 +42,13 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         internal static bool Indexed(ScriptSymbol s) => s.Kind is not ("module" or "external" or DeclarativeLanguage.FragmentKind) && !string.IsNullOrEmpty(s.Name);
 
-        public static CodeLinkIndex Build(bool ignoreCase, IEnumerable<(string Path, CodeScript Script)> scripts, bool allSymbols = false)
+        /// <param name="fileStems">
+        /// <see cref="DeclarativeLanguage.FileNameWithoutExtension"/>: i file si trovano anche per nome senza estensione, oltre che per nome
+        /// completo. Due file con lo stesso nome e estensioni diverse rispondono tutti e due (ambiguous).
+        /// </param>
+        public static CodeLinkIndex Build(bool ignoreCase, IEnumerable<(string Path, CodeScript Script)> scripts, bool allSymbols = false, bool fileStems = false)
         {
-            var index = new CodeLinkIndex(ignoreCase, allSymbols);
+            var index = new CodeLinkIndex(ignoreCase, allSymbols, fileStems);
             foreach (var (path, script) in scripts) index.Add(path, script);
             return index;
         }
@@ -51,7 +56,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         private void Add(string path, CodeScript script)
         {
             var module = script.Symbols.FirstOrDefault(s => s.Kind == "module");
-            Push(_files, _norm(LastSegment(path)), path);
+            var fileName = LastSegment(path);
+            Push(_files, _norm(fileName), path);
+            if (_fileStems)
+            {
+                var stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
+                if (stem.Length > 0 && stem != fileName) Push(_files, _norm(stem), path);
+            }
             if (module?.Id == null) return;
             _moduleOf[path] = module.Id;
             _pathOfModule[module.Id] = path;
@@ -413,10 +424,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// dal disco) sull'indice di tutti. Torna i percorsi degli script di <paramref name="others"/> che sono cambiati.
         /// </summary>
         public static List<string> LinkAll(string languageId, bool ignoreCase, IReadOnlyList<(string Path, CodeScript Script)> own,
-            IReadOnlyList<(string Path, CodeScript Script)> others, bool allSymbols = false)
+            IReadOnlyList<(string Path, CodeScript Script)> others, bool allSymbols = false, bool fileStems = false)
         {
             var all = own.Concat(others).ToList();
-            var index = CodeLinkIndex.Build(ignoreCase, all, allSymbols);
+            var index = CodeLinkIndex.Build(ignoreCase, all, allSymbols, fileStems);
             var before = others.ToDictionary(o => o.Path, o => Fingerprint(o.Script), StringComparer.Ordinal);
             string Ext(string what, string name) => RoslynCSharpExtractor.StableId(languageId, "external", what + ":" + (ignoreCase ? name.ToUpperInvariant() : name));
             // prima tutti gli import, poi le chiamate: chi importa chi serve a scegliere fra le funzioni con lo stesso nome
