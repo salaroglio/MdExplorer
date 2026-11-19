@@ -652,7 +652,12 @@
     "CONFIGURE": "Configura",
     "DEFAULT_MSG": "Aggiornamento da MdExplorer",
     "NO_PROJECT_PATH": "Percorso progetto non disponibile",
-    "GENERATION_ERROR": "Errore durante la generazione del messaggio"
+    "GENERATION_ERROR": "Errore durante la generazione del messaggio",
+    "TITLE_LABEL": "Titolo",
+    "TITLE_PLACEHOLDER": "tipo(area): che cosa cambia",
+    "TITLE_HINT": "La riga che si legge nell'elenco dei commit (Conventional Commits)",
+    "BODY_LABEL": "Descrizione",
+    "BODY_PLACEHOLDER": "- un punto per ogni attività che stai registrando"
   },
   "GIT_BRANCH": {
     "TITLE": "Gestione Branch",

@@ -16,7 +16,11 @@ export interface CommitMessageDialogData {
   styleUrls: ['./commit-message-dialog.component.scss']
 })
 export class CommitMessageDialogComponent {
-  commitMessage: string;
+  /** The Conventional Commits header: the line `git log --oneline` shows. */
+  commitTitle = '';
+  /** The body: one bullet per activity being recorded (user's decision, 19/11/2026). */
+  commitBody = '';
+  readonly maxTitleLength = 72;
   isGeneratingMessage = false;
   aiError: string | null = null;
 
@@ -27,7 +31,22 @@ export class CommitMessageDialogComponent {
     private translate: TranslateService,
     private aiChat: AiChatService
   ) {
-    this.commitMessage = data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG');
+    this.setMessage(data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG'));
+  }
+
+  /** Title, blank line, body — the shape git expects; the body only when there is one. */
+  get commitMessage(): string {
+    const title = (this.commitTitle || '').trim();
+    const body = (this.commitBody || '').replace(/\s+$/, '');
+    return body.trim() ? `${title}\n\n${body}` : title;
+  }
+
+  /** First line → title; what follows the blank line → body. */
+  private setMessage(message: string): void {
+    const lines = (message || '').replace(/\r\n?/g, '\n').split('\n');
+    this.commitTitle = (lines.shift() || '').trim();
+    while (lines.length && !lines[0].trim()) lines.shift();
+    this.commitBody = lines.join('\n').replace(/\s+$/, '');
   }
 
   onCancel(): void {
@@ -35,8 +54,8 @@ export class CommitMessageDialogComponent {
   }
 
   onConfirm(): void {
-    if (this.commitMessage && this.commitMessage.trim()) {
-      this.dialogRef.close(this.commitMessage.trim());
+    if (this.commitTitle && this.commitTitle.trim()) {
+      this.dialogRef.close(this.commitMessage);
     }
   }
 
@@ -67,7 +86,7 @@ export class CommitMessageDialogComponent {
       const raw = await this.aiChat.askOnChannel(`git-commit-${Date.now()}`, built.prompt);
       const cleaned = await firstValueFrom(this.http.post<{ message: string }>(
         '/api/GitAi/clean-commit-message', { raw }));
-      this.commitMessage = cleaned.message;
+      this.setMessage(cleaned.message);
     } catch (err: any) {
       console.error('Error generating commit message:', err);
       this.aiError = err?.error?.error || err?.message || this.translate.instant('GIT_COMMIT.GENERATION_ERROR');

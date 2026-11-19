@@ -1,3 +1,4 @@
+using System.Linq;
 using MdExplorer.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -43,6 +44,28 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(
                 "fix(git): togli il tooltip\n\nIl tooltip copriva il pannello. Impediva di arrivare al pulsante.",
                 Clean(raw));
+        }
+
+        /// <summary>19/11/2026: the body is one bullet per activity being recorded (in place of the two sentences).</summary>
+        [TestMethod]
+        public void Keep_a_bulleted_body_one_line_per_activity()
+        {
+            var raw = "fix(git-chat): un progetto senza remote si controlla una volta sola\n\n- joinRoom ricorda il percorso senza origin\n- un controllo fallito si può riprovare\n- client2 ricostruito";
+            Assert.AreEqual(raw, Clean(raw));
+        }
+
+        [TestMethod]
+        public void Wrap_a_long_bullet_under_its_own_text_within_72_characters()
+        {
+            var bullet = "- il servizio ricorda il percorso del repository già controllato e trovato senza origin, così non rifà la chiamata";
+            var cleaned = Clean("fix(git-chat): controlla una volta sola\n\n" + bullet + "\n- secondo punto");
+            var body = cleaned.Substring(cleaned.IndexOf("\n\n") + 2).Split('\n');
+            foreach (var line in body)
+                Assert.IsTrue(line.Length <= 72, $"line longer than 72: {line}");
+            Assert.IsTrue(body[0].StartsWith("- "), body[0]);
+            Assert.IsTrue(body[1].StartsWith("  ") && !body[1].StartsWith("  -"), "la continuazione rientra di due spazi: " + body[1]);
+            Assert.AreEqual("- secondo punto", body[body.Length - 1]);
+            Assert.AreEqual(bullet, string.Join(" ", body.Take(body.Length - 1).Select(l => l.Trim())).Replace("- ", "- ", System.StringComparison.Ordinal));
         }
 
         [TestMethod]

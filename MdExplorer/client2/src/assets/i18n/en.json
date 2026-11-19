@@ -652,7 +652,12 @@
     "CONFIGURE": "Configure",
     "DEFAULT_MSG": "Update from MdExplorer",
     "NO_PROJECT_PATH": "Project path not available",
-    "GENERATION_ERROR": "Error generating commit message"
+    "GENERATION_ERROR": "Error generating commit message",
+    "TITLE_LABEL": "Title",
+    "TITLE_PLACEHOLDER": "type(area): what changes",
+    "TITLE_HINT": "The line shown in the list of commits (Conventional Commits)",
+    "BODY_LABEL": "Description",
+    "BODY_PLACEHOLDER": "- one bullet for each activity you are recording"
   },
   "GIT_BRANCH": {
     "TITLE": "Branch Manager",

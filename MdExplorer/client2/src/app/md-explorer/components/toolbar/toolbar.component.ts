@@ -1707,7 +1707,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     if (!target) return;
 
     const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
-      width: '500px',
+      width: '760px',
+      maxWidth: '90vw',
       data: { defaultMessage: 'Update from MdExplorer', projectPath: target },
     });
 

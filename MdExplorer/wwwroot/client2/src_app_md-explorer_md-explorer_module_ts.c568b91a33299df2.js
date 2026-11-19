@@ -47815,7 +47815,8 @@ class ToolbarComponent {
     const target = this.repoAbsolutePath(repo);
     if (!target) return;
     const dialogRef = this.dialog.open(_git_dialogs_commit_message_dialog_commit_message_dialog_component__WEBPACK_IMPORTED_MODULE_7__.CommitMessageDialogComponent, {
-      width: '500px',
+      width: '760px',
+      maxWidth: '90vw',
       data: {
         defaultMessage: 'Update from MdExplorer',
         projectPath: target
@@ -57941,4 +57942,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.2bf684f5e8f97011.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.c568b91a33299df2.js.map

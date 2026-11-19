@@ -218,10 +218,10 @@ namespace MdExplorer.Services
             var labels = GetPromptLabels(isIt);
             var prompt = new StringBuilder();
 
-            // The format is the user's decision of 01/10/2026: the language chosen in the app, a
-            // Conventional Commits header (the short line a log shows) and a body of two very short
-            // sentences. Type and scope stay in English in every language: they are the convention's
-            // keywords, tools read them.
+            // The format is the user's decision of 01/10/2026 (language chosen in the app, Conventional
+            // Commits header) and of 19/11/2026 for the body: one bullet per activity being recorded, in
+            // place of the two sentences. Type and scope stay in English in every language: they are the
+            // convention's keywords, tools read them.
             if (isIt)
             {
                 prompt.AppendLine("Analizza questi cambiamenti Git e scrivi il messaggio di commit.");
@@ -237,8 +237,9 @@ namespace MdExplorer.Services
                 prompt.AppendLine("  4. La descrizione è al modo imperativo (\"aggiungi\", \"correggi\", \"rimuovi\"), con iniziale minuscola e senza punto finale.");
                 prompt.AppendLine($"  5. L'intera prima riga non supera {MaxHeaderLength} caratteri.");
                 prompt.AppendLine("  6. Se la modifica rompe la compatibilità, metti \"!\" subito prima dei due punti.");
-                prompt.AppendLine("  7. Poi una riga vuota e il corpo: ESATTAMENTE due frasi molto sintetiche, al massimo 15 parole l'una.");
-                prompt.AppendLine("     La prima dice COSA cambia, la seconda PERCHÉ. Niente elenchi, niente nomi di file in fila, niente terza frase.");
+                prompt.AppendLine("  7. Poi una riga vuota e il corpo: un ELENCO PUNTATO, una riga che comincia con \"- \" per ogni attività");
+                prompt.AppendLine("     distinta che stai registrando (una sola attività: un solo punto; al massimo 6 punti). Ogni punto dice");
+                prompt.AppendLine("     COSA cambia e, quando lo sai, PERCHÉ, in al massimo 20 parole. Niente nomi di file in fila, niente testo fuori dall'elenco.");
                 prompt.AppendLine();
             }
             else
@@ -255,8 +256,9 @@ namespace MdExplorer.Services
                 prompt.AppendLine("  4. The description is in the imperative mood (\"add\", \"fix\", \"remove\"), starts lowercase, has no trailing period.");
                 prompt.AppendLine($"  5. The whole first line is at most {MaxHeaderLength} characters.");
                 prompt.AppendLine("  6. For a breaking change, put \"!\" right before the colon.");
-                prompt.AppendLine("  7. Then a blank line and the body: EXACTLY two very short sentences, 15 words each at most.");
-                prompt.AppendLine("     The first says WHAT changes, the second WHY. No lists, no rows of file names, no third sentence.");
+                prompt.AppendLine("  7. Then a blank line and the body: a BULLETED LIST, one line starting with \"- \" for each distinct activity");
+                prompt.AppendLine("     you are recording (one activity: one bullet; at most 6 bullets). Each bullet says WHAT changes and,");
+                prompt.AppendLine("     when you know it, WHY, in 20 words at most. No rows of file names, no text outside the list.");
                 prompt.AppendLine();
             }
 
@@ -321,7 +323,7 @@ namespace MdExplorer.Services
             if (isIt)
             {
                 prompt.AppendLine("Il PERCHÉ: se nella nostra conversazione abbiamo fatto o discusso queste modifiche, usa quello che");
-                prompt.AppendLine("sai (lo scopo, la decisione presa, il problema risolto) per la seconda frase. Non inventare: se non ne");
+                prompt.AppendLine("sai (lo scopo, la decisione presa, il problema risolto) nei punti. Non inventare: se non ne");
                 prompt.AppendLine("sai niente, descrivi solo quello che si vede dalle modifiche. Non usare i tuoi tool: le modifiche sono qui.");
                 prompt.AppendLine();
                 prompt.AppendLine("Vincoli aggiuntivi:");
@@ -333,12 +335,13 @@ namespace MdExplorer.Services
                 prompt.AppendLine("Formato della risposta (ESATTO, nient'altro):");
                 prompt.AppendLine("<tipo>(<scope>): <descrizione in italiano>");
                 prompt.AppendLine("");
-                prompt.AppendLine("<Prima frase: cosa cambia.> <Seconda frase: perché.>");
+                prompt.AppendLine("- <prima attività: cosa cambia e perché>");
+                prompt.AppendLine("- <seconda attività, se c'è>");
             }
             else
             {
                 prompt.AppendLine("The WHY: if these changes were made or discussed in our conversation, use what you know (the aim,");
-                prompt.AppendLine("the decision taken, the problem solved) for the second sentence. Do not invent: if you know nothing about");
+                prompt.AppendLine("the decision taken, the problem solved) in the bullets. Do not invent: if you know nothing about");
                 prompt.AppendLine("them, describe only what the changes show. Do not use your tools: the changes are here.");
                 prompt.AppendLine();
                 prompt.AppendLine("Additional constraints:");
@@ -350,7 +353,8 @@ namespace MdExplorer.Services
                 prompt.AppendLine("Response format (EXACT — nothing else):");
                 prompt.AppendLine("<type>(<scope>): <description in English>");
                 prompt.AppendLine("");
-                prompt.AppendLine("<First sentence: what changes.> <Second sentence: why.>");
+                prompt.AppendLine("- <first activity: what changes and why>");
+                prompt.AppendLine("- <second activity, if any>");
             }
 
             return prompt.ToString();
@@ -527,7 +531,8 @@ namespace MdExplorer.Services
                 {
                     foreach (var l in paragraph)
                     {
-                        output.Append(WrapLine(l, maxWidth));
+                        // A long bullet goes on under its own text, two spaces in, as git log shows lists.
+                        output.Append(WrapLine(l, maxWidth - 2).Replace("\n", "\n  "));
                         output.Append('\n');
                     }
                     // drop trailing newline, let the next block or end-of-body decide
