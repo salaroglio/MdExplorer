@@ -33,6 +33,13 @@ export class GitChatService implements OnDestroy {
   private _connectionState$ = new BehaviorSubject<ChatConnectionState>('disconnected');
   public connectionState$ = this._connectionState$.asObservable();
 
+  // The repository already checked and found WITHOUT a remote (19/11/2026). joinRoom runs at every emission of the
+  // current project; without this it rechecked each time and showed «Connessione alla chat...» again and again for a
+  // project that simply has no origin. A check that FAILED (HTTP error → state 'error') is not remembered: it may be retried.
+  // Forgotten as soon as ANOTHER project is opened (and at every start of MDE): after adding a remote, open another
+  // project and come back, or restart MDE, and the check runs again.
+  private checkedWithoutRemotePath: string | null = null;
+
   // Room info
   private _roomInfo$ = new BehaviorSubject<RoomInfo | null>(null);
   public roomInfo$ = this._roomInfo$.asObservable();
@@ -164,6 +171,10 @@ export class GitChatService implements OnDestroy {
     if (this.currentRepositoryPath === repositoryPath) {
       return; // Already in this room
     }
+    if (this.checkedWithoutRemotePath === repositoryPath) {
+      return; // Already checked: no remote. The state stays «no remote», no new check, no spinner.
+    }
+    this.checkedWithoutRemotePath = null;
 
     this._connectionState$.next('connecting');
     this.previousMessageCount = 0;
@@ -177,6 +188,11 @@ export class GitChatService implements OnDestroy {
       if (!roomInfo || !roomInfo.hasRemote) {
         this._connectionState$.next('disconnected');
         this._roomInfo$.next(roomInfo || null);
+        if (roomInfo) {
+          // Every hasRemote=false answer is a stable state of that path (no origin, not a git repository, folder
+          // missing: GitChatController.room-info); a check that really FAILED throws and lands in the catch below.
+          this.checkedWithoutRemotePath = repositoryPath;
+        }
         return;
       }
 
