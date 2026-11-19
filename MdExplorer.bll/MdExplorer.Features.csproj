@@ -32,6 +32,8 @@
 
   <ItemGroup>
     <PackageReference Include="dotNetRDF" Version="3.5.2" />
+    <!-- Il pacchetto dichiara in build/GitHub.Copilot.SDK.props la CLI con cui è fatto (CopilotCliVersion): finisce nei
+         metadati dell'assembly, e CopilotCliCompatibility la usa per dire all'utente quale CLI installare (19/11/2026). -->
     <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.11" />
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
     <!-- Dettatura: Whisper.net e i suoi binari nativi (MIT). Il runtime porta gia' win/linux/macOS,
@@ -149,4 +151,12 @@
     <ProjectReference Include="..\MdExplorer.Remote.Protocol\MdExplorer.Remote.Protocol.csproj" />
   </ItemGroup>
 
+  <!-- La CLI di Copilot con cui è fatto l'SDK (CopilotCliVersion, dal .props del pacchetto GitHub.Copilot.SDK). Senza,
+       MDE non saprebbe quale CLI consigliare quando il protocollo non coincide: si ferma la compilazione, non si indovina. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="CopilotCliVersion" Value="$(CopilotCliVersion)" />
+  </ItemGroup>
+  <Target Name="RequireCopilotCliVersion" BeforeTargets="CoreCompile">
+    <Error Condition="'$(CopilotCliVersion)' == ''" Text="GitHub.Copilot.SDK non dichiara più CopilotCliVersion (build/GitHub.Copilot.SDK.props): CopilotCliCompatibility non saprebbe quale CLI consigliare. Guarda come il pacchetto nuovo la dichiara." />
+  </Target>
 </Project>

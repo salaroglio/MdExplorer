@@ -217,7 +217,17 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 UseLoggedInUser = true,
             });
 
-            await _client.StartAsync(timeout.Token).ConfigureAwait(false);
+            try
+            {
+                await _client.StartAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (CopilotCliCompatibility.IsProtocolMismatch(ex))
+            {
+                // The user's CLI moved ahead of the SDK: say which versions and the command that fixes it.
+                var explained = await CopilotCliCompatibility.ExplainAsync(ex, ct).ConfigureAwait(false);
+                _logger.LogWarning("[CopilotSdkSession] {Message}", explained.Message);
+                throw explained;
+            }
 
             void Fill(SessionConfigBase config)
             {
