@@ -116,6 +116,56 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(("external", "HELPER", "inferred"), (external.Kind, external.Name, back.Confidence), "la funzione è sparita: di nuovo esterna, col suo nome");
         }
 
+        private static ScriptEdge ImportOf(CodeScript script, string written) => script.Edges.Single(e => e.Relation == "imports" && e.Written == "file:" + written);
+
+        /// <summary>
+        /// 19/11/2026: <c>USE "CLIENTI"</c> per il file <c>CLIENTI.BS</c> di un'altra cartella. Il nome senza estensione si
+        /// cerca solo se il linguaggio lo chiede (<c>fileNameWithoutExtension: true</c>); il nome completo si trova sempre.
+        /// </summary>
+        [TestMethod]
+        public void Find_a_file_written_without_extension_in_another_context_only_when_the_language_asks()
+        {
+            const string Archive = "MODULE \"ARCH\"\nPROC READ(X)\nENDPROC\n";
+            const string Uses = "MODULE \"MAIN\"\nUSE \"ARCH\"\nUSE \"arch.tos\"\nPROC START()\nENDPROC\n";
+            var archive = Analyse(("arch.tos", Archive));
+            var archiveModule = Of(archive, "arch.tos").Symbols.Single(s => s.Kind == "module").Id;
+
+            var before = Analyse(("main.toy", Uses));
+            CodeCrossLinker.LinkAll("toy", true, before, archive);
+            var main = Of(before, "main.toy");
+            Assert.AreEqual(archiveModule, ImportOf(main, "arch.tos").TargetId, "il nome completo si trova sempre");
+            Assert.AreEqual("external", main.Symbols.Single(s => s.Id == ImportOf(main, "ARCH").TargetId).Kind, "senza la chiave, il nome senza estensione resta esterno");
+
+            var after = Analyse(("main.toy", Uses));
+            CodeCrossLinker.LinkAll("toy", true, after, archive, fileStems: true);
+            main = Of(after, "main.toy");
+            // i due USE portano allo stesso file: un arco solo per (sorgente, destinazione, relazione), come gli estrattori
+            var imports = main.Edges.Where(e => e.Relation == "imports").ToList();
+            Assert.AreEqual(1, imports.Count, string.Join(", ", imports.Select(e => e.Written + "->" + e.TargetId)));
+            Assert.AreEqual((archiveModule, "extracted"), (imports[0].TargetId, imports[0].Confidence), "con la chiave, anche senza estensione e senza badare alle maiuscole");
+            Assert.IsFalse(main.Symbols.Any(s => s.Kind == "external" && s.Name == "ARCH"), "l'esterno ARCH non serve più");
+        }
+
+        [TestMethod]
+        public void Send_a_name_without_extension_to_both_files_that_have_it()
+        {
+            var both = Analyse(("arch.tos", "MODULE \"ARCHS\"\n"), ("arch.toh", "MODULE \"ARCHH\"\n"));
+            var main = Analyse(("main.toy", "MODULE \"MAIN\"\nUSE \"ARCH\"\n"));
+            CodeCrossLinker.LinkAll("toy", true, main, both, fileStems: true);
+            var edges = Of(main, "main.toy").Edges.Where(e => e.Relation == "imports" && e.Written == "file:ARCH").ToList();
+            Assert.AreEqual(2, edges.Count, "ARCH.TOS e ARCH.TOH: tutti e due");
+            Assert.IsTrue(edges.All(e => e.Confidence == "ambiguous"));
+        }
+
+        [TestMethod]
+        public void Read_the_key_from_the_definition_and_default_to_the_full_name()
+        {
+            Assert.IsFalse(_lang.FileNameWithoutExtension);
+            var withKey = DeclarativeLanguage.Parse(DeclarativeLanguageExtractorShould.ToyFullDefinition.Replace("ignoreCase: true", "ignoreCase: true\nfileNameWithoutExtension: true"),
+                Path.Combine(_dir, ".mde-languages", "toy", "language.yml"));
+            Assert.IsTrue(withKey.FileNameWithoutExtension);
+        }
+
         [TestMethod]
         public void Link_by_unique_name_without_imports_and_stay_ambiguous_with_two()
         {

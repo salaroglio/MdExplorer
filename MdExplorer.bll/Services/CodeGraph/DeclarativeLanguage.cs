@@ -45,6 +45,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// tabelle, viste) e l'SQL scritto nel codice C# o Visual Basic che li nomina si ricollega a loro (<see cref="CodeSqlLinker"/>).
         /// </summary>
         public bool Database { get; private init; }
+        /// <summary>
+        /// <c>fileNameWithoutExtension: true</c> (19/11/2026): un riferimento a un file (<c>resolve: file</c>) può scrivere il nome
+        /// senza estensione (<c>#INCLUDE "CLIENTI"</c> per <c>CLIENTI.BS</c>) anche quando il file sta in un ALTRO contesto: il
+        /// ricollegamento fra contesti (<see cref="CodeCrossLinker"/>) lo cerca anche senza estensione. Assente = solo il nome completo.
+        /// </summary>
+        public bool FileNameWithoutExtension { get; private init; }
         public string DefinitionPath { get; private init; }
         /// <summary>Le prime 8 cifre dello SHA-256 del file: cambiare una regola vuol dire riparsare tutto.</summary>
         public string DefinitionHash { get; private init; }
@@ -547,7 +553,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     Id = _d.Id, DisplayName = string.IsNullOrWhiteSpace(_d.Name) ? _d.Id : _d.Name, Version = _d.Version,
                     Extensions = _d.Extensions.Select(e => e.ToLowerInvariant()).Distinct().ToList(),
-                    IgnoreCase = _d.IgnoreCase, Database = _d.Database, DefinitionPath = _path, DefinitionHash = hash,
+                    IgnoreCase = _d.IgnoreCase, Database = _d.Database, FileNameWithoutExtension = _d.FileNameWithoutExtension, DefinitionPath = _path, DefinitionHash = hash,
                     LineComment = string.IsNullOrEmpty(lexical.LineComment) ? null : lexical.LineComment,
                     BlockCommentOpen = lexical.BlockComment?[0], BlockCommentClose = lexical.BlockComment?[1],
                     MultilineString = lexical.MultilineString,
@@ -1009,6 +1015,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public List<string> Extensions { get; set; }
                 public bool IgnoreCase { get; set; }
                 public bool Database { get; set; }
+                public bool FileNameWithoutExtension { get; set; }
                 public Lexical Lexical { get; set; }
                 public Module Module { get; set; }
                 public List<Block> Blocks { get; set; }
