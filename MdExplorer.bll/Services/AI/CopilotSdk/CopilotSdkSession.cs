@@ -510,6 +510,19 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     EndTurn(turn);
                     break;
 
+                case SessionIdleEvent:
+                    // The Copilot CLI of November 2026 (1.0.107 on the dev VM) closes the turn with
+                    // session.idle and never sends assistant.idle: waiting only for AssistantIdle left
+                    // every answer open until the 300 s idle watchdog (MarkSearch stuck on «Mark sta
+                    // scegliendo le parole chiave», 19/11/2026). It is the last event of the turn, after
+                    // AssistantTurnEnd and the agentStop hook. EndTurn ignores it for a turn not begun.
+                    if (turn.Started)
+                    {
+                        _logger.LogInformation("[CopilotSdkSession] fine della risposta da session.idle su session={SessionId}", _session?.SessionId);
+                    }
+                    EndTurn(turn);
+                    break;
+
                 case SessionErrorEvent error:
                     // Fatal for the answer, and Idle is not guaranteed to follow: without this the
                     // caller would sit on the idle timeout for five minutes before learning why.
