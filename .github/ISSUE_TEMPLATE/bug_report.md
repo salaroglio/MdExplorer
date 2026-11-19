@@ -35,7 +35,7 @@ If applicable, add screenshots to help explain your problem.
 - **OS**: [e.g. Windows 11, macOS 14, Ubuntu 22.04]
 - **MdExplorer Version**: [e.g. 2025.10.02.1]
 - **Installation Method**: [Electron app / Web browser / Development build]
-- **.NET SDK Version**: [e.g. 8.0.100] (if running from source)
+- **.NET SDK Version**: [e.g. 10.0.100] (if running from source)
 - **Node.js Version**: [e.g. 14.21.3] (if running from source)
 - **Browser**: [e.g. Chrome 120, Firefox 115] (if using web version)
 

@@ -315,8 +315,14 @@ namespace MdExplorer.Features.E2e
         // ---------------------------------------------------------------- .NET SDK (replay only)
 
         /// <summary>
-        /// The <c>dotnet</c> that can replay the scripts (F5): an SDK 8 or later. Not needed to run the tests with
-        /// MarkAgent, only to replay them without an LLM.
+        /// The oldest .NET SDK that can build the <c>E2eTests.csproj</c> MdExplorer writes (skill mde-e2e,
+        /// file-di-supporto.md: <c>net10.0</c> since the .NET 10 sprint, 19/11/2026). The two must move together.
+        /// </summary>
+        public const int MinimumSdkMajor = 10;
+
+        /// <summary>
+        /// The <c>dotnet</c> that can replay the scripts (F5): an SDK <see cref="MinimumSdkMajor"/> or later. Not needed
+        /// to run the tests with MarkAgent, only to replay them without an LLM.
         /// </summary>
         public async Task<(E2eRequirement Requirement, string Dotnet)> CheckDotnetAsync(CancellationToken ct = default)
         {
@@ -329,15 +335,15 @@ namespace MdExplorer.Features.E2e
             var dotnet = candidates.FirstOrDefault(File.Exists);
             if (dotnet == null)
                 return (new E2eRequirement("dotnet", false, UiText.Say(".NET SDK non trovato.", ".NET SDK not found."),
-                    UiText.Say("Per rigiocare gli script serve il .NET SDK 8 o successivo (dotnet.microsoft.com). Non serve per eseguire i test con MarkAgent.",
-                        "Replaying the scripts needs the .NET SDK 8 or later (dotnet.microsoft.com). It is not needed to run the tests with MarkAgent."), false), null);
+                    UiText.Say($"Per rigiocare gli script serve il .NET SDK {MinimumSdkMajor} o successivo (dotnet.microsoft.com). Non serve per eseguire i test con MarkAgent.",
+                        $"Replaying the scripts needs the .NET SDK {MinimumSdkMajor} or later (dotnet.microsoft.com). It is not needed to run the tests with MarkAgent."), false), null);
 
             var (exit, output) = await RunAsync(dotnet, new[] { "--list-sdks" }, TimeSpan.FromSeconds(30), ct);
             var majors = Regex.Matches(output ?? "", @"^(\d+)\.", RegexOptions.Multiline).Select(m => int.Parse(m.Groups[1].Value)).ToList();
-            if (exit != 0 || !majors.Any(m => m >= 8))
-                return (new E2eRequirement("dotnet", false, UiText.Say($".NET SDK 8 o successivo non installato (trovati: {(majors.Count == 0 ? "nessuno" : string.Join(", ", majors.Distinct()))}).",
-                        $".NET SDK 8 or later not installed (found: {(majors.Count == 0 ? "none" : string.Join(", ", majors.Distinct()))})."),
-                    UiText.Say("Installa il .NET SDK 8 o successivo per rigiocare gli script.", "Install the .NET SDK 8 or later to replay the scripts."), false), null);
+            if (exit != 0 || !majors.Any(m => m >= MinimumSdkMajor))
+                return (new E2eRequirement("dotnet", false, UiText.Say($".NET SDK {MinimumSdkMajor} o successivo non installato (trovati: {(majors.Count == 0 ? "nessuno" : string.Join(", ", majors.Distinct()))}).",
+                        $".NET SDK {MinimumSdkMajor} or later not installed (found: {(majors.Count == 0 ? "none" : string.Join(", ", majors.Distinct()))})."),
+                    UiText.Say($"Installa il .NET SDK {MinimumSdkMajor} o successivo per rigiocare gli script.", $"Install the .NET SDK {MinimumSdkMajor} or later to replay the scripts."), false), null);
             return (new E2eRequirement("dotnet", true, $".NET SDK {majors.Max()} ({dotnet})", null, false), dotnet);
         }
 

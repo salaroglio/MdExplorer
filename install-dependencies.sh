@@ -130,7 +130,7 @@ echo "=== Configurazione percorso librerie native ==="
 
 # Verifica se LD_LIBRARY_PATH è configurato per LLamaSharp
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-LLAMA_LIB_PATH="$SCRIPT_DIR/MdExplorer/bin/Debug/net8.0/linux-x64"
+LLAMA_LIB_PATH="$SCRIPT_DIR/MdExplorer/bin/Debug/net10.0/linux-x64"
 
 if [ -d "$LLAMA_LIB_PATH" ]; then
     echo "Directory librerie native trovata: $LLAMA_LIB_PATH"
@@ -171,12 +171,12 @@ if command_exists dotnet; then
     DOTNET_VERSION=$(dotnet --version)
     echo "✓ .NET SDK installato: $DOTNET_VERSION"
     
-    # Verifica che sia almeno .NET 8
-    if [[ "$DOTNET_VERSION" =~ ^8\. ]]; then
-        echo "✓ Versione .NET 8 corretta"
+    # Verifica che sia almeno .NET 10 (il progetto è net10.0 dal 19/11/2026)
+    if [ "${DOTNET_VERSION%%.*}" -ge 10 ] 2>/dev/null; then
+        echo "✓ Versione .NET $DOTNET_VERSION adatta (serve la 10 o successiva)"
     else
-        echo "⚠ Attenzione: Il progetto richiede .NET 8.0"
-        echo "  Installa da: https://dotnet.microsoft.com/download/dotnet/8.0"
+        echo "⚠ Attenzione: Il progetto richiede l'SDK .NET 10"
+        echo "  Installa da: https://dotnet.microsoft.com/download/dotnet/10.0"
     fi
 else
     echo "✗ .NET SDK non trovato"

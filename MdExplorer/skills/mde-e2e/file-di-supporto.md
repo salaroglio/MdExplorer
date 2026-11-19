@@ -8,7 +8,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- MdExplorer, skill mde-e2e: progetto che compila e rigioca gli script dei test *.e2e.md di questa cartella. -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>

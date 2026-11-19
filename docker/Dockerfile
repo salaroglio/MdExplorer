@@ -22,9 +22,11 @@ RUN node update-version.js && npx ng build --base-href /client2/
 # ----------------------------------------------------------------------------
 # Stage 2 — .NET backend build & publish
 # Linux target — MdExplorer.Service.csproj already has a Linux conditional
-# PropertyGroup; on non-Windows it builds as net8.0 (no WindowsForms).
+# PropertyGroup; on non-Windows it builds as net10.0 (no WindowsForms).
+# .NET 10 images: no Debian tag any more (sdk/aspnet 10.0: noble, resolute, alpine — read on mcr.microsoft.com
+# on 19/11/2026), so both stages are Ubuntu 24.04 (noble), the LTS closest to the former bookworm.
 # ----------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS dotnet-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS dotnet-build
 WORKDIR /src
 
 # Copy all referenced project folders. We pull them individually so the
@@ -33,6 +35,9 @@ COPY Ad.Tools.Dal.Abstractions/ ./Ad.Tools.Dal.Abstractions/
 COPY Ad.Tools.Dal/ ./Ad.Tools.Dal/
 COPY Ad.Tools.FluentMigrator/ ./Ad.Tools.FluentMigrator/
 COPY MdExplorer.Abstractions/ ./MdExplorer.Abstractions/
+# Referenced by MdExplorer.bll since the remote code roots (October 2026): it was missing here, and the image did not
+# build any more (CS0234 MdExplorer.RemoteProtocol), found in the .NET 10 sprint, F4.
+COPY MdExplorer.Remote.Protocol/ ./MdExplorer.Remote.Protocol/
 COPY MdExplorer.bll/ ./MdExplorer.bll/
 COPY MDExplorer.dal/ ./MDExplorer.dal/
 COPY MdExplorer.DataAccess.Engine/ ./MdExplorer.DataAccess.Engine/
@@ -66,13 +71,8 @@ COPY --from=angular-build /src/MdExplorer/wwwroot/client2/ /src/MdExplorer/wwwro
 # does NOT make the service reachable from the LAN.
 RUN sed -i 's|http://127\.0\.0\.1|http://0.0.0.0|g' MdExplorer/Program.cs
 
-# Docker-only patch: System.Drawing.{Icon,Bitmap,Graphics,...} are used by
-# MdAppStoreController for Windows-only icon extraction. The calls are
-# already gated by RuntimeInformation.IsOSPlatform(OSPlatform.Windows), so
-# they never run on Linux — but net8.0 Linux can't even *compile* without
-# the package because System.Drawing.Common isn't a transitive dep on Linux.
-# We add it only inside the build stage; the committed csproj is untouched.
-RUN sed -i '/<PackageReference Include="YamlDotNet"/a\    <PackageReference Include="System.Drawing.Common" Version="8.0.0" \/>' MdExplorer/MdExplorer.Service.csproj
+# (Until the .NET 10 sprint a Docker-only patch added System.Drawing.Common 8.0.0 here. MdExplorer.Service.csproj
+# now references System.Drawing.Common itself, on every OS: the patch would have added a second, older reference.)
 
 # MdEngine.db and MdExplorer.db are listed as <EmbeddedResource> in the csproj
 # but live in *.db (gitignored), so they don't reach the build context. Create
@@ -93,7 +93,7 @@ RUN dotnet publish MdExplorer.Service.csproj \
 # Installs MdExplorer runtime deps: pandoc (export), graphviz (PlantUML
 # fallback), java (PlantUML jar), fonts (Pandoc/PDF), libsqlite3 (NHibernate).
 # ----------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pandoc \
@@ -108,8 +108,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         locales \
         git \
         openssh-client \
-    && sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
-    && locale-gen \
+    && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
