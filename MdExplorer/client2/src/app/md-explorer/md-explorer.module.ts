@@ -22,6 +22,7 @@ import { SeedDialogComponent } from './components/dialogs/seed-analysis/seed-dia
 import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
 import { RemoteFolderPickerDialogComponent } from './components/dialogs/code-roots/remote-folder-picker-dialog.component';
 import { CodeRootNameDialogComponent } from './components/dialogs/code-roots/code-root-name-dialog.component';
+import { CodeRootFindDialogComponent } from './components/dialogs/code-roots/code-root-find-dialog.component';
 import { RemoteFileEditorDialogComponent } from './components/dialogs/code-roots/remote-file-editor-dialog.component';
 import { CodeRootEncodingsDialogComponent } from './components/dialogs/code-roots/code-root-encodings-dialog.component';
 import { CodeRootsReminderDialogComponent } from './components/dialogs/code-roots/code-roots-reminder-dialog.component';
@@ -121,6 +122,7 @@ const routes: Routes = [
     CodeRootsDialogComponent,
     RemoteFolderPickerDialogComponent,
     CodeRootNameDialogComponent,
+    CodeRootFindDialogComponent,
     RemoteFileEditorDialogComponent,
     CodeRootEncodingsDialogComponent,
     CodeRootsReminderDialogComponent,

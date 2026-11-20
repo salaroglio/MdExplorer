@@ -238,5 +238,28 @@ namespace MdExplorer.Features.Tests.RemoteAgent
             File.WriteAllText(Path.Combine(wt, ".git"), "gitdir: " + Path.Combine(main, "worktrees", "wt") + "\n");
             Assert.AreEqual("https://example.org/wt.git", new RemoteWorkspace(wt).GitInfo().Remotes.Single().Url);
         }
+
+        [TestMethod]
+        public void Find_files_by_part_of_the_name_or_pattern_anywhere_below_skipping_git()
+        {
+            File.WriteAllText(Path.Combine(_root, ".git", "order.cs"), "x");
+            File.WriteAllText(Path.Combine(_root, "Zeta", "ORDERS.md"), "x");
+            var part = _ws.Find("", "order", 0, null);
+            CollectionAssert.AreEquivalent(new[] { "src/api/Order.cs", "Zeta/ORDERS.md" }, part.Entries.Select(e => e.Path).ToArray(),
+                "un pezzo del nome, maiuscole indifferenti, anche in cartelle mai elencate; .git no");
+            Assert.IsFalse(part.Truncated);
+            Assert.IsTrue(part.Entries.Single(e => e.Name == "Order.cs").IsText);
+
+            CollectionAssert.AreEqual(new[] { "src/api/Order.cs" }, _ws.Find("", "*.CS", 0, null).Entries.Select(e => e.Path).ToArray(), "modello sul nome intero");
+            Assert.AreEqual(0, _ws.Find("", "*.c", 0, null).Entries.Count, "il modello vale per il nome intero, non per un pezzo");
+            CollectionAssert.AreEqual(new[] { "src/caller.js" }, _ws.Find("src", "?aller.*", 0, null).Entries.Select(e => e.Path).ToArray(), "dentro una cartella");
+            Assert.AreEqual(0, _ws.Find("Zeta", "caller", 0, null).Entries.Count, "solo sotto la cartella scelta");
+
+            var cut = _ws.Find("", "*", 2, null);
+            Assert.AreEqual(2, cut.Entries.Count);
+            Assert.IsTrue(cut.Truncated, "oltre il limite lo dice");
+            Assert.AreEqual(RemoteErrorCodes.BadRequest, Code(() => _ws.Find("", "  ", 0, null)));
+            Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Code(() => _ws.Find("..", "fuori", 0, null)), "mai fuori dalla radice");
+        }
     }
 }

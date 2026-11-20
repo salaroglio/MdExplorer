@@ -31,6 +31,8 @@ namespace MdExplorer.RemoteProtocol
         public const string GitInfo = "gitInfo";
         /// <summary>Tutti i file sotto un percorso con dimensione e impronta, in una risposta (grafo del codice, G-D4).</summary>
         public const string Tree = "tree";
+        /// <summary>I file il cui nome corrisponde a <see cref="RemoteRequest.Query"/>, sotto un percorso (20/11/2026, «Cerca file»).</summary>
+        public const string Find = "find";
     }
 
     /// <summary>I codici d'errore (<see cref="RemoteError.Code"/>): il backend li traduce in messaggi per l'utente.</summary>

@@ -39,9 +39,11 @@ namespace MdExplorer.RemoteProtocol
         /// <summary><c>grep</c>: solo i file con queste estensioni (<c>.bal</c>, maiuscole indifferenti); assente = tutti i file di testo.</summary>
         public List<string>? Extensions { get; set; }
         public bool IgnoreCase { get; set; }
-        /// <summary><c>grep</c>: al più tante righe; 0 = il default di MDE Remote.</summary>
+        /// <summary><c>find</c>: un pezzo del nome, o un modello con <c>*</c> e <c>?</c> sul nome intero.</summary>
+        public string? Query { get; set; }
+        /// <summary><c>grep</c>: al più tante righe; <c>find</c>: al più tanti file; 0 = il default di MDE Remote.</summary>
         public int MaxHits { get; set; }
-        /// <summary><c>grep</c>, <c>tree</c>: nomi di cartelle da saltare (il backend manda <c>.git</c>; <c>tree</c> lo salta sempre).</summary>
+        /// <summary><c>grep</c>, <c>tree</c>, <c>find</c>: nomi di cartelle da saltare (il backend manda <c>.git</c>; <c>tree</c> lo salta sempre).</summary>
         public List<string>? Exclude { get; set; }
     }
 
@@ -60,7 +62,7 @@ namespace MdExplorer.RemoteProtocol
         /// <summary><c>read</c>: la codifica riconosciuta (<see cref="TextDecoding"/>), in cui <c>write</c> riscrive.</summary>
         public string? Encoding { get; set; }
         public List<RemoteHit>? Hits { get; set; }
-        /// <summary><c>grep</c>: c'erano altre righe oltre <see cref="RemoteRequest.MaxHits"/>.</summary>
+        /// <summary><c>grep</c>: c'erano altre righe oltre <see cref="RemoteRequest.MaxHits"/>; <c>find</c>: altri file oltre <see cref="RemoteRequest.MaxHits"/>.</summary>
         public bool? Truncated { get; set; }
         public RemoteGitInfo? Git { get; set; }
     }

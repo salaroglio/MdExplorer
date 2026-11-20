@@ -69,6 +69,15 @@ namespace MdExplorer.Features.Tests.RemoteAgent
         }
 
         [TestMethod]
+        public void Find_files_by_name_over_the_json_channel()
+        {
+            var responses = Run("""{"id":3,"op":"find","path":"","query":"A.TX","maxHits":10}""");
+            Assert.IsTrue(responses[1].Ok, responses[1].Error?.Message);
+            CollectionAssert.AreEqual(new[] { "a.txt" }, responses[1].Entries.Select(e => e.Path).ToArray(), "query e maxHits arrivano dal JSON");
+            Assert.AreEqual(false, responses[1].Truncated);
+        }
+
+        [TestMethod]
         public void Write_the_json_in_camel_case_without_null_fields()
         {
             var output = new StringWriter();

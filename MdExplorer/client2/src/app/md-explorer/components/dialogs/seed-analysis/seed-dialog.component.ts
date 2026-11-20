@@ -40,7 +40,7 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
    * e con «Analizza» entrano fra le esclusioni del seme, così il seme salvato ricalcola la stessa chiusura.
    */
   public maxDepth: number | null = null;
-  public readonly depthChoices: (number | null)[] = [1, 2, 3, 4, 5, null];
+  public readonly depthChoices: (number | null)[] = [0, 1, 2, 3, 4, 5, null];
   private previewSub: Subscription | null = null;
   public applying = false;
   public errorMessage = '';

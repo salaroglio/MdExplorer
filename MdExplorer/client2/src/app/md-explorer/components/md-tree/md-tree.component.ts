@@ -18,8 +18,9 @@ import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironment
 import { SeedDialogComponent, SeedDialogData } from '../dialogs/seed-analysis/seed-dialog.component';
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
-import { CodeRoot, CodeRootsService, RemoteFileOp } from '../../services/code-roots.service';
+import { CodeRoot, CodeRootsService, RemoteFileOp, RemoteFoundEntry } from '../../services/code-roots.service';
 import { CodeRootNameDialogComponent, CodeRootNameDialogData } from '../dialogs/code-roots/code-root-name-dialog.component';
+import { CodeRootFindDialogComponent, CodeRootFindDialogData } from '../dialogs/code-roots/code-root-find-dialog.component';
 import { RemoteFileEditorDialogComponent, RemoteFileEditorData } from '../dialogs/code-roots/remote-file-editor-dialog.component';
 import { CodeRootEncodingsDialogComponent, CodeRootEncodingsData } from '../dialogs/code-roots/code-root-encodings-dialog.component';
 
@@ -2752,6 +2753,57 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.loadCodeRootChildren(node, () => next(i + 1));
     };
     next(0);
+  }
+
+  /**
+   * «Cerca file» (20/11/2026): su @alias tutta la radice, su una cartella solo lì sotto. La ricerca la fa MDE Remote sul
+   * server, anche nelle cartelle mai aperte; il file scelto si mostra nell'albero e si apre.
+   */
+  codeRootFind(item: MdFile): void {
+    const projectRoot = this.getProjectRoot();
+    if (!projectRoot || !this.isEditableCodeRootContainer(item)) { return; }
+    const data: CodeRootFindDialogData = { projectRoot, path: item.path };
+    this.dialog.open(CodeRootFindDialogComponent, { width: '620px', maxWidth: '95vw', data })
+      .afterClosed().subscribe((found?: RemoteFoundEntry) => { if (found) { this.revealCodeRootFile(found); } });
+  }
+
+  /**
+   * Porta in vista un file di una radice anche dentro cartelle mai aperte: apre una dopo l'altra le cartelle del percorso
+   * (scaricando gli elenchi che mancano), accende l'occhio sulla SUA cartella se con l'occhio spento non si vedrebbe (non
+   * è un .md), poi lo seleziona, lo evidenzia e, se è testo, lo apre.
+   */
+  private revealCodeRootFile(found: RemoteFoundEntry): void {
+    const segments = found.path.split('/');
+    // «@alias», «@alias/a», «@alias/a/b»: le cartelle da aprire, la radice per prima
+    const folders = segments.slice(0, -1).map((_, i) => segments.slice(0, i + 1).join('/'));
+    const hidden = !/\.md$/i.test(found.name);
+    const folderNode = (path: string) => this.treeControl.dataNodes?.find(n => n.path === path && (n.type === 'codeRoot' || n.type === 'codeRootFolder')) as unknown as MdFile;
+    const next = (i: number) => {
+      if (i < folders.length) {
+        // il nodo piatto si cerca ADESSO: il ridisegno dopo la cartella di sopra lo ha ricreato
+        const node = folderNode(folders[i]);
+        if (!node) { this.codeRootRevealFailed(found); return; }
+        const isParent = i === folders.length - 1;
+        const reveal = isParent && hidden && !this.isCodeRootRevealed(node.fullPath);
+        if (reveal) { this.codeRootRevealed.add(node.fullPath); }
+        // l'albero si ridisegna in un microtask (scheduleTreeRender): la cartella sotto si cerca DOPO, non subito
+        if (reveal || !this.treeControl.isExpanded(node) || !(node.childrens?.length)) { this.loadCodeRootChildren(node, () => Promise.resolve().then(() => next(i + 1))); }
+        else { next(i + 1); }
+        return;
+      }
+      const file = this.treeControl.dataNodes?.find(n => n.path === found.path && n.type === 'codeRootFile') as unknown as MdFile;
+      if (!file) { this.codeRootRevealFailed(found); return; }
+      this.activeNode = file as any;
+      this.selectedNode = file as any;
+      if (file.isTextFile) { this.getNode(file); }
+      this.changeDetectorRef.detectChanges();
+      setTimeout(() => this.scrollNodeIntoView(file as any), 100);
+    };
+    next(0);
+  }
+
+  private codeRootRevealFailed(found: RemoteFoundEntry): void {
+    this.snackBar.open(this.translate.instant('REMOTE_TREE.FIND_NOT_IN_TREE', { path: found.path }), 'OK', { duration: 6000 });
   }
 
   codeRootNewFile(item: MdFile): void {

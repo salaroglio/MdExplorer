@@ -69,7 +69,10 @@ export interface ServerSettings {
 export interface UploadConsent { destination: string; size: number; folder: string; }
 
 /** Un'operazione su un file o una cartella di una radice remota (D7). */
-export type RemoteFileOp = 'read' | 'write' | 'create' | 'mkdir' | 'delete' | 'move' | 'grep';
+export type RemoteFileOp = 'read' | 'write' | 'create' | 'mkdir' | 'delete' | 'move' | 'grep' | 'find';
+
+/** Un file trovato da «Cerca file» (op find): come un elemento di browse. */
+export interface RemoteFoundEntry { name: string; path: string; fullPath: string; isFolder: boolean; isText: boolean; unreadable?: string; }
 
 export interface RemoteFileResult {
   path: string;
@@ -80,6 +83,8 @@ export interface RemoteFileResult {
   encoding?: string;
   truncated?: boolean;
   hits?: { path: string; line: number; text: string }[];
+  /** find: i file trovati per nome (con truncated se ce n'erano altri). */
+  entries?: RemoteFoundEntry[];
 }
 
 /** Il consenso richiesto, se l'errore HTTP è il 409 di MDE Remote da caricare; altrimenti null. */
@@ -173,7 +178,7 @@ export class CodeRootsService {
   }
 
   /** Un'operazione sui file di una radice remota: path e to sono percorsi logici @alias/…. */
-  file(projectPath: string, op: RemoteFileOp, path: string, extra: { to?: string; text?: string; stamp?: string; recursive?: boolean; pattern?: string; ignoreCase?: boolean; encoding?: string } = {}): Observable<RemoteFileResult> {
+  file(projectPath: string, op: RemoteFileOp, path: string, extra: { to?: string; text?: string; stamp?: string; recursive?: boolean; pattern?: string; ignoreCase?: boolean; encoding?: string; query?: string } = {}): Observable<RemoteFileResult> {
     return this.http.post<RemoteFileResult>(`${this.api}/files`, { projectPath, op, path, ...extra });
   }
 }

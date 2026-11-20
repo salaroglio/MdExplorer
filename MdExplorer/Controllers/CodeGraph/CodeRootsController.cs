@@ -54,6 +54,8 @@ namespace MdExplorer.Controllers.CodeGraph
             /// <summary><c>read</c>: rileggere in questa codifica (anche <c>mixed-ibm850</c>); <c>write</c>: scrivere in questa.</summary>
             public string? Encoding { get; set; }
             public bool IgnoreCase { get; set; }
+            /// <summary><c>find</c>: un pezzo del nome o un modello con <c>*</c> e <c>?</c> (20/11/2026, «Cerca file»).</summary>
+            public string? Query { get; set; }
         }
 
         /// <summary>GET /api/coderoots?projectPath — le radici dichiarate e il loro stato qui.</summary>
@@ -212,7 +214,8 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>
         /// POST /api/coderoots/files {projectPath, op, path, …} — un'operazione su un file o una cartella di una radice
-        /// remota (D7): read, write (con stamp), create, mkdir, delete (recursive), move (to), grep (pattern), list.
+        /// remota (D7): read, write (con stamp), create, mkdir, delete (recursive), move (to), grep (pattern), list, find (query:
+        /// i file per nome sotto il percorso, anche nelle cartelle mai aperte; <c>entries</c> come <c>browse</c>).
         /// </summary>
         [HttpPost("files")]
         public Task<IActionResult> Files([FromBody] FileRequest request, CancellationToken ct) => Guarded(async () =>
@@ -233,17 +236,35 @@ namespace MdExplorer.Controllers.CodeGraph
             {
                 Op = request.Op, Path = target.Relative, To = to, Text = request.Text, Stamp = request.Stamp,
                 Recursive = request.Recursive, Pattern = request.Pattern, IgnoreCase = request.IgnoreCase, Encoding = request.Encoding,
-                Exclude = request.Op == MdExplorer.RemoteProtocol.RemoteOps.Grep ? new List<string> { ".git" } : null,
+                Query = request.Query,
+                Exclude = request.Op is MdExplorer.RemoteProtocol.RemoteOps.Grep or MdExplorer.RemoteProtocol.RemoteOps.Find ? new List<string> { ".git" } : null,
             };
-            var response = target.Root.IsRemote
-                ? await _remoteFiles.OperateAsync(target.Root, operation, ct)
-                : RemoteCodeRootFiles.OperateLocal(target.Root, operation);
+            MdExplorer.RemoteProtocol.RemoteResponse response;
+            try
+            {
+                response = target.Root.IsRemote
+                    ? await _remoteFiles.OperateAsync(target.Root, operation, ct)
+                    : RemoteCodeRootFiles.OperateLocal(target.Root, operation);
+            }
+            catch (RemoteOperationException ex) when (ex.Code == MdExplorer.RemoteProtocol.RemoteErrorCodes.Unsupported && request.Op == MdExplorer.RemoteProtocol.RemoteOps.Find)
+            {
+                // un MDE Remote di prima del 20/11/2026 ancora acceso sul server: la ricerca per nome non la conosce
+                throw new RemoteOperationException(ex.Code, UiText.Say(
+                    $"Sul server di @{target.Root.Alias} gira un MDE Remote vecchio, che non sa cercare i file per nome. Riavvia MDE: al prossimo collegamento carica quello nuovo.",
+                    $"The server of @{target.Root.Alias} runs an old MDE Remote that cannot search files by name. Restart MDE: the next connection uploads the new one."));
+            }
             var alias = target.Root.Alias;
             return Ok(new
             {
                 path = request.Path, text = response.Text, stamp = response.Stamp, bom = response.Bom, truncated = response.Truncated,
                 encoding = response.Encoding,
                 hits = response.Hits?.Select(h => new { path = CodeRootPaths.Format(alias, h.Path), line = h.Line, text = h.Text }),
+                entries = request.Op == MdExplorer.RemoteProtocol.RemoteOps.Find ? response.Entries?.Select(e => new
+                {
+                    name = e.Name, path = CodeRootPaths.Format(alias, e.Path), isFolder = e.IsFolder, isText = e.IsText, unreadable = e.Unreadable,
+                    fullPath = target.Root.IsRemote ? target.Root.Remote.Combine(e.Path).ToString()
+                        : Path.Combine(target.Root.RootPath, e.Path.Replace('/', Path.DirectorySeparatorChar)),
+                }) : null,
             });
         }, request?.ProjectPath);
 

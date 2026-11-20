@@ -72,6 +72,41 @@ namespace MdExplorer.RemoteProtocol
             }).ToList();
         }
 
+        /// <summary>Al più tanti file trovati da <see cref="Find"/> se la richiesta non dice altro.</summary>
+        public const int DefaultMaxFound = 500;
+
+        /// <summary>
+        /// I file sotto <paramref name="path"/> (la radice se vuoto) il cui NOME corrisponde a <paramref name="query"/> (20/11/2026,
+        /// «Cerca file» nell'albero): con <c>*</c> o <c>?</c> è un modello sul nome intero (<c>*.bs</c>), altrimenti un pezzo del
+        /// nome; maiuscole indifferenti. Un giro solo sul disco, anche nelle cartelle che l'albero non ha mai aperto. <c>.git</c>
+        /// e <paramref name="exclude"/> si saltano, i link non si seguono; oltre <paramref name="maxFound"/> si ferma e lo dice.
+        /// </summary>
+        public (List<RemoteEntry> Entries, bool Truncated) Find(string? path, string? query, int maxFound, IEnumerable<string>? exclude)
+        {
+            var q = (query ?? "").Trim();
+            if (q.Length == 0) throw new RemoteFailure(RemoteErrorCodes.BadRequest, "query required");
+            var full = Resolve(path);
+            if (!Directory.Exists(full)) throw NotFoundOrNotFolder(full, path);
+            var skip = new HashSet<string>(exclude ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase) { ".git" };
+            Func<string, bool> matches;
+            if (q.IndexOfAny(new[] { '*', '?' }) >= 0)
+            {
+                var glob = new Regex("^" + Regex.Escape(q).Replace(@"\*", ".*").Replace(@"\?", ".") + "$",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, RegexTimeout);
+                matches = glob.IsMatch;
+            }
+            else matches = name => name.Contains(q, StringComparison.OrdinalIgnoreCase);
+            var limit = maxFound > 0 ? maxFound : DefaultMaxFound;
+            var found = new List<RemoteEntry>();
+            foreach (var file in FilesUnder(full, skip))
+            {
+                if (!matches(Path.GetFileName(file))) continue;
+                if (found.Count == limit) return (found, true);
+                found.Add(ToEntry(new FileInfo(file)));
+            }
+            return (found, false);
+        }
+
         public RemoteEntry Stat(string? path)
         {
             var full = Resolve(path);

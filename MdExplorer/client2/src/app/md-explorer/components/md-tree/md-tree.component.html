@@ -129,6 +129,11 @@
       <mat-icon>visibility_off</mat-icon>
       <span>{{ 'MD_TREE.HIDE_FOLDER_CONTENT' | translate }}</span>
     </button>
+    <!-- «Cerca file» (20/11/2026): per nome, sul server, anche nelle cartelle mai aperte -->
+    <button *ngIf="isEditableCodeRootContainer(item)" mat-menu-item (click)="codeRootFind(item)">
+      <mat-icon>search</mat-icon>
+      <span>{{ (item.type === 'codeRoot' ? 'REMOTE_TREE.FIND' : 'REMOTE_TREE.FIND_HERE') | translate }}</span>
+    </button>
     <button *ngIf="isEditableCodeRootContainer(item)" mat-menu-item (click)="codeRootNewFile(item)">
       <mat-icon>note_add</mat-icon>
       <span>{{ 'REMOTE_TREE.NEW_FILE' | translate }}</span>
