@@ -31,6 +31,13 @@ namespace MdExplorer.RemoteProtocol
         public Dictionary<string, string>? ExtensionEncodings { get; set; }
         /// <summary><c>grep</c>: espressione regolare .NET.</summary>
         public string? Pattern { get; set; }
+        /// <summary>
+        /// <c>grep</c>, al posto di <see cref="Pattern"/>: più espressioni in UN giro sui file (20/11/2026). Ogni riga trovata dice
+        /// quale espressione l'ha presa (<see cref="RemoteHit.Pattern"/>); una riga presa da due torna due volte.
+        /// </summary>
+        public List<string>? Patterns { get; set; }
+        /// <summary><c>grep</c>: solo i file con queste estensioni (<c>.bal</c>, maiuscole indifferenti); assente = tutti i file di testo.</summary>
+        public List<string>? Extensions { get; set; }
         public bool IgnoreCase { get; set; }
         /// <summary><c>grep</c>: al più tante righe; 0 = il default di MDE Remote.</summary>
         public int MaxHits { get; set; }
@@ -93,6 +100,8 @@ namespace MdExplorer.RemoteProtocol
         public string Path { get; set; } = "";
         public int Line { get; set; }
         public string Text { get; set; } = "";
+        /// <summary>Con <see cref="RemoteRequest.Patterns"/>: l'indice dell'espressione che ha preso la riga.</summary>
+        public int? Pattern { get; set; }
     }
 
     /// <summary><c>gitInfo</c>: il repository che contiene la radice, letto dai file di <c>.git</c> (niente <c>git</c> sul server).</summary>

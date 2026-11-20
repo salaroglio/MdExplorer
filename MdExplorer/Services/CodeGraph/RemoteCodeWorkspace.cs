@@ -72,5 +72,36 @@ namespace MdExplorer.Services.CodeGraph
                 if (extensions.Contains(Path.GetExtension(hit.Path), StringComparer.OrdinalIgnoreCase))
                     yield return (Logical(hit.Path), hit.Line, hit.Text);
         }
+
+        /// <summary>
+        /// Tutte le espressioni in UNA richiesta, e il server legge solo i file con quelle estensioni (20/11/2026). Prima: una
+        /// richiesta per espressione, ognuna su tutti i file di testo della radice, e le estensioni filtrate qui dopo.
+        /// </summary>
+        public IEnumerable<(int Pattern, string Path, int Line, string Text)> GrepMany(IReadOnlyList<Regex> patterns, IReadOnlyCollection<string> extensions)
+        {
+            if (patterns.Count == 0) yield break;
+            var ignoreCase = patterns[0].Options.HasFlag(RegexOptions.IgnoreCase);
+            if (patterns.Any(p => p.Options.HasFlag(RegexOptions.IgnoreCase) != ignoreCase))
+                throw new ArgumentException("GrepMany: le espressioni di un giro hanno le stesse opzioni (maiuscole sì o no)");
+            var maxHits = MaxGrepHits * patterns.Count;
+            var response = _files.OperateAsync(_root, new RemoteRequest
+            {
+                Op = RemoteOps.Grep, Path = _sub, Patterns = patterns.Select(p => p.ToString()).ToList(), IgnoreCase = ignoreCase,
+                Extensions = extensions.ToList(), MaxHits = maxHits, Exclude = CodeChangeScanner.IgnoredDirectoryNames.ToList(),
+            }, _ct).GetAwaiter().GetResult();
+            if (response.Truncated == true)
+                throw new InvalidOperationException(UiText.Say(
+                    $"@{_root.Alias}: più di {maxHits} righe di dichiarazioni: l'indice non sarebbe completo. Restringi la radice (un contesto più piccolo).",
+                    $"@{_root.Alias}: more than {maxHits} declaration lines: the index would not be complete. Narrow the root (a smaller context)."));
+            foreach (var hit in response.Hits ?? new List<RemoteHit>())
+            {
+                // un MDE Remote che non conosce Patterns risponderebbe senza indice: non si indovina, si dice
+                if (hit.Pattern is not int i || i < 0 || i >= patterns.Count)
+                    throw new InvalidOperationException(UiText.Say(
+                        $"@{_root.Alias}: MDE Remote ha risposto alla ricerca senza dire quale espressione ha preso la riga ({hit.Path}:{hit.Line}): è una versione vecchia, riapri il progetto per aggiornarlo.",
+                        $"@{_root.Alias}: MDE Remote answered the search without saying which pattern matched ({hit.Path}:{hit.Line}): it is an old version, reopen the project to update it."));
+                yield return (i, Logical(hit.Path), hit.Line, hit.Text);
+            }
+        }
     }
 }

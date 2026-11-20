@@ -22,6 +22,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// le righe, non i file). Per l'indice delle dichiarazioni (S11), senza leggere tutto.
         /// </summary>
         IEnumerable<(string Path, int Line, string Text)> Grep(System.Text.RegularExpressions.Regex pattern, IReadOnlyCollection<string> extensions);
+
+        /// <summary>
+        /// Come <see cref="Grep"/>, ma più espressioni in UN giro sui file con quelle estensioni (20/11/2026): ogni riga dice quale
+        /// espressione l'ha presa (<c>Pattern</c> = indice). Su un server, cinque giri su una radice enorme erano cinque letture del disco.
+        /// Le espressioni hanno le stesse opzioni (quelle di un linguaggio).
+        /// </summary>
+        IEnumerable<(int Pattern, string Path, int Line, string Text)> GrepMany(IReadOnlyList<System.Text.RegularExpressions.Regex> patterns, IReadOnlyCollection<string> extensions);
     }
 
     /// <summary>Una cartella su disco: <paramref name="logicalPrefix"/> è il suo percorso logico (<c>""</c> = la radice del progetto).</summary>
@@ -82,6 +89,21 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     n++;
                     if (pattern.IsMatch(line)) yield return (path, n, line.TrimEnd('\r'));
+                }
+            }
+        }
+
+        public IEnumerable<(int Pattern, string Path, int Line, string Text)> GrepMany(IReadOnlyList<System.Text.RegularExpressions.Regex> patterns, IReadOnlyCollection<string> extensions)
+        {
+            foreach (var path in Files().Where(p => extensions.Contains(Path.GetExtension(p), StringComparer.OrdinalIgnoreCase)))
+            {
+                var n = 0;
+                foreach (var raw in Read(path).Split('\n'))
+                {
+                    n++;
+                    var line = raw.TrimEnd('\r');
+                    for (var i = 0; i < patterns.Count; i++)
+                        if (patterns[i].IsMatch(raw)) yield return (i, path, n, line);
                 }
             }
         }

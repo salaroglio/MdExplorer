@@ -539,6 +539,8 @@ namespace MdExplorer.Controllers.CodeGraph
 
         public class SeedPreviewRequest
         {
+            /// <summary>La finestra che riceve i passi della scoperta (evento <c>seedProgress</c>); facoltativo.</summary>
+            public string? ConnectionId { get; set; }
             public string ProjectPath { get; set; }
             public string Seed { get; set; }
             public System.Collections.Generic.List<string>? Pruned { get; set; }
@@ -560,7 +562,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             var seeds = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedService>();
             MdExplorer.Services.CodeGraph.CodeSeedPreview preview;
-            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct, request.Included); }
+            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct, request.Included, request.ConnectionId); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
             {
                 return BadRequest(new { error = ex.Message });

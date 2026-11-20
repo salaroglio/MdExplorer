@@ -169,33 +169,65 @@ namespace MdExplorer.RemoteProtocol
             if (isFile) File.Move(source, target); else Directory.Move(source, target);
         }
 
-        public (List<RemoteHit> Hits, bool Truncated) Grep(string? path, string? pattern, bool ignoreCase, int maxHits, IEnumerable<string>? exclude)
+        public (List<RemoteHit> Hits, bool Truncated) Grep(string? path, string? pattern, bool ignoreCase, int maxHits, IEnumerable<string>? exclude,
+            IEnumerable<string>? extensions = null)
         {
             if (string.IsNullOrEmpty(pattern)) throw new RemoteFailure(RemoteErrorCodes.BadRequest, "pattern required");
+            return GrepCore(path, new[] { pattern }, indexed: false, ignoreCase, maxHits, exclude, extensions);
+        }
+
+        /// <summary>
+        /// Più espressioni in UN giro sui file (20/11/2026): l'indice delle dichiarazioni di un linguaggio a regole ne ha
+        /// cinque, e cinque giri su una radice enorme erano cinque letture di tutto il disco. Ogni riga dice quale l'ha presa.
+        /// </summary>
+        public (List<RemoteHit> Hits, bool Truncated) Grep(string? path, IReadOnlyList<string> patterns, bool ignoreCase, int maxHits, IEnumerable<string>? exclude,
+            IEnumerable<string>? extensions = null)
+        {
+            if (patterns == null || patterns.Count == 0 || patterns.Any(string.IsNullOrEmpty))
+                throw new RemoteFailure(RemoteErrorCodes.BadRequest, "patterns required, none empty");
+            return GrepCore(path, patterns, indexed: true, ignoreCase, maxHits, exclude, extensions);
+        }
+
+        private (List<RemoteHit> Hits, bool Truncated) GrepCore(string? path, IReadOnlyList<string> patterns, bool indexed, bool ignoreCase, int maxHits,
+            IEnumerable<string>? exclude, IEnumerable<string>? extensions)
+        {
             var start = Resolve(path);
-            Regex regex;
-            try
+            var regexes = new Regex[patterns.Count];
+            for (var i = 0; i < patterns.Count; i++)
             {
-                regex = new Regex(pattern, RegexOptions.CultureInvariant | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None), RegexTimeout);
+                try
+                {
+                    regexes[i] = new Regex(patterns[i], RegexOptions.CultureInvariant | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None), RegexTimeout);
+                }
+                catch (ArgumentException ex) { throw new RemoteFailure(RemoteErrorCodes.BadRequest, $"invalid pattern: {ex.Message}"); }
             }
-            catch (ArgumentException ex) { throw new RemoteFailure(RemoteErrorCodes.BadRequest, $"invalid pattern: {ex.Message}"); }
             var limit = maxHits > 0 ? maxHits : DefaultMaxHits;
             var skip = new HashSet<string>(exclude ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
+            // solo i file del linguaggio: in una radice enorme gli altri sono la maggior parte, e si saltavano solo dopo, nel backend
+            var only = extensions == null ? null : new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
             var hits = new List<RemoteHit>();
             var files = File.Exists(start) ? new[] { start } : Directory.Exists(start) ? FilesUnder(start, skip) : throw NotFoundOrNotFolder(start, path);
             foreach (var file in files)
             {
+                if (only != null && !only.Contains(Path.GetExtension(file))) continue;
                 if (!LooksLikeText(file)) continue;
                 var number = 0;
                 foreach (var line in DecodedLinesOrNothing(file, DecodeFile))
                 {
                     number++;
-                    bool match;
-                    try { match = regex.IsMatch(line); }
-                    catch (RegexMatchTimeoutException) { throw new RemoteFailure(RemoteErrorCodes.Timeout, $"pattern too slow on {Relative(file)}:{number}"); }
-                    if (!match) continue;
-                    if (hits.Count == limit) return (hits, true);
-                    hits.Add(new RemoteHit { Path = Relative(file), Line = number, Text = line.Length > MaxHitText ? line.Substring(0, MaxHitText) : line });
+                    for (var i = 0; i < regexes.Length; i++)
+                    {
+                        bool match;
+                        try { match = regexes[i].IsMatch(line); }
+                        catch (RegexMatchTimeoutException) { throw new RemoteFailure(RemoteErrorCodes.Timeout, $"pattern too slow on {Relative(file)}:{number}"); }
+                        if (!match) continue;
+                        if (hits.Count == limit) return (hits, true);
+                        hits.Add(new RemoteHit
+                        {
+                            Path = Relative(file), Line = number, Text = line.Length > MaxHitText ? line.Substring(0, MaxHitText) : line,
+                            Pattern = indexed ? i : null,
+                        });
+                    }
                 }
             }
             return (hits, false);

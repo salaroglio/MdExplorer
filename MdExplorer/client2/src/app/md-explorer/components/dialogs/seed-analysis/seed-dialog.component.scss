@@ -25,3 +25,20 @@
 .contract { padding: 4px 6px; border-radius: 6px; background: var(--mde-surface-2, rgba(0,0,0,0.03)); }
 .contract-name { margin-bottom: 2px; }
 .hint { margin: 0; font-size: 12px; opacity: 0.75; }
+
+// I passi della scoperta mentre «Cerco le dipendenze…» (20/11/2026)
+.loading .elapsed { color: var(--mde-text-secondary); font-variant-numeric: tabular-nums; }
+.progress-steps {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 0.88rem; color: var(--mde-text-secondary);
+  li { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+  li span { min-width: 0; overflow-wrap: anywhere; }
+  mat-icon { font-size: 16px; width: 16px; height: 16px; flex: none; margin-top: 2px; }
+  .step-done mat-icon { color: var(--mde-success-fg); }
+  .step-now { color: var(--mde-text-primary); }
+}
+
+// Testata del livello con la spunta di gruppo e il totale (20/11/2026)
+.level-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 6px 2px; }
+.level-head .field-label { cursor: pointer; margin: 0; }

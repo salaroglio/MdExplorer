@@ -195,6 +195,25 @@ namespace MdExplorer.Features.Tests.RemoteAgent
             Assert.AreEqual(RemoteErrorCodes.BadRequest, Code(() => _ws.Grep("", "(", false, 0, null)));
         }
 
+        /// <summary>
+        /// L'indice delle dichiarazioni (20/11/2026): più espressioni in UN giro, solo sui file con quelle estensioni. Una riga
+        /// presa da due espressioni torna due volte, ognuna col suo indice; il limite vale sul totale.
+        /// </summary>
+        [TestMethod]
+        public void Grep_many_patterns_in_one_pass_only_on_the_given_extensions()
+        {
+            var (hits, truncated) = _ws.Grep("", new[] { "SaveOrder", "class", "nothing" }, false, 0, new[] { ".git" }, new[] { ".JS", ".cs" });
+            Assert.IsFalse(truncated);
+            CollectionAssert.AreEqual(
+                new[] { "0 src/api/Order.cs:1", "1 src/api/Order.cs:1", "0 src/caller.js:1", "2 src/caller.js:2" },
+                hits.Select(h => $"{h.Pattern} {h.Path}:{h.Line}").ToArray());
+            Assert.IsFalse(_ws.Grep("", new[] { "SaveOrder" }, false, 0, new[] { ".git" }, new[] { ".cs" }).Hits.Any(h => h.Path.EndsWith(".js")),
+                "solo le estensioni chieste");
+            Assert.IsTrue(_ws.Grep("", "SaveOrder", false, 0, new[] { ".git" }).Hits.All(h => h.Pattern == null), "la ricerca con un'espressione sola non dice l'indice");
+            Assert.IsTrue(_ws.Grep("", new[] { "SaveOrder", "class" }, false, 2, new[] { ".git" }, null).Truncated, "il limite vale sul totale");
+            Assert.AreEqual(RemoteErrorCodes.BadRequest, Code(() => _ws.Grep("", new[] { "ok", "" }, false, 0, null, null)));
+        }
+
         [TestMethod]
         public void Read_the_git_remotes_from_the_files_without_git()
         {

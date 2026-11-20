@@ -1,4 +1,6 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
 import { CodeGraphService, SeedAnalysis, SeedClosureFile, SeedClosureMiss, SeedImplementations, SeedPreview } from '../../../services/code-graph.service';
@@ -20,12 +22,23 @@ export interface SeedDialogData {
   templateUrl: './seed-dialog.component.html',
   styleUrls: ['./seed-dialog.component.scss']
 })
-export class SeedDialogComponent implements OnInit {
+export class SeedDialogComponent implements OnInit, OnDestroy {
   public loading = false;
+  /**
+   * I passi della scoperta mentre «Cerco le dipendenze…» (20/11/2026): su una radice SSH la finestra restava ferma senza dire
+   * dove fosse. Quelli finiti, quello in corso, il conto dei file analizzati e i secondi passati.
+   */
+  public progressDone: string[] = [];
+  public progressNow = '';
+  public progressExtracted = '';
+  public elapsed = 0;
+  private extractedCount = 0;
+  private elapsedTimer: any = null;
+  private progressSub: Subscription | null = null;
   public applying = false;
   public errorMessage = '';
   public preview: SeedPreview | null = null;
-  public levels: { depth: number; files: SeedClosureFile[] }[] = [];
+  public levels: { depth: number; files: SeedClosureFile[]; lines: number }[] = [];
   public missGroups: { kind: string; items: SeedClosureMiss[]; uses: number }[] = [];
   public openMisses: string | null = null;
   /** I file tolti dall'utente; dirty = tolti o rimessi dopo l'ultima anteprima. */
@@ -44,7 +57,42 @@ export class SeedDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<SeedDialogComponent, SeedAnalysis | null>,
     private codeGraph: CodeGraphService,
     private translate: TranslateService,
+    private serverMessages: MdServerMessagesService,
   ) { }
+
+  ngOnDestroy(): void {
+    this.progressSub?.unsubscribe();
+    this.stopElapsed();
+  }
+
+  private stopElapsed(): void {
+    if (this.elapsedTimer) { clearInterval(this.elapsedTimer); this.elapsedTimer = null; }
+  }
+
+  /** Un passo dal servizio: «files», «index», «read», «extract». */
+  private onProgress(p: any): void {
+    if (!this.loading || p?.seed !== this.data.seed) { return; }
+    const t = (key: string, args?: any) => this.translate.instant('SEED.PROGRESS.' + key, args);
+    const seconds = p.seconds != null ? p.seconds.toFixed(1) : '';
+    switch (p.step) {
+      case 'files':
+        if (p.done) { this.progressDone.push(t('FILES_DONE', { count: p.count, seconds })); this.progressNow = ''; }
+        else { this.progressNow = t('FILES'); }
+        break;
+      case 'index':
+        if (p.done) { this.progressDone.push(t('INDEX_DONE', { count: p.count, seconds })); this.progressNow = ''; }
+        else { this.progressNow = t('INDEX', { count: p.count }); }
+        break;
+      case 'read':
+        this.progressNow = t('READ', { file: this.name(p.file ?? ''), count: p.count });
+        break;
+      case 'extract':
+        this.extractedCount++;
+        this.progressNow = '';
+        this.progressExtracted = t('EXTRACTED', { count: this.extractedCount, file: this.name(p.file ?? ''), lines: p.lines, seconds });
+        break;
+    }
+  }
 
   /** Un seme già salvato riparte dalle sue esclusioni (F3d); uno nuovo da nessuna. */
   ngOnInit(): void {
@@ -62,14 +110,24 @@ export class SeedDialogComponent implements OnInit {
     this.loading = true;
     this.errorMessage = '';
     this.confirmation = null;
-    this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned], [...this.included]).subscribe({
+    this.progressDone = [];
+    this.progressNow = '';
+    this.progressExtracted = '';
+    this.extractedCount = 0;
+    this.elapsed = 0;
+    this.stopElapsed();
+    this.elapsedTimer = setInterval(() => this.elapsed++, 1000);
+    this.progressSub ??= this.serverMessages.seedProgress$.subscribe(p => this.onProgress(p));
+    this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned], [...this.included], this.serverMessages.connectionId ?? null).subscribe({
       next: p => {
         this.loading = false;
+        this.stopElapsed();
         this.dirty = false;
         this.preview = p;
         const byDepth = new Map<number, SeedClosureFile[]>();
         for (const f of p.files) { byDepth.set(f.depth, [...(byDepth.get(f.depth) ?? []), f]); }
-        this.levels = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, files]) => ({ depth, files }));
+        this.levels = [...byDepth.entries()].sort((a, b) => a[0] - b[0])
+          .map(([depth, files]) => ({ depth, files, lines: files.reduce((n, f) => n + f.lines, 0) }));
         const byKind = new Map<string, SeedClosureMiss[]>();
         for (const m of p.misses.filter(x => x.kind !== 'pruned')) { byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m]); }
         this.implChoices = (p.implementations ?? []).filter(i => !i.auto && i.candidates.length > 1)
@@ -78,7 +136,7 @@ export class SeedDialogComponent implements OnInit {
         this.missGroups = ['dynamic', 'frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
           .map(kind => ({ kind, items: byKind.get(kind)!, uses: byKind.get(kind)!.reduce((n, m) => n + m.uses, 0) }));
       },
-      error: err => { this.loading = false; this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }
+      error: err => { this.loading = false; this.stopElapsed(); this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }
     });
   }
 
@@ -92,6 +150,28 @@ export class SeedDialogComponent implements OnInit {
   }
 
   restore(path: string): void { this.toggle(path, true); }
+
+  /** Spunta di gruppo: tutti i file del livello tenuti; parzialmente se solo alcuni. Senza allocare: si chiama a ogni rilevamento. */
+  levelAllKept(level: { files: SeedClosureFile[] }): boolean {
+    for (const f of level.files) { if (this.pruned.has(f.path)) { return false; } }
+    return true;
+  }
+
+  levelSomeKept(level: { files: SeedClosureFile[] }): boolean {
+    let kept = 0;
+    for (const f of level.files) { if (!this.pruned.has(f.path)) { kept++; } }
+    return kept > 0 && kept < level.files.length;
+  }
+
+  /** Toglie o rimette tutti i file di un livello (mai il seme): come tante spunte singole, poi «Ricalcola». */
+  toggleLevel(level: { files: SeedClosureFile[] }, kept: boolean): void {
+    for (const f of level.files) {
+      if (this.isSeed(f)) { continue; }
+      if (kept) { this.pruned.delete(f.path); } else { this.pruned.add(f.path); }
+    }
+    this.prunedList = [...this.pruned].sort();
+    this.dirty = true;
+  }
 
   /** F4c: una spunta su un'implementazione = seguila (entra con la sua catena alla prossima anteprima). */
   toggleImplementation(path: string, chosen: boolean): void {

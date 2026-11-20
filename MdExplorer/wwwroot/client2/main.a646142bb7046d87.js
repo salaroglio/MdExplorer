@@ -22286,6 +22286,8 @@ class MdServerMessagesService {
     this.documentTidyProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
     this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    /** «Analizza questo programma»: i passi della scoperta delle dipendenze (CodeSeedService, 20/11/2026). */
+    this.seedProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
     this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     /**
@@ -22442,6 +22444,9 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('codeDocProgress', data => {
           this.codeDocProgress$.next(data);
+        });
+        this.hubConnection.on('seedProgress', data => {
+          this.seedProgress$.next(data);
         });
         this.hubConnection.on('codeDescriptionStatus', data => {
           this.codeDescriptionStatus$.next(data);
@@ -22977,8 +22982,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.20.6',
-  buildTime: '2026.11.20 09:41:29'
+  version: '2026.11.20.8',
+  buildTime: '2026.11.20 11:10:11'
 };
 
 /***/ }),
@@ -23012,4 +23017,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.ecc8f39c7efc7845.js.map
+//# sourceMappingURL=main.a646142bb7046d87.js.map

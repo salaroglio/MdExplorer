@@ -12,7 +12,13 @@
   </div>
   <p class="intro">{{ 'SEED.INTRO' | translate }}</p>
 
-  <div class="loading" *ngIf="loading"><mat-spinner diameter="20"></mat-spinner>{{ 'SEED.LOADING' | translate }}</div>
+  <div class="loading" *ngIf="loading"><mat-spinner diameter="20"></mat-spinner>{{ 'SEED.LOADING' | translate }} <span class="elapsed">{{ elapsed }} s</span></div>
+  <!-- I passi della scoperta (20/11/2026): quelli finiti, quello in corso, quanti file analizzati -->
+  <ul class="progress-steps" *ngIf="loading && (progressDone.length || progressNow || progressExtracted)">
+    <li *ngFor="let line of progressDone" class="step-done"><mat-icon>check</mat-icon><span>{{ line }}</span></li>
+    <li *ngIf="progressExtracted" class="step-done"><mat-icon>code</mat-icon><span>{{ progressExtracted }}</span></li>
+    <li *ngIf="progressNow" class="step-now"><mat-icon>hourglass_empty</mat-icon><span>{{ progressNow }}</span></li>
+  </ul>
   <div class="error" *ngIf="errorMessage"><mat-icon>error</mat-icon><span>{{ errorMessage }}</span></div>
 
   <ng-container *ngIf="preview && !loading && !done">
@@ -23,7 +29,16 @@
 
     <div class="levels">
       <div class="level" *ngFor="let level of levels">
-        <label class="field-label">{{ level.depth === 0 ? ('SEED.LEVEL_SEED' | translate) : ('SEED.LEVEL' | translate: { depth: level.depth }) }}</label>
+        <!-- Spunta di gruppo (20/11/2026): toglie o rimette tutti i file del livello; le spunte singole restano. -->
+        <div class="level-head">
+          <mat-checkbox *ngIf="level.depth > 0" class="level-check"
+                        [checked]="levelAllKept(level)" [indeterminate]="levelSomeKept(level)"
+                        [disabled]="applying" (change)="toggleLevel(level, $event.checked)">
+            <label class="field-label">{{ 'SEED.LEVEL' | translate: { depth: level.depth } }}</label>
+          </mat-checkbox>
+          <label *ngIf="level.depth === 0" class="field-label">{{ 'SEED.LEVEL_SEED' | translate }}</label>
+          <span class="file-meta">{{ 'SEED.LEVEL_TOTAL' | translate: { files: level.files.length, lines: level.lines } }}</span>
+        </div>
         <div class="file-row" *ngFor="let f of level.files">
           <mat-checkbox [checked]="!pruned.has(f.path)" [disabled]="isSeed(f) || applying" (change)="toggle(f.path, $event.checked)">
             <span class="file-name">{{ name(f.path) }}</span>

@@ -512,8 +512,8 @@ export class CodeGraphService {
   }
 
   /** F3: la chiusura di un file, senza scrivere niente. */
-  previewSeed(projectPath: string, seed: string, pruned: string[], included: string[] = []): Observable<SeedPreview> {
-    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned, included });
+  previewSeed(projectPath: string, seed: string, pruned: string[], included: string[] = [], connectionId: string | null = null): Observable<SeedPreview> {
+    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned, included, connectionId });
   }
 
   /** F3: salva il seme con le sue potature e analizza i soli file della chiusura (confirm = accetta la differenza). */

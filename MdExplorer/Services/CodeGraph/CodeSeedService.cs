@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Services.RemoteFolders;
+using MdExplorer.Hubs;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services.CodeGraph
 {
@@ -30,19 +33,42 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeExtractorRegistry _extractors;
         private readonly RemoteCodeRootFiles _remoteFiles;
 
-        public CodeSeedService(ICodeRootService roots, ICodeExtractorRegistry extractors, RemoteCodeRootFiles remoteFiles)
+        private readonly ILogger<CodeSeedService> _logger;
+        private readonly IHubContext<MonitorMDHub> _hub;
+
+        /// <summary>L'evento SignalR dei passi della scoperta, verso la finestra che l'ha chiesta.</summary>
+        public const string ProgressEvent = "seedProgress";
+
+        public CodeSeedService(ICodeRootService roots, ICodeExtractorRegistry extractors, RemoteCodeRootFiles remoteFiles,
+            ILogger<CodeSeedService> logger, IHubContext<MonitorMDHub> hub)
         {
-            _roots = roots; _extractors = extractors; _remoteFiles = remoteFiles;
+            _roots = roots; _extractors = extractors; _remoteFiles = remoteFiles; _logger = logger; _hub = hub;
+        }
+
+        /// <summary>Un passo alla finestra che ha chiesto l'anteprima; senza connectionId (o se il client se n'è andato) niente.</summary>
+        private Action<SeedProgress> ProgressTo(string connectionId, string seed)
+        {
+            if (string.IsNullOrWhiteSpace(connectionId)) return null;
+            return p =>
+            {
+                var send = _hub.Clients.Client(connectionId).SendAsync(ProgressEvent,
+                    new { seed, step = p.Step, done = p.Done, count = p.Count, seconds = p.Seconds, file = p.File, lines = p.Lines });
+                send.ContinueWith(t => _logger.LogDebug(t.Exception, "[Seed] passo non inviato alla finestra"), TaskContinuationOptions.OnlyOnFaulted);
+            };
         }
 
         public async Task<CodeSeedPreview> PreviewAsync(string projectPath, string seed, IEnumerable<string> pruned, int? maxFiles, long? maxLines, CancellationToken ct = default,
-            IEnumerable<string> included = null)
+            IEnumerable<string> included = null, string connectionId = null)
         {
+            var total = System.Diagnostics.Stopwatch.StartNew();
             seed = (seed ?? throw new ArgumentException(UiText.Say("seed è obbligatorio: il file da cui partire", "seed is required: the file to start from"))).Replace('\\', '/').Trim('/');
             var catalog = CodeLanguageCatalog.ForProject(projectPath);
             var lang = catalog.ForFile(seed)
                 ?? throw new InvalidOperationException(UiText.Say($"{seed}: nessun linguaggio del progetto ha questa estensione", $"{seed}: no language of the project has this extension"));
-            var workspace = await WorkspaceOfAsync(projectPath, seed, ct);
+            var progress = ProgressTo(connectionId, seed);
+            var observed = new ObservedCodeWorkspace(await WorkspaceOfAsync(projectPath, seed, ct), _logger, progress, seed);
+            ICodeWorkspace workspace = observed;
+            var extractTime = TimeSpan.Zero;
             var request = new CodeClosureRequest
             {
                 Seeds = new[] { seed },
@@ -50,6 +76,12 @@ namespace MdExplorer.Services.CodeGraph
                 Included = new HashSet<string>((included ?? Enumerable.Empty<string>()).Select(p => p.Replace('\\', '/').Trim('/')), StringComparer.Ordinal),
                 MaxFiles = maxFiles ?? new CodeClosureRequest().MaxFiles,
                 MaxLines = maxLines ?? new CodeClosureRequest().MaxLines,
+                Extracted = (path, lines, time) =>
+                {
+                    extractTime += time;
+                    _logger.LogInformation("[Seed] {Seed}: analizzato {File} ({Lines} righe) in {Seconds:0.00} s", seed, path, lines, time.TotalSeconds);
+                    progress?.Invoke(new SeedProgress { Step = "extract", Done = true, File = path, Lines = lines, Seconds = time.TotalSeconds });
+                },
             };
             Func<CodeClosure> discover;
             if (lang.ExtractorKind == CodeExtractorKind.Declarative && lang.Definition != null && lang.Definition.Template == null && lang.Definition.Xml == null)
@@ -67,6 +99,9 @@ namespace MdExplorer.Services.CodeGraph
                     $"{lang.DisplayName}: analysing a program from one file is available for rule-based languages and for Java"));
             // il parser è CPU (e per una radice SSH aspetta MDE Remote): fuori dal thread della richiesta
             var closure = await Task.Run(discover, ct);
+            _logger.LogInformation("[Seed] {Seed}: {Files} file, {Lines} righe in {Seconds:0.0} s (elenco {FilesTime:0.0} s, dichiarazioni {IndexTime:0.0} s, letture {ReadTime:0.0} s su {Reads} file, analisi {ExtractTime:0.0} s)",
+                seed, closure.Files.Count, closure.Lines, total.Elapsed.TotalSeconds, observed.FilesTime.TotalSeconds, observed.IndexTime.TotalSeconds,
+                observed.ReadTime.TotalSeconds, observed.ReadCount, extractTime.TotalSeconds);
             return new CodeSeedPreview { Seed = seed, Language = lang.Id, Closure = closure, Workspace = workspace };
         }
 

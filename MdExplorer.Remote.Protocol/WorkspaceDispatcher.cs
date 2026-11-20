@@ -73,7 +73,9 @@ namespace MdExplorer.RemoteProtocol
                     ws.Move(r.Path, r.To);
                     return new RemoteResponse();
                 case RemoteOps.Grep:
-                    var (hits, truncated) = ws.Grep(r.Path, r.Pattern, r.IgnoreCase, r.MaxHits, r.Exclude);
+                    var (hits, truncated) = r.Patterns != null
+                        ? ws.Grep(r.Path, r.Patterns, r.IgnoreCase, r.MaxHits, r.Exclude, r.Extensions)
+                        : ws.Grep(r.Path, r.Pattern, r.IgnoreCase, r.MaxHits, r.Exclude, r.Extensions);
                     return new RemoteResponse { Hits = hits, Truncated = truncated };
                 case RemoteOps.Tree:
                     return new RemoteResponse { Entries = ws.Tree(r.Path, r.Exclude) };

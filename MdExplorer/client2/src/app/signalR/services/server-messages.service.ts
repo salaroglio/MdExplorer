@@ -47,6 +47,8 @@ export class MdServerMessagesService {
   public documentTidyProgress$ = new Subject<any>();
   /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
   public codeDocProgress$ = new Subject<any>();
+  /** «Analizza questo programma»: i passi della scoperta delle dipendenze (CodeSeedService, 20/11/2026). */
+  public seedProgress$ = new Subject<any>();
   /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
   public codeDescriptionStatus$ = new Subject<any>();
   /**
@@ -325,6 +327,9 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('codeDocProgress', (data) => {
         this.codeDocProgress$.next(data);
+      });
+      this.hubConnection.on('seedProgress', (data) => {
+        this.seedProgress$.next(data);
       });
       this.hubConnection.on('codeDescriptionStatus', (data) => {
         this.codeDescriptionStatus$.next(data);

@@ -14,6 +14,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public ISet<string> Included { get; init; } = new HashSet<string>(StringComparer.Ordinal);
         public int MaxFiles { get; init; } = 300;
         public long MaxLines { get; init; } = 1_000_000;
+        /// <summary>Facoltativo: un file appena passato dall'estrattore (percorso, righe, tempo), per il log e la finestra (20/11/2026).</summary>
+        public Action<string, int, TimeSpan> Extracted { get; init; }
     }
 
     /// <summary>Un file della chiusura: perché c'è (da chi, a che riga, con quale riferimento) e che cosa se ne usa.</summary>
@@ -94,10 +96,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (lang.ModuleName != null) patterns.Add((lang.ModuleName, index._programs, null));
             patterns.AddRange(blocks.Select(b => (b.Begin, index._symbols, b.NameTemplate)));
             patterns.AddRange(declarations.Select(d => (d.At, index._symbols, d.NameTemplate)));
-            foreach (var (pattern, map, template) in patterns)
-                foreach (var (path, _, text) in workspace.Grep(pattern, lang.Extensions.ToList()))
-                    if (pattern.Match(text) is { Success: true } m && m.Groups["name"].Success)
-                        index.Add(map, Apply(template, m.Groups["name"].Value), path);
+            // un giro solo per tutte le espressioni (20/11/2026): su un server erano cinque letture di tutta la radice
+            foreach (var (i, path, _, text) in workspace.GrepMany(patterns.Select(p => p.Pattern).ToList(), lang.Extensions.ToList()))
+            {
+                var (pattern, map, template) = patterns[i];
+                if (pattern.Match(text) is { Success: true } m && m.Groups["name"].Success)
+                    index.Add(map, Apply(template, m.Groups["name"].Value), path);
+            }
             return index;
         }
 
@@ -189,8 +194,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                             Miss("frontier", written, from, new[] { path });
                             continue;
                         }
+                        var extractClock = System.Diagnostics.Stopwatch.StartNew();
                         var extracted = _extractor.Extract(new CodeExtractionRequest { ProjectPath = "", AllFiles = new[] { _ws.Source(path) }, FilesToEmit = new[] { _ws.Source(path) },
                             Sources = new SingleText(path, text) });
+                        request.Extracted?.Invoke(path, lines, extractClock.Elapsed);
                         var script = extracted.Scripts.Single().Script;
                         st = states[path] = new State
                         {
