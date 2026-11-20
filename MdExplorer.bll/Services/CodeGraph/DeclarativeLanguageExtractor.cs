@@ -43,7 +43,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <para>4 (11/11/2026): le chiamate per nome in una variabile (<c>assign:</c>, F4e).</para>
         /// <para>5 (12/11/2026): commenti a blocco, stringhe su più righe, blocchi che si chiudono per profondità (<c>nesting</c>).</para>
         /// <para>11 (18/11/2026): blocchi che finiscono dove comincia altro o con il file (<c>until</c>); i commenti del sorgente nel simbolo (<c>comments</c>).</para>
-        public const string EngineVersion = "11";
+        public const string EngineVersion = "12";
         public const int MaxAmbiguousCandidates = 5;
 
         private readonly DeclarativeLanguage _lang;
@@ -1119,8 +1119,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Signature = s.Signature, ReturnType = s.ReturnType, Visibility = "public", ParentId = parentId, Comment = s.Comment,
                 });
 
+            /// <summary>Un riferimento con <c>byName</c>: i nomi che dichiara, dove valgono, e come risolverlo (motore 12).</summary>
+            private sealed record NamedReference(string[] Names, Sym Scope, int DeclaredAt, DeclarativeLanguage.ReferenceRule Rule, string Target, string Written);
+
             private void CollectReferences()
             {
+                var named = new List<NamedReference>();
                 string previous = null;
                 for (var i = 0; i < _m.Lines.Count; i++)
                 {
@@ -1149,10 +1153,65 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var written = WrittenOf(rule, target, owner, args, line.Start);
                             foreach (var (id, confidence) in Resolve(rule, target, _m.Block[i], owner, args, line.Start))
                                 _pending.Add((_m.Owner[i], id, rule.Relation, Cap(confidence, rule.Confidence), line.Start, written));
+                            if (rule.ByName) named.Add(new NamedReference(NamesOf(target, match), _m.Block[i], i, rule, target, written));
                         }
                     }
                     if (!string.IsNullOrWhiteSpace(line.Code)) previous = line.Code;
                 }
+                if (named.Count > 0) CollectUsesByName(named);
+            }
+
+            /// <summary>I nomi che un riferimento con <c>byName</c> dichiara: il file senza cartella né estensione, e il gruppo <c>alias</c>.</summary>
+            private static string[] NamesOf(string target, Match match)
+            {
+                var file = target.Replace('\\', '/');
+                file = file[(file.LastIndexOf('/') + 1)..];
+                var stem = Path.GetFileNameWithoutExtension(file);
+                var alias = match.Groups["alias"] is { Success: true } a ? a.Value.Trim() : null;
+                return new[] { stem, alias }.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToArray();
+            }
+
+            /// <summary>
+            /// Motore 12: chi USA un nome dichiarato da un riferimento <c>byName</c> riceve lo stesso arco. Solo righe dentro un blocco
+            /// (il modulo ha già l'arco dalla riga del riferimento), dopo la dichiarazione e nel suo blocco (o ovunque, se la
+            /// dichiarazione sta fuori dai blocchi); un arco per proprietario e bersaglio, e mai se c'è già (l'include nella funzione stessa).
+            /// </summary>
+            private void CollectUsesByName(List<NamedReference> named)
+            {
+                var byName = new Dictionary<string, List<NamedReference>>(Lang.NameComparer);
+                foreach (var n in named)
+                    foreach (var name in n.Names)
+                    {
+                        if (!byName.TryGetValue(name, out var list)) byName[name] = list = new();
+                        list.Add(n);
+                    }
+                var words = new Regex(@"(?<![\w$%#&])(?:" + string.Join("|", byName.Keys.OrderByDescending(k => k.Length).Select(Regex.Escape)) + @")(?![\w$%#&])",
+                    Lang.IgnoreCase ? RegexOptions.IgnoreCase | RegexOptions.CultureInvariant : RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+                var done = new HashSet<(Sym, string, string)>(_pending.Where(p => p.Written != null).Select(p => (p.Source, p.Relation, p.Written)));
+                for (var j = 0; j < _m.Lines.Count; j++)
+                {
+                    var block = _m.Block[j];
+                    if (block == null || block == _m.Module) continue;
+                    var code = _m.Lines[j].Code;
+                    if (string.IsNullOrWhiteSpace(code)) continue;
+                    foreach (Match w in words.Matches(code))
+                        foreach (var n in byName[w.Value])
+                        {
+                            if (n.DeclaredAt >= j || !Inside(block, n.Scope)) continue;
+                            var owner = _m.Owner[j];
+                            if (!done.Add((owner, n.Rule.Relation, n.Written))) continue;
+                            foreach (var (id, confidence) in Resolve(n.Rule, n.Target, block))
+                                _pending.Add((owner, id, n.Rule.Relation, Cap(Cap(confidence, "inferred"), n.Rule.Confidence), _m.Lines[j].Start, n.Written));
+                        }
+                }
+            }
+
+            /// <summary><paramref name="block"/> è <paramref name="scope"/> o sta dentro (il modulo contiene tutto).</summary>
+            private bool Inside(Sym block, Sym scope)
+            {
+                if (scope == null || scope == _m.Module) return true;
+                for (var b = block; b != null; b = b.Parent) if (b == scope) return true;
+                return false;
             }
 
             /// <summary>

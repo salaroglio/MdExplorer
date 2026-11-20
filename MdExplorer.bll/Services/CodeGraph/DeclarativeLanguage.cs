@@ -461,6 +461,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             public ListRule List { get; init; }
             /// <summary>Gli argomenti della chiamata (<see cref="ArgumentsRule"/>); null = non si leggono.</summary>
             public ArgumentsRule Arguments { get; init; }
+            /// <summary>
+            /// <c>byName: true</c> (motore 12, 20/11/2026), solo con resolve: file: il riferimento dichiara anche dei NOMI — il nome
+            /// del file senza cartella né estensione e, se il modello lo cattura, il gruppo <c>alias</c>. Dopo la riga, nel blocco
+            /// dove sta (o in tutto il file, se sta fuori dai blocchi), ogni riga di un blocco che scrive uno di quei nomi come parola
+            /// intera riceve lo stesso arco, dedotto (<c>inferred</c>). Il BAL: <c>FIELD=M</c> + <c>#INCLUDE "UORDINI.BS;UORDINI_VISTA"</c>
+            /// in cima al file, e la funzione che fa <c>FZERO(UORDINI_VISTA, …)</c> usa l'archivio UORDINI.BS.
+            /// </summary>
+            public bool ByName { get; init; }
         }
 
         // ------------------------------------------------------------------ catalogo del progetto
@@ -960,6 +968,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                         Named = r.Arguments.Named == null ? null : Rx(where + ".arguments.named", r.Arguments.Named, "name"),
                     };
                 }
+                if (r.ByName && resolve != ResolveKind.File)
+                    throw Fail($"{where}.byName: vale solo con resolve: file", $"{where}.byName: only with resolve: file");
+                if (r.ByName && (r.List != null || r.Assign != null))
+                    throw Fail($"{where}.byName: non vale con list né con assign", $"{where}.byName: not with list or assign");
                 var hasOwner = pattern.GetGroupNames().Contains("owner");
                 if (hasOwner && (resolve != ResolveKind.Symbol || r.Assign != null))
                     throw Fail($"{where}.pattern: il gruppo owner vale solo con resolve: symbol (e senza assign)", $"{where}.pattern: the owner group only applies to resolve: symbol (and without assign)");
@@ -974,6 +986,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     Ignore = new HashSet<string>(r.Ignore ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
                     IgnoreUnresolved = new HashSet<string>(r.IgnoreUnresolved ?? new List<string>(), _d.IgnoreCase ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal),
                     Unless = r.Unless ?? new List<string>(),
+                    ByName = r.ByName,
                 };
             }
 
@@ -1201,6 +1214,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 public string Confidence { get; set; }
                 public string Unresolved { get; set; }
                 public string Assign { get; set; }
+                public bool ByName { get; set; }
             }
         }
     }
