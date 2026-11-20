@@ -26,6 +26,15 @@ public sealed class CodeTools : McpToolsBase
 
     private static string Q(string projectPath, string rest) => $"/api/codegraph/{rest}{(rest.Contains('?') ? "&" : "?")}projectPath={Uri.EscapeDataString(projectPath)}";
 
+    /// <summary>
+    /// Il ponte ha smesso di aspettare (30 secondi): prima arrivava a MarkAgent «An error occurred invoking …» senza un motivo
+    /// (20/11/2026, dal cliente). Il servizio di norma risponde prima, con il suo messaggio: questo è il caso in cui non ci è riuscito.
+    /// </summary>
+    private static string NoAnswerInTime(string toolName) =>
+        $"Error: MdExplorer did not answer {toolName} within 30 seconds. The code graph is probably very large for this question as asked, " +
+        "or Fuseki is busy (a load or an analysis in progress). Narrow the question (a folder or a file, a precise symbol; in code_sparql " +
+        "exact values with VALUES, not FILTER/STRSTARTS on the path) or ask again in a minute. Do not repeat the same call at once.";
+
     private async Task<string> GetAsync(HttpClient client, string url, string toolName, string project, string request)
     {
         try
@@ -39,6 +48,10 @@ public sealed class CodeTools : McpToolsBase
         catch (HttpRequestException ex)
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+        catch (TaskCanceledException)
+        {
+            return NoAnswerInTime(toolName);
         }
     }
 
@@ -336,6 +349,10 @@ public sealed class CodeTools : McpToolsBase
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
+        catch (TaskCanceledException)
+        {
+            return NoAnswerInTime("code_set_description");
+        }
     }
 
     private async Task<string> PostAsync(HttpClient client, string url, object payload, string toolName, string project, string request)
@@ -351,6 +368,10 @@ public sealed class CodeTools : McpToolsBase
         catch (HttpRequestException ex)
         {
             return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+        catch (TaskCanceledException)
+        {
+            return NoAnswerInTime(toolName);
         }
     }
 

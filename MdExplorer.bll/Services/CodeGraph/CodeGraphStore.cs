@@ -233,17 +233,35 @@ namespace MdExplorer.Features.Services.CodeGraph
             return new ProjectGraphs { Hash = hash, Data = CodeGraphIris.DataGraph(hash), State = CodeGraphIris.StateGraph(hash) };
         }
 
-        private async Task<string> QueryAsync(string sparql, CancellationToken ct)
+        /// <summary>Il tempo di una lettura breve (una domanda puntuale): oltre, il grafo è troppo grande per la domanda così com'è.</summary>
+        private static readonly TimeSpan ShortReadTimeout = TimeSpan.FromSeconds(15);
+
+        /// <summary>
+        /// Una query con il suo tempo, stretto da quello che resta alla richiesta (<see cref="CodeQueryBudget"/>). Il limite va
+        /// anche a Fuseki (<c>?timeout=</c>), che così si ferma: prima, scaduti i 15 secondi del client, la query continuava dentro
+        /// Fuseki e le copie dei tentativi successivi si mettevano in coda (20/11/2026, dal cliente: dopo il primo timeout di
+        /// code_ontology sono caduti anche code_inventory e code_schema).
+        /// </summary>
+        private async Task<string> TimedQueryAsync(string sparql, TimeSpan wanted, CancellationToken ct)
         {
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
-            try { return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, string.Empty, string.Empty); }
-            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-            {
-                // la scadenza del client HTTP arriva come un annullamento: detta così nessuno capisce che cosa è scaduto
-                throw new TimeoutException(UiText.Say("Fuseki non ha risposto in tempo a una lettura breve del grafo del codice: è occupato (un caricamento in corso?) o il grafo è molto grande. Riprova fra poco.",
-                    "Fuseki did not answer a short read of the code graph in time: it is busy (a load in progress?) or the graph is very large. Try again shortly."), ex);
-            }
+            var timeout = CodeQueryBudget.Clamp(wanted);
+            try { return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, timeout, ct); }
+            // Fuseki fermato dal suo limite risponde 503; la scadenza del client HTTP arriva come un annullamento
+            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 503) { throw TooSlow(timeout, ex); }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested) { throw TooSlow(timeout, ex); }
         }
+
+        /// <summary>Che cosa è scaduto e come restringere davvero: con valori esatti, non con un filtro sul testo del percorso.</summary>
+        internal static TimeoutException TooSlow(TimeSpan timeout, Exception inner) => new(UiText.Say(
+            $"Il grafo del codice non ha risposto in {timeout.TotalSeconds:0} secondi a questa domanda: il grafo è molto grande per chiederla così, o Fuseki è occupato (un caricamento in corso?). " +
+            "Restringila: a una cartella o a un file (parametro folder, dove c'è), a un simbolo preciso; in code_sparql parti da valori esatti, per esempio VALUES ?path { \"…\" } con i percorsi dei file, " +
+            "non da FILTER/STRSTARTS sul percorso, che legge comunque tutto il grafo.",
+            $"The code graph did not answer this question within {timeout.TotalSeconds:0} seconds: the graph is too large to ask it this way, or Fuseki is busy (a load in progress?). " +
+            "Narrow it: to a folder or a file (the folder parameter, where there is one), to a precise symbol; in code_sparql start from exact values, e.g. VALUES ?path { \"…\" } with the file paths, " +
+            "not from FILTER/STRSTARTS on the path, which still reads the whole graph."), inner);
+
+        private Task<string> QueryAsync(string sparql, CancellationToken ct) => TimedQueryAsync(sparql, ShortReadTimeout, ct);
 
         private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, CancellationToken ct)
             => SparqlResults.Parse(await QueryAsync(sparql, ct));
@@ -251,8 +269,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Una lettura lunga (tutti gli archi di un grafo): con il suo tempo, non i 15 secondi delle domande brevi.</summary>
         private async Task<List<Dictionary<string, string>>> RowsAsync(string sparql, TimeSpan timeout, CancellationToken ct)
         {
-            var baseUri = await _fuseki.EnsureRunningAsync(ct);
-            return SparqlResults.Parse(await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, timeout, ct));
+            return SparqlResults.Parse(await TimedQueryAsync(sparql, timeout, ct));
         }
 
         /// <summary>

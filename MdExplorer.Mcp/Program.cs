@@ -78,6 +78,9 @@ builder.Services.AddHttpClient("MdExplorer", client =>
     var port = MdExplorer.Mcp.PortDiscovery.GetPort();
     client.BaseAddress = new Uri($"http://localhost:{port}");
     client.Timeout = TimeSpan.FromSeconds(30);
+    // chi chiama: il grafo del codice dà a MarkAgent 25 secondi per tutte le query di una richiesta, sotto questi 30
+    // (CodeQueryBudget nel servizio): la risposta, o un errore che dice come restringere, arriva sempre prima
+    client.DefaultRequestHeaders.Add("X-MdExplorer-Caller", "mcp");
 });
 
 await builder.Build().RunAsync();

@@ -21,8 +21,21 @@ namespace MdExplorer.Controllers.CodeGraph
     /// </summary>
     [ApiController]
     [Route("api/codegraph")]
-    public class CodeGraphController : ControllerBase
+    public class CodeGraphController : ControllerBase, Microsoft.AspNetCore.Mvc.Filters.IAsyncActionFilter
     {
+        /// <summary>
+        /// Le chiamate di MarkAgent (il ponte MCP si presenta con <see cref="CodeQueryBudget.Header"/>) hanno
+        /// <see cref="CodeQueryBudget.ForAgent"/> per tutte le loro query, sotto i 30 secondi dopo cui il ponte si arrende:
+        /// la risposta, o un errore che dice come restringere, arriva sempre (20/11/2026). Le altre tengono i tempi di prima.
+        /// </summary>
+        [NonAction]
+        public async Task OnActionExecutionAsync(Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context, Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate next)
+        {
+            var fromAgent = string.Equals(context.HttpContext.Request.Headers[CodeQueryBudget.Header].ToString(), CodeQueryBudget.AgentCaller, StringComparison.OrdinalIgnoreCase);
+            if (!fromAgent) { await next(); return; }
+            using (CodeQueryBudget.Begin(CodeQueryBudget.ForAgent)) await next();
+        }
+
         private readonly ICodeGraphStore _store;
         private readonly MdExplorer.Services.CodeGraph.ICodeAnalysisService _analysis;
         private readonly MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore _grammars;
@@ -1395,6 +1408,13 @@ namespace MdExplorer.Controllers.CodeGraph
             {
                 _logger.LogError(ex, "[CodeGraph] Fuseki ha rifiutato la richiesta");
                 return StatusCode(502, new { error = ex.Message });
+            }
+            // una domanda troppo grande per il tempo che ha (20/11/2026): prima un 500 vuoto («MdExplorer answered 500:»),
+            // ora il messaggio, che dice come restringerla
+            catch (TimeoutException ex)
+            {
+                _logger.LogWarning("[CodeGraph] {Path}: {Why}", HttpContext.Request.Path, ex.Message);
+                return StatusCode(503, new { error = ex.Message });
             }
         }
 

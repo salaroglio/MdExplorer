@@ -338,6 +338,16 @@ namespace MdExplorer.Features.Services.CodeGraph
             return ranked.Select(x => (x.Symbol, Str(x.Row, "conf"), Count(x.Row, "n"))).ToList();
         }
 
+        /// <summary>
+        /// La query di MarkAgent scaduta: come restringerla DAVVERO (20/11/2026). Prima il consiglio era «un FILTER sul path», che è
+        /// la forma lenta: un filtro sul testo legge comunque tutto il grafo; valori esatti (VALUES) usano l'indice.
+        /// </summary>
+        private static CodeSparqlException SparqlTooSlow(TimeSpan timeout) => new(UiText.Say(
+            $"la query ha superato {timeout.TotalSeconds:0} secondi. Restringila partendo da valori esatti: VALUES ?path {{ \"@alias/cartella/file.bs\" … }} con i percorsi dei file, " +
+            "o un simbolo preciso (il suo IRI); un FILTER o STRSTARTS sul percorso NON restringe la lettura, legge comunque tutto il grafo. Oppure usa uno strumento code_* che risponde già alla domanda.",
+            $"the query took more than {timeout.TotalSeconds:0} seconds. Narrow it by starting from exact values: VALUES ?path {{ \"@alias/folder/file.bs\" … }} with the file paths, " +
+            "or a precise symbol (its IRI); a FILTER or STRSTARTS on the path does NOT narrow the reading, it still reads the whole graph. Or use a code_* tool that already answers the question."));
+
         public async Task<CodeSparqlResult> SparqlAsync(string projectPath, string query, int limit, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
@@ -345,21 +355,15 @@ namespace MdExplorer.Features.Services.CodeGraph
             limit = Math.Clamp(limit <= 0 ? CodeSparql.DefaultRows : limit, 1, CodeSparql.MaxRows);
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
             string json;
-            try { json = await _client.QueryAsync(baseUri, CodeOntology.Dataset, prepared, CodeSparql.Timeout, ct); }
+            // il tempo di code_sparql, stretto da quello che resta alla richiesta (MarkAgent: sotto i 30 secondi del ponte MCP)
+            var timeout = CodeQueryBudget.Clamp(CodeSparql.Timeout);
+            try { json = await _client.QueryAsync(baseUri, CodeOntology.Dataset, prepared, timeout, ct); }
             catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 400)
             {
                 throw new CodeSparqlException(UiText.Say($"Fuseki non accetta la query: {ex.ResponseBody?.Trim()}", $"Fuseki rejects the query: {ex.ResponseBody?.Trim()}"));
             }
-            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 503)
-            {
-                throw new CodeSparqlException(UiText.Say($"la query ha superato {CodeSparql.Timeout.TotalSeconds:0} secondi: restringila (un FILTER sul path, un LIMIT) o usa un altro strumento code_*",
-                    $"the query took more than {CodeSparql.Timeout.TotalSeconds:0} seconds: narrow it (a FILTER on path, a LIMIT) or use another code_* tool"));
-            }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new CodeSparqlException(UiText.Say($"la query ha superato {CodeSparql.Timeout.TotalSeconds:0} secondi: restringila (un FILTER sul path, un LIMIT) o usa un altro strumento code_*",
-                    $"the query took more than {CodeSparql.Timeout.TotalSeconds:0} seconds: narrow it (a FILTER on path, a LIMIT) or use another code_* tool"));
-            }
+            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 503) { throw SparqlTooSlow(timeout); }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested) { throw SparqlTooSlow(timeout); }
             var result = new CodeSparqlResult { Query = prepared };
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             if (ask)
@@ -398,14 +402,39 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// </summary>
         private static readonly TimeSpan WholeGraphTimeout = NavigationTimeout;
 
+        /// <summary>Le letture della navigazione in corso, per grafo: chi arriva mentre una legge aspetta quella, non ne lancia un'altra.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<CodeNavEdge>>>> _navigationInFlight = new(StringComparer.Ordinal);
+
         public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
         {
-            // 16/11/2026, dal cliente: quattro domande aggregate insieme a grafo appena ricalcolato leggevano gli archi quattro
-            // volte in parallelo, e tutte e quattro cadevano dopo 15 secondi (errore 500). Ora la lettura è una sola
-            var gate = _navigationLoading.GetOrAdd(GraphsOf(projectPath).Data, _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(ct);
-            try { return await LoadNavigationEdgesAsync(projectPath, ct); }
-            finally { gate.Release(); }
+            var key = GraphsOf(projectPath).Data;
+            if (CodeQueryBudget.Remaining is not TimeSpan left)
+            {
+                // 16/11/2026, dal cliente: quattro domande aggregate insieme a grafo appena ricalcolato leggevano gli archi quattro
+                // volte in parallelo, e tutte e quattro cadevano dopo 15 secondi (errore 500). Ora la lettura è una sola
+                var gate = _navigationLoading.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+                await gate.WaitAsync(ct);
+                try { return await LoadNavigationEdgesAsync(projectPath, ct); }
+                finally { gate.Release(); }
+            }
+            // 20/11/2026: chi ha un tempo (MarkAgent, 25 secondi) non deve buttare via una lettura che ne vuole di più. La
+            // lettura va in sottofondo con il suo tempo intero e senza il token della richiesta; se finisce in tempo si risponde,
+            // altrimenti si dice di riprovare: al tentativo dopo gli archi sono pronti (in cache, se nessuno ha scritto nel frattempo)
+            var load = _navigationInFlight.GetOrAdd(key, k => new Lazy<Task<IReadOnlyList<CodeNavEdge>>>(() => Task.Run(async () =>
+            {
+                CodeQueryBudget.Clear();
+                var gate = _navigationLoading.GetOrAdd(k, g => new SemaphoreSlim(1, 1));
+                await gate.WaitAsync();
+                try { return await LoadNavigationEdgesAsync(projectPath, CancellationToken.None); }
+                finally { gate.Release(); _navigationInFlight.TryRemove(k, out var done); }
+            }))).Value;
+            try { return await load.WaitAsync(left, ct); }
+            catch (TimeoutException ex)
+            {
+                throw new TimeoutException(UiText.Say(
+                    "Sto preparando la navigazione del grafo del codice (tutti gli archi: il grafo è grande) e non ha fatto in tempo per questa risposta. Continua da sola: riprova la stessa domanda fra un minuto.",
+                    "I am preparing the navigation of the code graph (every edge: the graph is large) and it was not ready in time for this answer. It goes on by itself: ask the same question again in a minute."), ex);
+            }
         }
 
         private async Task<IReadOnlyList<CodeNavEdge>> LoadNavigationEdgesAsync(string projectPath, CancellationToken ct)
