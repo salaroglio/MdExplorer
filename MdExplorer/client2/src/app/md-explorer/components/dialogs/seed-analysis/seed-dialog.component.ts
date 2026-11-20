@@ -35,6 +35,13 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
   private extractedCount = 0;
   private elapsedTimer: any = null;
   private progressSub: Subscription | null = null;
+  /**
+   * Fin dove scendere (20/11/2026): null = fino in fondo. A volte basta il primo livello o due; i file oltre non si leggono,
+   * e con «Analizza» entrano fra le esclusioni del seme, così il seme salvato ricalcola la stessa chiusura.
+   */
+  public maxDepth: number | null = null;
+  public readonly depthChoices: (number | null)[] = [1, 2, 3, 4, 5, null];
+  private previewSub: Subscription | null = null;
   public applying = false;
   public errorMessage = '';
   public preview: SeedPreview | null = null;
@@ -61,6 +68,7 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnDestroy(): void {
+    this.previewSub?.unsubscribe();
     this.progressSub?.unsubscribe();
     this.stopElapsed();
   }
@@ -118,7 +126,10 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
     this.stopElapsed();
     this.elapsedTimer = setInterval(() => this.elapsed++, 1000);
     this.progressSub ??= this.serverMessages.seedProgress$.subscribe(p => this.onProgress(p));
-    this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned], [...this.included], this.serverMessages.connectionId ?? null).subscribe({
+    // una nuova anteprima (per esempio una profondità scelta mentre la prima cerca) sostituisce quella in corso
+    this.previewSub?.unsubscribe();
+    this.previewSub = this.codeGraph.previewSeed(this.data.projectRoot, this.data.seed, [...this.pruned], [...this.included],
+      this.serverMessages.connectionId ?? null, this.maxDepth).subscribe({
       next: p => {
         this.loading = false;
         this.stopElapsed();
@@ -133,7 +144,7 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
         this.implChoices = (p.implementations ?? []).filter(i => !i.auto && i.candidates.length > 1)
           .sort((a, b) => b.created.length - a.created.length || a.contract.localeCompare(b.contract));
         this.implAuto = (p.implementations ?? []).filter(i => i.auto);
-        this.missGroups = ['dynamic', 'frontier', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
+        this.missGroups = ['dynamic', 'frontier', 'depth', 'ambiguous', 'unresolved'].filter(k => byKind.has(k))
           .map(kind => ({ kind, items: byKind.get(kind)!, uses: byKind.get(kind)!.reduce((n, m) => n + m.uses, 0) }));
       },
       error: err => { this.loading = false; this.stopElapsed(); this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR'); }
@@ -141,6 +152,13 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
   }
 
   isSeed(f: SeedClosureFile): boolean { return f.depth === 0; }
+
+  /** Una profondità scelta: l'anteprima si rifà subito, anche se la precedente stava ancora cercando. */
+  setDepth(depth: number | null): void {
+    if (this.maxDepth === depth) { return; }
+    this.maxDepth = depth;
+    this.load();
+  }
 
   /** Una spunta tolta = file potato: lui e quello che portava escono alla prossima anteprima. */
   toggle(path: string, kept: boolean): void {
@@ -195,7 +213,9 @@ export class SeedDialogComponent implements OnInit, OnDestroy {
   analyze(confirm: boolean): void {
     this.applying = true;
     this.errorMessage = '';
-    this.codeGraph.applySeed(this.data.projectRoot, this.data.seed, [...this.pruned], confirm, [...this.included]).subscribe({
+    // i file oltre la profondità scelta diventano esclusioni: il seme salvato ricalcola la stessa chiusura anche senza profondità
+    const pruned = new Set([...this.pruned, ...(this.preview?.depthCut ?? [])]);
+    this.codeGraph.applySeed(this.data.projectRoot, this.data.seed, [...pruned], confirm, [...this.included]).subscribe({
       next: r => {
         this.applying = false;
         if (r.needsConfirmation) { this.confirmation = r; return; }

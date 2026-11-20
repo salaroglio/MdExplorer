@@ -12,6 +12,15 @@
   </div>
   <p class="intro">{{ 'SEED.INTRO' | translate }}</p>
 
+  <!-- Profondità (20/11/2026): fin dove seguire le dipendenze; si può cambiare anche mentre cerca -->
+  <div class="depth-row">
+    <label class="field-label">{{ 'SEED.DEPTH' | translate }}</label>
+    <mat-button-toggle-group [value]="maxDepth" [disabled]="applying" (change)="setDepth($event.value)">
+      <mat-button-toggle *ngFor="let d of depthChoices" [value]="d">{{ d === null ? ('SEED.DEPTH_ALL' | translate) : d }}</mat-button-toggle>
+    </mat-button-toggle-group>
+    <span class="hint">{{ 'SEED.DEPTH_HINT' | translate }}</span>
+  </div>
+
   <div class="loading" *ngIf="loading"><mat-spinner diameter="20"></mat-spinner>{{ 'SEED.LOADING' | translate }} <span class="elapsed">{{ elapsed }} s</span></div>
   <!-- I passi della scoperta (20/11/2026): quelli finiti, quello in corso, quanti file analizzati -->
   <ul class="progress-steps" *ngIf="loading && (progressDone.length || progressNow || progressExtracted)">

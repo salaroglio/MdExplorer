@@ -73,6 +73,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 if (states.TryGetValue(path, out var st)) return st;
                 if (request.Pruned.Contains(path)) { Miss("pruned", written, from, new[] { path }); return null; }
+                // oltre la profondità scelta (20/11/2026): non si legge
+                if (request.MaxDepth is int maxDepth && depth > maxDepth)
+                {
+                    if (!result.DepthCut.Contains(path)) result.DepthCut.Add(path);
+                    Miss("depth", path, from, new[] { path });   // una riga per file, con i suoi usi
+                    return null;
+                }
                 var text = _ws.Read(path);
                 var lines = text.Count(c => c == '\n') + 1;
                 if (result.Files.Count + 1 > request.MaxFiles || result.Lines + lines > request.MaxLines)

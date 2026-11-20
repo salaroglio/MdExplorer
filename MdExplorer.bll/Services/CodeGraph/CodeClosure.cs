@@ -14,6 +14,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public ISet<string> Included { get; init; } = new HashSet<string>(StringComparer.Ordinal);
         public int MaxFiles { get; init; } = 300;
         public long MaxLines { get; init; } = 1_000_000;
+        /// <summary>
+        /// La profondità massima (20/11/2026): il seme è 0, i file che usa 1, e così via; null = fino in fondo. Un file oltre non si
+        /// legge né si analizza: finisce in <see cref="CodeClosure.DepthCut"/>, e chi conferma l'anteprima lo mette fra le esclusioni.
+        /// </summary>
+        public int? MaxDepth { get; init; }
         /// <summary>Facoltativo: un file appena passato dall'estrattore (percorso, righe, tempo), per il log e la finestra (20/11/2026).</summary>
         public Action<string, int, TimeSpan> Extracted { get; init; }
     }
@@ -69,6 +74,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<CodeClosureImplementations> Implementations { get; } = new();
         public List<CodeClosureMiss> Misses { get; } = new();
         public bool BudgetReached { get; set; }
+        /// <summary>
+        /// I file che sarebbero entrati oltre <see cref="CodeClosureRequest.MaxDepth"/>, uno per percorso (20/11/2026). Messi fra le
+        /// esclusioni, danno la stessa chiusura anche senza profondità: è così che il seme salvato la ricorda.
+        /// </summary>
+        public List<string> DepthCut { get; } = new();
         public long Lines => Files.Sum(f => (long)f.Lines);
     }
 
@@ -186,6 +196,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (request.Pruned.Contains(path)) { Miss("pruned", written, from, new[] { path }); continue; }
                     if (!states.TryGetValue(path, out var st))
                     {
+                        // oltre la profondità scelta: non si legge (la coda va per livelli, la prima volta è la più vicina)
+                        if (request.MaxDepth is int maxDepth && depth > maxDepth)
+                        {
+                            if (!result.DepthCut.Contains(path)) result.DepthCut.Add(path);
+                            Miss("depth", path, from, new[] { path });   // una riga per file, con i suoi usi
+                            continue;
+                        }
                         var text = Text(path);
                         var lines = text.Count(c => c == '\n') + 1;
                         if (result.Files.Count + 1 > request.MaxFiles || result.Lines + lines > request.MaxLines)

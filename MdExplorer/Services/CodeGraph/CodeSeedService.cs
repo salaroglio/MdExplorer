@@ -58,7 +58,7 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         public async Task<CodeSeedPreview> PreviewAsync(string projectPath, string seed, IEnumerable<string> pruned, int? maxFiles, long? maxLines, CancellationToken ct = default,
-            IEnumerable<string> included = null, string connectionId = null)
+            IEnumerable<string> included = null, string connectionId = null, int? maxDepth = null)
         {
             var total = System.Diagnostics.Stopwatch.StartNew();
             seed = (seed ?? throw new ArgumentException(UiText.Say("seed è obbligatorio: il file da cui partire", "seed is required: the file to start from"))).Replace('\\', '/').Trim('/');
@@ -76,6 +76,7 @@ namespace MdExplorer.Services.CodeGraph
                 Included = new HashSet<string>((included ?? Enumerable.Empty<string>()).Select(p => p.Replace('\\', '/').Trim('/')), StringComparer.Ordinal),
                 MaxFiles = maxFiles ?? new CodeClosureRequest().MaxFiles,
                 MaxLines = maxLines ?? new CodeClosureRequest().MaxLines,
+                MaxDepth = maxDepth is int d && d >= 0 ? d : null,
                 Extracted = (path, lines, time) =>
                 {
                     extractTime += time;

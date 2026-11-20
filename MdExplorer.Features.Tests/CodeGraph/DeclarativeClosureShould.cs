@@ -69,6 +69,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(pruned.Misses.Any(m => m.Kind == "pruned" && m.Candidates.Contains("src/liba.tos")));
         }
 
+        /// <summary>
+        /// La profondità (20/11/2026): oltre il livello scelto un file non entra e si elenca in DepthCut; messo fra le esclusioni,
+        /// la stessa chiusura torna senza profondità — è così che il seme salvato la ricorda.
+        /// </summary>
+        [TestMethod]
+        public void Stop_at_the_chosen_depth_and_give_the_same_closure_when_the_cut_is_pruned()
+        {
+            var shallow = Run(new CodeClosureRequest { Seeds = new[] { "src/main.toy" }, MaxDepth = 1 });
+            CollectionAssert.AreEquivalent(new[] { "src/main.toy", "src/inc.toh", "src/liba.tos" }, shallow.Files.Select(f => f.Path).ToList(),
+                "libb sta al livello 2");
+            CollectionAssert.AreEqual(new[] { "src/libb.tos" }, shallow.DepthCut);
+            Assert.IsTrue(shallow.Misses.Any(m => m.Kind == "depth" && m.Candidates.Contains("src/libb.tos")));
+            Assert.IsFalse(shallow.BudgetReached, "la profondità non è il limite di sicurezza");
+
+            var onlySeed = Run(new CodeClosureRequest { Seeds = new[] { "src/main.toy" }, MaxDepth = 0 });
+            CollectionAssert.AreEqual(new[] { "src/main.toy" }, onlySeed.Files.Select(f => f.Path).ToList());
+
+            var replay = Run(new CodeClosureRequest { Seeds = new[] { "src/main.toy" }, Pruned = new HashSet<string>(shallow.DepthCut) });
+            CollectionAssert.AreEquivalent(shallow.Files.Select(f => f.Path).ToList(), replay.Files.Select(f => f.Path).ToList());
+
+            var all = Run(new CodeClosureRequest { Seeds = new[] { "src/main.toy" } });
+            Assert.AreEqual(0, all.DepthCut.Count, "senza profondità non si taglia niente");
+        }
+
         /// <summary>F4e: la chiamata per nome in una variabile si segue se il blocco le assegna il nome; altrimenti è un punto di uscita «dynamic».</summary>
         [TestMethod]
         public void Follow_a_call_by_name_when_the_block_assigns_the_name()

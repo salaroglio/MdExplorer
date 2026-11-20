@@ -55,6 +55,8 @@ export interface SeedPreview {
   language: string;
   budgetReached: boolean;
   lines: number;
+  /** I file oltre la profondità scelta (20/11/2026): con «Analizza» entrano fra le esclusioni del seme. */
+  depthCut?: string[];
   files: SeedClosureFile[];
   misses: SeedClosureMiss[];
   implementations: SeedImplementations[];
@@ -512,8 +514,9 @@ export class CodeGraphService {
   }
 
   /** F3: la chiusura di un file, senza scrivere niente. */
-  previewSeed(projectPath: string, seed: string, pruned: string[], included: string[] = [], connectionId: string | null = null): Observable<SeedPreview> {
-    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned, included, connectionId });
+  previewSeed(projectPath: string, seed: string, pruned: string[], included: string[] = [], connectionId: string | null = null,
+    maxDepth: number | null = null): Observable<SeedPreview> {
+    return this.http.post<SeedPreview>('../api/codegraph/seeds/preview', { projectPath, seed, pruned, included, connectionId, maxDepth });
   }
 
   /** F3: salva il seme con le sue potature e analizza i soli file della chiusura (confirm = accetta la differenza). */

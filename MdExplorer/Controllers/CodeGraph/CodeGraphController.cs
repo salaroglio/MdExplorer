@@ -541,6 +541,8 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             /// <summary>La finestra che riceve i passi della scoperta (evento <c>seedProgress</c>); facoltativo.</summary>
             public string? ConnectionId { get; set; }
+            /// <summary>Fin dove scendere: 0 = solo il seme, 1 = i file che usa, …; assente = fino in fondo.</summary>
+            public int? MaxDepth { get; set; }
             public string ProjectPath { get; set; }
             public string Seed { get; set; }
             public System.Collections.Generic.List<string>? Pruned { get; set; }
@@ -562,7 +564,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             var seeds = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.CodeSeedService>();
             MdExplorer.Services.CodeGraph.CodeSeedPreview preview;
-            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct, request.Included, request.ConnectionId); }
+            try { preview = await seeds.PreviewAsync(request.ProjectPath, request.Seed, request.Pruned, request.MaxFiles, request.MaxLines, ct, request.Included, request.ConnectionId, request.MaxDepth); }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or MdExplorer.Features.Services.CodeGraph.LanguageDefinitionException)
             {
                 return BadRequest(new { error = ex.Message });
@@ -570,7 +572,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var c = preview.Closure;
             return Ok(new
             {
-                seed = preview.Seed, language = preview.Language, budgetReached = c.BudgetReached, lines = c.Lines,
+                seed = preview.Seed, language = preview.Language, budgetReached = c.BudgetReached, lines = c.Lines, depthCut = c.DepthCut,
                 files = c.Files.Select(f => new { path = f.Path, depth = f.Depth, from = f.From, written = f.Written, whole = f.Whole, lines = f.Lines,
                     symbolCount = f.Symbols.Count, symbols = f.Symbols.Take(20) }),
                 misses = c.Misses.Select(m => new { kind = m.Kind, written = m.Written, uses = m.Uses, from = m.From, candidates = m.Candidates }),
