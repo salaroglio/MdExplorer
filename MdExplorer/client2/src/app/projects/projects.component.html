@@ -140,7 +140,11 @@
         <!-- Message when no projects -->
         <!-- Empty-state for "no projects ever registered" — distinct from
              "search filter has no match" (handled inside the section above). -->
-        <div class="no-projects-message" *ngIf="!(hasAnyProject$ | async)">
+        <!-- Prima installazione: «Che cosa installare» al posto del messaggio dei progetti vuoti (20/11/2026). -->
+        <app-setup-guide *ngIf="(setupGuide.firstRunVisible$ | async) && !(hasAnyProject$ | async)"
+                         mode="page" (done)="setupGuide.finishFirstRun()"></app-setup-guide>
+
+        <div class="no-projects-message" *ngIf="!(hasAnyProject$ | async) && !(setupGuide.firstRunVisible$ | async)">
           <mat-icon class="empty-icon">folder_open</mat-icon>
           <h3>{{ 'PROJECTS.NO_RECENT' | translate }}</h3>
           <p>{{ 'PROJECTS.NO_RECENT_HINT' | translate }}</p>

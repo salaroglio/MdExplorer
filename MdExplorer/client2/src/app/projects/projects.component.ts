@@ -29,6 +29,7 @@ import { ProjectCreateConfigOptions, TemplateShowcaseChoice } from './dialogs/pr
 import { TemplateShowcaseDialogComponent } from './dialogs/template-showcase/template-showcase-dialog.component';
 import { OpenPerf } from '../shared/open-perf';
 import { DiagnosticsSendDialogComponent } from './dialogs/diagnostics-send/diagnostics-send.component';
+import { SetupGuideService } from '../components/setup-guide/setup-guide.service';
 
 @Component({
   selector: 'app-projects',
@@ -68,7 +69,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private http: HttpClient,
     private p2pService: P2PService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    // «Che cosa installare» alla prima installazione: occupa la colonna di sinistra, vuota, al posto di «nessun progetto».
+    public setupGuide: SetupGuideService
   ) { }
 
     ngOnDestroy(): void {

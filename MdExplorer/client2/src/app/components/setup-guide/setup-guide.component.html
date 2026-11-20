@@ -1,0 +1,256 @@
+<div class="sg" [class.sg-window]="mode === 'window'" [class.sg-page]="mode === 'page'">
+  <header class="sg-head">
+    <div class="sg-head-text">
+      <h2 class="sg-title">{{ 'SETUP_GUIDE.TITLE' | translate }}</h2>
+      <p class="sg-subtitle">{{ (allReady ? 'SETUP_GUIDE.SUBTITLE_READY' : 'SETUP_GUIDE.SUBTITLE') | translate }}</p>
+    </div>
+    <button mat-icon-button class="sg-close" *ngIf="mode === 'window'" (click)="finish()" [attr.aria-label]="'COMMON.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <!-- Il palco, come il carosello di welcome.html: fondo sfumato con due aloni, testo a sinistra e scena animata a destra. -->
+  <div class="sg-stage">
+    <!-- stepView cambia solo al cambio di scheda: la scheda si ridisegna ed entra di lato, le animazioni della scena ripartono. -->
+    <article class="slide" *ngFor="let s of stepView" [class.from-back]="dir === 'back'" aria-roledescription="slide">
+     <div class="slide-grid">
+      <div class="copy">
+        <div class="kicker-row">
+          <span class="kicker"><i></i>{{ 'SETUP_GUIDE.STEP_OF' | translate: { i: index + 1, n: steps.length } }} · {{ ('SETUP_GUIDE.' + s.toUpperCase() + '_SHORT') | translate }}</span>
+          <span class="state-chip" [ngClass]="'st-' + stateOf(s)">
+            <mat-spinner *ngIf="stateOf(s) === 'checking'" diameter="12"></mat-spinner>
+            <mat-icon *ngIf="stateOf(s) !== 'checking'">{{ stateIcon(stateOf(s)) }}</mat-icon>
+            {{ ('SETUP_GUIDE.STATE_' + stateOf(s).toUpperCase()) | translate }}
+          </span>
+        </div>
+        <h3 class="sg-step-title">{{ ('SETUP_GUIDE.' + s.toUpperCase() + '_TITLE') | translate }}</h3>
+        <p class="sg-why">{{ ('SETUP_GUIDE.' + s.toUpperCase() + '_WHY') | translate }}</p>
+
+        <!-- Com'è il computer adesso -->
+        <div class="glass sg-status" [ngClass]="'st-' + stateOf(s)" role="status" [ngSwitch]="s">
+          <ng-container *ngIf="checking && !status">
+            <mat-spinner diameter="18"></mat-spinner>
+            <span>{{ 'SETUP_GUIDE.CHECKING' | translate }}</span>
+          </ng-container>
+          <ng-container *ngIf="!status && !checking">
+            <mat-icon>error</mat-icon>
+            <span>{{ 'SETUP_GUIDE.CHECK_FAILED' | translate: { error: loadError } }}</span>
+          </ng-container>
+
+          <ng-container *ngIf="status">
+            <ng-container *ngSwitchCase="'harness'">
+              <div class="sg-engines">
+                <div *ngFor="let e of engines()" class="sg-engine" [ngClass]="'st-' + engineState(e)">
+                  <mat-icon>{{ e.usable ? 'check_circle' : (e.installed ? 'error_outline' : 'radio_button_unchecked') }}</mat-icon>
+                  <span class="sg-engine-name">{{ engineNames[e.id] || e.id }}</span>
+                  <span class="sg-engine-state">{{ (e.usable ? 'SETUP_GUIDE.ENGINE_READY' : (e.installed ? 'SETUP_GUIDE.ENGINE_NOT_READY' : 'SETUP_GUIDE.ENGINE_MISSING')) | translate }}</span>
+                  <span class="sg-engine-detail" *ngIf="e.installed && !e.usable && e.detail">{{ e.detail }}</span>
+                </div>
+                <div *ngIf="status.harness.error" class="sg-engine st-error">
+                  <mat-icon>error</mat-icon><span>{{ status.harness.error }}</span>
+                </div>
+              </div>
+              <p class="sg-verdict">{{ (stateOf('harness') === 'ok' ? 'SETUP_GUIDE.HARNESS_OK' : 'SETUP_GUIDE.HARNESS_MISSING') | translate }}</p>
+            </ng-container>
+
+            <ng-container *ngSwitchCase="'java'">
+              <mat-icon>{{ stateIcon(stateOf('java')) }}</mat-icon>
+              <span *ngIf="status.java.error">{{ status.java.error }}</span>
+              <span *ngIf="!status.java.error && status.java.ok">{{ 'SETUP_GUIDE.JAVA_OK' | translate: { major: status.java.major, path: status.java.path } }}</span>
+              <span *ngIf="!status.java.error && status.java.outcome === 'UserPathNotSuitable'">{{ 'SETUP_GUIDE.JAVA_USER_PATH' | translate: { configured: status.java.configuredPath, major: status.java.bestMajor, path: status.java.bestPath } }}</span>
+              <span *ngIf="!status.java.error && !status.java.ok && status.java.outcome !== 'UserPathNotSuitable'">{{ 'SETUP_GUIDE.JAVA_MISSING' | translate: { min: status.java.minimum } }}</span>
+            </ng-container>
+
+            <ng-container *ngSwitchCase="'pandoc'">
+              <mat-icon>{{ stateIcon(stateOf('pandoc')) }}</mat-icon>
+              <span *ngIf="status.pandoc.usable">{{ 'SETUP_GUIDE.PANDOC_OK' | translate: { version: status.pandoc.version, path: status.pandoc.path } }}</span>
+              <span *ngIf="status.pandoc.needsRestart">{{ 'SETUP_GUIDE.PANDOC_RESTART' | translate: { path: status.pandoc.path } }}</span>
+              <span *ngIf="!status.pandoc.usable && !status.pandoc.needsRestart && status.pandoc.error">{{ status.pandoc.error }}</span>
+              <span *ngIf="!status.pandoc.usable && !status.pandoc.needsRestart && !status.pandoc.error">{{ 'SETUP_GUIDE.PANDOC_MISSING' | translate }}</span>
+            </ng-container>
+          </ng-container>
+        </div>
+
+        <!-- Come installarlo: solo se manca qualcosa -->
+        <div class="glass sg-how" *ngIf="status && stateOf(s) !== 'ok'">
+          <h4 class="sg-how-title">{{ 'SETUP_GUIDE.HOW' | translate }}</h4>
+          <p class="sg-how-hint" *ngIf="s === 'harness'">{{ 'SETUP_GUIDE.HARNESS_HOW_HINT' | translate }}</p>
+          <div class="sg-cmd" *ngFor="let c of commands(s)">
+            <span class="sg-cmd-label" *ngIf="c.label">{{ c.label }}</span>
+            <code class="sg-cmd-text">{{ c.command }}</code>
+            <button mat-icon-button class="sg-cmd-copy" (click)="copy(c.command)"
+                    [matTooltip]="(copied === c.command ? 'SETUP_GUIDE.COPIED' : 'SETUP_GUIDE.COPY') | translate">
+              <mat-icon>{{ copied === c.command ? 'done' : 'content_copy' }}</mat-icon>
+            </button>
+          </div>
+          <p class="sg-how-hint" *ngIf="s === 'harness'">{{ 'SETUP_GUIDE.HARNESS_LOGIN_HINT' | translate }}</p>
+          <button mat-stroked-button class="sg-link" (click)="openLink(link(s))">
+            <mat-icon>open_in_new</mat-icon>
+            {{ ('SETUP_GUIDE.' + s.toUpperCase() + '_LINK') | translate }}
+          </button>
+          <p class="sg-how-hint sg-restart-hint">{{ 'SETUP_GUIDE.RESTART_HINT' | translate }}</p>
+        </div>
+      </div>
+
+      <div class="scene-wrap" [ngSwitch]="s" aria-hidden="true">
+        <!-- 1. Il motore: si installa dal terminale, i tre motori compaiono e si collegano a Mark, che risponde. -->
+        <svg *ngSwitchCase="'harness'" class="scene" viewBox="0 0 360 260">
+          <g class="float">
+            <rect class="panel" x="16" y="14" width="328" height="232" rx="18" />
+            <g class="pop" style="--d: 0.15s">
+              <rect class="panel2" x="34" y="32" width="204" height="118" rx="12" />
+              <circle cx="50" cy="46" r="4" fill="var(--rose)" />
+              <circle cx="63" cy="46" r="4" fill="var(--amber)" />
+              <circle cx="76" cy="46" r="4" fill="var(--mint)" />
+            </g>
+            <text class="type" style="--d: 0.6s" x="48" y="78" font-size="11">$ npm install -g …</text>
+            <rect class="bar grow" style="--d: 1.9s" x="48" y="92" width="168" height="6" rx="3" />
+            <rect class="bar-soft grow" style="--d: 2.15s" x="48" y="106" width="120" height="6" rx="3" />
+            <text class="fade" style="--d: 2.5s; fill: var(--mint)" x="48" y="134" font-size="11" font-weight="700">✓ ready</text>
+
+            <path class="wire draw" pathLength="1" style="--d: 3.3s" d="M258 57 C 236 70, 232 150, 206 182" />
+            <path class="wire draw" pathLength="1" style="--d: 3.45s" d="M258 99 C 240 112, 232 160, 208 188" />
+            <path class="wire draw" pathLength="1" style="--d: 3.6s" d="M258 141 C 244 152, 236 172, 210 194" />
+            <g class="pop" style="--d: 2.8s">
+              <rect x="258" y="44" width="72" height="26" rx="13" fill="rgba(255,255,255,0.92)" />
+              <text x="294" y="61" text-anchor="middle" font-size="10" font-weight="700" style="fill: #3b3fa8">Copilot</text>
+            </g>
+            <g class="pop" style="--d: 3.0s">
+              <rect x="258" y="86" width="72" height="26" rx="13" fill="rgba(255,255,255,0.92)" />
+              <text x="294" y="103" text-anchor="middle" font-size="10" font-weight="700" style="fill: #8a3a17">Claude</text>
+            </g>
+            <g class="pop" style="--d: 3.2s">
+              <rect x="258" y="128" width="72" height="26" rx="13" fill="rgba(255,255,255,0.92)" />
+              <text x="294" y="145" text-anchor="middle" font-size="10" font-weight="700" style="fill: #0d4a35">opencode</text>
+            </g>
+
+            <circle class="ring" style="--d: 4.3s" cx="186" cy="200" r="22" fill="none" stroke="var(--amber)" stroke-width="2" opacity="0" />
+            <circle class="ring" style="--d: 5.2s" cx="186" cy="200" r="22" fill="none" stroke="var(--amber)" stroke-width="2" opacity="0" />
+            <g class="pop" style="--d: 3.9s">
+              <circle cx="186" cy="200" r="22" fill="var(--amber)" />
+              <text x="186" y="207" text-anchor="middle" font-size="20" font-weight="700" style="fill: #4a3a00">M</text>
+            </g>
+            <g class="pop" style="--d: 4.6s">
+              <rect x="42" y="180" width="118" height="40" rx="14" fill="rgba(255,255,255,0.92)" />
+              <rect x="56" y="192" width="84" height="6" rx="3" fill="#5b63d6" />
+              <rect x="56" y="204" width="56" height="6" rx="3" fill="#9aa0e8" />
+            </g>
+          </g>
+        </svg>
+
+        <!-- 2. Java: la tazza fuma e dà vita ai diagrammi, al grafo del codice e alla memoria degli agenti. -->
+        <svg *ngSwitchCase="'java'" class="scene" viewBox="0 0 360 260">
+          <g class="float">
+            <rect class="panel" x="16" y="14" width="328" height="232" rx="18" />
+            <path class="wire draw" pathLength="1" style="--d: 0.8s; --t: 1s" d="M76 92 q-10 -14 0 -28 q10 -14 0 -28" />
+            <path class="wire draw" pathLength="1" style="--d: 1.0s; --t: 1s" d="M96 92 q-10 -14 0 -28 q10 -14 0 -28" />
+            <path class="wire draw" pathLength="1" style="--d: 1.2s; --t: 1s" d="M116 92 q-10 -14 0 -28 q10 -14 0 -28" />
+            <g class="pop" style="--d: 0.2s">
+              <path d="M56 100 h80 v48 a28 28 0 0 1 -28 28 h-24 a28 28 0 0 1 -28 -28 z" fill="rgba(255,255,255,0.92)" />
+              <path d="M136 112 h8 a14 14 0 0 1 0 28 h-8" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="7" />
+              <rect x="66" y="108" width="60" height="8" rx="4" fill="#b86b2b" />
+            </g>
+            <text class="fade" style="--d: 0.6s" x="96" y="212" text-anchor="middle" font-size="15" font-weight="700">Java 21</text>
+
+            <path class="flowline flow" d="M160 138 C 186 138, 186 62, 206 62" />
+            <path class="flowline flow" d="M160 138 H 206" />
+            <path class="flowline flow" d="M160 138 C 186 138, 186 206, 206 206" />
+
+            <!-- diagramma -->
+            <g class="pop" style="--d: 1.7s">
+              <rect class="panel2" x="208" y="38" width="118" height="48" rx="10" />
+              <rect x="222" y="52" width="28" height="20" rx="4" fill="var(--sky)" />
+              <path d="M252 62 h22 m-6 -5 l6 5 l-6 5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <rect x="278" y="52" width="34" height="20" rx="4" fill="var(--rose)" />
+            </g>
+            <!-- grafo del codice -->
+            <g class="pop" style="--d: 2.1s">
+              <rect class="panel2" x="208" y="114" width="118" height="48" rx="10" />
+              <path d="M232 144 L262 126 L298 146 M232 144 L298 146" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.6" />
+              <circle class="glow" cx="232" cy="144" r="7" fill="var(--mint)" />
+              <circle class="glow" style="--d: 0.4s" cx="262" cy="126" r="7" fill="var(--sky)" />
+              <circle class="glow" style="--d: 0.8s" cx="298" cy="146" r="7" fill="var(--amber)" />
+            </g>
+            <!-- memoria degli agenti -->
+            <g class="pop" style="--d: 2.5s">
+              <rect class="panel2" x="208" y="182" width="118" height="48" rx="10" />
+              <circle cx="226" cy="206" r="8" fill="var(--amber)" />
+            </g>
+            <rect class="bar grow" style="--d: 2.9s" x="242" y="194" width="68" height="6" rx="3" />
+            <rect class="bar-soft grow" style="--d: 3.1s" x="242" y="204" width="52" height="6" rx="3" />
+            <rect class="bar-soft grow" style="--d: 3.3s" x="242" y="214" width="60" height="6" rx="3" />
+          </g>
+        </svg>
+
+        <!-- 3. Pandoc: il documento markdown passa dall'ingranaggio ed esce come Word. -->
+        <svg *ngSwitchCase="'pandoc'" class="scene" viewBox="0 0 360 260">
+          <g class="float">
+            <rect class="panel" x="16" y="14" width="328" height="232" rx="18" />
+            <g class="pop" style="--d: 0.2s">
+              <rect x="34" y="40" width="98" height="146" rx="10" fill="rgba(255,255,255,0.92)" />
+              <text x="83" y="74" text-anchor="middle" font-size="19" font-weight="800" style="fill: #4a56d6">.md</text>
+              <rect x="48" y="90" width="70" height="6" rx="3" fill="#9aa0e8" />
+              <rect x="48" y="104" width="56" height="6" rx="3" fill="#c3c7f2" />
+              <rect x="48" y="118" width="64" height="6" rx="3" fill="#9aa0e8" />
+              <rect x="48" y="132" width="44" height="6" rx="3" fill="#c3c7f2" />
+              <rect x="48" y="146" width="66" height="6" rx="3" fill="#9aa0e8" />
+              <rect x="48" y="160" width="38" height="6" rx="3" fill="#c3c7f2" />
+            </g>
+            <rect class="scan" x="38" y="48" width="90" height="3" rx="1.5" fill="var(--sky)" />
+
+            <path class="flowline flow" d="M136 113 H 158" />
+            <g class="spin">
+              <circle cx="180" cy="113" r="18" fill="none" stroke="var(--amber)" stroke-width="9" stroke-dasharray="6 5.3" />
+              <circle cx="180" cy="113" r="12" fill="var(--amber)" />
+              <circle cx="180" cy="113" r="4.5" fill="#4a3a00" />
+            </g>
+            <path class="flowline flow" d="M202 113 H 224" />
+
+            <g class="pop" style="--d: 1.4s">
+              <rect x="228" y="40" width="98" height="146" rx="10" fill="rgba(255,255,255,0.92)" />
+              <rect x="242" y="54" width="32" height="28" rx="5" fill="#2b5cd6" />
+              <text x="258" y="74" text-anchor="middle" font-size="17" font-weight="800" style="fill: #fff">W</text>
+            </g>
+            <rect class="grow" style="--d: 1.9s" x="242" y="96" width="70" height="6" rx="3" fill="#7d9be8" />
+            <rect class="grow" style="--d: 2.1s" x="242" y="110" width="56" height="6" rx="3" fill="#b8c8f2" />
+            <rect class="grow" style="--d: 2.3s" x="242" y="124" width="64" height="6" rx="3" fill="#7d9be8" />
+            <rect class="grow" style="--d: 2.5s" x="242" y="138" width="44" height="6" rx="3" fill="#b8c8f2" />
+            <rect class="grow" style="--d: 2.7s" x="242" y="152" width="66" height="6" rx="3" fill="#7d9be8" />
+            <g class="pop" style="--d: 3.1s">
+              <circle cx="316" cy="176" r="14" fill="var(--mint)" />
+              <path d="M309 176 l5 5 l9 -10" fill="none" stroke="#0d4a35" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+            </g>
+            <text class="fade" style="--d: 0.6s" x="180" y="222" text-anchor="middle" font-size="15" font-weight="700">Pandoc</text>
+          </g>
+        </svg>
+      </div>
+     </div>
+    </article>
+
+    <button class="nav prev" *ngIf="index > 0" (click)="back()" [attr.aria-label]="'SETUP_GUIDE.BACK' | translate">‹</button>
+    <button class="nav next" *ngIf="!isLast" (click)="next()" [attr.aria-label]="'SETUP_GUIDE.NEXT' | translate">›</button>
+
+    <nav class="dots" role="tablist">
+      <button *ngFor="let st of steps; let i = index"
+              role="tab"
+              [class.active]="i === index"
+              [attr.aria-selected]="i === index"
+              (click)="goTo(i)">
+        <span class="dot-state" [ngClass]="'st-' + stateOf(st)"></span>
+        <span class="dot-label">{{ ('SETUP_GUIDE.' + st.toUpperCase() + '_SHORT') | translate }}</span>
+      </button>
+    </nav>
+  </div>
+
+  <footer class="sg-actions">
+    <button mat-stroked-button (click)="recheck()" [disabled]="checking">
+      <mat-icon [class.spinning]="checking">refresh</mat-icon>
+      {{ (checking ? 'SETUP_GUIDE.CHECKING' : 'SETUP_GUIDE.RECHECK') | translate }}
+    </button>
+    <span class="sg-spacer"></span>
+    <button mat-button (click)="back()" *ngIf="index > 0">{{ 'SETUP_GUIDE.BACK' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="next()">
+      {{ (isLast ? 'SETUP_GUIDE.DONE' : 'SETUP_GUIDE.NEXT') | translate }}
+    </button>
+  </footer>
+</div>

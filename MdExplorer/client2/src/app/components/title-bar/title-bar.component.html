@@ -48,12 +48,24 @@
     </div>
   </div>
 
+  <!-- «?»: la guida di Mark e «Che cosa installare» (20/11/2026, prima la seconda stava nel menu delle impostazioni). -->
   <button mat-icon-button
-          (click)="launchMarkAssistant()"
-          [matTooltip]="'TITLE_BAR.MARK_ASSISTANT_TOOLTIP' | translate"
+          [matMenuTriggerFor]="helpMenu"
+          [matTooltip]="'TITLE_BAR.HELP_TOOLTIP' | translate"
           class="mark-help-trigger">
     <mat-icon>help_outline</mat-icon>
   </button>
+
+  <mat-menu #helpMenu="matMenu">
+    <button mat-menu-item (click)="launchMarkAssistant()">
+      <mat-icon>support_agent</mat-icon>
+      <span>{{ 'TITLE_BAR.MARK_GUIDE' | translate }}</span>
+    </button>
+    <button mat-menu-item (click)="openSetupGuide()">
+      <mat-icon>checklist</mat-icon>
+      <span>{{ 'TITLE_BAR.SETUP_GUIDE' | translate }}</span>
+    </button>
+  </mat-menu>
 
   <button mat-icon-button [matMenuTriggerFor]="settingsMenu" class="settings-trigger">
     <mat-icon>settings</mat-icon>
@@ -87,10 +99,6 @@
     <button mat-menu-item (click)="openAppStoreSettings()">
       <mat-icon>storefront</mat-icon>
       <span>{{ 'TITLE_BAR.APP_STORE_SETTINGS' | translate }}</span>
-    </button>
-    <button mat-menu-item (click)="openSetupGuide()">
-      <mat-icon>checklist</mat-icon>
-      <span>{{ 'TITLE_BAR.SETUP_GUIDE' | translate }}</span>
     </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="navigateToProjects()">

@@ -1,0 +1,347 @@
+// «Che cosa installare» con l'aspetto del carosello di wwwroot/welcome.html (20/11/2026): stessi colori del palco, stessi
+// aloni, stessi mattoni delle animazioni (pop, fade, grow, draw, float…). I colori del palco sono suoi, come nel carosello:
+// sul fondo sfumato il testo è bianco in tutti e due i temi; fuori dal palco valgono i token del tema dell'app.
+
+:host {
+  --stage-a: #4a56d6;
+  --stage-b: #6a3fb8;
+  --stage-c: #8e3a9d;
+  --title-a: #4f5bd5;
+  --title-b: #8a3fb5;
+  --ink: #ffffff;
+  --ink-soft: rgba(255, 255, 255, 0.8);
+  --glass: rgba(255, 255, 255, 0.14);
+  --glass-strong: rgba(255, 255, 255, 0.22);
+  --line: rgba(255, 255, 255, 0.55);
+  --amber: #ffd166;
+  --mint: #7ef0c1;
+  --sky: #8fd3ff;
+  --rose: #ff9ec4;
+  --shadow: 0 24px 60px rgba(40, 40, 110, 0.28);
+  display: block;
+  color: var(--mde-text-primary);
+}
+
+:host-context(body.dark-theme) {
+  --stage-a: #262c5e;
+  --stage-b: #33265f;
+  --stage-c: #452a5c;
+  --title-a: #8fd3ff;
+  --title-b: #c3a6ff;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+// Nella pagina dei progetti occupa tutta la colonna di sinistra; nella finestra ha un'altezza sua.
+:host(.page-mode) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.sg { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sg-page { flex: 1; }
+.sg-window { padding: 20px 22px 16px; }
+
+.sg-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  .sg-head-text { flex: 1; min-width: 0; }
+  .sg-title {
+    margin: 0 0 4px;
+    font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(45deg, var(--title-a), var(--title-b));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .sg-subtitle { margin: 0; color: var(--mde-text-secondary); line-height: 1.5; max-width: 52rem; }
+}
+
+// ── Il palco ─────────────────────────────────────────────────────────────
+.sg-stage {
+  position: relative;
+  flex: 1;
+  min-height: 430px;
+  border-radius: 26px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--stage-a) 0%, var(--stage-b) 55%, var(--stage-c) 100%);
+  box-shadow: var(--shadow);
+  isolation: isolate;
+  container-type: inline-size;
+  color: var(--ink);
+  // La scheda scorre in alto, la fascia delle schede sta sotto: il testo lungo (i comandi del motore) non finisce sotto le etichette.
+  display: flex;
+  flex-direction: column;
+}
+.sg-window .sg-stage { flex: none; height: min(560px, 70vh); }
+
+// Due aloni che si muovono piano dietro a tutto, come nel carosello.
+.sg-stage::before,
+.sg-stage::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 55%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.45;
+}
+.sg-stage::before { background: #7fd0ff; top: -30%; left: -12%; animation: drift-a 16s ease-in-out infinite alternate; }
+.sg-stage::after { background: #ff8fc7; bottom: -38%; right: -10%; animation: drift-b 19s ease-in-out infinite alternate; }
+@keyframes drift-a { to { transform: translate(22%, 26%) scale(1.15); } }
+@keyframes drift-b { to { transform: translate(-24%, -20%) scale(1.1); } }
+
+// La scheda: testo a sinistra, scena a destra, tutti e due centrati come nel carosello. Se il testo è lungo (i comandi del
+// motore) scorre SOLO la colonna del testo: la scena resta ferma e intera.
+.slide {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  animation: slide-in 0.55s ease both;
+  &.from-back { animation-name: slide-in-back; }
+}
+.slide-grid {
+  box-sizing: border-box;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-rows: minmax(0, 100%);
+  align-items: center;
+  gap: 24px;
+  padding: 20px 72px 6px;
+}
+@keyframes slide-in { from { opacity: 0; transform: translateX(46px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-back { from { opacity: 0; transform: translateX(-46px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+// Palco stretto: scena sopra, più piccola, testo sotto.
+@container (max-width: 760px) {
+  .slide-grid { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); align-items: start; padding: 16px 52px 6px; }
+  .scene-wrap { order: -1; max-width: 260px; width: 100%; margin: 0 auto; }
+  .copy { height: 100%; }
+}
+
+.copy {
+  box-sizing: border-box;
+  color: var(--ink);
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 8px 6px 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+.copy > * { animation: rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.copy > :nth-child(2) { animation-delay: 0.08s; }
+.copy > :nth-child(3) { animation-delay: 0.16s; }
+.copy > :nth-child(4) { animation-delay: 0.24s; }
+.copy > :nth-child(5) { animation-delay: 0.32s; }
+@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+.kicker-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px;
+  background: var(--glass-strong); border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 0.76rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  i { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); animation: beacon 1.8s ease-out infinite; }
+}
+@keyframes beacon {
+  0% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.7); }
+  100% { box-shadow: 0 0 0 12px rgba(255, 209, 102, 0); }
+}
+
+// Il colore dello stato sul palco: verde menta a posto, ambra da fare, rosa errore.
+.st-ok { --st: var(--mint); }
+.st-missing, .st-attention, .st-restart { --st: var(--amber); }
+.st-error { --st: var(--rose); }
+.st-checking { --st: rgba(255, 255, 255, 0.6); }
+
+.state-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px 4px 8px; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600;
+  background: rgba(10, 12, 40, 0.28); border: 1px solid var(--st);
+  mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--st); }
+  ::ng-deep circle { stroke: var(--ink) !important; }
+}
+
+.sg-step-title {
+  margin: 14px 0 8px;
+  font-size: clamp(1.35rem, 2.4vw, 1.95rem);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-shadow: 0 2px 14px rgba(20, 20, 70, 0.35);
+}
+.sg-why { margin: 0 0 14px; color: var(--ink-soft); line-height: 1.5; font-size: 0.98rem; }
+
+.glass {
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+}
+
+.sg-status {
+  display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border-left: 4px solid var(--st);
+  line-height: 1.45; word-break: break-word;
+  > mat-icon { color: var(--st); flex: none; }
+  > span { flex: 1; min-width: 0; }
+  ::ng-deep circle { stroke: var(--ink) !important; }
+}
+
+.sg-engines { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.sg-engine {
+  display: grid; grid-template-columns: 24px auto 1fr; column-gap: 8px; align-items: center;
+  mat-icon { color: var(--st); font-size: 20px; width: 20px; height: 20px; }
+  .sg-engine-name { font-weight: 600; }
+  .sg-engine-state { color: var(--ink-soft); }
+  .sg-engine-detail { grid-column: 2 / -1; font-size: 0.85rem; color: var(--ink-soft); }
+}
+.sg-verdict { width: 100%; margin: 4px 0 0; font-weight: 500; }
+
+.sg-how { margin-top: 12px; padding: 10px 12px; }
+.sg-how-title { margin: 0 0 6px; font-size: 0.95rem; font-weight: 700; }
+.sg-how-hint { margin: 6px 0; font-size: 0.88rem; color: var(--ink-soft); line-height: 1.5; }
+.sg-restart-hint { margin-top: 10px; font-style: italic; }
+.sg-cmd {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 6px; margin: 6px 0;
+  padding: 4px 4px 4px 10px; border-radius: 10px;
+  background: rgba(10, 12, 40, 0.38); border: 1px solid rgba(255, 255, 255, 0.16);
+  .sg-cmd-label { grid-column: 1 / -1; padding-top: 2px; font-size: 0.76rem; color: var(--ink-soft); }
+  // Il comando va a capo invece di scorrere: si legge tutto, e il pulsante copia lo prende intero.
+  .sg-cmd-text {
+    min-width: 0; color: var(--ink);
+    font-family: 'Cascadia Code', Consolas, 'DejaVu Sans Mono', monospace; font-size: 0.86rem;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .sg-cmd-copy { grid-column: 2; color: var(--ink); }
+}
+.sg-link {
+  margin-top: 8px;
+  color: var(--ink) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  mat-icon { margin-right: 4px; }
+}
+
+// ── La scena ─────────────────────────────────────────────────────────────
+.scene-wrap { min-width: 0; display: flex; align-items: center; justify-content: center; }
+
+.scene {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  overflow: visible;
+  filter: drop-shadow(0 18px 28px rgba(20, 20, 70, 0.3));
+  text { font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace; fill: var(--ink); }
+
+  .panel  { fill: rgba(255, 255, 255, 0.13); stroke: rgba(255, 255, 255, 0.38); stroke-width: 1.2; }
+  .panel2 { fill: rgba(20, 22, 60, 0.36); stroke: rgba(255, 255, 255, 0.22); stroke-width: 1; }
+  .bar    { fill: rgba(255, 255, 255, 0.6); }
+  .bar-soft { fill: rgba(255, 255, 255, 0.32); }
+  .wire   { fill: none; stroke: var(--line); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .flowline { fill: none; stroke: var(--amber); stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 5 6; }
+
+  // Mattoni delle animazioni, gli stessi del carosello; --d è il ritardo, --t la durata di un tratto.
+  .pop {
+    transform-box: fill-box; transform-origin: center;
+    animation: pop 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) both; animation-delay: var(--d, 0s);
+  }
+  .fade { animation: fade 0.5s ease both; animation-delay: var(--d, 0s); }
+  .grow {
+    transform-box: fill-box; transform-origin: left center;
+    animation: grow 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0s);
+  }
+  // Un tratto che si disegna: richiede pathLength="1" sull'elemento.
+  .draw {
+    stroke-dasharray: 1; stroke-dashoffset: 1;
+    animation: draw var(--t, 0.7s) ease-out forwards; animation-delay: var(--d, 0s);
+  }
+  .float { animation: float 4.5s ease-in-out infinite alternate; }
+  .type { animation: type 1.3s steps(22, end) both; animation-delay: var(--d, 0s); }
+  .ring {
+    transform-box: fill-box; transform-origin: center;
+    animation: ring 1.8s ease-out infinite; animation-delay: var(--d, 0s);
+  }
+  .glow {
+    transform-box: fill-box; transform-origin: center;
+    animation: glow 2.6s ease-in-out infinite; animation-delay: var(--d, 0s);
+  }
+  .flow { animation: flow 1.1s linear infinite; }
+  .spin { transform-box: fill-box; transform-origin: center; animation: spin 4s linear infinite; }
+  .scan { opacity: 0; animation: scan 3.6s ease-in-out 0.5s infinite; }
+}
+
+@keyframes pop  { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes grow { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: none; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes float { from { transform: translateY(-4px); } to { transform: translateY(5px); } }
+@keyframes type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes ring { from { opacity: 0.8; transform: scale(1); } to { opacity: 0; transform: scale(2.3); } }
+@keyframes glow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+@keyframes flow { to { stroke-dashoffset: -22; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes scan {
+  0%   { transform: translateY(0);     opacity: 0; }
+  10%  { opacity: 0.95; }
+  50%  { transform: translateY(124px); opacity: 0.95; }
+  90%  { transform: translateY(0);     opacity: 0.95; }
+  100% { transform: translateY(0);     opacity: 0; }
+}
+
+// ── Comandi sul palco: frecce ai lati, schede in basso ───────────────────
+.nav {
+  position: absolute; top: 50%; z-index: 3;
+  width: 44px; height: 44px; margin-top: -32px;
+  border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+  background: var(--glass); color: #fff;
+  font-size: 22px; line-height: 1; cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, transform 0.2s ease;
+  &:hover { background: var(--glass-strong); transform: scale(1.08); }
+  &:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  &.prev { left: 14px; }
+  &.next { right: 14px; }
+}
+@container (max-width: 760px) {
+  .nav { width: 36px; height: 36px; font-size: 18px; }
+  .nav.prev { left: 8px; }
+  .nav.next { right: 8px; }
+}
+
+.dots {
+  flex: none; z-index: 3;
+  display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px 16px;
+  button {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    background: rgba(10, 12, 40, 0.24); color: var(--ink-soft);
+    font: inherit; font-size: 0.82rem;
+    backdrop-filter: blur(6px);
+    transition: background 0.2s ease, color 0.2s ease;
+    &:hover { background: var(--glass); }
+    &:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    &.active { background: var(--glass-strong); color: var(--ink); border-color: rgba(255, 255, 255, 0.55); }
+  }
+  .dot-state { width: 9px; height: 9px; border-radius: 50%; background: var(--st); }
+  .dot-state.st-checking { animation: pulse 1.2s ease-in-out infinite; }
+}
+@keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+// ── Sotto il palco ───────────────────────────────────────────────────────
+.sg-actions {
+  display: flex; align-items: center; gap: 8px;
+  .sg-spacer { flex: 1; }
+  mat-icon { margin-right: 4px; }
+}
+.spinning { animation: spin 1s linear infinite; }
+
+// Chi ha chiesto meno movimento vede le scene già complete.
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .scene .scan { opacity: 0 !important; }
+  .scene .draw { stroke-dashoffset: 0; }
+}

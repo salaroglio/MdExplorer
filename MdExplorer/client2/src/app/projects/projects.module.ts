@@ -21,6 +21,7 @@ import { GitModule } from '../git/git.module';
 import { ProjectSettingsService } from './services/project-settings.service';
 import { ParticipantGemsModule } from '../components/participant-gems/participant-gems.module';
 import { LanguageLibraryModule } from '../components/language-library/language-library.module';
+import { SetupGuideModule } from '../components/setup-guide/setup-guide.module';
 
 const routes: Routes = [
   {
@@ -59,6 +60,7 @@ const routes: Routes = [
     TranslateModule,
     ParticipantGemsModule,
     LanguageLibraryModule,
+    SetupGuideModule,
   ],
   providers: [
     ProjectSettingsService

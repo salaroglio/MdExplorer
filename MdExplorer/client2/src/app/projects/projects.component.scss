@@ -32,6 +32,9 @@
 
 .left-column {
   min-width: 0;
+  // Elemento della griglia: senza min-height 0 si allunga quanto il contenuto e ignora height 100%. Serve a «Che cosa
+  // installare», che deve scorrere dentro il suo palco invece di allungare la pagina.
+  min-height: 0;
   display: flex;
   flex-direction: column;
   height: 100%;

@@ -2081,7 +2081,8 @@
     "APP_STORE": "App Store",
     "COMPLETED": "Completato",
     "ERROR_STATUS": "Errore",
-    "MARK_ASSISTANT_TOOLTIP": "Apri la guida di Mark",
+    "HELP_TOOLTIP": "Aiuto",
+    "MARK_GUIDE": "Guida di Mark",
     "SETUP_GUIDE": "Che cosa installare"
   },
   "MARK": {
@@ -3095,6 +3096,13 @@
     "COPIED": "Copiato",
     "BACK": "Indietro",
     "NEXT": "Avanti",
-    "DONE": "Fatto"
+    "DONE": "Fatto",
+    "STEP_OF": "{{i}} di {{n}}",
+    "STATE_OK": "a posto",
+    "STATE_MISSING": "da installare",
+    "STATE_ATTENTION": "da sistemare",
+    "STATE_RESTART": "serve un riavvio",
+    "STATE_ERROR": "controllo non riuscito",
+    "STATE_CHECKING": "controllo…"
   }
 }

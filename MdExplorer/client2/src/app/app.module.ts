@@ -36,7 +36,7 @@ import { AppStoreSettingsDialogComponent } from './components/app-store-settings
 import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
 import { LanguageLibraryModule } from './components/language-library/language-library.module';
 import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
-import { SetupGuideDialogComponent } from './components/setup-guide/setup-guide-dialog.component';
+import { SetupGuideModule } from './components/setup-guide/setup-guide.module';
 
 
 const routes: Routes = [
@@ -66,8 +66,7 @@ const routes: Routes = [
     UnifiedSettingsDialogComponent,
     TelegramSettingsComponent,
     AppStoreSettingsDialogComponent,
-    RunCommandDialogComponent,
-    SetupGuideDialogComponent
+    RunCommandDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -88,6 +87,7 @@ const routes: Routes = [
     ParticipantGemsModule,
     LanguageLibraryModule,
     MarkAssistantModule,
+    SetupGuideModule,
   ],
   providers: [
     // the UI language comes from the backend before the first render (see LanguageService)
