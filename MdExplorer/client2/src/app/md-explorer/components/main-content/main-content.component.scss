@@ -227,72 +227,6 @@
   }
 }
 
-// === EMPTY STATE STYLES ===
-.empty-state {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--mde-bg-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 500;
-
-  animation: fadeIn 0.5s ease-out;
-
-  .empty-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 3rem 2rem;
-    max-width: 500px;
-
-    .empty-icon {
-      font-size: 4rem;
-      width: 4rem;
-      height: 4rem;
-      color: var(--mde-text-hint);
-      margin-bottom: 1.5rem;
-      animation: float 3s ease-in-out infinite;
-    }
-
-    .empty-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--mde-text-primary);
-      margin: 0 0 1rem 0;
-    }
-
-    .empty-message {
-      font-size: 1rem;
-      color: var(--mde-text-secondary);
-      line-height: 1.6;
-      margin: 0 0 2rem 0;
-    }
-
-    .empty-actions {
-      .empty-hint {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-        color: var(--mde-text-hint);
-        margin: 0;
-        
-        .hint-icon {
-          font-size: 1.2rem;
-          width: 1.2rem;
-          height: 1.2rem;
-          margin-right: 0.5rem;
-        }
-      }
-    }
-  }
-}
-
 // === FILE DELETED STATE STYLES ===
 .deleted-state {
   position: absolute;
@@ -430,15 +364,6 @@
   75% { transform: translateX(5px); }
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
 @keyframes indexingPulse {
   0%, 100% {
     transform: scale(1);
@@ -454,20 +379,14 @@
 @media (max-width: 768px) {
   .loading-overlay .loading-content,
   .indexing-overlay .indexing-content,
-  .error-state .error-content,
-  .empty-state .empty-content {
+  .error-state .error-content {
     padding: 1.5rem 1rem;
   }
   
-  .error-state .error-content .error-icon,
-  .empty-state .empty-content .empty-icon {
+  .error-state .error-content .error-icon {
     font-size: 2.5rem;
     width: 2.5rem;
     height: 2.5rem;
-  }
-  
-  .empty-state .empty-content .empty-title {
-    font-size: 1.3rem;
   }
   
   .error-state .error-content .error-title {
@@ -482,7 +401,6 @@
   }
   
   .error-state .error-content,
-  .empty-state .empty-content,
   .indexing-overlay .indexing-content {
     padding: 1rem;
   }

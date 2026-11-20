@@ -20,17 +20,30 @@ namespace Ad.Tools.Dal.Decorators
 {
     public class SessionFactoryDB<T> : ISessionFactoryDB<T>, IConvertible where T : ISessionDB
     {
-        private ISessionFactory _sessionFactory;        
+        private ISessionFactory _sessionFactory;
+        private string _connectionString;
 
-        public SessionFactoryDB(IPersistenceConfigurer config, Assembly assembly)
+        public SessionFactoryDB(IPersistenceConfigurer config, Assembly assembly, string connectionString)
         {
             _sessionFactory =  Fluently.Configure()
                         .Database(config)
                         .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
+            _connectionString = connectionString;
         }
 
-        public void ReplaceDB(IPersistenceConfigurer config, Assembly assembly)
+        public void ReplaceDB(IPersistenceConfigurer config, Assembly assembly, string connectionString)
         {
+            // Same database, factory still open: keep it. Opening a project replaces all three factories, the user
+            // database included, whose file never changes; closing the old factory left the sessions already taken in
+            // the same request (MdProjectsController.SetFolderProject, JavaHealthService) on a closed factory.
+            // NHibernate 5.3.9 let them run; 5.4+ throws ObjectDisposedException on their first LINQ query
+            // (sprint .NET 10, L1b, 18/11/2026).
+            if (string.Equals(connectionString, _connectionString, StringComparison.Ordinal) && !_sessionFactory.IsClosed)
+            {
+                Console.WriteLine("*** [ReplaceDB] Same database, factory kept");
+                return;
+            }
+
             // CRITICAL: Close the old session factory to release database connections
             // This prevents "database is locked" errors when switching projects
             var oldFactory = _sessionFactory;
@@ -59,6 +72,7 @@ namespace Ad.Tools.Dal.Decorators
             _sessionFactory = Fluently.Configure()
                         .Database(config)
                         .Mappings(_ => _.FluentMappings.AddFromAssembly(assembly)).BuildSessionFactory();
+            _connectionString = connectionString;
             System.Diagnostics.Debug.WriteLine("*** [ReplaceDB] New factory created");
             Console.WriteLine("*** [ReplaceDB] New factory created");
         }

@@ -21,6 +21,7 @@ import { buildLessonRegistry, MICRO_TIPS, MICRO_TIPS_DONE, WELCOME_TOUR } from '
 import { buildFolderActions } from './lessons/folder-actions';
 import { INPUT_HANDLER_TYPES } from './handlers';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { SetupGuideService } from '../components/setup-guide/setup-guide.service';
 import { MarkActionsService } from './mark-actions.service';
 
 const COMPLETED_KEY_PREFIX = 'mark.lesson.';
@@ -442,8 +443,6 @@ export class MarkAssistantService {
    * because welcome-tour is re-runnable from the micro-tip rotation.
    */
   private checkAutoStart(): void {
-    if (localStorage.getItem(WELCOME_AUTO_SHOWN_KEY) === 'true') return;
-
     // mdProjects is a BehaviorSubject seeded with [] at service construction.
     // skip(1) ignores that init emit and waits for the first real fetch result
     // (triggered by ProjectsComponent.ngOnInit -> fetchProjects()).
@@ -451,11 +450,15 @@ export class MarkAssistantService {
       skip(1),
       filter(p => p !== null && p !== undefined),
       take(1)
-    ).subscribe(projects => {
+    ).subscribe(async projects => {
       if (this.autoStartChecked) return;
       this.autoStartChecked = true;
       const hasNoProjects = !projects || projects.length === 0;
       if (!hasNoProjects) return;
+      // Prima «Che cosa installare», poi il tour (19/11/2026): senza un motore Mark non risponde, e due presentazioni
+      // insieme sono troppe. La pagina si apre da sola una volta sola (segno nel DB del servizio); il tour aspetta che la si chiuda.
+      await this.injector.get(SetupGuideService).showIfFirstRun();
+      if (localStorage.getItem(WELCOME_AUTO_SHOWN_KEY) === 'true') return;
       // Wait a moment for the projects page to be fully rendered so [data-test] anchors exist
       setTimeout(() => {
         if (document.querySelector('[data-test="new-folder-button"]')) {

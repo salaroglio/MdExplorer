@@ -24,3 +24,38 @@ mat-dialog-actions {
 .ai-error-message {
   color: var(--mde-error-fg);
 }
+// Titolo e descrizione separati (19/11/2026): etichetta esplicita sopra ogni campo.
+.commit-field-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-weight: 500;
+}
+
+.commit-field {
+  width: 100%;
+}
+
+.title-too-long {
+  color: var(--mde-error-fg);
+}
+
+.commit-ai-row {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.commit-ai-icon {
+  margin-right: 4px;
+}
+
+.ai-error-message {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.ai-error-icon {
+  font-size: 16px;
+  vertical-align: middle;
+}

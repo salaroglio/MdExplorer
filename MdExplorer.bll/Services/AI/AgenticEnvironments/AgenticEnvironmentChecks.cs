@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GitHub.Copilot;
 using MdExplorer.Features.Services.AI.ClaudeCode;
 using MdExplorer.Features.Services.AI.CopilotAcp;
+using MdExplorer.Features.Services.AI.CopilotSdk;
 using MdExplorer.Features.Services.AI.OpenCode;
 
 namespace MdExplorer.Features.Services.AI.AgenticEnvironments
@@ -145,7 +146,16 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
                 UseLoggedInUser = true,
             });
 
-            await client.StartAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await client.StartAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (CopilotCliCompatibility.IsProtocolMismatch(ex))
+            {
+                // Installed and logged in, but a CLI newer (or older) than the SDK: not usable, and the reason says how to fix it.
+                var explained = await CopilotCliCompatibility.ExplainAsync(ex, ct).ConfigureAwait(false);
+                return AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.IncompatibleVersion, explained.Message);
+            }
             try
             {
                 var status = await client.GetAuthStatusAsync(ct).ConfigureAwait(false);

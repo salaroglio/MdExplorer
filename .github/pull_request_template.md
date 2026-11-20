@@ -32,7 +32,7 @@ Please describe the tests you ran to verify your changes:
 ### Test Configuration
 
 - **OS**: [e.g. Windows 11, Ubuntu 22.04]
-- **.NET SDK**: [e.g. 8.0.100]
+- **.NET SDK**: [e.g. 10.0.100]
 - **Node.js**: [e.g. 14.21.3]
 
 ## Checklist

@@ -6,6 +6,7 @@ import { GITService } from '../../services/gitservice.service';
 import { GitCommitInfo } from '../../models/modern-git-models';
 import { TranslateService } from '@ngx-translate/core';
 import { GitDialogRepo } from '../../components/git-repo-picker/git-repo-picker.component';
+import { CommitMessageParts, splitCommitMessage } from './commit-message';
 
 export interface GitHistoryDialogData {
   projectPath: string;
@@ -27,7 +28,12 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
   error: string | null = null;
   commits: GitCommitInfo[] = [];
   dataSource: MatTableDataSource<GitCommitInfo>;
-  displayedColumns: string[] = ['hash', 'date', 'author', 'message'];
+  // Senza la colonna dell'hash (19/11/2026): l'hash sta nel dettaglio del commit, con il tasto per copiarlo.
+  displayedColumns: string[] = ['date', 'author', 'message'];
+  /** Il commit aperto sotto la sua riga: uno alla volta, come in un accordion. */
+  expandedHash: string | null = null;
+  copiedHash: string | null = null;
+  private parts = new Map<string, CommitMessageParts>();
   selectedView: 'table' | 'graph' = 'table';
 
   /** I repository fra cui scegliere, e quello di cui si sta guardando la cronologia. */
@@ -81,6 +87,8 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
       next: (commits) => {
         this.isLoading = false;
         this.commits = commits;
+        this.parts = new Map(commits.map(c => [c.hash, splitCommitMessage(c.message)]));
+        this.expandedHash = null;
         this.dataSource.data = commits;
 
         // If graph view is selected and we have commits, render the graph
@@ -157,7 +165,7 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
 
       // Truncate message if too long
       const maxMessageWidth = canvas.width - leftMargin - 40;
-      let message = commit.message;
+      let message = this.partsOf(commit).title;
       if (ctx.measureText(message).width > maxMessageWidth) {
         while (ctx.measureText(message + '...').width > maxMessageWidth && message.length > 0) {
           message = message.substring(0, message.length - 1);
@@ -168,13 +176,37 @@ export class GitHistoryDialogComponent implements OnInit, AfterViewInit {
     });
   }
 
-  formatDate(date: Date | string): string {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  /** Testata, paragrafi e punti del messaggio, calcolati una volta per commit. */
+  partsOf(commit: GitCommitInfo): CommitMessageParts {
+    let p = this.parts.get(commit.hash);
+    if (!p) { p = splitCommitMessage(commit.message); this.parts.set(commit.hash, p); }
+    return p;
   }
 
-  copyHash(hash: string): void {
-    navigator.clipboard.writeText(hash);
+  hasDetail(commit: GitCommitInfo): boolean {
+    return this.partsOf(commit).blocks.length > 0;
+  }
+
+  toggle(commit: GitCommitInfo): void {
+    this.expandedHash = this.expandedHash === commit.hash ? null : commit.hash;
+  }
+
+  formatDay(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString();
+  }
+
+  formatTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  copyHash(hash: string, event?: Event): void {
+    event?.stopPropagation();
+    navigator.clipboard.writeText(hash).then(() => {
+      this.copiedHash = hash;
+      setTimeout(() => { if (this.copiedHash === hash) this.copiedHash = null; }, 1500);
+    }, err => console.error('[GitHistory] copia dell\'hash non riuscita:', err));
   }
 
   onClose(): void {

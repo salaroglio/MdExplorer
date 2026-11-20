@@ -248,7 +248,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "CommitMessageDialogComponent": () => (/* binding */ CommitMessageDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
 /* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 4363);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
@@ -277,14 +277,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function CommitMessageDialogComponent_mat_spinner_21_Template(rf, ctx) {
+function CommitMessageDialogComponent_mat_spinner_32_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 11);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 14);
   }
 }
-function CommitMessageDialogComponent_div_22_Template(rf, ctx) {
+function CommitMessageDialogComponent_div_33_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 12)(1, "mat-icon", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 15)(1, "mat-icon", 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "warning");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
@@ -303,16 +303,34 @@ class CommitMessageDialogComponent {
     this.http = http;
     this.translate = translate;
     this.aiChat = aiChat;
+    /** The Conventional Commits header: the line `git log --oneline` shows. */
+    this.commitTitle = '';
+    /** The body: one bullet per activity being recorded (user's decision, 19/11/2026). */
+    this.commitBody = '';
+    this.maxTitleLength = 72;
     this.isGeneratingMessage = false;
     this.aiError = null;
-    this.commitMessage = data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG');
+    this.setMessage(data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG'));
+  }
+  /** Title, blank line, body — the shape git expects; the body only when there is one. */
+  get commitMessage() {
+    const title = (this.commitTitle || '').trim();
+    const body = (this.commitBody || '').replace(/\s+$/, '');
+    return body.trim() ? `${title}\n\n${body}` : title;
+  }
+  /** First line → title; what follows the blank line → body. */
+  setMessage(message) {
+    const lines = (message || '').replace(/\r\n?/g, '\n').split('\n');
+    this.commitTitle = (lines.shift() || '').trim();
+    while (lines.length && !lines[0].trim()) lines.shift();
+    this.commitBody = lines.join('\n').replace(/\s+$/, '');
   }
   onCancel() {
     this.dialogRef.close(null);
   }
   onConfirm() {
-    if (this.commitMessage && this.commitMessage.trim()) {
-      this.dialogRef.close(this.commitMessage.trim());
+    if (this.commitTitle && this.commitTitle.trim()) {
+      this.dialogRef.close(this.commitMessage);
     }
   }
   /**
@@ -323,7 +341,7 @@ class CommitMessageDialogComponent {
    */
   generateWithAi() {
     var _this = this;
-    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       if (!_this.data.projectPath) {
         _this.aiError = _this.translate.instant('GIT_COMMIT.NO_PROJECT_PATH');
         return;
@@ -343,7 +361,7 @@ class CommitMessageDialogComponent {
         const cleaned = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_3__.firstValueFrom)(_this.http.post('/api/GitAi/clean-commit-message', {
           raw
         }));
-        _this.commitMessage = cleaned.message;
+        _this.setMessage(cleaned.message);
       } catch (err) {
         console.error('Error generating commit message:', err);
         _this.aiError = err?.error?.error || err?.message || _this.translate.instant('GIT_COMMIT.GENERATION_ERROR');
@@ -361,86 +379,115 @@ class CommitMessageDialogComponent {
     this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
       type: CommitMessageDialogComponent,
       selectors: [["app-commit-message-dialog"]],
-      decls: 29,
-      vars: 26,
-      consts: [["mat-dialog-title", ""], ["appearance", "outline", 2, "width", "100%", "min-width", "400px"], ["matInput", "", "rows", "4", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], [2, "margin-top", "16px", "display", "flex", "align-items", "center", "gap", "8px"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [2, "margin-right", "4px"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["class", "ai-error-message", "style", "margin-top: 8px; font-size: 12px;", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [1, "ai-error-message", 2, "margin-top", "8px", "font-size", "12px"], [2, "font-size", "16px", "vertical-align", "middle"]],
+      decls: 40,
+      vars: 41,
+      consts: [["mat-dialog-title", ""], ["for", "commit-title", 1, "commit-field-label"], ["appearance", "outline", 1, "commit-field"], ["id", "commit-title", "matInput", "", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], ["align", "end"], ["for", "commit-body", 1, "commit-field-label"], ["id", "commit-body", "matInput", "", "rows", "10", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], [1, "commit-ai-row"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [1, "commit-ai-icon"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["class", "ai-error-message", 4, "ngIf"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [1, "ai-error-message"], [1, "ai-error-icon"]],
       template: function CommitMessageDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "mat-dialog-content")(4, "mat-form-field", 1)(5, "mat-label");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](7, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "mat-dialog-content")(4, "label", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](6, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "textarea", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function CommitMessageDialogComponent_Template_textarea_ngModelChange_8_listener($event) {
-            return ctx.commitMessage = $event;
-          })("keydown.enter", function CommitMessageDialogComponent_Template_textarea_keydown_enter_8_listener($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](7, "mat-form-field", 2)(8, "input", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function CommitMessageDialogComponent_Template_input_ngModelChange_8_listener($event) {
+            return ctx.commitTitle = $event;
+          })("keydown.enter", function CommitMessageDialogComponent_Template_input_keydown_enter_8_listener($event) {
             return $event.ctrlKey && ctx.onConfirm();
           });
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](9, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10, "    ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](11, "mat-hint");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](12);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](13, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](10, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](11);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](12, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](13, "mat-hint", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](14);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](14, "div", 3)(15, "button", 4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_15_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](15, "label", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](16);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](17, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](18, "mat-form-field", 2)(19, "textarea", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function CommitMessageDialogComponent_Template_textarea_ngModelChange_19_listener($event) {
+            return ctx.commitBody = $event;
+          })("keydown.enter", function CommitMessageDialogComponent_Template_textarea_keydown_enter_19_listener($event) {
+            return $event.ctrlKey && ctx.onConfirm();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](20, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](21, "    ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](22, "mat-hint");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](23);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](24, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](25, "div", 7)(26, "button", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_26_listener() {
             return ctx.generateWithAi();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](16, "mat-icon", 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](17, "smart_toy");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](27, "mat-icon", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](28, "smart_toy");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](18);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](19, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](20, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](29);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](30, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](31, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](21, CommitMessageDialogComponent_mat_spinner_21_Template, 1, 0, "mat-spinner", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](32, CommitMessageDialogComponent_mat_spinner_32_Template, 1, 0, "mat-spinner", 10);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](22, CommitMessageDialogComponent_div_22_Template, 4, 1, "div", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](33, CommitMessageDialogComponent_div_33_Template, 4, 1, "div", 11);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](23, "mat-dialog-actions", 8)(24, "button", 9);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_24_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](34, "mat-dialog-actions", 4)(35, "button", 12);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_35_listener() {
             return ctx.onCancel();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](25);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](26, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](36);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](37, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](27, "button", 10);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_27_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](38, "button", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_38_listener() {
             return ctx.onConfirm();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](28, " Commit ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](39, " Commit ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 12, "GIT_COMMIT.TITLE"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](7, 14, "GIT_COMMIT.LABEL"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitMessage)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](9, 16, "GIT_COMMIT.PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 21, "GIT_COMMIT.TITLE"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](13, 18, "GIT_COMMIT.HINT"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 23, "GIT_COMMIT.TITLE_LABEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitTitle)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](9, 25, "GIT_COMMIT.TITLE_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 27, "GIT_COMMIT.TITLE_HINT"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("title-too-long", ctx.commitTitle.length > ctx.maxTitleLength);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate2"]("", ctx.commitTitle.length, " / ", ctx.maxTitleLength, "");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](17, 29, "GIT_COMMIT.BODY_LABEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitBody)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](20, 31, "GIT_COMMIT.BODY_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](24, 33, "GIT_COMMIT.HINT"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](19, 20, "GIT_COMMIT.GENERATING") : _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](20, 22, "GIT_COMMIT.GENERATE_AI"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](30, 35, "GIT_COMMIT.GENERATING") : _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](31, 37, "GIT_COMMIT.GENERATE_AI"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.aiError);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](26, 24, "COMMON.CANCEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](37, 39, "COMMON.CANCEL"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", !ctx.commitMessage || !ctx.commitMessage.trim() || ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", !ctx.commitTitle || !ctx.commitTitle.trim() || ctx.isGeneratingMessage);
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyLabel, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_9__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_12__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslatePipe],
-      styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvY29tbWl0LW1lc3NhZ2UtZGlhbG9nL2NvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0Y7O0FBR0E7RUFDRSwwQkFBQTtBQUFGIiwic291cmNlc0NvbnRlbnQiOlsiOjpuZy1kZWVwIC5tYXQtZGlhbG9nLWNvbnRhaW5lciB7XG4gIHBhZGRpbmc6IDI0cHg7XG59XG5cbm1hdC1kaWFsb2ctY29udGVudCB7XG4gIG1hcmdpbjogMjBweCAwO1xufVxuXG5tYXQtZm9ybS1maWVsZCB7XG4gIGZvbnQtc2l6ZTogMTRweDtcbn1cblxudGV4dGFyZWEge1xuICBmb250LWZhbWlseTogbW9ub3NwYWNlO1xuICBmb250LXNpemU6IDE0cHg7XG59XG5cbm1hdC1kaWFsb2ctYWN0aW9ucyB7XG4gIG1hcmdpbi10b3A6IDE2cHg7XG4gIHBhZGRpbmc6IDA7XG59XG5cbi8vIENvbG9yZSBzcG9zdGF0byBkYWxsbyBzdGlsZSBpbmxpbmUgZGVsIHRlbXBsYXRlXG4uYWktZXJyb3ItbWVzc2FnZSB7XG4gIGNvbG9yOiB2YXIoLS1tZGUtZXJyb3ItZmcpO1xufSJdLCJzb3VyY2VSb290IjoiIn0= */"]
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyHint, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_9__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_12__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslatePipe],
+      styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-field-label[_ngcontent-%COMP%] {\n  display: block;\n  margin: 8px 0 4px;\n  font-weight: 500;\n}\n\n.commit-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.title-too-long[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-ai-row[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.commit-ai-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n}\n\n.ai-error-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvY29tbWl0LW1lc3NhZ2UtZGlhbG9nL2NvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0Y7O0FBR0E7RUFDRSwwQkFBQTtBQUFGOztBQUdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjs7QUFHQTtFQUNFLDBCQUFBO0FBQUY7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFBRjs7QUFHQTtFQUNFLGlCQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0EsZUFBQTtBQUFGOztBQUdBO0VBQ0UsZUFBQTtFQUNBLHNCQUFBO0FBQUYiLCJzb3VyY2VzQ29udGVudCI6WyI6Om5nLWRlZXAgLm1hdC1kaWFsb2ctY29udGFpbmVyIHtcbiAgcGFkZGluZzogMjRweDtcbn1cblxubWF0LWRpYWxvZy1jb250ZW50IHtcbiAgbWFyZ2luOiAyMHB4IDA7XG59XG5cbm1hdC1mb3JtLWZpZWxkIHtcbiAgZm9udC1zaXplOiAxNHB4O1xufVxuXG50ZXh0YXJlYSB7XG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XG4gIGZvbnQtc2l6ZTogMTRweDtcbn1cblxubWF0LWRpYWxvZy1hY3Rpb25zIHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgcGFkZGluZzogMDtcbn1cblxuLy8gQ29sb3JlIHNwb3N0YXRvIGRhbGxvIHN0aWxlIGlubGluZSBkZWwgdGVtcGxhdGVcbi5haS1lcnJvci1tZXNzYWdlIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG4vLyBUaXRvbG8gZSBkZXNjcml6aW9uZSBzZXBhcmF0aSAoMTkvMTEvMjAyNik6IGV0aWNoZXR0YSBlc3BsaWNpdGEgc29wcmEgb2duaSBjYW1wby5cbi5jb21taXQtZmllbGQtbGFiZWwge1xuICBkaXNwbGF5OiBibG9jaztcbiAgbWFyZ2luOiA4cHggMCA0cHg7XG4gIGZvbnQtd2VpZ2h0OiA1MDA7XG59XG5cbi5jb21taXQtZmllbGQge1xuICB3aWR0aDogMTAwJTtcbn1cblxuLnRpdGxlLXRvby1sb25nIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG5cbi5jb21taXQtYWktcm93IHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG59XG5cbi5jb21taXQtYWktaWNvbiB7XG4gIG1hcmdpbi1yaWdodDogNHB4O1xufVxuXG4uYWktZXJyb3ItbWVzc2FnZSB7XG4gIG1hcmdpbi10b3A6IDhweDtcbiAgZm9udC1zaXplOiAxMnB4O1xufVxuXG4uYWktZXJyb3ItaWNvbiB7XG4gIGZvbnQtc2l6ZTogMTZweDtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbn1cbiJdLCJzb3VyY2VSb290IjoiIn0= */"]
     });
   }
 }
@@ -814,7 +861,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitBranchDialogComponent": () => (/* binding */ GitBranchDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
 /* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
@@ -1468,7 +1515,7 @@ class GitBranchDialogComponent {
   }
   switchToBranch(branch) {
     var _this = this;
-    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       if (branch.isCurrentBranch) {
         _this.snackBar.open(_this.translate.instant('GIT_BRANCH.ALREADY_ON_BRANCH'), 'OK', {
           duration: 2000
@@ -1676,6 +1723,72 @@ class GitBranchDialogComponent {
 
 /***/ }),
 
+/***/ 6634:
+/*!******************************************************************!*\
+  !*** ./src/app/git/dialogs/git-history-dialog/commit-message.ts ***!
+  \******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "splitCommitMessage": () => (/* binding */ splitCommitMessage)
+/* harmony export */ });
+/** Le righe finali che git aggiunge per chi ha firmato o collaborato: non sono il racconto del commit. */
+const TRAILER = /^(co-authored-by|signed-off-by|reviewed-by|claude-session|change-id):\s/i;
+const BULLET = /^\s*[-*•]\s+(.*)$/;
+function splitCommitMessage(message) {
+  const lines = (message || '').replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length && !lines[i].trim()) i++;
+  const title = (lines[i] || '').trim();
+  const blocks = [];
+  let paragraph = [];
+  let list = null;
+  const closeParagraph = () => {
+    if (paragraph.length) {
+      blocks.push({
+        text: paragraph.join(' ')
+      });
+      paragraph = [];
+    }
+  };
+  const closeList = () => {
+    if (list) {
+      blocks.push({
+        points: list
+      });
+      list = null;
+    }
+  };
+  for (const raw of lines.slice(i + 1)) {
+    const line = raw.trimEnd();
+    if (!line.trim()) {
+      closeParagraph();
+      continue;
+    } // una riga vuota fra due punti non chiude l'elenco
+    if (TRAILER.test(line.trim())) continue;
+    const bullet = BULLET.exec(line);
+    if (bullet) {
+      closeParagraph();
+      (list ??= []).push(bullet[1].trim());
+    } else if (list && /^\s/.test(line)) {
+      // la continuazione di un punto lungo, rientrata sotto il suo testo
+      list[list.length - 1] += ' ' + line.trim();
+    } else {
+      closeList();
+      paragraph.push(line.trim());
+    }
+  }
+  closeParagraph();
+  closeList();
+  return {
+    title,
+    blocks
+  };
+}
+
+/***/ }),
+
 /***/ 9497:
 /*!********************************************************************************!*\
   !*** ./src/app/git/dialogs/git-history-dialog/git-history-dialog.component.ts ***!
@@ -1686,18 +1799,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "GitHistoryDialogComponent": () => (/* binding */ GitHistoryDialogComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-table */ 6538);
-/* harmony import */ var _angular_material_sort__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/sort */ 2197);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
-/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
-/* harmony import */ var _components_git_repo_picker_git_repo_picker_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../components/git-repo-picker/git-repo-picker.component */ 346);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-table */ 6538);
+/* harmony import */ var _angular_material_sort__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/sort */ 2197);
+/* harmony import */ var _commit_message__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./commit-message */ 6634);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/gitservice.service */ 7224);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common */ 4666);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/icon */ 7822);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
+/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
+/* harmony import */ var _components_git_repo_picker_git_repo_picker_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../components/git-repo-picker/git-repo-picker.component */ 346);
+
 
 
 
@@ -1716,310 +1831,424 @@ __webpack_require__.r(__webpack_exports__);
 const _c0 = ["graphCanvas"];
 function GitHistoryDialogComponent_div_5_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "mat-spinner");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "p");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "mat-spinner");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "p");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 1, "GIT_HISTORY.LOADING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](4, 1, "GIT_HISTORY.LOADING"));
   }
 }
 function GitHistoryDialogComponent_div_6_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 8)(1, "mat-icon", 9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "error");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "p");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 8)(1, "mat-icon", 9);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "error");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "p");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r1.error);
+    const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r1.error);
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_th_3_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "th", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "th", 31);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.HASH"), " ");
-  }
-}
-function GitHistoryDialogComponent_div_7_div_12_td_4_mat_icon_4_Template(rf, ctx) {
-  if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "mat-icon", 35);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "merge_type");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-  }
-  if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](1, 1, "GIT_HISTORY.MERGE_COMMIT"));
-  }
-}
-function GitHistoryDialogComponent_div_7_div_12_td_4_span_5_Template(rf, ctx) {
-  if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "span", 36);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3, "push_pin");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-  }
-  if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](1, 2, "GITFLOW.PROJECT_IS_HERE_TIP"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 4, "GITFLOW.PROJECT_IS_HERE"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.DATE"), " ");
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_td_4_Template(rf, ctx) {
   if (rf & 1) {
-    const _r20 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "td", 31)(1, "span", 32);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_div_12_td_4_Template_span_click_1_listener() {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r20);
-      const commit_r16 = restoredCtx.$implicit;
-      const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r19.copyHash(commit_r16.hash));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](4, GitHistoryDialogComponent_div_7_div_12_td_4_mat_icon_4_Template, 3, 3, "mat-icon", 33);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](5, GitHistoryDialogComponent_div_7_div_12_td_4_span_5_Template, 6, 6, "span", 34);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "td", 32)(1, "span", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "span", 34);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
     const commit_r16 = ctx.$implicit;
-    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 4, "GIT_HISTORY.CLICK_TO_COPY"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", commit_r16.shortHash || commit_r16.hash.substring(0, 7), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", commit_r16.isMerge);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r6.isRecordedByProject(commit_r16));
+    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r6.formatDay(commit_r16.date));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r6.formatTime(commit_r16.date));
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_th_6_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "th", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "th", 31);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.DATE"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.AUTHOR"), " ");
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_td_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "td", 37);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "td", 35);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const commit_r21 = ctx.$implicit;
-    const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx_r8.formatDate(commit_r21.date), " ");
+    const commit_r17 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", commit_r17.author, " ");
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_th_9_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "th", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "th", 36);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.AUTHOR"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.MESSAGE"), " ");
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_10_mat_icon_6_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "mat-icon", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](2, "merge_type");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](1, 1, "GIT_HISTORY.MERGE_COMMIT"));
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_10_span_7_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "span", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "push_pin");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](1, 2, "GITFLOW.PROJECT_IS_HERE_TIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](5, 4, "GITFLOW.PROJECT_IS_HERE"), " ");
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_td_10_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "td", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "td", 37)(1, "div", 38)(2, "mat-icon", 39);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](3, "chevron_right");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](4, "span", 40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitHistoryDialogComponent_div_7_div_12_td_10_mat_icon_6_Template, 3, 3, "mat-icon", 41);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitHistoryDialogComponent_div_7_div_12_td_10_span_7_Template, 6, 6, "span", 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const commit_r22 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", commit_r22.author, " ");
+    const commit_r18 = ctx.$implicit;
+    const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("open", ctx_r10.expandedHash === commit_r18.hash);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("title", ctx_r10.partsOf(commit_r18).title);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r10.partsOf(commit_r18).title);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", commit_r18.isMerge);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r10.isRecordedByProject(commit_r18));
   }
 }
-function GitHistoryDialogComponent_div_7_div_12_th_12_Template(rf, ctx) {
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_p_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "th", 39);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "p", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.MESSAGE"), " ");
+    const block_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](block_r25.text);
   }
 }
-function GitHistoryDialogComponent_div_7_div_12_td_13_Template(rf, ctx) {
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_ul_2_li_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "td", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "li");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const commit_r23 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", commit_r23.message, " ");
+    const point_r30 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](point_r30);
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_ul_2_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "ul", 55);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_ul_2_li_1_Template, 2, 1, "li", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const block_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", block_r25.points);
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_p_1_Template, 2, 1, "p", 52);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_ul_2_Template, 2, 1, "ul", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+  }
+  if (rf & 2) {
+    const block_r25 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", block_r25.text);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", block_r25.points);
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_p_2_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "p", 56);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.NO_DETAIL"));
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r34 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 47);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_ng_container_1_Template, 3, 2, "ng-container", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](2, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_p_2_Template, 3, 3, "p", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "div", 50)(4, "code");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](6, "button", 51);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_div_12_td_12_div_1_Template_button_click_6_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r34);
+      const commit_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+      const ctx_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r32.copyHash(commit_r21.hash, $event));
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](7, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](9);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()()()();
+  }
+  if (rf & 2) {
+    const commit_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]().$implicit;
+    const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngForOf", ctx_r22.partsOf(commit_r21).blocks);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx_r22.hasDetail(commit_r21));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](commit_r21.hash);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](7, 5, ctx_r22.copiedHash === commit_r21.hash ? "GIT_HISTORY.COPIED" : "GIT_HISTORY.CLICK_TO_COPY"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](ctx_r22.copiedHash === commit_r21.hash ? "done" : "content_copy");
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_td_12_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "td", 45);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](1, GitHistoryDialogComponent_div_7_div_12_td_12_div_1_Template, 10, 7, "div", 46);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const commit_r21 = ctx.$implicit;
+    const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵattribute"]("colspan", ctx_r11.displayedColumns.length);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r11.expandedHash === commit_r21.hash);
+  }
+}
+function GitHistoryDialogComponent_div_7_div_12_tr_13_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "tr", 57);
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_tr_14_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "tr", 41);
+    const _r38 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "tr", 58);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_div_12_tr_14_Template_tr_click_0_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r38);
+      const row_r36 = restoredCtx.$implicit;
+      const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r37.toggle(row_r36));
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const row_r36 = ctx.$implicit;
+    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("recorded-row", ctx_r13.isRecordedByProject(row_r36))("expanded-row", ctx_r13.expandedHash === row_r36.hash);
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_tr_15_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "tr", 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](0, "tr", 59);
   }
   if (rf & 2) {
-    const row_r24 = ctx.$implicit;
-    const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("recorded-row", ctx_r14.isRecordedByProject(row_r24));
+    const row_r39 = ctx.$implicit;
+    const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵclassProp"]("open", ctx_r14.expandedHash === row_r39.hash);
   }
 }
 function GitHistoryDialogComponent_div_7_div_12_div_16_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 43);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.NO_COMMITS"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.NO_COMMITS"), " ");
   }
 }
+const _c1 = function () {
+  return ["detail"];
+};
 function GitHistoryDialogComponent_div_7_div_12_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 15)(1, "table", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](2, 17);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_7_div_12_th_3_Template, 3, 3, "th", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](4, GitHistoryDialogComponent_div_7_div_12_td_4_Template, 6, 6, "td", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](5, 20);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](6, GitHistoryDialogComponent_div_7_div_12_th_6_Template, 3, 3, "th", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](7, GitHistoryDialogComponent_div_7_div_12_td_7_Template, 2, 1, "td", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](8, 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](9, GitHistoryDialogComponent_div_7_div_12_th_9_Template, 3, 3, "th", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](10, GitHistoryDialogComponent_div_7_div_12_td_10_Template, 2, 1, "td", 23);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](11, 24);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](12, GitHistoryDialogComponent_div_7_div_12_th_12_Template, 3, 3, "th", 25);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](13, GitHistoryDialogComponent_div_7_div_12_td_13_Template, 2, 1, "td", 26);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](14, GitHistoryDialogComponent_div_7_div_12_tr_14_Template, 1, 0, "tr", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](15, GitHistoryDialogComponent_div_7_div_12_tr_15_Template, 1, 2, "tr", 28);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](16, GitHistoryDialogComponent_div_7_div_12_div_16_Template, 3, 3, "div", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 15)(1, "table", 16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](2, 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_7_div_12_th_3_Template, 3, 3, "th", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](4, GitHistoryDialogComponent_div_7_div_12_td_4_Template, 5, 2, "td", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](5, 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitHistoryDialogComponent_div_7_div_12_th_6_Template, 3, 3, "th", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitHistoryDialogComponent_div_7_div_12_td_7_Template, 2, 1, "td", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](8, 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](9, GitHistoryDialogComponent_div_7_div_12_th_9_Template, 3, 3, "th", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](10, GitHistoryDialogComponent_div_7_div_12_td_10_Template, 8, 6, "td", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerStart"](11, 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](12, GitHistoryDialogComponent_div_7_div_12_td_12_Template, 2, 2, "td", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](13, GitHistoryDialogComponent_div_7_div_12_tr_13_Template, 1, 0, "tr", 27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](14, GitHistoryDialogComponent_div_7_div_12_tr_14_Template, 1, 4, "tr", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](15, GitHistoryDialogComponent_div_7_div_12_tr_15_Template, 1, 2, "tr", 29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](16, GitHistoryDialogComponent_div_7_div_12_div_16_Template, 3, 3, "div", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("dataSource", ctx_r3.dataSource);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("matHeaderRowDef", ctx_r3.displayedColumns);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("matRowDefColumns", ctx_r3.displayedColumns);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r3.commits.length === 0);
+    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("dataSource", ctx_r3.dataSource);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matHeaderRowDef", ctx_r3.displayedColumns);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matRowDefColumns", ctx_r3.displayedColumns);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("matRowDefColumns", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpureFunction0"](5, _c1));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r3.commits.length === 0);
   }
 }
 function GitHistoryDialogComponent_div_7_div_13_div_3_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 43);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.NO_COMMITS"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 1, "GIT_HISTORY.NO_COMMITS"), " ");
   }
 }
 function GitHistoryDialogComponent_div_7_div_13_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 44);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](1, "canvas", 45, 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_7_div_13_div_3_Template, 3, 3, "div", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 61);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelement"](1, "canvas", 62, 63);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](3, GitHistoryDialogComponent_div_7_div_13_div_3_Template, 3, 3, "div", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r4.commits.length === 0);
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r4.commits.length === 0);
   }
 }
 function GitHistoryDialogComponent_div_7_Template(rf, ctx) {
   if (rf & 1) {
-    const _r28 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 10)(1, "div", 11)(2, "button", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_Template_button_click_2_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r28);
-      const ctx_r27 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r27.switchView("table"));
+    const _r43 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "div", 10)(1, "div", 11)(2, "button", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_Template_button_click_2_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r43);
+      const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r42.switchView("table"));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4, "table_chart");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](7, "button", 12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_Template_button_click_7_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r28);
-      const ctx_r29 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r29.switchView("graph"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](4, "table_chart");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](7, "button", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitHistoryDialogComponent_div_7_Template_button_click_7_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵrestoreView"](_r43);
+      const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵresetView"](ctx_r44.switchView("graph"));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "account_tree");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](11, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](12, GitHistoryDialogComponent_div_7_div_12_Template, 17, 4, "div", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](13, GitHistoryDialogComponent_div_7_div_13_Template, 4, 1, "div", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](9, "account_tree");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](11, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](12, GitHistoryDialogComponent_div_7_div_12_Template, 17, 6, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](13, GitHistoryDialogComponent_div_7_div_13_Template, 4, 1, "div", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("color", ctx_r2.selectedView === "table" ? "primary" : "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 6, "GIT_HISTORY.TABLE"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("color", ctx_r2.selectedView === "graph" ? "primary" : "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](11, 8, "GIT_HISTORY.GRAPH"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "table");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "graph");
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("color", ctx_r2.selectedView === "table" ? "primary" : "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](6, 6, "GIT_HISTORY.TABLE"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("color", ctx_r2.selectedView === "graph" ? "primary" : "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](11, 8, "GIT_HISTORY.GRAPH"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "table");
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx_r2.selectedView === "graph");
   }
 }
 class GitHistoryDialogComponent {
@@ -2031,12 +2260,17 @@ class GitHistoryDialogComponent {
     this.isLoading = true;
     this.error = null;
     this.commits = [];
-    this.displayedColumns = ['hash', 'date', 'author', 'message'];
+    // Senza la colonna dell'hash (19/11/2026): l'hash sta nel dettaglio del commit, con il tasto per copiarlo.
+    this.displayedColumns = ['date', 'author', 'message'];
+    /** Il commit aperto sotto la sua riga: uno alla volta, come in un accordion. */
+    this.expandedHash = null;
+    this.copiedHash = null;
+    this.parts = new Map();
     this.selectedView = 'table';
     /** I repository fra cui scegliere, e quello di cui si sta guardando la cronologia. */
     this.repos = [];
     this.activeRepo = null;
-    this.dataSource = new _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyTableDataSource([]);
+    this.dataSource = new _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyTableDataSource([]);
   }
   ngOnInit() {
     this.repos = this.data.repos || [];
@@ -2070,6 +2304,8 @@ class GitHistoryDialogComponent {
       next: commits => {
         this.isLoading = false;
         this.commits = commits;
+        this.parts = new Map(commits.map(c => [c.hash, (0,_commit_message__WEBPACK_IMPORTED_MODULE_0__.splitCommitMessage)(c.message)]));
+        this.expandedHash = null;
         this.dataSource.data = commits;
         // If graph view is selected and we have commits, render the graph
         if (this.selectedView === 'graph' && commits.length > 0) {
@@ -2133,7 +2369,7 @@ class GitHistoryDialogComponent {
       ctx.fillText(`${dateStr} - ${commit.author}`, leftMargin + 20, y + 8);
       // Truncate message if too long
       const maxMessageWidth = canvas.width - leftMargin - 40;
-      let message = commit.message;
+      let message = this.partsOf(commit).title;
       if (ctx.measureText(message).width > maxMessageWidth) {
         while (ctx.measureText(message + '...').width > maxMessageWidth && message.length > 0) {
           message = message.substring(0, message.length - 1);
@@ -2143,79 +2379,107 @@ class GitHistoryDialogComponent {
       ctx.fillText(message, leftMargin + 20, y + 20);
     });
   }
-  formatDate(date) {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+  /** Testata, paragrafi e punti del messaggio, calcolati una volta per commit. */
+  partsOf(commit) {
+    let p = this.parts.get(commit.hash);
+    if (!p) {
+      p = (0,_commit_message__WEBPACK_IMPORTED_MODULE_0__.splitCommitMessage)(commit.message);
+      this.parts.set(commit.hash, p);
+    }
+    return p;
   }
-  copyHash(hash) {
-    navigator.clipboard.writeText(hash);
+  hasDetail(commit) {
+    return this.partsOf(commit).blocks.length > 0;
+  }
+  toggle(commit) {
+    this.expandedHash = this.expandedHash === commit.hash ? null : commit.hash;
+  }
+  formatDay(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString();
+  }
+  formatTime(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+  copyHash(hash, event) {
+    event?.stopPropagation();
+    navigator.clipboard.writeText(hash).then(() => {
+      this.copiedHash = hash;
+      setTimeout(() => {
+        if (this.copiedHash === hash) this.copiedHash = null;
+      }, 1500);
+    }, err => console.error('[GitHistory] copia dell\'hash non riuscita:', err));
   }
   onClose() {
     this.dialogRef.close();
   }
   static {
     this.ɵfac = function GitHistoryDialogComponent_Factory(t) {
-      return new (t || GitHistoryDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_0__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslateService));
+      return new (t || GitHistoryDialogComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslateService));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵdefineComponent"]({
       type: GitHistoryDialogComponent,
       selectors: [["app-git-history-dialog"]],
       viewQuery: function GitHistoryDialogComponent_Query(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c0, 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_angular_material_sort__WEBPACK_IMPORTED_MODULE_6__.MatSort, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵviewQuery"](_c0, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵviewQuery"](_angular_material_sort__WEBPACK_IMPORTED_MODULE_7__.MatSort, 5);
         }
         if (rf & 2) {
           let _t;
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.graphCanvas = _t.first);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.sort = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵloadQuery"]()) && (ctx.graphCanvas = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵloadQuery"]()) && (ctx.sort = _t.first);
         }
       },
       decls: 12,
       vars: 13,
-      consts: [["mat-dialog-title", ""], [3, "repos", "selected", "disabled", "selectedChange"], ["class", "loading-container", 4, "ngIf"], ["class", "error-container", 4, "ngIf"], ["class", "history-content", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], [1, "loading-container"], [1, "error-container"], ["color", "warn"], [1, "history-content"], [1, "view-toggle"], ["mat-button", "", 3, "color", "click"], ["class", "table-container", 4, "ngIf"], ["class", "graph-container", 4, "ngIf"], [1, "table-container"], ["mat-table", "", "matSort", "", 1, "commit-table", 3, "dataSource"], ["matColumnDef", "hash"], ["mat-header-cell", "", "mat-sort-header", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "hash-cell", 4, "matCellDef"], ["matColumnDef", "date"], ["mat-cell", "", "class", "date-cell", 4, "matCellDef"], ["matColumnDef", "author"], ["mat-cell", "", "class", "author-cell", 4, "matCellDef"], ["matColumnDef", "message"], ["mat-header-cell", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "message-cell", 4, "matCellDef"], ["mat-header-row", "", 4, "matHeaderRowDef"], ["mat-row", "", 3, "recorded-row", 4, "matRowDef", "matRowDefColumns"], ["class", "no-commits", 4, "ngIf"], ["mat-header-cell", "", "mat-sort-header", ""], ["mat-cell", "", 1, "hash-cell"], [1, "hash-text", 3, "title", "click"], ["class", "merge-icon", 3, "title", 4, "ngIf"], ["class", "recorded-here", 3, "matTooltip", 4, "ngIf"], [1, "merge-icon", 3, "title"], [1, "recorded-here", 3, "matTooltip"], ["mat-cell", "", 1, "date-cell"], ["mat-cell", "", 1, "author-cell"], ["mat-header-cell", ""], ["mat-cell", "", 1, "message-cell"], ["mat-header-row", ""], ["mat-row", ""], [1, "no-commits"], [1, "graph-container"], [1, "graph-canvas"], ["graphCanvas", ""]],
+      consts: [["mat-dialog-title", ""], [3, "repos", "selected", "disabled", "selectedChange"], ["class", "loading-container", 4, "ngIf"], ["class", "error-container", 4, "ngIf"], ["class", "history-content", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], [1, "loading-container"], [1, "error-container"], ["color", "warn"], [1, "history-content"], [1, "view-toggle"], ["mat-button", "", 3, "color", "click"], ["class", "table-container", 4, "ngIf"], ["class", "graph-container", 4, "ngIf"], [1, "table-container"], ["mat-table", "", "matSort", "", "multiTemplateDataRows", "", 1, "commit-table", 3, "dataSource"], ["matColumnDef", "date"], ["mat-header-cell", "", "mat-sort-header", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "date-cell", 4, "matCellDef"], ["matColumnDef", "author"], ["mat-cell", "", "class", "author-cell", 4, "matCellDef"], ["matColumnDef", "message"], ["mat-header-cell", "", 4, "matHeaderCellDef"], ["mat-cell", "", "class", "message-cell", 4, "matCellDef"], ["matColumnDef", "detail"], ["mat-cell", "", "class", "detail-cell", 4, "matCellDef"], ["mat-header-row", "", 4, "matHeaderRowDef"], ["mat-row", "", "class", "commit-row", 3, "recorded-row", "expanded-row", "click", 4, "matRowDef", "matRowDefColumns"], ["mat-row", "", "class", "detail-row", 3, "open", 4, "matRowDef", "matRowDefColumns"], ["class", "no-commits", 4, "ngIf"], ["mat-header-cell", "", "mat-sort-header", ""], ["mat-cell", "", 1, "date-cell"], [1, "date-day"], [1, "date-time"], ["mat-cell", "", 1, "author-cell"], ["mat-header-cell", ""], ["mat-cell", "", 1, "message-cell"], [1, "message-line"], [1, "expand-icon"], [1, "message-title", 3, "title"], ["class", "merge-icon", 3, "title", 4, "ngIf"], ["class", "recorded-here", 3, "matTooltip", 4, "ngIf"], [1, "merge-icon", 3, "title"], [1, "recorded-here", 3, "matTooltip"], ["mat-cell", "", 1, "detail-cell"], ["class", "commit-detail", 4, "ngIf"], [1, "commit-detail"], [4, "ngFor", "ngForOf"], ["class", "detail-empty", 4, "ngIf"], [1, "detail-hash"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["class", "detail-paragraph", 4, "ngIf"], ["class", "detail-points", 4, "ngIf"], [1, "detail-paragraph"], [1, "detail-points"], [1, "detail-empty"], ["mat-header-row", ""], ["mat-row", "", 1, "commit-row", 3, "click"], ["mat-row", "", 1, "detail-row"], [1, "no-commits"], [1, "graph-container"], [1, "graph-canvas"], ["graphCanvas", ""]],
       template: function GitHistoryDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](2, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "mat-dialog-content")(4, "app-git-repo-picker", 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("selectedChange", function GitHistoryDialogComponent_Template_app_git_repo_picker_selectedChange_4_listener($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](0, "h2", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](2, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](3, "mat-dialog-content")(4, "app-git-repo-picker", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("selectedChange", function GitHistoryDialogComponent_Template_app_git_repo_picker_selectedChange_4_listener($event) {
             return ctx.selectRepo($event);
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](5, GitHistoryDialogComponent_div_5_Template, 5, 3, "div", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](6, GitHistoryDialogComponent_div_6_Template, 5, 1, "div", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](7, GitHistoryDialogComponent_div_7_Template, 14, 10, "div", 4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "mat-dialog-actions", 5)(9, "button", 6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function GitHistoryDialogComponent_Template_button_click_9_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](5, GitHistoryDialogComponent_div_5_Template, 5, 3, "div", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](6, GitHistoryDialogComponent_div_6_Template, 5, 1, "div", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtemplate"](7, GitHistoryDialogComponent_div_7_Template, 14, 10, "div", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementStart"](8, "mat-dialog-actions", 5)(9, "button", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵlistener"]("click", function GitHistoryDialogComponent_Template_button_click_9_listener() {
             return ctx.onClose();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](11, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtext"](10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipe"](11, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate2"]("", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 9, "GIT_HISTORY.TITLE"), " ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("repos", ctx.repos)("selected", ctx.activeRepo)("disabled", ctx.isLoading);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isLoading);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](11, 11, "COMMON.CLOSE"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate2"]("", _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](2, 9, "GIT_HISTORY.TITLE"), " ", ctx.data.projectName ? "- " + ctx.data.projectName : "", "");
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("repos", ctx.repos)("selected", ctx.activeRepo)("disabled", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", ctx.error && !ctx.isLoading);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵproperty"]("ngIf", !ctx.isLoading && !ctx.error);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_3__["ɵɵpipeBind1"](11, 11, "COMMON.CLOSE"));
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_8__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_9__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_10__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_11__.MatLegacyTooltip, _angular_material_sort__WEBPACK_IMPORTED_MODULE_6__.MatSort, _angular_material_sort__WEBPACK_IMPORTED_MODULE_6__.MatSortHeader, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyTable, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyHeaderCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyHeaderRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyColumnDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyHeaderCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyHeaderRow, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_3__.MatLegacyRow, _components_git_repo_picker_git_repo_picker_component__WEBPACK_IMPORTED_MODULE_1__.GitRepoPickerComponent, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslatePipe],
-      styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n}\n\n.error-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  color: #f44336;\n}\n.error-container[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n  margin-bottom: 16px;\n}\n\n.history-content[_ngcontent-%COMP%] {\n  min-width: 800px;\n  max-height: 600px;\n  overflow: auto;\n}\n\n.view-toggle[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 16px;\n  padding: 8px;\n  border-bottom: 1px solid #e0e0e0;\n}\n\n.table-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n}\n\n.commit-table[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%] {\n  font-family: monospace;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%] {\n  cursor: pointer;\n  padding: 2px 4px;\n  border-radius: 3px;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .hash-text[_ngcontent-%COMP%]:hover {\n  background-color: #f0f0f0;\n}\n.commit-table[_ngcontent-%COMP%]   .hash-cell[_ngcontent-%COMP%]   .merge-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n  margin-left: 8px;\n  color: #ff6b6b;\n  vertical-align: middle;\n}\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%] {\n  white-space: nowrap;\n  font-size: 0.9em;\n}\n.commit-table[_ngcontent-%COMP%]   .author-cell[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%] {\n  max-width: 400px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.commit-table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:hover {\n  background-color: #f5f5f5;\n}\n\n.graph-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n  padding: 16px;\n  background-color: #fafafa;\n  border-radius: 4px;\n}\n\n.graph-canvas[_ngcontent-%COMP%] {\n  width: 100%;\n  min-height: 400px;\n  background-color: white;\n  border: 1px solid #e0e0e0;\n  border-radius: 4px;\n}\n\n.no-commits[_ngcontent-%COMP%] {\n  text-align: center;\n  padding: 40px;\n  color: #666;\n  font-style: italic;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n}\n\n.commit-table[_ngcontent-%COMP%]   .recorded-here[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  gap: 2px;\n  margin-left: 8px;\n  padding: 1px 7px 1px 4px;\n  border-radius: 9px;\n  font-family: inherit;\n  font-size: 10.5px;\n  white-space: nowrap;\n  background: var(--mde-bg-tertiary);\n  color: var(--mde-accent-secondary);\n}\n.commit-table[_ngcontent-%COMP%]   .recorded-here[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 13px;\n  width: 13px;\n  height: 13px;\n}\n\n.commit-table[_ngcontent-%COMP%]   tr.recorded-row[_ngcontent-%COMP%] {\n  background: var(--mde-bg-hover);\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWhpc3RvcnktZGlhbG9nL2dpdC1oaXN0b3J5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsYUFBQTtFQUNBLGNBQUE7QUFDRjtBQUNFO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7QUFDSjs7QUFHQTtFQUNFLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0FBQUY7O0FBR0E7RUFDRSxhQUFBO0VBQ0EsUUFBQTtFQUNBLG1CQUFBO0VBQ0EsWUFBQTtFQUNBLGdDQUFBO0FBQUY7O0FBR0E7RUFDRSxjQUFBO0VBQ0EsaUJBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjtBQUVFO0VBQ0Usc0JBQUE7QUFBSjtBQUVJO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7QUFBTjtBQUVNO0VBQ0UseUJBQUE7QUFBUjtBQUlJO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0Esc0JBQUE7QUFGTjtBQU1FO0VBQ0UsbUJBQUE7RUFDQSxnQkFBQTtBQUpKO0FBT0U7RUFDRSxnQkFBQTtBQUxKO0FBUUU7RUFDRSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxtQkFBQTtBQU5KO0FBU0U7RUFDRSx5QkFBQTtBQVBKOztBQVdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsYUFBQTtFQUNBLHlCQUFBO0VBQ0Esa0JBQUE7QUFSRjs7QUFXQTtFQUNFLFdBQUE7RUFDQSxpQkFBQTtFQUNBLHVCQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtBQVJGOztBQVdBO0VBQ0Usa0JBQUE7RUFDQSxhQUFBO0VBQ0EsV0FBQTtFQUNBLGtCQUFBO0FBUkY7O0FBV0E7RUFDRSxlQUFBO0FBUkY7O0FBV0E7RUFDRSxrQkFBQTtBQVJGOztBQVdBO0VBQ0Usb0JBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxnQkFBQTtFQUNBLHdCQUFBO0VBQ0Esa0JBQUE7RUFDQSxvQkFBQTtFQUNBLGlCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQ0FBQTtFQUNBLGtDQUFBO0FBUkY7QUFVRTtFQUFXLGVBQUE7RUFBaUIsV0FBQTtFQUFhLFlBQUE7QUFMM0M7O0FBUUE7RUFDRSwrQkFBQTtBQUxGIiwic291cmNlc0NvbnRlbnQiOlsiLmxvYWRpbmctY29udGFpbmVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gIHBhZGRpbmc6IDQwcHg7XG59XG5cbi5lcnJvci1jb250YWluZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgcGFkZGluZzogNDBweDtcbiAgY29sb3I6ICNmNDQzMzY7XG5cbiAgbWF0LWljb24ge1xuICAgIGZvbnQtc2l6ZTogNDhweDtcbiAgICBoZWlnaHQ6IDQ4cHg7XG4gICAgd2lkdGg6IDQ4cHg7XG4gICAgbWFyZ2luLWJvdHRvbTogMTZweDtcbiAgfVxufVxuXG4uaGlzdG9yeS1jb250ZW50IHtcbiAgbWluLXdpZHRoOiA4MDBweDtcbiAgbWF4LWhlaWdodDogNjAwcHg7XG4gIG92ZXJmbG93OiBhdXRvO1xufVxuXG4udmlldy10b2dnbGUge1xuICBkaXNwbGF5OiBmbGV4O1xuICBnYXA6IDhweDtcbiAgbWFyZ2luLWJvdHRvbTogMTZweDtcbiAgcGFkZGluZzogOHB4O1xuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2UwZTBlMDtcbn1cblxuLnRhYmxlLWNvbnRhaW5lciB7XG4gIG92ZXJmbG93OiBhdXRvO1xuICBtYXgtaGVpZ2h0OiA1MDBweDtcbn1cblxuLmNvbW1pdC10YWJsZSB7XG4gIHdpZHRoOiAxMDAlO1xuXG4gIC5oYXNoLWNlbGwge1xuICAgIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XG5cbiAgICAuaGFzaC10ZXh0IHtcbiAgICAgIGN1cnNvcjogcG9pbnRlcjtcbiAgICAgIHBhZGRpbmc6IDJweCA0cHg7XG4gICAgICBib3JkZXItcmFkaXVzOiAzcHg7XG5cbiAgICAgICY6aG92ZXIge1xuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjBmMGYwO1xuICAgICAgfVxuICAgIH1cblxuICAgIC5tZXJnZS1pY29uIHtcbiAgICAgIGZvbnQtc2l6ZTogMTZweDtcbiAgICAgIHdpZHRoOiAxNnB4O1xuICAgICAgaGVpZ2h0OiAxNnB4O1xuICAgICAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgICAgIGNvbG9yOiAjZmY2YjZiO1xuICAgICAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbiAgICB9XG4gIH1cblxuICAuZGF0ZS1jZWxsIHtcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xuICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gIH1cblxuICAuYXV0aG9yLWNlbGwge1xuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XG4gIH1cblxuICAubWVzc2FnZS1jZWxsIHtcbiAgICBtYXgtd2lkdGg6IDQwMHB4O1xuICAgIG92ZXJmbG93OiBoaWRkZW47XG4gICAgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7XG4gICAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbiAgfVxuXG4gIHRyOmhvdmVyIHtcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZjVmNWY1O1xuICB9XG59XG5cbi5ncmFwaC1jb250YWluZXIge1xuICBvdmVyZmxvdzogYXV0bztcbiAgbWF4LWhlaWdodDogNTAwcHg7XG4gIHBhZGRpbmc6IDE2cHg7XG4gIGJhY2tncm91bmQtY29sb3I6ICNmYWZhZmE7XG4gIGJvcmRlci1yYWRpdXM6IDRweDtcbn1cblxuLmdyYXBoLWNhbnZhcyB7XG4gIHdpZHRoOiAxMDAlO1xuICBtaW4taGVpZ2h0OiA0MDBweDtcbiAgYmFja2dyb3VuZC1jb2xvcjogd2hpdGU7XG4gIGJvcmRlcjogMXB4IHNvbGlkICNlMGUwZTA7XG4gIGJvcmRlci1yYWRpdXM6IDRweDtcbn1cblxuLm5vLWNvbW1pdHMge1xuICB0ZXh0LWFsaWduOiBjZW50ZXI7XG4gIHBhZGRpbmc6IDQwcHg7XG4gIGNvbG9yOiAjNjY2O1xuICBmb250LXN0eWxlOiBpdGFsaWM7XG59XG5cbm1hdC1kaWFsb2ctY29udGVudCB7XG4gIHBhZGRpbmc6IDAgMjRweDtcbn1cblxubWF0LWRpYWxvZy1hY3Rpb25zIHtcbiAgcGFkZGluZzogMTZweCAyNHB4O1xufVxuLy8gSWwgY29tbWl0IGNoZSBpbCBwcm9nZXR0byByZWdpc3RyYSBwZXIgaWwgc3VibW9kdWxlOiBuZWxsYSBzdWEgY3Jvbm9sb2dpYSBzaSB2ZWRlIGRvdmUgc3RhLlxuLmNvbW1pdC10YWJsZSAucmVjb3JkZWQtaGVyZSB7XG4gIGRpc3BsYXk6IGlubGluZS1mbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDJweDtcbiAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgcGFkZGluZzogMXB4IDdweCAxcHggNHB4O1xuICBib3JkZXItcmFkaXVzOiA5cHg7XG4gIGZvbnQtZmFtaWx5OiBpbmhlcml0O1xuICBmb250LXNpemU6IDEwLjVweDtcbiAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbiAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXRlcnRpYXJ5KTtcbiAgY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtc2Vjb25kYXJ5KTtcblxuICBtYXQtaWNvbiB7IGZvbnQtc2l6ZTogMTNweDsgd2lkdGg6IDEzcHg7IGhlaWdodDogMTNweDsgfVxufVxuXG4uY29tbWl0LXRhYmxlIHRyLnJlY29yZGVkLXJvdyB7XG4gIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1ob3Zlcik7XG59XG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_8__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_8__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_9__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_10__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_11__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_5__.MatLegacyDialogActions, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_12__.MatLegacyTooltip, _angular_material_sort__WEBPACK_IMPORTED_MODULE_7__.MatSort, _angular_material_sort__WEBPACK_IMPORTED_MODULE_7__.MatSortHeader, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyTable, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHeaderCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHeaderRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyColumnDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyCellDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyRowDef, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHeaderCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyCell, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHeaderRow, _angular_material_legacy_table__WEBPACK_IMPORTED_MODULE_4__.MatLegacyRow, _components_git_repo_picker_git_repo_picker_component__WEBPACK_IMPORTED_MODULE_2__.GitRepoPickerComponent, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslatePipe],
+      styles: [".loading-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n}\n\n.error-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px;\n  color: #f44336;\n}\n.error-container[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  height: 48px;\n  width: 48px;\n  margin-bottom: 16px;\n}\n\n.history-content[_ngcontent-%COMP%] {\n  min-width: 800px;\n  max-height: 600px;\n  overflow: auto;\n}\n\n.view-toggle[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 16px;\n  padding: 8px;\n  border-bottom: 1px solid #e0e0e0;\n}\n\n.table-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n}\n\n.commit-table[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%] {\n  white-space: nowrap;\n  font-size: 0.9em;\n  width: 1%;\n  padding-right: 20px;\n}\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%]   .date-day[_ngcontent-%COMP%], .commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%]   .date-time[_ngcontent-%COMP%] {\n  display: block;\n  line-height: 1.3;\n}\n.commit-table[_ngcontent-%COMP%]   .date-cell[_ngcontent-%COMP%]   .date-time[_ngcontent-%COMP%] {\n  color: var(--mde-text-secondary);\n  font-size: 0.92em;\n}\n.commit-table[_ngcontent-%COMP%]   .author-cell[_ngcontent-%COMP%] {\n  font-weight: 500;\n  white-space: nowrap;\n  width: 1%;\n  padding-right: 20px;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%] {\n  max-width: 0;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%]   .message-line[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  min-width: 0;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%]   .message-title[_ngcontent-%COMP%] {\n  flex: 1;\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%]   .expand-icon[_ngcontent-%COMP%] {\n  flex: none;\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n  color: var(--mde-text-hint);\n  transition: transform 0.15s ease;\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%]   .expand-icon.open[_ngcontent-%COMP%] {\n  transform: rotate(90deg);\n  color: var(--mde-accent-primary);\n}\n.commit-table[_ngcontent-%COMP%]   .message-cell[_ngcontent-%COMP%]   .merge-icon[_ngcontent-%COMP%] {\n  flex: none;\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n  margin-left: 4px;\n  color: #ff6b6b;\n}\n.commit-table[_ngcontent-%COMP%]   tr.commit-row[_ngcontent-%COMP%] {\n  cursor: pointer;\n}\n.commit-table[_ngcontent-%COMP%]   tr.commit-row[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.commit-table[_ngcontent-%COMP%]   tr.commit-row.expanded-row[_ngcontent-%COMP%]   td[_ngcontent-%COMP%] {\n  border-bottom-color: transparent;\n}\n.commit-table[_ngcontent-%COMP%]   tr.detail-row[_ngcontent-%COMP%] {\n  height: 0;\n}\n.commit-table[_ngcontent-%COMP%]   tr.detail-row[_ngcontent-%COMP%]:not(.open)   td[_ngcontent-%COMP%] {\n  padding: 0;\n  border-bottom-width: 0;\n}\n.commit-table[_ngcontent-%COMP%]   .detail-cell[_ngcontent-%COMP%] {\n  padding: 0 16px 0 40px;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%] {\n  padding: 2px 0 12px;\n  color: var(--mde-text-primary);\n  line-height: 1.5;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-paragraph[_ngcontent-%COMP%] {\n  margin: 0 0 6px;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-points[_ngcontent-%COMP%] {\n  margin: 0 0 6px;\n  padding-left: 20px;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-points[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  margin: 2px 0;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-empty[_ngcontent-%COMP%] {\n  margin: 0 0 6px;\n  color: var(--mde-text-secondary);\n  font-style: italic;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-hash[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-hash[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  font-size: 0.82em;\n  color: var(--mde-text-secondary);\n  -webkit-user-select: all;\n          user-select: all;\n}\n.commit-table[_ngcontent-%COMP%]   .commit-detail[_ngcontent-%COMP%]   .detail-hash[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  transform: scale(0.8);\n}\n\n.graph-container[_ngcontent-%COMP%] {\n  overflow: auto;\n  max-height: 500px;\n  padding: 16px;\n  background-color: #fafafa;\n  border-radius: 4px;\n}\n\n.graph-canvas[_ngcontent-%COMP%] {\n  width: 100%;\n  min-height: 400px;\n  background-color: white;\n  border: 1px solid #e0e0e0;\n  border-radius: 4px;\n}\n\n.no-commits[_ngcontent-%COMP%] {\n  text-align: center;\n  padding: 40px;\n  color: #666;\n  font-style: italic;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  padding: 0 24px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  padding: 16px 24px;\n}\n\n.commit-table[_ngcontent-%COMP%]   .recorded-here[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  gap: 2px;\n  margin-left: 8px;\n  padding: 1px 7px 1px 4px;\n  border-radius: 9px;\n  font-family: inherit;\n  font-size: 10.5px;\n  white-space: nowrap;\n  background: var(--mde-bg-tertiary);\n  color: var(--mde-accent-secondary);\n}\n.commit-table[_ngcontent-%COMP%]   .recorded-here[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 13px;\n  width: 13px;\n  height: 13px;\n}\n\n.commit-table[_ngcontent-%COMP%]   tr.recorded-row[_ngcontent-%COMP%] {\n  background: var(--mde-bg-hover);\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvZ2l0LWhpc3RvcnktZGlhbG9nL2dpdC1oaXN0b3J5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLG1CQUFBO0VBQ0EsdUJBQUE7RUFDQSxhQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsYUFBQTtFQUNBLGNBQUE7QUFDRjtBQUNFO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0VBQ0EsbUJBQUE7QUFDSjs7QUFHQTtFQUNFLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0FBQUY7O0FBR0E7RUFDRSxhQUFBO0VBQ0EsUUFBQTtFQUNBLG1CQUFBO0VBQ0EsWUFBQTtFQUNBLGdDQUFBO0FBQUY7O0FBR0E7RUFDRSxjQUFBO0VBQ0EsaUJBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjtBQUVFO0VBQ0UsbUJBQUE7RUFDQSxnQkFBQTtFQUNBLFNBQUE7RUFDQSxtQkFBQTtBQUFKO0FBQ0k7RUFBd0IsY0FBQTtFQUFnQixnQkFBQTtBQUc1QztBQUZJO0VBQWEsZ0NBQUE7RUFBa0MsaUJBQUE7QUFNbkQ7QUFIRTtFQUNFLGdCQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0VBQ0EsbUJBQUE7QUFLSjtBQUZFO0VBQ0UsWUFBQTtBQUlKO0FBSEk7RUFBZ0IsYUFBQTtFQUFlLG1CQUFBO0VBQXFCLFFBQUE7RUFBVSxZQUFBO0FBU2xFO0FBUkk7RUFBaUIsT0FBQTtFQUFTLFlBQUE7RUFBYyxnQkFBQTtFQUFrQix1QkFBQTtFQUF5QixtQkFBQTtBQWV2RjtBQWRJO0VBQWUsVUFBQTtFQUFZLGVBQUE7RUFBaUIsV0FBQTtFQUFhLFlBQUE7RUFBYywyQkFBQTtFQUE2QixnQ0FBQTtBQXNCeEc7QUFyQkk7RUFBb0Isd0JBQUE7RUFBMEIsZ0NBQUE7QUF5QmxEO0FBeEJJO0VBQWMsVUFBQTtFQUFZLGVBQUE7RUFBaUIsV0FBQTtFQUFhLFlBQUE7RUFBYyxnQkFBQTtFQUFrQixjQUFBO0FBZ0M1RjtBQTdCRTtFQUFnQixlQUFBO0FBZ0NsQjtBQS9CRTtFQUFzQiwwQ0FBQTtBQWtDeEI7QUFqQ0U7RUFBZ0MsZ0NBQUE7QUFvQ2xDO0FBakNFO0VBQWdCLFNBQUE7QUFvQ2xCO0FBbkNFO0VBQThCLFVBQUE7RUFBWSxzQkFBQTtBQXVDNUM7QUF0Q0U7RUFBZSxzQkFBQTtBQXlDakI7QUF2Q0U7RUFDRSxtQkFBQTtFQUNBLDhCQUFBO0VBQ0EsZ0JBQUE7QUF5Q0o7QUF4Q0k7RUFBb0IsZUFBQTtBQTJDeEI7QUExQ0k7RUFBaUIsZUFBQTtFQUFpQixrQkFBQTtBQThDdEM7QUE5QzBEO0VBQUssYUFBQTtBQWlEL0Q7QUFoREk7RUFBZ0IsZUFBQTtFQUFpQixnQ0FBQTtFQUFrQyxrQkFBQTtBQXFEdkU7QUFwREk7RUFDRSxhQUFBO0VBQWUsbUJBQUE7RUFBcUIsUUFBQTtBQXdEMUM7QUF2RE07RUFBTyxpQkFBQTtFQUFtQixnQ0FBQTtFQUFrQyx3QkFBQTtVQUFBLGdCQUFBO0FBNERsRTtBQTNETTtFQUFTLHFCQUFBO0FBOERmOztBQXpEQTtFQUNFLGNBQUE7RUFDQSxpQkFBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtFQUNBLGtCQUFBO0FBNERGOztBQXpEQTtFQUNFLFdBQUE7RUFDQSxpQkFBQTtFQUNBLHVCQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtBQTRERjs7QUF6REE7RUFDRSxrQkFBQTtFQUNBLGFBQUE7RUFDQSxXQUFBO0VBQ0Esa0JBQUE7QUE0REY7O0FBekRBO0VBQ0UsZUFBQTtBQTRERjs7QUF6REE7RUFDRSxrQkFBQTtBQTRERjs7QUF6REE7RUFDRSxvQkFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGdCQUFBO0VBQ0Esd0JBQUE7RUFDQSxrQkFBQTtFQUNBLG9CQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLGtDQUFBO0VBQ0Esa0NBQUE7QUE0REY7QUExREU7RUFBVyxlQUFBO0VBQWlCLFdBQUE7RUFBYSxZQUFBO0FBK0QzQzs7QUE1REE7RUFDRSwrQkFBQTtBQStERiIsInNvdXJjZXNDb250ZW50IjpbIi5sb2FkaW5nLWNvbnRhaW5lciB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuICBwYWRkaW5nOiA0MHB4O1xufVxuXG4uZXJyb3ItY29udGFpbmVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gIHBhZGRpbmc6IDQwcHg7XG4gIGNvbG9yOiAjZjQ0MzM2O1xuXG4gIG1hdC1pY29uIHtcbiAgICBmb250LXNpemU6IDQ4cHg7XG4gICAgaGVpZ2h0OiA0OHB4O1xuICAgIHdpZHRoOiA0OHB4O1xuICAgIG1hcmdpbi1ib3R0b206IDE2cHg7XG4gIH1cbn1cblxuLmhpc3RvcnktY29udGVudCB7XG4gIG1pbi13aWR0aDogODAwcHg7XG4gIG1heC1oZWlnaHQ6IDYwMHB4O1xuICBvdmVyZmxvdzogYXV0bztcbn1cblxuLnZpZXctdG9nZ2xlIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZ2FwOiA4cHg7XG4gIG1hcmdpbi1ib3R0b206IDE2cHg7XG4gIHBhZGRpbmc6IDhweDtcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlMGUwZTA7XG59XG5cbi50YWJsZS1jb250YWluZXIge1xuICBvdmVyZmxvdzogYXV0bztcbiAgbWF4LWhlaWdodDogNTAwcHg7XG59XG5cbi5jb21taXQtdGFibGUge1xuICB3aWR0aDogMTAwJTtcblxuICAuZGF0ZS1jZWxsIHtcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xuICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gICAgd2lkdGg6IDElO1xuICAgIHBhZGRpbmctcmlnaHQ6IDIwcHg7XG4gICAgLmRhdGUtZGF5LCAuZGF0ZS10aW1lIHsgZGlzcGxheTogYmxvY2s7IGxpbmUtaGVpZ2h0OiAxLjM7IH1cbiAgICAuZGF0ZS10aW1lIHsgY29sb3I6IHZhcigtLW1kZS10ZXh0LXNlY29uZGFyeSk7IGZvbnQtc2l6ZTogMC45MmVtOyB9XG4gIH1cblxuICAuYXV0aG9yLWNlbGwge1xuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XG4gICAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbiAgICB3aWR0aDogMSU7XG4gICAgcGFkZGluZy1yaWdodDogMjBweDtcbiAgfVxuXG4gIC5tZXNzYWdlLWNlbGwge1xuICAgIG1heC13aWR0aDogMDsgLy8gbGEgY29sb25uYSBwcmVuZGUgbG8gc3BhemlvIGNoZSByZXN0YSwgZSBsYSB0ZXN0YXRhIGx1bmdhIGZpbmlzY2UgY29uIMOCwqvDosKAwqbDgsK7XG4gICAgLm1lc3NhZ2UtbGluZSB7IGRpc3BsYXk6IGZsZXg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGdhcDogNHB4OyBtaW4td2lkdGg6IDA7IH1cbiAgICAubWVzc2FnZS10aXRsZSB7IGZsZXg6IDE7IG1pbi13aWR0aDogMDsgb3ZlcmZsb3c6IGhpZGRlbjsgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7IHdoaXRlLXNwYWNlOiBub3dyYXA7IH1cbiAgICAuZXhwYW5kLWljb24geyBmbGV4OiBub25lOyBmb250LXNpemU6IDIwcHg7IHdpZHRoOiAyMHB4OyBoZWlnaHQ6IDIwcHg7IGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1oaW50KTsgdHJhbnNpdGlvbjogdHJhbnNmb3JtIDAuMTVzIGVhc2U7IH1cbiAgICAuZXhwYW5kLWljb24ub3BlbiB7IHRyYW5zZm9ybTogcm90YXRlKDkwZGVnKTsgY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtcHJpbWFyeSk7IH1cbiAgICAubWVyZ2UtaWNvbiB7IGZsZXg6IG5vbmU7IGZvbnQtc2l6ZTogMTZweDsgd2lkdGg6IDE2cHg7IGhlaWdodDogMTZweDsgbWFyZ2luLWxlZnQ6IDRweDsgY29sb3I6ICNmZjZiNmI7IH1cbiAgfVxuXG4gIHRyLmNvbW1pdC1yb3cgeyBjdXJzb3I6IHBvaW50ZXI7IH1cbiAgdHIuY29tbWl0LXJvdzpob3ZlciB7IGJhY2tncm91bmQtY29sb3I6IHZhcigtLW1kZS1ob3Zlci1vdmVybGF5KTsgfVxuICB0ci5jb21taXQtcm93LmV4cGFuZGVkLXJvdyB0ZCB7IGJvcmRlci1ib3R0b20tY29sb3I6IHRyYW5zcGFyZW50OyB9XG5cbiAgLy8gTGEgcmlnYSBkZWwgZGV0dGFnbGlvIGVzaXN0ZSBwZXIgb2duaSBjb21taXQ6IGNoaXVzYSBub24gaGEgYWx0ZXp6YSBuw4PCqSBib3Jkby5cbiAgdHIuZGV0YWlsLXJvdyB7IGhlaWdodDogMDsgfVxuICB0ci5kZXRhaWwtcm93Om5vdCgub3BlbikgdGQgeyBwYWRkaW5nOiAwOyBib3JkZXItYm90dG9tLXdpZHRoOiAwOyB9XG4gIC5kZXRhaWwtY2VsbCB7IHBhZGRpbmc6IDAgMTZweCAwIDQwcHg7IH1cblxuICAuY29tbWl0LWRldGFpbCB7XG4gICAgcGFkZGluZzogMnB4IDAgMTJweDtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtcHJpbWFyeSk7XG4gICAgbGluZS1oZWlnaHQ6IDEuNTtcbiAgICAuZGV0YWlsLXBhcmFncmFwaCB7IG1hcmdpbjogMCAwIDZweDsgfVxuICAgIC5kZXRhaWwtcG9pbnRzIHsgbWFyZ2luOiAwIDAgNnB4OyBwYWRkaW5nLWxlZnQ6IDIwcHg7IGxpIHsgbWFyZ2luOiAycHggMDsgfSB9XG4gICAgLmRldGFpbC1lbXB0eSB7IG1hcmdpbjogMCAwIDZweDsgY29sb3I6IHZhcigtLW1kZS10ZXh0LXNlY29uZGFyeSk7IGZvbnQtc3R5bGU6IGl0YWxpYzsgfVxuICAgIC5kZXRhaWwtaGFzaCB7XG4gICAgICBkaXNwbGF5OiBmbGV4OyBhbGlnbi1pdGVtczogY2VudGVyOyBnYXA6IDJweDtcbiAgICAgIGNvZGUgeyBmb250LXNpemU6IDAuODJlbTsgY29sb3I6IHZhcigtLW1kZS10ZXh0LXNlY29uZGFyeSk7IHVzZXItc2VsZWN0OiBhbGw7IH1cbiAgICAgIGJ1dHRvbiB7IHRyYW5zZm9ybTogc2NhbGUoMC44KTsgfVxuICAgIH1cbiAgfVxufVxuXG4uZ3JhcGgtY29udGFpbmVyIHtcbiAgb3ZlcmZsb3c6IGF1dG87XG4gIG1heC1oZWlnaHQ6IDUwMHB4O1xuICBwYWRkaW5nOiAxNnB4O1xuICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmFmYWZhO1xuICBib3JkZXItcmFkaXVzOiA0cHg7XG59XG5cbi5ncmFwaC1jYW52YXMge1xuICB3aWR0aDogMTAwJTtcbiAgbWluLWhlaWdodDogNDAwcHg7XG4gIGJhY2tncm91bmQtY29sb3I6IHdoaXRlO1xuICBib3JkZXI6IDFweCBzb2xpZCAjZTBlMGUwO1xuICBib3JkZXItcmFkaXVzOiA0cHg7XG59XG5cbi5uby1jb21taXRzIHtcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xuICBwYWRkaW5nOiA0MHB4O1xuICBjb2xvcjogIzY2NjtcbiAgZm9udC1zdHlsZTogaXRhbGljO1xufVxuXG5tYXQtZGlhbG9nLWNvbnRlbnQge1xuICBwYWRkaW5nOiAwIDI0cHg7XG59XG5cbm1hdC1kaWFsb2ctYWN0aW9ucyB7XG4gIHBhZGRpbmc6IDE2cHggMjRweDtcbn1cbi8vIElsIGNvbW1pdCBjaGUgaWwgcHJvZ2V0dG8gcmVnaXN0cmEgcGVyIGlsIHN1Ym1vZHVsZTogbmVsbGEgc3VhIGNyb25vbG9naWEgc2kgdmVkZSBkb3ZlIHN0YS5cbi5jb21taXQtdGFibGUgLnJlY29yZGVkLWhlcmUge1xuICBkaXNwbGF5OiBpbmxpbmUtZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiAycHg7XG4gIG1hcmdpbi1sZWZ0OiA4cHg7XG4gIHBhZGRpbmc6IDFweCA3cHggMXB4IDRweDtcbiAgYm9yZGVyLXJhZGl1czogOXB4O1xuICBmb250LWZhbWlseTogaW5oZXJpdDtcbiAgZm9udC1zaXplOiAxMC41cHg7XG4gIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy10ZXJ0aWFyeSk7XG4gIGNvbG9yOiB2YXIoLS1tZGUtYWNjZW50LXNlY29uZGFyeSk7XG5cbiAgbWF0LWljb24geyBmb250LXNpemU6IDEzcHg7IHdpZHRoOiAxM3B4OyBoZWlnaHQ6IDEzcHg7IH1cbn1cblxuLmNvbW1pdC10YWJsZSB0ci5yZWNvcmRlZC1yb3cge1xuICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctaG92ZXIpO1xufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }
@@ -4412,7 +4676,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "P2PService": () => (/* binding */ P2PService)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
 /* harmony import */ var _signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/signalr-timeouts */ 367);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 6317);
@@ -4546,7 +4810,7 @@ class P2PService {
   }
   startConnection() {
     var _this = this;
-    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_net10_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       if (!_this.hubConnection) return;
       try {
         yield _this.hubConnection.start();
@@ -8802,4 +9066,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.9176c6c5168ee96a.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.026ad577761e7311.js.map

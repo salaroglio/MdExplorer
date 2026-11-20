@@ -1615,7 +1615,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
         private static string FindMcpProjectPath(string baseDir)
         {
-            // Walk up from bin/Debug/net8.0-windows/win-x64/ to find MdExplorer.Mcp
+            // Walk up from bin/Debug/net10.0-windows/win-x64/ to find MdExplorer.Mcp
             var dir = new DirectoryInfo(baseDir);
             while (dir != null)
             {

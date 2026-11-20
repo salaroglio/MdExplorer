@@ -41,7 +41,7 @@ namespace Ad.Tools.Dal
             Type genericISessionFactoryDB = ISessionFactoryDB.MakeGenericType(currentInterface);
 
             var currentInstance = (dynamic) serviceProvider.GetService(genericISessionFactoryDB);
-            currentInstance.ReplaceDB(config, assembly);
+            currentInstance.ReplaceDB(config, assembly, connectionString);
 
         }
 
@@ -63,7 +63,7 @@ namespace Ad.Tools.Dal
             Type genericSessionFactoryDB = sessionFactoryDB.MakeGenericType(currentInterface);
 
             services.AddSingleton(genericISessionFactoryDB,
-               Activator.CreateInstance(genericSessionFactoryDB,config,assembly));
+               Activator.CreateInstance(genericSessionFactoryDB, config, assembly, connectionString));
 
             //services.AddSingleton();
             services.AddLogging();

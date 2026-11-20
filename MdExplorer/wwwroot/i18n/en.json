@@ -652,7 +652,12 @@
     "CONFIGURE": "Configure",
     "DEFAULT_MSG": "Update from MdExplorer",
     "NO_PROJECT_PATH": "Project path not available",
-    "GENERATION_ERROR": "Error generating commit message"
+    "GENERATION_ERROR": "Error generating commit message",
+    "TITLE_LABEL": "Title",
+    "TITLE_PLACEHOLDER": "type(area): what changes",
+    "TITLE_HINT": "The line shown in the list of commits (Conventional Commits)",
+    "BODY_LABEL": "Description",
+    "BODY_PLACEHOLDER": "- one bullet for each activity you are recording"
   },
   "GIT_BRANCH": {
     "TITLE": "Branch Manager",
@@ -684,14 +689,15 @@
     "LOADING": "Loading commit history...",
     "TABLE": "Table",
     "GRAPH": "Graph",
-    "HASH": "Hash",
     "CLICK_TO_COPY": "Click to copy",
     "MERGE_COMMIT": "Merge commit",
     "DATE": "Date",
     "AUTHOR": "Author",
     "MESSAGE": "Message",
     "NO_COMMITS": "No commits found",
-    "LOAD_ERROR": "Error loading commit history"
+    "LOAD_ERROR": "Error loading commit history",
+    "NO_DETAIL": "No detail beyond the title.",
+    "COPIED": "Copied"
   },
   "GIT_INIT": {
     "TITLE": "Initialize Git Repository",
@@ -1212,9 +1218,6 @@
     "FIRST_VIEW": "First view of the file",
     "LOAD_ERROR": "Loading error",
     "RETRY": "Retry",
-    "WELCOME": "Welcome to MdExplorer",
-    "SELECT_FILE": "Select a Markdown file from the sidebar to start viewing.",
-    "USE_NAV": "Use the left navigation to explore your documents",
     "FILE_DELETED_TITLE": "File no longer available",
     "FILE_DELETED_MSG": "The file <strong>{{name}}</strong> has been deleted from the file system.",
     "FILE_DELETED_HINT": "Select another file from the sidebar to continue.",
@@ -2078,7 +2081,8 @@
     "APP_STORE": "App Store",
     "COMPLETED": "Completed",
     "ERROR_STATUS": "Error",
-    "MARK_ASSISTANT_TOOLTIP": "Open Mark's guide"
+    "MARK_ASSISTANT_TOOLTIP": "Open Mark's guide",
+    "SETUP_GUIDE": "What to install"
   },
   "MARK": {
     "TRANSMITTING": "▌ TRANSMITTING",
@@ -3052,5 +3056,45 @@
     "PROJECT_INVITE_HINT": "A link for one person only, valid for one day: open it with your phone and join the channel.",
     "PROJECT_TEST": "Test message",
     "PROJECT_TEST_SENT": "Test message posted in the channel."
+  },
+  "SETUP_GUIDE": {
+    "TITLE": "Before you start",
+    "SUBTITLE": "MDE brings almost everything with it. Three things you install yourself, once: here you see whether they are already there and how to add them.",
+    "SUBTITLE_READY": "Everything MDE needs is already on this computer: you can close and start.",
+    "HARNESS_SHORT": "MarkAgent engine",
+    "JAVA_SHORT": "Java 21",
+    "PANDOC_SHORT": "Pandoc",
+    "HARNESS_TITLE": "An engine for MarkAgent",
+    "HARNESS_WHY": "MarkAgent, the MDE chat, thinks with an AI engine installed on the computer: GitHub Copilot CLI, Claude Code or opencode. One is enough, with your account.",
+    "ENGINE_READY": "ready",
+    "ENGINE_NOT_READY": "installed, not ready yet",
+    "ENGINE_MISSING": "not installed",
+    "HARNESS_OK": "MarkAgent has an engine: you can use it now.",
+    "HARNESS_MISSING": "No engine is ready: MarkAgent cannot answer until you install one and log in.",
+    "HARNESS_HOW_HINT": "They install with npm, which comes with Node.js. One of the three is enough:",
+    "HARNESS_LOGIN_HINT": "Then run it once from a terminal (copilot, claude or opencode auth login) and log in with your account.",
+    "HARNESS_LINK": "Download Node.js",
+    "JAVA_TITLE": "Java 21",
+    "JAVA_WHY": "PlantUML draws diagrams with Java; the code graph and the agents' memory use it too. Version 21 or newer is required.",
+    "JAVA_OK": "Java {{major}} found in {{path}}.",
+    "JAVA_USER_PATH": "The settings point to {{configured}}, which is not suitable; this computer has Java {{major}} in {{path}}: set it in Settings → Application.",
+    "JAVA_MISSING": "There is no Java {{min}} or newer on this computer: PlantUML diagrams and the code graph do not start.",
+    "JAVA_LINK": "Download Temurin 21",
+    "PANDOC_TITLE": "Pandoc for Word exports",
+    "PANDOC_WHY": "Word (.docx) exports are made by Pandoc, a free converter MDE runs when you export.",
+    "PANDOC_OK": "Pandoc {{version}} found in {{path}}.",
+    "PANDOC_RESTART": "Pandoc is installed in {{path}}, but MDE started before: it will use it from the next start.",
+    "PANDOC_MISSING": "Pandoc is missing: Word export does not work until you install it.",
+    "PANDOC_LINK": "Download Pandoc",
+    "HOW": "How to install it",
+    "RESTART_HINT": "Installed it and it still shows as missing? MDE reads the PATH at start: restart it.",
+    "CHECKING": "Checking…",
+    "CHECK_FAILED": "The check failed: {{error}}",
+    "RECHECK": "Check again",
+    "COPY": "Copy",
+    "COPIED": "Copied",
+    "BACK": "Back",
+    "NEXT": "Next",
+    "DONE": "Done"
   }
 }

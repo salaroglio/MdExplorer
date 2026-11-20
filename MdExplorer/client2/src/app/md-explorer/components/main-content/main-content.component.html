@@ -75,24 +75,9 @@
     </div>
   </div>
 
-  <!-- Empty State (when no file is selected). Non quando si guarda una differenza: sta sopra
-       (z-index 500) e la coprirebbe, cosi' con nessun documento aperto il diff restava invisibile. -->
-  <div class="empty-state"
-       *ngIf="(currentState$ | async)?.status === 'idle' && !diffRequest && !agentDocument"
-       role="main"
-       aria-label="empty state">
-    <div class="empty-content">
-      <mat-icon class="empty-icon">description</mat-icon>
-      <h3 class="empty-title">{{ 'MAIN_CONTENT.WELCOME' | translate }}</h3>
-      <p class="empty-message">{{ 'MAIN_CONTENT.SELECT_FILE' | translate }}</p>
-      <div class="empty-actions">
-        <p class="empty-hint">
-          <mat-icon class="hint-icon">info</mat-icon>
-          {{ 'MAIN_CONTENT.USE_NAV' | translate }}
-        </p>
-      </div>
-    </div>
-  </div>
+  <!-- Nessun documento scelto (stato 'idle', il primo ingresso in un progetto): il riquadro mostra la pagina di
+       benvenuto (htmlSource parte da welcome.html). Prima qui c'era il cartoncino «Seleziona un file» e il carosello
+       compariva solo rientrando nel progetto, quando la lista dei progetti aveva scelto welcome.html come documento. -->
 
   <!-- File Deleted State -->
   <div class="deleted-state"
@@ -140,7 +125,7 @@
           id="mdIframe"
           name="mdIframe"
           class="content-iframe"
-          [hidden]="diffRequest || _HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle' || (currentState$ | async)?.status === 'deleted'"
+          [hidden]="diffRequest || _HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'deleted'"
           [src]="htmlSource | safe"
           tabindex="0"
           role="document"

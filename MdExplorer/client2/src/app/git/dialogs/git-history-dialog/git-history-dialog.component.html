@@ -37,29 +37,16 @@
 
     <!-- Table View -->
     <div *ngIf="selectedView === 'table'" class="table-container">
-      <table mat-table [dataSource]="dataSource" matSort class="commit-table">
+      <!-- Testata nella riga, dettaglio per punti sotto (19/11/2026), come li scrive la finestra del commit: un commit
+           aperto alla volta. L'hash non ha più una colonna: sta nel dettaglio, con il tasto per copiarlo. -->
+      <table mat-table [dataSource]="dataSource" matSort multiTemplateDataRows class="commit-table">
 
-        <!-- Hash Column -->
-        <ng-container matColumnDef="hash">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ 'GIT_HISTORY.HASH' | translate }} </th>
-          <td mat-cell *matCellDef="let commit" class="hash-cell">
-            <span class="hash-text" (click)="copyHash(commit.hash)" [title]="'GIT_HISTORY.CLICK_TO_COPY' | translate">
-              {{ commit.shortHash || commit.hash.substring(0, 7) }}
-            </span>
-            <mat-icon *ngIf="commit.isMerge" class="merge-icon" [title]="'GIT_HISTORY.MERGE_COMMIT' | translate">merge_type</mat-icon>
-            <!-- Dove il progetto «vuole» questo submodule: la versione registrata. -->
-            <span class="recorded-here" *ngIf="isRecordedByProject(commit)"
-                  [matTooltip]="'GITFLOW.PROJECT_IS_HERE_TIP' | translate">
-              <mat-icon>push_pin</mat-icon>{{ 'GITFLOW.PROJECT_IS_HERE' | translate }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Date Column -->
+        <!-- Date Column: giorno sopra, ora sotto -->
         <ng-container matColumnDef="date">
           <th mat-header-cell *matHeaderCellDef mat-sort-header> {{ 'GIT_HISTORY.DATE' | translate }} </th>
           <td mat-cell *matCellDef="let commit" class="date-cell">
-            {{ formatDate(commit.date) }}
+            <span class="date-day">{{ formatDay(commit.date) }}</span>
+            <span class="date-time">{{ formatTime(commit.date) }}</span>
           </td>
         </ng-container>
 
@@ -71,16 +58,50 @@
           </td>
         </ng-container>
 
-        <!-- Message Column -->
+        <!-- Message Column: solo la testata -->
         <ng-container matColumnDef="message">
           <th mat-header-cell *matHeaderCellDef> {{ 'GIT_HISTORY.MESSAGE' | translate }} </th>
           <td mat-cell *matCellDef="let commit" class="message-cell">
-            {{ commit.message }}
+            <div class="message-line">
+              <mat-icon class="expand-icon" [class.open]="expandedHash === commit.hash">chevron_right</mat-icon>
+              <span class="message-title" [title]="partsOf(commit).title">{{ partsOf(commit).title }}</span>
+              <mat-icon *ngIf="commit.isMerge" class="merge-icon" [title]="'GIT_HISTORY.MERGE_COMMIT' | translate">merge_type</mat-icon>
+              <!-- Dove il progetto «vuole» questo submodule: la versione registrata. -->
+              <span class="recorded-here" *ngIf="isRecordedByProject(commit)"
+                    [matTooltip]="'GITFLOW.PROJECT_IS_HERE_TIP' | translate">
+                <mat-icon>push_pin</mat-icon>{{ 'GITFLOW.PROJECT_IS_HERE' | translate }}
+              </span>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Il dettaglio, sotto la riga, su tutta la larghezza -->
+        <ng-container matColumnDef="detail">
+          <td mat-cell *matCellDef="let commit" [attr.colspan]="displayedColumns.length" class="detail-cell">
+            <div class="commit-detail" *ngIf="expandedHash === commit.hash">
+              <ng-container *ngFor="let block of partsOf(commit).blocks">
+                <p *ngIf="block.text" class="detail-paragraph">{{ block.text }}</p>
+                <ul *ngIf="block.points" class="detail-points">
+                  <li *ngFor="let point of block.points">{{ point }}</li>
+                </ul>
+              </ng-container>
+              <p *ngIf="!hasDetail(commit)" class="detail-empty">{{ 'GIT_HISTORY.NO_DETAIL' | translate }}</p>
+              <div class="detail-hash">
+                <code>{{ commit.hash }}</code>
+                <button mat-icon-button (click)="copyHash(commit.hash, $event)"
+                        [matTooltip]="(copiedHash === commit.hash ? 'GIT_HISTORY.COPIED' : 'GIT_HISTORY.CLICK_TO_COPY') | translate">
+                  <mat-icon>{{ copiedHash === commit.hash ? 'done' : 'content_copy' }}</mat-icon>
+                </button>
+              </div>
+            </div>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.recorded-row]="isRecordedByProject(row)"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="commit-row"
+            [class.recorded-row]="isRecordedByProject(row)" [class.expanded-row]="expandedHash === row.hash"
+            (click)="toggle(row)"></tr>
+        <tr mat-row *matRowDef="let row; columns: ['detail']" class="detail-row" [class.open]="expandedHash === row.hash"></tr>
       </table>
 
       <div *ngIf="commits.length === 0" class="no-commits">

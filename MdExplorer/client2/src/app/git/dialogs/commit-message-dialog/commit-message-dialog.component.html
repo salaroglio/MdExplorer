@@ -1,26 +1,42 @@
 <h2 mat-dialog-title>{{ 'GIT_COMMIT.TITLE' | translate }}</h2>
 <mat-dialog-content>
-  <mat-form-field appearance="outline" style="width: 100%; min-width: 400px;">
-    <mat-label>{{ 'GIT_COMMIT.LABEL' | translate }}</mat-label>
-    <textarea
+  <!-- Titolo e descrizione separati (19/11/2026): il titolo è la riga che si legge nell'elenco dei commit,
+       la descrizione un punto per ogni attività che si sta registrando. -->
+  <label class="commit-field-label" for="commit-title">{{ 'GIT_COMMIT.TITLE_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="commit-field">
+    <input
+      id="commit-title"
       matInput
-      [(ngModel)]="commitMessage"
-      rows="4"
-      [placeholder]="'GIT_COMMIT.PLACEHOLDER' | translate"
+      [(ngModel)]="commitTitle"
+      [placeholder]="'GIT_COMMIT.TITLE_PLACEHOLDER' | translate"
       cdkFocusInitial
+      [disabled]="isGeneratingMessage"
+      (keydown.enter)="$event.ctrlKey && onConfirm()">
+    <mat-hint>{{ 'GIT_COMMIT.TITLE_HINT' | translate }}</mat-hint>
+    <mat-hint align="end" [class.title-too-long]="commitTitle.length > maxTitleLength">{{ commitTitle.length }} / {{ maxTitleLength }}</mat-hint>
+  </mat-form-field>
+
+  <label class="commit-field-label" for="commit-body">{{ 'GIT_COMMIT.BODY_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="commit-field">
+    <textarea
+      id="commit-body"
+      matInput
+      [(ngModel)]="commitBody"
+      rows="10"
+      [placeholder]="'GIT_COMMIT.BODY_PLACEHOLDER' | translate"
       [disabled]="isGeneratingMessage"
       (keydown.enter)="$event.ctrlKey && onConfirm()">
     </textarea>
     <mat-hint>{{ 'GIT_COMMIT.HINT' | translate }}</mat-hint>
   </mat-form-field>
 
-  <div style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+  <div class="commit-ai-row">
     <button
       mat-stroked-button
       color="accent"
       (click)="generateWithAi()"
       [disabled]="isGeneratingMessage">
-      <mat-icon style="margin-right: 4px;">smart_toy</mat-icon>
+      <mat-icon class="commit-ai-icon">smart_toy</mat-icon>
       {{ isGeneratingMessage ? ('GIT_COMMIT.GENERATING' | translate) : ('GIT_COMMIT.GENERATE_AI' | translate) }}
     </button>
     <mat-spinner
@@ -30,8 +46,8 @@
     </mat-spinner>
   </div>
 
-  <div *ngIf="aiError" class="ai-error-message" style="margin-top: 8px; font-size: 12px;">
-    <mat-icon style="font-size: 16px; vertical-align: middle;">warning</mat-icon>
+  <div *ngIf="aiError" class="ai-error-message">
+    <mat-icon class="ai-error-icon">warning</mat-icon>
     {{ aiError }}
   </div>
 </mat-dialog-content>
@@ -41,7 +57,7 @@
     mat-raised-button
     color="primary"
     (click)="onConfirm()"
-    [disabled]="!commitMessage || !commitMessage.trim() || isGeneratingMessage">
+    [disabled]="!commitTitle || !commitTitle.trim() || isGeneratingMessage">
     Commit
   </button>
 </mat-dialog-actions>

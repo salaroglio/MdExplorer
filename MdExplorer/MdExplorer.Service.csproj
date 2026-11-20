@@ -26,7 +26,7 @@
     <!-- Build P2P Premium module if project exists -->
     <PropertyGroup>
       <P2PProjectPath>$(MSBuildThisFileDirectory)..\MdExplorer.P2P.Premium\MdExplorer.P2P.Premium.csproj</P2PProjectPath>
-      <P2PDllSource>$(MSBuildThisFileDirectory)..\MdExplorer.P2P.Premium\bin\Release\net8.0\MdExplorer.P2P.Premium.dll</P2PDllSource>
+      <P2PDllSource>$(MSBuildThisFileDirectory)..\MdExplorer.P2P.Premium\bin\Release\net10.0\MdExplorer.P2P.Premium.dll</P2PDllSource>
       <P2PDllDest>$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.P2P.Premium.dll</P2PDllDest>
     </PropertyGroup>
 
@@ -113,8 +113,8 @@
   </Target>
   
   <PropertyGroup>
-    <TargetFramework Condition="$([MSBuild]::IsOSPlatform('Windows'))">net8.0-windows</TargetFramework>
-    <TargetFramework Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net8.0</TargetFramework>
+    <TargetFramework Condition="$([MSBuild]::IsOSPlatform('Windows'))">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net10.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <PublishSingleFile>false</PublishSingleFile>
     <UserSecretsId>86e04b2f-9fbb-4c74-a7c8-65ed9f01eac8</UserSecretsId>
@@ -349,7 +349,7 @@
     <PackageReference Include="A2A" Version="1.0.0-preview2" />
     <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.8.3" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.15" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
     <PackageReference Include="SocketIOClient" Version="3.1.1" />

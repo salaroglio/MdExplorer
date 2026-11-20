@@ -5,7 +5,7 @@
        si fa in rockylinux:8 con publish-linux-x64.sh, così gira da glibc 2.17 in su. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>mde-remote</AssemblyName>

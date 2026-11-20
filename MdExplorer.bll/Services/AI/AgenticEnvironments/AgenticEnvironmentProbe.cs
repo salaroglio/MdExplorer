@@ -21,6 +21,8 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
         public const string NotLoggedIn = "not-logged-in";
         /// <summary>opencode c'è ma non elenca nessun modello.</summary>
         public const string NoModels = "no-models";
+        /// <summary>Il CLI parla una versione del protocollo diversa da quella dell'SDK di MdExplorer (Copilot, 19/11/2026).</summary>
+        public const string IncompatibleVersion = "incompatible-version";
         /// <summary>Il CLI non ha risposto entro il tempo massimo.</summary>
         public const string Timeout = "timeout";
         /// <summary>Il CLI ha risposto qualcosa che non si sa leggere, o il controllo è fallito.</summary>

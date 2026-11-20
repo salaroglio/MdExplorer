@@ -217,7 +217,17 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 UseLoggedInUser = true,
             });
 
-            await _client.StartAsync(timeout.Token).ConfigureAwait(false);
+            try
+            {
+                await _client.StartAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (CopilotCliCompatibility.IsProtocolMismatch(ex))
+            {
+                // The user's CLI moved ahead of the SDK: say which versions and the command that fixes it.
+                var explained = await CopilotCliCompatibility.ExplainAsync(ex, ct).ConfigureAwait(false);
+                _logger.LogWarning("[CopilotSdkSession] {Message}", explained.Message);
+                throw explained;
+            }
 
             void Fill(SessionConfigBase config)
             {
@@ -506,6 +516,19 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     if (idle.Data?.Aborted == true && turn.Started)
                     {
                         _logger.LogInformation("[CopilotSdkSession] turno interrotto su session={SessionId}", _session?.SessionId);
+                    }
+                    EndTurn(turn);
+                    break;
+
+                case SessionIdleEvent:
+                    // The Copilot CLI of November 2026 (1.0.107 on the dev VM) closes the turn with
+                    // session.idle and never sends assistant.idle: waiting only for AssistantIdle left
+                    // every answer open until the 300 s idle watchdog (MarkSearch stuck on «Mark sta
+                    // scegliendo le parole chiave», 19/11/2026). It is the last event of the turn, after
+                    // AssistantTurnEnd and the agentStop hook. EndTurn ignores it for a turn not begun.
+                    if (turn.Started)
+                    {
+                        _logger.LogInformation("[CopilotSdkSession] fine della risposta da session.idle su session={SessionId}", _session?.SessionId);
                     }
                     EndTurn(turn);
                     break;

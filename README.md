@@ -61,7 +61,7 @@ Every page of the site is also published as plain markdown: add `index.md` to th
 git clone --recursive https://github.com/salaroglio/MdExplorer.git
 cd MdExplorer
 
-dotnet build                                   # backend, .NET 8
+dotnet build                                   # backend, .NET 10
 
 cd MdExplorer/client2 && npm install && npm run build && cd ../..   # Angular frontend
 

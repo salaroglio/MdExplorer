@@ -44,47 +44,52 @@
 .commit-table {
   width: 100%;
 
-  .hash-cell {
-    font-family: monospace;
-
-    .hash-text {
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-
-      &:hover {
-        background-color: #f0f0f0;
-      }
-    }
-
-    .merge-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-      margin-left: 8px;
-      color: #ff6b6b;
-      vertical-align: middle;
-    }
-  }
-
   .date-cell {
     white-space: nowrap;
     font-size: 0.9em;
+    width: 1%;
+    padding-right: 20px;
+    .date-day, .date-time { display: block; line-height: 1.3; }
+    .date-time { color: var(--mde-text-secondary); font-size: 0.92em; }
   }
 
   .author-cell {
     font-weight: 500;
+    white-space: nowrap;
+    width: 1%;
+    padding-right: 20px;
   }
 
   .message-cell {
-    max-width: 400px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 0; // la colonna prende lo spazio che resta, e la testata lunga finisce con «…»
+    .message-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .message-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .expand-icon { flex: none; font-size: 20px; width: 20px; height: 20px; color: var(--mde-text-hint); transition: transform 0.15s ease; }
+    .expand-icon.open { transform: rotate(90deg); color: var(--mde-accent-primary); }
+    .merge-icon { flex: none; font-size: 16px; width: 16px; height: 16px; margin-left: 4px; color: #ff6b6b; }
   }
 
-  tr:hover {
-    background-color: #f5f5f5;
+  tr.commit-row { cursor: pointer; }
+  tr.commit-row:hover { background-color: var(--mde-hover-overlay); }
+  tr.commit-row.expanded-row td { border-bottom-color: transparent; }
+
+  // La riga del dettaglio esiste per ogni commit: chiusa non ha altezza né bordo.
+  tr.detail-row { height: 0; }
+  tr.detail-row:not(.open) td { padding: 0; border-bottom-width: 0; }
+  .detail-cell { padding: 0 16px 0 40px; }
+
+  .commit-detail {
+    padding: 2px 0 12px;
+    color: var(--mde-text-primary);
+    line-height: 1.5;
+    .detail-paragraph { margin: 0 0 6px; }
+    .detail-points { margin: 0 0 6px; padding-left: 20px; li { margin: 2px 0; } }
+    .detail-empty { margin: 0 0 6px; color: var(--mde-text-secondary); font-style: italic; }
+    .detail-hash {
+      display: flex; align-items: center; gap: 2px;
+      code { font-size: 0.82em; color: var(--mde-text-secondary); user-select: all; }
+      button { transform: scale(0.8); }
+    }
   }
 }
 

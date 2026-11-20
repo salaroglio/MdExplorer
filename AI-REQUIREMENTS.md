@@ -19,7 +19,7 @@ word_section:
 MdExplorer include una funzionalità di chat AI che utilizza LLamaSharp per eseguire modelli di linguaggio localmente. Questo documento descrive i requisiti di sistema e le dipendenze necessarie.
 
 ## Requisiti Generali
-- **.NET 8.0 SDK** o superiore
+- **.NET 10 SDK** o superiore
 - **Node.js 14.21.3** per compilare il frontend Angular
 - Almeno **8 GB di RAM** (16 GB consigliati per modelli più grandi)
 - **4-8 GB di spazio disco** per i modelli AI
@@ -67,7 +67,7 @@ sudo pacman -S base-devel gcc
 Le librerie native di LLamaSharp richiedono che `LD_LIBRARY_PATH` sia configurato correttamente:
 
 ```bash
-export LD_LIBRARY_PATH="/path/to/MdExplorer/bin/Debug/net8.0/linux-x64:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/path/to/MdExplorer/bin/Debug/net10.0/linux-x64:$LD_LIBRARY_PATH"
 ```
 
 Oppure usa lo script fornito:

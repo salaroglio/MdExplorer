@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Inventario delle chiamate che C# 14 lega a System.MemoryExtensions (sprint .NET 10, F2; decisione D2: resta come
+       controllo prima dei rilasci). Strumento a parte: non fa parte di MdExplorer.sln e non finisce in nessun pacchetto.
+       Roslyn 5.9.0 = la versione del compilatore dell'SDK 10.0.404 con cui si compila MDE (18/11/2026). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Il progetto di controllo ha i suoi file: non si compilano dentro lo strumento. -->
+    <Compile Remove="controls/**" />
+    <None Remove="controls/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.9.0" />
+    <!-- Portato da Workspaces.MSBuild: MSBuild lo carica Microsoft.Build.Locator dall'SDK, la copia del pacchetto non deve
+         finire accanto allo strumento (errore MSBL001 del Locator). Stessa versione che arriva per dipendenza. -->
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.11.48" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

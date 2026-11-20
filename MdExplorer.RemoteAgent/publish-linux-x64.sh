@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Compila mde-remote per i server Linux x64 dentro rockylinux:8 (glibc 2.28): il binario chiede al più GLIBC_2.17 e
-# gira da CentOS 7 a Ubuntu 24.04 (sprint Cartella-Remota-Via-SSH, F0(a)). Compilato su una distribuzione recente
+# gira da CentOS 7 a Ubuntu 24.04 (sprint Cartella-Remota-Via-SSH, F0(a)). Da .NET 10 (sprint .NET 10, F3, 19/11/2026)
+# con dotnet-sdk-10.0 di Rocky 8: il binario chiede ancora al più GLIBC_2.17. Compilato su una distribuzione recente
 # chiederebbe la sua glibc (2.34 su Ubuntu 22.04) e non partirebbe sui server più vecchi.
 # Uso: ./publish-linux-x64.sh [cartella di uscita]   (default: MdExplorer/Binaries/remote/linux-x64, che va su Git)
 # Accanto al binario scrive mde-remote.sources-sha256, l'impronta dei sorgenti da cui è nato: il test
@@ -14,7 +15,7 @@ docker run --rm \
   -v "$repo:/src:ro" -v "$out:/out" -v mde-remote-nuget:/root/.nuget \
   rockylinux:8 bash -c '
     set -e
-    dnf install -y -q dotnet-sdk-8.0 clang zlib-devel >/dev/null
+    dnf install -y -q dotnet-sdk-10.0 clang zlib-devel >/dev/null
     cp -r /src/MdExplorer.Remote.Protocol /src/MdExplorer.RemoteAgent /tmp/
     rm -rf /tmp/MdExplorer.Remote.Protocol/bin /tmp/MdExplorer.Remote.Protocol/obj /tmp/MdExplorer.RemoteAgent/bin /tmp/MdExplorer.RemoteAgent/obj
     dotnet publish /tmp/MdExplorer.RemoteAgent/MdExplorer.RemoteAgent.csproj -c Release -r linux-x64 -o /tmp/out -nologo

@@ -58,7 +58,7 @@ fi
 echo "Installing dependencies..."
 echo ""
 
-# 1. OpenSSL: .NET 8 works with the system OpenSSL 3 — no legacy libssl1.1 needed
+# 1. OpenSSL: .NET 10 works with the system OpenSSL 3 — no legacy libssl1.1 needed
 echo "1. Checking OpenSSL..."
 if command -v openssl &> /dev/null; then
     print_status "OpenSSL found: $(openssl version)"
@@ -68,24 +68,24 @@ fi
 
 echo ""
 
-# 2. Install .NET 8 SDK/Runtime (if not present)
-echo "2. Checking .NET 8..."
+# 2. Install .NET 10 SDK/Runtime (if not present)
+echo "2. Checking .NET 10..."
 if command -v dotnet &> /dev/null; then
     DOTNET_VERSION=$(dotnet --version)
     print_status ".NET SDK found: $DOTNET_VERSION"
 
-    # Check for 8.0 runtime
-    if dotnet --list-runtimes | grep -q "Microsoft.NETCore.App 8\."; then
-        print_status ".NET 8 runtime is installed"
+    # Check for 10.0 runtime
+    if dotnet --list-runtimes | grep -q "Microsoft.NETCore.App 10\."; then
+        print_status ".NET 10 runtime is installed"
     else
-        print_warning ".NET 8 runtime not found"
-        echo "Install from: https://dotnet.microsoft.com/download/dotnet/8.0"
-        echo "Or use the bundled script: ./dotnet-install.sh --channel 8.0"
+        print_warning ".NET 10 runtime not found"
+        echo "Install from: https://dotnet.microsoft.com/download/dotnet/10.0"
+        echo "Or use the bundled script: ./dotnet-install.sh --channel 10.0"
     fi
 else
     print_error ".NET not found"
-    echo "Please install from: https://dotnet.microsoft.com/download/dotnet/8.0"
-    echo "Or use the bundled script: ./dotnet-install.sh --channel 8.0"
+    echo "Please install from: https://dotnet.microsoft.com/download/dotnet/10.0"
+    echo "Or use the bundled script: ./dotnet-install.sh --channel 10.0"
 fi
 
 echo ""
