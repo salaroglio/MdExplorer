@@ -37,7 +37,8 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
         /// Come <see cref="QueryAsync(string, string, string, string, string)"/>, senza credenziali (il Fuseki di MdExplorer), con un
         /// tetto di tempo: Fuseki interrompe la query (parametro <c>timeout</c>) e la richiesta non aspetta oltre.
         /// </summary>
-        Task<string> QueryAsync(string baseUri, string dataset, string sparql, System.TimeSpan timeout, System.Threading.CancellationToken ct);
+        /// <param name="accept">Il formato del risultato; null = JSON. «text/tab-separated-values» per le letture grandi (<see cref="MdExplorer.Features.Services.CodeGraph.SparqlTsv"/>).</param>
+        Task<string> QueryAsync(string baseUri, string dataset, string sparql, System.TimeSpan timeout, System.Threading.CancellationToken ct, string accept = null);
 
         /// <summary>SPARQL Update (INSERT/DELETE) su <c>POST /{ds}/update</c>.</summary>
         Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain);

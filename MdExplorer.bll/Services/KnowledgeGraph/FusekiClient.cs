@@ -140,7 +140,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             return body;
         }
 
-        public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, System.Threading.CancellationToken ct)
+        public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, System.Threading.CancellationToken ct, string accept = null)
         {
             if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
             if (string.IsNullOrWhiteSpace(sparql)) throw new ArgumentException("SPARQL query is required", nameof(sparql));
@@ -151,7 +151,7 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/query?timeout=" + seconds;
             using var content = new StringContent(sparql, Encoding.UTF8, "application/sparql-query");
             using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
-            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/sparql-results+json"));
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(accept ?? "application/sparql-results+json"));
 
             using var resp = await http.SendAsync(req, ct);
             var body = await resp.Content.ReadAsStringAsync(ct);

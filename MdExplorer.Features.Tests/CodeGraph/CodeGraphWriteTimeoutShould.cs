@@ -30,7 +30,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             public string SanitizeDatasetName(string projectName) => _inner.SanitizeDatasetName(projectName);
             public Task<bool> EnsureDatasetAsync(string baseUri, string dataset, string username, string passwordPlain) => _inner.EnsureDatasetAsync(baseUri, dataset, username, passwordPlain);
             public Task<string> QueryAsync(string baseUri, string dataset, string sparql, string username, string passwordPlain) => _inner.QueryAsync(baseUri, dataset, sparql, username, passwordPlain);
-            public Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, CancellationToken ct) => _inner.QueryAsync(baseUri, dataset, sparql, timeout, ct);
+            public Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, CancellationToken ct, string accept = null) => _inner.QueryAsync(baseUri, dataset, sparql, timeout, ct, accept);
             public Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain) { ShortWrites++; return _inner.UpdateAsync(baseUri, dataset, sparqlUpdate, username, passwordPlain); }
             public Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, TimeSpan timeout, CancellationToken ct)
             {

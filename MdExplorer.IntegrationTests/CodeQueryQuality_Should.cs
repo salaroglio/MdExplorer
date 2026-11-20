@@ -29,6 +29,9 @@ namespace MdExplorer.IntegrationTests
             protected override object Invoke(MethodInfo method, object[] args) => method.Name switch
             {
                 nameof(ICodeGraphStore.NavigationEdgesAsync) => Task.FromResult(Edges),
+                // pacchetto 3: gli archi che escono da (o entrano in) quei simboli, come lo store vero
+                nameof(ICodeGraphStore.NavigationEdgesOfAsync) => Task.FromResult((IReadOnlyList<CodeNavEdge>)Edges
+                    .Where(e => ((IReadOnlyCollection<string>)args[1]).Contains((bool)args[2] ? e.Source : e.Target)).ToList()),
                 nameof(ICodeGraphStore.SymbolsOfKindsAsync) => Task.FromResult(Symbols
                     .Where(s => ((IReadOnlyCollection<string>)args[1]).Contains(s.Kind)
                         && (args[2] is not IReadOnlyCollection<string> prefixes || prefixes.Any(p => s.Path.StartsWith(p, StringComparison.Ordinal)))).ToList()),

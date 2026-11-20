@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 UntimedQueries++;
                 return _inner.QueryAsync(baseUri, dataset, sparql, username, passwordPlain);
             }
-            public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, CancellationToken ct)
+            public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, TimeSpan timeout, CancellationToken ct, string accept = null)
             {
                 lock (QueryTimeouts) QueryTimeouts.Add(timeout);
                 if (QueriesExpire) throw new FusekiRequestException("query", 503, "Query timed out");
@@ -93,7 +93,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                     NavigationReads++;
                     await Task.Delay(NavigationDelay, CancellationToken.None);   // come Fuseki: il lavoro va avanti anche se chi chiede se ne va
                 }
-                return await _inner.QueryAsync(baseUri, dataset, sparql, timeout, ct);
+                return await _inner.QueryAsync(baseUri, dataset, sparql, timeout, ct, accept);
             }
             public Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain) => _inner.UpdateAsync(baseUri, dataset, sparqlUpdate, username, passwordPlain);
             public Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, TimeSpan timeout, CancellationToken ct) => _inner.UpdateAsync(baseUri, dataset, sparqlUpdate, timeout, ct);

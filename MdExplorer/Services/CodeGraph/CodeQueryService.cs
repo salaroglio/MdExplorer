@@ -162,7 +162,8 @@ namespace MdExplorer.Services.CodeGraph
         private async Task<object> DataReachAsync(string projectPath, string symbol, int depth, int limit, CancellationToken ct)
         {
             var start = await SingleAsync(projectPath, symbol, allowExternal: false, ct);
-            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            // pacchetto 3 (20/11/2026): solo il pezzo di grafo che si percorre dal simbolo, non tutti gli archi
+            var g = await CodeNavNeighborhood.ForwardAsync(ids => _store.NavigationEdgesOfAsync(projectPath, ids, outgoing: true, ct), start.Id, depth);
             var r = CodeNavigation.From(g, start.Id, depth, limit);
             return new
             {
@@ -179,7 +180,7 @@ namespace MdExplorer.Services.CodeGraph
         private async Task<object> WhoReachesAsync(string projectPath, string symbol, int depth, int limit, CancellationToken ct)
         {
             var target = await SingleAsync(projectPath, symbol, allowExternal: true, ct);
-            var g = new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct));
+            var g = await CodeNavNeighborhood.BackwardAsync(ids => _store.NavigationEdgesOfAsync(projectPath, ids, outgoing: false, ct), target.Id, depth);
             var r = CodeNavigation.To(g, target.Id, depth, limit);
             return new
             {
@@ -246,7 +247,11 @@ namespace MdExplorer.Services.CodeGraph
             if (lines.Count > MaxClaims)
                 throw new CodeQueryException(UiText.Say($"{lines.Count} affermazioni: al massimo {MaxClaims} per chiamata. Dividile in più chiamate.",
                     $"{lines.Count} claims: at most {MaxClaims} per call. Split them into several calls."));
-            var graph = new Lazy<Task<CodeNavigation.Graph>>(async () => new CodeNavigation.Graph(await _store.NavigationEdgesAsync(projectPath, ct)));
+            // pacchetto 3 (20/11/2026): per ogni simbolo di partenza il pezzo di grafo raggiungibile in avanti (quello che
+            // PathTo percorre), una volta sola anche se più affermazioni partono da lì; non più tutti gli archi
+            var graphs = new Dictionary<string, Task<CodeNavigation.Graph>>(StringComparer.Ordinal);
+            Task<CodeNavigation.Graph> GraphFrom(string id) => graphs.TryGetValue(id, out var known) ? known
+                : graphs[id] = CodeNavNeighborhood.ForwardAsync(ids => _store.NavigationEdgesOfAsync(projectPath, ids, outgoing: true, ct), id, int.MaxValue);
             var resolved = new Dictionary<string, (CodeSymbolView One, string Why, bool Several)>(StringComparer.Ordinal);
 
             // un nome → un simbolo solo, o il motivo per cui non lo è
@@ -307,7 +312,7 @@ namespace MdExplorer.Services.CodeGraph
                 }
                 if (a == null) { Add(Answer(i + 1, line, "undetermined", whyA), "undetermined"); continue; }
 
-                var g = await graph.Value;
+                var g = await GraphFrom(a.Id);
                 CodeNavigation.PathCheck check;
                 if (form == "calls")
                 {

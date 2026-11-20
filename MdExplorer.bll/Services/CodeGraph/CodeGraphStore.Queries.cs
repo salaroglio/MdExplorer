@@ -132,7 +132,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             await FillParametersAsync(g, s, ct);
             // lo script stesso (module) è il file: a che cosa serve lo dice la descrizione del file (D36)
             if (s.Kind == "module" && s.Summary == null && s.Path != null)
-                s.Summary = (await FileSummariesWhereAsync(g, $"VALUES ?p {{ {Lit(s.Path)} }}", ct)).Values.FirstOrDefault();
+                s.Summary = (await FileSummariesWhereAsync(g, new PathScope($"VALUES ?p {{ {Lit(s.Path)} }} ", string.Empty), ct)).Values.FirstOrDefault();
             return s;
         }
 
@@ -247,11 +247,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<CodeExternalUse>> ExternalUsesAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
-            var under = await UnderAsync(g, pathPrefix, "?path", ct);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
+            var match = scope.Exact
+                ? $"{scope.Values}?e code:path ?path ; a code:Edge ; code:target ?x ; code:source ?src ; code:relation ?rel . ?x a code:Symbol ; code:kind \"external\" ; code:qualifiedName ?qn . "
+                : "?x a code:Symbol ; code:kind \"external\" ; code:qualifiedName ?qn . ?e a code:Edge ; code:target ?x ; code:source ?src ; code:relation ?rel ; code:path ?path . ";
             var rows = await RowsAsync(
-                $"SELECT ?qn ?rel (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?callers) (MIN(CONCAT(?path, \":\", COALESCE(STR(?line), \"\"))) AS ?example) WHERE {{ GRAPH {g.DataIri} {{ {under}" +
-                "?e code:path ?path ; a code:Edge ; code:target ?x ; code:source ?src ; code:relation ?rel . ?x a code:Symbol ; code:kind \"external\" ; code:qualifiedName ?qn . " +
-                $"OPTIONAL {{ ?e code:line ?line }} FILTER(?rel != \"contains\") {NotRejected}}} }} GROUP BY ?qn ?rel", ct);
+                $"SELECT ?qn ?rel (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?callers) (MIN(CONCAT(?path, \":\", COALESCE(STR(?line), \"\"))) AS ?example) WHERE {{ GRAPH {g.DataIri} {{ " +
+                match + $"OPTIONAL {{ ?e code:line ?line }} FILTER(?rel != \"contains\") {scope.Filter}{NotRejected}}} }} GROUP BY ?qn ?rel", ct);
             return rows.Select(r => new CodeExternalUse { QualifiedName = Str(r, "qn"), Relation = Str(r, "rel"), Uses = Count(r, "n"), Callers = Count(r, "callers"), Example = Str(r, "example") }).ToList();
         }
 
@@ -260,15 +262,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             var kinds = string.Join(" ", new[] { "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type", "component", "service", "directive", "pipe", "ngmodule", "fragment" }
                 .Where(CodeDocPlanner.IsDescribable).Select(Lit));
-            var under = await UnderAsync(g, pathPrefix, "?path", ct);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
+            var symbol = scope.Exact ? $"{scope.Values}VALUES ?k {{ {kinds} }} ?s code:path ?path ; a code:Symbol ; code:kind ?k . " : $"VALUES ?k {{ {kinds} }} ?s a code:Symbol ; code:kind ?k ; code:path ?path . ";
             var row = (await RowsAsync(
-                $"SELECT (COUNT(DISTINCT ?s) AS ?all) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ {under}VALUES ?k {{ {kinds} }} " +
-                $"?s code:path ?path ; a code:Symbol ; code:kind ?k . FILTER NOT EXISTS {{ ?s code:trivial ?t }} OPTIONAL {{ ?d a code:Description ; code:describes ?s }} }} }}", ct)).FirstOrDefault();
+                $"SELECT (COUNT(DISTINCT ?s) AS ?all) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ {symbol}" +
+                $"FILTER NOT EXISTS {{ ?s code:trivial ?t }} {scope.Filter}OPTIONAL {{ ?d a code:Description ; code:describes ?s }} }} }}", ct)).FirstOrDefault();
             return row == null ? (0, 0) : (Count(row, "all"), Count(row, "described"));
         }
 
-        /// <summary>Oltre tanti file l'elenco esatto non conviene più (la query diventa lunga quanto il grafo): si torna al filtro di prima.</summary>
-        internal const int MaxExactPaths = 5000;
+        /// <summary>
+        /// Fin dove l'elenco esatto conviene. Misurato il 20/11/2026: su 30 mila file una cartella di 600 si conta in 0,15 s con
+        /// l'elenco e in 4,3 s col filtro; ma su PlantUML (3.662 file) un programma di 3.662 file si conta in 4 s con l'elenco e in
+        /// 0,24 s col filtro. L'elenco paga per file: conviene solo per una cartella piccola rispetto al grafo.
+        /// </summary>
+        internal const int MaxExactPaths = 1000;
 
         /// <summary>
         /// I percorsi dei file del grafo sotto uno dei prefissi: si leggono solo i nodi dei file (decine di migliaia), non i
@@ -282,23 +289,32 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>
-        /// La restrizione a una cartella (o a più) detta con l'elenco ESATTO dei suoi file (pacchetto 2 dell'efficienza,
-        /// 20/11/2026): <c>VALUES ?path { … }</c>, che Fuseki risolve con l'indice, invece di <c>FILTER(STRSTARTS(?path, …))</c>,
-        /// che legge tutto il grafo per scartare (misurato su 9,2M quad: 0,15 s contro 4,3 s). Va messa ALL'INIZIO del gruppo:
-        /// alla fine Fuseki leggerebbe tutto prima di incrociare. Vuota senza prefissi; oltre <see cref="MaxExactPaths"/> file,
-        /// il filtro di prima (mai peggio di prima).
+        /// La restrizione a una o più cartelle (pacchetto 2 dell'efficienza, 20/11/2026), in una di due forme:
+        /// <list type="bullet">
+        /// <item><b>esatta</b> (<see cref="Values"/>): <c>VALUES ?path { … }</c> con i file della cartella, che Fuseki risolve con
+        /// l'indice. Va IN TESTA e la query deve partire dal percorso (<c>?x code:path ?path ; …</c>): con l'elenco in testa ma
+        /// l'ordine di prima, Fuseki non finiva in 300 s.</item>
+        /// <item><b>filtro</b> (<see cref="Filter"/>): <c>FILTER(STRSTARTS(…))</c>, la query identica a prima — senza cartella
+        /// (vuota), o per una cartella oltre <see cref="MaxExactPaths"/> file.</item>
+        /// </list>
         /// </summary>
-        private async Task<string> UnderAsync(ProjectGraphs g, IEnumerable<string> prefixes, string variable, CancellationToken ct)
+        private readonly record struct PathScope(string Values, string Filter)
         {
-            var list = (prefixes ?? Array.Empty<string>()).Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.Ordinal).ToList();
-            if (list.Count == 0) return string.Empty;
-            var paths = await FilePathsUnderAsync(g, list, ct);
-            if (paths.Count > MaxExactPaths) return $"FILTER({string.Join(" || ", list.Select(p => $"STRSTARTS({variable}, {Lit(p)})"))}) ";
-            return $"VALUES {variable} {{ {string.Join(" ", paths.Select(Lit))} }} ";
+            public bool Exact => Values.Length > 0;
         }
 
-        private Task<string> UnderAsync(ProjectGraphs g, string prefix, string variable, CancellationToken ct)
-            => UnderAsync(g, string.IsNullOrEmpty(prefix) ? Array.Empty<string>() : new[] { prefix }, variable, ct);
+        private async Task<PathScope> ScopeAsync(ProjectGraphs g, IEnumerable<string> prefixes, string variable, CancellationToken ct)
+        {
+            var list = (prefixes ?? Array.Empty<string>()).Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.Ordinal).ToList();
+            if (list.Count == 0) return new PathScope(string.Empty, string.Empty);
+            var paths = await FilePathsUnderAsync(g, list, ct);
+            if (paths.Count > MaxExactPaths)
+                return new PathScope(string.Empty, $"FILTER({string.Join(" || ", list.Select(p => $"STRSTARTS({variable}, {Lit(p)})"))}) ");
+            return new PathScope($"VALUES {variable} {{ {string.Join(" ", paths.Select(Lit))} }} ", string.Empty);
+        }
+
+        private Task<PathScope> ScopeAsync(ProjectGraphs g, string prefix, string variable, CancellationToken ct)
+            => ScopeAsync(g, string.IsNullOrEmpty(prefix) ? Array.Empty<string>() : new[] { prefix }, variable, ct);
 
         /// <summary>Un elenco ordinato di id con un numero, poi le viste dei simboli nello stesso ordine.</summary>
         private async Task<List<(CodeSymbolView Symbol, Dictionary<string, string> Row)>> RankedAsync(ProjectGraphs g, string query, CancellationToken ct)
@@ -311,8 +327,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<(CodeSymbolView Symbol, int Calls)>> EntryPointsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             var ranked = await RankedAsync(g,
-                $"SELECT ?s (COUNT(DISTINCT ?out) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {await UnderAsync(g, pathPrefix, "?path", ct)}VALUES ?k {{ \"method\" \"function\" }} ?s code:path ?path ; a code:Symbol ; code:kind ?k . " +
+                $"SELECT ?s (COUNT(DISTINCT ?out) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}VALUES ?k {{ \"method\" \"function\" }} ?s code:path ?path ; a code:Symbol ; code:kind ?k . "
+                    : $"VALUES ?k {{ \"method\" \"function\" }} ?s a code:Symbol ; code:kind ?k ; code:path ?path . {scope.Filter}") +
                 "FILTER NOT EXISTS { ?s code:trivial ?t } OPTIONAL { ?s code:visibility ?vis } FILTER(!BOUND(?vis) || ?vis = \"public\") " +
                 "FILTER NOT EXISTS { ?in a code:Edge ; code:target ?s ; code:relation ?r . FILTER(?r IN (\"calls\", \"dispatches\", \"resolvesTo\", \"instantiates\")) FILTER NOT EXISTS { ?rejectedBy code:rejects ?in } } " +
                 $"OPTIONAL {{ ?o a code:Edge ; code:source ?s ; code:relation \"calls\" ; code:target ?out }} }} }} GROUP BY ?s ORDER BY DESC(?n) ?s LIMIT {limit}", ct);
@@ -322,8 +341,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<(string Path, int Symbols, string Summary)>> FilesUnderAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             var rows = await RowsAsync(
-                $"SELECT ?path ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ {await UnderAsync(g, pathPrefix, "?path", ct)}?f code:path ?path ; a code:File ; code:symbolCount ?n . " +
+                $"SELECT ?path ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}?f code:path ?path ; a code:File ; code:symbolCount ?n . " : $"?f a code:File ; code:path ?path ; code:symbolCount ?n . {scope.Filter}") +
                 $"OPTIONAL {{ ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum }} }} }} ORDER BY DESC(?n) ?path LIMIT {limit}", ct);
             return rows.Select(r => (Str(r, "path"), Count(r, "n"), Str(r, "sum"))).ToList();
         }
@@ -332,8 +353,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var types = string.Join(" ", new[] { "class", "interface", "record", "struct", "enum", "component", "service", "directive", "pipe", "ngmodule", "module" }.Select(Lit));
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             return await SymbolsWhereAsync(g,
-                $"{await UnderAsync(g, pathPrefix, "?path", ct)}VALUES ?kind {{ {types} }} ?s code:path ?path ; code:kind ?kind . " +
+                (scope.Exact ? $"{scope.Values}VALUES ?kind {{ {types} }} ?s code:path ?path ; code:kind ?kind . " : $"VALUES ?kind {{ {types} }} ?s code:kind ?kind ; code:path ?path . {scope.Filter}") +
                 "FILTER NOT EXISTS { ?s code:parent ?outer . ?outer code:kind ?ok . FILTER(?ok NOT IN (\"namespace\", \"module\")) }",
                 $"ORDER BY ?path ?ls LIMIT {limit}", ct);
         }
@@ -341,8 +363,10 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<(CodeSymbolView Symbol, int Incoming, int Sources)>> HotspotsAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             var ranked = await RankedAsync(g,
-                $"SELECT ?s (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?sources) WHERE {{ GRAPH {g.DataIri} {{ {await UnderAsync(g, pathPrefix, "?path", ct)}?s code:path ?path ; a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") " +
+                $"SELECT ?s (COUNT(?e) AS ?n) (COUNT(DISTINCT ?src) AS ?sources) WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}?s code:path ?path ; a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") " : $"?s a code:Symbol ; code:kind ?k ; code:path ?path . FILTER(?k != \"external\") {scope.Filter}") +
                 $"?e a code:Edge ; code:target ?s ; code:source ?src ; code:relation ?r . FILTER(?r NOT IN (\"contains\", \"imports\")) {NotRejected}}} }} GROUP BY ?s ORDER BY DESC(?sources) DESC(?n) ?s LIMIT {limit}", ct);
             return ranked.Select(x => (x.Symbol, Count(x.Row, "n"), Count(x.Row, "sources"))).ToList();
         }
@@ -351,8 +375,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             // metodi non pubblici mai raggiunti; tipi che nessuno nomina. I pubblici possono essere un'API: si vedono in entry-points
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             return await SymbolsWhereAsync(g,
-                $"{await UnderAsync(g, pathPrefix, "?path", ct)}?s code:path ?path ; code:kind ?kind . " +
+                (scope.Exact ? $"{scope.Values}?s code:path ?path ; code:kind ?kind . " : $"?s code:kind ?kind ; code:path ?path . {scope.Filter}") +
                 "OPTIONAL { ?s code:visibility ?v0 } " +
                 "FILTER((?kind IN (\"method\", \"function\") && BOUND(?v0) && ?v0 != \"public\") || ?kind IN (\"class\", \"interface\", \"record\", \"struct\", \"enum\")) " +
                 "FILTER NOT EXISTS { ?s code:trivial ?t } FILTER(!STRENDS(?path, \"Test.java\") && !CONTAINS(?path, \"/test/\")) " +
@@ -363,8 +388,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<(CodeSymbolView Symbol, string Confidence, int Count)>> UncertainAsync(string projectPath, string pathPrefix, int limit, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             var ranked = await RankedAsync(g,
-                $"SELECT ?s ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {await UnderAsync(g, pathPrefix, "?path", ct)}?e code:path ?path ; a code:Edge ; code:source ?s ; code:confidence ?conf0 . {EffectiveConfidence}" +
+                $"SELECT ?s ?conf (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}?e code:path ?path ; a code:Edge ; code:source ?s ; code:confidence ?conf0 . " : $"?e a code:Edge ; code:source ?s ; code:confidence ?conf0 ; code:path ?path . {scope.Filter}") +
+                EffectiveConfidence +
                 $"FILTER(?conf IN (\"inferred\", \"ambiguous\", \"{CodeOntology.LlmResolved}\")) }} }} GROUP BY ?s ?conf ORDER BY DESC(?n) ?s LIMIT {limit}", ct);
             return ranked.Select(x => (x.Symbol, Str(x.Row, "conf"), Count(x.Row, "n"))).ToList();
         }
@@ -471,29 +499,110 @@ namespace MdExplorer.Features.Services.CodeGraph
         private async Task<IReadOnlyList<CodeNavEdge>> LoadNavigationEdgesAsync(string projectPath, CancellationToken ct)
         {
             var g = GraphsOf(projectPath);
-            // in cache finché nessuno scrive sul grafo (14/11/2026, dal cliente: ogni domanda rileggeva tutti gli archi)
-            var before = Interlocked.Read(ref _writes);
-            var quiet = Interlocked.Read(ref _writing) == 0;
+            // in cache finché nessuno scrive ARCHI di questo progetto (14/11/2026, dal cliente: ogni domanda rileggeva tutti gli
+            // archi; 20/11/2026: per progetto e solo per le scritture che cambiano gli archi, non per lo stato a fine turno)
+            var before = NavigationVersion(g.Data);
+            var quiet = NavigationQuiet(g.Data);
             if (quiet && _navigation.TryGetValue(g.Data, out var cached) && cached.Writes == before) return cached.Edges;
-            var relations = string.Join(" ", CodeNavigation.Relations.Select(Lit));
-            var rows = await RowsAsync(
-                $"SELECT ?s ?sk ?sqn ?sp ?t ?tk ?tqn ?tp ?rel ?conf ?path ?line ?guard WHERE {{ GRAPH {g.DataIri} {{ VALUES ?rel {{ {relations} }} " +
-                "?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:confidence ?conf0 . " + EffectiveConfidence +
-                "?s code:kind ?sk . ?t code:kind ?tk . FILTER(?rel != \"contains\" || ?tk = \"control\") " +
-                "OPTIONAL { ?s code:qualifiedName ?sqn } OPTIONAL { ?s code:path ?sp } OPTIONAL { ?t code:qualifiedName ?tqn } OPTIONAL { ?t code:path ?tp } " +
-                "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } OPTIONAL { ?e code:guard ?guard } } }", NavigationTimeout, ct);
+
+            // Pacchetto 3 (20/11/2026): la lettura completa alleggerita. Prima una query sola che ricopiava in ogni arco nome,
+            // tipo e percorso dei due simboli e calcolava la certezza con due EXISTS per arco, in JSON: 51-68 s e 290 MB su 350
+            // mila archi. Ora quattro letture semplici in formato tabellare, ricomposte in memoria nello stesso elenco.
+            // contains a parte e solo verso un controllo (dal tipo «control», valore esatto): gli altri contains sono la struttura
+            // (classe → metodo), tanti quanti tutti gli altri archi insieme, e la navigazione non li usa
+            var relations = string.Join(" ", CodeNavigation.Relations.Where(r => r != "contains").Select(Lit));
+            const string edgeColumns = "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } OPTIONAL { ?e code:guard ?guard } } }";
+            var edges = await TsvAsync(
+                $"SELECT ?s ?t ?rel ?conf0 ?path ?line ?guard WHERE {{ GRAPH {g.DataIri} {{ VALUES ?rel {{ {relations} }} " +
+                "?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel ; code:confidence ?conf0 . " + edgeColumns, NavigationTimeout, ct);
+            var toControls = await TsvAsync(
+                $"SELECT ?s ?t ?rel ?conf0 ?path ?line ?guard WHERE {{ GRAPH {g.DataIri} {{ ?t code:kind \"control\" . " +
+                "?e code:target ?t ; code:relation \"contains\" ; a code:Edge ; code:source ?s ; code:relation ?rel ; code:confidence ?conf0 . " + edgeColumns, NavigationTimeout, ct);
+            if (CodeNavigation.Relations.Contains("contains")) edges.Rows.AddRange(toControls.Rows);
+            // i simboli una volta sola: tipo, nome, percorso (prima copiati in ogni arco, due volte)
+            var symbolRows = await TsvAsync(
+                $"SELECT ?s ?k ?qn ?p WHERE {{ GRAPH {g.DataIri} {{ ?s code:kind ?k . OPTIONAL {{ ?s code:qualifiedName ?qn }} OPTIONAL {{ ?s code:path ?p }} }} }}", NavigationTimeout, ct);
+            // le scelte delle descrizioni (poche): l'arco scartato non c'è, quello scelto ha certezza llm-resolved
+            var resolutions = await TsvAsync(
+                $"SELECT ?e ?x WHERE {{ GRAPH {g.DataIri} {{ {{ ?r code:rejects ?e BIND(\"r\" AS ?x) }} UNION {{ ?r code:chooses ?e BIND(\"c\" AS ?x) }} }} }}", NavigationTimeout, ct);
             // i membri delle interfacce a parte: una query sola, non un EXISTS per ogni arco
             var abstracts = (await RowsAsync($"SELECT ?m WHERE {{ GRAPH {g.DataIri} {{ ?m code:parent ?p . ?p code:kind \"interface\" }} }}", NavigationTimeout, ct))
                 .Select(r => SymbolId(r["m"])).ToHashSet(StringComparer.Ordinal);
-            var edges = rows.Select(r =>
+
+            var symbols = new Dictionary<string, (string Kind, string Name, string Path)>(StringComparer.Ordinal);
+            int cs = symbolRows.Column("s"), ck = symbolRows.Column("k"), cqn = symbolRows.Column("qn"), cp = symbolRows.Column("p");
+            foreach (var r in symbolRows.Rows) symbols.TryAdd(SymbolId(r[cs]), (r[ck], r[cqn], r[cp]));
+            var rejected = new HashSet<(string, string, string, int)>();
+            var chosen = new HashSet<(string, string, string, int)>();
+            int ce = resolutions.Column("e"), cx = resolutions.Column("x");
+            foreach (var r in resolutions.Rows)
+                if (CodeGraphIris.ParseEdge(r[ce]) is { } k) (r[cx] == "r" ? rejected : chosen).Add((k.Source, k.Relation, k.Target, k.Line ?? 0));
+
+            int es = edges.Column("s"), et = edges.Column("t"), er = edges.Column("rel"), ec = edges.Column("conf0"),
+                ep = edges.Column("path"), el = edges.Column("line"), eg = edges.Column("guard");
+            var list = new List<CodeNavEdge>(edges.Rows.Count);
+            foreach (var r in edges.Rows)
             {
-                var s = SymbolId(r["s"]); var t = SymbolId(r["t"]);
-                return new CodeNavEdge(s, Str(r, "sk"), Str(r, "sqn") ?? s, Str(r, "sp"), t, Str(r, "tk"), Str(r, "tqn") ?? t, Str(r, "tp"),
-                    Str(r, "rel"), Str(r, "conf"), Str(r, "path"), Int(r, "line"), abstracts.Contains(s), abstracts.Contains(t), Str(r, "guard"));
-            }).ToList();
-            // si tiene solo se nessuno ha scritto mentre si leggeva
-            if (quiet && Interlocked.Read(ref _writing) == 0 && Interlocked.Read(ref _writes) == before) _navigation[g.Data] = (before, edges);
-            return edges;
+                var s = SymbolId(r[es]); var t = SymbolId(r[et]); var rel = r[er];
+                // come prima: i due capi devono avere un tipo; contains solo verso un controllo
+                if (!symbols.TryGetValue(s, out var src) || !symbols.TryGetValue(t, out var tgt)) continue;
+                if (rel == "contains" && tgt.Kind != "control") continue;
+                int? line = int.TryParse(r[el], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : null;
+                var key = (s, rel, t, line ?? 0);
+                if (rejected.Contains(key)) continue;
+                var conf = chosen.Contains(key) ? CodeOntology.LlmResolved : r[ec];
+                list.Add(new CodeNavEdge(s, src.Kind, src.Name ?? s, src.Path, t, tgt.Kind, tgt.Name ?? t, tgt.Path,
+                    rel, conf, r[ep], line, abstracts.Contains(s), abstracts.Contains(t), r[eg]));
+            }
+            // un ordine fisso: le catene scelte a parità di lunghezza non cambiano da una lettura all'altra (prima seguivano
+            // l'ordine delle righe di Fuseki, che non è garantito) — le quadrature si confrontano fra un giorno e l'altro
+            list.Sort(static (a, b) =>
+            {
+                var c = string.CompareOrdinal(a.Source, b.Source); if (c != 0) return c;
+                c = string.CompareOrdinal(a.Relation, b.Relation); if (c != 0) return c;
+                c = string.CompareOrdinal(a.Target, b.Target); if (c != 0) return c;
+                c = (a.Line ?? 0).CompareTo(b.Line ?? 0); if (c != 0) return c;
+                return string.CompareOrdinal(a.Path, b.Path);
+            });
+            // si tiene solo se nessuno ha scritto archi di questo progetto mentre si leggeva
+            if (quiet && NavigationQuiet(g.Data) && NavigationVersion(g.Data) == before) _navigation[g.Data] = (before, list);
+            return list;
+        }
+
+        /// <summary>
+        /// Gli archi della navigazione che escono da (<paramref name="outgoing"/>) o entrano in questi simboli: gli stessi della
+        /// lettura completa (<see cref="NavigationEdgesAsync"/>: relazioni, contains solo verso un controllo, certezza effettiva,
+        /// membri delle interfacce), ma solo di questi, con l'indice (pacchetto 3, 20/11/2026). Le domande che partono da un
+        /// simbolo (data-reach, who-reaches, check-claims) leggono così solo il pezzo di grafo che percorrono.
+        /// </summary>
+        public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesOfAsync(string projectPath, IReadOnlyCollection<string> ids, bool outgoing, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var relations = string.Join(" ", CodeNavigation.Relations.Select(Lit));
+            var list = ids.Distinct(StringComparer.Ordinal).ToList();
+            var edges = new List<CodeNavEdge>();
+            for (var i = 0; i < list.Count; i += 200)
+            {
+                var values = string.Join(" ", list.Skip(i).Take(200).Select(id => Iri(Symbol(id))));
+                var bound = outgoing ? "?s" : "?t";
+                var rows = await RowsAsync(
+                    $"SELECT ?s ?sk ?sqn ?sp ?t ?tk ?tqn ?tp ?rel ?conf ?path ?line ?guard ?sa ?ta WHERE {{ GRAPH {g.DataIri} {{ VALUES {bound} {{ {values} }} VALUES ?rel {{ {relations} }} " +
+                    (outgoing ? "?e code:source ?s ; a code:Edge ; code:target ?t ; " : "?e code:target ?t ; a code:Edge ; code:source ?s ; ") +
+                    "code:relation ?rel ; code:confidence ?conf0 . " + EffectiveConfidence +
+                    "?s code:kind ?sk . ?t code:kind ?tk . FILTER(?rel != \"contains\" || ?tk = \"control\") " +
+                    "OPTIONAL { ?s code:qualifiedName ?sqn } OPTIONAL { ?s code:path ?sp } OPTIONAL { ?t code:qualifiedName ?tqn } OPTIONAL { ?t code:path ?tp } " +
+                    "OPTIONAL { ?e code:path ?path } OPTIONAL { ?e code:line ?line } OPTIONAL { ?e code:guard ?guard } " +
+                    // i membri delle interfacce, come nella lettura completa (lì una query a parte su tutto il grafo)
+                    "OPTIONAL { ?s code:parent ?sp0 . ?sp0 code:kind \"interface\" . BIND(1 AS ?sa) } OPTIONAL { ?t code:parent ?tp0 . ?tp0 code:kind \"interface\" . BIND(1 AS ?ta) } } }", ct);
+                edges.AddRange(rows.Select(r =>
+                {
+                    var s = SymbolId(r["s"]); var t = SymbolId(r["t"]);
+                    return new CodeNavEdge(s, Str(r, "sk"), Str(r, "sqn") ?? s, Str(r, "sp"), t, Str(r, "tk"), Str(r, "tqn") ?? t, Str(r, "tp"),
+                        Str(r, "rel"), Str(r, "conf"), Str(r, "path"), Int(r, "line"), r.ContainsKey("sa"), r.ContainsKey("ta"), Str(r, "guard"));
+                }));
+            }
+            // un arco con due genitori interfaccia verrebbe due volte: uno solo, come nella lettura completa
+            return edges.Distinct().ToList();
         }
 
         public async Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds,
@@ -501,10 +610,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var prefixes = (pathPrefixes ?? Array.Empty<string>()).Where(p => !string.IsNullOrEmpty(p)).ToList();
-            var under = await UnderAsync(g, prefixes, "?path", ct);
+            var scope = await ScopeAsync(g, prefixes, "?path", ct);
+            var kindValues = $"VALUES ?kind {{ {string.Join(" ", kinds.Select(Lit))} }} ";
             var rows = await RowsAsync(
-                $"SELECT ?s ?kind ?qn ?path WHERE {{ GRAPH {g.DataIri} {{ {under}VALUES ?kind {{ {string.Join(" ", kinds.Select(Lit))} }} " +
-                $"?s code:path ?path ; a code:Symbol ; code:kind ?kind . OPTIONAL {{ ?s code:qualifiedName ?qn }} }} }}", ct);
+                $"SELECT ?s ?kind ?qn ?path WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}{kindValues}?s code:path ?path ; a code:Symbol ; code:kind ?kind . " : $"{kindValues}?s a code:Symbol ; code:kind ?kind ; code:path ?path . {scope.Filter}") +
+                "OPTIONAL { ?s code:qualifiedName ?qn } } }", ct);
             return rows.Select(r => { var id = SymbolId(r["s"]); return (id, Str(r, "kind"), Str(r, "qn") ?? id, Str(r, "path")); }).ToList();
         }
 
@@ -518,10 +629,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         public async Task<List<string>> PagesWithoutClassAsync(string projectPath, string pathPrefix, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
-            var under = await UnderAsync(g, pathPrefix, "?path", ct);
+            var scope = await ScopeAsync(g, pathPrefix, "?path", ct);
             var rows = await RowsAsync(
-                $"SELECT DISTINCT ?page WHERE {{ GRAPH {g.DataIri} {{ {under}?c a {CodeOntology.ClassCallSite} ; code:caller ?page ; code:callee \"codebehind\" . " +
-                $"?page code:kind \"module\" ; code:path ?path . " +
+                $"SELECT DISTINCT ?page WHERE {{ GRAPH {g.DataIri} {{ " +
+                (scope.Exact ? $"{scope.Values}?page code:path ?path ; code:kind \"module\" . ?c a {CodeOntology.ClassCallSite} ; code:caller ?page ; code:callee \"codebehind\" . "
+                    : $"?c a {CodeOntology.ClassCallSite} ; code:caller ?page ; code:callee \"codebehind\" . ?page code:kind \"module\" ; code:path ?path . {scope.Filter}") +
                 "FILTER NOT EXISTS { ?e a code:Edge ; code:target ?page ; code:relation \"renders\" } } }", ct);
             return rows.Select(r => SymbolId(r["page"])).ToList();
         }
@@ -788,14 +900,15 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>A che cosa serve un file (la sua code:FileDescription, scritta dall'LLM); null se non è ancora descritto.</summary>
         public async Task<string> FileSummaryAsync(string projectPath, string path, CancellationToken ct = default)
-            => (await FileSummariesWhereAsync(GraphsOf(projectPath), $"VALUES ?p {{ {Lit(path)} }}", ct)).Values.FirstOrDefault();
+            => (await FileSummariesWhereAsync(GraphsOf(projectPath), new PathScope($"VALUES ?p {{ {Lit(path)} }} ", string.Empty), ct)).Values.FirstOrDefault();
 
         /// <summary>Le code:FileDescription dei file il cui percorso passa il filtro (su ?p), per percorso.</summary>
-        private async Task<Dictionary<string, string>> FileSummariesWhereAsync(ProjectGraphs g, string pathFilter, CancellationToken ct)
+        private async Task<Dictionary<string, string>> FileSummariesWhereAsync(ProjectGraphs g, PathScope scope, CancellationToken ct)
         {
             var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var file = scope.Exact ? $"{scope.Values}?f code:path ?p ; a code:File . " : $"?f a code:File ; code:path ?p . {scope.Filter}";
             foreach (var r in await RowsAsync(
-                $"SELECT ?p ?sum WHERE {{ GRAPH {g.DataIri} {{ {pathFilter} ?f code:path ?p ; a code:File . " +
+                $"SELECT ?p ?sum WHERE {{ GRAPH {g.DataIri} {{ {file}" +
                 "?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } }", ct))
                 map[Str(r, "p")] = Str(r, "sum");
             return map;
@@ -958,13 +1071,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             // i percorsi logici del programma cominciano con la sua cartella (program/…, @backend/…)
             // pacchetto 2 (20/11/2026): l'elenco esatto dei file del programma all'inizio, poi i quattro conti da lì (indice)
-            var under = await UnderAsync(g, programFolder.TrimEnd('/') + "/", "?p", ct);
+            var scope = await ScopeAsync(g, programFolder.TrimEnd('/') + "/", "?p", ct);
+            var under = scope.Filter;
+            var counts = scope.Exact
+                ? $"{scope.Values}" +
+                  "{ ?f code:path ?p ; a code:File } " +
+                  "UNION { ?df code:path ?p . ?fd code:describes ?df ; a code:FileDescription } " +
+                  "UNION { ?s code:path ?p ; a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } " +
+                  "UNION { ?ds code:path ?p . ?d code:describes ?ds ; a code:Description } "
+                : $"{{ ?f a code:File ; code:path ?p . {under} }} " +
+                  $"UNION {{ ?fd a code:FileDescription ; code:describes ?df . ?df code:path ?p . {under} }} " +
+                  $"UNION {{ ?s a code:Symbol ; code:kind ?k ; code:path ?p . FILTER(?k != \"external\") {under} }} " +
+                  $"UNION {{ ?d a code:Description ; code:describes ?ds . ?ds code:path ?p . {under} }} ";
             var r = (await RowsAsync(
-                $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?fd) AS ?describedFiles) (COUNT(DISTINCT ?s) AS ?symbols) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ {under}" +
-                "{ ?f code:path ?p ; a code:File } " +
-                "UNION { ?df code:path ?p . ?fd code:describes ?df ; a code:FileDescription } " +
-                "UNION { ?s code:path ?p ; a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } " +
-                "UNION { ?ds code:path ?p . ?d code:describes ?ds ; a code:Description } } }", WholeGraphTimeout, ct)).FirstOrDefault();
+                $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?fd) AS ?describedFiles) (COUNT(DISTINCT ?s) AS ?symbols) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ " +
+                counts + "} }", WholeGraphTimeout, ct)).FirstOrDefault();
             return r == null ? new CodeProgramCounts() : new CodeProgramCounts
             {
                 Files = Count(r, "files"), DescribedFiles = Count(r, "describedFiles"), Symbols = Count(r, "symbols"), DescribedSymbols = Count(r, "described"),
@@ -1021,20 +1142,25 @@ namespace MdExplorer.Features.Services.CodeGraph
             var prefix = string.IsNullOrEmpty(folderPrefix) ? string.Empty : folderPrefix.TrimEnd('/') + "/";
             var input = new CodeGraphViewInput { FolderPrefix = folderPrefix, Focus = focusSymbolId };
 
-            // pacchetto 2 (20/11/2026): i file della cartella per elenco esatto, poi simboli e archi da lì (indice)
-            var under = await UnderAsync(g, prefix, "?p", ct);
-            foreach (var r in await RowsAsync($"SELECT ?p ?n WHERE {{ GRAPH {g.DataIri} {{ {under}?f code:path ?p ; a code:File ; code:symbolCount ?n . }} }} ORDER BY ?p LIMIT 400", ct))
+            // pacchetto 2 (20/11/2026): per una cartella piccola i suoi file per elenco esatto, poi simboli e archi da lì (indice)
+            var scope = await ScopeAsync(g, prefix, "?p", ct);
+            var x = scope.Exact;
+            foreach (var r in await RowsAsync($"SELECT ?p ?n WHERE {{ GRAPH {g.DataIri} {{ " +
+                (x ? $"{scope.Values}?f code:path ?p ; a code:File ; code:symbolCount ?n . " : $"?f a code:File ; code:path ?p ; code:symbolCount ?n . {scope.Filter}") + "} } ORDER BY ?p LIMIT 400", ct))
                 input.Files.Add((Str(r, "p"), Count(r, "n")));
-            foreach (var r in await RowsAsync($"SELECT ?s ?p WHERE {{ GRAPH {g.DataIri} {{ {under}?s code:path ?p ; a code:Symbol . }} }}", ct))
+            foreach (var r in await RowsAsync($"SELECT ?s ?p WHERE {{ GRAPH {g.DataIri} {{ " +
+                (x ? $"{scope.Values}?s code:path ?p ; a code:Symbol . " : $"?s a code:Symbol ; code:path ?p . {scope.Filter}") + "} }", ct))
                 input.SymbolFiles[SymbolId(r["s"])] = Str(r, "p");
 
             foreach (var r in await RowsAsync(
-                $"SELECT ?a ?b ?rel ?conf ?tk ?tn ?tq WHERE {{ GRAPH {g.DataIri} {{ {under}?e code:path ?p ; a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf0 . {EffectiveConfidence}" +
-                $"FILTER(?rel != \"contains\") ?b code:kind ?tk ; code:name ?tn ; code:qualifiedName ?tq }} }}", ct))
+                $"SELECT ?a ?b ?rel ?conf ?tk ?tn ?tq WHERE {{ GRAPH {g.DataIri} {{ " +
+                (x ? $"{scope.Values}?e code:path ?p ; a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf0 . "
+                   : $"?e a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?p . {scope.Filter}") +
+                $"{EffectiveConfidence}FILTER(?rel != \"contains\") ?b code:kind ?tk ; code:name ?tn ; code:qualifiedName ?tq }} }}", ct))
                 input.Edges.Add(new CodeGraphViewInput.EdgeInput { Source = SymbolId(r["a"]), Target = SymbolId(r["b"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), TargetKind = Str(r, "tk"), TargetName = Str(r, "tn"), TargetQualifiedName = Str(r, "tq") });
 
             // a che cosa serve ogni file (code:FileDescription, scritta dall'LLM): l'accordion del box, anche a file chiuso
-            foreach (var kv in await FileSummariesWhereAsync(g, under, ct))
+            foreach (var kv in await FileSummariesWhereAsync(g, scope, ct))
                 input.FileSummaries[kv.Key] = kv.Value;
 
             var known = new HashSet<string>(input.Files.Select(f => f.Path), StringComparer.Ordinal);

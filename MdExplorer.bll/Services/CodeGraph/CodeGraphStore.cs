@@ -90,6 +90,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// la certezza effettiva (llm-resolved se l'LLM ha scelto), contains solo verso un controllo.
         /// </summary>
         Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Gli archi della navigazione che escono da (o entrano in) questi simboli soltanto: il pezzo di grafo di una domanda da un punto.</summary>
+        Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesOfAsync(string projectPath, IReadOnlyCollection<string> ids, bool outgoing, CancellationToken ct = default);
         /// <summary>I simboli (non esterni) con uno di questi tipi e il file sotto uno dei prefissi (null = ovunque): id, tipo, nome qualificato, file.</summary>
         Task<List<(string Id, string Kind, string Name, string Path)>> SymbolsOfKindsAsync(string projectPath, IReadOnlyCollection<string> kinds, IReadOnlyCollection<string> pathPrefixes, CancellationToken ct = default);
         /// <summary>Tutti i file del grafo col loro file di progetto (<see cref="CodeProjectFiles"/>): null = non registrato, vuoto = nessuno sopra il file.</summary>
@@ -190,7 +192,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var p in new[] { "code:qualifiedName", "code:name" })
                 await UpdateAsync(CodeOntology.SparqlPrefixes +
                     $"DELETE {{ GRAPH {g.DataIri} {{ ?x {p} ?v }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; {p} ?v . " +
-                    $"?x {p} ?other . FILTER(STR(?other) < STR(?v)) }} }}", ct);
+                    $"?x {p} ?other . FILTER(STR(?other) < STR(?v)) }} }}", ct, edgesOf: g);
         }
 
         private async Task<int> RemoveOrphanExternalsCoreAsync(ProjectGraphs g, CancellationToken ct)
@@ -199,7 +201,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var rows = await RowsAsync($"SELECT (COUNT(DISTINCT ?x) AS ?n) WHERE {{ {where} }}", ct);
             var n = rows.Count == 0 ? 0 : int.Parse(SparqlResults.Str(rows[0], "n") ?? "0", System.Globalization.CultureInfo.InvariantCulture);
             if (n == 0) return 0;
-            await UpdateAsync(CodeOntology.SparqlPrefixes + $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; ?p ?o . FILTER NOT EXISTS {{ ?s ?q ?x }} }} }}", ct);
+            await UpdateAsync(CodeOntology.SparqlPrefixes + $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; ?p ?o . FILTER NOT EXISTS {{ ?s ?q ?x }} }} }}", ct, edgesOf: g);
             _logger?.LogInformation("[CodeGraph] {Count} nodi esterni senza archi tolti dal grafo", n);
             return n;
         }
@@ -242,11 +244,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Fuseki e le copie dei tentativi successivi si mettevano in coda (20/11/2026, dal cliente: dopo il primo timeout di
         /// code_ontology sono caduti anche code_inventory e code_schema).
         /// </summary>
-        private async Task<string> TimedQueryAsync(string sparql, TimeSpan wanted, CancellationToken ct)
+        private async Task<string> TimedQueryAsync(string sparql, TimeSpan wanted, CancellationToken ct, string accept = null)
         {
             var baseUri = await _fuseki.EnsureRunningAsync(ct);
             var timeout = CodeQueryBudget.Clamp(wanted);
-            try { return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, timeout, ct); }
+            try { return await _client.QueryAsync(baseUri, CodeOntology.Dataset, CodeOntology.SparqlPrefixes + sparql, timeout, ct, accept); }
             // Fuseki fermato dal suo limite risponde 503; la scadenza del client HTTP arriva come un annullamento
             catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex) when (ex.StatusCode == 503) { throw TooSlow(timeout, ex); }
             catch (TaskCanceledException ex) when (!ct.IsCancellationRequested) { throw TooSlow(timeout, ex); }
@@ -272,19 +274,66 @@ namespace MdExplorer.Features.Services.CodeGraph
             return SparqlResults.Parse(await TimedQueryAsync(sparql, timeout, ct));
         }
 
-        /// <summary>
-        /// Quante scritture sono passate da qui (tutte quelle sul grafo del codice): una cache costruita prima di una scrittura
-        /// non vale più (<see cref="NavigationEdgesAsync"/>). Statico: le istanze del store parlano con lo stesso Fuseki.
-        /// </summary>
-        private static long _writes;
-        /// <summary>Le scritture in corso: finché ce n'è una, nessuna cache si usa né si tiene.</summary>
-        private static long _writing;
+        /// <summary>Una lettura grande in formato tabellare (<see cref="SparqlTsv"/>): un quarto del JSON, senza albero in memoria.</summary>
+        private async Task<SparqlTsv.Table> TsvAsync(string sparql, TimeSpan timeout, CancellationToken ct)
+            => SparqlTsv.Parse(await TimedQueryAsync(sparql, timeout, ct, "text/tab-separated-values"));
 
-        private async Task UpdateAsync(string sparqlUpdate, CancellationToken ct)
+        /// <summary>
+        /// Per grafo dati: quante scritture che cambiano gli archi della navigazione sono passate da qui. Una copia degli archi
+        /// presa prima non vale più (<see cref="NavigationEdgesAsync"/>). Pacchetto 3 (20/11/2026): prima un contatore SOLO per
+        /// tutto il servizio, che saliva a ogni scrittura di qualunque progetto — anche lo stato riscritto a fine turno di
+        /// MarkAgent, l'avanzamento delle descrizioni — e la copia non sopravviveva quasi mai. Statici: le istanze del store
+        /// parlano con lo stesso Fuseki.
+        /// </summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _navigationVersion = new(StringComparer.Ordinal);
+        /// <summary>Per grafo dati, le scritture di archi in corso: finché ce n'è una, la copia degli archi non si usa né si tiene.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _navigationWriting = new(StringComparer.Ordinal);
+
+        private static long NavigationVersion(string dataGraph) => _navigationVersion.TryGetValue(dataGraph, out var v) ? v : 0;
+        private static bool NavigationQuiet(string dataGraph) => !_navigationWriting.TryGetValue(dataGraph, out var n) || n == 0;
+
+        /// <param name="edgesOf">Il progetto di cui questa scrittura può cambiare gli archi della navigazione (script del codice e
+        /// delle regole, esterni, SQL, descrizioni con scelte di chiamata); null = no (lo stato: scansioni, avanzamento, impronte).</param>
+        private async Task UpdateAsync(string sparqlUpdate, CancellationToken ct, ProjectGraphs edgesOf = null)
         {
-            Interlocked.Increment(ref _writing);
+            if (edgesOf == null) { await UpdateCoreAsync(sparqlUpdate, ct); return; }
+            _navigationWriting.AddOrUpdate(edgesOf.Data, 1, (_, n) => n + 1);
             try { await UpdateCoreAsync(sparqlUpdate, ct); }
-            finally { Interlocked.Increment(ref _writes); Interlocked.Decrement(ref _writing); }
+            finally
+            {
+                _navigationVersion.AddOrUpdate(edgesOf.Data, 1, (_, n) => n + 1);
+                _navigationWriting.AddOrUpdate(edgesOf.Data, 0, (_, n) => n - 1);
+            }
+        }
+
+        /// <summary>
+        /// Gli script delle descrizioni che portano scelte di chiamata (code:chooses / code:rejects), fra questi: caricarli o
+        /// toglierli cambia la certezza degli archi. Gli altri script delle descrizioni no.
+        /// </summary>
+        /// <summary>
+        /// Il progetto se questi script (percorso, update; update null = si toglie) possono cambiare gli archi della navigazione,
+        /// altrimenti null: script del codice e delle regole sì; quelli delle descrizioni solo se portano scelte di chiamata, nella
+        /// versione nuova (l'update le scrive) o in quella che sostituiscono o tolgono (sono nel grafo).
+        /// </summary>
+        private async Task<ProjectGraphs> EdgesChangedByAsync(ProjectGraphs g, IEnumerable<(string Rel, string Update)> scripts, CancellationToken ct)
+        {
+            var docs = new List<string>();
+            foreach (var (rel, update) in scripts)
+            {
+                if (CodeGraphPaths.KindOf(rel) != CodeScriptKind.Doc) return g;
+                if (update != null && update.Contains("code:chooses", StringComparison.Ordinal)) return g;
+                docs.Add(rel);
+            }
+            return docs.Count > 0 && (await ScriptsWithCallResolutionsAsync(g, docs, ct)).Count > 0 ? g : null;
+        }
+
+        private async Task<HashSet<string>> ScriptsWithCallResolutionsAsync(ProjectGraphs g, IReadOnlyCollection<string> rels, CancellationToken ct)
+        {
+            var found = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var chunk in rels.Distinct(StringComparer.Ordinal).Chunk(200))
+                foreach (var r in await RowsAsync($"SELECT DISTINCT ?sc WHERE {{ VALUES ?sc {{ {string.Join(" ", chunk.Select(CodeGraphIris.Lit))} }} GRAPH {g.DataIri} {{ ?r code:fromScript ?sc ; a {CodeOntology.ClassCallResolution} }} }}", ct))
+                    found.Add(SparqlResults.Str(r, "sc"));
+            return found;
         }
 
         private async Task UpdateCoreAsync(string sparqlUpdate, CancellationToken ct)
@@ -381,9 +430,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (update == null) { outcome.Results.Add(result); continue; }
                     batch.Add((result, update));
                     if (batch.Count >= BatchScripts || batch.Sum(b => b.Update.Length) >= BatchChars)
-                        await FlushBatchAsync(batch, outcome, ct);
+                        await FlushBatchAsync(g, batch, outcome, ct);
                 }
-                await FlushBatchAsync(batch, outcome, ct);
+                await FlushBatchAsync(g, batch, outcome, ct);
 
                 // Qualcosa è cambiato: le frecce dell'SQL del codice si riallineano ai simboli dei linguaggi database (12/11/2026).
                 // Dopo un pull che porta il PL/SQL analizzato da un collega, o dopo l'estrazione del VB quando il PL/SQL c'è già.
@@ -464,13 +513,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     if (update == null) { if (result.HasError) outcome.Results.Add(result); continue; }
                     batch.Add((result, update));
                 }
-                await FlushBatchAsync(batch, reload, ct);
+                await FlushBatchAsync(g, batch, reload, ct);
                 foreach (var failed in reload.Results.Where(r => r.HasError)) outcome.Results.Add(failed);
                 // Un nodo esterno non ha uno script (è condiviso): quello dell'SQL rimasto senza frecce resterebbe nel grafo, e chi
                 // cerca «STORICO_RAPPORTI» troverebbe un nodo isolato accanto alla tabella vera (visto con MarkAgent, 12/11/2026).
                 await UpdateAsync(CodeOntology.SparqlPrefixes +
                     $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; code:language {CodeGraphIris.Lit(RoslynExtractorBase.SqlLanguage)} ; ?p ?o . " +
-                    "FILTER NOT EXISTS { ?e code:target ?x } FILTER NOT EXISTS { ?s ?r ?x } } }", ct);
+                    "FILTER NOT EXISTS { ?e code:target ?x } FILTER NOT EXISTS { ?s ?r ?x } } }", ct, edgesOf: g);
                 if (outcome.SqlRelinked > 0)
                     _logger?.LogInformation("[CodeGraph] '{Project}': {Edges} frecce dell'SQL ricollegate in {Scripts} script ({List})",
                         projectPath, outcome.SqlRelinked, outcome.SqlRelinkedScripts.Count, string.Join(", ", outcome.SqlRelinkedScripts.Take(5)));
@@ -524,7 +573,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     ct.ThrowIfCancellationRequested();
                     progress?.Invoke(StepRemove, ++chunkDone, chunks.Count);
-                    await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct);
+                    await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct, await EdgesChangedByAsync(g, chunk.Select(r => (r, (string)null)), ct));
                 }
                 await UpdateAsync(CodeTripleWriter.RemoveFolderStateUpdate(prefix, g.State), ct);
             }
@@ -614,7 +663,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>Manda il lotto in una richiesta sola (una transazione); se Fuseki la rifiuta, ogni script del lotto porta l'errore.</summary>
-        private async Task FlushBatchAsync(List<(CodeScriptResult Result, string Update)> batch, CodeScriptLoadOutcome outcome, CancellationToken ct)
+        private async Task FlushBatchAsync(ProjectGraphs g, List<(CodeScriptResult Result, string Update)> batch, CodeScriptLoadOutcome outcome, CancellationToken ct)
         {
             if (batch.Count == 0) return;
             var sb = new StringBuilder(CodeOntology.SparqlPrefixes);
@@ -625,7 +674,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             try
             {
-                await UpdateAsync(sb.ToString(), ct);
+                await UpdateAsync(sb.ToString(), ct, await EdgesChangedByAsync(g, batch.Select(b => (b.Result.ScriptPath, b.Update)), ct));
                 foreach (var (result, _) in batch) result.Loaded = true;
             }
             catch (FusekiUnavailableException) { throw; }
@@ -649,7 +698,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (update == null) return result;
             try
             {
-                await UpdateAsync(update, ct);
+                await UpdateAsync(update, ct, await EdgesChangedByAsync(g, new[] { (rel, update) }, ct));
                 result.Loaded = true;
                 return result;
             }
@@ -671,7 +720,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var update = CodeTripleWriter.RemoveUpdate(rel, g.Data) +
                              CodeTripleWriter.ScriptStateRemove(g.State, CodeGraphIris.Script(g.Hash, rel));
-                await UpdateAsync(update, ct);
+                await UpdateAsync(update, ct, await EdgesChangedByAsync(g, new[] { (rel, (string)null) }, ct));
                 result.Removed = true;
                 return result;
             }
