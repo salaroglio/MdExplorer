@@ -89,6 +89,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<CodeSparqlResult> SparqlAsync(string projectPath, string query, int limit, CancellationToken ct = default);
         /// <summary>Gli archi fra file (contains e imports esclusi): file di partenza, file d'arrivo, relazione, quanti.</summary>
         Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Solo gli archi che partono da file sotto <paramref name="fromPrefix"/> (null = tutti).</summary>
+        Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, string fromPrefix, CancellationToken ct = default);
         /// <summary>
         /// Gli archi della navigazione (<see cref="CodeNavigation.Relations"/>), tutti in una query: le candidate scartate fuori,
         /// la certezza effettiva (llm-resolved se l'LLM ha scelto), contains solo verso un controllo.
@@ -159,6 +161,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeEdgeView>> NeighborsAsync(string projectPath, string symbolId, string relation, string direction, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ImpactAsync(string projectPath, string symbolId, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ShortestPathAsync(string projectPath, string fromId, string toId, CancellationToken ct = default);
+        /// <summary>I vicini a un passo di più simboli in una lettura: per ciascuno lo stesso elenco di NeighborsAsync con profondità 1 e limite 200.</summary>
+        Task<Dictionary<string, List<CodeEdgeView>>> NeighborsOfManyAsync(string projectPath, IReadOnlyCollection<string> symbolIds, string direction, CancellationToken ct = default);
         Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default);
         /// <summary>I conteggi della panoramica (non i più collegati né i più grandi), sotto <paramref name="folder"/> o di tutto il progetto (null), contati al momento.</summary>
         Task<CodeOverview> CountsAsync(string projectPath, string folder, CancellationToken ct = default);

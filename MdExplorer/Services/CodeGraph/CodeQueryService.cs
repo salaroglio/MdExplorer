@@ -420,14 +420,16 @@ namespace MdExplorer.Services.CodeGraph
 
         private async Task<object> CyclesAsync(string projectPath, string prefix, int limit, CancellationToken ct)
         {
-            var edges = (await _store.FileEdgesAsync(projectPath, ct))
+            // solo gli archi che partono dalla cartella (20/11/2026); il filtro qui sotto resta: anche l'arrivo deve starci
+            var edges = (await _store.FileEdgesAsync(projectPath, prefix, ct))
                 .Where(e => prefix == null || e.From.StartsWith(prefix, StringComparison.Ordinal) && e.To.StartsWith(prefix, StringComparison.Ordinal)).ToList();
             var next = edges.GroupBy(e => e.From).ToDictionary(g => g.Key, g => g.Select(e => e.To).ToList(), StringComparer.Ordinal);
             var cycles = MdExplorer.Features.Services.CodeGraph.CodeDocGraph.Cycles(edges.SelectMany(e => new[] { e.From, e.To }), next);
             return new
             {
                 total = cycles.Count,
-                cycles = cycles.OrderByDescending(c => c.Count).Take(limit).Select(c =>
+                // a parità di lunghezza un ordine fisso (prima seguiva l'ordine delle righe di Fuseki, 20/11/2026)
+                cycles = cycles.OrderByDescending(c => c.Count).ThenBy(c => c.Min(StringComparer.Ordinal), StringComparer.Ordinal).Take(limit).Select(c =>
                 {
                     var inside = new HashSet<string>(c, StringComparer.Ordinal);
                     return new

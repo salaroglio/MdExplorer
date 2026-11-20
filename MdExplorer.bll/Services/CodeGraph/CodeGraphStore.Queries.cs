@@ -106,15 +106,26 @@ namespace MdExplorer.Features.Services.CodeGraph
             var idBranch = System.Text.RegularExpressions.Regex.IsMatch(idOrName, "^[A-Za-z0-9._:~-]+$")
                 ? $"BIND({Iri(Symbol(idOrName))} AS ?s)"
                 : "FILTER(false)";
+            var kindOnly = string.IsNullOrWhiteSpace(kind) ? string.Empty : $" ?s code:kind {Lit(kind.Trim())} .";
             foreach (var (where, tail) in new[]
             {
                 (idBranch, string.Empty),
                 ($"?s code:qualifiedName {lit} .{only}", string.Empty),
                 ($"?s code:name {lit} ; code:kind ?k0 . FILTER(?k0 != \"external\"){only}", $"ORDER BY ?qn LIMIT {limit}"),
-                ($"?s code:qualifiedName ?qn0 ; code:kind ?k0 . FILTER(?k0 != \"external\" && CONTAINS(LCASE(?qn0), LCASE({lit}))){only}", $"ORDER BY STRLEN(?qn) LIMIT {limit}"),
+                (null, $"ORDER BY STRLEN(?qn) LIMIT {limit}"),
             })
             {
-                var list = await SymbolsWhereAsync(g, where, tail, ct);
+                var w = where;
+                if (w == null)
+                {
+                    // un pezzo del nome: nessun indice lo trova, si guardano i nomi. Con una cartella piccola solo quelli dei suoi
+                    // file, con l'elenco esatto (20/11/2026: stesso risultato, senza leggere tutti i nomi del progetto)
+                    var scope = string.IsNullOrWhiteSpace(pathPrefix) ? new PathScope(string.Empty, string.Empty) : await ScopeAsync(g, pathPrefix.Trim(), "?fp0", ct);
+                    w = scope.Exact
+                        ? $"{scope.Values}?s code:path ?fp0 ; code:qualifiedName ?qn0 ; code:kind ?k0 . FILTER(?k0 != \"external\" && CONTAINS(LCASE(?qn0), LCASE({lit}))){kindOnly}"
+                        : $"?s code:qualifiedName ?qn0 ; code:kind ?k0 . FILTER(?k0 != \"external\" && CONTAINS(LCASE(?qn0), LCASE({lit}))){only}";
+                }
+                var list = await SymbolsWhereAsync(g, w, tail, ct);
                 if (list.Count > 0)
                 {
                     foreach (var s in list) await FillParametersAsync(g, s, ct);
@@ -462,12 +473,21 @@ namespace MdExplorer.Features.Services.CodeGraph
             return result;
         }
 
-        public async Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default)
+        public Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, CancellationToken ct = default)
+            => FileEdgesAsync(projectPath, null, ct);
+
+        /// <summary>
+        /// Con <paramref name="fromPrefix"/>: solo gli archi che PARTONO da file sotto quel prefisso (20/11/2026, cycles con
+        /// folder: prima si leggevano gli archi di tutto il progetto e si scartavano dopo). Senza: la query di sempre.
+        /// </summary>
+        public async Task<List<(string From, string To, string Relation, int Count)>> FileEdgesAsync(string projectPath, string fromPrefix, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
-            var rows = await RowsAsync(
-                $"SELECT ?from ?to ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel . FILTER(?rel NOT IN (\"contains\", \"imports\")) {NotRejected}" +
-                "?s code:path ?from . ?t code:path ?to . FILTER(?from != ?to) } } GROUP BY ?from ?to ?rel", ct);
+            var scope = await ScopeAsync(g, fromPrefix, "?from", ct);
+            var where = scope.Exact
+                ? $"{scope.Values}?s code:path ?from . ?e code:source ?s ; a code:Edge ; code:target ?t ; code:relation ?rel . FILTER(?rel NOT IN (\"contains\", \"imports\")) {NotRejected}?t code:path ?to . FILTER(?from != ?to)"
+                : $"?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation ?rel . FILTER(?rel NOT IN (\"contains\", \"imports\")) {NotRejected}?s code:path ?from . ?t code:path ?to . FILTER(?from != ?to) {scope.Filter}";
+            var rows = await RowsAsync($"SELECT ?from ?to ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {where} }} }} GROUP BY ?from ?to ?rel", ct);
             return rows.Select(r => (Str(r, "from"), Str(r, "to"), Str(r, "rel"), Count(r, "n"))).ToList();
         }
 
@@ -1016,47 +1036,119 @@ namespace MdExplorer.Features.Services.CodeGraph
                 .Take(limit).ToList();
         }
 
+        /// <summary>
+        /// I vicini a un passo di più simboli in UNA lettura (20/11/2026, per <see cref="CodeFlow"/>: prima due richieste per
+        /// nodo, fino a 160 in fila). Per ogni simbolo lo stesso elenco di <see cref="NeighborsAsync"/> con profondità 1 e limite
+        /// 200: doppioni tolti per (simbolo, relazione), ordine per relazione e nome.
+        /// </summary>
+        public async Task<Dictionary<string, List<CodeEdgeView>>> NeighborsOfManyAsync(string projectPath, IReadOnlyCollection<string> symbolIds, string direction, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var outward = !string.Equals(direction, "in", StringComparison.OrdinalIgnoreCase);
+            var edges = await EdgesOfAsync(g, symbolIds, outward, null, ct);
+            var symbols = await SymbolsByIdsAsync(g, edges.Select(e => e.To), ct);
+            var byFrom = new Dictionary<string, List<CodeEdgeView>>(StringComparer.Ordinal);
+            foreach (var id in symbolIds) byFrom[id] = new List<CodeEdgeView>();
+            foreach (var group in edges.GroupBy(e => e.From, StringComparer.Ordinal))
+                byFrom[group.Key] = group
+                    .Select(e => new CodeEdgeView
+                    {
+                        Relation = e.Relation, Confidence = e.Confidence, Path = e.Path, Line = e.Line, Guard = e.Guard, Depth = 1, Description = e.Description,
+                        Other = symbols.TryGetValue(e.To, out var s) ? s : new CodeSymbolView { Id = e.To, Kind = "unknown", Name = e.To, QualifiedName = e.To },
+                    })
+                    .GroupBy(v => (v.Other.Id, v.Relation, v.Depth)).Select(grp => grp.First())
+                    .OrderBy(v => v.Depth).ThenBy(v => v.Relation, StringComparer.Ordinal).ThenBy(v => v.Other.QualifiedName, StringComparer.Ordinal)
+                    .Take(200).ToList();
+            return byFrom;
+        }
+
         /// <summary>Che cosa dipende da un simbolo, anche indirettamente: gli archi entranti seguiti a ritroso, senza <c>contains</c>.</summary>
         public async Task<List<CodeEdgeView>> ImpactAsync(string projectPath, string symbolId, int depth, int limit, CancellationToken ct = default)
             => (await NeighborsAsync(projectPath, symbolId, null, "in", depth, limit, ct)).Where(e => e.Relation != "contains").ToList();
 
-        /// <summary>Il cammino più corto fra due simboli seguendo gli archi in entrambi i versi (BFS in memoria).</summary>
+        /// <summary>
+        /// Gli archi che toccano questi simboli, da sorgente o da destinazione, con la certezza effettiva (le candidate scartate
+        /// fuori, le scelte dell'LLM llm-resolved) e con il percorso del file: quelli che il cammino più corto percorre.
+        /// </summary>
+        private async Task<List<(string Iri, EdgeRow Row)>> IncidentEdgesAsync(ProjectGraphs g, IReadOnlyCollection<string> ids, CancellationToken ct)
+        {
+            var list = new List<(string, EdgeRow)>();
+            var all = ids.Distinct(StringComparer.Ordinal).ToList();
+            for (var i = 0; i < all.Count; i += 200)
+            {
+                var values = string.Join(" ", all.Skip(i).Take(200).Select(id => Iri(Symbol(id))));
+                foreach (var side in new[] { "?from", "?to" })
+                    foreach (var r in await RowsAsync(
+                        $"SELECT ?e ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ VALUES {side} {{ {values} }} " +
+                        $"?e {(side == "?from" ? "code:source ?from" : "code:target ?to")} ; a code:Edge ; {(side == "?from" ? "code:target ?to" : "code:source ?from")} ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . " +
+                        $"OPTIONAL {{ ?e code:line ?line }} {EffectiveConfidence}}} }}", ct))
+                        list.Add((r["e"], new EdgeRow { From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line") }));
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Il cammino più corto fra due simboli seguendo gli archi in entrambi i versi, al più 8 passi. Pacchetto 3 (20/11/2026):
+        /// prima si leggevano TUTTI gli archi del grafo a ogni chiamata (sul grafo di un cliente scadeva sempre); ora si cerca dai
+        /// due capi, un livello alla volta dal lato più piccolo, chiedendo solo gli archi dei simboli appena raggiunti. Al primo
+        /// livello in cui i due lati si toccano si prende l'incontro più corto: la lunghezza è quella minima, come prima. Fra
+        /// cammini della stessa lunghezza la scelta può essere un'altra (prima dipendeva dall'ordine delle righe di Fuseki).
+        /// </summary>
         public async Task<List<CodeEdgeView>> ShortestPathAsync(string projectPath, string fromId, string toId, CancellationToken ct = default)
         {
             const int maxDepth = 8;
             var g = GraphsOf(projectPath);
-            var rows = await RowsAsync(
-                $"SELECT ?from ?to ?rel ?conf ?path ?line WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?from ; code:target ?to ; code:relation ?rel ; code:confidence ?conf0 ; code:path ?path . OPTIONAL {{ ?e code:line ?line }} {EffectiveConfidence}}} }}", ct);
-            var edges = rows.Select(r => new EdgeRow { From = SymbolId(r["from"]), To = SymbolId(r["to"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), Path = Str(r, "path"), Line = Int(r, "line") }).ToList();
-            var adj = new Dictionary<string, List<(string To, int Edge)>>(StringComparer.Ordinal);
-            for (var i = 0; i < edges.Count; i++)
+            if (fromId == toId) return new List<CodeEdgeView>();
+            var edges = new List<EdgeRow>();
+            var known = new Dictionary<string, int>(StringComparer.Ordinal);   // IRI dell'arco → indice in edges
+            // per lato: per ogni simbolo raggiunto, da quale simbolo e con quale arco (-1 = il capo) e a che profondità
+            var reached = new[]
             {
-                if (!adj.TryGetValue(edges[i].From, out var ls)) adj[edges[i].From] = ls = new(); ls.Add((edges[i].To, i));
-                if (!adj.TryGetValue(edges[i].To, out var lt)) adj[edges[i].To] = lt = new(); lt.Add((edges[i].From, i));
-            }
-            var prev = new Dictionary<string, (string From, int Edge)>(StringComparer.Ordinal) { [fromId] = (null, -1) };
-            var queue = new Queue<(string Id, int D)>(); queue.Enqueue((fromId, 0));
-            while (queue.Count > 0)
+                new Dictionary<string, (string Parent, int Edge, int Depth)>(StringComparer.Ordinal) { [fromId] = (null, -1, 0) },
+                new Dictionary<string, (string Parent, int Edge, int Depth)>(StringComparer.Ordinal) { [toId] = (null, -1, 0) },
+            };
+            var frontier = new[] { new List<string> { fromId }, new List<string> { toId } };
+            var depth = new[] { 0, 0 };
+            string meeting = null;
+            while (meeting == null && frontier[0].Count > 0 && frontier[1].Count > 0 && depth[0] + depth[1] < maxDepth)
             {
-                var (cur, d) = queue.Dequeue();
-                if (cur == toId) break;
-                if (d >= maxDepth || !adj.TryGetValue(cur, out var next)) continue;
-                foreach (var (to, edge) in next)
+                var side = frontier[0].Count <= frontier[1].Count ? 0 : 1;
+                var mine = reached[side]; var theirs = reached[1 - side];
+                var next = new List<string>();
+                var incident = await IncidentEdgesAsync(g, frontier[side], ct);
+                var inFrontier = new HashSet<string>(frontier[side], StringComparer.Ordinal);
+                foreach (var (iri, row) in incident)
                 {
-                    if (prev.ContainsKey(to)) continue;
-                    prev[to] = (cur, edge);
-                    queue.Enqueue((to, d + 1));
+                    if (!known.TryGetValue(iri, out var index)) { index = edges.Count; edges.Add(row); known[iri] = index; }
+                    foreach (var (at, other) in new[] { (row.From, row.To), (row.To, row.From) })
+                    {
+                        if (!inFrontier.Contains(at) || mine.ContainsKey(other)) continue;
+                        mine[other] = (at, index, depth[side] + 1);
+                        next.Add(other);
+                    }
                 }
+                depth[side]++;
+                frontier[side] = next;
+                // il primo livello in cui i lati si toccano: l'incontro con la somma più piccola
+                meeting = next.Where(theirs.ContainsKey).OrderBy(n => mine[n].Depth + theirs[n].Depth).ThenBy(n => n, StringComparer.Ordinal).FirstOrDefault();
+                if (meeting != null && mine[meeting].Depth + theirs[meeting].Depth > maxDepth) meeting = null;
             }
-            if (!prev.ContainsKey(toId)) return new List<CodeEdgeView>();
+            if (meeting == null) return new List<CodeEdgeView>();
+
+            // dal capo all'incontro (risalendo il lato di partenza), poi dall'incontro alla destinazione (scendendo l'altro)
+            var steps = new List<(string Node, int Edge)>();
+            for (var cur = meeting; reached[0][cur].Parent != null; cur = reached[0][cur].Parent) steps.Add((cur, reached[0][cur].Edge));
+            steps.Reverse();
+            for (var cur = meeting; reached[1][cur].Parent != null; cur = reached[1][cur].Parent) steps.Add((reached[1][cur].Parent, reached[1][cur].Edge));
             var path = new List<CodeEdgeView>();
-            for (var cur = toId; prev[cur].From != null; cur = prev[cur].From)
+            var previous = fromId;
+            foreach (var (node, edgeIndex) in steps)
             {
-                var e = edges[prev[cur].Edge];
-                var forward = e.From == prev[cur].From;
-                path.Add(new CodeEdgeView { Relation = (forward ? string.Empty : "← ") + e.Relation, Confidence = e.Confidence, Path = e.Path, Line = e.Line, Other = new CodeSymbolView { Id = cur } });
+                var e = edges[edgeIndex];
+                var forward = e.From == previous;
+                path.Add(new CodeEdgeView { Relation = (forward ? string.Empty : "← ") + e.Relation, Confidence = e.Confidence, Path = e.Path, Line = e.Line, Other = new CodeSymbolView { Id = node } });
+                previous = node;
             }
-            path.Reverse();
             var symbols = await SymbolsByIdsAsync(g, path.Select(p => p.Other.Id), ct);
             for (var i = 0; i < path.Count; i++)
             {
