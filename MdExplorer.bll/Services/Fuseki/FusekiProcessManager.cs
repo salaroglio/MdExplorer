@@ -38,7 +38,12 @@ namespace MdExplorer.Features.Services.Fuseki
         /// <summary>Senza -Xmx la JVM prende ~1/4 della RAM fisica per dati che sono piccoli.</summary>
         public int HeapMegabytes { get; set; } = 512;
 
-        public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        /// <summary>All'avvio: dopo quanto tempo senza una riga nuova nel log di Fuseki né un ping riuscito ci si arrende
+        /// (<see cref="FusekiStartupWait"/>). Finché Fuseki scrive, si aspetta.</summary>
+        public TimeSpan StartupSilenceTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>All'avvio: il tetto assoluto, anche se Fuseki continua a scrivere senza mai rispondere al ping.</summary>
+        public TimeSpan StartupMaxDuration { get; set; } = TimeSpan.FromMinutes(3);
         /// <summary>Se 'JavaPath' punta a un Java più vecchio di <see cref="MinimumJavaMajor"/>, cercare un Java adatto in JAVA_HOME, nella scoperta di sistema e nel PATH (avvisando nel log). I test lo spengono per verificare il rifiuto.</summary>
         public bool SearchAlternativeJava { get; set; } = true;
     }
@@ -199,9 +204,15 @@ namespace MdExplorer.Features.Services.Fuseki
                 WindowsKillOnCloseJob.Assign(proc, _logger);
 
                 var lastLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+                // Ogni riga di Fuseki è una prova di vita: l'attesa dell'avvio si misura dall'ultima (FusekiStartupWait).
+                var sinceStart = Stopwatch.StartNew();
+                long lastOutputMs = 0;
+                string lastLine = null;
                 void Keep(string line)
                 {
                     if (line == null) return;
+                    Interlocked.Exchange(ref lastOutputMs, sinceStart.ElapsedMilliseconds);
+                    Volatile.Write(ref lastLine, line);
                     lastLines.Enqueue(line);
                     while (lastLines.Count > 20 && lastLines.TryDequeue(out _)) { }
                 }
@@ -212,7 +223,7 @@ namespace MdExplorer.Features.Services.Fuseki
 
                 try
                 {
-                    await WaitUntilHealthyAsync(baseUri, proc, ct);
+                    await WaitUntilHealthyAsync(baseUri, proc, sinceStart, () => Interlocked.Read(ref lastOutputMs), () => Volatile.Read(ref lastLine), ct);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -232,7 +243,7 @@ namespace MdExplorer.Features.Services.Fuseki
                 _process = proc;
                 _baseUri = baseUri;
                 WriteOwner(proc);
-                _logger.LogInformation("[Fuseki] pronto su {Base}", baseUri);
+                _logger.LogInformation("[Fuseki] pronto su {Base} in {Seconds:0.0} s", baseUri, sinceStart.Elapsed.TotalSeconds);
                 return baseUri;
             }
             finally
@@ -387,25 +398,18 @@ namespace MdExplorer.Features.Services.Fuseki
             return probe;
         }
 
-        private async Task WaitUntilHealthyAsync(string baseUri, Process proc, CancellationToken ct)
+        private async Task WaitUntilHealthyAsync(string baseUri, Process proc, Stopwatch sinceStart, Func<long> lastOutputMs, Func<string> lastLine, CancellationToken ct)
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-            var deadline = DateTime.UtcNow + _options.StartupTimeout;
-            while (DateTime.UtcNow < deadline)
+            var pingUri = baseUri + "/$/ping";
+            async Task<bool> Ping(CancellationToken token)
             {
-                ct.ThrowIfCancellationRequested();
-                if (proc.HasExited)
-                    throw new InvalidOperationException(UiText.Say($"Fuseki è terminato durante l'avvio (exit {proc.ExitCode}).", $"Fuseki exited while starting (exit {proc.ExitCode})."));
-                try
-                {
-                    var resp = await http.GetAsync(baseUri + "/$/ping", ct);
-                    if (resp.IsSuccessStatusCode) return;
-                }
-                catch (HttpRequestException) { /* non ancora su */ }
-                catch (TaskCanceledException) when (!ct.IsCancellationRequested) { /* timeout del singolo ping */ }
-                await Task.Delay(250, ct);
+                try { return (await http.GetAsync(pingUri, token)).IsSuccessStatusCode; }
+                catch (HttpRequestException) { return false; /* non ancora su */ }
+                catch (TaskCanceledException) when (!token.IsCancellationRequested) { return false; /* timeout del singolo ping */ }
             }
-            throw new TimeoutException(UiText.Say($"Fuseki non ha risposto su {baseUri}/$/ping entro {_options.StartupTimeout.TotalSeconds:0} secondi.", $"Fuseki did not answer on {baseUri}/$/ping within {_options.StartupTimeout.TotalSeconds:0} seconds."));
+            await FusekiStartupWait.WaitAsync(sinceStart, Ping, () => proc.HasExited ? proc.ExitCode : null, lastOutputMs, lastLine,
+                _options.StartupSilenceTimeout, _options.StartupMaxDuration, pingUri, ct);
         }
 
         // ------------------------------------------------------------------ il Fuseki rimasto
