@@ -36,11 +36,11 @@ namespace MdExplorer.IntegrationTests
             public string DescriptionModeOf(string p, string f) => throw new NotImplementedException();
             public Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string p, string f, bool i, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string p, bool i, CancellationToken ct = default) => throw new NotImplementedException();
-            public Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string p, string f, CancellationToken ct = default) => throw new NotImplementedException();
+            public Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string p, string f, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null) => throw new NotImplementedException();
             public Task<List<CodeProgramFolder>> ListProgramsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
             public IReadOnlyList<CodeScanInProgress> Scanning(string p) => throw new NotImplementedException();
             public Task<List<MdExplorer.Features.Services.CodeGraph.CodeLanguageFiles>> FilesOfLanguageAsync(string p, MdExplorer.Features.Services.CodeGraph.CodeLanguageCatalog c, string l, CancellationToken ct = default) => throw new NotImplementedException();
-            public Task<(List<MdExplorer.Features.Services.CodeGraph.CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
+            public Task<(List<MdExplorer.Features.Services.CodeGraph.CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string p, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null) => throw new NotImplementedException();
         }
 
         [TestMethod]

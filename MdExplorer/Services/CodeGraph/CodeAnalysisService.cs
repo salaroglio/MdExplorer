@@ -135,14 +135,16 @@ namespace MdExplorer.Services.CodeGraph
         /// </summary>
         Task<List<CodeFolderAnalysisOutcome>> RefreshAfterTurnAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Gli script AST delle cartelle <c>program</c> (sotto <paramref name="folderPrefix"/>) scritti da un estrattore diverso da quello di oggi.</summary>
-        Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default);
+        /// <param name="programs">Le cartelle program già lette da chi chiama (code_inventory): niente di nuovo da chiedere a git.</param>
+        Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null);
         /// <summary>
         /// Le cartelle <c>program</c> con dei linguaggi scelti, interne e radici esterne, con lo stato di collegamento:
         /// le stesse che <see cref="AnalyzeProjectAsync"/> analizza (<c>code_inventory</c>, punto 4b del 14/10).
         /// </summary>
         Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default);
         /// <summary>I ponti fra programmi letti dai file di build (punto 3b del 14/10), con gli avvisi di ciò che non si legge.</summary>
-        Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default);
+        /// <param name="programs">Le cartelle program già lette da chi chiama (code_inventory): niente di nuovo da chiedere a git.</param>
+        Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null);
         /// <summary>Le scansioni in corso nel progetto (pannello dei lavori in sfondo, punto 2d del 14/10).</summary>
         IReadOnlyList<CodeScanInProgress> Scanning(string projectPath);
         /// <summary>
@@ -526,11 +528,13 @@ namespace MdExplorer.Services.CodeGraph
             var config = MdExplorer.Utilities.DevelopmentConfigFile.Config(path);
             list.AddRange(config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
                 .Select(f => new CodeProgramFolder { Folder = NormalizeRelative(f.Path), Languages = f.CodeGraph.Languages.ToList() }));
-            list.AddRange((await _roots.ListAsync(projectPath, ct))
+            // le radici una volta sola: ogni elenco interroga git per ciascuna (20/11/2026, prima due volte qui)
+            var roots = await _roots.ListAsync(projectPath, ct);
+            list.AddRange(roots
                 .Where(r => r.Languages.Count > 0 && r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
                 .Select(r => new CodeProgramFolder { Folder = "@" + r.Alias, Languages = r.Languages.ToList(), Linked = Analyzable(r), Reason = NotAnalyzableReason(r) }));
             // i contesti delle radici (P2): ognuno un programma, con i suoi linguaggi
-            list.AddRange((await _roots.ListAsync(projectPath, ct))
+            list.AddRange(roots
                 .SelectMany(r => r.Programs.Where(p => p.Languages.Count > 0)
                     .Select(p => new CodeProgramFolder { Folder = CodeRootPaths.Format(r.Alias, p.Path), Languages = p.Languages.ToList(), Linked = Analyzable(r), Reason = NotAnalyzableReason(r) })));
             return list;
@@ -591,11 +595,11 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>Tutti i ponti del progetto, dai file di build delle cartelle program (e radici collegate).</summary>
-        public async Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default)
+        public async Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null)
         {
             var locations = new List<CodeProgramLocation>();
             var warnings = new List<string>();
-            foreach (var p in await ListProgramsAsync(projectPath, ct))
+            foreach (var p in programs ?? await ListProgramsAsync(projectPath, ct))
             {
                 if (!p.Linked) continue;
                 var scope = await ScopeOfAsync(projectPath, p.Folder, ct);
@@ -1038,7 +1042,7 @@ namespace MdExplorer.Services.CodeGraph
             }
         }
 
-        public async Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default)
+        public async Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default, IReadOnlyList<CodeProgramFolder> programs = null)
         {
             var list = new List<CodeOutdatedScript>();
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
@@ -1049,7 +1053,7 @@ namespace MdExplorer.Services.CodeGraph
 
             // le cartelle interne, le radici esterne e i loro contesti COLLEGATI (una radice non collegata non si rianalizza
             // qui: niente da proporre)
-            var scopes = (await ListProgramsAsync(projectPath, ct)).Where(p => p.Linked)
+            var scopes = (programs ?? await ListProgramsAsync(projectPath, ct)).Where(p => p.Linked)
                 .Select(p => (Key: p.Folder, Languages: (IReadOnlyList<string>)p.Languages)).ToList();
             foreach (var (key, languages) in scopes)
             {

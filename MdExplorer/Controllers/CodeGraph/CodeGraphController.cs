@@ -1065,13 +1065,16 @@ namespace MdExplorer.Controllers.CodeGraph
             var programs = new List<object>();
             var docJobs = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             var runs = await _store.GetDescriptionRunsAsync(projectPath, ct);
-            var interrupted = (await docJobs.InterruptedAsync(projectPath, ct)).Select(r => r.ProgramFolder).ToHashSet();
-            var (bridges, bridgeWarnings) = await _analysis.BridgesAsync(projectPath, ct);
+            // 20/11/2026: le tracce e i programmi una volta sola (prima le tracce due volte, i programmi tre, e ogni elenco
+            // dei programmi interroga git per ogni radice)
+            var interrupted = docJobs.InterruptedOf(projectPath, runs).Select(r => r.ProgramFolder).ToHashSet();
+            var programList = await _analysis.ListProgramsAsync(projectPath, ct);
+            var (bridges, bridgeWarnings) = await _analysis.BridgesAsync(projectPath, ct, programList);
             // gli script scritti da una versione precedente dell'estrattore, per cartella (16/11/2026: MarkAgent doveva
             // scrivere una SPARQL per sapere se il grafo era stato ricalcolato dopo un aggiornamento di MdExplorer)
-            var outdatedByFolder = (await _analysis.ListOutdatedScriptsAsync(projectPath, string.Empty, ct)).GroupBy(o => o.Folder, StringComparer.Ordinal)
+            var outdatedByFolder = (await _analysis.ListOutdatedScriptsAsync(projectPath, string.Empty, ct, programList)).GroupBy(o => o.Folder, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
-            foreach (var p in await _analysis.ListProgramsAsync(projectPath, ct))
+            foreach (var p in programList)
             {
                 outdatedByFolder.TryGetValue(p.Folder, out var old);
                 var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);

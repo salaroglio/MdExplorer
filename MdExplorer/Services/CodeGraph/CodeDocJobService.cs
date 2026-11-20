@@ -36,6 +36,8 @@ namespace MdExplorer.Services.CodeGraph
         Task<CodeDocPreview> PreviewAsync(string projectPath, string folderRelative, bool review, CancellationToken ct = default);
         /// <summary>Le descrizioni interrotte del progetto: traccia «in corso» senza un lavoro vivo (MdExplorer chiuso o caduto), o fallite.</summary>
         Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Le stesse, dalle tracce già lette da chi chiama (code_inventory: una lettura invece di due).</summary>
+        List<CodeDescriptionRun> InterruptedOf(string projectPath, IEnumerable<CodeDescriptionRun> runs);
         /// <summary>
         /// Le descrizioni del pannello dei lavori in sfondo (punto 2d): quelle in corso (vive, con la sessione) e quelle da
         /// riprendere — interrotte, fallite o fermate dall'utente. Le finite no.
@@ -229,11 +231,12 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         public async Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default)
+            => InterruptedOf(projectPath, await _store.GetDescriptionRunsAsync(projectPath, ct));
+
+        public List<CodeDescriptionRun> InterruptedOf(string projectPath, IEnumerable<CodeDescriptionRun> runs)
         {
             var live = Running(projectPath).Select(p => p.Folder).ToHashSet(StringComparer.Ordinal);
-            return (await _store.GetDescriptionRunsAsync(projectPath, ct))
-                .Where(r => r.Status == CodeDescriptionRun.Failed || (r.Status == CodeDescriptionRun.Running && !live.Contains(r.ProgramFolder)))
-                .ToList();
+            return runs.Where(r => r.Status == CodeDescriptionRun.Failed || (r.Status == CodeDescriptionRun.Running && !live.Contains(r.ProgramFolder))).ToList();
         }
 
         /// <summary>
