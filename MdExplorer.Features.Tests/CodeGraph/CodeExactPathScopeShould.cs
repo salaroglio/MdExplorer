@@ -83,5 +83,39 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, (await _store.SymbolsOfKindsAsync(_project, new[] { "function" }, new[] { "nowhere/" })).Count);
             Assert.AreEqual(7, (await _store.SymbolsOfKindsAsync(_project, new[] { "function" }, Array.Empty<string>())).Count, "senza prefissi: tutti");
         }
-    }
+    
+        [TestMethod]
+        public async Task Count_the_whole_project_as_before_and_a_folder_with_its_own_files()
+        {
+            // pacchetto 4 (20/11/2026): numeri contati al momento, di tutto il progetto o sotto una cartella
+            var whole = await _store.CountsAsync(_project, null);
+            var overview = await _store.OverviewAsync(_project);
+            Assert.AreEqual(4, whole.Files);
+            Assert.AreEqual(7, whole.Symbols);
+            Assert.AreEqual((overview.Files, overview.Symbols, overview.Edges, overview.ExternalSymbols), (whole.Files, whole.Symbols, whole.Edges, whole.ExternalSymbols),
+                "senza cartella: le query di sempre");
+            CollectionAssert.AreEquivalent(overview.SymbolsByKind.ToList(), whole.SymbolsByKind.ToList());
+
+            var all = await _store.CountsAsync(_project, "src/");
+            var other = await _store.CountsAsync(_project, "other/");
+            Assert.AreEqual(whole.Files, all.Files + other.Files, "le cartelle si sommano al progetto");
+            Assert.AreEqual(whole.Symbols, all.Symbols + other.Symbols);
+            var a = await _store.CountsAsync(_project, "src/a/");
+            Assert.AreEqual((2, 3), (a.Files, a.Symbols), "src/a/ e la sottocartella, non src/ab");
+            Assert.AreEqual(3, (await _store.CountsAsync(_project, "src/a")).Files, "nello store folder è un prefisso, come nelle altre domande: il controller aggiunge la barra");
+            Assert.AreEqual(3, a.SymbolsByKind["function"]);
+            Assert.AreEqual(3, a.SymbolsByLanguage["toy"]);
+            var none = await _store.CountsAsync(_project, "nowhere/");
+            Assert.AreEqual((0, 0, 0), (none.Files, none.Symbols, none.Edges), "una cartella vuota: zero, non il progetto");
+
+            CollectionAssert.AreEquivalent(new[] { "src/a/One.toy", "src/a/sub/Two.toy" }, (await _store.LargestFilesAsync(_project, "src/a/")).Select(f => f.Path).ToArray());
+            Assert.AreEqual(4, (await _store.LargestFilesAsync(_project, null)).Count);
+            var parsers = await _store.ParserProfilesAsync(_project, "src/ab/");
+            Assert.AreEqual(1, parsers.Single(x => x.Language == "toy").Files);
+            Assert.AreEqual(3, parsers.Single(x => x.Language == "toy").SymbolKinds["function"]);
+            Assert.AreEqual(4, (await _store.ParserProfilesAsync(_project)).Single(x => x.Language == "toy").Files, "senza cartella: come prima");
+            Assert.IsNotNull(await _store.RuleFactsAsync(_project, 10, "src/a"));
+            Assert.IsNotNull(await _store.MostConnectedAsync(_project, "src/a"));
+        }
+}
 }

@@ -206,8 +206,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         public async Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, CancellationToken ct = default)
+            => await ParserProfilesAsync(projectPath, null, ct);
+
+        /// <summary>Con <paramref name="folder"/>: che cosa ha scritto ogni parser nei file di quella cartella (pacchetto 4, 20/11/2026).</summary>
+        public async Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, string folder, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, folder, "?p", ct);
+            var whole = !scope.Exact && scope.Filter.Length == 0;
             var byLanguage = new Dictionary<string, CodeParserProfile>(StringComparer.Ordinal);
             CodeParserProfile Of(string language)
             {
@@ -215,31 +221,48 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!byLanguage.TryGetValue(language, out var p)) byLanguage[language] = p = new CodeParserProfile { Language = language };
                 return p;
             }
-            foreach (var r in await RowsAsync($"SELECT ?lang ?x ?v (COUNT(?f) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:language ?lang ; code:extractor ?x ; code:extractorVersion ?v }} }} GROUP BY ?lang ?x ?v ORDER BY ?lang DESC(?n)", ct))
+            var files = whole ? "?f a code:File ; code:language ?lang ; code:extractor ?x ; code:extractorVersion ?v"
+                : Branch(scope, "?f code:path ?p ; a code:File ; code:language ?lang ; code:extractor ?x ; code:extractorVersion ?v .", "?f a code:File ; code:language ?lang ; code:extractor ?x ; code:extractorVersion ?v ; code:path ?p .");
+            foreach (var r in await RowsAsync($"SELECT ?lang ?x ?v (COUNT(?f) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {files} }} }} GROUP BY ?lang ?x ?v ORDER BY ?lang DESC(?n)", ct))
             {
                 var p = Of(Str(r, "lang"));
                 p.Files += Count(r, "n");
                 p.Extractor ??= Str(r, "x");            // il più frequente: dopo un aggiornamento di MDE possono convivere due versioni
                 p.ExtractorVersion ??= Str(r, "v");
             }
-            foreach (var r in await RowsAsync($"SELECT ?lang ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang ?k", ct))
+            var symbols = whole ? "?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\")"
+                : Branch(scope, "?s code:path ?p ; a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\")", "?s a code:Symbol ; code:kind ?k ; code:language ?lang ; code:path ?p . FILTER(?k != \"external\")");
+            foreach (var r in await RowsAsync($"SELECT ?lang ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {symbols} }} }} GROUP BY ?lang ?k", ct))
                 Of(Str(r, "lang")).SymbolKinds[Str(r, "k") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?lang ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel ; code:source ?s . ?s code:language ?lang }} }} GROUP BY ?lang ?rel", ct))
+            var edges = whole ? "?e a code:Edge ; code:relation ?rel ; code:source ?s . ?s code:language ?lang"
+                : Branch(scope, "?e code:path ?p ; a code:Edge ; code:relation ?rel ; code:source ?s . ?s code:language ?lang .", "?e a code:Edge ; code:relation ?rel ; code:source ?s ; code:path ?p . ?s code:language ?lang .");
+            foreach (var r in await RowsAsync($"SELECT ?lang ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {edges} }} }} GROUP BY ?lang ?rel", ct))
                 Of(Str(r, "lang")).Relations[Str(r, "rel") ?? "?"] = Count(r, "n");
             return byLanguage.Values.OrderByDescending(p => p.Files).ThenBy(p => p.Language, StringComparer.Ordinal).ToList();
         }
 
-        public async Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default)
+        public Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default) => RuleFactsAsync(projectPath, top, null, ct);
+
+        /// <summary>Con <paramref name="folder"/>: i fatti scritti nei file di quella cartella (pacchetto 4, 20/11/2026).</summary>
+        public async Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, string folder, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
             var facts = new CodeRuleFacts();
-            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?t a {CodeOntology.ClassTypeArgument} ; code:argumentOf ?c . ?c code:callee ?callee }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
+            var scope = await ScopeAsync(g, folder, "?p", ct);
+            var whole = !scope.Exact && scope.Filter.Length == 0;
+            string Arguments(string cls) => whole ? $"?t a {cls} ; code:argumentOf ?c . ?c code:callee ?callee"
+                : Branch(scope, $"?c code:path ?p ; code:callee ?callee . ?t code:argumentOf ?c ; a {cls} .", $"?t a {cls} ; code:argumentOf ?c . ?c code:callee ?callee ; code:path ?p .");
+            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {Arguments(CodeOntology.ClassTypeArgument)} }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
                 facts.TypeCallees.Add((Str(r, "callee"), Count(r, "n")));
-            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?t a {CodeOntology.ClassStringArgument} ; code:argumentOf ?c . ?c code:callee ?callee }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
+            foreach (var r in await RowsAsync($"SELECT ?callee (COUNT(DISTINCT ?c) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {Arguments(CodeOntology.ClassStringArgument)} }} }} GROUP BY ?callee ORDER BY DESC(?n) ?callee LIMIT {top}", ct))
                 facts.StringCallees.Add((Str(r, "callee"), Count(r, "n")));
-            foreach (var r in await RowsAsync($"SELECT ?name ?tn (COUNT(?a) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?a a {CodeOntology.ClassAnnotation} ; code:name ?name . OPTIONAL {{ ?a code:typeName ?tn }} }} }} GROUP BY ?name ?tn ORDER BY DESC(?n) ?name LIMIT {top}", ct))
+            var annotations = whole ? $"?a a {CodeOntology.ClassAnnotation} ; code:name ?name . OPTIONAL {{ ?a code:typeName ?tn }}"
+                : Branch(scope, $"?a code:path ?p ; a {CodeOntology.ClassAnnotation} ; code:name ?name . OPTIONAL {{ ?a code:typeName ?tn }}", $"?a a {CodeOntology.ClassAnnotation} ; code:name ?name ; code:path ?p . OPTIONAL {{ ?a code:typeName ?tn }}");
+            foreach (var r in await RowsAsync($"SELECT ?name ?tn (COUNT(?a) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {annotations} }} }} GROUP BY ?name ?tn ORDER BY DESC(?n) ?name LIMIT {top}", ct))
                 facts.Annotations.Add((Str(r, "name"), Str(r, "tn"), Count(r, "n")));
-            var counts = (await RowsAsync($"SELECT (COUNT(DISTINCT ?m) AS ?returns) (COUNT(DISTINCT ?c) AS ?chains) WHERE {{ GRAPH {g.DataIri} {{ {{ ?m code:returnTypeName ?x }} UNION {{ ?c code:receiverSite ?y }} }} }}", ct)).FirstOrDefault();
+            var chained = whole ? "{ ?m code:returnTypeName ?x } UNION { ?c code:receiverSite ?y }"
+                : Branch(scope, "?m code:path ?p ; code:returnTypeName ?x .", "?m code:returnTypeName ?x ; code:path ?p .") + "UNION " + Branch(scope, "?c code:path ?p ; code:receiverSite ?y .", "?c code:receiverSite ?y ; code:path ?p .");
+            var counts = (await RowsAsync($"SELECT (COUNT(DISTINCT ?m) AS ?returns) (COUNT(DISTINCT ?c) AS ?chains) WHERE {{ GRAPH {g.DataIri} {{ {chained} }} }}", ct)).FirstOrDefault();
             if (counts != null) { facts.ResolvedReturnTypes = Count(counts, "returns"); facts.Chains = Count(counts, "chains"); }
             return facts;
         }
@@ -462,7 +485,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static readonly TimeSpan WholeGraphTimeout = NavigationTimeout;
 
         /// <summary>Le letture della navigazione in corso, per grafo: chi arriva mentre una legge aspetta quella, non ne lancia un'altra.</summary>
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<CodeNavEdge>>>> _navigationInFlight = new(StringComparer.Ordinal);
+        /// <summary>Con la versione degli archi di quando è partita: dopo una scrittura non ci si aggancia più (leggerebbe il prima).</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Version, Lazy<Task<IReadOnlyList<CodeNavEdge>>> Load)> _navigationInFlight = new(StringComparer.Ordinal);
 
         public async Task<IReadOnlyList<CodeNavEdge>> NavigationEdgesAsync(string projectPath, CancellationToken ct = default)
         {
@@ -479,14 +503,26 @@ namespace MdExplorer.Features.Services.CodeGraph
             // 20/11/2026: chi ha un tempo (MarkAgent, 25 secondi) non deve buttare via una lettura che ne vuole di più. La
             // lettura va in sottofondo con il suo tempo intero e senza il token della richiesta; se finisce in tempo si risponde,
             // altrimenti si dice di riprovare: al tentativo dopo gli archi sono pronti (in cache, se nessuno ha scritto nel frattempo)
-            var load = _navigationInFlight.GetOrAdd(key, k => new Lazy<Task<IReadOnlyList<CodeNavEdge>>>(() => Task.Run(async () =>
+            // una lettura partita prima dell'ultima scrittura non serve a chi chiede adesso: se ne parte un'altra (20/11/2026)
+            var version = NavigationVersion(key);
+            (long Version, Lazy<Task<IReadOnlyList<CodeNavEdge>>> Load) entry = default;
+            entry = _navigationInFlight.AddOrUpdate(key,
+                k => (version, Start(k)),
+                (k, running) => running.Version == version && NavigationQuiet(k) ? running : (version, Start(k)));
+            Lazy<Task<IReadOnlyList<CodeNavEdge>>> Start(string k) => new(() => Task.Run(async () =>
             {
                 CodeQueryBudget.Clear();
                 var gate = _navigationLoading.GetOrAdd(k, g => new SemaphoreSlim(1, 1));
                 await gate.WaitAsync();
                 try { return await LoadNavigationEdgesAsync(projectPath, CancellationToken.None); }
-                finally { gate.Release(); _navigationInFlight.TryRemove(k, out var done); }
-            }))).Value;
+                finally
+                {
+                    gate.Release();
+                    // si toglie solo se è ancora questa: un'altra partita dopo una scrittura resta
+                    _navigationInFlight.TryRemove(new KeyValuePair<string, (long, Lazy<Task<IReadOnlyList<CodeNavEdge>>>)>(k, entry));
+                }
+            }));
+            var load = entry.Load.Value;
             try { return await load.WaitAsync(left, ct); }
             catch (TimeoutException ex)
             {
@@ -1032,38 +1068,97 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ panoramica
 
+        /// <summary>
+        /// La panoramica completa (il report del grafo, scritto in sottofondo): conteggi, i più collegati, i file più grandi.
+        /// Le stesse query di prima del 20/11/2026, ora in tre metodi che le domande di MarkAgent usano separatamente.
+        /// </summary>
         public async Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default)
+        {
+            var o = await CountsAsync(projectPath, null, ct);
+            o.MostConnected.AddRange(await MostConnectedAsync(projectPath, null, ct));
+            o.LargestFiles.AddRange(await LargestFilesAsync(projectPath, null, ct));
+            return o;
+        }
+
+        /// <summary>
+        /// Il gruppo di un ramo: con l'elenco esatto il ramo parte dal percorso (<paramref name="exact"/>, l'elenco IN TESTA al
+        /// ramo); con il filtro è il ramo di prima (<paramref name="original"/>) più il filtro. Pacchetto 4 (20/11/2026).
+        /// </summary>
+        private static string Branch(PathScope scope, string exact, string original)
+            => scope.Exact ? $"{{ {scope.Values}{exact} }} " : $"{{ {original} {scope.Filter}}} ";
+
+        /// <summary>
+        /// Quanti file, simboli, esterni, archi e descrizioni; i simboli per linguaggio e per tipo; gli archi per relazione.
+        /// Senza <paramref name="folder"/>: tutto il grafo del progetto, con le query di sempre (pacchetto 4, 20/11/2026). Con
+        /// <paramref name="folder"/>: solo i file sotto quella cartella — gli esterni, che non hanno un file, sono quelli USATI
+        /// da archi scritti in quei file. Contati al momento: numeri esatti, mai da una copia.
+        /// </summary>
+        public async Task<CodeOverview> CountsAsync(string projectPath, string folder, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
             var o = new CodeOverview();
+            var scope = await ScopeAsync(g, folder, "?p", ct);
+            var whole = !scope.Exact && scope.Filter.Length == 0;
+            var countsWhere = whole
+                ? "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } UNION { ?fd a code:FileDescription }"
+                : Branch(scope, "?f code:path ?p ; a code:File .", "?f a code:File ; code:path ?p .") +
+                  "UNION " + Branch(scope, "?sym code:path ?p ; a code:Symbol ; code:kind ?k . FILTER(?k != \"external\")", "?sym a code:Symbol ; code:kind ?k ; code:path ?p . FILTER(?k != \"external\")") +
+                  "UNION " + Branch(scope, "?e2 code:path ?p ; a code:Edge ; code:target ?ext . ?ext code:kind \"external\" .", "?ext a code:Symbol ; code:kind \"external\" . ?e2 a code:Edge ; code:target ?ext ; code:path ?p .") +
+                  "UNION " + Branch(scope, "?e code:path ?p ; a code:Edge .", "?e a code:Edge ; code:path ?p .") +
+                  "UNION " + Branch(scope, "?ds code:path ?p . ?d code:describes ?ds ; a code:Description .", "?d a code:Description ; code:describes ?ds . ?ds code:path ?p .") +
+                  "UNION " + Branch(scope, "?df code:path ?p . ?fd code:describes ?df ; a code:FileDescription .", "?fd a code:FileDescription ; code:describes ?df . ?df code:path ?p .");
             var counts = (await RowsAsync(
                 $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?sym) AS ?symbols) (COUNT(DISTINCT ?ext) AS ?externals) (COUNT(DISTINCT ?e) AS ?edges) (COUNT(DISTINCT ?d) AS ?described) (COUNT(DISTINCT ?fd) AS ?describedFiles) WHERE {{ GRAPH {g.DataIri} {{ " +
-                "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } UNION { ?fd a code:FileDescription } } }", WholeGraphTimeout, ct)).FirstOrDefault();
+                countsWhere + " } }", WholeGraphTimeout, ct)).FirstOrDefault();
             if (counts != null)
             {
                 o.Files = Count(counts, "files"); o.Symbols = Count(counts, "symbols"); o.ExternalSymbols = Count(counts, "externals");
                 o.Edges = Count(counts, "edges"); o.DescribedSymbols = Count(counts, "described");
                 o.DescribedFiles = Count(counts, "describedFiles");
             }
-            foreach (var r in await RowsAsync($"SELECT ?lang (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang", WholeGraphTimeout, ct))
+            var byLanguage = whole ? "?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\")"
+                : Branch(scope, "?s code:path ?p ; a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\")", "?s a code:Symbol ; code:kind ?k ; code:language ?lang ; code:path ?p . FILTER(?k != \"external\")");
+            foreach (var r in await RowsAsync($"SELECT ?lang (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {byLanguage} }} }} GROUP BY ?lang", WholeGraphTimeout, ct))
                 o.SymbolsByLanguage[Str(r, "lang") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?k (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k }} }} GROUP BY ?k", WholeGraphTimeout, ct))
+            var byKind = whole ? "?s a code:Symbol ; code:kind ?k"
+                : Branch(scope, "?s code:path ?p ; a code:Symbol ; code:kind ?k .", "?s a code:Symbol ; code:kind ?k ; code:path ?p .") +
+                  "UNION " + Branch(scope, "?e code:path ?p ; a code:Edge ; code:target ?s . ?s code:kind ?k . FILTER(?k = \"external\")", "?s a code:Symbol ; code:kind ?k . FILTER(?k = \"external\") ?e a code:Edge ; code:target ?s ; code:path ?p .");
+            foreach (var r in await RowsAsync($"SELECT ?k (COUNT({(whole ? "" : "DISTINCT ")}?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {byKind} }} }} GROUP BY ?k", WholeGraphTimeout, ct))
                 o.SymbolsByKind[Str(r, "k") ?? "?"] = Count(r, "n");
-            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?rel . {NotRejected}}} }} GROUP BY ?rel", WholeGraphTimeout, ct))
+            var byRelation = whole ? $"?e a code:Edge ; code:relation ?rel . {NotRejected}"
+                : Branch(scope, $"?e code:path ?p ; a code:Edge ; code:relation ?rel . {NotRejected}", $"?e a code:Edge ; code:relation ?rel ; code:path ?p . {NotRejected}");
+            foreach (var r in await RowsAsync($"SELECT ?rel (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {byRelation}}} }} GROUP BY ?rel", WholeGraphTimeout, ct))
                 o.EdgesByRelation[Str(r, "rel") ?? "?"] = Count(r, "n");
-
-            var degrees = await RowsAsync(
-                $"SELECT ?s (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") {NotRejected}" +
-                "{ ?e code:source ?s } UNION { ?e code:target ?s } ?s code:kind ?k . FILTER(?k != \"external\") } } GROUP BY ?s ORDER BY DESC(?n) LIMIT 15", WholeGraphTimeout, ct);
-            var symbols = await SymbolsByIdsAsync(g, degrees.Select(r => SymbolId(r["s"])), ct);
-            foreach (var r in degrees)
-                if (symbols.TryGetValue(SymbolId(r["s"]), out var s)) o.MostConnected.Add((s, Count(r, "n")));
-
-            foreach (var r in await RowsAsync(
-                $"SELECT ?p ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p ; code:symbolCount ?n . " +
-                "OPTIONAL { ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } } } ORDER BY DESC(?n) LIMIT 10", WholeGraphTimeout, ct))
-                o.LargestFiles.Add((Str(r, "p"), Count(r, "n"), Str(r, "sum")));
             return o;
+        }
+
+        /// <summary>I simboli con più archi (contains escluso), entranti e uscenti; con <paramref name="folder"/> i simboli dei suoi file.</summary>
+        public async Task<List<(CodeSymbolView Symbol, int Degree)>> MostConnectedAsync(string projectPath, string folder, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, folder, "?p", ct);
+            var where = !scope.Exact && scope.Filter.Length == 0
+                ? $"?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") {NotRejected}{{ ?e code:source ?s }} UNION {{ ?e code:target ?s }} ?s code:kind ?k . FILTER(?k != \"external\")"
+                : (scope.Exact ? $"{scope.Values}?s code:path ?p ; code:kind ?k . " : $"?s code:kind ?k ; code:path ?p . {scope.Filter}") +
+                  $"FILTER(?k != \"external\") {{ ?e code:source ?s }} UNION {{ ?e code:target ?s }} ?e a code:Edge ; code:relation ?r . FILTER(?r != \"contains\") {NotRejected}";
+            var degrees = await RowsAsync($"SELECT ?s (COUNT(?e) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ {where} }} }} GROUP BY ?s ORDER BY DESC(?n) LIMIT 15", WholeGraphTimeout, ct);
+            var symbols = await SymbolsByIdsAsync(g, degrees.Select(r => SymbolId(r["s"])), ct);
+            var list = new List<(CodeSymbolView, int)>();
+            foreach (var r in degrees)
+                if (symbols.TryGetValue(SymbolId(r["s"]), out var s)) list.Add((s, Count(r, "n")));
+            return list;
+        }
+
+        /// <summary>I file con più simboli e la loro descrizione; con <paramref name="folder"/> solo i suoi.</summary>
+        public async Task<List<(string Path, int Symbols, string Summary)>> LargestFilesAsync(string projectPath, string folder, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var scope = await ScopeAsync(g, folder, "?p", ct);
+            var file = scope.Exact ? $"{scope.Values}?f code:path ?p ; a code:File ; code:symbolCount ?n . " : $"?f a code:File ; code:path ?p ; code:symbolCount ?n . {scope.Filter}";
+            return (await RowsAsync(
+                $"SELECT ?p ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ {file}" +
+                "OPTIONAL { ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } } } ORDER BY DESC(?n) LIMIT 10", WholeGraphTimeout, ct))
+                .Select(r => (Str(r, "p"), Count(r, "n"), Str(r, "sum"))).ToList();
         }
 
         public async Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default)

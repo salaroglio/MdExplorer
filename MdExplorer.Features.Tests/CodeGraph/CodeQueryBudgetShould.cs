@@ -188,5 +188,27 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(clock.Elapsed < TimeSpan.FromSeconds(1), $"al secondo tentativo sono pronti ({clock.Elapsed})");
             Assert.AreEqual(1, _client.NavigationReads, "una lettura sola: il secondo tentativo non ricomincia da capo");
         }
-    }
+    
+        [TestMethod]
+        public async Task Not_join_a_navigation_read_started_before_a_write()
+        {
+            // 20/11/2026: chi chiede dopo una scrittura si agganciava alla lettura in sottofondo partita prima, e riceveva gli
+            // archi di prima della scrittura
+            await LoadedAsync();
+            _client.NavigationDelay = TimeSpan.FromSeconds(3);
+            using (CodeQueryBudget.Begin(TimeSpan.FromSeconds(1)))
+                await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // la lettura A parte
+            var script = Path.Combine(_project, ".mde-code", "src", "Foo.toy.ast.ttl");
+            File.WriteAllText(script, File.ReadAllText(script).Replace("\"Foo.SUB\"", "\"Foo.SUB2\""));
+            Assert.IsTrue((await _store.LoadScriptAsync(_project, script)).Loaded, "la scrittura mentre A legge");
+            using (CodeQueryBudget.Begin(TimeSpan.FromSeconds(1)))
+                await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // B, non A
+            await Task.Delay(TimeSpan.FromSeconds(8));   // A finisce, poi B (aspetta il suo turno) legge e finisce
+            Assert.AreEqual(2, _client.NavigationReads, "una lettura nuova dopo la scrittura, non quella di prima");
+            var edges = await _store.NavigationEdgesAsync(_project);
+            Assert.AreEqual(2, _client.NavigationReads, "e la copia tenuta è quella nuova");
+            Assert.IsTrue(edges.Any(e => e.TargetName == "Foo.SUB2" || e.TargetName == "Foo.SUB"), "gli archi ci sono");
+            Assert.IsFalse(edges.Any(e => e.TargetName == "Foo.SUB"), "e sono quelli DOPO la scrittura");
+        }
+}
 }

@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 43
+  version: 44
   updatePolicy: replace
 ---
 
@@ -73,7 +73,11 @@ callers and impact.
 Before the first `code_*` question of a conversation, call **`code_ontology`** once and read it. It returns the graph's
 TBox — every class of node, every property with its domain, range and meaning, the relations, the allowed values — and,
 per language of this project, which parser wrote the graph and which kinds and relations it really produced. From then
-on you know exactly what a symbol, an edge, a call site or a description carries. Two things follow:
+on you know exactly what a symbol, an edge, a call site or a description carries. The TBox, the language packages, the
+meaning of kinds and relations and the catalog of ready-made questions come at once; `parsers` is COUNTED when you ask
+(exact, never cached). On a large project the count over the whole project may not fit in the time: `parsers` is then
+null and `parsersNote` lists the program folders — call `code_ontology` again with `folder` = the one you work on. Two
+things follow:
 
 - do not look for what is not there: a relation absent from a language's `parsers` entry (`reads`/`writes` exist only
   where the parser reads SQL, `resolvesTo` only where registrations are read) cannot answer for that language — say
@@ -90,8 +94,15 @@ relations its rules produce, each with the rule of `language.yml` it comes from.
 `tbox.ttl`: MdExplorer writes it from the rules (when a language proposal is approved, on import, on export) and ships
 it in the package zip. Never edit it: change the rules (`code_language_try` → `code_language_propose`) and it follows.
 
-`code_ontology` is the structure; `code_schema` is the content of this project (counts, facts for rules, active rules,
-ready-made questions). The structure does not change during a conversation: once is enough.
+`code_ontology` is the structure; `code_schema` is the content of this project (counts, facts for rules, active rules;
+the ready-made questions are in both). The structure does not change during a conversation: once is enough.
+
+**Every number is counted when you ask, never cached, never estimated.** `code_ontology`, `code_schema` and
+`code_overview` take `folder` (a program folder or a sub-folder): the numbers are then of the files under it, and they
+come back fast even on a huge project. Without `folder`, on a large project a part may not fit in the time: it comes
+back `null` with a note (`parsersNote`, `countsNote`, `ruleFactsNote`, `mostConnectedNote`, `largestFilesNote`) that lists
+the program folders. The parts that are there are exact; for the missing one, ask again with `folder` — never fill it in
+yourself, and never sum or estimate it from other answers.
 
 ## When no tool answers: `code_sparql`
 
@@ -102,8 +113,11 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
   a node: `?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation "calls" ; code:confidence ?c ; code:path ?p`.
 - Only the patterns: the prefixes `code:`, `text:`, `rdf:`, `rdfs:`, `owl:`, `xsd:` are declared, and MdExplorer
   puts the block in the project's graph. `GRAPH`, `FROM`, `SERVICE` and any update are refused.
-- For numbers use `GROUP BY` and `COUNT`; to stay in one folder `FILTER(STRSTARTS(?p, "folder/"))`. At most 60 seconds
-  and 1000 rows (`truncated` says there were more): narrow the query rather than raise the limit.
+- For numbers use `GROUP BY` and `COUNT`. To stay in one folder START FROM THE EXACT PATHS of its files, with the path
+  pattern first: `VALUES ?path { "folder/A.java" "folder/B.java" } ?e code:path ?path ; a code:Edge ; …` — Fuseki uses
+  its index. A `FILTER`/`STRSTARTS` on the path does NOT narrow the reading: it still reads the whole graph and times out
+  on a large project (the paths of a folder's files: `code_query program-outline`). At most 25 seconds and 1000 rows
+  (`truncated` says there were more): narrow the query rather than raise the limit.
 - A refused query comes back with the reason: fix it and run it again; do not fall back to guessing the number.
 - In the answer, say that the number comes from a query you wrote, and give the query when the user may want to check it.
 - A question you had to answer with `code_sparql` is worth a finding («What the graph lacked»): it may become a ready-made question.
@@ -116,10 +130,10 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
 | Was the graph recomputed after MdExplorer was updated? | `code_inventory`: `outdatedScripts.files` of each folder — 0 = every file is of today's extractor; otherwise `changes` says per language from which version to which. Not 0 = the graph of those files is the OLD one: tell the user to press «Aggiorna» in the background-work panel (or «Estrai la struttura») BEFORE you measure anything |
 | Which limits did the last analysis report (missing projects or libraries, files not compiled, unresolved references…)? | `code_inventory`: `lastExtraction.warningsByKind` is a SUMMARY — per kind, how many and one example. Read it first; then, only for the kind you need, call `code_inventory` again with `warnings` = that kind to get those warnings in full (`all` gives every warning and can be very long) |
 | Which revision of the sources is the graph from? Is it behind? | `code_inventory`: `lastScan.sourceControl` — `kind` (git, svn, none, unknown), `revision` (commit or SVN revision, `1230:1240` = mixed working copy), `branch`, `localChanges` (files modified and not yet committed at scan time), `note` (why something is missing). Say it in the document you write |
-| The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` |
-| How the graph is organised: classes of nodes, their properties, what each parser of this project produces | `code_ontology` (once, first) |
-| What the graph contains and what each relation means; which facts a rule can read (X.class calls, annotations, strings), the active rules, the ready-made questions | `code_schema` |
-| A ready-made question (the catalog is in `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
+| The shape of an unknown codebase, the most connected symbols, the biggest files | `code_overview` (`folder` for one program or sub-folder) |
+| How the graph is organised: classes of nodes, their properties, what each kind and relation means, the ready-made questions, what each parser of this project produces | `code_ontology` (once, first; `folder` when `parsers` comes back null) |
+| How many of each kind and relation; which facts a rule can read (X.class calls, annotations, strings), the active rules | `code_schema` (`folder` for one program or sub-folder) |
+| A ready-made question (the catalog is in `code_ontology` and `code_schema`): what the code uses that the graph knows only by name, where in the repository that information is although not analyzed, what is on disk but not in the graph | `code_query` |
 | A question no tool above answers: a count across relations or languages, a combination of conditions | `code_sparql` (last resort, read-only) |
 | Where is X? Find a class/method by name or by what it does | `code_find_symbol` (`folder` = a program or sub-folder and `kind` = class, method, module… when the name exists in several places) |
 | Is this document true to the code? Many statements to check | `code_query` → `check-claims`: all the link claims in one call (see «Checking a document against the code») |
@@ -223,7 +237,7 @@ Do not propose changes to the graph or to its rules unless the user asks: the qu
 ## Writing the functional analysis of a program
 
 When the user asks for a summary, an analysis or a document about what a program DOES, build it from the graph with the
-ready-made questions (`code_query`, catalog in `code_schema`), then read the source only where they point:
+ready-made questions (`code_query`, catalog in `code_ontology`), then read the source only where they point:
 
 1. `program-outline` (`folder`): the files with what each is for and the main types — the structure of the document.
 2. `entry-points` (`folder`): where the program starts (called by a framework, a UI, a job, `main`) — one section each.
@@ -364,7 +378,7 @@ grafo?», «what would the graph need to answer better?» — the answer is a pl
 not a list of wishes. At the end of an analysis where the graph stopped and you read the source, you may offer it in one
 line; do not start it unasked.
 
-0. `code_schema` first: which facts the graph really has (the callees with X.class or string arguments, the annotations)
+0. `code_schema` first (with `folder` = the program the rule is for): which facts the graph really has (the callees with X.class or string arguments, the annotations)
    and which rules already exist — a rule can only read what is there.
 1. **Each gap, concretely**: where it stopped (`path:line`), what you read in the source instead, which fact would have
    answered (a link, a property of a link, a revision…).

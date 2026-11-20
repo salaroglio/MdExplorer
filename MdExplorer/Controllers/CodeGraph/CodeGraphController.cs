@@ -1152,36 +1152,81 @@ namespace MdExplorer.Controllers.CodeGraph
         /// vogliono dire tipi, relazioni e certezze, con i numeri del progetto; i fatti che le regole possono leggere, dai
         /// più frequenti; le regole attive con quanto collegano; il catalogo delle domande pronte (<c>code_query</c>).
         /// </summary>
-        [HttpGet("ontology")]
-        public Task<IActionResult> Ontology([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        /// <summary>
+        /// Una parte calcolata al momento; se non sta nel tempo (TimeoutException: grafo grande e nessuna cartella), null e il
+        /// motivo con i programmi da indicare come folder. Le altre parti restano, esatte (pacchetto 4, 20/11/2026: numeri
+        /// sempre al momento, mai da una copia, mai stimati).
+        /// </summary>
+        private async Task<(T Value, string Note)> PartAsync<T>(string projectPath, string folder, Func<Task<T>> part, CancellationToken ct) where T : class
         {
-            // il TBox (uguale per tutti i parser) e, per linguaggio, che cosa il suo parser ha scritto in QUESTO progetto (MCP code_ontology)
+            try { return (await part(), null); }
+            catch (TimeoutException ex)
+            {
+                string programs;
+                try { programs = string.Join(", ", (await _analysis.ListProgramsAsync(projectPath, ct)).Select(p => p.Folder).Take(20)); }
+                catch (Exception) { programs = null; }
+                return (null, UiText.Say(
+                    $"non calcolato: {(string.IsNullOrEmpty(folder) ? "su tutto il progetto" : $"sotto «{folder}»")} non sta nel tempo ({ex.Message}). Richiedi con folder = un programma o una cartella più piccola{(string.IsNullOrEmpty(programs) ? "" : $" (programmi: {programs})")}.",
+                    $"not computed: {(string.IsNullOrEmpty(folder) ? "over the whole project" : $"under «{folder}»")} it does not fit in time ({ex.Message}). Ask again with folder = a program or a smaller folder{(string.IsNullOrEmpty(programs) ? "" : $" (programs: {programs})")}."));
+            }
+        }
+
+        /// <summary>La cartella di ontology, schema e overview: i file SOTTO di lei (con la barra: «src/a» non prende «src/ab»).</summary>
+        private static string Folder(string folder) => string.IsNullOrWhiteSpace(folder) ? null : folder.Replace('\\', '/').Trim().TrimEnd('/') + "/";
+
+        /// <summary>
+        /// GET /api/codegraph/ontology?projectPath[&amp;folder] — com'è fatto il grafo (MCP <c>code_ontology</c>). Subito, senza
+        /// database: il TBox, i TBox dei pacchetti di linguaggio, il significato di tipi, relazioni e certezze, il catalogo delle
+        /// domande pronte. Poi, contato al momento, che cosa ha scritto ogni parser (in tutto il progetto, o sotto folder): se non
+        /// sta nel tempo, parsers null e parsersNote dice di indicare una cartella (pacchetto 4, 20/11/2026: prima un conteggio su
+        /// tutto il grafo veniva PRIMA del TBox e, se scadeva, il TBox non arrivava).
+        /// </summary>
+        [HttpGet("ontology")]
+        public Task<IActionResult> Ontology([FromQuery] string projectPath, [FromQuery] string folder = null, CancellationToken ct = default) => Guarded(async () =>
+        {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var parsers = await _store.ParserProfilesAsync(projectPath, ct);
+            folder = Folder(folder);
+            var (parsers, parsersNote) = await PartAsync(projectPath, folder, () => _store.ParserProfilesAsync(projectPath, folder, ct), ct);
             return Ok(new
             {
                 tbox = CodeTBox.Turtle(),
                 // i linguaggi aggiunti con un pacchetto: che cosa scrive ciascuno, dalle sue regole di adesso (lo stesso testo di tbox.ttl)
                 languagePackages = CodeLanguageCatalog.ForProject(projectPath).All.Where(l => l.Definition != null)
                     .Select(l => new { id = l.Id, name = l.Definition.DisplayName, version = l.Definition.Version, tbox = LanguageTBox.Turtle(l.Definition) }),
-                parsers = parsers.Select(p => new { p.Language, p.Extractor, p.ExtractorVersion, p.Files, symbolKinds = p.SymbolKinds.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value), relations = p.Relations.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value) }),
+                // il significato in parole (prima solo in code_schema, insieme ai numeri)
+                symbolKinds = CodeGraphSchema.SymbolKinds.Select(k => new { kind = k.Key, meaning = k.Value }),
+                relations = CodeGraphSchema.Relations.Select(r => new { relation = r.Key, meaning = r.Value }),
+                confidences = CodeGraphSchema.Confidences.Select(c => new { confidence = c.Key, meaning = c.Value }),
+                queries = CodeQueryCatalog.All.Select(q => new { q.Name, q.Question, parameters = q.Parameters }),
+                folder,
+                parsers = parsers?.Select(p => new { p.Language, p.Extractor, p.ExtractorVersion, p.Files, symbolKinds = p.SymbolKinds.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value), relations = p.Relations.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value) }),
+                parsersNote,
             });
         });
 
+        /// <summary>
+        /// GET /api/codegraph/schema?projectPath[&amp;folder] — il contenuto del grafo spiegato a Mark (D43, <c>code_schema</c>): che
+        /// cosa vogliono dire tipi, relazioni e certezze, con i numeri; i fatti che le regole possono leggere, dai più frequenti; le
+        /// regole attive; il catalogo delle domande pronte. Numeri contati al momento, di tutto il progetto o sotto folder; una
+        /// parte che non sta nel tempo è null con la sua nota (countsNote, ruleFactsNote), le altre restano.
+        /// </summary>
         [HttpGet("schema")]
-        public Task<IActionResult> Schema([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Schema([FromQuery] string projectPath, [FromQuery] string folder = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var o = await _store.OverviewAsync(projectPath, ct);
-            var facts = await _store.RuleFactsAsync(projectPath, 25, ct);
+            folder = Folder(folder);
+            var (o, countsNote) = await PartAsync(projectPath, folder, () => _store.CountsAsync(projectPath, folder, ct), ct);
+            var (facts, ruleFactsNote) = await PartAsync(projectPath, folder, () => _store.RuleFactsAsync(projectPath, 25, folder, ct), ct);
             var rules = HttpContext.RequestServices.GetRequiredService<CodeRuleService>();
             return Ok(new
             {
-                symbolKinds = CodeGraphSchema.SymbolKinds.Select(k => new { kind = k.Key, meaning = k.Value, count = o.SymbolsByKind.TryGetValue(k.Key, out var n) ? n : 0 }),
-                relations = CodeGraphSchema.Relations.Select(r => new { relation = r.Key, meaning = r.Value, count = o.EdgesByRelation.TryGetValue(r.Key, out var n) ? n : 0 }),
+                folder,
+                symbolKinds = CodeGraphSchema.SymbolKinds.Select(k => new { kind = k.Key, meaning = k.Value, count = o == null ? (int?)null : o.SymbolsByKind.TryGetValue(k.Key, out var n) ? n : 0 }),
+                relations = CodeGraphSchema.Relations.Select(r => new { relation = r.Key, meaning = r.Value, count = o == null ? (int?)null : o.EdgesByRelation.TryGetValue(r.Key, out var n) ? n : 0 }),
                 confidences = CodeGraphSchema.Confidences.Select(c => new { confidence = c.Key, meaning = c.Value }),
-                described = new { symbols = o.DescribedSymbols, of = o.Symbols, files = o.DescribedFiles, ofFiles = o.Files },
-                ruleFacts = new
+                described = o == null ? null : new { symbols = o.DescribedSymbols, of = o.Symbols, files = o.DescribedFiles, ofFiles = o.Files },
+                countsNote,
+                ruleFacts = facts == null ? null : new
                 {
                     meaning = CodeGraphSchema.RuleFacts,
                     typeArguments = facts.TypeCallees.Select(x => new { callee = x.Callee, points = x.Count }),
@@ -1189,6 +1234,7 @@ namespace MdExplorer.Controllers.CodeGraph
                     annotations = facts.Annotations.Select(x => new { name = x.Name, resolved = x.TypeName, symbols = x.Count }),
                     chains = facts.Chains, resolvedReturnTypes = facts.ResolvedReturnTypes,
                 },
+                ruleFactsNote,
                 rules = rules.List(projectPath).Select(r =>
                 {
                     var script = CodeRuleService.ReadScript(projectPath, r.Id);
@@ -1235,17 +1281,30 @@ namespace MdExplorer.Controllers.CodeGraph
             catch (CodeSparqlException ex) { return BadRequest(new { error = ex.Message }); }
         });
 
+        /// <summary>
+        /// GET /api/codegraph/overview?projectPath[&amp;folder] — la forma del codice (MCP <c>code_overview</c>): quanti file,
+        /// simboli, archi, per linguaggio, tipo e relazione; i più collegati; i più grandi. Di tutto il progetto o sotto folder,
+        /// contato al momento; una parte che non sta nel tempo è null con la sua nota (pacchetto 4, 20/11/2026).
+        /// </summary>
         [HttpGet("overview")]
-        public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Overview([FromQuery] string projectPath, [FromQuery] string folder = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var o = await _store.OverviewAsync(projectPath, ct);
+            folder = Folder(folder);
+            var (o, countsNote) = await PartAsync(projectPath, folder, () => _store.CountsAsync(projectPath, folder, ct), ct);
+            var (largest, largestFilesNote) = await PartAsync(projectPath, folder, () => _store.LargestFilesAsync(projectPath, folder, ct), ct);
+            var (connected, mostConnectedNote) = await PartAsync(projectPath, folder, () => _store.MostConnectedAsync(projectPath, folder, ct), ct);
             var at = await LocatorAsync(projectPath, ct);
             return Ok(new
             {
-                o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.DescribedFiles, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
-                mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol, at) }),
-                largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols, summary = f.Summary }),
+                folder,
+                Files = o?.Files, Symbols = o?.Symbols, ExternalSymbols = o?.ExternalSymbols, Edges = o?.Edges, DescribedSymbols = o?.DescribedSymbols, DescribedFiles = o?.DescribedFiles,
+                SymbolsByLanguage = o?.SymbolsByLanguage, SymbolsByKind = o?.SymbolsByKind, EdgesByRelation = o?.EdgesByRelation,
+                countsNote,
+                mostConnected = connected?.Select(m => new { degree = m.Degree, symbol = View(m.Symbol, at) }),
+                mostConnectedNote,
+                largestFiles = largest?.Select(f => new { path = f.Path, symbols = f.Symbols, summary = f.Summary }),
+                largestFilesNote,
             });
         });
 

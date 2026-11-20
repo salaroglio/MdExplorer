@@ -62,8 +62,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<Dictionary<string, CodeSymbolView>> SymbolsAsync(string projectPath, IEnumerable<string> ids, CancellationToken ct = default);
         /// <summary>I fatti per le regole presenti nel grafo, i <paramref name="top"/> più frequenti per tipo (D43, <c>code_schema</c>).</summary>
         Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, CancellationToken ct = default);
+        /// <summary>Gli stessi, scritti nei file sotto <paramref name="folder"/> (null = tutto il progetto).</summary>
+        Task<CodeRuleFacts> RuleFactsAsync(string projectPath, int top, string folder, CancellationToken ct = default);
         /// <summary>Per linguaggio, che cosa il suo parser ha scritto nel grafo del progetto (MCP <c>code_ontology</c>).</summary>
         Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Lo stesso, nei file sotto <paramref name="folder"/> (null = tutto il progetto).</summary>
+        Task<List<CodeParserProfile>> ParserProfilesAsync(string projectPath, string folder, CancellationToken ct = default);
         /// <summary>Gli usi degli esterni (D43 F3): per esterno e relazione, quanti archi, quanti chiamanti, un esempio; solo dai file sotto <paramref name="pathPrefix"/> (null = tutto).</summary>
         Task<List<CodeExternalUse>> ExternalUsesAsync(string projectPath, string pathPrefix, CancellationToken ct = default);
         /// <summary>Quanti simboli descrivibili (non banali) sotto <paramref name="pathPrefix"/> e quanti con una descrizione (D43 F3).</summary>
@@ -156,6 +160,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeEdgeView>> ImpactAsync(string projectPath, string symbolId, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ShortestPathAsync(string projectPath, string fromId, string toId, CancellationToken ct = default);
         Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>I conteggi della panoramica (non i più collegati né i più grandi), sotto <paramref name="folder"/> o di tutto il progetto (null), contati al momento.</summary>
+        Task<CodeOverview> CountsAsync(string projectPath, string folder, CancellationToken ct = default);
+        /// <summary>I 15 simboli con più archi (contains escluso), sotto <paramref name="folder"/> o di tutto il progetto (null).</summary>
+        Task<List<(CodeSymbolView Symbol, int Degree)>> MostConnectedAsync(string projectPath, string folder, CancellationToken ct = default);
+        /// <summary>I 10 file con più simboli, sotto <paramref name="folder"/> o di tutto il progetto (null).</summary>
+        Task<List<(string Path, int Symbols, string Summary)>> LargestFilesAsync(string projectPath, string folder, CancellationToken ct = default);
         /// <summary>Quanto di una cartella <c>program</c> è nel grafo: file e simboli scansionati, quanti con una descrizione.</summary>
         Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default);
         /// <summary>
@@ -192,7 +202,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var p in new[] { "code:qualifiedName", "code:name" })
                 await UpdateAsync(CodeOntology.SparqlPrefixes +
                     $"DELETE {{ GRAPH {g.DataIri} {{ ?x {p} ?v }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; {p} ?v . " +
-                    $"?x {p} ?other . FILTER(STR(?other) < STR(?v)) }} }}", ct, edgesOf: g);
+                    $"?x {p} ?other . FILTER(STR(?other) < STR(?v)) }} }}", ct);
         }
 
         private async Task<int> RemoveOrphanExternalsCoreAsync(ProjectGraphs g, CancellationToken ct)
@@ -201,7 +211,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var rows = await RowsAsync($"SELECT (COUNT(DISTINCT ?x) AS ?n) WHERE {{ {where} }}", ct);
             var n = rows.Count == 0 ? 0 : int.Parse(SparqlResults.Str(rows[0], "n") ?? "0", System.Globalization.CultureInfo.InvariantCulture);
             if (n == 0) return 0;
-            await UpdateAsync(CodeOntology.SparqlPrefixes + $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; ?p ?o . FILTER NOT EXISTS {{ ?s ?q ?x }} }} }}", ct, edgesOf: g);
+            await UpdateAsync(CodeOntology.SparqlPrefixes + $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; ?p ?o . FILTER NOT EXISTS {{ ?s ?q ?x }} }} }}", ct);
             _logger?.LogInformation("[CodeGraph] {Count} nodi esterni senza archi tolti dal grafo", n);
             return n;
         }
@@ -292,48 +302,28 @@ namespace MdExplorer.Features.Services.CodeGraph
         private static long NavigationVersion(string dataGraph) => _navigationVersion.TryGetValue(dataGraph, out var v) ? v : 0;
         private static bool NavigationQuiet(string dataGraph) => !_navigationWriting.TryGetValue(dataGraph, out var n) || n == 0;
 
-        /// <param name="edgesOf">Il progetto di cui questa scrittura può cambiare gli archi della navigazione (script del codice e
-        /// delle regole, esterni, SQL, descrizioni con scelte di chiamata); null = no (lo stato: scansioni, avanzamento, impronte).</param>
-        private async Task UpdateAsync(string sparqlUpdate, CancellationToken ct, ProjectGraphs edgesOf = null)
+        /// <summary>Il grafo dati di un progetto nel testo di una scrittura (<see cref="CodeGraphIris.DataGraph"/>).</summary>
+        private static readonly System.Text.RegularExpressions.Regex DataGraphInText = new(@"urn:mde:code:[^:<>\s""]+:data", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// Ogni scrittura sul grafo del codice. Quelle che toccano il grafo DATI di un progetto lo dicono da sole, col testo:
+        /// la copia degli archi della navigazione di quel progetto non vale più (20/11/2026, utente: «numeri esatti sempre, nessun
+        /// rischio»). Prima il chiamante doveva dire se la sua scrittura cambiava gli archi: una strada dimenticata avrebbe lasciato
+        /// archi vecchi senza dirlo. Le scritture solo sul grafo dello stato (scansioni, avanzamento, impronte) non toccano archi.
+        /// </summary>
+        private async Task UpdateAsync(string sparqlUpdate, CancellationToken ct)
         {
-            if (edgesOf == null) { await UpdateCoreAsync(sparqlUpdate, ct); return; }
-            _navigationWriting.AddOrUpdate(edgesOf.Data, 1, (_, n) => n + 1);
+            var graphs = DataGraphInText.Matches(sparqlUpdate).Select(m => m.Value).Distinct(StringComparer.Ordinal).ToList();
+            foreach (var d in graphs) _navigationWriting.AddOrUpdate(d, 1, (_, n) => n + 1);
             try { await UpdateCoreAsync(sparqlUpdate, ct); }
             finally
             {
-                _navigationVersion.AddOrUpdate(edgesOf.Data, 1, (_, n) => n + 1);
-                _navigationWriting.AddOrUpdate(edgesOf.Data, 0, (_, n) => n - 1);
+                foreach (var d in graphs)
+                {
+                    _navigationVersion.AddOrUpdate(d, 1, (_, n) => n + 1);
+                    _navigationWriting.AddOrUpdate(d, 0, (_, n) => n - 1);
+                }
             }
-        }
-
-        /// <summary>
-        /// Gli script delle descrizioni che portano scelte di chiamata (code:chooses / code:rejects), fra questi: caricarli o
-        /// toglierli cambia la certezza degli archi. Gli altri script delle descrizioni no.
-        /// </summary>
-        /// <summary>
-        /// Il progetto se questi script (percorso, update; update null = si toglie) possono cambiare gli archi della navigazione,
-        /// altrimenti null: script del codice e delle regole sì; quelli delle descrizioni solo se portano scelte di chiamata, nella
-        /// versione nuova (l'update le scrive) o in quella che sostituiscono o tolgono (sono nel grafo).
-        /// </summary>
-        private async Task<ProjectGraphs> EdgesChangedByAsync(ProjectGraphs g, IEnumerable<(string Rel, string Update)> scripts, CancellationToken ct)
-        {
-            var docs = new List<string>();
-            foreach (var (rel, update) in scripts)
-            {
-                if (CodeGraphPaths.KindOf(rel) != CodeScriptKind.Doc) return g;
-                if (update != null && update.Contains("code:chooses", StringComparison.Ordinal)) return g;
-                docs.Add(rel);
-            }
-            return docs.Count > 0 && (await ScriptsWithCallResolutionsAsync(g, docs, ct)).Count > 0 ? g : null;
-        }
-
-        private async Task<HashSet<string>> ScriptsWithCallResolutionsAsync(ProjectGraphs g, IReadOnlyCollection<string> rels, CancellationToken ct)
-        {
-            var found = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var chunk in rels.Distinct(StringComparer.Ordinal).Chunk(200))
-                foreach (var r in await RowsAsync($"SELECT DISTINCT ?sc WHERE {{ VALUES ?sc {{ {string.Join(" ", chunk.Select(CodeGraphIris.Lit))} }} GRAPH {g.DataIri} {{ ?r code:fromScript ?sc ; a {CodeOntology.ClassCallResolution} }} }}", ct))
-                    found.Add(SparqlResults.Str(r, "sc"));
-            return found;
         }
 
         private async Task UpdateCoreAsync(string sparqlUpdate, CancellationToken ct)
@@ -519,7 +509,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 // cerca «STORICO_RAPPORTI» troverebbe un nodo isolato accanto alla tabella vera (visto con MarkAgent, 12/11/2026).
                 await UpdateAsync(CodeOntology.SparqlPrefixes +
                     $"DELETE {{ GRAPH {g.DataIri} {{ ?x ?p ?o }} }} WHERE {{ GRAPH {g.DataIri} {{ ?x code:kind \"external\" ; code:language {CodeGraphIris.Lit(RoslynExtractorBase.SqlLanguage)} ; ?p ?o . " +
-                    "FILTER NOT EXISTS { ?e code:target ?x } FILTER NOT EXISTS { ?s ?r ?x } } }", ct, edgesOf: g);
+                    "FILTER NOT EXISTS { ?e code:target ?x } FILTER NOT EXISTS { ?s ?r ?x } } }", ct);
                 if (outcome.SqlRelinked > 0)
                     _logger?.LogInformation("[CodeGraph] '{Project}': {Edges} frecce dell'SQL ricollegate in {Scripts} script ({List})",
                         projectPath, outcome.SqlRelinked, outcome.SqlRelinkedScripts.Count, string.Join(", ", outcome.SqlRelinkedScripts.Take(5)));
@@ -573,7 +563,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     ct.ThrowIfCancellationRequested();
                     progress?.Invoke(StepRemove, ++chunkDone, chunks.Count);
-                    await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct, await EdgesChangedByAsync(g, chunk.Select(r => (r, (string)null)), ct));
+                    await UpdateAsync(CodeTripleWriter.RemoveScriptsUpdate(chunk, g.Data), ct);
                 }
                 await UpdateAsync(CodeTripleWriter.RemoveFolderStateUpdate(prefix, g.State), ct);
             }
@@ -674,7 +664,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             try
             {
-                await UpdateAsync(sb.ToString(), ct, await EdgesChangedByAsync(g, batch.Select(b => (b.Result.ScriptPath, b.Update)), ct));
+                await UpdateAsync(sb.ToString(), ct);
                 foreach (var (result, _) in batch) result.Loaded = true;
             }
             catch (FusekiUnavailableException) { throw; }
@@ -698,7 +688,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (update == null) return result;
             try
             {
-                await UpdateAsync(update, ct, await EdgesChangedByAsync(g, new[] { (rel, update) }, ct));
+                await UpdateAsync(update, ct);
                 result.Loaded = true;
                 return result;
             }
@@ -720,7 +710,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 var update = CodeTripleWriter.RemoveUpdate(rel, g.Data) +
                              CodeTripleWriter.ScriptStateRemove(g.State, CodeGraphIris.Script(g.Hash, rel));
-                await UpdateAsync(update, ct, await EdgesChangedByAsync(g, new[] { (rel, (string)null) }, ct));
+                await UpdateAsync(update, ct);
                 result.Removed = true;
                 return result;
             }

@@ -193,38 +193,50 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "The ONTOLOGY (TBox) of the code graph: how the data is organised. `tbox` is Turtle (OWL): every class of node (File, Symbol, Parameter, Edge, " +
-        "CallSite, Annotation, Description…), every property with its domain, range and meaning, the relations between symbols, and the allowed values of " +
-        "kind and confidence. It is the same for every parser. `parsers` says, per language of THIS project, which parser wrote the graph (name, version, " +
-        "files) and which symbol kinds and relations it actually produced, with counts — a kind or relation absent there does not exist for that language. " +
-        "`languagePackages` gives, for each language added with a package (.mde-languages/<id>/), its own TBox: which kinds and relations its rules produce and " +
-        "from which rule of language.yml (the same text as the package's tbox.ttl, which MdExplorer writes and ships in the package zip). " +
+        "HOW THE CODE GRAPH IS MADE. Comes at once, without counting anything: `tbox` (Turtle/OWL): every class of node (File, Symbol, Parameter, " +
+        "Edge, CallSite, Annotation, Description…), every property with its domain, range and meaning, the allowed values of kind and confidence — " +
+        "the same for every parser; `languagePackages`: for each language added with a package (.mde-languages/<id>/) its own TBox, which kinds and " +
+        "relations its rules produce and from which rule of language.yml; `symbolKinds`, `relations`, `confidences`: what each one means, in words; " +
+        "`queries`: the catalog of ready-made questions for code_query, with their parameters. Then `parsers`, COUNTED NOW (exact, never cached or " +
+        "estimated): per language of this project, which parser wrote the graph (name, version, files) and which symbol kinds and relations it really " +
+        "produced, with counts — a kind or relation absent there does not exist for that language: say so and read the source. On a large project the " +
+        "count over the whole project may not fit in the time: then `parsers` is null and `parsersNote` lists the program folders — call again with " +
+        "`folder` = one of them (the rest of the answer is the same, skip it). " +
         "CALL IT ONCE, FIRST, before any other code_* tool in a conversation: it tells exactly what a node and an edge carry, so you neither look for " +
         "what the graph does not record nor miss what it does, and it is the schema to write a code_sparql query when no other code_* tool answers.")]
     public async Task<string> code_ontology(
-        [Description("Project name.")] string project)
+        [Description("Project name.")] string project,
+        [Description("Optional: count `parsers` only in the files under this folder — a program folder ('program', '@core/app') or a sub-folder. Empty = the whole project.")] string folder = null)
     {
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
-        return await GetAsync(client, Q(path, "ontology"), "code_ontology", project, "");
+        return await GetAsync(client, Q(path, FolderQuery("ontology", folder)), "code_ontology", project, folder ?? "");
     }
 
+    /// <summary>L'indirizzo con folder, se c'è (pacchetto 4, 20/11/2026).</summary>
+    private static string FolderQuery(string endpoint, string folder)
+        => string.IsNullOrWhiteSpace(folder) ? endpoint : $"{endpoint}?folder={Uri.EscapeDataString(folder.Trim())}";
+
     [McpServerTool, Description(
-        "What the project's code graph CONTAINS, in words and numbers: what each symbol kind, relation and confidence means, with the project's counts; " +
-        "the facts enrichment rules can read (calls with X.class arguments, calls with string arguments, annotations — most frequent first — chains, " +
-        "resolved return types); the active rules with how many edges they make; the catalog of ready-made questions for code_query. " +
+        "What the project's code graph CONTAINS, in words and numbers COUNTED NOW (exact, never cached or estimated): each symbol kind, relation and " +
+        "confidence with what it means and its count; how many symbols and files are described; the facts enrichment rules can read (calls with X.class " +
+        "arguments, calls with string arguments, annotations — most frequent first —, chains, resolved return types); the active rules with how many " +
+        "edges they make; the catalog of ready-made questions for code_query (also in code_ontology). `folder` restricts every number to the files " +
+        "under that folder. On a large project a part may not fit in the time over the whole project: it comes back null with its note (`countsNote`, " +
+        "`ruleFactsNote`) listing the program folders — call again with `folder`; the parts that are there are exact. " +
         "Call it before writing a rule, before answering «what would you have needed in the graph?», and when you are unsure what a relation means.")]
     public async Task<string> code_schema(
-        [Description("Project name.")] string project)
+        [Description("Project name.")] string project,
+        [Description("Optional: count only in the files under this folder — a program folder ('program', '@core/app') or a sub-folder. Empty = the whole project.")] string folder = null)
     {
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
-        return await GetAsync(client, Q(path, "schema"), "code_schema", project, "");
+        return await GetAsync(client, Q(path, FolderQuery("schema", folder)), "code_schema", project, folder ?? "");
     }
 
     [McpServerTool, Description(
         "A READY-MADE QUESTION on the code graph, by name: MdExplorer checks the parameters and runs it. Prefer it to code_sparql. The catalog with " +
-        "the parameters is in code_schema. unknown-externals: what the code uses that the graph knows only by name, by type and package. " +
+        "the parameters is in code_ontology (and code_schema). unknown-externals: what the code uses that the graph knows only by name, by type and package. " +
         "where-is-it: WHERE in the repository that information is although it was not analyzed (source outside the program folders, a jar, a .class, " +
         "a configuration file) with the remedy. not-analyzed: files on disk not in the graph and symbols without a description, per program folder. " +
         "program-outline (folder): files with what each is for and the main types — the skeleton of a functional analysis. entry-points: where the code starts. " +
@@ -249,7 +261,7 @@ public sealed class CodeTools : McpToolsBase
         "Use them to state the LIMITS of an analysis honestly, and to answer «what would you have needed in the graph?».")]
     public async Task<string> code_query(
         [Description("Project name.")] string project,
-        [Description("The question's name, from the catalog in code_schema (e.g. unknown-externals).")] string name,
+        [Description("The question's name, from the catalog in code_ontology or code_schema (e.g. unknown-externals).")] string name,
         [Description("Optional parameters as a JSON object of strings, e.g. {\"folder\": \"program\", \"limit\": \"20\"}.")] Dictionary<string, string> parameters = null)
     {
         var (client, path, error) = await ProjectAsync(project);
@@ -263,9 +275,12 @@ public sealed class CodeTools : McpToolsBase
         "code_query question answers (a count across relations, a combination the tools do not offer). First read the schema with code_ontology: " +
         "classes, properties and values are there (an edge is a node `?e a code:Edge ; code:source ?s ; code:target ?t ; code:relation \"calls\"`). " +
         "Write only the patterns: the prefixes code:, text:, rdf:, rdfs:, owl:, xsd: are already declared, and MdExplorer puts the " +
-        "block in the project's graph — GRAPH, FROM, SERVICE and every update are refused. At most 60 seconds and `limit` rows (default 100, max 1000; " +
-        "`truncated` says there were more): use GROUP BY/COUNT for numbers and a FILTER on code:path to stay inside a folder. A refused query " +
-        "answers with the reason; fix it, do not fall back to guessing. Say in the answer that the number comes from a query you wrote.")]
+        "block in the project's graph — GRAPH, FROM, SERVICE and every update are refused. At most 25 seconds when you ask (60 otherwise) and `limit` rows " +
+        "(default 100, max 1000; `truncated` says there were more): use GROUP BY/COUNT for numbers. To stay inside a folder START FROM THE EXACT PATHS of " +
+        "its files and put the path pattern first: `VALUES ?path { \"folder/A.java\" \"folder/B.java\" } ?e code:path ?path ; a code:Edge ; …` — Fuseki " +
+        "then uses its index. A FILTER or STRSTARTS on code:path does NOT narrow the reading: it still reads the whole graph and times out on a large " +
+        "project (the file paths come from code_query program-outline or code_outline). A refused or timed-out query answers with the reason; fix it, " +
+        "do not fall back to guessing. Say in the answer that the number comes from a query you wrote.")]
     public async Task<string> code_sparql(
         [Description("Project name.")] string project,
         [Description("The SELECT or ASK query, without PREFIX for code:/text:/rdf:/rdfs:/owl:/xsd: and without GRAPH.")] string query,
@@ -277,14 +292,19 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols and files have a " +
-        "description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). Start here to get the shape of an unknown codebase.")]
+        "Overview of the project's code graph, COUNTED NOW (exact): files, symbols by language and kind, edges by relation, how many symbols and files " +
+        "have a description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). `folder` gives the " +
+        "same for the files under that folder (externals = the ones those files use). On a large project a part may not fit in the time over the whole " +
+        "project: it is null with its note (`countsNote`, `mostConnectedNote`, `largestFilesNote`) listing the program folders — call again with " +
+        "`folder` (for the most connected symbols of a folder `code_query hotspots` with `folder` answers too). Start here to get the shape of an " +
+        "unknown codebase.")]
     public async Task<string> code_overview(
-        [Description("Project name.")] string project)
+        [Description("Project name.")] string project,
+        [Description("Optional: only the files under this folder — a program folder ('program', '@core/app') or a sub-folder. Empty = the whole project.")] string folder = null)
     {
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
-        return await GetAsync(client, Q(path, "overview"), "code_overview", project, "");
+        return await GetAsync(client, Q(path, FolderQuery("overview", folder)), "code_overview", project, folder ?? "");
     }
 
     [McpServerTool, Description(

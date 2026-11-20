@@ -15,7 +15,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
     /// Pacchetto 3, punti 1 e 2 (20/11/2026). La lettura completa degli archi della navigazione si è alleggerita (archi, simboli,
     /// scelte e interfacce letti a parte in formato tabellare e ricomposti in memoria: prima 51-68 s e 290 MB su 350 mila archi)
     /// e deve dare lo stesso elenco della query di prima. La copia in memoria si butta solo per una scrittura che cambia gli archi
-    /// DI QUEL progetto: non per lo stato riscritto a fine turno, non per una descrizione senza scelte, non per un altro progetto.
+    /// DI QUEL progetto, riconosciuta dal testo della scrittura: non per lo stato riscritto a fine turno, non per un altro progetto.
     /// </summary>
     [TestClass]
     public class CodeNavigationCacheShould
@@ -218,7 +218,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public async Task Throw_the_copy_away_only_for_writes_that_change_the_edges_of_that_project()
+        public async Task Throw_the_copy_away_for_every_write_on_the_data_of_that_project_and_only_those()
         {
             await SetupAsync();
             var project = await ProjectAsync("a");
@@ -235,8 +235,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, await ReadsAfter(() => Task.CompletedTask), "senza scritture: la copia");
             Assert.AreEqual(0, await ReadsAfter(() => _store.UpsertScanStateAsync(project, new CodeScanState { ProgramFolder = "src", ScannedAt = DateTime.UtcNow.ToString("o"), Mode = "hash" })),
                 "lo stato a fine turno di MarkAgent non cambia gli archi");
-            Assert.AreEqual(0, await ReadsAfter(() => _store.LoadScriptAsync(project, Write(project, "src/Bar.vb.doc.ttl", Doc("src/Bar.vb", withChoice: false)))),
-                "una descrizione senza scelte di chiamata");
+            // 20/11/2026, utente: «numeri esatti sempre, nessun rischio» — ogni scrittura sul grafo dati la butta, anche una
+            // descrizione senza scelte: nessuna strada di scrittura deve poter lasciare archi vecchi senza dirlo
+            Assert.AreEqual(1, await ReadsAfter(() => _store.LoadScriptAsync(project, Write(project, "src/Bar.vb.doc.ttl", Doc("src/Bar.vb", withChoice: false)))),
+                "una descrizione, anche senza scelte di chiamata");
             Assert.AreEqual(0, await ReadsAfter(() => _store.LoadScriptAsync(other, Write(other, "src/Foo.vb.ast.ttl", Ast.Replace("HASH", "HASH2")))),
                 "un altro progetto");
             Assert.AreEqual(1, await ReadsAfter(() => _store.LoadScriptAsync(project, Write(project, "src/Foo.vb.doc.ttl", Doc("src/Foo.vb", withChoice: false)))),

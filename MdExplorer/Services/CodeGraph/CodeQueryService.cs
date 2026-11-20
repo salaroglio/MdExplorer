@@ -40,8 +40,8 @@ namespace MdExplorer.Services.CodeGraph
         public async Task<object> RunAsync(string projectPath, string name, IReadOnlyDictionary<string, string> parameters, CancellationToken ct = default)
         {
             var info = CodeQueryCatalog.All.FirstOrDefault(q => q.Name == name)
-                ?? throw new CodeQueryException(UiText.Say($"Domanda «{name}» sconosciuta. Quelle pronte: {string.Join(", ", CodeQueryCatalog.All.Select(q => q.Name))} (code_schema le spiega).",
-                    $"Unknown question «{name}». The ready ones: {string.Join(", ", CodeQueryCatalog.All.Select(q => q.Name))} (code_schema explains them)."));
+                ?? throw new CodeQueryException(UiText.Say($"Domanda «{name}» sconosciuta. Quelle pronte: {string.Join(", ", CodeQueryCatalog.All.Select(q => q.Name))} (code_ontology le spiega, con i parametri).",
+                    $"Unknown question «{name}». The ready ones: {string.Join(", ", CodeQueryCatalog.All.Select(q => q.Name))} (code_ontology explains them, with their parameters)."));
             parameters ??= new Dictionary<string, string>();
             var unknown = parameters.Keys.Where(k => !info.Parameters.ContainsKey(k)).ToList();
             if (unknown.Count > 0)
