@@ -66,7 +66,7 @@ namespace MdExplorer.Features.Yaml
                 // YAML malformato. Un cittadino non entra nel registro; una scheda che non lo è non parte, dicendo perché:
                 // prima si lanciava lo stesso, senza tools: né runtime: (R8 della valutazione del 07/11).
                 return declaresA2a
-                    ? Invalid($"Blocco 'a2a:' malformato: {ex.Message}")
+                    ? Invalid($"Blocco 'a2a:' malformato: {DescribeYamlError(ex)}")
                     : new AgentCardParseResult
                     {
                         HasA2aBlock = false, IsValid = true,
@@ -141,6 +141,15 @@ namespace MdExplorer.Features.Yaml
                 IsValid = true,
             };
         }
+
+        /// <summary>
+        /// Il perché con la riga del file (l'intestazione comincia alla riga 1): con YamlDotNet 18 (misurato venendo dalla 11.2.1) il messaggio dell'eccezione non porta più la posizione
+        /// («(Line: 3, Col: 1…)»), che resta solo in <c>Start</c>.
+        /// </summary>
+        private static string DescribeYamlError(Exception ex)
+            => ex is YamlDotNet.Core.YamlException y
+                ? $"riga {y.Start.Line}: {y.InnerException?.Message ?? y.Message}"
+                : ex.Message;
 
         /// <summary>
         /// Regole di identità del nome agente (§5, §6, §12.6), unica fonte di verità

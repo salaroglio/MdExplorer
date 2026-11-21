@@ -1,0 +1,20 @@
+folders: []
+compatibility:
+  mode: mdexplorer
+  gitHubOptions:
+    embedImages: false
+    stripInteractive: true
+    preserveEmoji: true
+yamlAutoGeneration:
+  enabled: true
+  excludePaths:
+  - .github
+  - .claude
+externalBrowser:
+  enabled: false
+  openAllExternal: false
+  urlPatterns: []
+project:
+  participants: []
+harness:
+  target: claude

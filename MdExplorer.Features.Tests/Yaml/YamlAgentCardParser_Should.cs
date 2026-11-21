@@ -183,6 +183,8 @@ corpo";
             var result = _parser.GetDescriptor(md);
 
             Assert.IsFalse(result.IsValid);
+            // la riga dell'errore si deve leggere: YamlDotNet 18 non la mette più nel messaggio (L3 dello sprint .NET 10)
+            StringAssert.Contains(result.RegistrationError, "riga 4:");   // la riga di «role», contata nel file
             Assert.IsTrue(result.HasA2aBlock);
             Assert.IsFalse(result.IsCitizen);
             Assert.IsNotNull(result.RegistrationError);

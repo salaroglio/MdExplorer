@@ -79,8 +79,8 @@ namespace MdExplorer.Services.Telegram
             catch (YamlDotNet.Core.YamlException ex)
             {
                 throw new InvalidOperationException(UiText.Say(
-                    $"{where} non è YAML valido ({ex.Message}): correggilo o recuperalo da git, MDE non lo riscrive da solo.",
-                    $"{where} is not valid YAML ({ex.Message}): fix it or restore it from git, MDE will not rewrite it by itself."), ex);
+                    $"{where} non è YAML valido (riga {ex.Start.Line}: {ex.Message}): correggilo o recuperalo da git, MDE non lo riscrive da solo.",
+                    $"{where} is not valid YAML (line {ex.Start.Line}: {ex.Message}): fix it or restore it from git, MDE will not rewrite it by itself."), ex);
             }
             if (stream.Documents.Count == 0) return new YamlMappingNode();
             return stream.Documents[0].RootNode as YamlMappingNode

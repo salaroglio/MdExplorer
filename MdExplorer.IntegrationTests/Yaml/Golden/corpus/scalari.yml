@@ -1,0 +1,69 @@
+# Scalari: come si leggono e come si riscrivono
+interi: {dec: 42, neg: -7, zero: 0, leading: 007, plus: +39, oct: 0o14, oct_old: 014, hex: 0x1F, sep: 1_000, big: 12345678901234567890}
+decimali: {a: 1.0, b: 1e3, c: -2.5E-3, d: .5, e: 5., inf: .inf, ninf: -.inf, nan: .nan, versione: 1.10, versione3: 3.15.212}
+booleani: {t: true, T: True, TT: TRUE, f: false, yes: yes, no: no, on: on, off: off, y: y, n: n}
+nulli: {tilde: ~, parola: null, Parola: Null, vuoto: , stringa_vuota: "", apici_vuoti: ''}
+date: {giorno: 2026-11-21, istante: 2026-11-21T10:00:00Z, locale: 2026-11-21 10:00:00, fuso: 2026-11-21T10:00:00+01:00, ora: 10:30, durata: 01:02:03}
+testi:
+  semplice: ciao
+  doppi: "con \"virgolette\" e \\ barra e \t tab e \n a capo e \u00e8"
+  singoli: 'con ''apice'' e \ barra'
+  due_punti: "chiave: valore"
+  cancelletto: "prima # dopo"
+  nudo_con_due_punti: http://example.com:8080/a?b=c#d
+  nudo_con_cancelletto: testo#attaccato e testo # commento
+  accenti: perché così è più giù
+  emoji: "🚀 lancio ✅ fatto 👩‍💻"
+  cinese: 文档
+  spazi_in_testa: "  due spazi"
+  spazi_in_coda: "due spazi  "
+  sembra_numero: "123"
+  sembra_bool: "true"
+  sembra_null: "null"
+  sembra_data: "2026-11-21"
+  trattino: "- voce"
+  chiocciola: "@mario.rossi"
+  backtick: "`codice`"
+  esclamativo: "!importante"
+  asterisco: "*grassetto*"
+  e_commerciale: "&ancora"
+  percento: "%20"
+  graffe: "{non una mappa}"
+  quadre: "[non una lista]"
+  virgola: "a, b, c"
+  interrogativo: "? domanda"
+  pipe: "| non un blocco"
+  maggiore: "> non un blocco"
+  uguale: "="
+  tilde_testo: "~"
+  windows: C:\Users\mario.rossi\Documents\progetto
+  windows_doppi: "C:\\Users\\mario.rossi\\Documents"
+  unc: \\server.example.com\condivisa\cartella
+  lungo: Questa è una riga molto lunga che supera abbondantemente le ottanta colonne per vedere se chi scrive la spezza oppure la lascia intera, con parole normali e nessun a capo dentro il testo originale.
+  lungo_senza_spazi: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  letterale: |
+    prima riga
+      rientrata
+    terza riga
+
+    dopo una vuota
+  letterale_strip: |-
+    senza a capo finale
+  letterale_keep: |+
+    con a capo finali
+
+
+  ripiegato: >
+    una frase
+    su più righe
+
+    secondo paragrafo
+  ripiegato_strip: >-
+    senza
+    a capo
+  su_piu_righe_nudo: prima
+    seconda
+    terza
+  su_piu_righe_doppi: "prima
+    seconda\
+    terza"

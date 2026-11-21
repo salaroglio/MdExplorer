@@ -1,0 +1,51 @@
+# Struttura: mappe, liste, stile a flusso, ancore, chiavi strane
+vuoti: {mappa: {}, lista: [], annidati: [[], {}, [{}]]}
+lista_di_mappe:
+  - nome: uno
+    valori: [1, 2, 3]
+  - nome: due
+    valori:
+      - a
+      - b
+  -   nome: tre
+      rientro: largo
+lista_non_rientrata:
+- a
+- b
+-
+  c: d
+- - annidata
+  - due
+flusso: {a: 1, "b c": [x, "y z", {k: v}], d: {e: {f: g}}}
+flusso_su_righe: [
+  uno, due,
+  tre
+]
+ancore:
+  base: &base {host: example.com, porta: 8080, tls: true}
+  copia: *base
+  estesa:
+    <<: *base
+    porta: 9090
+  lista: &elenco [a, b]
+  ancora: *elenco
+chiavi:
+  "con spazi": 1
+  'apici': 2
+  123: numero
+  true: booleano
+  null: nullo
+  2026-11-21: data
+  ? chiave esplicita
+  : valore esplicito
+  ? [chiave, lista]
+  : valore
+  "": vuota
+  camelCase: 1
+  snake_case: 2
+  kebab-case: 3
+  PascalCase: 4
+  MAIUSCOLO: 5
+etichette: {testo: !!str 123, intero: !!int "42", decimale: !!float 1, booleano: !!bool "true", locale: !mia valore, binario: !!binary aGVsbG8=}
+commenti: valore # in coda
+profondo: {a: {b: {c: {d: {e: {f: {g: {h: fine}}}}}}}}

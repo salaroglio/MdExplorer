@@ -1,0 +1,26 @@
+# MdExplorer Development Configuration
+# This file is automatically created when a new project is initialized
+
+# Folder tagging for development organization
+folders: []
+
+# Markdown rendering compatibility settings
+compatibility:
+  # Compatibility mode: "mdexplorer" (default), "github", "commonmark"
+  mode: mdexplorer
+
+  # GitHub-specific options (only used when mode is "github")
+  gitHubOptions:
+    embedImages: false
+    stripInteractive: true
+    preserveEmoji: true
+
+# YAML front matter auto-generation settings
+yamlAutoGeneration:
+  # Enable or disable automatic YAML generation globally
+  enabled: true
+
+  # List of folder paths (relative to project root) where YAML auto-generation is disabled
+  # Default: .github folder is excluded to preserve GitHub-compatible markdown files
+  excludePaths:
+    - .github
