@@ -688,6 +688,8 @@ namespace MdExplorer.Services.Federation
 
             private volatile FederationAnnounce _announce;
             private SocketIOClient.SocketIO _socket;
+            private MdExplorer.Services.RelaySocketKeeper _keeper;
+            private volatile string _lastRefusal;   // l'ultimo no del relay all'apertura (OnError), per riconoscerlo nell'eccezione
             private bool _disposed;
             private int _connectFailures;
             private volatile RoomStatus _status = new() { State = RoomJoinState.Connecting };
@@ -752,15 +754,16 @@ namespace MdExplorer.Services.Federation
                 try
                 {
                     // La chiave master va al relay solo se c'è: senza, si entra col join token.
-                    var socket = new SocketIOClient.SocketIO(_baseUrl + "/mdfed", new SocketIOOptions
+                    // SocketIOClient 4: l'indirizzo è un Uri; gli eventi e le conferme sono funzioni asincrone
+                    // (Func<…, Task>); i dati di un invio sono una lista, la conferma viene dopo.
+                    var socket = new SocketIOClient.SocketIO(new Uri(_baseUrl + "/mdfed"), new SocketIOOptions
                     {
                         Path = _enginePath,
                         Auth = _apiKey == null ? null : new Dictionary<string, string> { ["apiKey"] = _apiKey },
                         ExtraHeaders = _apiKey == null ? null : new Dictionary<string, string> { ["X-API-Key"] = _apiKey },
-                        Reconnection = true,
-                        ReconnectionAttempts = int.MaxValue,   // reconnect-forever (supera il cap a 10 della chat)
-                        ReconnectionDelay = 2000,
-                        ReconnectionDelayMax = 30000,
+                        // La riconnessione di SocketIOClient 4 non si può fermare (una stanza chiusa mentre riprovava
+                        // si ricollegava da sola): la fa RelaySocketKeeper, ogni 2 s per sempre come la 3.1.1.
+                        Reconnection = false,
                     });
                     // A ogni (ri)connessione: join della stanza + annuncio.
                     socket.OnConnected += (s, e) =>
@@ -780,18 +783,7 @@ namespace MdExplorer.Services.Federation
                     // Un handshake rifiutato (es. API key errata) altrimenti è un retry infinito
                     // PERFETTAMENTE silenzioso: nessuna riga di log, città mai federata. Log
                     // throttlato: il primo fallimento e poi uno ogni 20.
-                    socket.OnError += (s, err) =>
-                        SetStatus(RoomJoinState.Rejected, err == "Invalid API key"
-                            ? MdExplorer.Features.Services.UiText.Say("il relay ha rifiutato la chiave master: non è quella giusta (toglila o correggila nelle impostazioni del progetto).", "the relay refused the master key: it is not the right one (remove or fix it in the project settings).")
-                            : MdExplorer.Features.Services.UiText.Say($"il relay ha rifiutato la connessione: {err}", $"the relay refused the connection: {err}"));
-                    socket.OnReconnectError += (s, ex) =>
-                    {
-                        var n = System.Threading.Interlocked.Increment(ref _connectFailures);
-                        SetStatus(RoomJoinState.Unreachable, MdExplorer.Features.Services.UiText.Say($"relay irraggiungibile: {ex.Message}", $"relay unreachable: {ex.Message}"));
-                        if (n == 1 || n % 20 == 0)
-                            _logger.LogWarning("[Federation] stanza {Room}: connessione al relay fallita (tentativo {N}): {Msg}",
-                                _announce?.RoomId, n, ex.Message);
-                    };
+                    socket.OnError += (s, err) => { _lastRefusal = err; SetRefused(err); };
                     // Messaggio federato in arrivo: passa la busta cifrata al service (decifra+gate).
                     socket.On("deliver", resp =>
                     {
@@ -802,6 +794,7 @@ namespace MdExplorer.Services.Federation
                                 OnDeliver?.Invoke(env.GetString());
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'deliver' fallito"); }
+                        return Task.CompletedTask;
                     });
                     // Presenza: una città della stanza si è accesa o ha riannunciato il suo catalogo.
                     socket.On("presence", resp =>
@@ -814,6 +807,7 @@ namespace MdExplorer.Services.Federation
                                 _remotePresence[oid.GetString()] = env.GetString();
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'presence' fallito"); }
+                        return Task.CompletedTask;
                     });
                     // Offline: l'ultima connessione di una città della stanza è caduta.
                     socket.On("offline", resp =>
@@ -825,9 +819,11 @@ namespace MdExplorer.Services.Federation
                                 _remotePresence.TryRemove(oid.GetString(), out _);
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'offline' fallito"); }
+                        return Task.CompletedTask;
                     });
                     _socket = socket;
-                    _ = ConnectAsync(socket);
+                    _keeper = new MdExplorer.Services.RelaySocketKeeper(socket, TimeSpan.FromSeconds(2), OnConnectFailed);
+                    _keeper.Start();
                 }
                 catch (Exception ex)
                 {
@@ -835,14 +831,26 @@ namespace MdExplorer.Services.Federation
                 }
             }
 
-            private async Task ConnectAsync(SocketIOClient.SocketIO socket)
+            /// <summary>Il relay ha risposto di no all'apertura (per esempio chiave master sbagliata): lo stato è «rifiutata», col motivo.</summary>
+            private void SetRefused(string err) =>
+                SetStatus(RoomJoinState.Rejected, err == "Invalid API key"
+                    ? MdExplorer.Features.Services.UiText.Say("il relay ha rifiutato la chiave master: non è quella giusta (toglila o correggila nelle impostazioni del progetto).", "the relay refused the master key: it is not the right one (remove or fix it in the project settings).")
+                    : MdExplorer.Features.Services.UiText.Say($"il relay ha rifiutato la connessione: {err}", $"the relay refused the connection: {err}"));
+
+            /// <summary>
+            /// Un tentativo di collegarsi non è riuscito. Se il relay ha risposto di no (SocketIOClient 4 lo dice con
+            /// OnError e ANCHE con un'eccezione dallo stesso testo) la stanza è «rifiutata»; altrimenti il relay è
+            /// irraggiungibile. Log throttlato: il primo fallimento e poi uno ogni 20.
+            /// </summary>
+            private void OnConnectFailed(Exception ex)
             {
-                try { await socket.ConnectAsync(); }
-                catch (Exception ex)
-                {
-                    SetStatus(RoomJoinState.Unreachable, MdExplorer.Features.Services.UiText.Say($"relay irraggiungibile: {ex.Message}", $"relay unreachable: {ex.Message}"));
-                    _logger.LogWarning(ex, "[Federation] connessione al relay fallita (riproverà)");
-                }
+                if (_disposed) return;
+                if (ex.Message == _lastRefusal) { SetRefused(ex.Message); return; }
+                var n = System.Threading.Interlocked.Increment(ref _connectFailures);
+                SetStatus(RoomJoinState.Unreachable, MdExplorer.Features.Services.UiText.Say($"relay irraggiungibile: {ex.Message}", $"relay unreachable: {ex.Message}"));
+                if (n == 1 || n % 20 == 0)
+                    _logger.LogWarning("[Federation] stanza {Room}: connessione al relay fallita (tentativo {N}): {Msg}",
+                        _announce?.RoomId, n, ex.Message);
             }
 
             private async Task JoinAndAnnounceAsync()
@@ -857,7 +865,7 @@ namespace MdExplorer.Services.Federation
                     // 'presence'/'offline' lo mantengono. L'annuncio parte SOLO dopo un sì: prima si
                     // ignorava il rifiuto e il log diceva «ok» a una città mai entrata.
                     var admitted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    await socket.EmitAsync("join", response =>
+                    await socket.EmitAsync("join", new object[] { new { roomId = a.RoomId, ownerId = a.OwnerId, joinToken = a.JoinToken } }, response =>
                     {
                         try
                         {
@@ -868,7 +876,7 @@ namespace MdExplorer.Services.Federation
                                 var error = ack.TryGetProperty("error", out var e) && e.ValueKind == System.Text.Json.JsonValueKind.String ? e.GetString() : "rifiuto senza motivo";
                                 SetStatus(RoomJoinState.Rejected, DescribeRejection(code, error), code);
                                 admitted.TrySetResult(false);
-                                return;
+                                return Task.CompletedTask;
                             }
                             var registered = ack.TryGetProperty("registered", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.True;
                             SetStatus(RoomJoinState.Joined, registered
@@ -887,7 +895,8 @@ namespace MdExplorer.Services.Federation
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse roster di 'join' fallito"); }
                         admitted.TrySetResult(true);
-                    }, new { roomId = a.RoomId, ownerId = a.OwnerId, joinToken = a.JoinToken });
+                        return Task.CompletedTask;
+                    });
                     if (!await admitted.Task) return;
                     await AnnounceAsync(socket, a);
                 }
@@ -908,7 +917,7 @@ namespace MdExplorer.Services.Federation
 
             private async Task AnnounceAsync(SocketIOClient.SocketIO socket, FederationAnnounce a)
             {
-                try { await socket.EmitAsync("announce", new { presence = a.EncryptedPresence }); }
+                try { await socket.EmitAsync("announce", new object[] { new { presence = a.EncryptedPresence } }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Federation] announce stanza {Room} fallito", a.RoomId); }
             }
 
@@ -927,11 +936,12 @@ namespace MdExplorer.Services.Federation
                     throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("connessione alla stanza non attiva: impossibile spedire.", "connection to the room not active: cannot send."));
 
                 var tcs = new TaskCompletionSource<RelayDelivery>(TaskCreationOptions.RunContinuationsAsynchronously);
-                await socket.EmitAsync("send", response =>
+                await socket.EmitAsync("send", new object[] { new { toOwnerId, envelope } }, response =>
                 {
                     try { tcs.TrySetResult(RelayAck.ReadSend(response.GetValue<System.Text.Json.JsonElement>(0))); }
                     catch { tcs.TrySetResult(RelayDelivery.NotSent); }
-                }, new { toOwnerId, envelope });
+                    return Task.CompletedTask;
+                });
 
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 using (cts.Token.Register(() => tcs.TrySetResult(RelayDelivery.NotSent)))
@@ -944,7 +954,13 @@ namespace MdExplorer.Services.Federation
                 _disposed = true;
                 var s = _socket;
                 _socket = null;
-                if (s != null)
+                var keeper = _keeper;
+                _keeper = null;
+                if (keeper != null)
+                {
+                    keeper.Dispose();   // ferma i tentativi, poi scollega e libera il socket
+                }
+                else if (s != null)
                 {
                     try { _ = s.DisconnectAsync(); } catch { /* best effort */ }
                     try { s.Dispose(); } catch { /* best effort */ }

@@ -25,6 +25,8 @@ namespace MdExplorer.Services.TeamChat
 
         // Single Socket.io connection (shared across all rooms)
         private SocketIOClient.SocketIO _socket;
+        // Tiene collegato il socket e lo chiude davvero (la riconnessione di SocketIOClient 4 non si può fermare).
+        private RelaySocketKeeper _keeper;
         private readonly object _socketLock = new();
         private bool _isConnected;
         private TaskCompletionSource<bool> _connectionTcs;
@@ -80,7 +82,7 @@ namespace MdExplorer.Services.TeamChat
                 }
                 else
                 {
-                    _socket?.Dispose();
+                    CloseSocket();
                     _connectionTcs = new TaskCompletionSource<bool>();
                     tcs = _connectionTcs;
 
@@ -92,16 +94,15 @@ namespace MdExplorer.Services.TeamChat
 
                     _logger.LogInformation("Connecting to VPS WebSocket - Base URL: {BaseUrl}, Path: /mdchat/socket.io", baseUrl);
 
-                    _socket = new SocketIOClient.SocketIO(baseUrl, new SocketIOOptions
+                    // SocketIOClient 4: l'indirizzo è un Uri; gli eventi e le conferme sono funzioni asincrone.
+                    _socket = new SocketIOClient.SocketIO(new Uri(baseUrl), new SocketIOOptions
                     {
                         Path = "/mdchat/socket.io",
-                        Reconnection = true,
-                        // Riprova per sempre, come la città (FederationRelayService): con 10 tentativi, dopo una
-                        // sospensione del PC o una rete instabile la chat restava sorda e nessuno ricreava il socket.
+                        // La riconnessione la fa RelaySocketKeeper (qui sotto), non la libreria: riprova ogni secondo
+                        // per sempre, come la città (con 10 tentativi, dopo una sospensione del PC o una rete instabile
+                        // la chat restava sorda), e si ferma quando il socket viene chiuso.
                         // A ogni rientro OnConnected rifà le iscrizioni (ResubscribeAllRooms).
-                        ReconnectionAttempts = int.MaxValue,
-                        ReconnectionDelay = 1000,
-                        ReconnectionDelayMax = 30000,
+                        Reconnection = false,
                         ConnectionTimeout = TimeSpan.FromSeconds(30)
                         // Let it use default transport (polling first, then upgrade to websocket)
                     });
@@ -110,18 +111,19 @@ namespace MdExplorer.Services.TeamChat
                     _socket.OnConnected += OnConnected;
                     _socket.OnDisconnected += OnDisconnected;
                     _socket.OnError += OnError;
-                    _socket.OnReconnectAttempt += (s, attempt) =>
-                        _logger.LogWarning("Socket.io reconnect attempt #{Attempt}", attempt);
-                    _socket.OnReconnectFailed += (s, e) =>
-                        _logger.LogError("Socket.io reconnect failed");
 
                     // Message events
                     _socket.On("new_message", OnNewMessage);
                     _socket.On("presence_update", OnPresenceUpdate);
                     _socket.On("project_users_update", OnProjectUsersUpdate);
 
-                    // Start connection (don't await, will complete via OnConnected)
-                    _ = ConnectInternalAsync();
+                    // Start connection (don't await, will complete via OnConnected). Un tentativo fallito non chiude
+                    // l'attesa: si riprova, e chi aspetta ha il suo tempo massimo (come prima, quando riprovava la libreria).
+                    _logger.LogInformation("Starting WebSocket connection to VPS...");
+                    _keeper = new RelaySocketKeeper(_socket, TimeSpan.FromSeconds(1),
+                        ex => _logger.LogWarning("Socket.io connect attempt failed: {Message}", ex.Message),
+                        attempt => _logger.LogWarning("Socket.io reconnect attempt #{Attempt}", attempt));
+                    _keeper.Start();
                 }
             }
 
@@ -149,20 +151,13 @@ namespace MdExplorer.Services.TeamChat
             }
         }
 
-        private async Task ConnectInternalAsync()
+        /// <summary>Ferma i tentativi e chiude il socket in uso, se c'è.</summary>
+        private void CloseSocket()
         {
-            try
-            {
-                _logger.LogInformation("Starting WebSocket connection to VPS...");
-                await _socket.ConnectAsync();
-                _logger.LogInformation("ConnectAsync completed, waiting for OnConnected event...");
-                // OnConnected will set the result
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ConnectAsync failed with exception: {Message}", ex.Message);
-                _connectionTcs?.TrySetResult(false);
-            }
+            var keeper = _keeper;
+            _keeper = null;
+            if (keeper != null) keeper.Dispose();   // scollega e libera anche il socket
+            else _socket?.Dispose();
         }
 
         private void OnConnected(object sender, EventArgs e)
@@ -230,7 +225,7 @@ namespace MdExplorer.Services.TeamChat
                 };
                 // L'ack dice se il relay ci ha iscritti: un rifiuto (stanza non registrata, token
                 // sbagliato) altrimenti sarebbe una chat muta senza una riga di log.
-                await _socket.EmitAsync("subscribe", response =>
+                await _socket.EmitAsync("subscribe", new object[] { data }, response =>
                 {
                     try
                     {
@@ -241,7 +236,8 @@ namespace MdExplorer.Services.TeamChat
                             _logger.LogWarning("Relay refused subscription to {Channel} for room {RoomId}: {Ack}", channel, roomId, ack.ToString());
                     }
                     catch (Exception ex) { _logger.LogWarning(ex, "Cannot read subscribe ack for room {RoomId}", roomId); }
-                }, data);
+                    return Task.CompletedTask;
+                });
             }
             catch (Exception ex)
             {
@@ -267,7 +263,7 @@ namespace MdExplorer.Services.TeamChat
                     ["channel"] = channel,
                     ["roomId"] = roomId
                 };
-                await _socket.EmitAsync("unsubscribe", data);
+                await _socket.EmitAsync("unsubscribe", new object[] { data });
                 _logger.LogDebug("Unsubscribed from {Channel} for room {RoomId}", channel, roomId);
             }
             catch (Exception ex)
@@ -385,7 +381,7 @@ namespace MdExplorer.Services.TeamChat
             if (!hasSubscriptions && _isConnected)
             {
                 _logger.LogInformation("No more subscriptions, disconnecting from VPS");
-                _ = _socket?.DisconnectAsync();
+                CloseSocket();
                 _isConnected = false;
             }
         }
@@ -393,11 +389,11 @@ namespace MdExplorer.Services.TeamChat
         /// <summary>
         /// Handle new message from VPS
         /// </summary>
-        private async void OnNewMessage(SocketIOResponse response)
+        private async Task OnNewMessage(IEventContext response)
         {
             try
             {
-                var data = response.GetValue<JsonElement>();
+                var data = response.GetValue<JsonElement>(0);
 
                 if (!data.TryGetProperty("roomId", out var roomIdElement) ||
                     !data.TryGetProperty("message", out var messageElement))
@@ -431,11 +427,11 @@ namespace MdExplorer.Services.TeamChat
         /// <summary>
         /// Handle presence update from VPS
         /// </summary>
-        private async void OnPresenceUpdate(SocketIOResponse response)
+        private async Task OnPresenceUpdate(IEventContext response)
         {
             try
             {
-                var data = response.GetValue<JsonElement>();
+                var data = response.GetValue<JsonElement>(0);
 
                 if (!data.TryGetProperty("roomId", out var roomIdElement))
                     return;
@@ -479,11 +475,11 @@ namespace MdExplorer.Services.TeamChat
         /// <summary>
         /// Handle project users update from VPS
         /// </summary>
-        private async void OnProjectUsersUpdate(SocketIOResponse response)
+        private async Task OnProjectUsersUpdate(IEventContext response)
         {
             try
             {
-                var data = response.GetValue<JsonElement>();
+                var data = response.GetValue<JsonElement>(0);
 
                 if (!data.TryGetProperty("roomId", out var roomIdElement) ||
                     !data.TryGetProperty("count", out var countElement))
@@ -588,7 +584,7 @@ namespace MdExplorer.Services.TeamChat
             _seenMessageIds.Clear();
             _seenMessageLocks.Clear();
 
-            _socket?.Dispose();
+            CloseSocket();
             _socket = null;
             _isConnected = false;
         }
