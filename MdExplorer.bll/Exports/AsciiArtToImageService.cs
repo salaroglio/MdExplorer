@@ -294,10 +294,14 @@ namespace MdExplorer.Features.Exports
 
                 // Find a suitable monospace font
                 using (var typeface = FindMonospaceTypeface())
+                // SkiaSharp 4: carattere e grandezza stanno in SKFont, non più in SKPaint. LinearMetrics era acceso
+                // nel carattere di SKPaint della 2.88 e qui è spento per default: senza, ogni lettera viene arrotondata
+                // al pixel e l'immagine esce più stretta (misurato: stessi pixel di prima solo con LinearMetrics).
+                using (var font = new SKFont(typeface, FontSize))
                 using (var paint = new SKPaint())
                 {
-                    paint.Typeface = typeface;
-                    paint.TextSize = FontSize;
+                    font.Edging = SKFontEdging.Antialias;
+                    font.LinearMetrics = true;
                     paint.IsAntialias = true;
                     paint.Color = SKColors.Black;
 
@@ -305,11 +309,11 @@ namespace MdExplorer.Features.Exports
                     float maxWidth = 0;
                     foreach (var line in lines)
                     {
-                        var lineWidth = paint.MeasureText(line.Length > 0 ? line : " ");
+                        var lineWidth = font.MeasureText(line.Length > 0 ? line : " ");
                         maxWidth = Math.Max(maxWidth, lineWidth);
                     }
 
-                    var fontMetrics = paint.FontMetrics;
+                    var fontMetrics = font.Metrics;
                     var lineHeightPx = FontSize * LineHeight;
                     var textHeight = lines.Length * lineHeightPx;
 
@@ -339,7 +343,7 @@ namespace MdExplorer.Features.Exports
                         }
 
                         // Draw colored text segments
-                        DrawColoredText(canvas, coloredSegments, paint, fontMetrics, lineHeightPx);
+                        DrawColoredText(canvas, coloredSegments, font, paint, fontMetrics, lineHeightPx);
 
                         // Save to file
                         using (var image = SKImage.FromBitmap(bitmap))
@@ -678,7 +682,7 @@ namespace MdExplorer.Features.Exports
         /// <summary>
         /// Draws colored text segments on the canvas.
         /// </summary>
-        private void DrawColoredText(SKCanvas canvas, List<ColoredSegment> segments, SKPaint paint, SKFontMetrics fontMetrics, float lineHeightPx)
+        private void DrawColoredText(SKCanvas canvas, List<ColoredSegment> segments, SKFont font, SKPaint paint, SKFontMetrics fontMetrics, float lineHeightPx)
         {
             // Group segments by line
             var lineGroups = segments.GroupBy(s => s.Line).OrderBy(g => g.Key);
@@ -703,11 +707,11 @@ namespace MdExplorer.Features.Exports
                         var textBefore = string.Join("", lineSegments
                             .Where(s => s.Column < segment.Column)
                             .Select(s => s.Text));
-                        x = Padding + paint.MeasureText(textBefore);
+                        x = Padding + font.MeasureText(textBefore);
                     }
 
                     paint.Color = segment.Color;
-                    canvas.DrawText(segment.Text, x, y, paint);
+                    canvas.DrawText(segment.Text, x, y, font, paint);
                 }
             }
         }
@@ -779,21 +783,15 @@ namespace MdExplorer.Features.Exports
 
         private SKTypeface FindMonospaceTypeface()
         {
-            // Try preferred font first
-            var typeface = SKTypeface.FromFamilyName(PreferredFont, SKFontStyle.Normal);
-            if (typeface != null && typeface.FamilyName.Equals(PreferredFont, StringComparison.OrdinalIgnoreCase))
+            // MatchFamily dà null se la famiglia non è installata. FromFamilyName invece dà sempre un carattere,
+            // quello predefinito di Skia: su Linux passava per "Courier New" un carattere qualunque (a larghezza
+            // variabile con SkiaSharp 4), e i riquadri uscivano storti.
+            foreach (var fontName in new[] { PreferredFont }.Concat(FallbackFonts))
             {
-                _logger.LogDebug($"[AsciiArt] Using font: {PreferredFont}");
-                return typeface;
-            }
-
-            // Try fallback fonts
-            foreach (var fontName in FallbackFonts)
-            {
-                typeface = SKTypeface.FromFamilyName(fontName, SKFontStyle.Normal);
+                var typeface = SKFontManager.Default.MatchFamily(fontName);
                 if (typeface != null)
                 {
-                    _logger.LogDebug($"[AsciiArt] Using fallback font: {fontName}");
+                    _logger.LogDebug($"[AsciiArt] Using font: {typeface.FamilyName}");
                     return typeface;
                 }
             }

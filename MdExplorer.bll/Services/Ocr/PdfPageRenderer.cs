@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Services.Ocr
 
                         var scale = (double)MaxLongEdge / longEdge;
                         var size = new SKImageInfo((int)Math.Round(bitmap.Width * scale), (int)Math.Round(bitmap.Height * scale));
-                        using (var smaller = bitmap.Resize(size, SKFilterQuality.High))
+                        using (var smaller = bitmap.Resize(size, new SKSamplingOptions(SKCubicResampler.Mitchell)))
                         using (var encoded = smaller.Encode(SKEncodedImageFormat.Png, 100))
                         {
                             yield return encoded.ToArray();
