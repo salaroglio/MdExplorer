@@ -77,8 +77,23 @@ namespace Ad.Tools.Dal.Decorators
 
         public ISessionStatistics Statistics => _implementation.Statistics;
 
+        /// <summary>
+        /// Una transazione alla volta per sessione (21/11/2026). NHibernate, a un secondo BeginTransaction, restituisce la
+        /// transazione già aperta senza dirlo: il primo Commit (anche quello della funzione più interna) chiude tutto, il resto
+        /// del lavoro di chi sta fuori va scritto subito e il suo Rollback non annulla più niente. Meglio fermarsi qui.
+        /// </summary>
+        private void ThrowIfTransactionActive()
+        {
+            if (_implementation.GetCurrentTransaction()?.IsActive != true) return;
+            throw new InvalidOperationException(
+                $"BeginTransaction su {DalDiagnostics.DatabaseName(_implementation.Connection)}: questa sessione ha già una transazione aperta. " +
+                "Una funzione che apre una transazione ne sta chiamando un'altra che la apre sulla stessa sessione, oppure una transazione " +
+                "di prima non è stata chiusa con Commit o Rollback. Il confine della transazione va deciso in un punto solo.");
+        }
+
         public ITransaction BeginTransaction()
         {
+            ThrowIfTransactionActive();
             if (!DalDiagnostics.Enabled) return _implementation.BeginTransaction();
             using (var probe = new DalDiagnostics.WaitProbe(this))
             {
@@ -90,6 +105,7 @@ namespace Ad.Tools.Dal.Decorators
 
         public ITransaction BeginTransaction(IsolationLevel isolationLevel)
         {
+            ThrowIfTransactionActive();
             if (!DalDiagnostics.Enabled) return _implementation.BeginTransaction(isolationLevel);
             using (var probe = new DalDiagnostics.WaitProbe(this))
             {
