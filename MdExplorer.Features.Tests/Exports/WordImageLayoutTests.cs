@@ -78,7 +78,8 @@ namespace MdExplorer.Features.Tests.Exports
             using var doc = WordprocessingDocument.Open(path, false);
             return doc.MainDocumentPart.Document.Body
                 .Descendants<Paragraph>()
-                .Select(p => p.ParagraphProperties?.Justification?.Val?.Value.ToString() ?? "(nessuno)")
+                // Il valore com'è scritto nel file (w:jc w:val="center"): da OpenXml 3 gli enum sono strutture e ToString() non dà più il nome.
+                .Select(p => p.ParagraphProperties?.Justification?.Val?.InnerText ?? "(nessuno)")
                 .ToArray();
         }
 
@@ -95,7 +96,7 @@ namespace MdExplorer.Features.Tests.Exports
 
             var allineamenti = Alignments(path);
             Assert.AreEqual("(nessuno)", allineamenti[0], "il titolo non si tocca");
-            Assert.AreEqual("Center", allineamenti[1]);
+            Assert.AreEqual("center", allineamenti[1]);
         }
 
         [TestMethod]
@@ -111,8 +112,8 @@ namespace MdExplorer.Features.Tests.Exports
             Assert.AreEqual(1, WordImageLayout.CenterStandaloneImages(path));
 
             var allineamenti = Alignments(path);
-            Assert.AreEqual("Center", allineamenti[0], "l'immagine");
-            Assert.AreEqual("Center", allineamenti[1], "la didascalia va dove va la sua immagine");
+            Assert.AreEqual("center", allineamenti[0], "l'immagine");
+            Assert.AreEqual("center", allineamenti[1], "la didascalia va dove va la sua immagine");
             Assert.AreEqual("(nessuno)", allineamenti[2], "il testo dopo resta com'era");
         }
 
