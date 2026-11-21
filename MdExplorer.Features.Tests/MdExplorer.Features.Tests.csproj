@@ -14,8 +14,8 @@
     <PackageReference Include="MSTest.TestFramework" Version="2.2.3" />
     <PackageReference Include="coverlet.collector" Version="3.0.2" />
     <!-- Guardia anti-regressione della catena di migrazioni: stesso driver pinnato
-         dal Service (1.0.113.1). 1.0.114.4 regredisce PRAGMA table_info. -->
-    <PackageReference Include="System.Data.SQLite" Version="1.0.113.1" />
+         dal Service (1.0.119 dal 21/11/2026, L1a). 1.0.114.4 regrediva PRAGMA table_info. -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.119" />
   </ItemGroup>
 
   <ItemGroup>

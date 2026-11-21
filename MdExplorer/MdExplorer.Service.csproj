@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <!-- System.Data.SQLite.Core 1.0.113.1 spedisce lo STESSO SQLite.Interop.dll (byte identici)
+  <!-- System.Data.SQLite.Core 1.0.113.1 (e 1.0.119, stessa famiglia) spedisce lo STESSO SQLite.Interop.dll (byte identici)
        sia in runtimes/win-x64/native/netstandard2.0 sia in .../netstandard2.1. Nel publish
        entrambi finirebbero su "SQLite.Interop.dll" e .NET 8 si ferma con NETSDK1152
        ("multiple publish output files with the same relative path"). Teniamo netstandard2.1. -->
@@ -335,14 +335,15 @@
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
-    <!-- 1.0.114.4 regredisce la lettura di PRAGMA table_info (dflt_value come Byte[]):
-         ColumnExists di FluentMigrator 3.2.17 crasha sulle tabelle con default-funzione
-         (Project.LastUpdate = datetime('now','localtime')), rompendo la catena di
-         migrazioni su install pulito. 1.0.113.1 non ha la regressione. -->
+    <!-- 1.0.114.4 regrediva la lettura di PRAGMA table_info (dflt_value come Byte[]): ColumnExists di FluentMigrator 3.2.17
+         crashava sulle tabelle con default-funzione (Project.LastUpdate = datetime('now','localtime')), rompendo la catena
+         di migrazioni su install pulito; per questo si era rimasti alla 1.0.113.1. 1.0.119 (sprint .NET 10, L1a, 21/11/2026):
+         installazione pulita con tutte le 125 migrazioni, schemi dei 4 database identici, database vecchi aperti senza
+         errori. La 2.0.x cambia come arriva la libreria nativa: sprint a parte (decisione D6). -->
     <!-- Core e non il pacchetto completo (07/11/2026): quello si porta dietro System.Data.SQLite.EF6 → EntityFramework 6.3
          → EntityFramework.SqlServer + System.Data.SqlClient, che nessuno usa (SQLite passa da NHibernate). Stessa versione:
          stessa System.Data.SQLite.dll e stessi SQLite.Interop.dll di prima. -->
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.1" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
     <!-- A2A (città degli agenti, Fase 2): tipi + wire format del protocollo Agent2Agent.
          Solo il package base 'A2A'; 'A2A.AspNetCore'/MapA2A si valuta a parte (agenti
          dinamici). Solo preview su NuGet (decisione #3). -->
