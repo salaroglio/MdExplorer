@@ -18,7 +18,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <!-- Cronos over NCrontab: correct DST/timezone handling via
          GetNextOccurrence(DateTime, TimeZoneInfo), zero transitive deps. -->
-    <PackageReference Include="Cronos" Version="0.8.4" />
+    <PackageReference Include="Cronos" Version="0.13.0" />
   </ItemGroup>
 
 </Project>

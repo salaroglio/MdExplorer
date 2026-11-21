@@ -329,7 +329,7 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.13.1" />
     <PackageReference Include="LibGit2Sharp" Version="0.32.0" />
     <PackageReference Include="LLamaSharp" Version="0.30.0" />
     <PackageReference Include="Markdig" Version="1.6.0" />
