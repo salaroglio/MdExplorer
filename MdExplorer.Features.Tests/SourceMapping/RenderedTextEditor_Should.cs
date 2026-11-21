@@ -297,6 +297,39 @@ namespace MdExplorer.Features.Tests.SourceMapping
         }
 
         [TestMethod]
+        public void CorrectEveryColumnOfATableWithAlignedColumns()
+        {
+            // «:---:|» e «---:|»: con Markdig 1.1.2 la faccina «:|» rompeva la tabella (usciva come testo con le barre);
+            // dalla 1.6.0 è una tabella, con le celle in posizioni diverse da prima: prima, in mezzo e ultima colonna.
+            const string file = "Testo prima.\n\n| Codice | Descrizione | Prezzo |\n|:-------|:-----------:|-------:|\n" +
+                                "| A1     | **Vite** corta |   0,10 |\n| B2     | Dado `M6`   |   1,25 |\n\nTesto dopo.\n";
+
+            Assert.AreEqual(file.Replace("A1", "A9"),
+                Applied(Correct(file, "(//tbody/tr)[1]/td[1]", Replace("A1", "A9"))), "prima colonna");
+            Assert.AreEqual(file.Replace(" corta", " lunga"),
+                Applied(Correct(file, "(//tbody/tr)[1]/td[2]", Replace(" corta", " lunga"))), "colonna in mezzo, dopo un grassetto");
+            Assert.AreEqual(file.Replace("Dado ", "Bullone "),
+                Applied(Correct(file, "(//tbody/tr)[2]/td[2]", Replace("Dado ", "Bullone "))), "colonna in mezzo, prima di un codice");
+            Assert.AreEqual(file.Replace("1,25", "1,30"),
+                Applied(Correct(file, "(//tbody/tr)[2]/td[3]", Replace("1,25", "1,30"))), "ultima colonna dell'ultima riga");
+            Assert.AreEqual(file.Replace("Prezzo", "Costo"),
+                Applied(Correct(file, "(//thead/tr)[1]/th[3]", Replace("Prezzo", "Costo"))), "ultima colonna dell'intestazione");
+            Assert.AreEqual(file.Replace("Testo dopo", "Testo finale"),
+                Applied(Correct(file, "(//p)[2]", Replace("dopo", "finale"))), "il paragrafo dopo la tabella");
+        }
+
+        [TestMethod]
+        public void CorrectACellOfATableWithoutOuterPipes()
+        {
+            const string file = "Nome | Valore\n-----|-------\nalfa | uno\nbeta | due\n";
+
+            Assert.AreEqual(file.Replace("alfa", "gamma"),
+                Applied(Correct(file, "(//tbody/tr)[1]/td[1]", Replace("alfa", "gamma"))), "prima cella, senza barra davanti");
+            Assert.AreEqual(file.Replace("due", "tre"),
+                Applied(Correct(file, "(//tbody/tr)[2]/td[2]", Replace("due", "tre"))), "ultima cella, senza barra dopo");
+        }
+
+        [TestMethod]
         public void ClearACell()
         {
             Assert.AreEqual("| a | b |\n|---|---|\n|  | y |\n",

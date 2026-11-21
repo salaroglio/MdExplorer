@@ -332,7 +332,7 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="LibGit2Sharp" Version="0.32.0" />
     <PackageReference Include="LLamaSharp" Version="0.30.0" />
-    <PackageReference Include="Markdig" Version="1.1.2" />
+    <PackageReference Include="Markdig" Version="1.6.0" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <!-- 1.0.114.4 regrediva la lettura di PRAGMA table_info (dflt_value come Byte[]): ColumnExists di FluentMigrator 3.2.17
