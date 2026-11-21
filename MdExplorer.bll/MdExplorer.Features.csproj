@@ -35,7 +35,7 @@
     <!-- Il pacchetto dichiara in build/GitHub.Copilot.SDK.props la CLI con cui è fatto (CopilotCliVersion): finisce nei
          metadati dell'assembly, e CopilotCliCompatibility la usa per dire all'utente quale CLI installare (19/11/2026). -->
     <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.11" />
-    <PackageReference Include="LLamaSharp" Version="0.26.0" />
+    <PackageReference Include="LLamaSharp" Version="0.30.0" />
     <!-- Dettatura: Whisper.net e i suoi binari nativi (MIT). Il runtime porta gia' win/linux/macOS,
          quindi non serve il download a richiesta che llama.cpp invece pretende. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />

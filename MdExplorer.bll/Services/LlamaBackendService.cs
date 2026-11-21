@@ -78,12 +78,12 @@ namespace MdExplorer.Features.Services
         private static string ServerFileName =>
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "llama-server.exe" : "llama-server";
 
-        // Backend variants per platform
+        // Backend variants per platform (pesi degli archivi di b10221, letti dalla pagina del rilascio il 21/11/2026)
         private static readonly Dictionary<string, (string name, string description, long winSize, long linuxSize)> Variants = new()
         {
-            ["cpu"] = ("CPU Only", "Runs on any CPU, no GPU required", 33_000_000, 27_000_000),
-            ["cuda-12.4"] = ("NVIDIA CUDA 12.4", "GPU acceleration for NVIDIA GPUs (requires CUDA)", 214_000_000, 0),
-            ["vulkan"] = ("Vulkan", "GPU acceleration for AMD, Intel, and NVIDIA GPUs", 49_000_000, 43_000_000),
+            ["cpu"] = ("CPU Only", "Runs on any CPU, no GPU required", 18_000_000, 16_000_000),
+            ["cuda-12.4"] = ("NVIDIA CUDA 12.4", "GPU acceleration for NVIDIA GPUs (requires CUDA)", 250_000_000, 0),
+            ["vulkan"] = ("Vulkan", "GPU acceleration for AMD, Intel, and NVIDIA GPUs", 34_000_000, 32_000_000),
         };
 
         public LlamaBackendService(
@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Services
             _logger = logger;
             _gpuService = gpuService;
 
-            _version = configuration.GetValue<string>("LlamaCpp:Version") ?? "b8781";
+            _version = configuration.GetValue<string>("LlamaCpp:Version") ?? "b10221";
 
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             _backendsBaseDir = Path.Combine(userHome, "MdExplorer-Models", "llama-backends");
@@ -112,20 +112,34 @@ namespace MdExplorer.Features.Services
         {
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var backendDir = Path.Combine(userHome, "MdExplorer-Models", "llama-backends", version);
-            if (Directory.Exists(backendDir) && Directory.GetFiles(backendDir, "llama.*").Length > 0)
+            if (HasLlamaLibrary(backendDir))
             {
                 return backendDir;
             }
 
             // Fallback to LlamaCppOverride in app directory (dev/legacy)
             var overrideDir = Path.Combine(AppContext.BaseDirectory, "LlamaCppOverride");
-            if (Directory.Exists(overrideDir) && Directory.GetFiles(overrideDir, "llama.*").Length > 0)
+            if (HasLlamaLibrary(overrideDir))
             {
                 return overrideDir;
             }
 
             return null;
         }
+
+        /// <summary>
+        /// Il nome del file di una libreria del motore su questo sistema: <c>llama.dll</c> su Windows,
+        /// <c>libllama.so</c> su Linux, <c>libllama.dylib</c> su macOS. Prima si cercava sempre il nome di Windows
+        /// e su Linux il motore scaricato non veniva visto (stato «non installato», modello non caricato).
+        /// </summary>
+        public static string NativeLibraryFile(string name)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return name + ".dll";
+            return RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "lib" + name + ".dylib" : "lib" + name + ".so";
+        }
+
+        private static bool HasLlamaLibrary(string directory) =>
+            Directory.Exists(directory) && File.Exists(Path.Combine(directory, NativeLibraryFile("llama")));
 
         public string GetVersion() => _version;
 
@@ -147,17 +161,8 @@ namespace MdExplorer.Features.Services
             return File.Exists(path) ? path : null;
         }
 
-        /// <summary>
-        /// Le librerie del motore sono nella cartella della versione. Su Linux si chiamano
-        /// <c>libllama.so</c>, che <see cref="ResolveBackendPath"/> (pensato per <c>llama.dll</c>) non vede.
-        /// </summary>
-        private bool HasLibraries() =>
-            Directory.Exists(VersionDirectory)
-            && Directory.EnumerateFiles(VersionDirectory, "*llama.*").Any(f =>
-            {
-                var name = Path.GetFileName(f);
-                return name.StartsWith("llama.") || name.StartsWith("libllama.");
-            });
+        /// <summary>Le librerie del motore sono nella cartella della versione (non nel ripiego <c>LlamaCppOverride</c>).</summary>
+        private bool HasLibraries() => HasLlamaLibrary(VersionDirectory);
 
         private string InstalledVariantOnDisk()
         {
@@ -307,8 +312,9 @@ namespace MdExplorer.Features.Services
             }
 
             // Detect variant from installed files
-            var hasCuda = Directory.GetFiles(path, "ggml-cuda.*").Length > 0;
-            var hasVulkan = Directory.GetFiles(path, "ggml-vulkan.*").Length > 0;
+            // «*ggml-…*»: su Linux i file hanno il prefisso lib (libggml-vulkan.so)
+            var hasCuda = Directory.GetFiles(path, "*ggml-cuda*").Length > 0;
+            var hasVulkan = Directory.GetFiles(path, "*ggml-vulkan*").Length > 0;
 
             string variant = "cpu";
             if (hasCuda) variant = "cuda-12.4";

@@ -284,12 +284,13 @@ namespace MdExplorer
             // Configure LLamaSharp to use llama.cpp native libraries
             // Backends are downloaded on-demand to ~/MdExplorer-Models/llama-backends/
             // Fallback to LlamaCppOverride/ in app dir for dev/legacy scenarios
-            var llamaCppVersion = _Configuration.GetValue<string>("LlamaCpp:Version") ?? "b8255";
+            var llamaCppVersion = _Configuration.GetValue<string>("LlamaCpp:Version") ?? "b10221";
             var llamaBackendPath = Features.Services.LlamaBackendService.ResolveBackendPath(llamaCppVersion);
             if (llamaBackendPath != null)
             {
-                var llamaDllPath = Path.Combine(llamaBackendPath, "llama.dll");
-                var mtmdDllPath = Path.Combine(llamaBackendPath, "mtmd.dll");
+                // Il nome della libreria dipende dal sistema (llama.dll, libllama.so, libllama.dylib)
+                var llamaDllPath = Path.Combine(llamaBackendPath, Features.Services.LlamaBackendService.NativeLibraryFile("llama"));
+                var mtmdDllPath = Path.Combine(llamaBackendPath, Features.Services.LlamaBackendService.NativeLibraryFile("mtmd"));
                 if (File.Exists(llamaDllPath))
                 {
                     var currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
