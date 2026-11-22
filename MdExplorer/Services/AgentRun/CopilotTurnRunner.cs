@@ -86,7 +86,7 @@ namespace MdExplorer.Services.AgentRun
                 // di questa configurazione, e merita un messaggio che dica cosa fare invece del
                 // grezzo del CLI. NON si ritenta con un altro modello: l'agente gira con quello
                 // dichiarato o non gira.
-                if (model != null && LooksLikeModelUnavailable(run.Error))
+                if (model != null && MdExplorer.Features.Services.AI.CopilotCliProvider.IsModelUnavailable(run.Error))
                 {
                     return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError,
                         MdExplorer.Features.Services.UiText.Say(
@@ -143,15 +143,5 @@ namespace MdExplorer.Services.AgentRun
         private static bool IsCopilot(string provider)
             => provider.Trim().Replace("-", "").Replace("_", "")
                        .StartsWith("copilot", StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Riconosce il rifiuto del modello da parte del CLI. Verificato sul campo:
-        /// <c>Error: Model "x" from --model flag is not available.</c> con uscita 1 e stderr
-        /// valorizzato.
-        /// </summary>
-        private static bool LooksLikeModelUnavailable(string stderr)
-            => !string.IsNullOrWhiteSpace(stderr)
-               && stderr.Contains("--model", StringComparison.OrdinalIgnoreCase)
-               && stderr.Contains("not available", StringComparison.OrdinalIgnoreCase);
     }
 }

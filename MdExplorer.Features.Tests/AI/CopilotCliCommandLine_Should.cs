@@ -98,6 +98,98 @@ namespace MdExplorer.Features.Tests.AI
             Assert.IsFalse(alive, "il figlio del CLI è ancora vivo dopo l'annullamento");
         }
 
+        // ── L'errore del CLI: su stderr (CLI di prima) o come evento session.error su stdout (CLI recenti, uscita JSON) ──
+
+        /// <summary>La riga vera scritta dalla CLI 1.0.114 il 22/11/2026 per un modello che non esiste (stderr vuoto, uscita 1).</summary>
+        private const string SessionErrorLine =
+            "{\"type\":\"session.error\",\"data\":{\"errorType\":\"query\",\"message\":\"Execution failed: Model \\\"modello-che-non-esiste\\\" is not available.\"},\"id\":\"68e188db\",\"timestamp\":\"2026-11-22T08:30:44.872Z\"}";
+
+        /// <summary>Quello che scriveva su stderr la CLI fino alla 1.0.107 (dal commento del codice, «verificato sul campo»).</summary>
+        private const string OldStderr = "Error: Model \"modello-che-non-esiste\" from --model flag is not available.";
+
+        private static CopilotInvocation Invocation(string dir) => new(dir, null);
+
+        [TestMethod]
+        public async Task Report_the_error_a_recent_cli_sends_as_a_session_error_event()
+        {
+            // stdout: gli eventi, fra cui session.error; stderr: niente; uscita 1.
+            FakeCopilot("cat > /dev/null; printf '%s\\n' '{\"type\":\"session.start\",\"data\":{}}' '" + SessionErrorLine.Replace("'", "'\\''") + "' '{\"type\":\"result\"}'; exit 1");
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir), modelId: "modello-che-non-esiste");
+
+            Assert.AreEqual(1, run.ExitCode);
+            Assert.AreEqual("Execution failed: Model \"modello-che-non-esiste\" is not available.", run.Error);
+            Assert.IsTrue(CopilotCliProvider.IsModelUnavailable(run.Error));
+        }
+
+        [TestMethod]
+        public async Task Report_the_error_an_older_cli_writes_on_stderr()
+        {
+            FakeCopilot("cat > /dev/null; echo '" + OldStderr + "' >&2; exit 1");
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir), modelId: "modello-che-non-esiste");
+
+            Assert.AreEqual(1, run.ExitCode);
+            StringAssert.Contains(run.Error, OldStderr);
+            Assert.IsTrue(CopilotCliProvider.IsModelUnavailable(run.Error));
+        }
+
+        [TestMethod]
+        public async Task Prefer_stderr_when_the_cli_gives_both()
+        {
+            FakeCopilot("cat > /dev/null; printf '%s\\n' '" + SessionErrorLine.Replace("'", "'\\''") + "'; echo 'errore su stderr' >&2; exit 1");
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir));
+
+            StringAssert.Contains(run.Error, "errore su stderr");
+        }
+
+        [TestMethod]
+        public async Task Give_the_answer_and_no_error_when_the_turn_succeeds()
+        {
+            FakeCopilot("cat > /dev/null; printf '%s\\n' '{\"type\":\"assistant.message\",\"data\":{\"content\":\"risposta\"}}'; exit 0");
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir));
+
+            Assert.AreEqual(0, run.ExitCode);
+            Assert.AreEqual("risposta", run.Text);
+            Assert.AreEqual("", run.Error);
+        }
+
+        [TestMethod]
+        public async Task Say_why_the_raw_chat_failed_when_the_cli_sends_a_session_error()
+        {
+            // Prima: «produced no assistant.message event», senza il motivo.
+            FakeCopilot("cat > /dev/null; printf '%s\\n' '" + SessionErrorLine.Replace("'", "'\\''") + "'; exit 1");
+
+            var ex = await Assert.ThrowsAsync<Exception>(() => Provider().ChatRawAsync("ciao", "modello-che-non-esiste"));
+
+            StringAssert.Contains(ex.Message, "is not available");
+        }
+
+        [TestMethod]
+        public void Read_only_session_error_events_as_errors()
+        {
+            Assert.AreEqual("Execution failed: Model \"modello-che-non-esiste\" is not available.", CopilotCliProvider.SessionErrorOf(SessionErrorLine));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf("{\"type\":\"assistant.message\",\"data\":{\"content\":\"session.error\"}}"));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf("{\"type\":\"session.error\",\"data\":null}"));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf("{\"type\":\"session.error\"}"));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf("rumore del CLI, non un evento"));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf("{rotto"));
+            Assert.IsNull(CopilotCliProvider.SessionErrorOf(null));
+        }
+
+        [TestMethod]
+        public void Recognise_a_refused_model_in_both_wordings_and_nothing_else()
+        {
+            Assert.IsTrue(CopilotCliProvider.IsModelUnavailable(OldStderr));
+            Assert.IsTrue(CopilotCliProvider.IsModelUnavailable("Execution failed: Model \"x\" is not available."));
+            Assert.IsFalse(CopilotCliProvider.IsModelUnavailable("Execution failed: rate limit exceeded"));
+            Assert.IsFalse(CopilotCliProvider.IsModelUnavailable("The service is not available right now"));
+            Assert.IsFalse(CopilotCliProvider.IsModelUnavailable(""));
+            Assert.IsFalse(CopilotCliProvider.IsModelUnavailable(null));
+        }
+
         private static bool Alive(int pid)
         {
             // Uno zombie (già finito, in attesa del padre) conta come fermo.

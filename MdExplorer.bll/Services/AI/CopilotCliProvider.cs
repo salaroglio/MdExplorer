@@ -207,6 +207,7 @@ namespace MdExplorer.Features.Services.AI
             using var hard = new CancellationTokenSource(MdExplorer.Features.Agents.AgentTurnLimits.Hard);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, idle.Token, hard.Token);
             var messages = new List<string>();
+            var sessionErrors = new List<string>();
             try
             {
                 while (true)
@@ -216,6 +217,8 @@ namespace MdExplorer.Features.Services.AI
                     idle.CancelAfter(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
                     var text = AssistantMessageOf(line);
                     if (!string.IsNullOrWhiteSpace(text)) messages.Add(text);
+                    var failure = SessionErrorOf(line);
+                    if (!string.IsNullOrWhiteSpace(failure)) sessionErrors.Add(failure);
                 }
                 await process.WaitForExitAsync(linked.Token);
             }
@@ -226,8 +229,49 @@ namespace MdExplorer.Features.Services.AI
                 throw new TimeoutException(MdExplorer.Features.Agents.AgentTurnLimits.Why("Copilot CLI", idle: idle.IsCancellationRequested && !hard.IsCancellationRequested));
             }
             var error = await errorTask;
-            return new CopilotRunResult(string.Join("\n\n", messages), process.ExitCode, error);
+            return new CopilotRunResult(string.Join("\n\n", messages), process.ExitCode, ErrorOf(error, sessionErrors));
         }
+
+        /// <summary>
+        /// Il messaggio di un evento <c>session.error</c> del CLI; null per ogni altra riga. Con <c>--output-format json</c>
+        /// il CLI recente (misurato il 22/11/2026 con la 1.0.114) NON scrive più l'errore su stderr: lo manda qui, e stderr
+        /// resta vuoto. Senza leggerlo, ogni turno fallito diventava «uscito con codice 1 senza messaggio d'errore».
+        /// </summary>
+        internal static string SessionErrorOf(string line)
+        {
+            var trimmed = line?.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed[0] != '{') return null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                return doc.RootElement.TryGetProperty("type", out var type) && type.GetString() == "session.error"
+                       && doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == System.Text.Json.JsonValueKind.Object
+                       && data.TryGetProperty("message", out var message) && message.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? message.GetString()
+                    : null;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;   // una riga che non è un evento: rumore del CLI
+            }
+        }
+
+        /// <summary>
+        /// L'errore di un'esecuzione: quello su stderr se c'è (i CLI di prima, e l'uscita non JSON), altrimenti gli eventi
+        /// <c>session.error</c> letti da stdout (i CLI recenti con l'uscita JSON).
+        /// </summary>
+        internal static string ErrorOf(string stderr, IEnumerable<string> sessionErrors)
+            => !string.IsNullOrWhiteSpace(stderr) ? stderr : string.Join("\n", sessionErrors ?? Enumerable.Empty<string>());
+
+        /// <summary>
+        /// Il CLI ha rifiutato il modello chiesto. Le due forme viste sul campo, tutte e due con uscita 1:
+        /// <c>Error: Model "x" from --model flag is not available.</c> (su stderr, fino alla 1.0.107) e
+        /// <c>Execution failed: Model "x" is not available.</c> (evento <c>session.error</c>, 1.0.114).
+        /// </summary>
+        public static bool IsModelUnavailable(string cliError)
+            => !string.IsNullOrWhiteSpace(cliError)
+               && cliError.Contains("model", StringComparison.OrdinalIgnoreCase)
+               && cliError.Contains("not available", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Un nome da mettere in un'opzione del CLI: lettere, cifre, '-', '_' e '.', niente spazi né virgolette.</summary>
         internal static bool IsPermissionName(string name)
@@ -647,6 +691,10 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
             var output = await outputTask;
             var error = await errorTask;
+
+            // Con l'uscita JSON l'errore può stare negli eventi su stdout invece che su stderr (vedi SessionErrorOf).
+            if (outputFormatJson && string.IsNullOrWhiteSpace(error))
+                error = ErrorOf(error, (output ?? string.Empty).Split('\n').Select(SessionErrorOf).Where(m => !string.IsNullOrWhiteSpace(m)));
 
             return new CopilotRunResult(output, process.ExitCode, error);
         }
