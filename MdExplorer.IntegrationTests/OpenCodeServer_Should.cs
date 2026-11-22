@@ -56,7 +56,7 @@ namespace MdExplorer.IntegrationTests
                 return;
             }
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => OpenCodeProcessLauncher.BuildServeStartInfo("x"));
             StringAssert.Contains(ex.Message, "opencode");
             StringAssert.Contains(ex.Message, "PATH");
@@ -65,7 +65,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Refuse_to_start_without_a_password()
         {
-            Assert.ThrowsException<ArgumentException>(
+            Assert.ThrowsExactly<ArgumentException>(
                 () => OpenCodeProcessLauncher.BuildServeStartInfo("   "));
         }
 
@@ -106,7 +106,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsFalse(server.IsRunning, "StopAsync spegne il server");
 
             using var afterStop = new HttpClient { BaseAddress = address, Timeout = TimeSpan.FromSeconds(5) };
-            await Assert.ThrowsExceptionAsync<HttpRequestException>(
+            await Assert.ThrowsExactlyAsync<HttpRequestException>(
                 () => afterStop.GetAsync("/config/providers"),
                 "dopo lo spegnimento la porta non deve rispondere piu'");
         }

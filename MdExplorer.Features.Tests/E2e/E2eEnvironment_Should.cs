@@ -49,10 +49,10 @@ namespace MdExplorer.Features.Tests.E2e
             var integrity = "sha512-" + Convert.ToBase64String(SHA512.HashData(bytes));
 
             E2eEnvironment.VerifyIntegrity(bytes, integrity, "p", "1.0.0");
-            var ex = Assert.ThrowsException<InvalidOperationException>(() =>
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() =>
                 E2eEnvironment.VerifyIntegrity(Encoding.UTF8.GetBytes("manomesso"), integrity, "p", "1.0.0"));
             StringAssert.Contains(ex.Message, "does not match the registry integrity");
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
                 E2eEnvironment.VerifyIntegrity(bytes, "sha1-abc", "p", "1.0.0"), "only sha512 is trusted");
         }
 
@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Tests.E2e
         public void Refuse_an_archive_that_writes_outside_its_folder()
         {
             var target = Path.Combine(_root, "node_modules", "p");
-            var ex = Assert.ThrowsException<InvalidOperationException>(() =>
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() =>
                 E2eEnvironment.ExtractPackage(Tgz(("package/../../../fuori.txt", "x")), target));
             StringAssert.Contains(ex.Message, "outside its folder");
             Assert.IsFalse(File.Exists(Path.Combine(_root, "fuori.txt")));

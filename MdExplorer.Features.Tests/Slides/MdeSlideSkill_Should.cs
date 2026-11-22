@@ -208,7 +208,7 @@ namespace MdExplorer.Features.Tests.Slides
         {
             foreach (var (id, example) in Examples().Where(e => Refusals.ContainsKey(e.Key)))
             {
-                var ex = Assert.ThrowsException<SlideDeckException>(() => Render(example), $"example '{id}'");
+                var ex = Assert.ThrowsExactly<SlideDeckException>(() => Render(example), $"example '{id}'");
                 StringAssert.Contains(ex.Message, Refusals[id], $"example '{id}'");
             }
         }

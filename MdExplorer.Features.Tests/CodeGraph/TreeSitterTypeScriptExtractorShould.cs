@@ -66,7 +66,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(extractor.Availability, "grammatica da scaricare");
             var registry = new CodeExtractorRegistry(new ICodeExtractor[] { extractor });
             Assert.IsNull(registry.Get("typescript"), "non pronto = non si usa");
-            Assert.ThrowsException<InvalidOperationException>(() => extractor.Extract(Request()));
+            Assert.ThrowsExactly<InvalidOperationException>(() => extractor.Extract(Request()));
         }
 
         [TestMethod]

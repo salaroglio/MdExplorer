@@ -28,7 +28,7 @@ namespace MdExplorer.IntegrationTests
         {
             // Senza ambiente non c'è un CLI da aprire: una stringa vuota farebbe lanciare un
             // processo senza nome.
-            var ex = Assert.ThrowsException<InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => MarkAgentEngines.CommandOf(MarkAgentEngine.None));
             StringAssert.Contains(ex.Message, "agentic environment");
         }
@@ -39,7 +39,7 @@ namespace MdExplorer.IntegrationTests
             var dir = Path.GetTempPath();
             foreach (var bad in new[] { "copilot; rm -rf /", "copilot && x", "$(whoami)", "co pilot", "" })
             {
-                Assert.ThrowsException<ArgumentException>(
+                Assert.ThrowsExactly<ArgumentException>(
                     () => ProcessUtil.BuildAgentCliStartInfo(dir, bad), $"'{bad}'");
             }
         }

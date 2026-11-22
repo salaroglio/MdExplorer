@@ -354,7 +354,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var mailer = (await _store.ResolveAsync(_project, "Acme.IMailer")).Single(x => x.Kind == "interface").Id;
             Assert.AreEqual("Acme.SmtpMailer", (await _store.NeighborsAsync(_project, mailer, CodeRegistrations.Relation, "out", 1, 10)).Single().Other.QualifiedName);
 
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
                 ""anchor"": { ""call"": ""AddScoped"" }, ""abstraction"": { ""from"": ""argument"", ""generic"": 0, ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""generic"": 1 } }"),
                 "argument e generic insieme: una posizione sola");
         }
@@ -435,7 +435,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var later = await _rules.PreviewAsync(_project, wrong);
             Assert.AreEqual((0, 3, true), (later.Resolved, later.OutsideGraph, later.Accepted));
             Assert.AreEqual(3, later.Edges.Count);
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""c"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"" } }"), "senza languages");
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""c"", ""argument"": 0 }, ""owner"": { ""from"": ""symbol"" } }"), "senza languages");
 
             // il nome qualificato dopo il file: «PKG.PROC» trova il simbolo «db/ordini.pks:PKG.PROC»
             var site = new CodeCallSiteView { CallerId = "c", Callee = "CommandText", Path = "a.vb", Line = 1, Iri = "urn:x" };
@@ -451,11 +451,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public void Refuse_a_registration_rule_that_reads_a_fact_its_anchor_does_not_have()
         {
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
                 ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""returnType"" }, ""implementation"": { ""from"": ""argument"", ""argument"": 0 } }"));
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
                 ""anchor"": { ""annotation"": ""Provides"" }, ""abstraction"": { ""from"": ""chain"", ""callee"": ""bind"", ""argument"": 0 }, ""implementation"": { ""from"": ""annotated"" } }"));
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""kind"": ""registration"", ""description"": ""d"",
                 ""call"": { ""callee"": ""to"", ""argument"": 0 }, ""anchor"": { ""call"": ""to"" }, ""abstraction"": { ""from"": ""argument"", ""argument"": 0 }, ""implementation"": { ""from"": ""argument"", ""argument"": 1 } }"),
                 "i campi di una regola dispatch non valgono");
             Assert.AreEqual(CodeRuleKind.Dispatch, CodeEnrichmentRule.Parse(Rule).Kind, "una regola di prima resta dispatch");
@@ -642,7 +642,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             await _store.LoadProjectAsync(_project);
             var wrong = CodeEnrichmentRule.Parse(Rule.Replace("\"separator\": \".\"", "\"separator\": \":\""));   // la stringa non ha i due punti
 
-            var ex = await Assert.ThrowsExceptionAsync<CodeRuleException>(() => _rules.ApplyAsync(_project, wrong, "test"));
+            var ex = await Assert.ThrowsExactlyAsync<CodeRuleException>(() => _rules.ApplyAsync(_project, wrong, "test"));
             StringAssert.Contains(ex.Message, "0");
             Assert.IsFalse(Directory.Exists(CodeGraphPaths.GetRulesFolder(_project)) && Directory.EnumerateFiles(CodeGraphPaths.GetRulesFolder(_project)).Any());
         }

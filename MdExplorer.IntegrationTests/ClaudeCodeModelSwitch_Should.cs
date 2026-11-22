@@ -52,7 +52,7 @@ namespace MdExplorer.IntegrationTests
             await using var session = new ClaudeCodeSession(NullLogger<ClaudeCodeSession>.Instance, _dir, "haiku");
             await session.StartAsync();
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
                 () => session.SetModelAsync("modello-che-non-esiste"));
 
             StringAssert.Contains(ex.Message, "modello-che-non-esiste");

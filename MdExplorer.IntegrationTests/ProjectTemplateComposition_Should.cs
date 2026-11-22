@@ -98,21 +98,21 @@ theory:
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var ddd = Template(ctx, "ddd", DddBranches());
 
-            var demo = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var demo = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "demo-e-ddd"), TemplateUrl = Template(ctx, "demo", Base()), Methods = new[] { ddd }, Language = "it", MdeVersion = Mde,
             }));
             StringAssert.Contains(demo.Message, "already has everything included: methodologies are not added to it");
             Assert.IsFalse(Directory.Exists(NewFolder(ctx, "demo-e-ddd")), "niente lasciato indietro");
 
-            var second = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var second = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "strato-dopo"), TemplateUrl = ddd, Methods = new[] { Template(ctx, "documenti", Foundation()) },
                 Language = "it", MdeVersion = Mde, Harness = "claude",
             }));
             StringAssert.Contains(second.Message, "is a methodology: a project starts from the base template");
 
-            var foundationLater = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var foundationLater = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "strato-come-metodo"), TemplateUrl = Template(ctx, "documenti", Foundation()),
                 Methods = new[] { Template(ctx, "documenti-bis", Foundation("documenti-bis")) }, Language = "it", MdeVersion = Mde, Harness = "claude",
@@ -129,7 +129,7 @@ theory:
             var foundation = Template(ctx, "documenti", Foundation());
             var bare = Template(ctx, "ddd", DddBranches());
 
-            var none = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var none = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "senza-teoria"), TemplateUrl = foundation, Methods = new[] { bare }, Theory = new[] { bare },
                 Language = "it", MdeVersion = Mde, Harness = "claude",
@@ -137,7 +137,7 @@ theory:
             StringAssert.Contains(none.Message, "The template «Sviluppo con DDD» has no theory in 'it'");
             Assert.IsFalse(Directory.Exists(NewFolder(ctx, "senza-teoria")));
 
-            var stray = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var stray = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "teoria-estranea"), TemplateUrl = foundation, Theory = new[] { bare },
                 Language = "it", MdeVersion = Mde, Harness = "claude",
@@ -222,15 +222,15 @@ theory:
 
             // Lo strato comune, con le modifiche del gruppo non committate: prima si committano.
             File.AppendAllText(Path.Combine(path, ".development.yml"), "\n");
-            var dirty = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "documenti"));
+            var dirty = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => AddTheory(ctx, path, "documenti"));
             StringAssert.Contains(dirty.Message, "The project has uncommitted changes");
             Git(path, "checkout -q -- .development.yml");
             await AddTheory(ctx, path, "documenti");
             Assert.AreEqual("# Gli LLM wiki\n", Read(path, "teoria/documenti/llm-wiki.md"));
 
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"))).Message,
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"))).Message,
                 "The theory of «Sviluppo con DDD» is already in the project, in teoria/ddd/");
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "gara"))).Message,
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => AddTheory(ctx, path, "gara"))).Message,
                 "The project has no template 'gara': it has documenti, ddd");
         }
 
@@ -248,7 +248,7 @@ theory:
             });
             var head = Git(path, "rev-parse HEAD").Out;
 
-            var none = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"));
+            var none = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => AddTheory(ctx, path, "ddd"));
 
             StringAssert.Contains(none.Message, "The template «Sviluppo con DDD» has no theory in 'it'");
             Assert.AreEqual(head, Git(path, "rev-parse HEAD").Out);

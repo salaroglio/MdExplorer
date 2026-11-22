@@ -281,7 +281,7 @@ END PKG_B;
         public void Refuse_completes_that_names_no_other_block()
         {
             var yaml = Definition.Replace("completes: spec", "completes: nothing");
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
             StringAssert.Contains(ex.Message, "blocks[body].completes");
         }
     }

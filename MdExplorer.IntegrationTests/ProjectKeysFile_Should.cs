@@ -53,8 +53,8 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_a_broken_file_instead_of_reading_it_as_missing()
         {
             File.WriteAllText(ProjectKeysFile.PathOf(_dir), "telegram: [non chiuso\n");
-            Assert.ThrowsException<InvalidOperationException>(() => ProjectKeysFile.ReadProjectBot(_dir));
-            Assert.ThrowsException<InvalidOperationException>(() =>
+            Assert.ThrowsExactly<InvalidOperationException>(() => ProjectKeysFile.ReadProjectBot(_dir));
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
                 ProjectKeysFile.WriteProjectBot(_dir, new ProjectBotKeys("1:a", "b_bot", -1, "c")));
         }
 
@@ -62,7 +62,7 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_an_incomplete_bot_entry()
         {
             File.WriteAllText(ProjectKeysFile.PathOf(_dir), "telegram:\n  projectBot:\n    token: \"1:a\"\n");
-            Assert.ThrowsException<InvalidOperationException>(() => ProjectKeysFile.ReadProjectBot(_dir));
+            Assert.ThrowsExactly<InvalidOperationException>(() => ProjectKeysFile.ReadProjectBot(_dir));
         }
 
         [TestMethod]

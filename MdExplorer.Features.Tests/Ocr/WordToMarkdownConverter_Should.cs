@@ -57,7 +57,7 @@ namespace MdExplorer.Features.Tests.Ocr
         {
             var missing = Path.Combine(_folder, "non-c-e.docx");
 
-            var error = Assert.ThrowsException<FileNotFoundException>(
+            var error = Assert.ThrowsExactly<FileNotFoundException>(
                 () => WordToMarkdownConverter.Convert(missing, _folder, "/img"));
 
             StringAssert.Contains(error.Message, "non-c-e.docx");
@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Tests.Ocr
         {
             var docx = TwoListsClaimingRequisito(styleNumId: null);
 
-            var error = Assert.ThrowsException<InvalidDataException>(
+            var error = Assert.ThrowsExactly<InvalidDataException>(
                 () => WordToMarkdownConverter.Convert(docx, Path.Combine(_folder, "img"), "/img"));
 
             StringAssert.Contains(error.Message, "Requisito");

@@ -127,9 +127,9 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Yml, text);
             var metadata = new ProjectMetadataService(NullLogger<ProjectMetadataService>.Instance);
 
-            Assert.ThrowsException<DevelopmentConfigOffException>(() => metadata.EnsureRoomSecret(_dir));
+            Assert.ThrowsExactly<DevelopmentConfigOffException>(() => metadata.EnsureRoomSecret(_dir));
             Assert.AreEqual(text, File.ReadAllText(Yml));
-            Assert.ThrowsException<DevelopmentConfigOffException>(() => ProjectMetadataService.RoomSecretIn(text, "origin"),
+            Assert.ThrowsExactly<DevelopmentConfigOffException>(() => ProjectMetadataService.RoomSecretIn(text, "origin"),
                 "anche il segreto pubblicato: letto a metà aprirebbe un'altra stanza");
 
             Assert.AreEqual("SEGRETO", ProjectMetadataService.RoomSecretIn(text.Replace("  effort: high\n", ""), "origin"));

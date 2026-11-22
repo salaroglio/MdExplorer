@@ -150,7 +150,7 @@ namespace MdExplorer.IntegrationTests
                 new[] { new ChangedFile { Change = "added", Path = "schede/tecnica.md" } }, run);
 
             // Sul mio computer la consegna c'è, ma la decide Marco: non posso approvarla, e non è «da fare».
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => svc.Reject(request.Id, "no"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => svc.Reject(request.Id, "no"));
             StringAssert.Contains(ex.Message, "is approved by marco@test.local (role Direzione)");
             var (_, inbox) = await ctx.GetJson("/api/A2A/mailbox/inbox?projectPath=" + Uri.EscapeDataString(path));
             Assert.AreEqual(0, inbox.RootElement.GetProperty("todo").GetInt32(), "la decide un altro");

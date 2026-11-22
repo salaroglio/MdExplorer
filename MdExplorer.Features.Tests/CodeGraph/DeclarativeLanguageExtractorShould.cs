@@ -309,7 +309,7 @@ END
             StringAssert.StartsWith(before, DeclarativeLanguageExtractor.EngineVersion + "-1.");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("blocchi: []\n", "blocchi")]
         [DataRow("blocks:\n  - id: f\n    kind: function\n    begin: '(unclosed'\n    end: 'E'\n", "blocks[f].begin")]
         [DataRow("blocks:\n  - id: f\n    kind: function\n    begin: 'PROC'\n    end: 'E'\n", "(?<name>")]
@@ -320,7 +320,7 @@ END
         public void Refuse_a_broken_definition_saying_where(string body, string expected)
         {
             var yaml = "schema: 1\nid: toy\nversion: 1\nextensions: [.toy]\n" + body;
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/toy/language.yml"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/toy/language.yml"));
             StringAssert.Contains(ex.Message, expected);
             StringAssert.Contains(ex.Message, Path.Combine("toy", "language.yml"));
         }
@@ -328,7 +328,7 @@ END
         [TestMethod]
         public void Refuse_an_id_different_from_the_package_folder()
         {
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(ToyDefinition, "/p/.mde-languages/altro/language.yml"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(ToyDefinition, "/p/.mde-languages/altro/language.yml"));
             StringAssert.Contains(ex.Message, "'altro'");
         }
 
@@ -347,7 +347,7 @@ END
             Assert.IsNull(catalog.ForFile("a.rt"));
             Assert.AreEqual("csharp", catalog.ForFile("a.cs").Id, "un'estensione già presa non cambia padrone");
             StringAssert.Contains(catalog.Errors["doppio"].Message, ".cs");
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => catalog.Require("rotto"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => catalog.Require("rotto"));
             StringAssert.Contains(ex.Message, Path.Combine("rotto", "language.yml"));
 
             var registry = new CodeExtractorRegistry(Array.Empty<ICodeExtractor>()).ForProject(catalog);

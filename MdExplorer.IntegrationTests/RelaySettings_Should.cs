@@ -115,7 +115,7 @@ namespace MdExplorer.IntegrationTests
             using var ctx = new AgentCityContext();
             var svc = Svc(ctx);
 
-            var ex = Assert.ThrowsException<System.InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<System.InvalidOperationException>(
                 () => svc.Save("/percorso/mai/aperto", null, "k", false));
 
             StringAssert.Contains(ex.Message, "No project registered",

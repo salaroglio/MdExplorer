@@ -79,7 +79,7 @@ namespace MdExplorer.IntegrationTests
             using var ctx = new AgentCityContext();
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "demo-e-citta"), TemplateUrl = Template(ctx, "demo", Base()), AgentCity = true, Language = "it", MdeVersion = Mde,
             }));
@@ -112,7 +112,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("The agent city's documentation in citta/guida/")), string.Join("\n", outcome.Notes));
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
 
-            var alone = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var alone = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "guida-senza-citta"), TemplateUrl = Strato(ctx), AgentCityGuide = true, Language = "it", MdeVersion = Mde, Harness = "claude",
             }));
@@ -169,12 +169,12 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
             Assert.IsTrue(notes.Any(n => n.Contains("Workflows of «Sviluppo con DDD»: .mde-template/ddd/workflows/ddd.md")), string.Join("\n", notes));
 
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path))).Message, "The agent city is already on");
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Enable(ctx, path))).Message, "The agent city is already on");
             var guide = await Enable(ctx, path, guide: true);
             Assert.IsTrue(File.Exists(Path.Combine(path, "citta", "guida", "README.md")));
             Assert.IsTrue(guide.Single().Contains("The agent city's documentation in citta/guida/"), guide.Single());
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path, guide: true))).Message,
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Enable(ctx, path, guide: true))).Message,
                 "its documentation is already there");
         }
 
@@ -188,7 +188,7 @@ namespace MdExplorer.IntegrationTests
             await Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = Strato(ctx), Language = "it", MdeVersion = Mde, Harness = "claude" });
             File.AppendAllText(Path.Combine(path, ".development.yml"), "\n");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Enable(ctx, path));
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Enable(ctx, path));
 
             StringAssert.Contains(ex.Message, "The project has uncommitted changes");
             Assert.IsFalse(Directory.Exists(Path.Combine(path, "citta")));

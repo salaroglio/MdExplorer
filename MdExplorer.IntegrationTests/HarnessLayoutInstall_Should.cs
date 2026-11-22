@@ -250,7 +250,7 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_to_hand_out_a_layout_for_a_project_with_no_harness()
         {
             // "Nessun harness" si gestisce non installando niente, non chiedendo un layout.
-            Assert.ThrowsException<InvalidOperationException>(() => HarnessLayout.For(HarnessTarget.None));
+            Assert.ThrowsExactly<InvalidOperationException>(() => HarnessLayout.For(HarnessTarget.None));
         }
 
         [TestMethod]

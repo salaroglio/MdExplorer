@@ -177,7 +177,7 @@ seeds:
             using var ctx = new AgentCityContext();
             var folder = Path.Combine(ctx.Factory.DataDir, "non-repo");
             Directory.CreateDirectory(folder);
-            var ex = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Check(ctx, folder));
+            var ex = await Assert.ThrowsExactlyAsync<System.InvalidOperationException>(() => Check(ctx, folder));
             StringAssert.Contains(ex.Message, "is not a git repository");
         }
 

@@ -30,9 +30,9 @@ namespace MdExplorer.Features.Tests.RemoteFolders
         public void Refuse_hosts_that_would_become_ssh_options_or_shell_text()
         {
             foreach (var bad in new[] { "ssh://-oProxyCommand=evil/x", "ssh://a b/x", "ssh://a;rm/x", "ssh:///x", "ssh://dev@/x", "ssh://$(id)/x", "ssh://a:99999999/x" })
-                Assert.ThrowsException<FormatException>(() => RemoteLocation.Parse(bad), bad);
-            Assert.ThrowsException<FormatException>(() => RemoteLocation.Parse("/srv/proj"), "senza ssh:// non è remota");
-            Assert.ThrowsException<FormatException>(() => RemoteLocation.Parse("ssh://h/../etc"), "sopra la radice del server");
+                Assert.ThrowsExactly<FormatException>(() => RemoteLocation.Parse(bad), bad);
+            Assert.ThrowsExactly<FormatException>(() => RemoteLocation.Parse("/srv/proj"), "senza ssh:// non è remota");
+            Assert.ThrowsExactly<FormatException>(() => RemoteLocation.Parse("ssh://h/../etc"), "sopra la radice del server");
             Assert.IsFalse(RemoteLocation.IsRemote(@"C:\src"));
             Assert.IsTrue(RemoteLocation.IsRemote("ssh://h/x"));
         }
@@ -47,8 +47,8 @@ namespace MdExplorer.Features.Tests.RemoteFolders
             Assert.AreEqual("", root.RelativeTo(root));
             Assert.IsNull(RemoteLocation.Parse("ssh://h/srv/proj2").RelativeTo(root), "/proj2 non è dentro /proj");
             Assert.IsNull(RemoteLocation.Parse("ssh://altro/srv/proj/x").RelativeTo(root), "un altro server");
-            Assert.ThrowsException<InvalidOperationException>(() => root.Combine("../fuori"));
-            Assert.ThrowsException<FormatException>(() => root.Combine("/etc/passwd"));
+            Assert.ThrowsExactly<InvalidOperationException>(() => root.Combine("../fuori"));
+            Assert.ThrowsExactly<FormatException>(() => root.Combine("/etc/passwd"));
             Assert.AreEqual("srv/proj", root.RelativeTo(RemoteLocation.Parse("ssh://h/")));
         }
     }

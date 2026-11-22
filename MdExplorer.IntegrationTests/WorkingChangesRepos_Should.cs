@@ -142,9 +142,9 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(alRepoGiusto, "riga nuova");
 
             // E il percorso resta chiuso dentro il repository indicato.
-            await Assert.ThrowsExceptionAsync<ArgumentException>(
+            await Assert.ThrowsExactlyAsync<ArgumentException>(
                 () => Service(ctx).DiffAsync(path, null, "../../etc/passwd", "figlio"));
-            await Assert.ThrowsExceptionAsync<ArgumentException>(
+            await Assert.ThrowsExactlyAsync<ArgumentException>(
                 () => Service(ctx).DiffAsync(path, null, "codice.md", "../fuori"));
         }
 

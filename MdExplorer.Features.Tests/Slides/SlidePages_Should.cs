@@ -72,7 +72,7 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void RefuseAPageTheDeckDoesNotHave()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => Titles("2,12"));
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => Titles("2,12"));
 
             StringAssert.Contains(ex.Message, "9 pages");
             StringAssert.Contains(ex.Message, "12");
@@ -81,19 +81,19 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void RefuseARangeThatGoesBackwards()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => Titles("9-6"));
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => Titles("9-6"));
 
             StringAssert.Contains(ex.Message, "backwards");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("0")]
         [DataRow("a")]
         [DataRow("2,,3")]
         [DataRow("-3")]
         public void RefuseWhatIsNotAPageNumber(string pages)
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => Titles(pages));
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => Titles(pages));
 
             StringAssert.Contains(ex.Message, "not a page number");
         }

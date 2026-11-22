@@ -60,7 +60,7 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_a_block_that_is_not_whole()
         {
             var broken = Head + MdeInstructionsBlock.StartMarker(1) + "\nsenza fine" + Tail;
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => MdeInstructionsBlock.Apply(broken, Claude));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => MdeInstructionsBlock.Apply(broken, Claude));
             StringAssert.Contains(ex.Message, MdeInstructionsBlock.EndMarker);
         }
 

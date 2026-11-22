@@ -24,7 +24,6 @@ using MdExplorer.Features.Utilities;
 using System.Linq;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
-using MdExplorer.Service.Automapper.RefactoringFilesController;
 using Ad.Tools.FluentMigrator.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -60,7 +59,6 @@ namespace MdExplorer
             string pathFromParameter = Args.Count() > 0 ? Path.GetDirectoryName(Args[0]) : null;
             ProjectsManager.SetProjectInitialization(services, pathFromParameter);
 
-            services.AddAutoMapper(typeof(ProjectProfile).Assembly);
             services.AddMDExplorerCommands();
 
             // Add FoldersIgnoreService

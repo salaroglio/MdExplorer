@@ -142,9 +142,9 @@ namespace MdExplorer.IntegrationTests
 
             // Il percorso arriva dal client: senza controllo, un '../..' leggerebbe — o peggio
             // ripristinerebbe — file fuori dal progetto.
-            await Assert.ThrowsExceptionAsync<ArgumentException>(
+            await Assert.ThrowsExactlyAsync<ArgumentException>(
                 () => Service(ctx).DiffAsync(path, null, "../../../etc/passwd"));
-            await Assert.ThrowsExceptionAsync<ArgumentException>(
+            await Assert.ThrowsExactlyAsync<ArgumentException>(
                 () => Service(ctx).DiscardAsync(path, null, "../fuori.md"));
         }
 

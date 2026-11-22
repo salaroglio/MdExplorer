@@ -18,7 +18,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(CodeRootPaths.IsValidAlias("-x"));
             Assert.IsFalse(CodeRootPaths.IsValidAlias("a/b"));
             Assert.IsFalse(CodeRootPaths.IsValidAlias(""));
-            Assert.ThrowsException<ArgumentException>(() => CodeRootPaths.RequireAlias("Su Su"));
+            Assert.ThrowsExactly<ArgumentException>(() => CodeRootPaths.RequireAlias("Su Su"));
         }
 
         [TestMethod]
@@ -31,8 +31,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("@backend", CodeRootPaths.Format("backend", ""));
             Assert.IsTrue(CodeRootPaths.IsLogical("@backend/x"));
             Assert.IsFalse(CodeRootPaths.IsLogical("program/x.cs"));
-            Assert.ThrowsException<FormatException>(() => CodeRootPaths.Parse("program/x.cs"));
-            Assert.ThrowsException<FormatException>(() => CodeRootPaths.Parse("@Back End/x"));
+            Assert.ThrowsExactly<FormatException>(() => CodeRootPaths.Parse("program/x.cs"));
+            Assert.ThrowsExactly<FormatException>(() => CodeRootPaths.Parse("@Back End/x"));
         }
 
         [TestMethod]

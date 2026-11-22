@@ -85,7 +85,7 @@ namespace MdExplorer.IntegrationTests
             var linked = Service(store);
             await linked.LinkAsync(_project, "backend", mine);
             Assert.IsFalse((await linked.PendingReminderAsync(_project)).Any(r => r.Alias == "backend"), "collegata: niente da ricordare");
-            Assert.ThrowsException<ArgumentException>(() => linked.DismissReminder(_project, new[] { "Non Valido" }));
+            Assert.ThrowsExactly<ArgumentException>(() => linked.DismissReminder(_project, new[] { "Non Valido" }));
         }
 
         [TestMethod]
@@ -122,7 +122,7 @@ namespace MdExplorer.IntegrationTests
             var store = new MemoryStore();
             await Service(store).LinkAsync(_project, "backend", await CloneOf("backend", "https://github.com/acme/backend.git"));
             var wrong = await CloneOf("frontend", "https://github.com/acme/frontend.git");
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "backend", wrong));
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "backend", wrong));
             StringAssert.Contains(ex.Message, "acme/frontend");
             StringAssert.Contains(ex.Message, "acme/backend");
         }
@@ -144,7 +144,7 @@ namespace MdExplorer.IntegrationTests
             var missing = (await service.ListAsync(_project)).Single();
             Assert.AreEqual(CodeRootStatus.NotFound, missing.Status);
             var resolver = await service.CreateResolverAsync(_project);
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => resolver.Resolve("@backend/x.cs")).Message, "no longer exists");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => resolver.Resolve("@backend/x.cs")).Message, "no longer exists");
         }
 
         [TestMethod]
@@ -152,10 +152,10 @@ namespace MdExplorer.IntegrationTests
         {
             var inside = Path.Combine(_project, "program");
             Directory.CreateDirectory(inside);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", inside))).Message, "is inside the project");
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", inside))).Message, "is inside the project");
             var noRemote = await CloneOf("senza-remote", null);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", noRemote))).Message, "without a remote");
-            await Assert.ThrowsExceptionAsync<ArgumentException>(() => Service(new MemoryStore()).LinkAsync(_project, "Back End", noRemote));
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Service(new MemoryStore()).LinkAsync(_project, "x", noRemote))).Message, "without a remote");
+            await Assert.ThrowsExactlyAsync<ArgumentException>(() => Service(new MemoryStore()).LinkAsync(_project, "Back End", noRemote));
         }
 
         [TestMethod]
@@ -178,7 +178,7 @@ namespace MdExplorer.IntegrationTests
             var service = Service(new MemoryStore());
             await service.LinkAsync(_project, "globo", clone);
 
-            var refused = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo/src", true));
+            var refused = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo/src", true));
             StringAssert.Contains(refused.Message, "@globo", "A: una radice collegata è un programma intero, com'era");
 
             var state = await service.SetProgramAsync(_project, "@globo", false);
@@ -192,8 +192,8 @@ namespace MdExplorer.IntegrationTests
             await service.SetProgramAsync(_project, "@globo/src/Api", true);
             CollectionAssert.AreEqual(new[] { "src", "src/Api", "web" }, (await service.ListAsync(_project)).Single().Programs.Select(p => p.Path).ToArray(), "annidato");
             await service.SetProgramAsync(_project, "@globo/src/Api", false);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo", true))).Message, "(src, web)", "A, dall'altra parte");
-            await Assert.ThrowsExceptionAsync<DirectoryNotFoundException>(() => service.SetProgramAsync(_project, "@globo/non-c-e", true));
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.SetProgramAsync(_project, "@globo", true))).Message, "(src, web)", "A, dall'altra parte");
+            await Assert.ThrowsExactlyAsync<DirectoryNotFoundException>(() => service.SetProgramAsync(_project, "@globo/non-c-e", true));
 
             await service.SetProgramAsync(_project, "@globo/src", false);
             CollectionAssert.AreEqual(new[] { "web" }, (await service.ListAsync(_project)).Single().Programs.Select(p => p.Path).ToArray());

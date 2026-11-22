@@ -96,14 +96,14 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(LanguagePackageImport.Import(_project, nested, replace: false).HasPrompt);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("toy/../../evil.md", "..")]
         [DataRow("toy/run.ps1", "run.ps1")]
         [DataRow("altro/language.yml", "altro")]
         public void Refuse_a_zip_that_is_not_a_clean_package(string extra, string why)
         {
             var zip = Zip(new() { ["toy/language.yml"] = Rules(), [extra] = "x" });
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, zip, replace: false));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, zip, replace: false));
             StringAssert.Contains(ex.Message, why);
             Assert.IsFalse(Directory.Exists(Installed("toy")), "niente copiato");
         }
@@ -113,20 +113,20 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var repo = Repository();
             Write(repo, "toy/skills/toy-code/SKILL.md", "---\nname: toy-code\n---\n");
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, repo, replace: false));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, repo, replace: false));
             StringAssert.EndsWith(ex.DefinitionPath, "SKILL.md", "l'errore nomina il file del pacchetto da importare");
             Assert.IsFalse(Directory.Exists(DeclarativeLanguage.FolderOf(_project)), "un pacchetto rotto non entra");
 
             var cs = Repository(2);
             Write(cs, "toy/language.yml", Rules().Replace("extensions: [.toy, .toh, .tor, .tos]", "extensions: [.toy, .cs]"));
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, cs, replace: false)).Message, ".cs");
+            StringAssert.Contains(Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, cs, replace: false)).Message, ".cs");
 
             var two = Path.Combine(_outside, "due");
             Write(two, "toy/language.yml", Rules());
             Write(two, "zeta/language.yml", Rules().Replace("id: toy", "id: zeta"));
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, two, replace: false)).Message, "toy, zeta",
+            StringAssert.Contains(Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, two, replace: false)).Message, "toy, zeta",
                 "due pacchetti nella stessa cartella: si sceglie quello giusto, non uno a caso");
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, _outside, replace: false)).Message, "language.yml",
+            StringAssert.Contains(Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageImport.Import(_project, _outside, replace: false)).Message, "language.yml",
                 "una cartella senza pacchetto lo dice");
         }
 
@@ -135,7 +135,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             LanguagePackageImport.Import(_project, Repository(1), replace: false);
             var newer = Repository(2, withSkill: false);
-            var ex = Assert.ThrowsException<LanguagePackageExistsException>(() => LanguagePackageImport.Import(_project, newer, replace: false));
+            var ex = Assert.ThrowsExactly<LanguagePackageExistsException>(() => LanguagePackageImport.Import(_project, newer, replace: false));
             Assert.AreEqual((1, 2), (ex.ExistingVersion, ex.ImportedVersion));
             StringAssert.Contains(File.ReadAllText(Installed("toy/language.yml")), "version: 1", "senza conferma niente cambia");
 

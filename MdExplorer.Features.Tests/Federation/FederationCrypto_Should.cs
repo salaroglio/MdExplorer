@@ -28,11 +28,11 @@ namespace MdExplorer.Features.Tests.Federation
             Assert.AreEqual("ciao dalla chat", FederationCrypto.DecryptChat(Secret, Room, envelope));
 
             // Etichette diverse: una busta della chat non è una busta della città, e viceversa.
-            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.Decrypt(Secret, Room, envelope));
+            Assert.ThrowsExactly<FederationCryptoException>(() => FederationCrypto.Decrypt(Secret, Room, envelope));
             var city = FederationCrypto.Encrypt(Secret, Room, "presenza");
-            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.DecryptChat(Secret, Room, city));
+            Assert.ThrowsExactly<FederationCryptoException>(() => FederationCrypto.DecryptChat(Secret, Room, city));
             // E con un segreto diverso non si apre.
-            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.DecryptChat("altro", Room, envelope));
+            Assert.ThrowsExactly<FederationCryptoException>(() => FederationCrypto.DecryptChat("altro", Room, envelope));
             Assert.IsFalse(FederationCrypto.IsChatEnvelope("un messaggio di prima, in chiaro"));
         }
 
@@ -93,7 +93,7 @@ namespace MdExplorer.Features.Tests.Federation
             chars[i] = chars[i] == 'A' ? 'B' : 'A';
             var tampered = new string(chars);
 
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, Room, tampered));
         }
 
@@ -101,7 +101,7 @@ namespace MdExplorer.Features.Tests.Federation
         public void Fail_loud_with_the_wrong_secret()
         {
             var envelope = FederationCrypto.Encrypt(Secret, Room, "segreto");
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt("secret-sbagliato", Room, envelope));
         }
 
@@ -109,33 +109,33 @@ namespace MdExplorer.Features.Tests.Federation
         public void Fail_loud_with_the_wrong_room()
         {
             var envelope = FederationCrypto.Encrypt(Secret, Room, "segreto");
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, "0000000000000000", envelope));
         }
 
         [TestMethod]
         public void Fail_loud_on_an_unknown_version()
         {
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, Room, "mdfed.v2.AAAA"));
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, Room, "not-an-envelope"));
         }
 
         [TestMethod]
         public void Fail_loud_on_malformed_base64_or_short_envelope()
         {
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, Room, "mdfed.v1.!!!not-base64!!!"));
-            Assert.ThrowsException<FederationCryptoException>(
+            Assert.ThrowsExactly<FederationCryptoException>(
                 () => FederationCrypto.Decrypt(Secret, Room, "mdfed.v1.AAAA")); // troppo corta per nonce+tag
         }
 
         [TestMethod]
         public void Reject_an_empty_secret_when_deriving()
         {
-            Assert.ThrowsException<ArgumentException>(() => FederationCrypto.DeriveKey("", Room));
-            Assert.ThrowsException<ArgumentException>(() => FederationCrypto.DeriveKey(Secret, ""));
+            Assert.ThrowsExactly<ArgumentException>(() => FederationCrypto.DeriveKey("", Room));
+            Assert.ThrowsExactly<ArgumentException>(() => FederationCrypto.DeriveKey(Secret, ""));
         }
 
         [TestMethod]

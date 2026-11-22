@@ -119,7 +119,7 @@ namespace MdExplorer.IntegrationTests
                 var otherUri = await other.EnsureRunningAsync();
                 PretendOwner(dataDir, alive.Id, alive.StartTime.ToUniversalTime().Ticks);
 
-                var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
+                var ex = await Assert.ThrowsExactlyAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
                 StringAssert.Contains(ex.Message, "another running MdExplorer");
                 StringAssert.Contains(ex.Message, alive.Id.ToString());
                 Assert.AreEqual(otherUri, other.RunningBaseUri, "il Fuseki dell'altra istanza non si tocca");
@@ -219,7 +219,7 @@ namespace MdExplorer.IntegrationTests
             var options = OptionsIn(dataDir);
             options.SearchAlternativeJava = false; // qui si verifica il rifiuto: senza ricerca di un altro Java
             using var manager = new FusekiProcessManager(options, new PathJavaLocator(fakeJava), NullLogger<FusekiProcessManager>.Instance);
-            var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
+            var ex = await Assert.ThrowsExactlyAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
             StringAssert.Contains(ex.Message, "Java 17 found");
             StringAssert.Contains(ex.Message, "needs Java 21");
             StringAssert.Contains(ex.Message, fakeJava);
@@ -254,7 +254,7 @@ namespace MdExplorer.IntegrationTests
             var options = OptionsIn(dataDir);
             options.JarPath = Path.Combine(dataDir, "missing", "jena-fuseki-server.jar");
             using var manager = new FusekiProcessManager(options, new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
-            var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
+            var ex = await Assert.ThrowsExactlyAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
             StringAssert.Contains(ex.Message, options.JarPath);
             StringAssert.Contains(ex.Message, "reinstall MdExplorer");
             try { Directory.Delete(dataDir, true); } catch { }

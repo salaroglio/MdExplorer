@@ -340,7 +340,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var extractor = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance);
             StringAssert.Contains(extractor.Availability, "grammatica da scaricare");
-            Assert.ThrowsException<InvalidOperationException>(() => extractor.Extract(Request()));
+            Assert.ThrowsExactly<InvalidOperationException>(() => extractor.Extract(Request()));
         }
 
         [TestMethod]

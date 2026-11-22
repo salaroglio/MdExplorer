@@ -41,11 +41,11 @@ namespace MdExplorer.Features.Tests.Ocr
         [TestMethod]
         public void RefuseWhatIsNotACompoundFile_AndABrokenOne()
         {
-            Assert.ThrowsException<InvalidDataException>(() => new CompoundFile(new byte[600]));
+            Assert.ThrowsExactly<InvalidDataException>(() => new CompoundFile(new byte[600]));
 
             var broken = Compound(("CONTENTS", new byte[5000]));
             BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(broken, 512 + 5 * 4);   // la catena del flusso si interrompe
-            Assert.ThrowsException<InvalidDataException>(() => new CompoundFile(broken).Stream("CONTENTS"));
+            Assert.ThrowsExactly<InvalidDataException>(() => new CompoundFile(broken).Stream("CONTENTS"));
         }
 
         [TestMethod]
@@ -72,9 +72,9 @@ namespace MdExplorer.Features.Tests.Ocr
         [TestMethod]
         public void SayWhatItCannotOpen()
         {
-            StringAssert.Contains(Assert.ThrowsException<InvalidDataException>(
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidDataException>(
                 () => WordAttachments.Unwrap(Encoding.ASCII.GetBytes("non so cosa sia, ma non è niente di noto"), "Strano.Oggetto")).Message, "Strano.Oggetto");
-            StringAssert.Contains(Assert.ThrowsException<InvalidDataException>(
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidDataException>(
                 () => WordAttachments.Unwrap(Compound(("Altro", new byte[5000])), "Strano.Oggetto")).Message, "Strano.Oggetto");
         }
 

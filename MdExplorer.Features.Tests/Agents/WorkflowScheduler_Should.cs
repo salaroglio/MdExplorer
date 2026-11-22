@@ -296,7 +296,7 @@ namespace MdExplorer.Features.Tests.Agents
                 var id = RoundLedger.NewRoundId("gara/gara.workflow.json", T0, new Random(1));
                 StringAssert.StartsWith(id, "2026-10-06-gara-");
                 RoundLedger.Open(root, new RoundHeader { Id = id, Workflow = "gara/gara.workflow.json", StartedAt = T0, StartedBy = "am@test.local" });
-                Assert.ThrowsException<InvalidOperationException>(() => RoundLedger.Open(root, new RoundHeader { Id = id }), "un giro non si riapre");
+                Assert.ThrowsExactly<InvalidOperationException>(() => RoundLedger.Open(root, new RoundHeader { Id = id }), "un giro non si riapre");
 
                 RoundLedger.Append(root, id, "ricerca", "account-manager", new RoundEvent { Type = RoundEventType.Started, At = T0 });
                 RoundLedger.Append(root, id, "ricerca", "account-manager", new RoundEvent
@@ -315,11 +315,11 @@ namespace MdExplorer.Features.Tests.Agents
 
                 var tecnica = Path.Combine(RoundLedger.RoundFolder(root, id), "tecnica.json");
                 File.WriteAllText(tecnica, File.ReadAllText(tecnica).Replace("\"held\"", "\"in-attesa\""));
-                var ex = Assert.ThrowsException<InvalidDataException>(() => RoundLedger.Load(root, id));
+                var ex = Assert.ThrowsExactly<InvalidDataException>(() => RoundLedger.Load(root, id));
                 StringAssert.Contains(ex.Message, "'in-attesa' is not a step event");
 
                 File.WriteAllText(tecnica, File.ReadAllText(tecnica).Replace("\"in-attesa\"", "\"held\"").Replace("\"step\"", "\"colore\": \"blu\", \"step\""));
-                ex = Assert.ThrowsException<InvalidDataException>(() => RoundLedger.Load(root, id));
+                ex = Assert.ThrowsExactly<InvalidDataException>(() => RoundLedger.Load(root, id));
                 StringAssert.Contains(ex.Message, "tecnica.json");
             }
             finally { Directory.Delete(root, true); }
@@ -332,7 +332,7 @@ namespace MdExplorer.Features.Tests.Agents
             Directory.CreateDirectory(root);
             try
             {
-                var ex = Assert.ThrowsException<InvalidOperationException>(() =>
+                var ex = Assert.ThrowsExactly<InvalidOperationException>(() =>
                     RoundLedger.Append(root, "2026-10-06-gara-000000", "tecnica", "t", new RoundEvent { Type = RoundEventType.Held, At = T0 }));
                 StringAssert.Contains(ex.Message, "must be opened before");
             }
@@ -462,7 +462,7 @@ namespace MdExplorer.Features.Tests.Agents
             try
             {
                 var id = RoundLedger.NewRoundId("gara/gara.workflow.json", T0, new Random(2));
-                Assert.ThrowsException<InvalidOperationException>(() => RoundLedger.SaveWorkflowSnapshot(root, id, Gara), "prima si apre il giro");
+                Assert.ThrowsExactly<InvalidOperationException>(() => RoundLedger.SaveWorkflowSnapshot(root, id, Gara), "prima si apre il giro");
                 RoundLedger.Open(root, new RoundHeader { Id = id, Workflow = "gara/gara.workflow.json", StartedAt = T0, StartedBy = "am@test.local" });
                 Assert.IsNull(RoundLedger.LoadWorkflowSnapshot(root, id), "un giro di prima non ha la sua copia: vale l'attuale");
 

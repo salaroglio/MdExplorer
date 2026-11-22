@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Tests.E2e
             File.WriteAllText(_test, "---\ne2e:\n  baseUrl: https://example.org\n---\n");
 
             Assert.AreEqual(new E2eSetting(true, null), E2eRunSettingsResolver.Resolve(_test, project).Headless);
-            Assert.ThrowsException<ArgumentException>(() => E2eRunSettingsResolver.Resolve(_test, Path.Combine(_root, "altro")));
+            Assert.ThrowsExactly<ArgumentException>(() => E2eRunSettingsResolver.Resolve(_test, Path.Combine(_root, "altro")));
         }
 
         [TestMethod]

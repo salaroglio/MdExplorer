@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             StringAssert.Contains(q, "GRAPH <" + Graph + ">");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("INSERT DATA { <urn:a> <urn:b> <urn:c> }", "SELECT")]
         [DataRow("SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }", "GRAPH")]
         [DataRow("SELECT * FROM <urn:altro> WHERE { ?s ?p ?o }", "FROM")]
@@ -37,7 +37,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [DataRow("   ", "empty")]
         public void Refuse_what_is_not_a_read_of_the_project_graph(string query, string reason)
         {
-            var ex = Assert.ThrowsException<CodeSparqlException>(() => CodeSparql.Prepare(query, Graph));
+            var ex = Assert.ThrowsExactly<CodeSparqlException>(() => CodeSparql.Prepare(query, Graph));
             StringAssert.Contains(ex.Message, reason);
         }
     }

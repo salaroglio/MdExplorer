@@ -129,7 +129,7 @@ namespace MdExplorer.Features.Tests.E2e
         [TestMethod]
         public void Refuse_a_skill_without_one_of_the_files()
         {
-            Assert.ThrowsException<InvalidOperationException>(() => E2eSupportFiles.FromSkill("# niente esempi\n"));
+            Assert.ThrowsExactly<InvalidOperationException>(() => E2eSupportFiles.FromSkill("# niente esempi\n"));
         }
     }
 }

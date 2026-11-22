@@ -65,7 +65,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Refuse_to_create_for_a_read_only_user_before_calling_redmine()
         {
             var conn = Reader();   // fuori dalla lambda: senza Redmine di prova il test è inconcludente, non fallito
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
                 Client().CreateIssueAsync(conn, new RedmineIssueChange { Project = Project, Tracker = "Segnalazione", Subject = "non deve nascere" }));
             StringAssert.Contains(ex.Message, "add_issues", "il permesso mancante, non il 422 fuorviante di Redmine");
             Assert.AreEqual(HttpStatusCode.Forbidden, ex.StatusCode);
@@ -75,7 +75,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Report_the_required_custom_field_on_create()
         {
             var conn = Dev();   // fuori dalla lambda: senza Redmine di prova il test è inconcludente, non fallito
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
                 Client().CreateIssueAsync(conn, new RedmineIssueChange { Project = Project, Tracker = "Segnalazione", Subject = "senza ambiente" }));
             StringAssert.Contains(ex.Message, "Ambiente");
         }
@@ -100,7 +100,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Reject_a_status_that_is_not_allowed_instead_of_a_silent_204()
         {
             var any = (await Client().SearchIssuesAsync(Dev(), new RedmineIssueQuery { Projects = { Project }, Status = "open" })).First();
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
                 Client().UpdateIssueAsync(Dev(), any.Id, new RedmineIssueChange { Status = "Inesistente" }));
             StringAssert.Contains(ex.Message, "Inesistente");
         }
@@ -109,7 +109,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Refuse_a_note_from_a_read_only_user()
         {
             var any = (await Client().SearchIssuesAsync(Reader(), new RedmineIssueQuery { Projects = { Project }, Status = "*" })).First();
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
                 Client().UpdateIssueAsync(Reader(), any.Id, new RedmineIssueChange { Notes = "non deve arrivare" }));
             StringAssert.Contains(ex.Message, "add_issue_notes");
         }
@@ -122,7 +122,7 @@ namespace MdExplorer.IntegrationTests
         {
             var html = "<html><head><title>The URL you requested has been blocked</title></head><body>Attack ID: 12345<br>Message ID: 000012345678</body></html>";
             var client = Client(new Fake(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent(html, Encoding.UTF8, "text/html") }));
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() => client.VerifyAsync(new RedmineConnection { BaseUrl = "https://redmine.example.test", ApiKey = "k" }));
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() => client.VerifyAsync(new RedmineConnection { BaseUrl = "https://redmine.example.test", ApiKey = "k" }));
             StringAssert.Contains(ex.Message, "The URL you requested has been blocked");
             StringAssert.Contains(ex.Message, "Message ID: 000012345678");
             StringAssert.Contains(ex.Message, "X-Redmine-API-Key");
@@ -147,7 +147,7 @@ namespace MdExplorer.IntegrationTests
                 agent = r.Headers.UserAgent.ToString();
                 return new HttpResponseMessage(HttpStatusCode.Unauthorized) { Content = new StringContent("") };
             }));
-            var ex = await Assert.ThrowsExceptionAsync<RedmineApiException>(() => client.VerifyAsync(new RedmineConnection { BaseUrl = "https://redmine.example.test/", ApiKey = "abc" }));
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() => client.VerifyAsync(new RedmineConnection { BaseUrl = "https://redmine.example.test/", ApiKey = "abc" }));
             Assert.AreEqual("abc", header);
             StringAssert.StartsWith(agent, "MdExplorer", "MDE si presenta: gli amministratori lo riconoscono nei log");
             Assert.IsTrue(ex.IsAuthFailure);

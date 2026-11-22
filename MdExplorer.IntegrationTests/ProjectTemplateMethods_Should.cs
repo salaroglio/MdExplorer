@@ -123,7 +123,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Open roles added in responsabilita.md: Analista DDD, Product owner")), string.Join("\n", outcome.Notes));
 
             // Il metodo c'è già: non si aggiunge una seconda volta.
-            var again = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Add(ctx, path, Template(ctx, "ddd-bis", DddBranches())));
+            var again = await Assert.ThrowsExactlyAsync<System.InvalidOperationException>(() => Add(ctx, path, Template(ctx, "ddd-bis", DddBranches())));
             StringAssert.Contains(again.Message, "already has the template 'ddd'");
         }
 
@@ -174,7 +174,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.AreEqual("", Git(path, "status --porcelain --untracked-files=all").Out, "appena creato, niente da committare");
             Assert.IsTrue(outcome.Notes.Any(n => n.Contains("Project engine: claude")), string.Join("\n", outcome.Notes));
 
-            var bad = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var bad = await Assert.ThrowsExactlyAsync<System.InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "motore-strano"), TemplateUrl = Strato(ctx), Methods = new[] { Template(ctx, "ddd-2", DddBranches()) }, Language = "it", MdeVersion = Mde, Harness = "vim",
             }));
@@ -259,7 +259,7 @@ instructions: .mde-template/ddd/istruzioni.md
             var head = Git(path, "rev-parse HEAD").Out;
             async Task<string> Refused(string url)
             {
-                var ex = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Add(ctx, path, url));
+                var ex = await Assert.ThrowsExactlyAsync<System.InvalidOperationException>(() => Add(ctx, path, url));
                 Assert.AreEqual(head, Git(path, "rev-parse HEAD").Out, ex.Message);
                 Assert.AreEqual("", Git(path, "status --porcelain").Out, "niente lasciato indietro: " + ex.Message);
                 Assert.AreEqual("origin\ntemplate-demo", Git(path, "remote").Out, "nessun remoto in più: " + ex.Message);
@@ -274,7 +274,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Assert.IsFalse(File.Exists(Path.Combine(path, "responsabilita.md")), "il documento nato per il metodo rifiutato non resta");
 
             File.AppendAllText(Path.Combine(path, "README.md"), "una modifica\n");
-            var dirty = await Assert.ThrowsExceptionAsync<System.InvalidOperationException>(() => Add(ctx, path, Template(ctx, "ddd", DddBranches())));
+            var dirty = await Assert.ThrowsExactlyAsync<System.InvalidOperationException>(() => Add(ctx, path, Template(ctx, "ddd", DddBranches())));
             StringAssert.Contains(dirty.Message, "uncommitted changes");
         }
     }

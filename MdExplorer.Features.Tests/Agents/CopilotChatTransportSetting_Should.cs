@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Tests.Agents
         {
             // Someone writes 'acpp' precisely because the SDK is broken: silently handing them the
             // SDK again would give back the very thing they were getting away from.
-            var ex = Assert.ThrowsException<InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => CopilotChatTransportSetting.Parse("acpp"));
 
             Assert.IsTrue(ex.Message.Contains(CopilotChatTransportSetting.SettingName),

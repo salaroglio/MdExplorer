@@ -122,7 +122,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual((6, 4, 2), (r.GetProperty("counts").GetProperty("true").GetInt32(), r.GetProperty("counts").GetProperty("false").GetInt32(), r.GetProperty("counts").GetProperty("undetermined").GetInt32()));
 
             // con la cartella, il nome doppio non lo è più se uno solo sta lì; una forma sconosciuta si rifiuta dicendo quali ci sono
-            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Service().RunAsync("/progetto", "check-claims", new Dictionary<string, string> { ["claims"] = "usa: A -> B" }, CancellationToken.None));
+            await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Service().RunAsync("/progetto", "check-claims", new Dictionary<string, string> { ["claims"] = "usa: A -> B" }, CancellationToken.None));
         }
 
         [TestMethod]
@@ -151,19 +151,19 @@ namespace MdExplorer.IntegrationTests
             var folders = await Ask("unit-map", ("unit", "folder"));
             Assert.AreEqual("web/", folders.GetProperty("rows")[0].GetProperty("From").GetString());
 
-            var none = await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "dl/Dl.vbproj -> web/Web.vbproj")));
+            var none = await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "dl/Dl.vbproj -> web/Web.vbproj")));
             StringAssert.Contains(none.Message, "rows");
-            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "solo-una")));
+            await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("unit-map", ("pair", "solo-una")));
         }
 
         [TestMethod]
         public async Task Refuse_a_wrong_value_or_a_missing_parameter_saying_what_is_allowed()
         {
-            var wrong = await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("pages-to-data", ("outcome", "boh")));
+            var wrong = await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("pages-to-data", ("outcome", "boh")));
             StringAssert.Contains(wrong.Message, "stops-at-library");
-            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("pages-to-data", ("unit", "form")));
-            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unreached-code", ("from", "web")));
-            await Assert.ThrowsExceptionAsync<CodeQueryException>(() => Ask("unreached-code", ("to", "dl"), ("sample", "51")));
+            await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("pages-to-data", ("unit", "form")));
+            await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("unreached-code", ("from", "web")));
+            await Assert.ThrowsExactlyAsync<CodeQueryException>(() => Ask("unreached-code", ("to", "dl"), ("sample", "51")));
         }
     }
 }

@@ -12,7 +12,7 @@ namespace MdExplorer.Features.Tests
             var textToPars = "mdShowMd(file.md)";
             var command = new MDShowMD("",null);
             var match = command.GetMatches(textToPars);
-            Assert.AreEqual(match.Count, 1);
+            Assert.AreEqual(1, match.Count);
         }
 
         [TestMethod]
@@ -22,7 +22,7 @@ namespace MdExplorer.Features.Tests
             var command = new MDShowMD("",null);
             var match = command.GetMatches(textToPars);
             var stringMatched = match[0].Groups[1].Value;
-            Assert.AreEqual(stringMatched, "file.md");
+            Assert.AreEqual("file.md", stringMatched);
         }
 
         [TestMethod]
@@ -35,9 +35,9 @@ namespace MdExplorer.Features.Tests
             var command = new FromPlantumlToPng("", null,null,null,null);
             var match = command.GetMatches(textToPars);
             var stringMatched = match[0].Groups[1].Value;
-            Assert.AreEqual(stringMatched, @" 
+            Assert.AreEqual(@" 
                                     @startuml 
-                            @enduml ");
+                            @enduml ", stringMatched);
         }
 
         [TestMethod]

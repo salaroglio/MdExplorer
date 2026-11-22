@@ -188,7 +188,7 @@ instructions: .mde-template/ddd/istruzioni.md
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var url = Template(ctx, "ddd", Method(new() { [".claude/skills/ddd-vecchia/SKILL.md"] = "---\nname: ddd-vecchia\n---\n" }));
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Create(ctx, new TemplateCreateRequest
             {
                 Path = NewFolder(ctx, "skill-fuori"), TemplateUrl = Strato(ctx), Methods = new[] { url }, Language = "it", MdeVersion = Mde, Harness = "claude",
             }));

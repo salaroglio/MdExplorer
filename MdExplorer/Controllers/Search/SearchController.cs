@@ -1,4 +1,3 @@
-using AutoMapper;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Services;
@@ -25,7 +24,6 @@ namespace MdExplorer.Service.Controllers.Search
     {
         private readonly ILogger<SearchController> _logger;
         private readonly ISearchService _searchService;
-        private readonly IMapper _mapper;
         private readonly ITextFtsService _textFtsService;
 
         public SearchController(
@@ -38,14 +36,12 @@ namespace MdExplorer.Service.Controllers.Search
             IWorkLink[] modifiers,
             IHelper helper,
             ISearchService searchService,
-            IMapper mapper,
             MdExplorer.Services.DatabaseManager.IDatabaseManager databaseManager,
             ITextFtsService textFtsService = null)
             : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
             _logger = logger;
             _searchService = searchService;
-            _mapper = mapper;
             _textFtsService = textFtsService;
         }
 

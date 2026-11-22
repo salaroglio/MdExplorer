@@ -79,7 +79,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsNull(bare.CodeDocPromptHash);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("toy/script.ps1", "x", "script.ps1", "README.md, prompts/code-doc.md")]
         [DataRow("toy/prompts/altro.md", "x", "altro.md", "README.md, prompts/code-doc.md")]
         [DataRow("toy/prompts/code-doc.md", "  \n", "code-doc.md", "prompt")]
@@ -118,7 +118,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(before.Language.DefinitionHash, package.Language.DefinitionHash, "le regole sono le stesse");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("progress:\n  links:\n    it: Solo italiano\n", "progress.links")]
         [DataRow("progress:\n  altro:\n    it: a\n    en: b\n", "messages.yml")]
         [DataRow("progresso: x\n", "messages.yml")]

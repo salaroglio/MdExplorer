@@ -120,12 +120,12 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(info.Incompatible, info.Problem);
             var head = Git(path, "rev-parse HEAD").Out;
 
-            var refused = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Update(ctx, path, "ddd"));
+            var refused = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Update(ctx, path, "ddd"));
             StringAssert.Contains(refused.Message, "Read and confirm before updating");
             Assert.AreEqual(head, Git(path, "rev-parse HEAD").Out);
 
             File.AppendAllText(Path.Combine(path, "README.md"), "mia modifica\n");
-            var dirty = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Update(ctx, path, "ddd", accept: true));
+            var dirty = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Update(ctx, path, "ddd", accept: true));
             StringAssert.Contains(dirty.Message, "uncommitted changes");
             Git(path, "checkout -- README.md");
 
@@ -211,7 +211,7 @@ namespace MdExplorer.IntegrationTests
 
             Publish(ctx, url, "main", new() { [".mde-template/ddd/CHANGELOG.md"] = "# CHANGELOG\n\n## 2.0.0 — 2026-11-01\n⚠️ incompatibile: x. Cosa fare: y.\n" });
             StringAssert.Contains((await Updates(ctx, path)).Single(u => u.Id == "ddd").Problem, "no entry for 1.0.0, the project's version");
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Update(ctx, path, "ddd", accept: true));
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Update(ctx, path, "ddd", accept: true));
         }
 
         [TestMethod]
@@ -230,7 +230,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("", Git(path, "status --porcelain").Out);
             using (var scope = ctx.Factory.Services.CreateScope())
             {
-                var again = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
+                var again = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
                     scope.ServiceProvider.GetRequiredService<IProjectTemplateUpdates>().DetachAsync(path, "demo"));
                 StringAssert.Contains(again.Message, "already detached");
             }

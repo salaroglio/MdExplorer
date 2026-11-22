@@ -16,7 +16,6 @@ using System.Linq;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Service.Controllers.TabBar.Automapper;
 using System.Collections.Generic;
-using AutoMapper;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Services.DatabaseManager;
@@ -30,7 +29,6 @@ namespace MdExplorer.Service.Controllers.TabBar
     public class TabBarController : MdControllerBase<TabBarController>
     {
         private readonly ILogger<TabBarController> _logger;
-        private readonly IMapper _mapper;
         private readonly IOptions<MdExplorerAppSettings> _options;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IUserSettingsDB _sessionDB;
@@ -38,7 +36,6 @@ namespace MdExplorer.Service.Controllers.TabBar
         private readonly IApplicationExtensionConfiguration _extensionConfiguration;
 
         public TabBarController(ILogger<TabBarController> logger,
-                                    IMapper mapper,
                                     IOptions<MdExplorerAppSettings> options,
                                     IHubContext<MonitorMDHub> hubContext,
                                     IUserSettingsDB session,
@@ -50,7 +47,6 @@ namespace MdExplorer.Service.Controllers.TabBar
                                     IDatabaseManager databaseManager = null) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers,helper, databaseManager)
         {
             _logger = logger;
-            _mapper = mapper;
             _options = options;
             _hubContext = hubContext;
             _sessionDB = session;
@@ -163,7 +159,7 @@ namespace MdExplorer.Service.Controllers.TabBar
                 _logger.LogInformation($"[GetRefsData] Match - FullPath: '{link.FullPath}', Source: '{link.Source}', File: '{link.MarkdownFile?.FileName}'");
             }
 
-            var linkDtoList = _mapper.Map<List<LinkInsideMarkdownDto>>(links);
+            var linkDtoList = links.Select(LinkInsideMarkdownDto.From).ToList();
             //_session.Commit();
             return Ok(linkDtoList);
         }

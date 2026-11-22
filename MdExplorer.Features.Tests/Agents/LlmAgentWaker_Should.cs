@@ -201,13 +201,13 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
         public async Task Refuse_to_wake_a_bodyless_agent()
         {
             var waker = new LlmAgentWaker(new RunTokenStore(), new CapturingRunner(new RunTokenStore()));
             var req = Request();
             req.AgentFileContent = "   ";
-            await waker.WakeAsync(req);
+            // MSTest 4 non ha più [ExpectedException]: stessa attesa (il tipo esatto), sul punto che deve lanciarla.
+            await Assert.ThrowsExactlyAsync<ArgumentException>(() => waker.WakeAsync(req));
         }
     }
 }

@@ -21,12 +21,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
             {
                 var zeros = Path.Combine(dir, "Vuota.aspx.vb");
                 File.WriteAllBytes(zeros, new byte[9051]);
-                StringAssert.Contains(Assert.ThrowsException<InvalidDataException>(() => CodeSourceText.Read(zeros)).Message, "9051");
-                StringAssert.Contains(Assert.ThrowsException<InvalidDataException>(() => CodeSourceText.Read(zeros)).Message, "entirely zero");
+                StringAssert.Contains(Assert.ThrowsExactly<InvalidDataException>(() => CodeSourceText.Read(zeros)).Message, "9051");
+                StringAssert.Contains(Assert.ThrowsExactly<InvalidDataException>(() => CodeSourceText.Read(zeros)).Message, "entirely zero");
 
                 var some = Path.Combine(dir, "Binario.vb");
                 File.WriteAllBytes(some, new byte[] { 65, 0, 0, 66, 67, 0, 68, 69, 70, 71 });
-                var message = Assert.ThrowsException<InvalidDataException>(() => CodeSourceText.Read(some)).Message;
+                var message = Assert.ThrowsExactly<InvalidDataException>(() => CodeSourceText.Read(some)).Message;
                 StringAssert.Contains(message, "3 NUL bytes out of 10");
             }
             finally { try { Directory.Delete(dir, true); } catch { } }

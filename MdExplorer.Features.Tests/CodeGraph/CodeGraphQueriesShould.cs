@@ -132,7 +132,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             example = example[..example.IndexOf("```", StringComparison.Ordinal)];
             Assert.AreEqual(0, (await _repo.SparqlAsync(_project, example, 0)).RowCount, "niente SQL in questo progetto, ma la query si esegue");
 
-            var ex = await Assert.ThrowsExceptionAsync<CodeSparqlException>(() => _repo.SparqlAsync(_project, "SELECT ?s WHERE { ?s code:nonEsiste ?x . FILTER(?x = ) }", 0));
+            var ex = await Assert.ThrowsExactlyAsync<CodeSparqlException>(() => _repo.SparqlAsync(_project, "SELECT ?s WHERE { ?s code:nonEsiste ?x . FILTER(?x = ) }", 0));
             StringAssert.Contains(ex.Message, "Fuseki");
         }
 

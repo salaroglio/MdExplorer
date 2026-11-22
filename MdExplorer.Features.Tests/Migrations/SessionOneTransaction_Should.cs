@@ -29,9 +29,9 @@ namespace MdExplorer.Features.Tests.Migrations
                 using var session = new SessionDB(factory.OpenSession());
                 session.BeginTransaction();
                 session.CreateSQLQuery("insert into t values('fuori')").ExecuteUpdate();
-                var refused = Assert.ThrowsException<InvalidOperationException>(() => session.BeginTransaction());
+                var refused = Assert.ThrowsExactly<InvalidOperationException>(() => session.BeginTransaction());
                 StringAssert.Contains(refused.Message, Path.GetFileName(dbPath), "dice su quale database");
-                Assert.ThrowsException<InvalidOperationException>(() => session.BeginTransaction(System.Data.IsolationLevel.ReadCommitted));
+                Assert.ThrowsExactly<InvalidOperationException>(() => session.BeginTransaction(System.Data.IsolationLevel.ReadCommitted));
                 session.Rollback();
                 Assert.AreEqual(0L, Count(), "il rollback di chi ha aperto annulla tutto");
 

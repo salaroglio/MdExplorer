@@ -108,7 +108,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public void Refuse_byName_outside_resolve_file()
         {
             var bad = Rule.Replace("resolve: file", "resolve: module");
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => Toy(bad, Path.Combine(_dir, ".mde-languages", "toy", "language.yml")));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => Toy(bad, Path.Combine(_dir, ".mde-languages", "toy", "language.yml")));
             StringAssert.Contains(ex.Message, "byName");
         }
     }

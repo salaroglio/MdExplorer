@@ -19,9 +19,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.15" />
 
-    <!-- ASP.NET Core for Controllers and SignalR -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+    <!-- ASP.NET Core for Controllers and SignalR: dal framework condiviso (il modulo lo carica il servizio),
+         non più dai pacchetti 2.2 / 1.1 del 2018-2019. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <!-- Auto-copy Premium DLL to open source bin for Development -->

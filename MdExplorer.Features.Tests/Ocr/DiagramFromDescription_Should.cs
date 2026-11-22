@@ -35,11 +35,11 @@ namespace MdExplorer.Features.Tests.Ocr
         [TestMethod]
         public void SayWhatIsMissingFromAnAnswerOutOfFormat()
         {
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(() => RedrawVerdict.Parse("Ecco lo schema.")).Message, "DESCRIPTION");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(() => RedrawVerdict.Parse("DESCRIPTION:\nTesto.")).Message, "ELEMENTS");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(() => RedrawVerdict.Parse("Ecco lo schema.")).Message, "DESCRIPTION");
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(() => RedrawVerdict.Parse("DESCRIPTION:\nTesto.")).Message, "ELEMENTS");
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(
                 () => RedrawVerdict.Parse("DESCRIPTION:\nTesto.\nELEMENTS:\n- A\nRELATIONS:\n- A verso B")).Message, "A verso B");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(
                 () => RedrawVerdict.Parse("DESCRIPTION:\nTesto.\nELEMENTS:\n- A\n```plantuml\nA -> B\n```")).Message, "@startuml");
         }
 

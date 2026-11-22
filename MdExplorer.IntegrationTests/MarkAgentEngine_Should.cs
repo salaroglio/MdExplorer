@@ -99,7 +99,7 @@ namespace MdExplorer.IntegrationTests
         {
             DeclareHarness("claude");
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => MarkAgentEngines.Resolve("gpt-5", _root, out _));
 
             // Nessun ripiego su un motore a caso: si dice che cosa c'e' scritto e che cosa si accetta.

@@ -181,7 +181,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("getter", get.Trivial); Assert.AreEqual("value", get.TrivialOf);
             Assert.IsNull(back.Symbols.Single(s => s.Id == "mid").Trivial);
             Assert.AreEqual(text, CodeScriptWriter.Serialize(back));
-            Assert.ThrowsException<CodeScriptFormatException>(() => CodeScriptParser.Parse(text.Replace("code:trivial \"getter\"", "code:trivial \"pigro\""), "a.java.ast.ttl"), "una forma sconosciuta non passa");
+            Assert.ThrowsExactly<CodeScriptFormatException>(() => CodeScriptParser.Parse(text.Replace("code:trivial \"getter\"", "code:trivial \"pigro\""), "a.java.ast.ttl"), "una forma sconosciuta non passa");
         }
 
         // ---------------------------------------------------------------- F12b: freschezza

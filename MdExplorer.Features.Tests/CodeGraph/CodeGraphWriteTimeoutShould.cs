@@ -86,7 +86,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             _client.WritesExpire = true;
 
-            var ex = await Assert.ThrowsExceptionAsync<CodeGraphWriteTimeoutException>(() => _store.LoadProjectAsync(_project, compact: false));
+            var ex = await Assert.ThrowsExactlyAsync<CodeGraphWriteTimeoutException>(() => _store.LoadProjectAsync(_project, compact: false));
 
             StringAssert.Contains(ex.Message, "Fuseki");
             Assert.AreEqual(CodeGraphStore.WriteTimeout, ex.Timeout);

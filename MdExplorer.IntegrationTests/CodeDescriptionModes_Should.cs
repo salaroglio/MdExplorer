@@ -19,7 +19,7 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Refuse_an_unknown_mode_saying_what_to_write()
         {
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => CodeDescriptionModes.Parse("sempre", "'program'"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => CodeDescriptionModes.Parse("sempre", "'program'"));
             StringAssert.Contains(ex.Message, "'program'");
             StringAssert.Contains(ex.Message, "codeGraph.describe");
             StringAssert.Contains(ex.Message, "«all» or «onDemand»");

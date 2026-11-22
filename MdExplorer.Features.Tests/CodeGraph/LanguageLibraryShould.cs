@@ -55,12 +55,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
             LanguageLibrary.Import(_library, _source, replace: false);
             LanguageLibrary.Activate(_library, _project, "toy", replace: false);
             File.WriteAllText(Path.Combine(_source, LanguagePackage.DefinitionFile), DeclarativeLanguageExtractorShould.ToyDefinition.Replace("version: 1", "version: 2"));
-            Assert.ThrowsException<LanguagePackageExistsException>(() => LanguageLibrary.Import(_library, _source, replace: false), "c'è già: si sostituisce solo dopo la conferma");
+            Assert.ThrowsExactly<LanguagePackageExistsException>(() => LanguageLibrary.Import(_library, _source, replace: false), "c'è già: si sostituisce solo dopo la conferma");
             LanguageLibrary.Import(_library, _source, replace: true);
 
             var entry = LanguageLibrary.ForProject(_library, _project, _ => Array.Empty<string>()).Single();
             Assert.AreEqual((2, 1, true), (entry.LibraryVersion, entry.ProjectVersion, entry.UpdateAvailable));
-            Assert.ThrowsException<LanguagePackageExistsException>(() => LanguageLibrary.Activate(_library, _project, "toy", replace: false));
+            Assert.ThrowsExactly<LanguagePackageExistsException>(() => LanguageLibrary.Activate(_library, _project, "toy", replace: false));
             LanguageLibrary.Activate(_library, _project, "toy", replace: true);
             Assert.IsFalse(LanguageLibrary.ForProject(_library, _project, _ => Array.Empty<string>()).Single().UpdateAvailable);
         }
@@ -70,7 +70,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             LanguageLibrary.Import(_library, _source, replace: false);
             LanguageLibrary.Activate(_library, _project, "toy", replace: false);
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => LanguageLibrary.Deactivate(_project, "toy", new[] { "program/db" }));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => LanguageLibrary.Deactivate(_project, "toy", new[] { "program/db" }));
             StringAssert.Contains(ex.Message, "program/db");
             Assert.IsTrue(Directory.Exists(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy")), "rifiutato: non si toglie niente");
 
@@ -82,7 +82,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             LanguageLibrary.Deactivate(_project, "toy", Array.Empty<string>());
             Assert.IsFalse(Directory.Exists(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy")));
-            Assert.ThrowsException<ArgumentException>(() => LanguageLibrary.Remove(_library, "../fuori"), "un id non esce dalla libreria");
+            Assert.ThrowsExactly<ArgumentException>(() => LanguageLibrary.Remove(_library, "../fuori"), "un id non esce dalla libreria");
         }
     }
 }

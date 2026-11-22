@@ -59,7 +59,7 @@ namespace MdExplorer.Features.Tests.ClaudeCode
         {
             const string error = @"{""type"":""control_response"",""response"":{""subtype"":""error"",""request_id"":""mde-list-models"",""error"":""Unsupported control request subtype: initialize""}}";
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(error));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(error));
 
             StringAssert.Contains(ex.Message, "Unsupported control request subtype: initialize");
         }
@@ -71,9 +71,9 @@ namespace MdExplorer.Features.Tests.ClaudeCode
             const string emptyModels = @"{""type"":""control_response"",""response"":{""subtype"":""success"",""request_id"":""mde-list-models"",""response"":{""models"":[{""displayName"":""senza id""}]}}}";
 
             StringAssert.Contains(
-                Assert.ThrowsException<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(noModels)).Message,
+                Assert.ThrowsExactly<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(noModels)).Message,
                 "claude update");
-            Assert.ThrowsException<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(emptyModels),
+            Assert.ThrowsExactly<InvalidOperationException>(() => ClaudeCodeModelSource.ParseInitializeResponse(emptyModels),
                 "una voce senza value non è selezionabile, e un elenco senza voci non è un elenco");
         }
 

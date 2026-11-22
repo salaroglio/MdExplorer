@@ -80,7 +80,7 @@ mde_type: ownership
             CollectionAssert.AreEqual(new[] { "a@x.it", "b@x.it" }, result.Entries.Select(e => e.GitEmail).ToList());
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("Ambito")]
         [DataRow("Scope")]
         public void Ask_to_rename_the_old_column(string header)

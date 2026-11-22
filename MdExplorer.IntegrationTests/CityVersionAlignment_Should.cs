@@ -53,7 +53,7 @@ namespace MdExplorer.IntegrationTests
 
             File.WriteAllText(Yml, $"# mde-schema: {newer}\n" + Body);
             var metadata = new ProjectMetadataService(NullLogger<ProjectMetadataService>.Instance);
-            Assert.ThrowsException<DevelopmentConfigOffException>(() => metadata.EnsureRoomSecret(_dir), "nemmeno la stanza della chat");
+            Assert.ThrowsExactly<DevelopmentConfigOffException>(() => metadata.EnsureRoomSecret(_dir), "nemmeno la stanza della chat");
 
             Assert.IsFalse(DevelopmentSchemaCheck.Run($"# mde-schema: {DevelopmentSchemaSnapshots.Current}\n" + Body).IsOff("agentCity"), "stessa versione: la città va");
         }

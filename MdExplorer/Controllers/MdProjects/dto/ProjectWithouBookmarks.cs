@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using MdExplorer;
+﻿using MdExplorer;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
@@ -29,5 +28,21 @@ namespace MdExplorer.Service.Controllers.MdProjects.dto
         // is appended as ?v= query param to bust the browser cache after edits.
         public bool HasCustomIcon { get; set; }
         public string IconUpdatedAt { get; set; }
+
+        /// <summary>
+        /// Dal progetto del database: i quattro campi che hanno lo stesso nome (prima li copiava una libreria di mappatura, tolta con .NET 10). Descrizione,
+        /// partecipanti e icona non stanno nel database: li aggiunge chi chiama, da .development.yml.
+        /// </summary>
+        public static ProjectWithoutBookmarks From(Project project)
+        {
+            if (project == null) return null;
+            return new ProjectWithoutBookmarks
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Path = project.Path,
+                LastUpdate = project.LastUpdate,
+            };
+        }
     }
 }

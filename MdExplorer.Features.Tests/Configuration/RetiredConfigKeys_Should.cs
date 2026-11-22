@@ -79,7 +79,7 @@ namespace MdExplorer.Features.Tests.Configuration
         {
             Assert.AreEqual("agentCity:\n  enabled: true\n", RetiredConfigKeys.Remove("agentCity:\n  enabled: true\n  workflowDoc:\n", out _));
 
-            var ex = Assert.ThrowsException<System.InvalidOperationException>(() =>
+            var ex = Assert.ThrowsExactly<System.InvalidOperationException>(() =>
                 RetiredConfigKeys.Remove("agentCity:\n  workflowDocs:\n    - a.md\n  workflowDoc: b.md\n", out _));
             StringAssert.Contains(ex.Message, "has both 'workflowDoc' and 'workflowDocs'");
         }

@@ -210,7 +210,7 @@ namespace MdExplorer.Features.Tests.ClaudeCode
                     NullLogger<ClaudeCodeSession>.Instance, null, "haiku",
                     new ClaudeCodeSessionOptions { Bare = true });
 
-                var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+                var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
                     () => session.StartAsync());
 
                 StringAssert.Contains(ex.Message, ClaudeCodeSessionOptions.ApiKeyEnvVariable);

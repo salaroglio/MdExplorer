@@ -65,7 +65,7 @@ namespace MdExplorer.Features.Tests.Ocr
 
             StringAssert.Contains(result, "Poi c'è il logo ![Logo aziendale](assets/doc_img/img2.png) in mezzo.");
             Assert.IsTrue(DocumentImageTidy.Find(result)[1].Treated);
-            Assert.ThrowsException<InvalidOperationException>(() => DocumentImageTidy.WithDescription(Document, image, verdict));
+            Assert.ThrowsExactly<InvalidOperationException>(() => DocumentImageTidy.WithDescription(Document, image, verdict));
         }
 
         [TestMethod]
@@ -79,7 +79,7 @@ namespace MdExplorer.Features.Tests.Ocr
             StringAssert.Contains(result, "![Listino prezzi](assets/doc_img/img1.png)\n\n<details>\n<summary>");
             StringAssert.Contains(result, "</summary>\n\n| Voce | Prezzo |\n| --- | --- |\n| Vite | 2 |\n\n```\nsconto = 10\n```\n\n</details>\n\nPoi c'è il logo");
             Assert.IsTrue(DocumentImageTidy.Find(result).Single(i => i.Path.EndsWith("img1.png")).Treated);
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(
                 () => Verdict("KIND: text\nTITLE: x\nDESCRIPTION:\n```\naperto")).Message, "aperto");
         }
 
@@ -92,12 +92,12 @@ namespace MdExplorer.Features.Tests.Ocr
         [TestMethod]
         public void RefuseAnAnswerOutOfFormat_SayingWhatIsMissing()
         {
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(() => Verdict("È uno schema.")).Message, "KIND");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(() => Verdict("KIND: diagram\nDESCRIPTION:\nx")).Message, "TITLE");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(() => Verdict("KIND: photo\nTITLE: x")).Message, "DESCRIPTION");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(() => Verdict("È uno schema.")).Message, "KIND");
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(() => Verdict("KIND: diagram\nDESCRIPTION:\nx")).Message, "TITLE");
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(() => Verdict("KIND: photo\nTITLE: x")).Message, "DESCRIPTION");
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(
                 () => Verdict("KIND: diagram\nTITLE: x\n```plantuml\nA -> B\n```\nDESCRIPTION:\ny")).Message, "@startuml");
-            StringAssert.Contains(Assert.ThrowsException<FormatException>(
+            StringAssert.Contains(Assert.ThrowsExactly<FormatException>(
                 () => Verdict("KIND: photo\nTITLE: x\nDESCRIPTION:\ny\n</details>")).Message, "details");
         }
 

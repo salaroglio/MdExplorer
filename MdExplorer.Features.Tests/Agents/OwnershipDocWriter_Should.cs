@@ -97,15 +97,15 @@ namespace MdExplorer.Features.Tests.Agents
         [TestMethod]
         public void Refuse_a_document_without_a_usable_table_and_say_what_to_add()
         {
-            var noTable = Assert.ThrowsException<InvalidOperationException>(
+            var noTable = Assert.ThrowsExactly<InvalidOperationException>(
                 () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\nSolo testo.\n", "legale", "Anna", "anna@x.it"));
             StringAssert.Contains(noTable.Message, "has no table");
 
-            var noAgents = Assert.ThrowsException<InvalidOperationException>(
+            var noAgents = Assert.ThrowsExactly<InvalidOperationException>(
                 () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ruolo | Git Email |\n|--|--|\n", "legale", "Anna", "anna@x.it"));
             StringAssert.Contains(noAgents.Message, "'Agenti'");
 
-            var oldName = Assert.ThrowsException<InvalidOperationException>(
+            var oldName = Assert.ThrowsExactly<InvalidOperationException>(
                 () => OwnershipDocWriter.AddRow("---\nmde_type: ownership\n---\n| Ambito | Git Email | Agenti |\n|--|--|--|\n", "legale", "Anna", "anna@x.it"));
             StringAssert.Contains(oldName.Message, "«Ruolo»");
         }

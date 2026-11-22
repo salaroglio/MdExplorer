@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Tests.Federation
         [TestMethod]
         public void Refuse_to_compute_a_room_without_the_secret()
         {
-            Assert.ThrowsException<System.ArgumentException>(
+            Assert.ThrowsExactly<System.ArgumentException>(
                 () => FederationRoom.ComputeRoomId("https://github.com/acme/repo.git", " "));
         }
 
@@ -103,9 +103,9 @@ namespace MdExplorer.Features.Tests.Federation
         [TestMethod]
         public void Fail_loud_building_presence_without_room_or_email()
         {
-            Assert.ThrowsException<System.ArgumentException>(
+            Assert.ThrowsExactly<System.ArgumentException>(
                 () => FederationPresenceBuilder.Build("", "carlo@x.it", null));
-            Assert.ThrowsException<System.ArgumentException>(
+            Assert.ThrowsExactly<System.ArgumentException>(
                 () => FederationPresenceBuilder.Build("room", "", null));
         }
 

@@ -1,6 +1,5 @@
 ﻿using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
-using AutoMapper;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
@@ -28,7 +27,6 @@ namespace MdExplorer.Service.Controllers
     public class RefactoringFilesController : ControllerBase
     {
         private readonly IEngineDB _engineDB;
-        private readonly IMapper _mapper;
         private readonly RefactoringManager _refactoringManager;
         private readonly ProcessUtil _visualStudioCode;
         private readonly IDatabaseManager _databaseManager;
@@ -36,7 +34,6 @@ namespace MdExplorer.Service.Controllers
         private readonly ILogger<RefactoringFilesController> _logger;
 
         public RefactoringFilesController(IEngineDB engineDB,
-                    IMapper mapper,
                     RefactoringManager refactoringManager,
                     ProcessUtil visualStudioCode,
                     IUserSettingsDB userSettingsDB,
@@ -44,7 +41,6 @@ namespace MdExplorer.Service.Controllers
                     ILogger<RefactoringFilesController> logger = null)
         {
             _engineDB = engineDB;
-            _mapper = mapper;
             _refactoringManager = refactoringManager;
             _visualStudioCode = visualStudioCode;
             _userSettingsDB = userSettingsDB;

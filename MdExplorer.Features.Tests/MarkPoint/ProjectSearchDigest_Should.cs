@@ -36,10 +36,10 @@ namespace MdExplorer.Features.Tests.MarkPoint
         [TestMethod]
         public void Refuse_an_answer_without_the_keywords()
         {
-            Assert.ThrowsException<FormatException>(() => MarkSearchKeywords.Parse("Cercherei breadcrumb e slide."));
-            Assert.ThrowsException<FormatException>(() => MarkSearchKeywords.Parse("{\"words\": [\"a\"]}"));
-            Assert.ThrowsException<FormatException>(() => MarkSearchKeywords.Parse("{\"keywords\": [1]}"));
-            Assert.ThrowsException<FormatException>(() => MarkSearchKeywords.Parse("{\"keywords\": ["));
+            Assert.ThrowsExactly<FormatException>(() => MarkSearchKeywords.Parse("Cercherei breadcrumb e slide."));
+            Assert.ThrowsExactly<FormatException>(() => MarkSearchKeywords.Parse("{\"words\": [\"a\"]}"));
+            Assert.ThrowsExactly<FormatException>(() => MarkSearchKeywords.Parse("{\"keywords\": [1]}"));
+            Assert.ThrowsExactly<FormatException>(() => MarkSearchKeywords.Parse("{\"keywords\": ["));
         }
 
         [TestMethod]

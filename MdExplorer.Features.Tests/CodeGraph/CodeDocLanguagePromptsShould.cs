@@ -146,7 +146,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(prompts.BodyFor(body, new[] { toy }).Contains("mde-section"), "i marcatori non arrivano mai all'LLM");
 
             Assert.AreEqual("11", CodeDocPromptSections.None.VersionFor("11", toy), "prompt senza promptVersions (personalizzato): la versione sola, come prima");
-            Assert.ThrowsException<FormatException>(() => CodeDocPromptSections.FromPromptText("---\npromptVersions:\n  fragments: 11\n---\n"), "senza base non si indovina");
+            Assert.ThrowsExactly<FormatException>(() => CodeDocPromptSections.FromPromptText("---\npromptVersions:\n  fragments: 11\n---\n"), "senza base non si indovina");
         }
     }
 }

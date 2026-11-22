@@ -39,9 +39,9 @@ namespace MdExplorer.Features.Tests.AI
             Environment.SetEnvironmentVariable("PATH", _dir);
 
             Assert.IsFalse(CopilotProcessLauncher.IsResolvable());
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => CopilotProcessLauncher.BuildStartInfo("--version"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => CopilotProcessLauncher.BuildStartInfo("--version"));
             StringAssert.Contains(ex.Message, "service PATH");
-            Assert.ThrowsException<InvalidOperationException>(() => CopilotProcessLauncher.ResolveStdioTarget());
+            Assert.ThrowsExactly<InvalidOperationException>(() => CopilotProcessLauncher.ResolveStdioTarget());
         }
 
         [TestMethod]

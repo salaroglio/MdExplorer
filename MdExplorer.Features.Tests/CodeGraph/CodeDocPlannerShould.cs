@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it").Contains("fileDoc"), "non chiesto: non si nomina");
             StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "en"), "---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in inglese (English).");
             StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it"), "la descrizione del file in italiano.");
-            Assert.ThrowsException<ArgumentException>(() => CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "de"), "una lingua non prevista non si indovina");
+            Assert.ThrowsExactly<ArgumentException>(() => CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "de"), "una lingua non prevista non si indovina");
             Assert.AreEqual(1, CodeDocPlanner.Pieces("class Foo {}", new List<CodeDocCandidate>(), ast, askFile: true).Count, "solo il file: una domanda");
             Assert.AreEqual(0, CodeDocPlanner.Pieces("class Foo {}", new List<CodeDocCandidate>(), ast).Count);
 

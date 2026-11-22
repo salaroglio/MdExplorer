@@ -71,7 +71,7 @@ namespace MdExplorer.IntegrationTests
             // per conto suo, perché il provider giusto dipende da come è configurato opencode.
             foreach (var bad in new[] { "big-pickle", "/big-pickle", "opencode/", "" })
             {
-                Assert.ThrowsException<ArgumentException>(() => OpenCodeSession.SplitModel(bad), $"'{bad}'");
+                Assert.ThrowsExactly<ArgumentException>(() => OpenCodeSession.SplitModel(bad), $"'{bad}'");
             }
         }
 
@@ -79,7 +79,7 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_a_folder_that_is_not_there()
         {
             using var server = NewServer();
-            var ex = Assert.ThrowsException<ArgumentException>(() => new OpenCodeSession(
+            var ex = Assert.ThrowsExactly<ArgumentException>(() => new OpenCodeSession(
                 NullLogger<OpenCodeSession>.Instance, server,
                 Path.Combine(_dir, "questa-non-esiste"), "opencode/big-pickle"));
             StringAssert.Contains(ex.Message, "does not exist");

@@ -55,10 +55,10 @@ namespace MdExplorer.IntegrationTests
         {
             var stale = Op(RemoteOps.Read, "src/a.cs").Stamp;
             File.AppendAllText(Path.Combine(_root, "src", "a.cs"), "// cambiato da un altro\n");
-            Assert.AreEqual(RemoteErrorCodes.Changed, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Write, "src/a.cs", "x", stale)).Code);
-            Assert.AreEqual(RemoteErrorCodes.Exists, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Create, "src/a.cs", "x")).Code);
-            Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Read, "../fuori.txt")).Code);
-            Assert.AreEqual(RemoteErrorCodes.NotEmpty, Assert.ThrowsException<RemoteOperationException>(() => Op(RemoteOps.Delete, "src")).Code);
+            Assert.AreEqual(RemoteErrorCodes.Changed, Assert.ThrowsExactly<RemoteOperationException>(() => Op(RemoteOps.Write, "src/a.cs", "x", stale)).Code);
+            Assert.AreEqual(RemoteErrorCodes.Exists, Assert.ThrowsExactly<RemoteOperationException>(() => Op(RemoteOps.Create, "src/a.cs", "x")).Code);
+            Assert.AreEqual(RemoteErrorCodes.OutsideRoot, Assert.ThrowsExactly<RemoteOperationException>(() => Op(RemoteOps.Read, "../fuori.txt")).Code);
+            Assert.AreEqual(RemoteErrorCodes.NotEmpty, Assert.ThrowsExactly<RemoteOperationException>(() => Op(RemoteOps.Delete, "src")).Code);
         }
 
         [TestMethod]
@@ -72,12 +72,12 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(1, rules.Count, "le regole vuote si tolgono");
             CollectionAssert.AreEqual(new[] { ".cbl", ".cpy", ".cob" }, rules[0].Extensions, "punto e minuscole");
 
-            Assert.ThrowsException<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
+            Assert.ThrowsExactly<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
             {
                 new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".cbl" }, Encoding = TextDecoding.Ibm850 },
                 new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".CBL" }, Encoding = TextDecoding.Windows1252 },
             }), "un'estensione in due regole");
-            Assert.ThrowsException<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
+            Assert.ThrowsExactly<InvalidOperationException>(() => MdExplorer.Services.CodeGraph.CodeRootService.NormalizeEncodings(new[]
             {
                 new MdExplorer.Service.Models.CodeRootEncodingRule { Extensions = new System.Collections.Generic.List<string> { ".cbl" }, Encoding = "ebcdic" },
             }), "una codifica che MDE non sa usare");

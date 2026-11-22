@@ -133,7 +133,7 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNull(config.Harness);
             config.Harness = new HarnessConfig { Target = "claude" };
 
-            var ex = Assert.ThrowsException<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(original, config));
+            var ex = Assert.ThrowsExactly<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(original, config));
             StringAssert.Contains(ex.Message, "harness");
         }
 
@@ -149,11 +149,11 @@ namespace MdExplorer.IntegrationTests
 
             var group = Read(newer);
             group.Redmine = new RedmineConfig { BaseUrl = "https://r" };
-            StringAssert.Contains(Assert.ThrowsException<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(newer, group)).Message, "aggiorna MDE");
+            StringAssert.Contains(Assert.ThrowsExactly<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(newer, group)).Message, "aggiorna MDE");
 
             var item = Read(newer);
             item.Folders.Add(new DevelopmentFolder { Path = "nuova" });
-            Assert.ThrowsException<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(newer, item));
+            Assert.ThrowsExactly<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(newer, item));
 
             Assert.IsTrue(DevelopmentConfigWriter.Compose("# mde-schema: 1\n" + Old, config).StartsWith($"# mde-schema: {MdExplorer.Features.Configuration.DevelopmentSchemaSnapshots.Current}\n"), "un numero più basso sale");
         }
@@ -162,7 +162,7 @@ namespace MdExplorer.IntegrationTests
         public void Refuse_a_file_that_cannot_be_read_and_remove_a_group_taken_away()
         {
             var broken = "harness:\n<<<<<<< HEAD\n  target: a\n=======\n  target: b\n>>>>>>> x\n";
-            Assert.ThrowsException<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(broken, new DevelopmentConfig()));
+            Assert.ThrowsExactly<DevelopmentConfigOffException>(() => DevelopmentConfigWriter.Compose(broken, new DevelopmentConfig()));
 
             var config = Read(Old);
             config.Harness = null;

@@ -223,7 +223,7 @@ corpo";
 
         // ---- nomi riservati user / shared / external ----
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("user")]
         [DataRow("shared")]
         [DataRow("USER")]
@@ -261,7 +261,7 @@ corpo";
             StringAssert.Contains(result.RegistrationError, "@");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("StemCurator")]     // maiuscole
         [DataRow("stem_curator")]    // underscore
         [DataRow("stem curator")]    // spazio
@@ -356,7 +356,7 @@ corpo";
             CollectionAssert.AreEqual(new[] { "codice", "capitolato", "ricerca" }, result.Card.Replies[0].Values.ToArray());
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("    - id: cerca-bandi\n", "    - id: cerca-bandi\n      ouputs: []\n", "a2a.skills[0].ouputs")]
         [DataRow("{ id: registro, path: gara/registro.md, action: updates }", "{ id: registro, path: gara/registro.md, verb: updates }", "a2a.skills[1].outputs[0].verb")]
         [DataRow("  name: account-manager\n", "  name: account-manager\n  owner: anna\n", "a2a.owner")]
@@ -368,7 +368,7 @@ corpo";
             StringAssert.Contains(result.RegistrationError, path);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("{ id: registro, path: gara/registro.md, action: updates }", "{ id: registro, action: updates }", "registro")]
         [DataRow("action: downloads", "action: deletes", "deletes")]
         [DataRow("replies: [avvia-giro]", "replies: [avvia-altro]", "avvia-altro")]

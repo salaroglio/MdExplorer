@@ -83,7 +83,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var current = Existing(ast, Hash(ast, "f1"));
             void Refused(System.Action a, string fragment)
             {
-                var ex = Assert.ThrowsException<CodeDocEditException>(a);
+                var ex = Assert.ThrowsExactly<CodeDocEditException>(a);
                 StringAssert.Contains(ex.Message, fragment);
             }
             Refused(() => CodeDocEditor.EditSymbol(ast, current, "f1", null, null, null, new Dictionary<string, string> { ["pth"] = "x" }, "w"), "pth");

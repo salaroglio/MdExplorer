@@ -36,10 +36,10 @@ namespace MdExplorer.Features.Tests.Agents
                 var events = RoundLedger.Load(root, id).EventsOf("tecnica").Select(e => e.Type + e.Attempt).ToList();
                 CollectionAssert.AreEqual(new[] { "started1", "delivered1", "rejected1", "started2", "delivered2", "approved2" }, events);
 
-                Assert.ThrowsException<ArgumentException>(() => RoundLedger.AppendDecision(root, id, "tecnica",
+                Assert.ThrowsExactly<ArgumentException>(() => RoundLedger.AppendDecision(root, id, "tecnica",
                     new RoundEvent { Type = RoundEventType.Started, At = T0 }), "chi approva scrive solo decisioni");
                 RoundLedger.AppendDecision(root, id, "tecnica", new RoundEvent { Type = RoundEventType.Approved, At = T0, Attempt = 3 });
-                var ex = Assert.ThrowsException<InvalidDataException>(() => RoundLedger.Load(root, id));
+                var ex = Assert.ThrowsExactly<InvalidDataException>(() => RoundLedger.Load(root, id));
                 StringAssert.Contains(ex.Message, "which has no delivery", "una decisione senza consegna non si ignora");
             }
             finally { try { Directory.Delete(root, true); } catch (IOException) { } }

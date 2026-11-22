@@ -104,7 +104,7 @@ namespace MdExplorer.Features.Tests.AgentMemory
             var (update, _) = AgentMemoryFactBuilder.BuildAssertUpdate(AgentGraph, AgentId, f);
             StringAssert.Contains(update, "mdeag:confidence 1.0");
 
-            Assert.ThrowsException<ArgumentException>(() =>
+            Assert.ThrowsExactly<ArgumentException>(() =>
                 AgentMemoryFactBuilder.BuildAssertUpdate(AgentGraph, AgentId, Fact("   ")));
         }
     }

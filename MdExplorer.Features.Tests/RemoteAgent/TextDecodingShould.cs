@@ -22,7 +22,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
 
         private static byte[] In(string encoding, string text) => Encoding.GetEncoding(encoding).GetBytes(text);
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("ibm850", Italian)]
         [DataRow("windows-1252", Italian)]
         [DataRow("ibm850", German)]

@@ -1054,7 +1054,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "dell'evento conta il tipo dei suoi parametri");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(true)]
         [DataRow(false)]
         public void Leave_without_symbols_a_file_the_project_does_not_compile_so_its_class_is_not_a_duplicate(bool visualStudio2003)

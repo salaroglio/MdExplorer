@@ -62,7 +62,7 @@ namespace MdExplorer.IntegrationTests
         {
             var service = new CodeQueryService(null, null, null);   // non deve servire: il rifiuto viene prima
             async System.Threading.Tasks.Task<string> Refusal(string name, System.Collections.Generic.Dictionary<string, string> p)
-                => (await Assert.ThrowsExceptionAsync<CodeQueryException>(() => service.RunAsync("/x", name, p))).Message;
+                => (await Assert.ThrowsExactlyAsync<CodeQueryException>(() => service.RunAsync("/x", name, p))).Message;
             StringAssert.Contains(await Refusal("everything", null), "unknown-externals");
             StringAssert.Contains(await Refusal("hotspots", new() { ["depth"] = "2" }), "folder");
             StringAssert.Contains(await Refusal("hotspots", new() { ["limit"] = "9999" }), "200");

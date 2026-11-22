@@ -147,9 +147,9 @@ namespace MdExplorer.IntegrationTests
             var seen = svc.Pending(path).Single();
 
             // Una pagina vecchia: la versione che mostrava non è più la consegna.
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, "0123456789abcdef"));
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, "0123456789abcdef"));
             // Nessuna versione: non si approva «quello che c'è».
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, null));
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, null));
 
             // Il ramo dell'agente va oltre la consegna vista: niente merge, la richiesta resta da decidere.
             var wt = Path.Combine(Path.GetTempPath(), "mr-versione-" + Guid.NewGuid().ToString("N"));
@@ -159,7 +159,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, Git(wt, $"update-ref refs/heads/{seen.LocalBranch} HEAD").Code);
             Git(path, $"worktree remove --force \"{wt}\"");
 
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, seen.HeadSha));
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => svc.ApproveAsync(seen.Id, seen.HeadSha));
             Assert.AreEqual(AgentMergeRequest.StatusEnum.Pending, svc.Get(seen.Id).Status, "resta da decidere");
             Git(path, "fetch origin");
             Assert.AreNotEqual(0, Git(path, "cat-file -e origin/main:deliverable.md").Code, "niente è entrato in main");
@@ -174,7 +174,7 @@ namespace MdExplorer.IntegrationTests
             var request = svc.Open(path, "worker", "agent/tizio/worker/2026-10-05-docs-m1", "agent/worker/m1", "deadbeef",
                 new[] { new ChangedFile { Change = "modified", Path = "docs/a.md" } });
 
-            Assert.ThrowsException<InvalidOperationException>(() => svc.Reject(request.Id, "  "),
+            Assert.ThrowsExactly<InvalidOperationException>(() => svc.Reject(request.Id, "  "),
                 "il motivo è ciò che l'agente legge se il lavoro riparte");
             Assert.AreEqual(1, svc.Pending(path).Count, "senza motivo non è stato rifiutato niente");
         }
@@ -205,7 +205,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("manca la data", queued.ReworkNote, "l'agente riceve il motivo del rifiuto");
             Assert.AreEqual(0, queued.Attempts, "non è un ritentativo dopo un errore");
             Assert.AreEqual(0, svc.Stopped(path).Count, "sta ripartendo: non è più fermo");
-            Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(request.Id), "non si fa ripartire due volte");
+            Assert.ThrowsExactly<InvalidOperationException>(() => svc.Rework(request.Id), "non si fa ripartire due volte");
         }
 
         [TestMethod]
@@ -224,7 +224,7 @@ namespace MdExplorer.IntegrationTests
             svc.Reject(request.Id, "ricerca sbagliata");
 
             Assert.AreEqual(0, svc.Stopped(path).Count, "ramo chiuso: non c'è niente da far ripartire");
-            Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(request.Id));
+            Assert.ThrowsExactly<InvalidOperationException>(() => svc.Rework(request.Id));
         }
 
         private static Guid SeedProcessedMessage(AgentCityContext ctx, string projectPath, string from, string to)

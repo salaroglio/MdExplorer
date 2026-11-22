@@ -44,8 +44,10 @@ namespace MdExplorer.IntegrationTests
             dbm.UnregisterConnection(conn);
         }
 
+        // Il file del database, letto dalla voce «Data Source»: dal 21/11/2026 (L1d) la stringa di connessione finisce con
+        // «;BusyTimeout=5000», e prendere «l'ultimo pezzo dopo l'uguale» dava 5000 invece del percorso.
         private static string EngineFileOf(MdExplorer.Abstractions.DB.IEngineDB db)
-            => db.Connection.ConnectionString.Split('=').Last();
+            => (string)new System.Data.Common.DbConnectionStringBuilder { ConnectionString = db.Connection.ConnectionString }["Data Source"];
 
         [TestMethod]
         public async Task Stop_the_previous_watcher_before_it_writes_into_the_new_project()

@@ -171,7 +171,7 @@ namespace MdExplorer.IntegrationTests
         {
             // Scrivere un .development.yml da zero perderebbe i default del template embedded
             // (yamlAutoGeneration acceso, con la cartella dell'harness esclusa).
-            Assert.ThrowsException<FileNotFoundException>(() => HarnessSettings.Write(_project, HarnessTarget.Copilot));
+            Assert.ThrowsExactly<FileNotFoundException>(() => HarnessSettings.Write(_project, HarnessTarget.Copilot));
         }
 
         [TestMethod]

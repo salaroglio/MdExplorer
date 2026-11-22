@@ -62,7 +62,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public async Task Give_up_when_fuseki_writes_nothing_for_the_silence()
         {
             var fuseki = new FakeFuseki(writeEvery: null, readyAfter: null);
-            var ex = await Assert.ThrowsExceptionAsync<TimeoutException>(fuseki.Wait);
+            var ex = await Assert.ThrowsExactlyAsync<TimeoutException>(fuseki.Wait);
             StringAssert.Contains(ex.Message, "/$/ping");
             Assert.IsTrue(fuseki.Clock.Elapsed < Max, $"si è arreso a {fuseki.Clock.Elapsed}, doveva farlo al silenzio ({Silence})");
         }
@@ -71,7 +71,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public async Task Give_up_at_the_cap_when_fuseki_writes_but_never_answers()
         {
             var fuseki = new FakeFuseki(writeEvery: TimeSpan.FromMilliseconds(100), readyAfter: null);
-            var ex = await Assert.ThrowsExceptionAsync<TimeoutException>(fuseki.Wait);
+            var ex = await Assert.ThrowsExactlyAsync<TimeoutException>(fuseki.Wait);
             Assert.IsTrue(fuseki.Clock.Elapsed >= Max, $"si è arreso a {fuseki.Clock.Elapsed}, prima del tetto ({Max})");
             StringAssert.Contains(ex.Message, "/$/ping");
         }
@@ -80,7 +80,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public async Task Stop_at_once_when_fuseki_exits()
         {
             var fuseki = new FakeFuseki(writeEvery: TimeSpan.FromMilliseconds(100), readyAfter: null, exitAfter: TimeSpan.FromMilliseconds(150));
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(fuseki.Wait);
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(fuseki.Wait);
             StringAssert.Contains(ex.Message, "exit 1");
         }
 

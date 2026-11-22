@@ -166,7 +166,7 @@ END PKG;
             Assert.IsTrue(s.Edges.Any(e => e.SourceId == f2.Id && e.TargetId == Sym(s, "PKG.F1").Id && e.Relation == "calls"));
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("blocks:\n  - id: f\n    kind: function\n    begin: '(?<name>x)'\n", "blocks[f]: ")]
         [DataRow("blocks:\n  - id: f\n    kind: function\n    begin: '(?<name>x)'\n    end: 'E'\n    nesting:\n      open: 'B'\n      close: 'E'\n", "blocks[f]: ")]
         [DataRow("blocks:\n  - id: f\n    kind: function\n    begin: '(?<name>x)'\n    nesting:\n      open: 'B'\n", "blocks[f].nesting")]
@@ -176,7 +176,7 @@ END PKG;
         public void Refuse_a_broken_nesting_or_lexical_rule_saying_where(string body, string expected)
         {
             var yaml = "schema: 1\nid: blk\nversion: 1\nextensions: [.blk]\n" + body;
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
             StringAssert.Contains(ex.Message, expected);
         }
     }

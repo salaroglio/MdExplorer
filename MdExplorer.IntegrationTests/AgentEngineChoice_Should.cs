@@ -61,7 +61,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("opencode/big-pickle", choice.Model);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("copilot", MarkAgentEngine.Copilot)]
         [DataRow("copilot-cli", MarkAgentEngine.Copilot)]
         [DataRow("Claude", MarkAgentEngine.Claude)]
@@ -74,7 +74,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(expected, engine);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("openai")]
         [DataRow("gemini")]
         [DataRow("none")]
@@ -146,7 +146,7 @@ namespace MdExplorer.IntegrationTests
                 var server = JsonNode.Parse(File.ReadAllText(path))!["mcpServers"]!["mdexplorer"]!;
                 Assert.AreEqual("token-1", server["env"]!["MDE_RUN_TOKEN"]!.GetValue<string>());
 
-                Assert.ThrowsException<ArgumentException>(() => ClaudeCodeMcp.WriteSessionConfig("/opt/mde/MdExplorer.Mcp", directory,
+                Assert.ThrowsExactly<ArgumentException>(() => ClaudeCodeMcp.WriteSessionConfig("/opt/mde/MdExplorer.Mcp", directory,
                     mdexplorerEnvironment: new Dictionary<string, string>()), "a shared file must never hold a RunToken");
             }
             finally
@@ -155,7 +155,7 @@ namespace MdExplorer.IntegrationTests
             }
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("core,plantuml", "core,plantuml,agents")]
         [DataRow("core,agents", "core,agents")]
         [DataRow(null, null)]
@@ -295,7 +295,7 @@ namespace MdExplorer.IntegrationTests
         {
             using var doc = JsonDocument.Parse("{\"error\":{\"name\":\"ProviderModelNotFoundError\",\"data\":{\"message\":\"model x not found\"}}}");
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => OpenCodeSession.ThrowOnModelError(doc.RootElement));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => OpenCodeSession.ThrowOnModelError(doc.RootElement));
             StringAssert.Contains(ex.Message, "model x not found");
         }
 

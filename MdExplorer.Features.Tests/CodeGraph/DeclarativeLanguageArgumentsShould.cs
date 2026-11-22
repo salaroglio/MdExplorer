@@ -198,14 +198,14 @@ END PKG;
             Assert.AreEqual((5, Sym(other, "db/pkg.blk:PKG.F@6").Id, "inferred"), targets[1]);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("references:\n  - relation: reads\n    pattern: 'FROM'\n    list: { until: ';', separator: ',' }\n    resolve: symbol\n    rules: [t]\n", "list")]
         [DataRow("references:\n  - relation: calls\n    pattern: '(?<target>x)'\n    resolve: module\n    arguments: { separator: ',' }\n", "arguments")]
         [DataRow("parameters:\n  item: '(?<name>x)'\n  optional: 'DEFAULT'\n", "parameters.optional")]
         public void Refuse_a_broken_list_arguments_or_parameters_rule_saying_where(string body, string expected)
         {
             var yaml = "schema: 1\nid: blk\nversion: 1\nextensions: [.blk]\nblocks:\n  - id: t\n    kind: record\n    begin: '(?<name>T)'\n    end: ';'\n" + body;
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/blk/language.yml"));
             StringAssert.Contains(ex.Message, expected);
         }
     }

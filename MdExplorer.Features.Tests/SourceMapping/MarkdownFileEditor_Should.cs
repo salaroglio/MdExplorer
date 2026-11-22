@@ -180,7 +180,7 @@ namespace MdExplorer.Features.Tests.SourceMapping
         [TestMethod]
         public void RefuseAnEmptyBlock()
         {
-            Assert.ThrowsException<ArgumentException>(
+            Assert.ThrowsExactly<ArgumentException>(
                 () => MarkdownFileEditor.InsertBlock(Lf, 1, 1, BlockPosition.After, "# T", "\n  \n"));
         }
 

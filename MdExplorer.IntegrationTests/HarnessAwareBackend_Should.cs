@@ -74,7 +74,7 @@ namespace MdExplorer.IntegrationTests
         {
             CreateProjectFor(HarnessTarget.None);
 
-            var ex = Assert.ThrowsException<InvalidOperationException>(
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(
                 () => MdeAssetResolver.PromptRelativePath(_project, "mde-mark-summarize"));
             StringAssert.Contains(ex.Message, "harness.target",
                 "l'errore deve dire qual e' l'impostazione da sistemare");

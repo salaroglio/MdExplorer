@@ -84,7 +84,7 @@ namespace MdExplorer.Features.Tests.E2e
         [TestMethod]
         public void Refuse_a_file_without_e2e_block_saying_what_it_needs()
         {
-            var ex = Assert.ThrowsException<E2eFormatException>(() => E2eTestParser.Parse("---\ntitle: x\n---\n## T1 — a\n1. b\n", "t.e2e.md"));
+            var ex = Assert.ThrowsExactly<E2eFormatException>(() => E2eTestParser.Parse("---\ntitle: x\n---\n## T1 — a\n1. b\n", "t.e2e.md"));
             StringAssert.Contains(ex.Message, "the 'e2e:' block is missing");
         }
 

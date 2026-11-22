@@ -159,7 +159,7 @@ namespace MdExplorer.Features.Tests.AI
             using var caller = new CancellationTokenSource(200);
 
             // Chi ha chiesto se n'è andato: non è «tempo scaduto» del CLI, è una richiesta annullata.
-            await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => Probe(Generous, slow).ProbeAsync(caller.Token));
+            await Assert.ThrowsExactlyAsync<TaskCanceledException>(() => Probe(Generous, slow).ProbeAsync(caller.Token));
         }
 
         // ── Claude Code: lettura di `claude auth status` ─────────────────────────────
@@ -251,7 +251,7 @@ namespace MdExplorer.Features.Tests.AI
             using var cts = new CancellationTokenSource(300);
 
             var watch = Stopwatch.StartNew();
-            await Assert.ThrowsExceptionAsync<TaskCanceledException>(
+            await Assert.ThrowsExactlyAsync<TaskCanceledException>(
                 () => CliCommand.RunAsync("/bin/sh", new[] { "-c", "sleep 30" }, cts.Token));
 
             Assert.IsTrue(watch.ElapsedMilliseconds < 5000, $"il comando non è stato chiuso: {watch.ElapsedMilliseconds} ms");

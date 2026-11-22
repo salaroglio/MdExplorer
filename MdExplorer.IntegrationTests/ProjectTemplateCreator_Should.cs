@@ -237,7 +237,7 @@ version: 1.0.0
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var path = NewFolder(ctx, "fuori");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
                 Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = Strato(ctx), Methods = new[] { url }, Language = "it", MdeVersion = Mde, Harness = "claude" }));
 
             StringAssert.Contains(ex.Message, "README.md");
@@ -254,7 +254,7 @@ version: 1.0.0
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var path = NewFolder(ctx, "normale");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
                 Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "it", MdeVersion = Mde }));
 
             StringAssert.Contains(ex.Message, "mde-template.yml");
@@ -270,7 +270,7 @@ version: 1.0.0
             Directory.CreateDirectory(Path.Combine(ctx.Factory.DataDir, "progetti"));
             var path = NewFolder(ctx, "troppo-nuovo");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
                 Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "it", MdeVersion = Mde }));
 
             StringAssert.Contains(ex.Message, "2027.1.1");
@@ -287,7 +287,7 @@ version: 1.0.0
             Directory.CreateDirectory(path);
             File.WriteAllText(Path.Combine(path, "mio.md"), "# mio\n");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
                 Create(ctx, new TemplateCreateRequest { Path = path, TemplateUrl = url, Language = "it", MdeVersion = Mde }));
 
             StringAssert.Contains(ex.Message, path);

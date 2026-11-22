@@ -88,9 +88,9 @@ namespace MdExplorer.Features.Tests.Ontology
         [TestMethod]
         public void Refuse_paths_outside_the_project_or_missing_and_an_empty_check()
         {
-            StringAssert.Contains(Assert.ThrowsException<ArgumentException>(() => RdfCheck.Check(_root, new[] { "../fuori" })).Message, "outside the project");
-            StringAssert.Contains(Assert.ThrowsException<ArgumentException>(() => RdfCheck.Check(_root, new[] { "ontology/manca.ttl" })).Message, "is not in the project");
-            StringAssert.Contains(Assert.ThrowsException<ArgumentException>(() => RdfCheck.Check(_root, new[] { "ontology/domande" })).Message, "No .ttl file");
+            StringAssert.Contains(Assert.ThrowsExactly<ArgumentException>(() => RdfCheck.Check(_root, new[] { "../fuori" })).Message, "outside the project");
+            StringAssert.Contains(Assert.ThrowsExactly<ArgumentException>(() => RdfCheck.Check(_root, new[] { "ontology/manca.ttl" })).Message, "is not in the project");
+            StringAssert.Contains(Assert.ThrowsExactly<ArgumentException>(() => RdfCheck.Check(_root, new[] { "ontology/domande" })).Message, "No .ttl file");
         }
     }
 }

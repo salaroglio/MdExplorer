@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsFalse(AgentEffects.For(null).Any(e => e.Granted && e.Danger));
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("write")]
         [DataRow("edit")]
         [DataRow("EDIT")]
@@ -44,7 +44,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsTrue(e.Danger);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("shell")]
         [DataRow("execute")]
         public void Flag_running_commands_as_dangerous(string tool)

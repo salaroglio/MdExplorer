@@ -131,7 +131,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(2, first.Scan.Candidates.Count, "prima analisi: tutti candidati");
             Assert.AreEqual("ssh://server" + Path.Combine(clone, "src", "Api", "Foo.cs"), first.Scan.AllFiles[1].AbsolutePath);
             var foo = first.Scan.AllFiles[1];
-            Assert.ThrowsException<InvalidOperationException>(() => first.Sources.Read(foo), "un testo mai chiesto al server è un errore, non un testo vuoto");
+            Assert.ThrowsExactly<InvalidOperationException>(() => first.Sources.Read(foo), "un testo mai chiesto al server è un errore, non un testo vuoto");
             await first.LoadAsync(new[] { foo }, default);
             Assert.AreEqual("class Foo {}", first.Sources.Read(foo));
             Assert.IsTrue(first.Sources.Exists(new CodeSourceFile("x", "@legacy/README.txt")), "esistono anche i file fuori dal perimetro");
@@ -222,7 +222,7 @@ references:
             Assert.AreEqual(CodeRootStatus.Linked, (await roots.LinkAsync(_project, "legacy", "ssh://server" + clone)).Status);
             Assert.IsTrue((await roots.ListAsync(_project)).Single().Tags.Contains("program"), "collegata = programma intero, come in locale");
 
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => roots.SetProgramAsync(_project, "@legacy/src/Api", true))).Message,
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => roots.SetProgramAsync(_project, "@legacy/src/Api", true))).Message,
                 "@legacy", "radice intera e contesti insieme no, come in locale");
             await roots.SetProgramAsync(_project, "@legacy", false);
             var state = await roots.SetProgramAsync(_project, "@legacy/src/Api", true);
@@ -272,7 +272,7 @@ references:
             Directory.CreateDirectory(folder);
             var settings = new MemoryRemoteServerSettings();
             using var sessions = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), settings, NullLogger<RemoteSessions>.Instance);
-            var ask = await Assert.ThrowsExceptionAsync<RemoteUploadConsentRequiredException>(() => sessions.OpenAsync(Server(folder)));
+            var ask = await Assert.ThrowsExactlyAsync<RemoteUploadConsentRequiredException>(() => sessions.OpenAsync(Server(folder)));
             Assert.AreEqual("server", ask.Destination);
             Assert.IsTrue(ask.Size > 1_000_000);
             StringAssert.StartsWith(ask.Folder, "~/.cache/mdexplorer/");
@@ -298,7 +298,7 @@ references:
             Assert.AreEqual("~/bin/mde/" + RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath).Fingerprint,
                 RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath).InstallFolder(settings.AgentFolder("server")).Display, "relativa: sotto la home");
             foreach (var bad in new[] { "~/x", "../x", "a/../../x", "a\nb" })
-                Assert.ThrowsException<InvalidOperationException>(() => settings.SetAgentFolder("server", bad), bad);
+                Assert.ThrowsExactly<InvalidOperationException>(() => settings.SetAgentFolder("server", bad), bad);
         }
 
         [TestMethod]
@@ -386,27 +386,27 @@ references:
         [TestMethod]
         public async Task Say_which_gate_is_closed()
         {
-            var missing = await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => _sessions.OpenAsync(Server(Path.Combine(_base, "manca"))));
+            var missing = await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => _sessions.OpenAsync(Server(Path.Combine(_base, "manca"))));
             Assert.AreEqual(RemoteGate.Folder, missing.Gate);
             StringAssert.Contains(missing.Message, "manca");
 
             var sftpOnly = new RemoteSessions(new CannedTransport("This service allows sftp connections only.", "", 1), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
-            Assert.AreEqual(RemoteGate.Commands, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => sftpOnly.OpenAsync(Server("/srv")))).Gate);
+            Assert.AreEqual(RemoteGate.Commands, (await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => sftpOnly.OpenAsync(Server("/srv")))).Gate);
 
             var denied = new RemoteSessions(new CannedTransport("", "dev@10.0.0.5: Permission denied (publickey).", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
-            var access = await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => denied.OpenAsync(Server("/srv")));
+            var access = await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => denied.OpenAsync(Server("/srv")));
             Assert.AreEqual(RemoteGate.Access, access.Gate);
             StringAssert.Contains(access.Message, "ssh-copy-id");
 
             var unknownHost = new RemoteSessions(new CannedTransport("", "Host key verification failed.", 255), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => unknownHost.OpenAsync(Server("/srv")))).Message, "known_hosts");
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => unknownHost.OpenAsync(Server("/srv")))).Message, "known_hosts");
 
             var noSsh = new RemoteSessions(new SshTransport(Path.Combine(_base, "ssh-che-non-c-e")), () => RemoteAgentBinary.Load(RemoteAgentBinary.DefaultLocalPath), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
-            var sshMissing = await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => noSsh.OpenAsync(Server("/srv")), "ssh assente: un messaggio, non un'eccezione qualunque");
+            var sshMissing = await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => noSsh.OpenAsync(Server("/srv")), "ssh assente: un messaggio, non un'eccezione qualunque");
             StringAssert.Contains(sshMissing.Message, "OpenSSH");
 
             var noAgent = new RemoteSessions(_transport, () => RemoteAgentBinary.Load(Path.Combine(_base, "non-c-e")), new MemoryRemoteServerSettings(allowAll: true), NullLogger<RemoteSessions>.Instance);
-            StringAssert.Contains((await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => noAgent.OpenAsync(Server(_base)))).Message, "publish-linux-x64.sh");
+            StringAssert.Contains((await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => noAgent.OpenAsync(Server(_base)))).Message, "publish-linux-x64.sh");
         }
 
         [TestMethod]
@@ -453,10 +453,10 @@ references:
 
             // un clone di un altro repository: rifiutato col motivo
             var wrong = await CloneOf("sbagliato", "https://github.com/acme/frontend.git");
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Roots(new MemoryStore()).LinkAsync(_project, "backend", "ssh://server" + wrong));
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Roots(new MemoryStore()).LinkAsync(_project, "backend", "ssh://server" + wrong));
             StringAssert.Contains(ex.Message, "frontend");
 
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => roots.ChangesAsync(_project, "backend"), "file modificati: non ancora sulle radici remote");
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => roots.ChangesAsync(_project, "backend"), "file modificati: non ancora sulle radici remote");
         }
 
         /// <summary>
@@ -495,9 +495,9 @@ references:
                 var hits = Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Grep, Path = "", Pattern = "cambiata" })).Hits;
                 Assert.AreEqual("sub/nota.md", hits.Single().Path);
                 Ok(await work.SendAsync(new RemoteRequest { Op = RemoteOps.Move, Path = "sub/nota.md", To = "sub/rinominata.md" }));
-                var stale = await Assert.ThrowsExceptionAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Write, Path = "sub/rinominata.md", Text = "x", Stamp = read.Stamp }));
+                var stale = await Assert.ThrowsExactlyAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Write, Path = "sub/rinominata.md", Text = "x", Stamp = read.Stamp }));
                 Assert.AreEqual(RemoteErrorCodes.Changed, stale.Code);
-                var outside = await Assert.ThrowsExceptionAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = "../../etc/passwd" }));
+                var outside = await Assert.ThrowsExactlyAsync<RemoteOperationException>(() => work.SendAsync(new RemoteRequest { Op = RemoteOps.Read, Path = "../../etc/passwd" }));
                 Assert.AreEqual(RemoteErrorCodes.OutsideRoot, outside.Code);
             }
             finally
@@ -533,10 +533,10 @@ references:
             var byPort = await lab.OpenAsync(RemoteLocation.Parse($"ssh://dev@127.0.0.1:{port}/srv/proj"));
             Assert.AreEqual("/srv/proj", byPort.Hello.Root);
 
-            Assert.AreEqual(RemoteGate.Execution, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-nx/srv/proj")))).Gate, "home noexec");
-            Assert.AreEqual(RemoteGate.Commands, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-sftp/srv/proj")))).Gate, "solo SFTP");
-            Assert.AreEqual(RemoteGate.Access, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-unknown/srv/proj")))).Gate, "host sconosciuto");
-            Assert.AreEqual(RemoteGate.Folder, (await Assert.ThrowsExceptionAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-dev/srv/manca")))).Gate);
+            Assert.AreEqual(RemoteGate.Execution, (await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-nx/srv/proj")))).Gate, "home noexec");
+            Assert.AreEqual(RemoteGate.Commands, (await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-sftp/srv/proj")))).Gate, "solo SFTP");
+            Assert.AreEqual(RemoteGate.Access, (await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-unknown/srv/proj")))).Gate, "host sconosciuto");
+            Assert.AreEqual(RemoteGate.Folder, (await Assert.ThrowsExactlyAsync<RemoteUnavailableException>(() => lab.OpenAsync(RemoteLocation.Parse("ssh://lab-dev/srv/manca")))).Gate);
         }
 
         [TestMethod]

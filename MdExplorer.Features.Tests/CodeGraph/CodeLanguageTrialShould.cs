@@ -99,10 +99,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(p.Accepted);
             StringAssert.Contains(p.RejectReasons.Single(), ".page");
 
-            Assert.ThrowsException<LanguageDefinitionException>(() => CodeLanguageTrial.PackageOf(_project, "schema: 1\nname: x\n"));
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Dialect.Replace("include: [include]", "include: [include, if]")));
+            Assert.ThrowsExactly<LanguageDefinitionException>(() => CodeLanguageTrial.PackageOf(_project, "schema: 1\nname: x\n"));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Dialect.Replace("include: [include]", "include: [include, if]")));
             StringAssert.Contains(ex.Reason, "'if'");
-            var clash = Assert.ThrowsException<LanguageDefinitionException>(() => CodeLanguageCatalog.ForProject(_project).With(CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Dialect.Replace("[.page]", "[.js]"))));
+            var clash = Assert.ThrowsExactly<LanguageDefinitionException>(() => CodeLanguageCatalog.ForProject(_project).With(CodeLanguageTrial.PackageOf(_project, TemplatePageExtractorShould.Dialect.Replace("[.page]", "[.js]"))));
             StringAssert.Contains(clash.Reason, "JavaScript");
         }
     }

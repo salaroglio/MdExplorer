@@ -58,10 +58,9 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentNullException))]
         public void Refuse_to_mint_without_claims()
         {
-            _store.Mint(null);
+            Assert.ThrowsExactly<ArgumentNullException>(() => _store.Mint(null));
         }
     }
 }

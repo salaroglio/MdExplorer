@@ -165,7 +165,7 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void Refuse_a_theme_that_does_not_exist_and_list_the_valid_ones()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render(
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  theme: rosso\n---\n# A\n", Options()));
 
             StringAssert.Contains(ex.Message, "rosso");
@@ -175,7 +175,7 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void Refuse_a_reveal_option_written_outside_config_and_say_where_it_goes()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render(
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  transition: fade\n---\n# A\n", Options()));
 
             StringAssert.Contains(ex.Message, "reveal.config.transition");
@@ -184,7 +184,7 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void Refuse_invalid_yaml_with_the_line_of_the_file()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render(
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  config: [unclosed\n---\n# A\n", Options()));
 
             StringAssert.Contains(ex.Message, "line");
@@ -193,7 +193,7 @@ namespace MdExplorer.Features.Tests.Slides
         [TestMethod]
         public void Refuse_a_deck_without_front_matter()
         {
-            Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render("# A\n", Options()));
+            Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render("# A\n", Options()));
         }
 
         [TestMethod]
@@ -259,9 +259,9 @@ reveal:
         [TestMethod]
         public void Refuse_settings_MdExplorer_owns()
         {
-            Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render(
+            Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  config:\n    plugins: [RevealZoom]\n---\n# A\n", Options()));
-            Assert.ThrowsException<SlideDeckException>(() => SlideDeckRenderer.Render(
+            Assert.ThrowsExactly<SlideDeckException>(() => SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  config:\n    katex:\n      local: https://cdn.example\n---\n# A\n", Options()));
         }
 
@@ -408,7 +408,7 @@ reveal:
         [TestMethod]
         public void Refuse_mermaid_and_point_to_plantuml()
         {
-            var ex = Assert.ThrowsException<SlideDeckException>(() => Render("## A\n\n```mermaid\ngraph TD; A-->B;\n```\n"));
+            var ex = Assert.ThrowsExactly<SlideDeckException>(() => Render("## A\n\n```mermaid\ngraph TD; A-->B;\n```\n"));
 
             StringAssert.Contains(ex.Message, "PlantUML");
         }

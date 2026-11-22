@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Tests.RemoteFolders
         public void Refuse_a_disk_path_for_a_remote_root_but_give_the_remote_relative_path()
         {
             var r = Resolver();
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => r.Resolve("@srv/a.cs"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => r.Resolve("@srv/a.cs"));
             StringAssert.Contains(ex.Message, "ssh://lab-dev/srv/proj/src");
             var remote = r.RemoteOf("@srv/api/a.cs");
             Assert.IsNotNull(remote);
@@ -40,7 +40,7 @@ namespace MdExplorer.Features.Tests.RemoteFolders
             Assert.AreEqual("", r.RemoteOf("@srv").Value.Relative);
             Assert.IsNull(r.RemoteOf("@local/a.cs"), "una radice locale si risolve su disco");
             Assert.IsNull(r.RemoteOf("docs/a.md"), "un percorso del progetto");
-            Assert.ThrowsException<InvalidOperationException>(() => r.RemoteOf("@srv/../../etc/passwd"));
+            Assert.ThrowsExactly<InvalidOperationException>(() => r.RemoteOf("@srv/../../etc/passwd"));
         }
 
         [TestMethod]
@@ -52,8 +52,8 @@ namespace MdExplorer.Features.Tests.RemoteFolders
             Assert.AreEqual("src/a.cs", local.Value.Relative);
             Assert.AreEqual("", r.LocalOf("@local").Value.Relative);
             Assert.IsNull(r.LocalOf("@srv/a.cs"), "una radice remota passa da RemoteOf");
-            Assert.ThrowsException<InvalidOperationException>(() => r.LocalOf("@local/../../fuori.txt"));
-            Assert.ThrowsException<InvalidOperationException>(() => r.LocalOf("@down/a.cs"), "non utilizzabile qui");
+            Assert.ThrowsExactly<InvalidOperationException>(() => r.LocalOf("@local/../../fuori.txt"));
+            Assert.ThrowsExactly<InvalidOperationException>(() => r.LocalOf("@down/a.cs"), "non utilizzabile qui");
         }
     }
 }

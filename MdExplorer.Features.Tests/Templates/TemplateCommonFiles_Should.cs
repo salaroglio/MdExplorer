@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Tests.Templates
         [TestMethod]
         public void Refuse_a_block_that_is_not_whole()
         {
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => TemplateInstructions.Apply("<!-- mde-template:ddd -->\ntesto\n", "ddd", "x"));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => TemplateInstructions.Apply("<!-- mde-template:ddd -->\ntesto\n", "ddd", "x"));
             StringAssert.Contains(ex.Message, "is not whole");
         }
 

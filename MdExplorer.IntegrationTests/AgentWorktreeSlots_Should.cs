@@ -57,8 +57,8 @@ namespace MdExplorer.IntegrationTests
 
             // Zero posti significherebbe una città che non può lavorare; troppi significherebbero
             // altrettanti modelli in esecuzione insieme.
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => Pref(ctx).SetSlots(path, 0));
-            Assert.ThrowsException<ArgumentOutOfRangeException>(
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => Pref(ctx).SetSlots(path, 0));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
                 () => Pref(ctx).SetSlots(path, AgentWorktreePreference.MaxSlots + 1));
         }
 

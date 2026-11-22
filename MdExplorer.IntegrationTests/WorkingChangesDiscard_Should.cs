@@ -75,7 +75,7 @@ namespace MdExplorer.IntegrationTests
             CollectionAssert.Contains(view.Repos[0].Files.Select(f => f.Path).ToList(), "README.md", "l'elenco lo mostra (da pubblicare)");
             CollectionAssert.DoesNotContain(view.Repos[0].Uncommitted.Select(f => f.Path).ToList(), "README.md", "ma non fra i non salvati: niente «Scarta»");
 
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Service(ctx).DiscardAsync(path, null, "README.md"));
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Service(ctx).DiscardAsync(path, null, "README.md"));
             StringAssert.Contains(ex.Message, "commit");
             Assert.AreEqual("# doc\ncommittato\n", Read(Path.Combine(path, "README.md")));
         }

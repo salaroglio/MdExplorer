@@ -365,7 +365,7 @@ namespace MdExplorer.Features.Tests.StaticSite
         [TestMethod]
         public void Refuse_to_start_from_a_file_that_is_not_there()
         {
-            var error = Assert.ThrowsException<StaticSiteException>(() => Export("manca.md"));
+            var error = Assert.ThrowsExactly<StaticSiteException>(() => Export("manca.md"));
             StringAssert.Contains(error.Message, "manca.md");
         }
     }

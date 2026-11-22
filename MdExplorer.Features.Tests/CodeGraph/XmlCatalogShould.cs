@@ -212,7 +212,7 @@ xml:
             StringAssert.Contains(edges.First(e => e.SourceId == "m4").Guard, "file = \"ordini.xml\"");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("xml:\n  queries:\n    - match: '//Q'\n", "xml.queries[0].name")]
         [DataRow("xml:\n  queries:\n    - match: '//Q['\n      name: 'N'\n", "XPath")]
         [DataRow("xml:\n  queries:\n    - match: '//Q'\n      name: 'N'\n  loaders:\n    - method: Leggi\n", "xml.loaders[0].name")]
@@ -220,7 +220,7 @@ xml:
         public void Refuse_a_broken_xml_section_saying_where(string body, string expected)
         {
             var yaml = "schema: 1\nid: catalogo\nversion: 1\nextensions: [.xml]\n" + body;
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => Language(yaml));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => Language(yaml));
             StringAssert.Contains(ex.Message, expected);
         }
 

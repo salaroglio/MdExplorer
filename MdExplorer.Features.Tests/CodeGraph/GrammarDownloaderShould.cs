@@ -96,17 +96,17 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var g = GrammarCatalog.ById("go");
             Publish(g, g.FileName(_store.Rid), checksumOverride: "deadbeef");
-            var ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Downloader().DownloadAsync("go"));
+            var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Downloader().DownloadAsync("go"));
             StringAssert.Contains(ex.Message, "Checksum");
             Assert.IsFalse(_store.IsInstalled(g));
 
             var j = GrammarCatalog.ById("java");
             Publish(j, "wrong-name.bin");
-            var ex2 = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Downloader().DownloadAsync("java"));
+            var ex2 = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Downloader().DownloadAsync("java"));
             StringAssert.Contains(ex2.Message, "does not contain");
             Assert.IsFalse(_store.IsInstalled(j));
 
-            var ex3 = await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => Downloader().DownloadAsync("rust"));
+            var ex3 = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Downloader().DownloadAsync("rust"));
             StringAssert.Contains(ex3.Message, "manifest not available");
         }
     }

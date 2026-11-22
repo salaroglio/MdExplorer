@@ -93,7 +93,7 @@ namespace MdExplorer.Features.Tests.Agents
             AssertError(r, "steps[0].start", "'start' is missing");
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(1, "version 1 is no longer supported", "\"after\"")]
         [DataRow(2, "version 2 is no longer supported", "\"skill\"")]
         public void Explain_how_to_convert_an_older_version(int version, string message, string fix)
@@ -396,7 +396,7 @@ namespace MdExplorer.Features.Tests.Agents
                 Assert.AreEqual("gara/gara.workflow.json", WorkflowDocument.JsonPathOf(root, "gara/workflow.md"));
 
                 File.WriteAllText(Path.Combine(folder, "altro.md"), "---\nmde_type: ownership\n---\n");
-                var ex = Assert.ThrowsException<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/altro.md"));
+                var ex = Assert.ThrowsExactly<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/altro.md"));
                 StringAssert.Contains(ex.Message, "mde_type: workflow");
             }
             finally { Directory.Delete(root, true); }

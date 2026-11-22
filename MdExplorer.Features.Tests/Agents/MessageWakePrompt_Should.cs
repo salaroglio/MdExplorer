@@ -111,10 +111,9 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
         public void Refuse_an_empty_agent_body()
         {
-            AgentPromptComposer.ComposeMessageWakePrompt("   ", "x", "msg");
+            Assert.ThrowsExactly<ArgumentException>(() => AgentPromptComposer.ComposeMessageWakePrompt("   ", "x", "msg"));
         }
 
         // ---- Fase 5c: memoria rilevante iniettata al risveglio ----

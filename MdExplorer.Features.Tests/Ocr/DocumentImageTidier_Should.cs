@@ -196,7 +196,7 @@ namespace MdExplorer.Features.Tests.Ocr
         {
             var before = File.ReadAllText(_document);
 
-            var error = await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+            var error = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
                 () => Tidier("È uno schema.", "Te l'ho detto, è uno schema.").TidyAsync("/assets/doc_img/img1.png"));
 
             StringAssert.Contains(error.Message, "KIND");

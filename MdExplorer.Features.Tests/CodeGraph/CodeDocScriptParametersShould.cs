@@ -92,7 +92,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public void Refuse_what_a_script_does_not_have()
         {
             var ast = Ast();
-            void Refused(System.Action a, string fragment) => StringAssert.Contains(Assert.ThrowsException<CodeDocEditException>(a).Message, fragment);
+            void Refused(System.Action a, string fragment) => StringAssert.Contains(Assert.ThrowsExactly<CodeDocEditException>(a).Message, fragment);
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, "x", null, null, "w"), "returnsDescription");
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, null, null, null, "w"), "nothing to write");
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "m1", null, null, null, new Dictionary<string, string> { ["Pat"] = "x" }, "w"), "Path, OutDir");

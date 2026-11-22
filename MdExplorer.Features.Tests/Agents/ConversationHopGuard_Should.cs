@@ -6,7 +6,7 @@ namespace MdExplorer.Features.Tests.Agents
     [TestClass]
     public class ConversationHopGuard_Should
     {
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(null, 8)]   // default
         [DataRow(12, 12)]    // override valido
         [DataRow(20, 16)]    // cap harness
@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsFalse(d.Exhausted);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("user", "stem-curator")]   // da user
         [DataRow("stem-curator", "user")]   // verso user
         [DataRow("USER", "x")]              // case-insensitive

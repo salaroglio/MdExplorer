@@ -39,7 +39,7 @@ namespace MdExplorer.Features.Tests.Templates
         {
             Assert.AreEqual("The demo", TemplateCatalog.Read(One).Single().Title["en"]);
 
-            string Problem(string json) => Assert.ThrowsException<InvalidOperationException>(() => TemplateCatalog.Read(json)).Message;
+            string Problem(string json) => Assert.ThrowsExactly<InvalidOperationException>(() => TemplateCatalog.Read(json)).Message;
             StringAssert.Contains(Problem(One.Replace("\"url\"", "\"uri\"")), "cannot be read");
             StringAssert.Contains(Problem(One.Replace("\"mde_templates\": 1", "\"mde_templates\": 2")), "format 2");
             StringAssert.Contains(Problem(One.Replace("\"kind\": \"project\"", "\"kind\": \"base\"")), "templates[0].kind 'base'");
@@ -55,7 +55,7 @@ namespace MdExplorer.Features.Tests.Templates
             string List(params string[] items) => "{ \"mde_templates\": 1, \"templates\": [ " + string.Join(", ", items) + " ] }";
 
             Assert.AreEqual("foundation", TemplateCatalog.Read(List(Foundation("documenti"), entry)).First().Kind);
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => TemplateCatalog.Read(List(Foundation("a"), Foundation("b")))).Message,
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => TemplateCatalog.Read(List(Foundation("a"), Foundation("b")))).Message,
                 "more than one foundation template");
         }
     }

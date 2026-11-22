@@ -46,8 +46,8 @@ instructions: .mde-template/gara-iso/istruzioni.md
         public void Refuse_a_language_or_an_example_the_template_does_not_have()
         {
             var m = TemplateManifestReader.Read(GaraIso, "gara-iso", out _);
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => m.BranchFor("de", false)).Message, "'de'");
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => m.BranchFor("en", true)).Message, "'en'");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => m.BranchFor("de", false)).Message, "'de'");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => m.BranchFor("en", true)).Message, "'en'");
         }
 
         [TestMethod]
@@ -239,7 +239,7 @@ workflows: [citta-degli-agenti/gara/workflow.md]
             var m = TemplateManifestReader.Read(GaraIso + "theory:\n  it: { from: .mde-template/gara-iso/teoria, to: teoria/iso }\n", "gara-iso", out var problems);
             Assert.AreEqual(0, problems.Count, string.Join("; ", problems));
             Assert.AreEqual("teoria/iso", m.TheoryFor("it").To);
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => m.TheoryFor("en")).Message, "has no theory in 'en': there is in it");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => m.TheoryFor("en")).Message, "has no theory in 'en': there is in it");
 
             TemplateManifestReader.Read(GaraIso + "theory:\n  de: { from: .mde-template/gara-iso/t, to: t }\n  en: { from: docs/t, to: .claude/skills/t }\n",
                 "gara-iso", out problems);

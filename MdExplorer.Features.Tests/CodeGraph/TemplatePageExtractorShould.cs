@@ -440,7 +440,7 @@ template:
 
             var own = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular2");
             File.WriteAllText(Path.Combine(own, LanguagePackage.DefinitionFile), Angular.Replace("id: angular", "id: angular2").Replace("[.html]", "[.htm]").Replace("extensions: [.ts]", "extensions: [.htm]"));
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackage.Load(own)).Message, "template.inline");
+            StringAssert.Contains(Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackage.Load(own)).Message, "template.inline");
         }
 
         [TestMethod]
@@ -449,7 +449,7 @@ template:
             var package = Path.Combine(DeclarativeLanguage.FolderOf(_project), "angular");
             Directory.CreateDirectory(package);
             File.WriteAllText(Path.Combine(package, LanguagePackage.DefinitionFile), Angular.Replace("    - { role: named,", "    #"));
-            var ex = Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackage.Load(package));
+            var ex = Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackage.Load(package));
             StringAssert.Contains(ex.Message, "named");
         }
 
@@ -480,7 +480,7 @@ template:
         [TestMethod]
         public void Refuse_a_dialect_that_mixes_line_rules_or_repeats_a_word()
         {
-            static string Message(string yaml) => Assert.ThrowsException<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/pagine/language.yml")).Message;
+            static string Message(string yaml) => Assert.ThrowsExactly<LanguageDefinitionException>(() => DeclarativeLanguage.Parse(yaml, "/p/.mde-languages/pagine/language.yml")).Message;
             StringAssert.Contains(Message(Dialect + "blocks: []\n"), "blocks");
             StringAssert.Contains(Message(Dialect.Replace("include: [include]", "include: [if]")), "'if'");
             StringAssert.Contains(Message(Dialect.Replace("{ open: loop, close: endloop }", "{ open: loop, close: endloop, else: [altro] }")), "guard");

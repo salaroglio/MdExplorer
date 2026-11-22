@@ -117,7 +117,9 @@
     <PackageReference Include="HtmlAgilityPack" Version="1.13.1" />
     <PackageReference Include="LibGit2Sharp" Version="0.32.0" />
     <PackageReference Include="Markdig" Version="1.6.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Hosting.Server.Abstractions" Version="2.2.0" />
+    <!-- IServer (CommandFactory) viene dal framework condiviso di ASP.NET, non più dal pacchetto 2.2 del 2018:
+         questa libreria la caricano solo il servizio e i suoi test. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.Bcl.HashCode" Version="1.1.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />

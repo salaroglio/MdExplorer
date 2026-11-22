@@ -165,8 +165,8 @@ namespace MdExplorer.Features.Tests.Exports
         [TestMethod]
         public void Say_when_there_is_no_path()
         {
-            Assert.ThrowsException<ArgumentException>(() => WordImageLayout.CenterStandaloneImages(null));
-            Assert.ThrowsException<ArgumentException>(() => WordImageLayout.CenterStandaloneImages("   "));
+            Assert.ThrowsExactly<ArgumentException>(() => WordImageLayout.CenterStandaloneImages(null));
+            Assert.ThrowsExactly<ArgumentException>(() => WordImageLayout.CenterStandaloneImages("   "));
         }
     }
 }

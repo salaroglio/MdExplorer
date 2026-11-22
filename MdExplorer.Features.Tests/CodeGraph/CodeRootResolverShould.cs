@@ -36,10 +36,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public void Refuse_escapes_unknown_and_unlinked_roots_with_the_reason()
         {
             var r = Resolver();
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => r.Resolve("@backend/../../segreti.txt")).Message, "goes outside the root");
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => r.Resolve("../fuori.md")).Message, "goes outside the project");
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => r.Resolve("@nessuna/x")).Message, "is not declared");
-            StringAssert.Contains(Assert.ThrowsException<InvalidOperationException>(() => r.Resolve("@frontend/x")).Message, "non è collegata");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => r.Resolve("@backend/../../segreti.txt")).Message, "goes outside the root");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => r.Resolve("../fuori.md")).Message, "goes outside the project");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => r.Resolve("@nessuna/x")).Message, "is not declared");
+            StringAssert.Contains(Assert.ThrowsExactly<InvalidOperationException>(() => r.Resolve("@frontend/x")).Message, "non è collegata");
         }
 
         [TestMethod]

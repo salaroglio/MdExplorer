@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Tests.Agents
             Directory.CreateDirectory(root);
             try
             {
-                return Assert.ThrowsException<InvalidOperationException>(() =>
+                return Assert.ThrowsExactly<InvalidOperationException>(() =>
                     RoundLedger.Append(root, "2026-10-17-gara-000000", "tecnica", "t",
                         new RoundEvent { Type = RoundEventType.Held, At = DateTime.UtcNow })).Message;
             }

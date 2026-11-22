@@ -38,10 +38,10 @@ namespace MdExplorer.Features.Tests.E2e
         [TestMethod]
         public void Refuse_a_model_without_an_engine_and_an_unknown_engine_saying_what_to_write()
         {
-            var noEngine = Assert.ThrowsException<E2eFormatException>(() =>
+            var noEngine = Assert.ThrowsExactly<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    model: gpt-5\n---\n", "t.e2e.md"));
             StringAssert.Contains(noEngine.Message, "write the engine too");
-            var unknown = Assert.ThrowsException<E2eFormatException>(() =>
+            var unknown = Assert.ThrowsExactly<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    engine: gemini\n---\n", "t.e2e.md"));
             StringAssert.Contains(unknown.Message, "claude, copilot, opencode");
         }
@@ -102,15 +102,15 @@ namespace MdExplorer.Features.Tests.E2e
         [TestMethod]
         public void Refuse_the_flow_style_and_values_that_are_not_booleans_with_what_to_do()
         {
-            var flow = Assert.ThrowsException<E2eFormatException>(() =>
+            var flow = Assert.ThrowsExactly<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e: { baseUrl: x }\n---\n", "t.e2e.md"));
             StringAssert.Contains(flow.Message, "block form");
 
-            var notBool = Assert.ThrowsException<E2eFormatException>(() =>
+            var notBool = Assert.ThrowsExactly<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    headless: forse\n---\n", "t.e2e.md"));
             StringAssert.Contains(notBool.Message, "'e2e.run.headless' is 'forse'");
 
-            var unknown = Assert.ThrowsException<E2eFormatException>(() =>
+            var unknown = Assert.ThrowsExactly<E2eFormatException>(() =>
                 E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    headles: true\n---\n", "t.e2e.md"));
             StringAssert.Contains(unknown.Message, "unknown key 'e2e.run.headles'");
         }

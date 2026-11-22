@@ -18,7 +18,6 @@ using MdExplorer;
 using MdExplorer.Service;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Controllers.MdProjects;
-using AutoMapper;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Controllers.MdProjects.dto;
 using MdExplorer.Services;
@@ -41,7 +40,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IUserSettingsDB _userSettingsDB;
         private readonly IServiceProvider _services;
         private readonly ProcessUtil _processUtil;
-        private readonly IMapper _mapper;
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
         private readonly FoldersIgnoreService _foldersIgnoreService;
@@ -53,7 +51,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public MdProjectsController(IUserSettingsDB userSettingsDB,
                 IServiceProvider services,
                 ProcessUtil processUtil,
-                IMapper mapper,
                 IDatabaseManager databaseManager,
                 IFileSystemWatcherManager fileSystemWatcherManager,
                 FoldersIgnoreService foldersIgnoreService,
@@ -66,7 +63,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _userSettingsDB = userSettingsDB;
             _services = services;
             _processUtil = processUtil;
-            _mapper = mapper;
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
             _foldersIgnoreService = foldersIgnoreService;
@@ -83,7 +79,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             var projectDal = _userSettingsDB.GetDal<Project>();
             var list = projectDal.GetList().OrderByDescending(_ => _.LastUpdate).ToList();
-            var listToReturn = _mapper.Map<IEnumerable<ProjectWithoutBookmarks>>(list).ToList();
+            var listToReturn = list.Select(ProjectWithoutBookmarks.From).ToList();
 
             // Enrich each project with its shared description from .development.yml.
             // Participants are intentionally NOT eager-loaded here: BuildMergedParticipants
@@ -576,7 +572,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     return StatusCode(500, new { message = "Project name saved but description could not be written to .development.yml", error = yamlEx.Message });
                 }
 
-                var dto = _mapper.Map<ProjectWithoutBookmarks>(projectFromDb);
+                var dto = ProjectWithoutBookmarks.From(projectFromDb);
                 dto.Description = _projectMetadataService.GetDescription(projectFromDb.Path);
                 return Ok(dto);
             }

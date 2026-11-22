@@ -158,11 +158,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             await LoadedAsync();
             _client.QueriesExpire = true;
-            var ex = await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.ParserProfilesAsync(_project));
+            var ex = await Assert.ThrowsExactlyAsync<TimeoutException>(() => _store.ParserProfilesAsync(_project));
             StringAssert.Contains(ex.Message, "VALUES ?path", "il modo che usa l'indice");
             StringAssert.Contains(ex.Message, "STRSTARTS", "e quello da non usare, detto come tale");
 
-            var sparql = await Assert.ThrowsExceptionAsync<CodeSparqlException>(() => _store.SparqlAsync(_project, "SELECT ?s WHERE { ?s ?p ?o }", 10));
+            var sparql = await Assert.ThrowsExactlyAsync<CodeSparqlException>(() => _store.SparqlAsync(_project, "SELECT ?s WHERE { ?s ?p ?o }", 10));
             StringAssert.Contains(sparql.Message, "VALUES ?path");
             Assert.IsFalse(sparql.Message.Contains("(un FILTER sul path, un LIMIT)", StringComparison.Ordinal) || sparql.Message.Contains("(a FILTER on path, a LIMIT)", StringComparison.Ordinal),
                 "non più il consiglio di restringere con un filtro sul percorso");
@@ -175,7 +175,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             _client.NavigationDelay = TimeSpan.FromSeconds(3);
             using (CodeQueryBudget.Begin(TimeSpan.FromSeconds(1)))
             {
-                var ex = await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));
+                var ex = await Assert.ThrowsExactlyAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));
                 Assert.IsTrue(ex.Message.Contains("riprova", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("again", StringComparison.OrdinalIgnoreCase), ex.Message);
             }
             await Task.Delay(TimeSpan.FromSeconds(4));   // la lettura finisce da sola
@@ -197,12 +197,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
             await LoadedAsync();
             _client.NavigationDelay = TimeSpan.FromSeconds(3);
             using (CodeQueryBudget.Begin(TimeSpan.FromSeconds(1)))
-                await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // la lettura A parte
+                await Assert.ThrowsExactlyAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // la lettura A parte
             var script = Path.Combine(_project, ".mde-code", "src", "Foo.toy.ast.ttl");
             File.WriteAllText(script, File.ReadAllText(script).Replace("\"Foo.SUB\"", "\"Foo.SUB2\""));
             Assert.IsTrue((await _store.LoadScriptAsync(_project, script)).Loaded, "la scrittura mentre A legge");
             using (CodeQueryBudget.Begin(TimeSpan.FromSeconds(1)))
-                await Assert.ThrowsExceptionAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // B, non A
+                await Assert.ThrowsExactlyAsync<TimeoutException>(() => _store.NavigationEdgesAsync(_project));   // B, non A
             await Task.Delay(TimeSpan.FromSeconds(8));   // A finisce, poi B (aspetta il suo turno) legge e finisce
             Assert.AreEqual(2, _client.NavigationReads, "una lettura nuova dopo la scrittura, non quella di prima");
             var edges = await _store.NavigationEdgesAsync(_project);

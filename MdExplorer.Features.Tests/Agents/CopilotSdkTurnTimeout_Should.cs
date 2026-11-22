@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Tests.Agents
 
             idle.Cancel();
 
-            var ex = await Assert.ThrowsExceptionAsync<OperationCanceledException>(
+            var ex = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
                 () => ReadToTheEnd(channel.Reader));
             StringAssert.Contains(ex.Message, "300");
         }
@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Tests.Agents
 
             hard.Cancel();
 
-            var ex = await Assert.ThrowsExceptionAsync<OperationCanceledException>(
+            var ex = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
                 () => ReadToTheEnd(channel.Reader));
             StringAssert.Contains(ex.Message, "30");
         }

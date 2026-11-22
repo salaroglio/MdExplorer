@@ -160,12 +160,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public void Refuse_an_incomplete_or_unknown_rule_saying_what_is_wrong()
         {
-            var ex = Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""string"" } }"));
+            var ex = Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""string"" } }"));
             StringAssert.Contains(ex.Message, "split");
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"" }, ""campo"": 1 }"),
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"" }, ""campo"": 1 }"),
                 "un campo che il formato non conosce");
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""X Y"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"" } }"));
-            Assert.ThrowsException<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"", ""aliasMap"": ""../fuori.properties"" } }"));
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""X Y"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"" } }"));
+            Assert.ThrowsExactly<CodeRuleException>(() => CodeEnrichmentRule.Parse(@"{ ""id"": ""x"", ""description"": ""d"", ""call"": { ""callee"": ""f"", ""argument"": 0 }, ""owner"": { ""from"": ""class"", ""class"": ""A"", ""aliasMap"": ""../fuori.properties"" } }"));
         }
 
         [TestMethod]

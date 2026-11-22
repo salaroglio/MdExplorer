@@ -38,7 +38,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             Assert.AreEqual("a/b", CodeRootContexts.Normalize("\\a\\b\\"));
             Assert.AreEqual("", CodeRootContexts.Normalize(null));
-            Assert.ThrowsException<ArgumentException>(() => CodeRootContexts.Normalize("a/../b"));
+            Assert.ThrowsExactly<ArgumentException>(() => CodeRootContexts.Normalize("a/../b"));
         }
     }
 }

@@ -73,7 +73,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(LanguagePackageExport.Export(_project, "toy", _out).Unchanged, "stesso contenuto, stesso zip: niente da riscrivere");
 
             Write("toy/prompts/code-doc.md", "Un PART n è un blocco, chiamato con RUN PART n.\n");
-            var ex = Assert.ThrowsException<LanguagePackageExportExistsException>(() => LanguagePackageExport.Export(_project, "toy", _out));
+            var ex = Assert.ThrowsExactly<LanguagePackageExportExistsException>(() => LanguagePackageExport.Export(_project, "toy", _out));
             StringAssert.Contains(ex.Message, "version", "dice di alzare la versione");
             CollectionAssert.AreEqual(before, File.ReadAllBytes(first.ZipPath), "lo zip di prima resta com'era");
 
@@ -97,7 +97,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             CollectionAssert.AreEqual(FilesOf(Path.Combine(DeclarativeLanguage.FolderOf(_project), "toy")), FilesOf(imported.Folder));
 
             Write("toy/findings/sorgente.txt", "non è una rilevazione");
-            StringAssert.Contains(Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out)).Message, "findings/*.md");
+            StringAssert.Contains(Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out)).Message, "findings/*.md");
         }
 
         [TestMethod]
@@ -135,10 +135,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
         public void Refuse_a_broken_or_missing_package()
         {
             Write("toy/skills/toy-code/SKILL.md", "---\nname: toy-code\n---\n");
-            Assert.ThrowsException<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out));
+            Assert.ThrowsExactly<LanguageDefinitionException>(() => LanguagePackageExport.Export(_project, "toy", _out));
             Assert.AreEqual(0, Directory.GetFiles(_out).Length, "un pacchetto rotto non esce");
-            StringAssert.Contains(Assert.ThrowsException<DirectoryNotFoundException>(() => LanguagePackageExport.Export(_project, "zeta", _out)).Message, ".mde-languages/zeta/");
-            Assert.ThrowsException<DirectoryNotFoundException>(() => LanguagePackageExport.Export(_project, "toy", Path.Combine(_root, "non-c-e")));
+            StringAssert.Contains(Assert.ThrowsExactly<DirectoryNotFoundException>(() => LanguagePackageExport.Export(_project, "zeta", _out)).Message, ".mde-languages/zeta/");
+            Assert.ThrowsExactly<DirectoryNotFoundException>(() => LanguagePackageExport.Export(_project, "toy", Path.Combine(_root, "non-c-e")));
         }
     }
 }

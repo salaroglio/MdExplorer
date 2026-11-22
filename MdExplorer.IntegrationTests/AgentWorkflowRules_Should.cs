@@ -88,7 +88,7 @@ namespace MdExplorer.IntegrationTests
 
             Assert.AreEqual(0, svc.ReworksLeft(svc.Get(second.Id), out var why));
             StringAssert.Contains(why, "has already been redone 1 time");
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(second.Id));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => svc.Rework(second.Id));
             StringAssert.Contains(ex.Message, "the most the workflow allows for the loop");
             Assert.AreEqual(AgentMessage.StateEnum.Processed, ReadMessage(ctx, assignment).State, "oltre il massimo il lavoro resta fermo");
         }
@@ -132,7 +132,7 @@ namespace MdExplorer.IntegrationTests
 
             var twice = meta.GetAgentCity(path);
             twice.WorkflowDocs = new System.Collections.Generic.List<string> { "a.md", "/a.md" };
-            var ex = Assert.ThrowsException<InvalidOperationException>(() => meta.SetAgentCity(path, twice));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => meta.SetAgentCity(path, twice));
             StringAssert.Contains(ex.Message, "is listed twice");
         }
 

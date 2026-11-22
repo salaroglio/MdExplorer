@@ -70,8 +70,8 @@ namespace MdExplorer.Features.Tests.AgentMemory
         [TestMethod]
         public void Fail_loud_on_invalid_iri()
         {
-            Assert.ThrowsException<ArgumentException>(() => SparqlText.Iri("non un uri"));
-            Assert.ThrowsException<ArgumentException>(() => SparqlText.Iri(""));
+            Assert.ThrowsExactly<ArgumentException>(() => SparqlText.Iri("non un uri"));
+            Assert.ThrowsExactly<ArgumentException>(() => SparqlText.Iri(""));
             Assert.AreEqual("<urn:mde:mem:shared>", SparqlText.Iri("urn:mde:mem:shared"));
         }
 
@@ -81,7 +81,7 @@ namespace MdExplorer.Features.Tests.AgentMemory
             var id = Guid.Parse("11111111-2222-3333-4444-555555555555");
             Assert.AreEqual("urn:mde:mem:agent:11111111-2222-3333-4444-555555555555", AgentMemoryGraphs.ForAgent(id));
             Assert.AreEqual("urn:mde:mem:shared", AgentMemoryGraphs.Shared);
-            Assert.ThrowsException<ArgumentException>(() => AgentMemoryGraphs.ForAgent(Guid.Empty));
+            Assert.ThrowsExactly<ArgumentException>(() => AgentMemoryGraphs.ForAgent(Guid.Empty));
         }
     }
 }
