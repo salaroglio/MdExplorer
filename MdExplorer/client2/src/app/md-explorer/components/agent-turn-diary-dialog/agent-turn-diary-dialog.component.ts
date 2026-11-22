@@ -1,4 +1,6 @@
-import { AfterViewChecked, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, Inject, OnDestroy, OnInit, SecurityContext, ViewChild } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
 import { AgentTurnDiary, AgentTurnDiaryEntry, AgentTurnDiaryService } from '../../services/agent-turn-diary.service';
@@ -23,6 +25,16 @@ export interface AgentTurnDiaryDialogData {
 export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterViewChecked {
   diary: AgentTurnDiary | null = null;
   entries: AgentTurnDiaryEntry[] = [];
+  /**
+   * La risposta resa come markdown, per voce: si ricalcola solo quando la voce cambia. Una stringa tenuta, non un
+   * metodo nel template: con `[innerHTML]="metodo()"` il testo verrebbe ridisegnato a ogni giro e non si potrebbe selezionare.
+   */
+  html: { [seq: number]: string } = {};
+  /** «Ferma»: il primo clic chiede conferma (per qualche secondo), il secondo ferma. */
+  stopArmed = false;
+  stopping = false;
+  stopError: string | null = null;
+  private stopArmedTimer: any = null;
   /** Perché il diario non si legge (turno troppo vecchio, servizio che non risponde): lo si dice, niente pannello vuoto. */
   loadError: string | null = null;
   /** L'ora con cui si calcola «da quanto»: avanza solo finché il turno è in corso. */
@@ -42,6 +54,7 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
     public dialogRef: MatDialogRef<AgentTurnDiaryDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentTurnDiaryDialogData,
     private diaries: AgentTurnDiaryService,
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -55,6 +68,7 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
     if (this.clock) clearInterval(this.clock);
+    if (this.stopArmedTimer) clearTimeout(this.stopArmedTimer);
   }
 
   ngAfterViewChecked(): void {
@@ -68,8 +82,37 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
     return !!this.diary && !this.diary.finishedAtUtc;
   }
 
+  /** Fermato a mano (da qui o da chi l'ha lanciato): non è un turno «non riuscito». */
+  get stopped(): boolean {
+    return !!this.diary && !!this.diary.finishedAtUtc && this.diary.outcome === 'Cancelled';
+  }
+
   get failed(): boolean {
-    return !!this.diary && !!this.diary.finishedAtUtc && this.diary.outcome !== 'Completed';
+    return !!this.diary && !!this.diary.finishedAtUtc && this.diary.outcome !== 'Completed' && !this.stopped;
+  }
+
+  /** «Ferma»: primo clic arma (e si disarma da solo dopo 4 secondi), secondo clic ferma. Un turno perso non si recupera. */
+  stop(): void {
+    if (!this.running || this.stopping) return;
+    if (!this.stopArmed) {
+      this.stopArmed = true;
+      this.stopArmedTimer = setTimeout(() => this.stopArmed = false, 4000);
+      return;
+    }
+    if (this.stopArmedTimer) clearTimeout(this.stopArmedTimer);
+    this.stopArmed = false;
+    this.stopping = true;
+    this.stopError = null;
+    this.diaries.stop(this.data.turnId).subscribe({
+      // Fermato: lo dirà il diario, quando il motore si è fermato davvero. Fino ad allora resta «si sta fermando».
+      next: () => {},
+      error: err => {
+        this.stopping = false;
+        // 404 = è finito da solo nel frattempo: il diario lo sta già dicendo, non è un errore da mostrare.
+        if (err?.status !== 404) this.stopError = typeof err?.error === 'string' ? err.error : (err?.message || String(err));
+        this.refresh();
+      },
+    });
   }
 
   /** «1 min 05 s»: da quanto lavora, o quanto ha lavorato. */
@@ -125,11 +168,19 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
     });
   }
 
+  /** La risposta è markdown (titoli, elenchi, codice): la si rende come nella chat di MarkAgent, e la si ripulisce. */
+  private render(text: string): string {
+    const html = marked.parse(text || '', { async: false, gfm: true, breaks: true }) as string;
+    return this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+  }
+
   private merge(diary: AgentTurnDiary): void {
     for (const changed of diary.entries || []) {
       const at = this.entries.findIndex(e => e.seq === changed.seq);
       if (at >= 0) this.entries[at] = changed; else this.entries.push(changed);
+      if (changed.kind === 'message') this.html[changed.seq] = this.render(changed.text);
     }
+    if (diary.finishedAtUtc) this.stopping = false;
     this.entries.sort((a, b) => a.seq - b.seq);
     this.version = Math.max(this.version, diary.version);
     this.diary = { ...diary, entries: [] };

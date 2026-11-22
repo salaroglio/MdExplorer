@@ -146,15 +146,27 @@ namespace MdExplorer.Services.AgentRun
                 listener?.Invoke(e);
             };
             AgentTurnResult result;
+            // «Ferma» dal diario: il turno si annulla come se lo annullasse chi l'ha lanciato, ma l'esito lo dice.
+            using var stoppable = CancellationTokenSource.CreateLinkedTokenSource(ct, working.StopRequested);
+            var stoppedByUser = MdExplorer.Features.Services.UiText.Say($"Agente '{request.AgentName}': turno fermato a mano dal diario.", $"Agent '{request.AgentName}': turn stopped by hand from the diary.");
             try
             {
                 result = choice.Engine switch
                 {
-                    MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, ct),
-                    MarkAgentEngine.Claude => await _claude.RunTurnAsync(turn, ct),
-                    MarkAgentEngine.OpenCode => await _openCode.RunTurnAsync(turn, ct),
+                    MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, stoppable.Token),
+                    MarkAgentEngine.Claude => await _claude.RunTurnAsync(turn, stoppable.Token),
+                    MarkAgentEngine.OpenCode => await _openCode.RunTurnAsync(turn, stoppable.Token),
                     _ => AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, $"Agente '{request.AgentName}': nessun esecutore per {choice.Label}."),
                 };
+                // Un motore che, fermato, torna un esito invece di sollevare: resta «fermato», non «errore del motore».
+                if (working.Stopped && !ct.IsCancellationRequested && !result.IsSuccess)
+                    result = AgentTurnResult.Failed(AgentTurnOutcome.Cancelled, stoppedByUser, result.Text, result.Iterations);
+            }
+            catch (OperationCanceledException) when (working.Stopped && !ct.IsCancellationRequested)
+            {
+                // Fermato dal diario, non da chi ha lanciato il turno: un esito, non un'eccezione. Chi ha lanciato prosegue
+                // col suo percorso normale di «turno non riuscito», sapendo perché.
+                result = AgentTurnResult.Failed(AgentTurnOutcome.Cancelled, stoppedByUser);
             }
             catch (Exception ex)
             {

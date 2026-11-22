@@ -438,8 +438,10 @@
       <div class="agents-running-title" [class.agents-recent-title]="agentsRunning.length > 0">{{ 'TOOLBAR.AGENTS_RECENT_TITLE' | translate }}</div>
       <button type="button" class="agents-running-row" *ngFor="let t of agentsFinished"
               (click)="openAgentTurnDiary(t.id, t.agentName, t.engine)" [title]="'TOOLBAR.AGENTS_OPEN_DIARY' | translate">
-        <mat-icon [class.agents-recent-ok]="t.outcome === 'Completed'" [class.agents-recent-failed]="t.outcome !== 'Completed'">
-          {{ t.outcome === 'Completed' ? 'check_circle' : 'error_outline' }}
+        <!-- Finito, fermato a mano (non è un errore), non riuscito. -->
+        <mat-icon [class.agents-recent-ok]="t.outcome === 'Completed'"
+                  [class.agents-recent-failed]="t.outcome !== 'Completed' && t.outcome !== 'Cancelled'">
+          {{ t.outcome === 'Completed' ? 'check_circle' : t.outcome === 'Cancelled' ? 'stop_circle' : 'error_outline' }}
         </mat-icon>
         <span class="agents-running-name">{{ t.agentName }}</span>
         <mat-icon class="agents-running-open">chevron_right</mat-icon>

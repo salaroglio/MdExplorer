@@ -234,6 +234,26 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// Manda un messaggio e restituisce i frammenti mentre arrivano; con <see cref="DiagramVerifier"/> può seguire un
         /// turno di correzione dei diagrammi, nello stesso flusso.
         /// </summary>
+        /// <summary>
+        /// Uno strumento per il diario del turno: quando parte, il nome e su che cosa lavora (dagli argomenti in
+        /// <c>state.input</c>); quando finisce, l'esito. «In attesa» non dice niente.
+        /// </summary>
+        internal static string DiaryLine(string tool, string status, JsonElement part)
+        {
+            switch (status)
+            {
+                case "running":
+                    return MdExplorer.Features.Agents.AgentToolLine.Describe(tool,
+                        part.TryGetProperty("state", out var state) && state.TryGetProperty("input", out var input) ? input : default);
+                case "completed":
+                    return "↳ ok";
+                case "error":
+                    return "↳ errore";
+                default:
+                    return null;
+            }
+        }
+
         public async IAsyncEnumerable<OpenCodeChunk> PromptAsync(
             string prompt,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -713,7 +733,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                         if (!turn.ToolsAnnounced.Add(key)) return;
                     }
                     var label = status == null ? tool : $"{tool} · {status}";
-                    turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, label));
+                    turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, label, DiaryLine(tool, status, part)));
                     return;
 
                 case "session.idle":

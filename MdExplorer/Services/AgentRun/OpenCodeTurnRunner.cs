@@ -132,7 +132,13 @@ namespace MdExplorer.Services.AgentRun
                     idle.CancelAfter(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
                     if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
                     // Per chi guarda il turno (il diario): tutto ciò che arriva, non solo la risposta. I tipi sono gli stessi.
-                    try { request.OnEvent?.Invoke(new AgentTurnEvent(chunk.Kind, chunk.Text)); } catch { /* chi guarda non ferma il turno */ }
+                    // Uno strumento: nel diario va «nome · file o comando» e poi l'esito, non gli stati intermedi della chat.
+                    try
+                    {
+                        var text = chunk.Kind == OpenCodeChunk.KindTool ? chunk.Diary : chunk.Text;
+                        if (!string.IsNullOrEmpty(text)) request.OnEvent?.Invoke(new AgentTurnEvent(chunk.Kind, text));
+                    }
+                    catch { /* chi guarda non ferma il turno */ }
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested && limits.IsCancellationRequested)

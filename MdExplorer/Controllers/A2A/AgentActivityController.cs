@@ -36,6 +36,18 @@ namespace MdExplorer.Controllers.A2A
             return Ok(view);
         }
 
+        /// <summary>
+        /// «Ferma» dal diario: chiede di fermare un turno in corso. 404 se non c'è più (è finito nel frattempo): chi ha
+        /// premuto lo vede dal diario, che si è già chiuso col suo esito.
+        /// </summary>
+        [HttpPost("stop/{id}")]
+        public IActionResult Stop(System.Guid id)
+        {
+            if (!_board.Stop(id))
+                return NotFound(UiText.Say("Questo turno non è più in corso: non c'è niente da fermare.", "This turn is no longer running: there is nothing to stop."));
+            return Ok(new { stopping = true });
+        }
+
         /// <summary>I turni di un progetto, i più recenti prima: quelli in corso e quelli finiti, senza le voci.</summary>
         [HttpGet("recent")]
         public IActionResult Recent([FromQuery] string projectPath, [FromQuery] int max = 20)

@@ -56,6 +56,11 @@ export class AgentTurnDiaryService {
     return this.http.get<AgentTurnDiary>(`/api/A2A/activity/diary/${encodeURIComponent(id)}`, { params });
   }
 
+  /** «Ferma»: chiede di fermare un turno in corso. 404 se è già finito. L'esito lo dice poi il diario («fermato»). */
+  stop(id: string): Observable<{ stopping: boolean }> {
+    return this.http.post<{ stopping: boolean }>(`/api/A2A/activity/stop/${encodeURIComponent(id)}`, {});
+  }
+
   /** Le testate dei turni del progetto, i più recenti prima: quelli in corso e quelli finiti. */
   recent(projectPath: string, max: number): Observable<AgentTurnDiary[]> {
     const params = new HttpParams().set('projectPath', projectPath).set('max', String(max));

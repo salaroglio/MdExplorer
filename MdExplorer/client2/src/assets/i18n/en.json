@@ -2387,7 +2387,13 @@
     "WAITING": "The agent has started: what it writes and what it uses appears here.",
     "EMPTY": "This turn left nothing to read.",
     "TRUNCATED": "The turn wrote more than the diary keeps: the end is missing.",
-    "LOAD_ERROR": "The diary cannot be read:"
+    "LOAD_ERROR": "The diary cannot be read:",
+    "STOPPED": "stopped",
+    "STOPPING": "stopping",
+    "STOP": "Stop",
+    "STOP_CONFIRM": "Confirm: stop",
+    "STOP_TOOLTIP": "Stop the turn. What the agent already wrote to files stays; the work in progress cannot be recovered.",
+    "STOP_ERROR": "The turn could not be stopped:"
   },
   "AGENT_LAUNCH": {
     "TITLE": "Launch agent",

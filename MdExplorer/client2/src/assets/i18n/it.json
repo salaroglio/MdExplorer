@@ -2387,7 +2387,13 @@
     "WAITING": "L'agente è partito: qui compare ciò che scrive e ciò che usa.",
     "EMPTY": "Questo turno non ha lasciato niente da leggere.",
     "TRUNCATED": "Il turno ha scritto più di quanto il diario conserva: la fine manca.",
-    "LOAD_ERROR": "Il diario non si legge:"
+    "LOAD_ERROR": "Il diario non si legge:",
+    "STOPPED": "fermato",
+    "STOPPING": "si sta fermando",
+    "STOP": "Ferma",
+    "STOP_CONFIRM": "Conferma: ferma",
+    "STOP_TOOLTIP": "Ferma il turno. Ciò che l'agente ha già scritto nei file resta; il lavoro a metà non si recupera.",
+    "STOP_ERROR": "Il turno non si è potuto fermare:"
   },
   "AGENT_LAUNCH": {
     "TITLE": "Lancia agente",

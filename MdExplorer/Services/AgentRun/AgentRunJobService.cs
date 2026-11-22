@@ -403,6 +403,22 @@ namespace MdExplorer.Services.AgentRun
 
                 // Un turno può concludersi male SENZA sollevare (tetto di iterazioni, uscita
                 // non-zero): registrarlo come "success" mentirebbe allo storico dell'agente.
+                if (turn.Outcome == AgentTurnOutcome.Cancelled)
+                {
+                    // Fermato a mano dal diario del turno: è un annullamento, come quello chiesto da chi l'ha lanciato.
+                    _logger.LogInformation("[AgentRun] CANCELLED agent='{Agent}' runId={RunId}: {Why}", agentName, request.RunId, turn.Diagnostic);
+                    CompleteLogRow(logId, request, "cancelled", Tail(turn.Text), null, turn.Engine);
+                    await SendAsync(request, new
+                    {
+                        runId = request.RunId,
+                        scheduleId = request.ScheduleId,
+                        agentName,
+                        agentFilePath = request.AgentFilePath,
+                        triggerSource = request.TriggerSource,
+                        phase = "cancelled"
+                    });
+                    return;
+                }
                 if (!turn.IsSuccess)
                 {
                     var why = turn.Diagnostic ?? $"turno concluso come {turn.Outcome}";

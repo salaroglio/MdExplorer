@@ -5,11 +5,17 @@
     <div class="diary-header__engine">{{ diary?.engine || data.engine }}</div>
   </div>
   <span class="diary-state" [class.diary-state--running]="running" [class.diary-state--failed]="failed"
-        [class.diary-state--done]="diary && !running && !failed" *ngIf="diary">
+        [class.diary-state--stopped]="stopped" [class.diary-state--done]="diary && !running && !failed && !stopped" *ngIf="diary">
     <mat-spinner *ngIf="running" diameter="14" strokeWidth="2"></mat-spinner>
-    <mat-icon *ngIf="!running">{{ failed ? 'error_outline' : 'check_circle' }}</mat-icon>
-    {{ (running ? 'AGENT_DIARY.RUNNING' : failed ? 'AGENT_DIARY.FAILED' : 'AGENT_DIARY.DONE') | translate }} · {{ elapsed }}
+    <mat-icon *ngIf="!running">{{ failed ? 'error_outline' : stopped ? 'stop_circle' : 'check_circle' }}</mat-icon>
+    {{ (running ? (stopping ? 'AGENT_DIARY.STOPPING' : 'AGENT_DIARY.RUNNING') : failed ? 'AGENT_DIARY.FAILED' : stopped ? 'AGENT_DIARY.STOPPED' : 'AGENT_DIARY.DONE') | translate }} · {{ elapsed }}
   </span>
+  <!-- «Ferma»: due clic, perché il lavoro di un turno fermato non si recupera. -->
+  <button *ngIf="running" type="button" class="diary-stop" [class.diary-stop--armed]="stopArmed" (click)="stop()" [disabled]="stopping"
+          [matTooltip]="'AGENT_DIARY.STOP_TOOLTIP' | translate">
+    <mat-icon>stop</mat-icon>
+    <span>{{ (stopArmed ? 'AGENT_DIARY.STOP_CONFIRM' : 'AGENT_DIARY.STOP') | translate }}</span>
+  </button>
   <button mat-icon-button class="diary-header__close" (click)="close()" [attr.aria-label]="'COMMON.CLOSE' | translate">
     <mat-icon>close</mat-icon>
   </button>
@@ -26,7 +32,7 @@
   </div>
 
   <ng-container *ngFor="let entry of entries; trackBy: trackBySeq" [ngSwitch]="entry.kind">
-    <div *ngSwitchCase="'message'" class="diary-entry diary-entry--message">{{ entry.text }}</div>
+    <div *ngSwitchCase="'message'" class="diary-entry diary-entry--message" [innerHTML]="html[entry.seq]"></div>
 
     <details *ngSwitchCase="'thinking'" class="diary-entry diary-entry--thinking">
       <summary><mat-icon>psychology</mat-icon>{{ 'AGENT_DIARY.THINKING' | translate }}</summary>
@@ -46,6 +52,13 @@
   </ng-container>
 
   <div class="diary-note" *ngIf="diary?.truncated">{{ 'AGENT_DIARY.TRUNCATED' | translate }}</div>
+
+  <div class="diary-note diary-note--error" *ngIf="stopError">
+    <mat-icon>warning</mat-icon>
+    <span>{{ 'AGENT_DIARY.STOP_ERROR' | translate }} {{ stopError }}</span>
+  </div>
+
+  <div class="diary-note" *ngIf="stopped && diary?.diagnostic">{{ diary?.diagnostic }}</div>
 
   <div class="diary-note diary-note--error" *ngIf="failed && diary?.diagnostic">
     <mat-icon>error_outline</mat-icon>

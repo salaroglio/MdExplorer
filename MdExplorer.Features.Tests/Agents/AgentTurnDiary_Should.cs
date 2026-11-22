@@ -168,6 +168,33 @@ namespace MdExplorer.Features.Tests.Agents
     }
 
     [TestClass]
+    public class OpenCodeDiaryLine_Should
+    {
+        private static JsonElement Part(string json) => JsonDocument.Parse(json).RootElement.Clone();
+
+        [TestMethod]
+        public void Say_the_file_when_the_tool_starts_and_the_outcome_when_it_ends()
+        {
+            var running = Part("{\"type\":\"tool\",\"tool\":\"read\",\"callID\":\"c1\",\"state\":{\"status\":\"running\",\"input\":{\"filePath\":\"docs/nota.txt\"}}}");
+            Assert.AreEqual("read · docs/nota.txt", MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.DiaryLine("read", "running", running));
+            Assert.AreEqual("↳ ok", MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.DiaryLine("read", "completed", running));
+            Assert.AreEqual("↳ errore", MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.DiaryLine("read", "error", running));
+            Assert.IsNull(MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.DiaryLine("read", "pending", running), "in attesa: al diario non dice niente");
+            // Partito senza argomenti leggibili: resta il nome.
+            Assert.AreEqual("glob", MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.DiaryLine("glob", "running", Part("{\"type\":\"tool\",\"state\":{\"status\":\"running\"}}")));
+        }
+
+        [TestMethod]
+        public void Keep_for_the_diary_a_tool_notice_that_is_not_a_state()
+        {
+            var notice = new MdExplorer.Features.Services.AI.OpenCode.OpenCodeChunk(MdExplorer.Features.Services.AI.OpenCode.OpenCodeChunk.KindTool, "bash · negato durante i test");
+            Assert.AreEqual("bash · negato durante i test", notice.Diary);
+            var answer = new MdExplorer.Features.Services.AI.OpenCode.OpenCodeChunk(MdExplorer.Features.Services.AI.OpenCode.OpenCodeChunk.KindMessage, "ciao");
+            Assert.IsNull(answer.Diary, "solo gli strumenti hanno una riga a parte");
+        }
+    }
+
+    [TestClass]
     public class AgentToolLine_Should
     {
         private static JsonElement Args(string json) => JsonDocument.Parse(json).RootElement.Clone();

@@ -9,7 +9,16 @@ namespace MdExplorer.Features.Services.AI.OpenCode
     {
         public string Kind { get; }
         public string Text { get; }
-        public OpenCodeChunk(string kind, string text) { Kind = kind; Text = text; }
+        /// <summary>
+        /// Solo per uno strumento: la riga per il diario del turno — «nome · file o comando» quando parte, «↳ ok» o
+        /// «↳ errore» quando finisce; null negli stati che al diario non dicono niente (in attesa). La chat di MarkAgent
+        /// continua a leggere <see cref="Text"/> («nome · stato»).
+        /// </summary>
+        public string Diary { get; }
+
+        // Un avviso sugli strumenti che non è uno stato (un permesso negato, la verifica dei diagrammi) vale anche per il diario.
+        public OpenCodeChunk(string kind, string text) { Kind = kind; Text = text; Diary = kind == KindTool ? text : null; }
+        public OpenCodeChunk(string kind, string text, string diary) { Kind = kind; Text = text; Diary = diary; }
 
         /// <summary>Testo visibile (evento <c>message.part.delta</c> con <c>field: "text"</c>).</summary>
         public const string KindMessage = "message";

@@ -58,5 +58,31 @@ namespace MdExplorer.Features.Tests.Agents
 
             CollectionAssert.AreEqual(new[] { "/home/carlo/prj", "/home/carlo/prj" }, told, "a turn disposed twice ends once");
         }
+
+        [TestMethod]
+        public void Ask_a_running_turn_to_stop_and_say_no_for_one_that_is_not_there()
+        {
+            var board = new AgentActivityBoard();
+            using var turn = board.Begin("riassunto", "/progetti/acme", "Claude Code");
+            Assert.IsFalse(turn.Stopped);
+
+            Assert.IsTrue(board.Stop(turn.Activity.Id));
+
+            Assert.IsTrue(turn.Stopped);
+            Assert.IsTrue(turn.StopRequested.IsCancellationRequested, "chi fa girare il turno lo ascolta da qui");
+            Assert.IsFalse(board.Stop(System.Guid.NewGuid()), "un turno mai esistito");
+        }
+
+        [TestMethod]
+        public void Have_nothing_to_stop_once_the_turn_is_over()
+        {
+            var board = new AgentActivityBoard();
+            var turn = board.Begin("riassunto", "/progetti/acme", "Claude Code");
+            var id = turn.Activity.Id;
+
+            turn.Dispose();
+
+            Assert.IsFalse(board.Stop(id));
+        }
     }
 }
