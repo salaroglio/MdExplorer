@@ -54,18 +54,17 @@
 
   <!-- Prompt -->
   <label class="field-label" for="agent-prompt">{{ 'AGENT_LAUNCH.PROMPT_LABEL' | translate }}</label>
-  <mat-form-field appearance="outline" class="full-width">
+  <mat-form-field appearance="outline" class="full-width prompt-field">
     <textarea
       id="agent-prompt"
       matInput
       [(ngModel)]="prompt"
-      rows="10"
+      rows="6"
       [placeholder]="'AGENT_LAUNCH.PROMPT_PLACEHOLDER' | translate"
       cdkFocusInitial
       [disabled]="isNormalizing || isLaunching"
       (blur)="detectParams()">
     </textarea>
-    <mat-hint>{{ 'AGENT_LAUNCH.PROMPT_HINT' | translate }}</mat-hint>
   </mat-form-field>
 
   <!-- Normalize with Copilot -->
@@ -79,36 +78,44 @@
       {{ (isNormalizing ? 'AGENT_LAUNCH.NORMALIZING' : 'AGENT_LAUNCH.NORMALIZE') | translate }}
     </button>
     <mat-spinner *ngIf="isNormalizing" diameter="20" strokeWidth="2"></mat-spinner>
+    <span class="normalize-hint" *ngIf="!isNormalizing">{{ 'AGENT_LAUNCH.PROMPT_HINT' | translate }}</span>
   </div>
 
-  <!-- Parameters -->
-  <div *ngIf="parameters.length > 0" class="params-section">
-    <label class="field-label params-header">{{ 'AGENT_LAUNCH.PARAMS_HEADER' | translate }}</label>
-    <div class="param-row" *ngFor="let param of parameters">
-      <label class="field-label" [for]="'agent-param-' + param.name">
-        {{ param.name }}
-        <span class="param-description" *ngIf="param.description"> — {{ param.description }}</span>
-      </label>
-      <div class="param-input-row">
-        <mat-form-field appearance="outline" class="param-field">
+  <!-- Parameters: una scheda; ogni parametro una riga compatta, col colore di ciò che è -->
+  <section *ngIf="parameters.length > 0" class="params-card">
+    <header class="params-card__header">
+      <mat-icon>tune</mat-icon>
+      <span class="params-card__title">{{ 'AGENT_LAUNCH.PARAMS_HEADER' | translate }}</span>
+      <span class="params-card__count">{{ parameters.length }}</span>
+    </header>
+    <div class="param-item" *ngFor="let param of parameters" [attr.data-kind]="param.picker || 'text'">
+      <mat-icon class="param-item__kind" aria-hidden="true">{{ param.picker === 'dir' ? 'folder' : (param.picker === 'out-file' ? 'save_alt' : (param.picker ? 'description' : 'text_fields')) }}</mat-icon>
+      <div class="param-item__body">
+        <label class="param-item__head" [for]="'agent-param-' + param.name">
+          <code class="param-item__name">{{ param.name }}</code>
+          <span class="param-item__description" *ngIf="param.description" [title]="param.description">{{ param.description }}</span>
+        </label>
+        <div class="param-item__input-row">
           <input
+            class="param-item__input"
             [id]="'agent-param-' + param.name"
-            matInput
             [(ngModel)]="paramValues[param.name]"
-            [disabled]="isLaunching" />
-        </mat-form-field>
-        <button
-          *ngIf="param.picker"
-          mat-stroked-button
-          class="picker-button"
-          (click)="openPicker(param)"
-          [disabled]="isLaunching"
-          [matTooltip]="'AGENT_LAUNCH.PICK_TOOLTIP' | translate">
-          <mat-icon>{{ param.picker === 'dir' ? 'folder_open' : (param.picker === 'out-file' ? 'save' : 'attach_file') }}</mat-icon>
-        </button>
+            [disabled]="isLaunching"
+            autocomplete="off" spellcheck="false" />
+          <button
+            *ngIf="param.picker"
+            type="button"
+            class="param-item__picker"
+            (click)="openPicker(param)"
+            [disabled]="isLaunching"
+            [matTooltip]="'AGENT_LAUNCH.PICK_TOOLTIP' | translate"
+            [attr.aria-label]="'AGENT_LAUNCH.PICK_TOOLTIP' | translate">
+            <mat-icon>{{ param.picker === 'dir' ? 'folder_open' : (param.picker === 'out-file' ? 'save' : 'attach_file') }}</mat-icon>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- Error -->
   <div *ngIf="aiError" class="ai-error-message">
@@ -116,43 +123,45 @@
     {{ aiError }}
   </div>
   </ng-container>
+
+  <!-- CON CHE MOTORE e DOVE gira l'agente in questo lancio (D3/D12). Il motore parte dalla scheda o dal progetto, vince
+       la scelta fatta qui. Un ritocco veloce lo vuoi sotto gli occhi, un lavoro vero lo vuoi isolato: altrimenti finisce
+       mescolato al tuo, sul tuo ramo. Sta nel corpo che scorre, così la finestra non esce mai dallo schermo. -->
+  <section class="run-card">
+    <div class="run-card__grid">
+      <div class="run-card__field">
+        <label class="field-label" for="agent-engine">{{ 'AGENT_LAUNCH.ENGINE' | translate }}</label>
+        <mat-button-toggle-group id="agent-engine" class="engine-toggle" [value]="engineChoice" [disabled]="isLaunching"
+                                 (change)="chooseEngine($event.value)">
+          <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+      <div class="run-card__field run-card__field--grow">
+        <label class="field-label" for="agent-model">{{ 'AGENT_LAUNCH.MODEL' | translate }}</label>
+        <!-- I modelli del motore scelto. «Predefinito» = nessun modello passato: decide il motore (o la scheda, o il progetto). -->
+        <select id="agent-model" class="engine-model" [(ngModel)]="modelText"
+                [disabled]="isLaunching || !engineChoice || modelsLoading">
+          <option value="">{{ (modelsLoading ? 'AGENT_LAUNCH.MODELS_LOADING' : 'AGENT_LAUNCH.MODEL_PLACEHOLDER') | translate }}</option>
+          <option *ngIf="modelNotListed" [value]="modelText">{{ 'AGENT_LAUNCH.MODEL_NOT_LISTED' | translate: { model: modelText } }}</option>
+          <option *ngFor="let m of models" [value]="m.id">{{ m.name }}</option>
+        </select>
+      </div>
+    </div>
+    <p class="run-card__hint" *ngIf="engineSource">{{ engineSource }}</p>
+    <p class="run-card__hint run-card__hint--warning" *ngIf="modelsError">{{ modelsError }}</p>
+    <p class="run-card__hint run-card__hint--warning" *ngIf="engineInfo?.card && !engineInfo?.card?.valid">
+      {{ 'AGENT_LAUNCH.ENGINE_CARD_INVALID' | translate: { provider: engineInfo?.card?.provider } }}
+    </p>
+    <div class="run-card__isolation" *ngIf="canIsolate && !data.incoming">
+      <mat-checkbox [(ngModel)]="useWorktree" [disabled]="isLaunching">
+        {{ 'AGENT_LAUNCH.ISOLATE' | translate }}
+      </mat-checkbox>
+      <p class="run-card__hint">
+        {{ (useWorktree ? 'AGENT_LAUNCH.ISOLATE_ON' : 'AGENT_LAUNCH.ISOLATE_OFF') | translate }}
+      </p>
+    </div>
+  </section>
 </mat-dialog-content>
-
-<!-- DOVE lavora l'agente in questo lancio. Il default lo da' l'impostazione del progetto,
-     ma i due gesti sono diversi: un ritocco veloce lo vuoi qui sotto gli occhi, un lavoro
-     vero lo vuoi isolato — altrimenti finisce mescolato al tuo, sul tuo ramo. -->
-<!-- CON CHE MOTORE gira l'agente in questo lancio (D3/D12): parte dalla scheda o dal progetto, vince la scelta fatta qui. -->
-<div class="engine-choice">
-  <label class="engine-label" for="agent-engine">{{ 'AGENT_LAUNCH.ENGINE' | translate }}</label>
-  <div class="engine-line">
-    <mat-button-toggle-group id="agent-engine" [value]="engineChoice" [disabled]="isLaunching"
-                             (change)="chooseEngine($event.value)">
-      <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
-    </mat-button-toggle-group>
-  </div>
-  <p class="engine-hint">{{ engineSource }}</p>
-  <label class="engine-label engine-model-label" for="agent-model">{{ 'AGENT_LAUNCH.MODEL' | translate }}</label>
-  <!-- I modelli del motore scelto. «Predefinito» = nessun modello passato: decide il motore (o la scheda, o il progetto). -->
-  <select id="agent-model" class="engine-model" [(ngModel)]="modelText"
-          [disabled]="isLaunching || !engineChoice || modelsLoading">
-    <option value="">{{ (modelsLoading ? 'AGENT_LAUNCH.MODELS_LOADING' : 'AGENT_LAUNCH.MODEL_PLACEHOLDER') | translate }}</option>
-    <option *ngIf="modelNotListed" [value]="modelText">{{ 'AGENT_LAUNCH.MODEL_NOT_LISTED' | translate: { model: modelText } }}</option>
-    <option *ngFor="let m of models" [value]="m.id">{{ m.name }}</option>
-  </select>
-  <p class="engine-hint engine-warning" *ngIf="modelsError">{{ modelsError }}</p>
-  <p class="engine-hint engine-warning" *ngIf="engineInfo?.card && !engineInfo?.card?.valid">
-    {{ 'AGENT_LAUNCH.ENGINE_CARD_INVALID' | translate: { provider: engineInfo?.card?.provider } }}
-  </p>
-</div>
-
-<div class="isolation-choice" *ngIf="canIsolate && !data.incoming">
-  <mat-checkbox [(ngModel)]="useWorktree" [disabled]="isLaunching">
-    {{ 'AGENT_LAUNCH.ISOLATE' | translate }}
-  </mat-checkbox>
-  <p class="isolation-hint">
-    {{ (useWorktree ? 'AGENT_LAUNCH.ISOLATE_ON' : 'AGENT_LAUNCH.ISOLATE_OFF') | translate }}
-  </p>
-</div>
 
 <mat-dialog-actions align="end">
   <button mat-button (click)="onCancel()" [disabled]="isLaunching">

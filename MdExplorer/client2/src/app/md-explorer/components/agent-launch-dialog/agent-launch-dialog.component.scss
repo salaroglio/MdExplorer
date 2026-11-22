@@ -1,7 +1,27 @@
 :host {
-  display: block;
+  // La finestra non supera mai lo schermo: titolo e pulsanti restano fermi, scorre il corpo.
+  display: flex;
+  flex-direction: column;
   min-width: 560px;
   max-width: 760px;
+  // Chi apre la finestra le dà maxHeight 92vh; il contenitore di Material ha 24px di margine sopra e sotto.
+  max-height: calc(92vh - 48px);
+}
+
+mat-dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  // Material mette 65vh fissi: qui decide lo spazio che resta fra titolo e pulsanti.
+  max-height: none !important;
+  overflow-y: auto;
+  margin-bottom: 0 !important;
+  // un filo d'aria fra le schede e la barra di scorrimento
+  padding: 0 6px 12px 0 !important;
+}
+
+mat-dialog-actions {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.25));
 }
 
 h2[mat-dialog-title] {
@@ -16,6 +36,12 @@ h2[mat-dialog-title] {
 
 .full-width {
   width: 100%;
+}
+
+// Il campo del prompt senza lo spazio che Material riserva sotto per i messaggi (qui non ce ne sono).
+.prompt-field ::ng-deep .mat-form-field-wrapper {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 // Explicit label above every field (MDC floating labels are unreadable in dark mode)
@@ -35,40 +61,255 @@ h2[mat-dialog-title] {
 .normalize-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 4px 0 16px 0;
+  gap: 10px;
+  margin: 8px 0 12px 0;
+
+  .normalize-hint {
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--mde-text-hint, inherit);
+    opacity: 0.8;
+  }
 
   button mat-icon {
     margin-right: 4px;
   }
 }
 
-.params-section {
-  margin-top: 8px;
+// ── Parametri: una scheda, una riga compatta per parametro ─────────────────────────────────
+// Il colore a sinistra dice che cosa è il parametro: un file da leggere (blu), un file da scrivere (verde),
+// una cartella (ambra), un testo (grigio). Colori del tema, così valgono in chiaro e in scuro.
+.params-card {
+  margin: 0 0 12px;
+  border: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.28));
+  border-radius: 8px;
+  background: var(--mde-bg-secondary, rgba(127, 127, 127, 0.05));
+  overflow: hidden;
+}
 
-  .params-header {
-    font-size: 13px;
-    margin-bottom: 8px;
+.params-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mde-text-secondary, inherit);
+  background: var(--mde-bg-tertiary, rgba(127, 127, 127, 0.08));
+  border-bottom: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.28));
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 
-.param-row {
-  margin-bottom: 4px;
+.params-card__count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  letter-spacing: 0;
+  color: var(--mde-text-on-primary, #fff);
+  background: var(--mde-icon-accent-blue, #1a73e8);
 }
 
-.param-input-row {
+.param-item {
+  --param-accent: var(--mde-text-secondary, #5f6368);
+
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
+  padding: 8px 12px 8px 9px;
+  border-left: 3px solid var(--param-accent);
 
-  .param-field {
-    flex: 1;
+  & + & {
+    border-top: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.2));
   }
 
-  .picker-button {
-    margin-top: 4px;
-    min-width: 44px;
-    padding: 0 8px;
+  &[data-kind='file'] { --param-accent: var(--mde-icon-accent-blue, #1a73e8); }
+  &[data-kind='out-file'] { --param-accent: var(--mde-icon-accent-green, #188038); }
+  &[data-kind='dir'] { --param-accent: var(--mde-icon-accent-orange, #b06000); }
+}
+
+.param-item__kind {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--param-accent);
+}
+
+.param-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.param-item__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.param-item__name {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mde-text-primary, inherit);
+  background: var(--mde-chip-bg, rgba(127, 127, 127, 0.14));
+}
+
+.param-item__description {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--mde-text-secondary, inherit);
+  opacity: 0.85;
+}
+
+.param-item__input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.param-item__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--mde-input-border, rgba(127, 127, 127, 0.45));
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--mde-text-primary, inherit);
+  background: var(--mde-bg-primary, transparent);
+
+  &:focus {
+    outline: none;
+    border-color: var(--mde-icon-accent-blue, #1a73e8);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  }
+
+  &:disabled {
+    color: var(--mde-disabled-text, inherit);
+    background: var(--mde-disabled-bg, transparent);
+  }
+}
+
+.param-item__picker {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--mde-input-border, rgba(127, 127, 127, 0.45));
+  border-radius: 6px;
+  color: var(--param-accent);
+  background: var(--mde-bg-primary, transparent);
+  cursor: pointer;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--mde-hover-overlay, rgba(127, 127, 127, 0.12));
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+// ── Con che motore e dove gira questo lancio (sprint 2026-09-29-Motore-LLM-Unico, D12) ─────
+.run-card {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.28));
+  border-radius: 8px;
+  background: var(--mde-bg-secondary, rgba(127, 127, 127, 0.05));
+}
+
+.run-card__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.run-card__field {
+  min-width: 0;
+
+  &--grow {
+    flex: 1 1 200px;
+  }
+}
+
+.engine-toggle {
+  // la riga dei motori alta quanto il campo del modello
+  --mat-standard-button-toggle-height: 30px;
+  font-size: 13px;
+
+  ::ng-deep .mat-button-toggle-label-content {
+    line-height: 30px;
+    padding: 0 12px;
+  }
+}
+
+.engine-model {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--mde-input-border, var(--mde-border-color, #ccc));
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--mde-text-primary, inherit);
+  background: var(--mde-bg-primary, transparent);
+}
+
+.run-card__hint {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--mde-text-secondary, inherit);
+  opacity: 0.85;
+
+  &--warning {
+    color: var(--mde-warn, var(--mde-error-fg, #e53935));
+    opacity: 1;
+  }
+}
+
+.run-card__isolation {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.2));
+
+  .run-card__hint {
+    margin: 0 0 0 32px;
   }
 }
 
@@ -146,62 +387,6 @@ h2[mat-dialog-title] {
   .q-preview { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
   .q-hub { font-size: 16px; height: 16px; width: 16px; color: #5e35b1; }
   .flexExpand { flex: 1 1 auto; }
-}
-
-/* La scelta di dove lavora sta appena sopra i pulsanti: e' l'ultima cosa che guardi
-   prima di lanciare, ed e' quella che decide se l'agente tocca il tuo ramo. */
-.isolation-choice {
-  padding: 4px 24px 0;
-
-  .isolation-hint {
-    margin: 4px 0 0 32px;
-    font-size: 11px;
-    opacity: .7;
-    line-height: 1.35;
-  }
-}
-
-// Motore di questo lancio (sprint 2026-09-29-Motore-LLM-Unico, D12).
-.engine-choice {
-  padding: 0 24px 8px;
-
-  .engine-label {
-    display: block;
-    font-weight: 500;
-    margin-bottom: 4px;
-  }
-
-  .engine-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .engine-model-label {
-    margin-top: 8px;
-  }
-
-  .engine-model {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid var(--mde-border, #ccc);
-    border-radius: 4px;
-    background: transparent;
-    color: inherit;
-  }
-
-  .engine-hint {
-    margin: 4px 0 0;
-    font-size: 12px;
-    opacity: 0.75;
-  }
-
-  .engine-warning {
-    color: var(--mde-warn, #e53935);
-    opacity: 1;
-  }
 }
 
 // Un incarico ricevuto: il testo dell'altro agente, da leggere, non da modificare.

@@ -350,6 +350,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     }
     this.dialog.open(AgentLaunchDialogComponent, {
       width: '700px',
+      maxWidth: '96vw',
+      maxHeight: '92vh',   // oltre, scorre il corpo della finestra
       data: {
         projectPath: this.data?.projectPath || '',
         agentFilePath: a.agentFilePath,

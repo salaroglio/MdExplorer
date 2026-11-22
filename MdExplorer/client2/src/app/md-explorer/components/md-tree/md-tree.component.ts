@@ -1066,6 +1066,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const projectPath = this.projectsService.currentProjects$.value?.path || '';
     this.dialog.open(AgentLaunchDialogComponent, {
       width: '700px',
+      maxWidth: '96vw',
+      maxHeight: '92vh',   // oltre, scorre il corpo della finestra
       data: {
         projectPath,
         agentFilePath: node.fullPath,
