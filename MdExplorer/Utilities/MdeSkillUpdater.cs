@@ -174,8 +174,11 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-tbox", Shared("MdExplorer.Service.skills.mde_tbox.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-abox", Shared("MdExplorer.Service.skills.mde_abox.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-shacl", Shared("MdExplorer.Service.skills.mde_shacl.SKILL.md"), requiresFuseki: true),
+            // SEMPRE, anche senza la città degli agenti: la finestra «Lancia agente» si apre su qualunque *.agent.md, in
+            // qualunque progetto, e il suo «Normalize» cita questa skill. Dal 20/10 al 22/11/2026 era legata alla città,
+            // e in un progetto vuoto «Normalize» rispondeva «Skill mancante».
+            new CatalogEntry("mde-prompt-for-agents", Shared("MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md")),
             // Solo con la città degli agenti (C4): senza, nel progetto non ci sono agenti da scrivere né da far lavorare.
-            new CatalogEntry("mde-prompt-for-agents", Shared("MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md"), requiresAgentCity: true),
             new CatalogEntry("mde-agent", Shared("MdExplorer.Service.skills.mde_agent.SKILL.md"), requiresAgentCity: true),
             new CatalogEntry("mde-workflow", Shared("MdExplorer.Service.skills.mde_workflow.SKILL.md"), requiresAgentCity: true),
             new CatalogEntry("mde-ownership", Shared("MdExplorer.Service.skills.mde_ownership.SKILL.md"), requiresAgentCity: true),

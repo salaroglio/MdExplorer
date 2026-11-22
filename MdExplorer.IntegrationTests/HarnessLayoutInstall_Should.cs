@@ -273,16 +273,18 @@ namespace MdExplorer.IntegrationTests
         {
             MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
             var withoutCity = ProducedFiles();
-            foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
+            foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership" })
                 CollectionAssert.DoesNotContain(withoutCity, $".github/skills/{name}/SKILL.md", $"'{name}' serve solo agli agenti: senza la città non c'è");
             CollectionAssert.Contains(withoutCity, ".github/skills/mde-doc/SKILL.md");
+            // «Lancia agente» c'è in ogni progetto, e il suo «Normalize» cita questa skill: arriva anche senza la città.
+            CollectionAssert.Contains(withoutCity, ".github/skills/mde-prompt-for-agents/SKILL.md", "serve a chiunque lanci un *.agent.md");
 
             // La città si legge da .development.yml, come la scrive MDE quando la accende.
             File.WriteAllText(Path.Combine(_root, ".development.yml"), "agentCity:\n  enabled: true\n");
             MdeSkillUpdater.EnsureAllSkillsInstalled(_root, fusekiEnabled: false);
             var withCity = ProducedFiles();
             foreach (var name in new[] { "mde-agent", "mde-workflow", "mde-ownership", "mde-prompt-for-agents" })
-                CollectionAssert.Contains(withCity, $".github/skills/{name}/SKILL.md", $"'{name}' arriva con la città");
+                CollectionAssert.Contains(withCity, $".github/skills/{name}/SKILL.md", $"'{name}' c'è con la città");
         }
 
         [TestMethod]
