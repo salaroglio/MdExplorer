@@ -131,6 +131,8 @@ namespace MdExplorer.Services.AgentRun
                 {
                     idle.CancelAfter(MdExplorer.Features.Agents.AgentTurnLimits.Idle);
                     if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
+                    // Per chi guarda il turno (il diario): tutto ciò che arriva, non solo la risposta. I tipi sono gli stessi.
+                    try { request.OnEvent?.Invoke(new AgentTurnEvent(chunk.Kind, chunk.Text)); } catch { /* chi guarda non ferma il turno */ }
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested && limits.IsCancellationRequested)

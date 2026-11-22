@@ -48,6 +48,29 @@ namespace MdExplorer.Features.Agents
         /// del Service e vi aggiunge/sovrascrive queste chiavi — è il canale del RunToken.
         /// </summary>
         public IReadOnlyDictionary<string, string> Environment { get; set; }
+
+        /// <summary>
+        /// Chi vuole vedere il turno mentre gira (il diario): riceve ogni pezzo di risposta, di ragionamento, ogni
+        /// strumento usato. Null = nessuno guarda. Non deve lanciare eccezioni né fermare il turno.
+        /// </summary>
+        public System.Action<AgentTurnEvent> OnEvent { get; set; }
+    }
+
+    /// <summary>
+    /// Una cosa che succede in un turno, nella stessa forma per i tre motori (Claude Code e opencode la danno già così
+    /// alla chat di MarkAgent; gli eventi del CLI di Copilot vengono tradotti).
+    /// </summary>
+    public readonly struct AgentTurnEvent
+    {
+        public const string KindMessage = "message";
+        public const string KindThinking = "thinking";
+        public const string KindTool = "tool";
+        public const string KindError = "error";
+
+        public string Kind { get; }
+        public string Text { get; }
+
+        public AgentTurnEvent(string kind, string text) { Kind = kind; Text = text; }
     }
 
     /// <summary>Come si è concluso un turno. Solo <see cref="Completed"/> è un successo.</summary>

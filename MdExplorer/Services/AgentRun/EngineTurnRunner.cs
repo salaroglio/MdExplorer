@@ -80,12 +80,15 @@ namespace MdExplorer.Services.AgentRun
         private readonly OpenCodeTurnRunner _openCode;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentActivityBoard _activity;
+        private readonly IAgentTurnDiary _diary;
         private readonly ILogger<EngineTurnRunner> _logger;
 
         public EngineTurnRunner(CopilotTurnRunner copilot, ClaudeCodeTurnRunner claude, OpenCodeTurnRunner openCode,
-            IServiceScopeFactory scopeFactory, IAgentActivityBoard activity, ILogger<EngineTurnRunner> logger)
+            IServiceScopeFactory scopeFactory, IAgentActivityBoard activity, ILogger<EngineTurnRunner> logger,
+            IAgentTurnDiary diary = null)
         {
             _activity = activity;
+            _diary = diary;
             _copilot = copilot;
             _claude = claude;
             _openCode = openCode;
@@ -132,13 +135,34 @@ namespace MdExplorer.Services.AgentRun
             };
             // From here to the end of the turn the agent is «at work» for whoever looks at the application.
             using var working = _activity.Begin(request.AgentName, request.ProjectPath, choice.Label);
-            var result = choice.Engine switch
+            // Il diario del turno: ciò che l'agente scrive, pensa e usa mentre lavora, per chi apre il pannello dall'indicatore.
+            // Stesso identificativo della lavagna: chi vede l'agente «al lavoro» ha già la chiave per leggerlo.
+            var turnId = working.Activity.Id;
+            _diary?.Open(working.Activity);
+            var listener = request.OnEvent;
+            turn.OnEvent = e =>
             {
-                MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, ct),
-                MarkAgentEngine.Claude => await _claude.RunTurnAsync(turn, ct),
-                MarkAgentEngine.OpenCode => await _openCode.RunTurnAsync(turn, ct),
-                _ => AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, $"Agente '{request.AgentName}': nessun esecutore per {choice.Label}."),
+                _diary?.Append(turnId, e.Kind, e.Text);
+                listener?.Invoke(e);
             };
+            AgentTurnResult result;
+            try
+            {
+                result = choice.Engine switch
+                {
+                    MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, ct),
+                    MarkAgentEngine.Claude => await _claude.RunTurnAsync(turn, ct),
+                    MarkAgentEngine.OpenCode => await _openCode.RunTurnAsync(turn, ct),
+                    _ => AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, $"Agente '{request.AgentName}': nessun esecutore per {choice.Label}."),
+                };
+            }
+            catch (Exception ex)
+            {
+                // Annullato o caduto: il diario si chiude lo stesso, e dice perché.
+                _diary?.Close(turnId, ex is OperationCanceledException ? AgentTurnOutcome.Cancelled.ToString() : AgentTurnOutcome.ProviderError.ToString(), ex.Message, null);
+                throw;
+            }
+            _diary?.Close(turnId, result.Outcome.ToString(), result.Diagnostic, result.Text);
             return result.WithEngine(choice.Label);
         }
     }

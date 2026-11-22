@@ -190,6 +190,57 @@ namespace MdExplorer.Features.Tests.AI
             Assert.IsFalse(CopilotCliProvider.IsModelUnavailable(null));
         }
 
+        // ── Il turno mentre gira: gli eventi del CLI nella forma comune ai tre motori (il diario del turno) ──
+
+        [TestMethod]
+        public void Translate_the_events_of_the_cli_that_matter_to_who_watches_the_turn()
+        {
+            static string Of(string line) => CopilotCliProvider.TurnEventOf(line) is { } e ? e.Kind + "|" + e.Text : null;
+            // Le righe vere scritte dalla CLI 1.0.114 il 22/11/2026, accorciate nei campi che qui non servono.
+            Assert.AreEqual("message|Ho contato 3 ", Of("{\"type\":\"assistant.message_delta\",\"data\":{\"messageId\":\"33413c76\",\"deltaContent\":\"Ho contato 3 \"}}"));
+            Assert.AreEqual("thinking|I'm checking wh", Of("{\"type\":\"assistant.reasoning_delta\",\"data\":{\"reasoningId\":\"d39e7cec\",\"deltaContent\":\"I'm checking wh\"}}"));
+            Assert.AreEqual("tool|bash · wc -l < nota.txt", Of("{\"type\":\"tool.execution_start\",\"data\":{\"toolCallId\":\"toolu_01\",\"toolName\":\"bash\",\"arguments\":{\"command\":\"wc -l < nota.txt\",\"description\":\"Count lines in nota.txt\"},\"turnId\":\"0\"}}"));
+            Assert.AreEqual("tool|↳ ok", Of("{\"type\":\"tool.execution_complete\",\"data\":{\"toolCallId\":\"toolu_01\",\"success\":true,\"result\":{\"content\":\"3\\n\"}}}"));
+            Assert.AreEqual("tool|↳ errore", Of("{\"type\":\"tool.execution_complete\",\"data\":{\"toolCallId\":\"toolu_02\",\"success\":false}}"));
+            Assert.AreEqual("error|Execution failed: Model \"modello-che-non-esiste\" is not available.", Of(SessionErrorLine));
+            // Ciò che a chi guarda non dice niente: la risposta intera (arriva già a pezzi), l'uscita della shell, l'avvio, il rumore.
+            Assert.IsNull(Of("{\"type\":\"assistant.message\",\"data\":{\"content\":\"Ho contato 3 righe.\"}}"));
+            Assert.IsNull(Of("{\"type\":\"tool.shell_output\",\"data\":{\"toolCallId\":\"toolu_01\",\"stream\":\"stdout\",\"text\":\"3\\n\"}}"));
+            Assert.IsNull(Of("{\"type\":\"session.start\",\"data\":{\"sessionId\":\"6d1d016d\"}}"));
+            Assert.IsNull(Of("{\"type\":\"assistant.message_delta\",\"data\":{\"deltaContent\":\"\"}}"));
+            Assert.IsNull(Of("{\"type\":\"result\"}"));
+            Assert.IsNull(Of("rumore del CLI"));
+            Assert.IsNull(Of(null));
+        }
+
+        [TestMethod]
+        public async Task Tell_who_watches_what_the_cli_does_while_the_turn_runs()
+        {
+            FakeCopilot("cat > /dev/null; printf '%s\\n' "
+                + "'{\"type\":\"assistant.reasoning_delta\",\"data\":{\"deltaContent\":\"Leggo il file.\"}}' "
+                + "'{\"type\":\"tool.execution_start\",\"data\":{\"toolName\":\"bash\",\"arguments\":{\"command\":\"wc -l nota.txt\"}}}' "
+                + "'{\"type\":\"tool.execution_complete\",\"data\":{\"success\":true}}' "
+                + "'{\"type\":\"assistant.message_delta\",\"data\":{\"deltaContent\":\"Ho contato \"}}' "
+                + "'{\"type\":\"assistant.message_delta\",\"data\":{\"deltaContent\":\"3 righe.\"}}' "
+                + "'{\"type\":\"assistant.message\",\"data\":{\"content\":\"Ho contato 3 righe.\"}}'; exit 0");
+            var seen = new System.Collections.Generic.List<string>();
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir), onEvent: e => seen.Add(e.Kind + "|" + e.Text));
+
+            Assert.AreEqual("thinking|Leggo il file.;tool|bash · wc -l nota.txt;tool|↳ ok;message|Ho contato ;message|3 righe.", string.Join(";", seen));
+            Assert.AreEqual("Ho contato 3 righe.", run.Text, "la risposta del turno resta quella intera, una volta sola");
+        }
+
+        [TestMethod]
+        public async Task Finish_the_turn_even_if_who_watches_fails()
+        {
+            FakeCopilot("cat > /dev/null; printf '%s\\n' '{\"type\":\"assistant.message_delta\",\"data\":{\"deltaContent\":\"x\"}}' '{\"type\":\"assistant.message\",\"data\":{\"content\":\"risposta\"}}'; exit 0");
+
+            var run = await Provider().RunHeadlessDetailedAsync("ciao", Invocation(_dir), onEvent: _ => throw new InvalidOperationException("chi guarda è rotto"));
+
+            Assert.AreEqual("risposta", run.Text);
+        }
+
         private static bool Alive(int pid)
         {
             // Uno zombie (già finito, in attesa del padre) conta come fermo.

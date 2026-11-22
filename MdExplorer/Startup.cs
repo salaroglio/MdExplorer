@@ -261,6 +261,11 @@ namespace MdExplorer
             // the broadcaster tells the open windows (the toolbar's «agents at work» indicator).
             services.AddSingleton<MdExplorer.Features.Agents.IAgentActivityBoard, MdExplorer.Features.Agents.AgentActivityBoard>();
             services.AddHostedService<Services.AgentRun.AgentActivityBroadcaster>();
+            // Il diario dei turni: che cosa scrive, pensa e usa un agente mentre lavora, e dopo. Sta fra i dati dell'utente
+            // (non nel progetto: non va in git) e lo legge il pannello che si apre dall'indicatore «agenti al lavoro».
+            services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnDiary>(_ => new MdExplorer.Features.Agents.AgentTurnDiary(
+                Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "agent-turns")));
+            services.AddHostedService<Services.AgentRun.AgentTurnDiaryBroadcaster>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.

@@ -66,6 +66,7 @@ import { BackgroundWorkPanelComponent } from './components/background-work-panel
 import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
 import { MarkSearchComponent } from './components/mark-search/mark-search.component';
 import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
+import { AgentTurnDiaryDialogComponent } from './components/agent-turn-diary-dialog/agent-turn-diary-dialog.component';
 import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog/agent-schedule-dialog.component';
 import { AgentRegistryDialogComponent } from './components/agent-registry-dialog/agent-registry-dialog.component';
 import { AgentTrustDialogComponent } from './components/agent-trust-dialog/agent-trust-dialog.component';
@@ -154,6 +155,7 @@ const routes: Routes = [
     AiSelectionDialogComponent,
     MarkSearchComponent,
     AgentLaunchDialogComponent,
+    AgentTurnDiaryDialogComponent,
     AgentScheduleDialogComponent,
     AgentRegistryDialogComponent,
     AgentTrustDialogComponent,

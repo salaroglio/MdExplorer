@@ -29,6 +29,8 @@ import { AgentMemoryDialogComponent } from '../agent-memory-dialog/agent-memory-
 import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
 import { AgentCityStateService } from '../../services/agent-city-state.service';
 import { AgentActivityService, RunningAgent } from '../../services/agent-activity.service';
+import { AgentTurnDiary, AgentTurnDiaryService } from '../../services/agent-turn-diary.service';
+import { AgentTurnDiaryDialogComponent } from '../agent-turn-diary-dialog/agent-turn-diary-dialog.component';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitDialogRepo } from '../../../git/components/git-repo-picker/git-repo-picker.component';
@@ -188,6 +190,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private mailboxNotifications: AgentMailboxNotificationService,
     private agentCityState: AgentCityStateService,
     private agentActivity: AgentActivityService,
+    private agentTurnDiaries: AgentTurnDiaryService,
     private fileEvents: FileEventsService
   ) {
     this.TitleToShow = "MdExplorer";
@@ -210,8 +213,52 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.floor((this.agentsRunningNow - new Date(agent.startedAt).getTime()) / 60000));
   }
 
+  /** I turni del progetto aperto, in corso e finiti, i più recenti prima: per rileggerne il diario. */
+  public agentsRecent: AgentTurnDiary[] = [];
+  private agentsRecentPath: string = '';
+  private static readonly AgentsRecentShown = 6;
+  /** I pannelli del diario già aperti, per turno: un secondo clic porta avanti quello, non ne apre un altro. */
+  private agentTurnDiaryPanels = new Map<string, any>();
+
+  /** Gli ultimi turni finiti, per l'elenco sotto quelli in corso. */
+  get agentsFinished(): AgentTurnDiary[] {
+    return this.agentsRecent.filter(t => !!t.finishedAtUtc).slice(0, ToolbarComponent.AgentsRecentShown);
+  }
+
+  /** Rilegge i turni del progetto: al cambio di progetto, e ogni volta che un turno comincia o finisce. */
+  private loadAgentsRecent(projectPath?: string): void {
+    if (projectPath !== undefined) { this.agentsRecentPath = projectPath; this.agentsRecent = []; }
+    const asked = this.agentsRecentPath;
+    if (!asked) return;
+    this.agentTurnDiaries.recent(asked, 20).subscribe({
+      next: turns => { if (asked === this.agentsRecentPath) this.agentsRecent = turns || []; },
+      // Stato ignoto: l'elenco resta vuoto e lo si dichiara, invece di mostrare turni inventati.
+      error: err => console.warn('[AgentTurnDiary] gli ultimi turni non sono leggibili, elenco vuoto:', err),
+    });
+  }
+
+  /** Il diario di un turno, in un pannello a sé che non blocca il resto: a destra, sotto la toolbar. */
+  openAgentTurnDiary(turnId: string, agentName: string, engine: string): void {
+    const already = this.agentTurnDiaryPanels.get(turnId);
+    if (already) return;   // è già aperto: non se ne apre un secondo per lo stesso turno
+    const ref = this.dialog.open(AgentTurnDiaryDialogComponent, {
+      width: '540px',
+      maxWidth: '96vw',
+      maxHeight: 'calc(100vh - 96px)',
+      position: { right: '16px', top: '80px' },
+      hasBackdrop: false,
+      autoFocus: false,
+      restoreFocus: false,
+      panelClass: 'agent-turn-diary-pane',
+      data: { turnId, agentName, engine },
+    });
+    this.agentTurnDiaryPanels.set(turnId, ref);
+    ref.afterClosed().subscribe(() => this.agentTurnDiaryPanels.delete(turnId));
+  }
+
   private setAgentsRunning(running: RunningAgent[]): void {
     this.agentsRunning = running;
+    this.loadAgentsRecent();
     this.agentsRunningNow = Date.now();
     if (running.length > 0 && !this.agentsRunningClock) {
       this.agentsRunningClock = setInterval(() => this.agentsRunningNow = Date.now(), 15000);
@@ -275,8 +322,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     // Chi lavora adesso: vale anche a città spenta, perché un agente si lancia a mano in ogni progetto.
     this.citySubscriptions.add(
-      this.projectService.currentProjects$.subscribe(project =>
-        this.agentActivity.follow(project?.path || '')));
+      this.projectService.currentProjects$.subscribe(project => {
+        this.agentActivity.follow(project?.path || '');
+        this.loadAgentsRecent(project?.path || '');
+      }));
     this.citySubscriptions.add(
       this.agentActivity.running$.subscribe(running => this.setAgentsRunning(running)));
 

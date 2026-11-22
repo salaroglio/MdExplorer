@@ -173,7 +173,8 @@ namespace MdExplorer.Features.Services.AI
         /// non-zero con stderr vuoto passava per successo, e faceva partire la pubblicazione del
         /// deliverable, l'auto-merge e un verdetto federato di successo su un lavoro fallito.
         /// </summary>
-        public async Task<CopilotRunResult> RunHeadlessDetailedAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default)
+        public async Task<CopilotRunResult> RunHeadlessDetailedAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default,
+            Action<MdExplorer.Features.Agents.AgentTurnEvent> onEvent = null)
         {
             if (invocation == null)
                 throw new ArgumentNullException(nameof(invocation),
@@ -183,7 +184,7 @@ namespace MdExplorer.Features.Services.AI
             if (!IsAvailable())
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
 
-            return await RunAgentTurnProcessAsync(prompt, modelId, invocation, ct);
+            return await RunAgentTurnProcessAsync(prompt, modelId, invocation, ct, onEvent);
         }
 
         /// <summary>
@@ -194,7 +195,8 @@ namespace MdExplorer.Features.Services.AI
         /// turno aveva 5 minuti in tutto, anche vivo (R4 della valutazione del 07/11). Il testo è quello dei messaggi
         /// dell'assistente, nell'ordine.
         /// </summary>
-        private async Task<CopilotRunResult> RunAgentTurnProcessAsync(string prompt, string model, CopilotInvocation invocation, CancellationToken ct)
+        private async Task<CopilotRunResult> RunAgentTurnProcessAsync(string prompt, string model, CopilotInvocation invocation, CancellationToken ct,
+            Action<MdExplorer.Features.Agents.AgentTurnEvent> onEvent = null)
         {
             var psi = CreateProcessStartInfo(prompt, model, streaming: false, outputFormatJson: true, invocation);
             using var process = new Process { StartInfo = psi };
@@ -219,6 +221,11 @@ namespace MdExplorer.Features.Services.AI
                     if (!string.IsNullOrWhiteSpace(text)) messages.Add(text);
                     var failure = SessionErrorOf(line);
                     if (!string.IsNullOrWhiteSpace(failure)) sessionErrors.Add(failure);
+                    if (onEvent != null && TurnEventOf(line) is { } happened)
+                    {
+                        // Chi guarda il turno non deve poterlo fermare.
+                        try { onEvent(happened); } catch (Exception ex) { _logger.LogWarning(ex, "[CopilotCliProvider] chi ascolta gli eventi del turno ha lanciato un'eccezione"); }
+                    }
                 }
                 await process.WaitForExitAsync(linked.Token);
             }
@@ -249,6 +256,49 @@ namespace MdExplorer.Features.Services.AI
                        && data.TryGetProperty("message", out var message) && message.ValueKind == System.Text.Json.JsonValueKind.String
                     ? message.GetString()
                     : null;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return null;   // una riga che non è un evento: rumore del CLI
+            }
+        }
+
+        /// <summary>
+        /// Un evento del CLI (<c>--output-format json</c>) nella forma comune ai tre motori; null per le righe che a chi guarda
+        /// il turno non dicono niente (avvio, server MCP, conteggi). Misurato il 22/11/2026 con la 1.0.114:
+        /// <c>assistant.message_delta</c> e <c>assistant.reasoning_delta</c> portano il testo a pezzi in <c>deltaContent</c>;
+        /// <c>tool.execution_start</c> il nome e gli argomenti; <c>tool.execution_complete</c> l'esito in <c>success</c>.
+        /// Un CLI che non manda la risposta a pezzi non dà eventi di risposta: il diario la riceve intera a fine turno.
+        /// </summary>
+        internal static MdExplorer.Features.Agents.AgentTurnEvent? TurnEventOf(string line)
+        {
+            var trimmed = line?.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed[0] != '{') return null;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                if (!doc.RootElement.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != System.Text.Json.JsonValueKind.String) return null;
+                if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+                string Text(string name) => data.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+                MdExplorer.Features.Agents.AgentTurnEvent? Of(string kind, string text)
+                    => string.IsNullOrEmpty(text) ? null : new MdExplorer.Features.Agents.AgentTurnEvent(kind, text);
+                switch (typeEl.GetString())
+                {
+                    case "assistant.message_delta":
+                        return Of(MdExplorer.Features.Agents.AgentTurnEvent.KindMessage, Text("deltaContent"));
+                    case "assistant.reasoning_delta":
+                        return Of(MdExplorer.Features.Agents.AgentTurnEvent.KindThinking, Text("deltaContent"));
+                    case "session.error":
+                        return Of(MdExplorer.Features.Agents.AgentTurnEvent.KindError, Text("message"));
+                    case "tool.execution_start":
+                        return Of(MdExplorer.Features.Agents.AgentTurnEvent.KindTool, MdExplorer.Features.Agents.AgentToolLine.Describe(Text("toolName"),
+                            data.TryGetProperty("arguments", out var toolArguments) ? toolArguments : default));
+                    case "tool.execution_complete":
+                        return Of(MdExplorer.Features.Agents.AgentTurnEvent.KindTool,
+                            data.TryGetProperty("success", out var ok) && ok.ValueKind == System.Text.Json.JsonValueKind.False ? "↳ errore" : "↳ ok");
+                    default:
+                        return null;
+                }
             }
             catch (System.Text.Json.JsonException)
             {

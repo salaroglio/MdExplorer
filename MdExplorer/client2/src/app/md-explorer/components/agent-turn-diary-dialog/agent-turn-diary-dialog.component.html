@@ -1,0 +1,54 @@
+<header class="diary-header">
+  <mat-icon class="diary-header__icon">smart_toy</mat-icon>
+  <div class="diary-header__who">
+    <div class="diary-header__name" [title]="data.agentName">{{ diary?.agentName || data.agentName }}</div>
+    <div class="diary-header__engine">{{ diary?.engine || data.engine }}</div>
+  </div>
+  <span class="diary-state" [class.diary-state--running]="running" [class.diary-state--failed]="failed"
+        [class.diary-state--done]="diary && !running && !failed" *ngIf="diary">
+    <mat-spinner *ngIf="running" diameter="14" strokeWidth="2"></mat-spinner>
+    <mat-icon *ngIf="!running">{{ failed ? 'error_outline' : 'check_circle' }}</mat-icon>
+    {{ (running ? 'AGENT_DIARY.RUNNING' : failed ? 'AGENT_DIARY.FAILED' : 'AGENT_DIARY.DONE') | translate }} · {{ elapsed }}
+  </span>
+  <button mat-icon-button class="diary-header__close" (click)="close()" [attr.aria-label]="'COMMON.CLOSE' | translate">
+    <mat-icon>close</mat-icon>
+  </button>
+</header>
+
+<div class="diary-body" #scroller (scroll)="onScroll()">
+  <div class="diary-note diary-note--error" *ngIf="loadError">
+    <mat-icon>warning</mat-icon>
+    <span>{{ 'AGENT_DIARY.LOAD_ERROR' | translate }} {{ loadError }}</span>
+  </div>
+
+  <div class="diary-note" *ngIf="diary && entries.length === 0 && !loadError">
+    {{ (running ? 'AGENT_DIARY.WAITING' : 'AGENT_DIARY.EMPTY') | translate }}
+  </div>
+
+  <ng-container *ngFor="let entry of entries; trackBy: trackBySeq" [ngSwitch]="entry.kind">
+    <div *ngSwitchCase="'message'" class="diary-entry diary-entry--message">{{ entry.text }}</div>
+
+    <details *ngSwitchCase="'thinking'" class="diary-entry diary-entry--thinking">
+      <summary><mat-icon>psychology</mat-icon>{{ 'AGENT_DIARY.THINKING' | translate }}</summary>
+      <div class="diary-entry__thought">{{ entry.text }}</div>
+    </details>
+
+    <div *ngSwitchCase="'tool'" class="diary-entry diary-entry--tool"
+         [class.diary-entry--tool-result]="isToolResult(entry)" [class.diary-entry--tool-failed]="isToolFailure(entry)">
+      <mat-icon *ngIf="!isToolResult(entry)">build</mat-icon>
+      <code>{{ entry.text }}</code>
+    </div>
+
+    <div *ngSwitchCase="'error'" class="diary-entry diary-entry--error">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ entry.text }}</span>
+    </div>
+  </ng-container>
+
+  <div class="diary-note" *ngIf="diary?.truncated">{{ 'AGENT_DIARY.TRUNCATED' | translate }}</div>
+
+  <div class="diary-note diary-note--error" *ngIf="failed && diary?.diagnostic">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ diary?.diagnostic }}</span>
+  </div>
+</div>

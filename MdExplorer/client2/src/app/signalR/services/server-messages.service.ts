@@ -108,6 +108,10 @@ export class MdServerMessagesService {
     running: { id: string, agentName: string, engine: string, startedAt: string }[]
   }>();
 
+  // The diary of an agent's turn changed (AgentTurnDiaryBroadcaster): only who and at what version; whoever has the
+  // panel open asks for the text
+  public agentTurnDiary$ = new Subject<{ id: string, projectPath: string, version: number, finished: boolean }>();
+
   // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
   // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
   // + the unread badge on the toolbar bell.
@@ -368,6 +372,11 @@ export class MdServerMessagesService {
       // Agents at work in a project: the whole list, at every start and end of a turn
       this.hubConnection.on('agentActivityChanged', (data) => {
         this.agentActivity$.next(data);
+      });
+
+      // The diary of an agent's turn changed: at most one notice every 300 ms per turn
+      this.hubConnection.on('agentTurnDiaryChanged', (data) => {
+        this.agentTurnDiary$.next(data);
       });
 
       // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human

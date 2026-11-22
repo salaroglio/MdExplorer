@@ -318,15 +318,25 @@ mat-toolbar button.git-menu-btn {
     pointer-events: none;
   }
 }
+// Nessuno al lavoro, ma ci sono turni finiti da rileggere: l'icona resta, spenta.
+.btn-agents-running.btn-agents-idle mat-icon { color: inherit; opacity: 0.75; }
 @keyframes agents-running-spin { to { transform: rotate(360deg); } }
 .agents-running-menu {
   // Il pannello dei menu di Material è largo al più 280px: il dettaglio va sotto il nome, non accanto.
   padding: 8px 14px;
   .agents-running-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  // «Ultimi turni» sotto «al lavoro adesso»: una riga li separa. Da solo, è il primo titolo e non ne ha bisogno.
+  .agents-recent-title { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--mde-border-color, rgba(127, 127, 127, 0.25)); }
+  // Una riga è un pulsante: apre il diario del turno.
   .agents-running-row {
-    display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; font-size: 13px; padding: 4px 0;
+    display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; font-size: 13px; padding: 4px 6px; margin: 0 -6px;
+    width: calc(100% + 12px); border: 0; border-radius: 6px; background: none; color: inherit; font-family: inherit; text-align: left; cursor: pointer;
+    &:hover, &:focus-visible { background: var(--mde-hover-overlay, rgba(127, 127, 127, 0.14)); outline: none; }
     mat-icon { font-size: 18px; width: 18px; height: 18px; }
-    .agents-running-name { font-weight: 500; }
+    .agents-running-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .agents-running-open { opacity: 0.55; }
+    .agents-recent-ok { color: var(--mde-icon-accent-green, #188038); }
+    .agents-recent-failed { color: var(--mde-error-fg, #c5221f); }
     .agents-running-detail { flex-basis: 100%; margin-left: 26px; opacity: 0.7; font-size: 12px; }
   }
   .agents-running-hint { font-size: 12px; opacity: 0.7; margin-top: 8px; white-space: normal; }

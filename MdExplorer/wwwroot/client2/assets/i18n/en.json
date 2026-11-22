@@ -798,7 +798,10 @@
     "AGENTS_RUNNING": "Agents at work ({{count}}): {{names}}",
     "AGENTS_RUNNING_TITLE": "Agents at work now",
     "AGENTS_RUNNING_SINCE": "for {{minutes}} min",
-    "AGENTS_RUNNING_HINT": "When an agent finishes, it leaves this list and writes to you in the agents' messages.",
+    "AGENTS_RUNNING_HINT": "Click an agent to see what it is doing. When it finishes it moves to the latest turns and writes to you in the agents' messages.",
+    "AGENTS_RECENT_TITLE": "Latest turns",
+    "AGENTS_RECENT_TOOLTIP": "Latest turns of the agents",
+    "AGENTS_OPEN_DIARY": "Open the diary of the turn: what it writes and what it uses",
     "BOOKMARKS": "Bookmarks",
     "OPEN_REACT_EDITOR": "Open React Editor",
     "DETACH_DOCUMENT": "Open document in a separate window",
@@ -2375,6 +2378,16 @@
     "STOP": "Stop",
     "APPROVE": "Approve and save",
     "INCOMPLETE_SELECTION": "Selection cannot be mapped to the markdown source"
+  },
+  "AGENT_DIARY": {
+    "RUNNING": "at work",
+    "DONE": "finished",
+    "FAILED": "failed",
+    "THINKING": "Reasoning",
+    "WAITING": "The agent has started: what it writes and what it uses appears here.",
+    "EMPTY": "This turn left nothing to read.",
+    "TRUNCATED": "The turn wrote more than the diary keeps: the end is missing.",
+    "LOAD_ERROR": "The diary cannot be read:"
   },
   "AGENT_LAUNCH": {
     "TITLE": "Launch agent",

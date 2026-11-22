@@ -78,7 +78,7 @@ namespace MdExplorer.Services.AgentRun
             if (mcpFixed != null)
                 Console.WriteLine($"[AgentRun] {request.AgentName}: MCP di Copilot, {mcpFixed}");
 
-            var run = await copilot.RunHeadlessDetailedAsync(request.ComposedPrompt, invocation, modelId: model, ct: ct);
+            var run = await copilot.RunHeadlessDetailedAsync(request.ComposedPrompt, invocation, modelId: model, ct: ct, onEvent: request.OnEvent);
 
             if (run.ExitCode != 0)
             {

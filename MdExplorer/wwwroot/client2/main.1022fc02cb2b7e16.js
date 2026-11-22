@@ -22321,6 +22321,9 @@ class MdServerMessagesService {
     this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Who is working right now in a project (AgentActivityBroadcaster): the whole list at every start and end
     this.agentActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    // The diary of an agent's turn changed (AgentTurnDiaryBroadcaster): only who and at what version; whoever has the
+    // panel open asks for the text
+    this.agentTurnDiary$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
     // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
     // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
     // + the unread badge on the toolbar bell.
@@ -22484,6 +22487,10 @@ class MdServerMessagesService {
         // Agents at work in a project: the whole list, at every start and end of a turn
         this.hubConnection.on('agentActivityChanged', data => {
           this.agentActivity$.next(data);
+        });
+        // The diary of an agent's turn changed: at most one notice every 300 ms per turn
+        this.hubConnection.on('agentTurnDiaryChanged', data => {
+          this.agentTurnDiary$.next(data);
         });
         // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human
         this.hubConnection.on('agentMessageReceived', data => {
@@ -22982,8 +22989,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.22.3',
-  buildTime: '2026.11.22 09:48:20'
+  version: '2026.11.22.5',
+  buildTime: '2026.11.22 10:25:37'
 };
 
 /***/ }),
@@ -23017,4 +23024,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.acc4ff46f74316f3.js.map
+//# sourceMappingURL=main.1022fc02cb2b7e16.js.map

@@ -24,7 +24,7 @@ namespace MdExplorer.Features.Agents
     public interface IAgentActivityBoard
     {
         /// <summary>Records a turn as running; disposing what it returns records its end, however it ended.</summary>
-        IDisposable Begin(string agentName, string projectPath, string engine);
+        AgentTurnInProgress Begin(string agentName, string projectPath, string engine);
 
         /// <summary>The turns running in a project, the oldest first.</summary>
         IReadOnlyList<AgentActivity> Running(string projectPath);
@@ -39,7 +39,7 @@ namespace MdExplorer.Features.Agents
 
         public event Action<string> Changed;
 
-        public IDisposable Begin(string agentName, string projectPath, string engine)
+        public AgentTurnInProgress Begin(string agentName, string projectPath, string engine)
         {
             var activity = new AgentActivity
             {
@@ -51,7 +51,7 @@ namespace MdExplorer.Features.Agents
             };
             _running[activity.Id] = activity;
             Changed?.Invoke(projectPath);
-            return new Turn(this, activity);
+            return new AgentTurnInProgress(activity, () => End(activity));
         }
 
         public IReadOnlyList<AgentActivity> Running(string projectPath)
@@ -65,19 +65,21 @@ namespace MdExplorer.Features.Agents
             if (_running.TryRemove(activity.Id, out _))
                 Changed?.Invoke(activity.ProjectPath);
         }
+    }
 
-        private sealed class Turn : IDisposable
+    /// <summary>Un turno in corso sulla lavagna: finisce quando lo si chiude. Porta l'attività, col suo identificativo.</summary>
+    public sealed class AgentTurnInProgress : IDisposable
+    {
+        private Action _end;
+
+        public AgentActivity Activity { get; }
+
+        public AgentTurnInProgress(AgentActivity activity, Action end)
         {
-            private readonly AgentActivityBoard _board;
-            private readonly AgentActivity _activity;
-
-            public Turn(AgentActivityBoard board, AgentActivity activity)
-            {
-                _board = board;
-                _activity = activity;
-            }
-
-            public void Dispose() => _board.End(_activity);
+            Activity = activity;
+            _end = end;
         }
+
+        public void Dispose() => System.Threading.Interlocked.Exchange(ref _end, null)?.Invoke();
     }
 }

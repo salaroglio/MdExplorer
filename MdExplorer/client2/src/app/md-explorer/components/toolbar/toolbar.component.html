@@ -53,12 +53,16 @@
       <mat-icon>forum</mat-icon>
     </button>
     <!-- Agenti al lavoro: compare solo mentre un agente del progetto sta girando, chiunque l'abbia avviato. -->
-    <button *ngIf="agentsRunning.length > 0" mat-icon-button class="toolbar-btn btn-agents-running"
-            [matTooltip]="'TOOLBAR.AGENTS_RUNNING' | translate: { count: agentsRunning.length, names: agentsRunningNames() }"
+    <!-- Resta, spento, anche quando nessuno lavora ma ci sono turni finiti da rileggere (il diario del turno). -->
+    <button *ngIf="agentsRunning.length > 0 || agentsRecent.length > 0" mat-icon-button class="toolbar-btn btn-agents-running"
+            [class.btn-agents-idle]="agentsRunning.length === 0"
+            [matTooltip]="agentsRunning.length > 0
+              ? ('TOOLBAR.AGENTS_RUNNING' | translate: { count: agentsRunning.length, names: agentsRunningNames() })
+              : ('TOOLBAR.AGENTS_RECENT_TOOLTIP' | translate)"
             [matMenuTriggerFor]="agentsRunningMenu"
-            [matBadge]="agentsRunning.length" matBadgeColor="accent" matBadgeSize="small">
+            [matBadge]="agentsRunning.length" [matBadgeHidden]="agentsRunning.length === 0" matBadgeColor="accent" matBadgeSize="small">
       <mat-icon>smart_toy</mat-icon>
-      <span class="agents-running-ring"></span>
+      <span class="agents-running-ring" *ngIf="agentsRunning.length > 0"></span>
     </button>
     <ng-container *ngIf="hasDocument">
       <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
@@ -418,14 +422,31 @@
 
 <!-- Menu selettore identità (test città) -->
 <mat-menu #agentsRunningMenu="matMenu">
-  <div class="agents-running-menu" (click)="$event.stopPropagation()">
-    <div class="agents-running-title">{{ 'TOOLBAR.AGENTS_RUNNING_TITLE' | translate }}</div>
-    <div class="agents-running-row" *ngFor="let a of agentsRunning">
-      <mat-icon>smart_toy</mat-icon>
-      <span class="agents-running-name">{{ a.agentName }}</span>
-      <span class="agents-running-detail">{{ a.engine }} · {{ 'TOOLBAR.AGENTS_RUNNING_SINCE' | translate: { minutes: agentRunningMinutes(a) } }}</span>
-    </div>
-    <div class="agents-running-hint">{{ 'TOOLBAR.AGENTS_RUNNING_HINT' | translate }}</div>
+  <div class="agents-running-menu">
+    <ng-container *ngIf="agentsRunning.length > 0">
+      <div class="agents-running-title">{{ 'TOOLBAR.AGENTS_RUNNING_TITLE' | translate }}</div>
+      <!-- Clic su un agente: il pannello col diario del turno (che cosa scrive, che cosa usa). -->
+      <button type="button" class="agents-running-row" *ngFor="let a of agentsRunning"
+              (click)="openAgentTurnDiary(a.id, a.agentName, a.engine)" [title]="'TOOLBAR.AGENTS_OPEN_DIARY' | translate">
+        <mat-icon>smart_toy</mat-icon>
+        <span class="agents-running-name">{{ a.agentName }}</span>
+        <mat-icon class="agents-running-open">chevron_right</mat-icon>
+        <span class="agents-running-detail">{{ a.engine }} · {{ 'TOOLBAR.AGENTS_RUNNING_SINCE' | translate: { minutes: agentRunningMinutes(a) } }}</span>
+      </button>
+    </ng-container>
+    <ng-container *ngIf="agentsFinished.length > 0">
+      <div class="agents-running-title" [class.agents-recent-title]="agentsRunning.length > 0">{{ 'TOOLBAR.AGENTS_RECENT_TITLE' | translate }}</div>
+      <button type="button" class="agents-running-row" *ngFor="let t of agentsFinished"
+              (click)="openAgentTurnDiary(t.id, t.agentName, t.engine)" [title]="'TOOLBAR.AGENTS_OPEN_DIARY' | translate">
+        <mat-icon [class.agents-recent-ok]="t.outcome === 'Completed'" [class.agents-recent-failed]="t.outcome !== 'Completed'">
+          {{ t.outcome === 'Completed' ? 'check_circle' : 'error_outline' }}
+        </mat-icon>
+        <span class="agents-running-name">{{ t.agentName }}</span>
+        <mat-icon class="agents-running-open">chevron_right</mat-icon>
+        <span class="agents-running-detail">{{ t.engine }} · {{ t.startedAtUtc | date: 'dd/MM HH:mm' }}</span>
+      </button>
+    </ng-container>
+    <div class="agents-running-hint" (click)="$event.stopPropagation()">{{ 'TOOLBAR.AGENTS_RUNNING_HINT' | translate }}</div>
   </div>
 </mat-menu>
 <mat-menu #identityMenu="matMenu">

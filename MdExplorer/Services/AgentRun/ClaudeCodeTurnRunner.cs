@@ -88,7 +88,17 @@ namespace MdExplorer.Services.AgentRun
             {
                 await session.StartAsync(ct).ConfigureAwait(false);
                 await foreach (var chunk in session.PromptAsync(request.ComposedPrompt, ct).ConfigureAwait(false))
+                {
                     if (chunk.Kind == ClaudeCodeChunk.KindMessage) answer.Append(chunk.Text);
+                    // Per chi guarda il turno (il diario): tutto ciò che arriva, non solo la risposta. I tipi sono gli stessi.
+                    // Uno strumento arriva come «Nome {argomenti}»: nel diario va il file o il comando, non il contenuto che scrive.
+                    try
+                    {
+                        request.OnEvent?.Invoke(new AgentTurnEvent(chunk.Kind,
+                            chunk.Kind == ClaudeCodeChunk.KindTool ? AgentToolLine.FromNameAndJson(chunk.Text) : chunk.Text));
+                    }
+                    catch { /* chi guarda non ferma il turno */ }
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
