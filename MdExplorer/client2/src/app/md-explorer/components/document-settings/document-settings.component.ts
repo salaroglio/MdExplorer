@@ -15,10 +15,10 @@ export class DocumentSettingsComponent implements OnInit {
   standardTemplates = [{ name: "project",fullPath:"" }, {name:"minute",fullPath:""}]
   selectedMdFile: MdFile;
   documentDescriptor: IDocumentSettings = {
-    author: 'Carlo',
+    author: 'Mario Rossi',
     date: '2022',
     documentType: 'document',
-    email: '@carlo',
+    email: 'mario.rossi@example.com',
     title: 'title',
     wordSection: {
       documentHeader: 'None',

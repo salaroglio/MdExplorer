@@ -31574,10 +31574,10 @@ class DocumentSettingsComponent {
       fullPath: ""
     }];
     this.documentDescriptor = {
-      author: 'Carlo',
+      author: 'Mario Rossi',
       date: '2022',
       documentType: 'document',
-      email: '@carlo',
+      email: 'mario.rossi@example.com',
       title: 'title',
       wordSection: {
         documentHeader: 'None',
@@ -59588,4 +59588,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.4668e9fc3bace194.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.20f2f0aafca5299d.js.map
