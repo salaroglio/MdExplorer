@@ -85,6 +85,11 @@ namespace MdExplorer.Services.Diagnostics
         public int WindowSeconds { get; set; }
         /// <summary>La pagina dell'applicazione (il percorso della rotta, senza dati dell'utente).</summary>
         public string Route { get; set; }
+        /// <summary>
+        /// Chi teneva occupata la finestra, dal più pesante: «N ms in M volte (max X): chi l'ha chiamato | file | funzione |
+        /// finestra». Lo dice Chromium per ogni ridisegno lungo; vuoto se non c'è stato niente di attribuibile.
+        /// </summary>
+        public List<string> Culprits { get; set; } = new List<string>();
     }
 
     /// <summary>
@@ -259,8 +264,9 @@ namespace MdExplorer.Services.Diagnostics
             }
             _logger.LogWarning(
                 "[Risorse] la finestra non rispondeva: {Count} blocchi negli ultimi {Seconds} s, il più lungo {Max} ms ({Total} ms in tutto); " +
-                "tasti lenti a comparire: {Keys}, il peggiore {KeyMax} ms; pagina {Route}. In quel momento: {Processes}",
+                "tasti lenti a comparire: {Keys}, il peggiore {KeyMax} ms; pagina {Route}. Chi la occupava: {Culprits}. In quel momento: {Processes}",
                 report.Count, report.WindowSeconds, report.MaxMs, report.TotalMs, report.SlowKeys, report.MaxKeyMs, report.Route ?? "?",
+                report.Culprits == null || report.Culprits.Count == 0 ? "non attribuito" : string.Join(" ‖ ", report.Culprits),
                 latest == null ? "nessun campione ancora" : $"MdExplorer al {latest.CpuPercent}% della macchina. {DescribeMemory(latest)} {Describe(latest)} | Più memoria: {DescribeTop(latest)}");
         }
 

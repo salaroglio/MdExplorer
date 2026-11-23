@@ -97,7 +97,8 @@ namespace MdExplorer.IntegrationTests
             var monitor = new ResourceMonitor(log);
             monitor.Sample(); Thread.Sleep(50); monitor.Sample();
 
-            monitor.ReportUiStall(new UiStallReport { Count = 4, MaxMs = 2300, TotalMs = 5100, SlowKeys = 7, MaxKeyMs = 900, WindowSeconds = 30, Route = "/main/navigation/document" });
+            monitor.ReportUiStall(new UiStallReport { Count = 4, MaxMs = 2300, TotalMs = 5100, SlowKeys = 7, MaxKeyMs = 900, WindowSeconds = 30, Route = "/main/navigation/document",
+                Culprits = { "5100 ms in 4 volte (max 2300): TimerHandler:setInterval | main.js | tick | self" } });
 
             var line = log.Written.Single(l => l.Contains("non rispondeva"));
             StringAssert.StartsWith(line, "Warning");
@@ -106,6 +107,7 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(line, "il peggiore 900 ms");
             StringAssert.Contains(line, "In quel momento: MdExplorer al");
             StringAssert.Contains(line, "Più memoria:");
+            StringAssert.Contains(line, "Chi la occupava: 5100 ms in 4 volte (max 2300): TimerHandler:setInterval | main.js | tick | self");
 
             var package = JsonSerializer.Deserialize<JsonElement>(monitor.SnapshotJson());
             Assert.AreEqual(Environment.ProcessorCount, package.GetProperty("processoriLogici").GetInt32());

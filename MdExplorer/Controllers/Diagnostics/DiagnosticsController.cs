@@ -113,6 +113,9 @@ namespace MdExplorer.Controllers.Diagnostics
             // La rotta è un percorso dell'applicazione: la si tiene corta, senza parametri.
             var route = (report.Route ?? string.Empty).Split('?', '#')[0];
             report.Route = route.Length > 80 ? route.Substring(0, 80) : route;
+            // Al più otto voci, corte: sono nomi di file e di funzioni dell'applicazione.
+            report.Culprits = (report.Culprits ?? new System.Collections.Generic.List<string>())
+                .Where(c => !string.IsNullOrWhiteSpace(c)).Take(8).Select(c => c.Length > 240 ? c.Substring(0, 240) : c).ToList();
             monitor.ReportUiStall(report);
             return NoContent();
         }

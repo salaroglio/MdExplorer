@@ -21132,6 +21132,9 @@ __webpack_require__.r(__webpack_exports__);
  * Due misure, fuori da Angular per non pesare a loro volta:
  *  - un battito ogni mezzo secondo: se arriva in ritardo, il ciclo della finestra era bloccato per quel tempo;
  *  - da un tasto premuto al ridisegno successivo: quanto ha aspettato il carattere prima di comparire.
+ *  - chi teneva occupata la finestra: Chromium dice, per ogni ridisegno lungo, quali script giravano, da quale file e
+ *    funzione e chi li aveva chiamati (un timer, un evento, una risposta di rete). È ciò che distingue «la macchina è
+ *    lenta» da «questo pezzo dell'applicazione gira troppo».
  * Si spedisce al più un rapporto ogni 30 secondi, e solo se c'è stato qualcosa.
  */
 class UiStallMonitorService {
@@ -21157,6 +21160,8 @@ class UiStallMonitorService {
     this.totalMs = 0;
     this.slowKeys = 0;
     this.maxKeyMs = 0;
+    /** Chi ha tenuto occupata la finestra: «chi l'ha chiamato | file | funzione | finestra» → tempo e volte. */
+    this.culprits = new Map();
   }
   start() {
     if (this.started) return;
@@ -21188,11 +21193,52 @@ class UiStallMonitorService {
         capture: true,
         passive: true
       });
+      this.watchLongFrames();
       setInterval(() => this.report(), UiStallMonitorService.REPORT_EVERY_MS);
     });
   }
+  /**
+   * I ridisegni lunghi, con gli script che li hanno occupati (`long-animation-frame`, Chromium 123+). Dove non c'è,
+   * restano le altre due misure. Del file si tiene solo il nome: niente indirizzi, niente parametri.
+   */
+  watchLongFrames() {
+    try {
+      const observer = new PerformanceObserver(list => {
+        for (const frame of list.getEntries()) {
+          if (frame.duration < UiStallMonitorService.STALL_MS) continue;
+          let inScripts = 0;
+          for (const script of frame.scripts || []) {
+            inScripts += script.duration;
+            if (script.duration < 100) continue;
+            const file = String(script.sourceURL || '').split('?')[0].split('#')[0].split('/').pop() || '(pagina)';
+            this.blame(`${script.invoker || script.invokerType || '?'} | ${file} | ${script.sourceFunctionName || '(anonima)'} | ${script.windowAttribution || '?'}`, script.duration);
+          }
+          // Il tempo che non è di nessuno script: calcolo degli stili, impaginazione, disegno.
+          const rest = frame.duration - inScripts;
+          if (rest >= 100) this.blame('(nessuno script: stili, impaginazione, disegno)', rest);
+        }
+      });
+      observer.observe({
+        type: 'long-animation-frame',
+        buffered: true
+      });
+    } catch {/* questo Chromium non lo ha: si va avanti con il battito e i tasti */}
+  }
+  blame(who, ms) {
+    const known = this.culprits.get(who) || {
+      totalMs: 0,
+      maxMs: 0,
+      count: 0
+    };
+    known.totalMs += ms;
+    known.maxMs = Math.max(known.maxMs, ms);
+    known.count++;
+    this.culprits.set(who, known);
+  }
   report() {
-    if (this.count === 0 && this.slowKeys === 0) return;
+    if (this.count === 0 && this.slowKeys === 0 && this.culprits.size === 0) return;
+    const culprits = [...this.culprits.entries()].sort((a, b) => b[1].totalMs - a[1].totalMs).slice(0, 8).map(([who, v]) => `${Math.round(v.totalMs)} ms in ${v.count} volte (max ${Math.round(v.maxMs)}): ${who}`);
+    this.culprits.clear();
     const body = JSON.stringify({
       count: this.count,
       maxMs: Math.round(this.maxMs),
@@ -21200,7 +21246,8 @@ class UiStallMonitorService {
       slowKeys: this.slowKeys,
       maxKeyMs: Math.round(this.maxKeyMs),
       windowSeconds: UiStallMonitorService.REPORT_EVERY_MS / 1000,
-      route: location.pathname
+      route: location.pathname,
+      culprits
     });
     this.count = 0;
     this.maxMs = 0;
@@ -23134,8 +23181,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.23.9',
-  buildTime: '2026.11.23 11:00:34'
+  version: '2026.11.23.10',
+  buildTime: '2026.11.23 11:32:27'
 };
 
 /***/ }),
@@ -23169,4 +23216,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.06d2c6300a799550.js.map
+//# sourceMappingURL=main.637468bde6eafbe6.js.map
