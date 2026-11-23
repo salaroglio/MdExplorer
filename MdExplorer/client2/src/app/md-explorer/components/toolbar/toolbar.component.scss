@@ -617,3 +617,14 @@ mat-toolbar button.git-menu-btn {
 // L'etichetta del ramo quando si guarda il lavoro di un agente.
 .branch-agent { color: #ffca28 !important; }
 .branch-agent-icon { font-size: 18px; width: 18px; height: 18px; vertical-align: middle; margin-right: 2px; }
+
+// git si fa aspettare: i contatori restano, ma sbiaditi, con una rotellina accanto.
+.git-panels.git-waiting .git-panel-anchor > button { opacity: 0.55; }
+.git-waiting-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+  animation: mde-git-waiting-spin 1.2s linear infinite;
+}
+@keyframes mde-git-waiting-spin { to { transform: rotate(360deg); } }

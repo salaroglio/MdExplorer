@@ -5,6 +5,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { LanguageService } from './services/language.service';
 import { ConnectionIdInterceptor } from './interceptors/connection-id.interceptor';
+import { GitQueueInterceptor } from './interceptors/git-queue.interceptor';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
@@ -99,6 +100,11 @@ const routes: Routes = [
     {
       provide: HTTP_INTERCEPTORS,
       useClass: ConnectionIdInterceptor,
+      multi: true
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: GitQueueInterceptor,
       multi: true
     }
   ],

@@ -101,6 +101,10 @@
       <mat-icon class="warning-icon">warning</mat-icon>
     </button>
     <span *ngIf="isGitRepository && isCheckingConnection"><img src="/assets/connecting.gif" /></span>
+    <!-- git non ha ancora risposto: lo si dice, invece di lasciare i numeri vecchi come buoni. Fuori dai
+         pannelli, che compaiono solo quando il ramo e' noto: l'attesa puo' essere proprio quella. -->
+    <mat-icon *ngIf="isGitRepository && gitWaiting && !isCheckingConnection" class="git-waiting-icon"
+              [matTooltip]="'GITFLOW.WAITING_GIT' | translate:{ n: gitPending }">sync</mat-icon>
 
     <!-- Git button for NON-Git projects -->
     <span *ngIf="!isGitRepository" style="display:flex; flex-direction:row">
@@ -115,7 +119,7 @@
            repository e il suo pulsante. I pulsanti della toolbar NON agiscono: dicono quanto c'e'
            e aprono il pannello. Un'azione sola per tutti i repository direbbe che basta un gesto,
            e con i submodule non e' vero. -->
-      <div class="git-panels" [class.mde-git-busy]="mdeGitBusy"
+      <div class="git-panels" [class.mde-git-busy]="mdeGitBusy" [class.git-waiting]="gitWaiting"
            [matTooltip]="mdeGitBusy ? ('GITFLOW.MDE_BUSY' | translate) : ''">
 
         <!-- Il nome di un repository, il suo ramo e l'eventuale HEAD staccato: uguale nei tre pannelli. -->

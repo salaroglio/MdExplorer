@@ -2930,6 +2930,7 @@
   },
   "GITFLOW": {
     "MDE_BUSY": "MDE is saving its files in git: the buttons come back in a moment.",
+    "WAITING_GIT": "Waiting for git to answer ({{n}} requests open): the numbers here may be out of date.",
     "TO_COMMIT_TITLE": "To commit",
     "TO_PULL_TITLE": "To pull",
     "TO_PUSH_TITLE": "To push",

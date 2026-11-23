@@ -222,38 +222,40 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AppModule": () => (/* binding */ AppModule),
 /* harmony export */   "HttpLoaderFactory": () => (/* binding */ HttpLoaderFactory)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! @angular/forms */ 2508);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! @angular/common/http */ 8987);
 /* harmony import */ var _services_language_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./services/language.service */ 1155);
 /* harmony import */ var _interceptors_connection_id_interceptor__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./interceptors/connection-id.interceptor */ 5917);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _ngx_translate_http_loader__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! @ngx-translate/http-loader */ 8319);
-/* harmony import */ var _app_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./app.component */ 5041);
-/* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./shared/material.module */ 4872);
-/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! @angular/platform-browser/animations */ 7146);
-/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
-/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.component */ 4804);
-/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
-/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./commons/components/show-file-system/show-file-system.component */ 4699);
-/* harmony import */ var _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./commons/waitingdialog/waiting-dialog/waiting-dialog.component */ 9814);
-/* harmony import */ var _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./commons/components/new-directory/new-directory.component */ 4507);
-/* harmony import */ var _commons_components_run_command_dialog_run_command_dialog_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./commons/components/run-command-dialog/run-command-dialog.component */ 720);
-/* harmony import */ var _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.component */ 3211);
-/* harmony import */ var _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.provider */ 5903);
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
-/* harmony import */ var _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./components/search-box/search-box.component */ 9139);
-/* harmony import */ var _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component */ 429);
-/* harmony import */ var _components_unified_settings_dialog_unified_settings_dialog_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./components/unified-settings-dialog/unified-settings-dialog.component */ 8833);
-/* harmony import */ var _components_telegram_settings_telegram_settings_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/telegram-settings/telegram-settings.component */ 791);
-/* harmony import */ var _components_app_store_settings_dialog_app_store_settings_dialog_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./components/app-store-settings-dialog/app-store-settings-dialog.component */ 1441);
-/* harmony import */ var _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./components/participant-gems/participant-gems.module */ 2873);
-/* harmony import */ var _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./components/language-library/language-library.module */ 7659);
-/* harmony import */ var _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.module */ 4277);
-/* harmony import */ var _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ./components/setup-guide/setup-guide.module */ 5926);
+/* harmony import */ var _interceptors_git_queue_interceptor__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./interceptors/git-queue.interceptor */ 5305);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _ngx_translate_http_loader__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @ngx-translate/http-loader */ 8319);
+/* harmony import */ var _app_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./app.component */ 5041);
+/* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./shared/material.module */ 4872);
+/* harmony import */ var _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! @angular/platform-browser/animations */ 7146);
+/* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
+/* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.component */ 4804);
+/* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
+/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./commons/components/show-file-system/show-file-system.component */ 4699);
+/* harmony import */ var _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./commons/waitingdialog/waiting-dialog/waiting-dialog.component */ 9814);
+/* harmony import */ var _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./commons/components/new-directory/new-directory.component */ 4507);
+/* harmony import */ var _commons_components_run_command_dialog_run_command_dialog_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./commons/components/run-command-dialog/run-command-dialog.component */ 720);
+/* harmony import */ var _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.component */ 3211);
+/* harmony import */ var _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./signalR/dialogs/opening-application/opening-application.provider */ 5903);
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+/* harmony import */ var _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ./components/search-box/search-box.component */ 9139);
+/* harmony import */ var _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ./md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component */ 429);
+/* harmony import */ var _components_unified_settings_dialog_unified_settings_dialog_component__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! ./components/unified-settings-dialog/unified-settings-dialog.component */ 8833);
+/* harmony import */ var _components_telegram_settings_telegram_settings_component__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! ./components/telegram-settings/telegram-settings.component */ 791);
+/* harmony import */ var _components_app_store_settings_dialog_app_store_settings_dialog_component__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! ./components/app-store-settings-dialog/app-store-settings-dialog.component */ 1441);
+/* harmony import */ var _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! ./components/participant-gems/participant-gems.module */ 2873);
+/* harmony import */ var _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ./components/language-library/language-library.module */ 7659);
+/* harmony import */ var _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.module */ 4277);
+/* harmony import */ var _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ./components/setup-guide/setup-guide.module */ 5926);
+
 
 
 
@@ -291,7 +293,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 function HttpLoaderFactory(http) {
-  return new _ngx_translate_http_loader__WEBPACK_IMPORTED_MODULE_24__.TranslateHttpLoader(http, '/i18n/', '.json');
+  return new _ngx_translate_http_loader__WEBPACK_IMPORTED_MODULE_25__.TranslateHttpLoader(http, '/i18n/', '.json');
 }
 const routes = [{
   path: 'main',
@@ -322,40 +324,44 @@ class AppModule {
     };
   }
   static {
-    this.ɵmod = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_25__["ɵɵdefineNgModule"]({
+    this.ɵmod = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_26__["ɵɵdefineNgModule"]({
       type: AppModule,
-      bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_2__.AppComponent]
+      bootstrap: [_app_component__WEBPACK_IMPORTED_MODULE_3__.AppComponent]
     });
   }
   static {
-    this.ɵinj = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_25__["ɵɵdefineInjector"]({
+    this.ɵinj = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_26__["ɵɵdefineInjector"]({
       providers: [
       // the UI language comes from the backend before the first render (see LanguageService)
       {
-        provide: _angular_core__WEBPACK_IMPORTED_MODULE_25__.APP_INITIALIZER,
+        provide: _angular_core__WEBPACK_IMPORTED_MODULE_26__.APP_INITIALIZER,
         useFactory: languages => () => languages.init(),
         deps: [_services_language_service__WEBPACK_IMPORTED_MODULE_0__.LanguageService],
         multi: true
-      }, _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_4__.ParsingProjectProvider, _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_5__.ConnectionLostProvider, _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_7__.PlantumlWorkingProvider, _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_13__.OpeningApplicationProvider, {
-        provide: _angular_common_http__WEBPACK_IMPORTED_MODULE_26__.HTTP_INTERCEPTORS,
+      }, _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_5__.ParsingProjectProvider, _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_6__.ConnectionLostProvider, _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_8__.PlantumlWorkingProvider, _signalR_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_14__.OpeningApplicationProvider, {
+        provide: _angular_common_http__WEBPACK_IMPORTED_MODULE_27__.HTTP_INTERCEPTORS,
         useClass: _interceptors_connection_id_interceptor__WEBPACK_IMPORTED_MODULE_1__.ConnectionIdInterceptor,
         multi: true
+      }, {
+        provide: _angular_common_http__WEBPACK_IMPORTED_MODULE_27__.HTTP_INTERCEPTORS,
+        useClass: _interceptors_git_queue_interceptor__WEBPACK_IMPORTED_MODULE_2__.GitQueueInterceptor,
+        multi: true
       }],
-      imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_27__.BrowserModule, _angular_router__WEBPACK_IMPORTED_MODULE_28__.RouterModule.forRoot(routes), _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_29__.FormsModule, _angular_forms__WEBPACK_IMPORTED_MODULE_29__.ReactiveFormsModule, _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_30__.BrowserAnimationsModule, _angular_common_http__WEBPACK_IMPORTED_MODULE_26__.HttpClientModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_31__.TranslateModule.forRoot({
+      imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_28__.BrowserModule, _angular_router__WEBPACK_IMPORTED_MODULE_29__.RouterModule.forRoot(routes), _shared_material_module__WEBPACK_IMPORTED_MODULE_4__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_30__.FormsModule, _angular_forms__WEBPACK_IMPORTED_MODULE_30__.ReactiveFormsModule, _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_31__.BrowserAnimationsModule, _angular_common_http__WEBPACK_IMPORTED_MODULE_27__.HttpClientModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_32__.TranslateModule.forRoot({
         defaultLanguage: 'en',
         loader: {
-          provide: _ngx_translate_core__WEBPACK_IMPORTED_MODULE_31__.TranslateLoader,
+          provide: _ngx_translate_core__WEBPACK_IMPORTED_MODULE_32__.TranslateLoader,
           useFactory: HttpLoaderFactory,
-          deps: [_angular_common_http__WEBPACK_IMPORTED_MODULE_26__.HttpClient]
+          deps: [_angular_common_http__WEBPACK_IMPORTED_MODULE_27__.HttpClient]
         }
-      }), _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_20__.ParticipantGemsModule, _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_21__.LanguageLibraryModule, _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_22__.MarkAssistantModule, _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_23__.SetupGuideModule]
+      }), _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_21__.ParticipantGemsModule, _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_22__.LanguageLibraryModule, _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_23__.MarkAssistantModule, _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_24__.SetupGuideModule]
     });
   }
 }
 (function () {
-  (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_25__["ɵɵsetNgModuleScope"](AppModule, {
-    declarations: [_app_component__WEBPACK_IMPORTED_MODULE_2__.AppComponent, _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_6__.PlantumlWorkingComponent, _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_8__.ShowFileSystemComponent, _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_9__.WaitingDialogComponent, _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_10__.NewDirectoryComponent, _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_12__.OpeningApplicationComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_14__.TitleBarComponent, _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_15__.SearchBoxComponent, _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_16__.CompatibilityModeBadgeComponent, _components_unified_settings_dialog_unified_settings_dialog_component__WEBPACK_IMPORTED_MODULE_17__.UnifiedSettingsDialogComponent, _components_telegram_settings_telegram_settings_component__WEBPACK_IMPORTED_MODULE_18__.TelegramSettingsComponent, _components_app_store_settings_dialog_app_store_settings_dialog_component__WEBPACK_IMPORTED_MODULE_19__.AppStoreSettingsDialogComponent, _commons_components_run_command_dialog_run_command_dialog_component__WEBPACK_IMPORTED_MODULE_11__.RunCommandDialogComponent],
-    imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_27__.BrowserModule, _angular_router__WEBPACK_IMPORTED_MODULE_28__.RouterModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_29__.FormsModule, _angular_forms__WEBPACK_IMPORTED_MODULE_29__.ReactiveFormsModule, _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_30__.BrowserAnimationsModule, _angular_common_http__WEBPACK_IMPORTED_MODULE_26__.HttpClientModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_31__.TranslateModule, _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_20__.ParticipantGemsModule, _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_21__.LanguageLibraryModule, _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_22__.MarkAssistantModule, _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_23__.SetupGuideModule]
+  (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_26__["ɵɵsetNgModuleScope"](AppModule, {
+    declarations: [_app_component__WEBPACK_IMPORTED_MODULE_3__.AppComponent, _signalR_dialogs_plantuml_working_plantuml_working_component__WEBPACK_IMPORTED_MODULE_7__.PlantumlWorkingComponent, _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_9__.ShowFileSystemComponent, _commons_waitingdialog_waiting_dialog_waiting_dialog_component__WEBPACK_IMPORTED_MODULE_10__.WaitingDialogComponent, _commons_components_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_11__.NewDirectoryComponent, _signalR_dialogs_opening_application_opening_application_component__WEBPACK_IMPORTED_MODULE_13__.OpeningApplicationComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_15__.TitleBarComponent, _components_search_box_search_box_component__WEBPACK_IMPORTED_MODULE_16__.SearchBoxComponent, _md_explorer_components_compatibility_mode_badge_compatibility_mode_badge_component__WEBPACK_IMPORTED_MODULE_17__.CompatibilityModeBadgeComponent, _components_unified_settings_dialog_unified_settings_dialog_component__WEBPACK_IMPORTED_MODULE_18__.UnifiedSettingsDialogComponent, _components_telegram_settings_telegram_settings_component__WEBPACK_IMPORTED_MODULE_19__.TelegramSettingsComponent, _components_app_store_settings_dialog_app_store_settings_dialog_component__WEBPACK_IMPORTED_MODULE_20__.AppStoreSettingsDialogComponent, _commons_components_run_command_dialog_run_command_dialog_component__WEBPACK_IMPORTED_MODULE_12__.RunCommandDialogComponent],
+    imports: [_angular_platform_browser__WEBPACK_IMPORTED_MODULE_28__.BrowserModule, _angular_router__WEBPACK_IMPORTED_MODULE_29__.RouterModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_4__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_30__.FormsModule, _angular_forms__WEBPACK_IMPORTED_MODULE_30__.ReactiveFormsModule, _angular_platform_browser_animations__WEBPACK_IMPORTED_MODULE_31__.BrowserAnimationsModule, _angular_common_http__WEBPACK_IMPORTED_MODULE_27__.HttpClientModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_32__.TranslateModule, _components_participant_gems_participant_gems_module__WEBPACK_IMPORTED_MODULE_21__.ParticipantGemsModule, _components_language_library_language_library_module__WEBPACK_IMPORTED_MODULE_22__.LanguageLibraryModule, _mark_assistant_mark_assistant_module__WEBPACK_IMPORTED_MODULE_23__.MarkAssistantModule, _components_setup_guide_setup_guide_module__WEBPACK_IMPORTED_MODULE_24__.SetupGuideModule]
   });
 })();
 
@@ -11807,6 +11813,73 @@ class ConnectionIdInterceptor {
 
 /***/ }),
 
+/***/ 5305:
+/*!*******************************************************!*\
+  !*** ./src/app/interceptors/git-queue.interceptor.ts ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "GitQueueInterceptor": () => (/* binding */ GitQueueInterceptor)
+/* harmony export */ });
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _services_git_request_queue_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../services/git-request-queue.service */ 5618);
+
+
+
+/** The controllers of the service that answer by running git. */
+const GIT_API = /\/api\/(WorkingChanges|ModernGit|ModernGitToolbar|RepoSync|gitservice)\//i;
+/**
+ * What the window asks by itself, on a timer or when something else arrives: the counters of the git
+ * bar and the questions to the remote. Nobody is waiting for these with a hand on the mouse.
+ */
+const ASKED_BY_THE_WINDOW = /\/api\/(WorkingChanges\/list|ModernGit\/remote-status|ModernGitToolbar\/(branch-status|get-data-to-pull)|RepoSync\/(upstream|fetch-all))(\?|$)/i;
+/**
+ * Sends every request about git through {@link GitRequestQueueService}: three at a time, the same
+ * reading never twice. It comes after ConnectionIdInterceptor, so a request held while a project
+ * opens does not keep a place in the line.
+ */
+class GitQueueInterceptor {
+  constructor(queue) {
+    this.queue = queue;
+  }
+  intercept(req, next) {
+    if (!GIT_API.test(req.url)) return next.handle(req);
+    const reading = req.method === 'GET';
+    const kind = ASKED_BY_THE_WINDOW.test(req.url) ? 'background' : reading ? 'asked' : 'command';
+    if (!reading) return this.queue.schedule(null, kind, () => next.handle(req));
+    // Same address AND same kind of answer: a text and a JSON of one address are two readings.
+    const key = req.responseType + ' ' + req.urlWithParams;
+    return this.queue.schedule(key, kind, () => next.handle(req), GitQueueInterceptor.ownCopy);
+  }
+  /**
+   * A merged reading answers several callers (the bar's counters, the changes tab, the commit dialog):
+   * each gets its own copy of the data, as when each made its own request.
+   */
+  static ownCopy(event) {
+    if (!(event instanceof _angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpResponse) || event.body === null || typeof event.body !== 'object') return event;
+    if (event.body instanceof Blob || event.body instanceof ArrayBuffer) return event;
+    return event.clone({
+      body: JSON.parse(JSON.stringify(event.body))
+    });
+  }
+  static {
+    this.ɵfac = function GitQueueInterceptor_Factory(t) {
+      return new (t || GitQueueInterceptor)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_services_git_request_queue_service__WEBPACK_IMPORTED_MODULE_0__.GitRequestQueueService));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+      token: GitQueueInterceptor,
+      factory: GitQueueInterceptor.ɵfac
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 5297:
 /*!*********************************************************!*\
   !*** ./src/app/mark-assistant/handlers/echo-handler.ts ***!
@@ -20743,6 +20816,168 @@ class FileChangeNotificationService {
 
 /***/ }),
 
+/***/ 5618:
+/*!*******************************************************!*\
+  !*** ./src/app/services/git-request-queue.service.ts ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "GitRequestQueueService": () => (/* binding */ GitRequestQueueService)
+/* harmony export */ });
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 8947);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 745);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 833);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs/operators */ 8977);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 2673);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 1203);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
+
+
+
+/**
+ * The line every request about git goes through, in this window.
+ *
+ * The browser keeps six requests open towards the service, no more. On a machine where git answers
+ * in tens of seconds the git readings alone took all six, and a document, with the hundred scripts
+ * of its page, waited behind them (measured on 23/11/2026: 0,3 s with three open, over 38 s with
+ * six). Here at most {@link MAX_AT_ONCE} leave together: the others wait, and the rest of MdExplorer
+ * always finds free connections.
+ *
+ * Two readings with the same address are never in flight together, and never more than one waits:
+ * whoever asks again while one is already waiting gets that one's answer. It starts after the one
+ * in flight has ended, so the answer is never older than the question.
+ */
+class GitRequestQueueService {
+  constructor() {
+    this.running = 0;
+    this.queue = [];
+    this.runningKeys = new Set();
+    this.waitingByKey = new Map();
+    this.stateSubject = new rxjs__WEBPACK_IMPORTED_MODULE_0__.BehaviorSubject({
+      running: 0,
+      queued: 0
+    });
+    /** How many git requests are in flight and how many wait behind them. */
+    this.state$ = this.stateSubject.asObservable();
+    /** True while an answer from git has been awaited for more than {@link SHOWN_AFTER_MS}. */
+    this.waiting$ = this.stateSubject.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(s => s.running + s.queued > 0), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(busy => busy ? (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.timer)(GitRequestQueueService.SHOWN_AFTER_MS).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(() => true)) : (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(false)), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_2__.distinctUntilChanged)());
+  }
+  static {
+    this.MAX_AT_ONCE = 3;
+  }
+  /** A wait shorter than this is not worth showing: the counters would flicker at every poll. */
+  static {
+    this.SHOWN_AFTER_MS = 800;
+  }
+  /**
+   * @param key the identity of a reading (its full address): readings with the same key are merged.
+   *            Null for what must never be merged.
+   * @param ownCopy makes, for each one who asked, a copy of what arrives. A merged answer reaches
+   *            several callers: without it they would hold the very same object, and a change made
+   *            by one would show up in the others.
+   */
+  schedule(key, kind, work, ownCopy) {
+    const forEachCaller = source => ownCopy ? source.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.map)(ownCopy)) : source;
+    if (key !== null) {
+      const waiting = this.waitingByKey.get(key);
+      if (waiting) return forEachCaller(waiting);
+    }
+    const queued = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Observable(subscriber => {
+      let inner = null;
+      let ended = false;
+      const job = {
+        key,
+        background: kind === 'background',
+        started: false,
+        start: () => {
+          job.started = true;
+          this.running++;
+          if (key !== null) {
+            this.runningKeys.add(key);
+            if (this.waitingByKey.get(key) === shared) this.waitingByKey.delete(key);
+          }
+          this.publish();
+          inner = work().subscribe({
+            next: v => subscriber.next(v),
+            error: e => {
+              end();
+              subscriber.error(e);
+            },
+            complete: () => {
+              end();
+              subscriber.complete();
+            }
+          });
+        }
+      };
+      const end = () => {
+        if (ended) return;
+        ended = true;
+        if (job.started) {
+          this.running--;
+          if (key !== null) this.runningKeys.delete(key);
+        } else {
+          this.queue = this.queue.filter(j => j !== job);
+          if (key !== null && this.waitingByKey.get(key) === shared) this.waitingByKey.delete(key);
+        }
+        this.pump();
+      };
+      if (kind === 'command') job.start();else {
+        if (kind === 'asked') {
+          // Ahead of the background readings, behind what the user asked before.
+          const firstBackground = this.queue.findIndex(j => j.background);
+          if (firstBackground < 0) this.queue.push(job);else this.queue.splice(firstBackground, 0, job);
+        } else {
+          this.queue.push(job);
+        }
+        this.pump();
+      }
+      return () => {
+        inner?.unsubscribe();
+        end();
+      };
+    });
+    const shared = key !== null ? queued.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.share)()) : queued;
+    if (key !== null) this.waitingByKey.set(key, shared);
+    return forEachCaller(shared);
+  }
+  pump() {
+    while (this.running < GitRequestQueueService.MAX_AT_ONCE) {
+      const index = this.queue.findIndex(j => j.key === null || !this.runningKeys.has(j.key));
+      if (index < 0) break;
+      const [job] = this.queue.splice(index, 1);
+      job.start();
+    }
+    this.publish();
+  }
+  publish() {
+    const next = {
+      running: this.running,
+      queued: this.queue.length
+    };
+    const now = this.stateSubject.value;
+    if (now.running !== next.running || now.queued !== next.queued) this.stateSubject.next(next);
+  }
+  static {
+    this.ɵfac = function GitRequestQueueService_Factory(t) {
+      return new (t || GitRequestQueueService)();
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
+      token: GitRequestQueueService,
+      factory: GitRequestQueueService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 1155:
 /*!**********************************************!*\
   !*** ./src/app/services/language.service.ts ***!
@@ -23181,8 +23416,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.23.10',
-  buildTime: '2026.11.23 11:32:27'
+  version: '2026.11.23.13',
+  buildTime: '2026.11.23 15:51:33'
 };
 
 /***/ }),
@@ -23216,4 +23451,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.637468bde6eafbe6.js.map
+//# sourceMappingURL=main.16fd42fc521e1b9a.js.map

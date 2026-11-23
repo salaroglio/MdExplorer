@@ -52,6 +52,7 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/comp
 import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
 import { MdeGitBusyService } from '../../services/mde-git-busy.service';
+import { GitRequestQueueService } from 'src/app/services/git-request-queue.service';
 
 
 /** I tre pannelli git della toolbar: stessa forma, una riga per repository. */
@@ -118,6 +119,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   subscriptionserverSelectedMdFile: Subscription;
   /** N6: MDE sta facendo le sue operazioni git su questo repository: i pulsanti git aspettano. */
   public mdeGitBusy = false;
+  /** Una risposta di git si fa aspettare: i numeri della barra potrebbero non essere aggiornati. */
+  public gitWaiting = false;
+  public gitPending = 0;
   private mdeGitBusySub: Subscription;
 
   /**
@@ -177,6 +181,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private agentWorkspace: AgentWorkspaceService,
     private workingChanges: WorkingChangesService,
     private mdeGitBusyService: MdeGitBusyService,
+    private gitQueue: GitRequestQueueService,
     private federationService: FederationService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
@@ -298,6 +303,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.mdeGitBusySub = this.mdeGitBusyService.busy$.subscribe(b => this.mdeGitBusy = b);
+    this.citySubscriptions.add(this.gitQueue.waiting$.subscribe(w => this.gitWaiting = w));
+    this.citySubscriptions.add(this.gitQueue.state$.subscribe(st => this.gitPending = st.running + st.queued));
     this.slideDeckSubscription = this.documentRefreshService.slideDeckShown$
       .subscribe(shown => this.slideDeckShown = shown);
 
