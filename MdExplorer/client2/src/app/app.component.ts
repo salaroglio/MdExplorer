@@ -17,6 +17,7 @@ import { MarkDiagramService } from './mark-assistant/mark-diagram.service';
 import { MdServerMessagesService } from './signalR/services/server-messages.service';
 import { ProjectsService } from './md-explorer/services/projects.service';
 import { DevelopmentConfigStateService } from './md-explorer/services/development-config-state.service';
+import { UiStallMonitorService } from './services/ui-stall-monitor.service';
 
 @Component({
   selector: 'app-root',
@@ -55,7 +56,10 @@ export class AppComponent {
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
     private developmentConfig: DevelopmentConfigStateService,
-    private translate: TranslateService) {
+    private translate: TranslateService,
+    uiStallMonitor: UiStallMonitorService) {
+    // La finestra misura i propri blocchi e li dice al servizio, per «Invia diagnostica».
+    uiStallMonitor.start();
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);

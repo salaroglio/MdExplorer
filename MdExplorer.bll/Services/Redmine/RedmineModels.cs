@@ -89,7 +89,20 @@ namespace MdExplorer.Features.Services.Redmine
         public List<RedmineJournal> Journals { get; set; } = new List<RedmineJournal>();
         /// <summary>Gli stati in cui QUESTO utente può portare la issue (Redmine 5+).</summary>
         public List<RedmineRef> AllowedStatuses { get; set; } = new List<RedmineRef>();
-        public List<string> Attachments { get; set; } = new List<string>();
+        /// <summary>I file allegati alla issue: con l'<c>Id</c> si scaricano (immagini comprese).</summary>
+        public List<RedmineAttachment> Attachments { get; set; } = new List<RedmineAttachment>();
+    }
+
+    /// <summary>Un file allegato a una issue. Nel testo della issue un'immagine incorporata lo cita per nome (<c>FileName</c>).</summary>
+    public class RedmineAttachment
+    {
+        public int Id { get; set; }
+        public string FileName { get; set; }
+        public string ContentType { get; set; }
+        public long? FileSize { get; set; }
+        public string Description { get; set; }
+        public RedmineRef Author { get; set; }
+        public DateTime? CreatedOn { get; set; }
     }
 
     /// <summary>Che cosa serve per creare o aggiornare bene in un progetto, e che cosa l'utente può fare lì.</summary>

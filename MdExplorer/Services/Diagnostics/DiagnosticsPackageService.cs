@@ -45,12 +45,15 @@ namespace MdExplorer.Services.Diagnostics
         private readonly string _logDirectory;
         private readonly string _electronUserData;
         private readonly Func<RedactionContext> _context;
+        private readonly Func<string> _resources;
 
-        public DiagnosticsPackageService(string logDirectory, string electronUserData, Func<RedactionContext> context)
+        /// <param name="resources">Processore e memoria dell'ultima ora, come JSON (<see cref="ResourceMonitor.SnapshotJson"/>); null = non si allega.</param>
+        public DiagnosticsPackageService(string logDirectory, string electronUserData, Func<RedactionContext> context, Func<string> resources = null)
         {
             _logDirectory = logDirectory;
             _electronUserData = electronUserData;
             _context = context;
+            _resources = resources;
         }
 
         /// <summary>La cartella dati di Electron: <c>%APPDATA%\mdexplorer</c>, <c>~/.config/mdexplorer</c>.</summary>
@@ -130,6 +133,13 @@ namespace MdExplorer.Services.Diagnostics
                     files.Add(new DiagnosticsFile { Name = f.Name, Source = "", OriginalBytes = new FileInfo(f.Path).Length, Text = r.Text, Redactions = r.Counts });
                 }
 
+            if (_resources != null)
+            {
+                // Chi occupava la macchina e se la finestra rispondeva: i registri dicono solo che cosa si stava facendo.
+                var resources = DiagnosticsRedactor.Redact(_resources(), context);
+                files.Add(new DiagnosticsFile { Name = "risorse.json", Source = "", OriginalBytes = resources.Text.Length, Text = resources.Text, Redactions = resources.Counts });
+            }
+
             var info = DiagnosticsRedactor.Redact(InfoJson(), context);
             files.Insert(0, new DiagnosticsFile { Name = "info.json", Source = "", OriginalBytes = info.Text.Length, Text = info.Text, Redactions = info.Counts });
             return files;
@@ -161,6 +171,8 @@ namespace MdExplorer.Services.Diagnostics
                 ["dataDelServizio"] = entry?.Location is string loc && File.Exists(loc) ? File.GetLastWriteTimeUtc(loc).ToString("o") : null,
                 ["sistema"] = RuntimeInformation.OSDescription,
                 ["architettura"] = RuntimeInformation.OSArchitecture.ToString(),
+                ["processoriLogici"] = Environment.ProcessorCount,
+                ["memoriaDellaMacchinaMb"] = ResourceMonitor.MachineMemoryMb,
                 ["dotnet"] = RuntimeInformation.FrameworkDescription,
                 ["sondeDeiTempi"] = Environment.GetEnvironmentVariable("MDE_PERF_TRACE") == "1",
                 ["cartellaLog"] = _logDirectory,

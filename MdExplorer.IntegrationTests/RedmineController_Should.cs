@@ -43,6 +43,66 @@ namespace MdExplorer.IntegrationTests
         private static async Task<(HttpStatusCode Status, JsonElement Body)> Send(HttpResponseMessage resp)
             => (resp.StatusCode, JsonSerializer.Deserialize<JsonElement>(await resp.Content.ReadAsStringAsync()));
 
+        /// <summary>Un Redmine finto, in ascolto su una porta libera: una issue con un'immagine allegata.</summary>
+        private static (HttpListener Server, string Url, byte[] Image) FakeRedmineWithAnImage()
+        {
+            var port = 0;
+            using (var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0)) { probe.Start(); port = ((IPEndPoint)probe.LocalEndpoint).Port; probe.Stop(); }
+            var url = $"http://127.0.0.1:{port}/";
+            var image = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4 };
+            var server = new HttpListener();
+            server.Prefixes.Add(url);
+            server.Start();
+            _ = Task.Run(async () =>
+            {
+                while (server.IsListening)
+                {
+                    HttpListenerContext c;
+                    try { c = await server.GetContextAsync(); } catch { return; }
+                    var path = c.Request.Url.AbsolutePath;
+                    byte[] body; var type = "application/json";
+                    if (c.Request.Headers["X-Redmine-API-Key"] != "chiave-di-prova") { c.Response.StatusCode = 401; body = Array.Empty<byte>(); }
+                    else if (path == "/issues/7.json")
+                        body = System.Text.Encoding.UTF8.GetBytes("{\"issue\":{\"id\":7,\"subject\":\"Errore in stampa\",\"project\":{\"id\":1,\"name\":\"Banca esempio\"}," +
+                            "\"attachments\":[{\"id\":87,\"filename\":\"../schermata.png\",\"filesize\":12,\"content_type\":\"image/png\"}]}}");
+                    else if (path.StartsWith("/attachments/download/87/", StringComparison.Ordinal)) { body = image; type = "image/png"; }
+                    else { c.Response.StatusCode = 404; body = Array.Empty<byte>(); }
+                    c.Response.ContentType = type;
+                    c.Response.ContentLength64 = body.Length;
+                    await c.Response.OutputStream.WriteAsync(body);
+                    c.Response.Close();
+                }
+            });
+            return (server, url, image);
+        }
+
+        [TestMethod]
+        public async Task Download_an_attachment_of_an_issue_into_the_project_so_that_the_llm_can_open_it()
+        {
+            var (server, url, image) = FakeRedmineWithAnImage();
+            var (ctx, id, path) = Project();
+            using (ctx)
+            try
+            {
+                await Save(ctx, id, url, "chiave-di-prova", new[] { "banca-esempio" }, "markdown");
+
+                var (status, body) = await Send(await ctx.Client.PostAsJsonAsync("/api/redmine/issue/7/attachment/87/download", new { projectId = id }));
+                Assert.AreEqual(HttpStatusCode.OK, status, body.ToString());
+                Assert.AreEqual("image/png", body.GetProperty("mimeType").GetString());
+                // Il nome viene da Redmine: non deve poter uscire dalla cartella degli allegati.
+                Assert.AreEqual(".md/redmine-attachments/7/87_schermata.png", body.GetProperty("relativePath").GetString());
+                var saved = body.GetProperty("path").GetString();
+                CollectionAssert.AreEqual(image, File.ReadAllBytes(saved));
+                Assert.AreEqual(image.Length, body.GetProperty("size").GetInt64());
+
+                // Un allegato che non è di quella issue non si scarica, e la risposta dice quali ci sono.
+                var (missing, why) = await Send(await ctx.Client.PostAsJsonAsync("/api/redmine/issue/7/attachment/99/download", new { projectId = id }));
+                Assert.AreEqual(HttpStatusCode.BadRequest, missing);
+                Assert.AreEqual(87, why.GetProperty("attachments")[0].GetProperty("id").GetInt32());
+            }
+            finally { server.Stop(); }
+        }
+
         [TestMethod]
         public async Task Keep_the_key_out_of_the_development_file_and_never_send_it_back()
         {

@@ -42,11 +42,47 @@ public sealed class RedmineTools : McpToolsBase
 
     [McpServerTool, Description(
         "Redmine: one issue with description, custom fields, the notes history (journals), the statuses YOU may move it to " +
-        "(allowedStatuses) and 'textFormatting' (markdown or textile) — the format to use when you write to this server.")]
+        "(allowedStatuses) and 'textFormatting' (markdown or textile) — the format to use when you write to this server. " +
+        "'attachments' lists the files attached to the issue with their id: an image embedded in the description or in a " +
+        "note is one of them, cited by file name ('![](screen.png)' in markdown, '!screen.png!' in textile). To SEE an " +
+        "image or read a file, call redmine_download_attachment with that id.")]
     public Task<string> redmine_get_issue(
         [Description(ProjectDescription)] string project,
         [Description("The issue number, e.g. 1234 (without #).")] int issueId)
         => GetAsync("redmine_get_issue", project, pid => $"/api/redmine/issue/{issueId}?projectId={pid}");
+
+    [McpServerTool, Description(
+        "Redmine: downloads one attachment of an issue (READ) into the project folder ('.md/redmine-attachments/<issue>/') " +
+        "and returns where it was saved. If it is an image (png/jpeg/gif/webp, up to 5 MB) the image itself is returned " +
+        "too, so you can look at it — e.g. to describe a screenshot or turn a drawn diagram into PlantUML; for any other " +
+        "file open the returned 'path' with your file tools. Get the attachment id from redmine_get_issue ('attachments').")]
+    public async Task<ModelContextProtocol.Protocol.CallToolResult> redmine_download_attachment(
+        [Description(ProjectDescription)] string project,
+        [Description("The issue number, e.g. 1234 (without #).")] int issueId,
+        [Description("The attachment id, from the 'attachments' list of redmine_get_issue, e.g. 87.")] int attachmentId)
+    {
+        static ModelContextProtocol.Protocol.CallToolResult Fail(string text) => new()
+        {
+            IsError = true,
+            Content = new List<ModelContextProtocol.Protocol.ContentBlock> { new ModelContextProtocol.Protocol.TextContentBlock { Text = text } },
+        };
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return Fail($"Project '{project}' not found.");
+        try
+        {
+            var content = new StringContent(JsonSerializer.Serialize(new { projectId = pid }), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync($"/api/redmine/issue/{issueId}/attachment/{attachmentId}/download", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("redmine_download_attachment", project, $"issueId={issueId},attachmentId={attachmentId}", body);
+            return AttachmentDownloadResult(resp, body);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Fail($"Error connecting to MdExplorer: {ex.Message}");
+        }
+    }
 
     [McpServerTool, Description(
         "Redmine: what a Redmine project accepts and what YOU may do there — trackers, statuses, priorities, members (for " +

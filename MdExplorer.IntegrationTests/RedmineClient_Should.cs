@@ -153,6 +153,69 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(ex.IsAuthFailure);
         }
 
+        private static readonly RedmineConnection Fictional = new() { BaseUrl = "https://redmine.example.test/", ApiKey = "abc" };
+
+        [TestMethod]
+        public async Task List_the_attachments_of_an_issue_with_the_id_that_downloads_them()
+        {
+            var json = "{\"issue\":{\"id\":7,\"subject\":\"Errore in stampa\",\"attachments\":[" +
+                       "{\"id\":87,\"filename\":\"schermata.png\",\"filesize\":2048,\"content_type\":\"image/png\",\"description\":\"la maschera\"," +
+                       "\"content_url\":\"http://interno.example.test/attachments/download/87/schermata.png\",\"author\":{\"id\":5,\"name\":\"Lara Lettore\"}}]}}";
+            var client = Client(new Fake(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") }));
+            var issue = await client.GetIssueAsync(Fictional, 7);
+            var attachment = issue.Attachments.Single();
+            Assert.AreEqual(87, attachment.Id);
+            Assert.AreEqual("schermata.png", attachment.FileName);
+            Assert.AreEqual("image/png", attachment.ContentType);
+            Assert.AreEqual(2048L, attachment.FileSize);
+            Assert.AreEqual("Lara Lettore", attachment.Author.Name);
+        }
+
+        [TestMethod]
+        public async Task Download_an_attachment_from_the_configured_server_with_the_key()
+        {
+            var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3 };
+            string asked = null, key = null;
+            var client = Client(new Fake(r =>
+            {
+                asked = r.RequestUri.AbsoluteUri;
+                key = r.Headers.TryGetValues("X-Redmine-API-Key", out var v) ? v.Single() : null;
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+            }));
+            using var target = new System.IO.MemoryStream();
+            var written = await client.DownloadAttachmentAsync(Fictional, new RedmineAttachment { Id = 87, FileName = "schermata di prova.png", ContentType = "image/png" }, target);
+
+            // Dal server configurato, non dal content_url della risposta (che porta il nome interno di Redmine).
+            Assert.AreEqual("https://redmine.example.test/attachments/download/87/schermata%20di%20prova.png", asked);
+            Assert.AreEqual("abc", key);
+            Assert.AreEqual(bytes.Length, written);
+            CollectionAssert.AreEqual(bytes, target.ToArray());
+        }
+
+        [TestMethod]
+        public async Task Refuse_a_web_page_served_in_place_of_an_image()
+        {
+            var html = "<html><head><title>Accesso negato</title></head><body>Request ID: 4411</body></html>";
+            var client = Client(new Fake(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(html, Encoding.UTF8, "text/html") }));
+            using var target = new System.IO.MemoryStream();
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
+                client.DownloadAttachmentAsync(Fictional, new RedmineAttachment { Id = 87, FileName = "schermata.png", ContentType = "image/png" }, target));
+            StringAssert.Contains(ex.Message, "Accesso negato");
+            Assert.AreEqual(0, target.Length, "della pagina non si salva niente");
+        }
+
+        [TestMethod]
+        public async Task Refuse_an_attachment_too_big_before_asking_for_it()
+        {
+            var asked = false;
+            var client = Client(new Fake(_ => { asked = true; return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[1]) }; }));
+            using var target = new System.IO.MemoryStream();
+            var ex = await Assert.ThrowsExactlyAsync<RedmineApiException>(() =>
+                client.DownloadAttachmentAsync(Fictional, new RedmineAttachment { Id = 9, FileName = "archivio.zip", FileSize = RedmineClient.MaxAttachmentBytes + 1 }, target));
+            StringAssert.Contains(ex.Message, "archivio.zip");
+            Assert.IsFalse(asked);
+        }
+
         private sealed class Factory : IHttpClientFactory
         {
             private readonly HttpMessageHandler _handler;

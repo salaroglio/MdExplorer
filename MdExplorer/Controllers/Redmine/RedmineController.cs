@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
@@ -199,6 +200,88 @@ namespace MdExplorer.Service.Controllers.Redmine
             });
         }
 
+        public class DownloadRequest
+        {
+            public Guid ProjectId { get; set; }
+        }
+
+        /// <summary>
+        /// Scarica un allegato di una issue nel progetto (<c>.md/redmine-attachments/&lt;issue&gt;/</c>), così l'LLM lo può
+        /// aprire: uno screenshot, un'immagine incorporata nella descrizione, un log. Stessa risposta del download di
+        /// Jira (dove sta il file, tipo, dimensione): lo strumento MCP la tratta allo stesso modo.
+        /// </summary>
+        [HttpPost("issue/{id:int}/attachment/{attachmentId:int}/download")]
+        public async Task<IActionResult> DownloadAttachment(int id, int attachmentId, [FromBody] DownloadRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            var ctx = Context(req.ProjectId);
+            if (ctx.Error != null) return ctx.Error;
+            if (string.IsNullOrWhiteSpace(ctx.ProjectPath) || !Directory.Exists(ctx.ProjectPath))
+                return BadRequest(new { error = "The project folder is not available on this machine, so there is nowhere to save the attachment." });
+
+            try
+            {
+                // L'allegato deve essere di QUELLA issue: l'id da solo aprirebbe qualunque file che la chiave può leggere.
+                var issue = await _client.GetIssueAsync(ctx.Connection, id);
+                var attachment = issue.Attachments.FirstOrDefault(a => a.Id == attachmentId);
+                if (attachment == null)
+                    return BadRequest(new
+                    {
+                        error = UiText.Say($"La issue #{id} non ha un allegato {attachmentId}.", $"Issue #{id} has no attachment {attachmentId}."),
+                        attachments = issue.Attachments.Select(a => new { a.Id, a.FileName }),
+                    });
+
+                var folder = Path.Combine(ctx.ProjectPath, ".md", "redmine-attachments", id.ToString());
+                Directory.CreateDirectory(folder);
+                var target = Path.Combine(folder, $"{attachment.Id}_{SafeFileName(attachment.FileName)}");
+
+                long written;
+                using (var file = System.IO.File.Create(target))
+                    written = await _client.DownloadAttachmentAsync(ctx.Connection, attachment, file, HttpContext.RequestAborted);
+
+                return Ok(new
+                {
+                    attachmentId = attachment.Id.ToString(),
+                    fileName = attachment.FileName,
+                    mimeType = MimeTypeOf(attachment),
+                    size = written >= 0 ? written : new FileInfo(target).Length,
+                    path = target,
+                    relativePath = Path.GetRelativePath(ctx.ProjectPath, target).Replace('\\', '/'),
+                });
+            }
+            catch (RedmineApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (IOException ex) { return BadRequest(new { error = $"Cannot save the attachment: {ex.Message}" }); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RedmineController] attachment download failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Il nome dell'allegato come nome di file: niente separatori né caratteri che il disco rifiuta.</summary>
+        internal static string SafeFileName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var leaf = Path.GetFileName((name ?? string.Empty).Trim().Replace('\\', '/'));
+            var safe = new string(leaf.Select(c => invalid.Contains(c) || c == '/' || c == '\\' || c == ':' ? '_' : c).ToArray()).Trim().TrimEnd('.');
+            return string.IsNullOrEmpty(safe) || safe == "." || safe == ".." ? "attachment" : safe;
+        }
+
+        /// <summary>Il tipo dichiarato da Redmine; se manca (capita con i file caricati via API), quello dell'estensione per le immagini.</summary>
+        internal static string MimeTypeOf(RedmineAttachment attachment)
+        {
+            if (!string.IsNullOrWhiteSpace(attachment.ContentType) && attachment.ContentType != "application/octet-stream")
+                return attachment.ContentType;
+            return Path.GetExtension(attachment.FileName ?? string.Empty).ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => string.IsNullOrWhiteSpace(attachment.ContentType) ? "application/octet-stream" : attachment.ContentType,
+            };
+        }
+
         public class IssueRequest
         {
             public Guid ProjectId { get; set; }
@@ -240,6 +323,7 @@ namespace MdExplorer.Service.Controllers.Redmine
 
         private sealed class RedmineContext
         {
+            public string ProjectPath;
             public IActionResult Error;
             public RedmineConnection Connection;
             public RedmineConfig Config;
@@ -264,6 +348,7 @@ namespace MdExplorer.Service.Controllers.Redmine
                                        "The Redmine address is missing in .development.yml (Project settings → Redmine)."));
             return new RedmineContext
             {
+                ProjectPath = project.Path,
                 Config = cfg,
                 Connection = new RedmineConnection { BaseUrl = cfg.BaseUrl, ApiKey = _passwordProtector.Unprotect(settings.ApiKeyEncrypted) },
             };

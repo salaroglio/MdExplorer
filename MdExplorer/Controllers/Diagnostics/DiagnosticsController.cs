@@ -100,6 +100,23 @@ namespace MdExplorer.Controllers.Diagnostics
         /// GET api/Diagnostics/Package — l'anteprima di «Invia diagnostica»: i file del pacchetto, la coda di ciascuno già
         /// oscurata, quante sostituzioni per tipo e il peso dello zip. Lo zip completo è <see cref="PackageZip"/>.
         /// </summary>
+        /// <summary>
+        /// POST api/Diagnostics/UiStall — la finestra dice di non aver risposto (blocchi del suo ciclo, tasti lenti a
+        /// comparire). Finisce nel registro del servizio, accanto a ciò che i processi stavano facendo: è così che
+        /// «non riesco a scrivere» arriva in «Invia diagnostica».
+        /// </summary>
+        [HttpPost("UiStall")]
+        public IActionResult UiStall([FromBody] MdExplorer.Services.Diagnostics.UiStallReport report,
+            [FromServices] MdExplorer.Services.Diagnostics.ResourceMonitor monitor)
+        {
+            if (report == null) return BadRequest();
+            // La rotta è un percorso dell'applicazione: la si tiene corta, senza parametri.
+            var route = (report.Route ?? string.Empty).Split('?', '#')[0];
+            report.Route = route.Length > 80 ? route.Substring(0, 80) : route;
+            monitor.ReportUiStall(report);
+            return NoContent();
+        }
+
         [HttpGet("Package")]
         public IActionResult Package([FromServices] MdExplorer.Services.Diagnostics.DiagnosticsPackageService package,
             [FromServices] MdExplorer.Abstractions.DB.IUserSettingsDB userSettings, [FromQuery] bool findings = false)

@@ -183,9 +183,13 @@ namespace MdExplorer
             // Salute di Java (12/10/2026): all'avvio, in sfondo, dopo che il server è in ascolto; avvisi nella pagina dei progetti.
             services.AddSingleton<Services.Java.StartupNotices>();
             // «Invia diagnostica» (sprint 2026-11-06): i log dell'ultimo giorno, oscurati.
-            services.AddSingleton(_ => new Services.Diagnostics.DiagnosticsPackageService(
+            // Processore e memoria dei processi di MDE, e i blocchi che la finestra segnala: nel registro e nel pacchetto.
+            services.AddSingleton<Services.Diagnostics.ResourceMonitor>();
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Diagnostics.ResourceMonitor>());
+            services.AddSingleton(sp => new Services.Diagnostics.DiagnosticsPackageService(
                 Program.LogDirectory, Services.Diagnostics.DiagnosticsPackageService.DefaultElectronUserData(),
-                Services.Diagnostics.DiagnosticsPackageService.CurrentContext));
+                Services.Diagnostics.DiagnosticsPackageService.CurrentContext,
+                sp.GetRequiredService<Services.Diagnostics.ResourceMonitor>().SnapshotJson));
             services.AddSingleton<Services.Java.JavaHealthService>();
             services.AddHostedService(sp => sp.GetRequiredService<Services.Java.JavaHealthService>());
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();

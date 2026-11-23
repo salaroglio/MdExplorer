@@ -24,6 +24,10 @@ namespace MdExplorer.Features.Services.Redmine
         Task<RedmineProjectOptions> ProjectOptionsAsync(RedmineConnection conn, string project, CancellationToken ct = default);
         Task<RedmineIssueDetail> CreateIssueAsync(RedmineConnection conn, RedmineIssueChange change, CancellationToken ct = default);
         Task<RedmineIssueDetail> UpdateIssueAsync(RedmineConnection conn, int id, RedmineIssueChange change, CancellationToken ct = default);
+        /// <summary>I dati di un allegato (nome, tipo, dimensione).</summary>
+        Task<RedmineAttachment> GetAttachmentAsync(RedmineConnection conn, int attachmentId, CancellationToken ct = default);
+        /// <summary>Scrive il contenuto dell'allegato in <paramref name="target"/> e dice quanti byte ha scritto.</summary>
+        Task<long> DownloadAttachmentAsync(RedmineConnection conn, RedmineAttachment attachment, System.IO.Stream target, CancellationToken ct = default);
     }
 
     /// <summary>
@@ -342,6 +346,79 @@ namespace MdExplorer.Features.Services.Redmine
             return list.Count == 0 ? "—" : string.Join(", ", list);
         }
 
+        // ── Allegati ────────────────────────────────────────────────
+
+        /// <summary>Oltre questa dimensione un allegato non si scarica: non è un'immagine da guardare né un log da leggere.</summary>
+        public const long MaxAttachmentBytes = 200L * 1024 * 1024;
+
+        public async Task<RedmineAttachment> GetAttachmentAsync(RedmineConnection conn, int attachmentId, CancellationToken ct = default)
+        {
+            using var doc = await GetJsonAsync(conn, $"/attachments/{attachmentId}.json", ct);
+            var attachment = MapAttachment(Prop(doc.RootElement, "attachment"));
+            if (attachment.Id == 0 || string.IsNullOrWhiteSpace(attachment.FileName))
+                throw new RedmineApiException(Say($"Redmine non ha restituito l'allegato {attachmentId}.", $"Redmine did not return attachment {attachmentId}."));
+            return attachment;
+        }
+
+        public async Task<long> DownloadAttachmentAsync(RedmineConnection conn, RedmineAttachment attachment, System.IO.Stream target, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (attachment == null) throw new ArgumentNullException(nameof(attachment));
+            if (attachment.FileSize > MaxAttachmentBytes)
+                throw new RedmineApiException(Say(
+                    $"L'allegato «{attachment.FileName}» pesa {attachment.FileSize / (1024 * 1024)} MB: oltre {MaxAttachmentBytes / (1024 * 1024)} MB non si scarica.",
+                    $"The attachment “{attachment.FileName}” is {attachment.FileSize / (1024 * 1024)} MB: over {MaxAttachmentBytes / (1024 * 1024)} MB it is not downloaded."));
+
+            // L'indirizzo si compone dal server configurato, non dal content_url della risposta: quello porta il nome che
+            // Redmine crede di avere (spesso interno), e la chiave non deve partire verso un host che non è il nostro.
+            var path = $"/attachments/download/{attachment.Id}/{Uri.EscapeDataString(attachment.FileName)}";
+            using var req = new HttpRequestMessage(HttpMethod.Get, BaseUrl(conn) + path);
+            req.Headers.Add(ApiKeyHeader, conn.ApiKey);
+            req.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await _httpClientFactory.CreateClient().SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new RedmineApiException(AtlassianNetworkDiagnostics.DescribeUnreachable("Redmine", BaseUrl(conn), ex), null, ex);
+            }
+
+            using (resp)
+            {
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var text = await resp.Content.ReadAsStringAsync(ct);
+                    var isHtml = text.TrimStart().StartsWith("<", StringComparison.Ordinal);
+                    throw isHtml ? HtmlAnswer(conn, resp.StatusCode, text) : Failure(conn, HttpMethod.Get, path, resp.StatusCode, text);
+                }
+                // Un file HTML può essere un allegato vero; una pagina HTML al posto di un'immagine è il firewall (o il login).
+                var served = resp.Content.Headers.ContentType?.MediaType ?? "";
+                var expectsHtml = (attachment.ContentType ?? "").Contains("html", StringComparison.OrdinalIgnoreCase)
+                                  || attachment.FileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                                  || attachment.FileName.EndsWith(".htm", StringComparison.OrdinalIgnoreCase);
+                if (served.Contains("html", StringComparison.OrdinalIgnoreCase) && !expectsHtml)
+                    throw HtmlAnswer(conn, resp.StatusCode, await resp.Content.ReadAsStringAsync(ct));
+
+                var before = target.CanSeek ? target.Position : 0;
+                await resp.Content.CopyToAsync(target, ct);
+                return target.CanSeek ? target.Position - before : -1;
+            }
+        }
+
+        private static RedmineAttachment MapAttachment(JsonElement a) => new RedmineAttachment
+        {
+            Id = Int(a, "id") ?? 0,
+            FileName = Str(a, "filename"),
+            ContentType = Str(a, "content_type"),
+            FileSize = Prop(a, "filesize") is var size && size.ValueKind == JsonValueKind.Number ? size.GetInt64() : (long?)null,
+            Description = Str(a, "description"),
+            Author = MapRef(Prop(a, "author")),
+            CreatedOn = Date(a, "created_on"),
+        };
+
         // ── HTTP ────────────────────────────────────────────────────
 
         private Task<JsonDocument> GetJsonAsync(RedmineConnection conn, string pathAndQuery, CancellationToken ct)
@@ -513,7 +590,7 @@ namespace MdExplorer.Features.Services.Redmine
                 Changes = Array(j, "details").Select(x => $"{Str(x, "name")}: {Str(x, "old_value") ?? "—"} → {Str(x, "new_value") ?? "—"}").ToList(),
             }).ToList();
             d.AllowedStatuses = Array(i, "allowed_statuses").Select(MapRef).ToList();
-            d.Attachments = Array(i, "attachments").Select(a => Str(a, "filename")).Where(n => n != null).ToList();
+            d.Attachments = Array(i, "attachments").Select(MapAttachment).Where(a => a.Id != 0 && a.FileName != null).ToList();
             return d;
         }
 
