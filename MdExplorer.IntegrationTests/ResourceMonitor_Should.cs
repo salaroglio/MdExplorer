@@ -39,6 +39,43 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(Math.Round(me.CorePercent / Environment.ProcessorCount, 1), me.CpuPercent, 0.11, "la percentuale della macchina è quella di un core divisa per i processori");
             Assert.IsTrue(me.MemoryMb > 0);
             Assert.IsTrue(sample.MachineMemoryLoadPercent is > 0 and <= 100);
+            Assert.IsTrue(me.PeakMemoryMb >= me.MemoryMb, "il picco non è mai sotto il valore di adesso");
+
+            // La memoria della macchina e chi la occupa, anche fuori da MdExplorer.
+            Assert.IsTrue(sample.Memory.TotalMb > 0);
+            Assert.AreEqual(5, sample.TopMemory.Count);
+            CollectionAssert.AreEqual(sample.TopMemory.OrderByDescending(h => h.MemoryMb).Select(h => h.Pid).ToList(), sample.TopMemory.Select(h => h.Pid).ToList());
+            Assert.IsTrue(sample.Service.ManagedMb > 0 && sample.Service.Gen0Collections >= 0);
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
+                Assert.IsTrue(sample.Memory.FreeMb > 0 && sample.Memory.FreeMb <= sample.Memory.TotalMb, "su Linux e Windows la memoria libera si legge dal sistema");
+        }
+
+        [TestMethod]
+        public void Read_free_memory_and_swap_from_the_linux_memory_file()
+        {
+            var memory = MachineMemoryReader.FromMemInfo(
+                "MemTotal:        8000000 kB\nMemFree:          100000 kB\nMemAvailable:    2000000 kB\nSwapTotal:       4096000 kB\nSwapFree:        1024000 kB\n");
+            Assert.AreEqual(7812, memory.TotalMb);
+            Assert.AreEqual(1953, memory.FreeMb, "la memoria disponibile, non quella mai toccata");
+            Assert.AreEqual(75, memory.LoadPercent);
+            Assert.AreEqual(4000, memory.SwapTotalMb);
+            Assert.AreEqual(3000, memory.SwapUsedMb);
+            Assert.IsNull(memory.CommitUsedMb, "la memoria impegnata è un dato di Windows");
+            Assert.IsNull(MachineMemoryReader.FromMemInfo("niente"), "senza il totale non si inventa niente");
+        }
+
+        [TestMethod]
+        public void Say_the_memory_of_the_machine_in_one_line()
+        {
+            var sample = new ResourceSample
+            {
+                Memory = new MachineMemory { TotalMb = 8192, FreeMb = 412, LoadPercent = 95, CommitUsedMb = 11300, CommitLimitMb = 12100 },
+                Service = new ServiceMemory { ManagedMb = 180, Gen0Collections = 40, Gen1Collections = 9, Gen2Collections = 2 },
+            };
+            sample.TopMemory.Add(new MemoryHolder { Pid = 812, Name = "chrome", MemoryMb = 1900 });
+            sample.TopMemory.Add(new MemoryHolder { Pid = 77, Name = "java", MemoryMb = 1400 });
+            Assert.AreEqual("Memoria occupata al 95% (412 MB liberi di 8192), impegnata 11300 di 12100 MB; servizio: 180 MB gestiti, raccolte 40/9/2.", ResourceMonitor.DescribeMemory(sample));
+            Assert.AreEqual("chrome#812 1900 MB; java#77 1400 MB", ResourceMonitor.DescribeTop(sample));
         }
 
         [TestMethod]
@@ -68,11 +105,16 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(line, "2300 ms");
             StringAssert.Contains(line, "il peggiore 900 ms");
             StringAssert.Contains(line, "In quel momento: MdExplorer al");
+            StringAssert.Contains(line, "Più memoria:");
 
             var package = JsonSerializer.Deserialize<JsonElement>(monitor.SnapshotJson());
             Assert.AreEqual(Environment.ProcessorCount, package.GetProperty("processoriLogici").GetInt32());
             Assert.AreEqual(2300, package.GetProperty("finestraBloccata")[0].GetProperty("MaxMs").GetInt32());
             Assert.AreEqual(1, package.GetProperty("campioni").GetArrayLength());
+            var sample = package.GetProperty("campioni")[0];
+            Assert.AreEqual(5, sample.GetProperty("TopMemory").GetArrayLength());
+            Assert.IsTrue(sample.GetProperty("Memory").GetProperty("TotalMb").GetInt64() > 0);
+            Assert.IsTrue(sample.GetProperty("Service").GetProperty("ManagedMb").GetInt64() > 0);
         }
 
         [TestMethod]

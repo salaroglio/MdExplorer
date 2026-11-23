@@ -31,9 +31,11 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ILogger<CodeGraphTurnRefresher> _logger;
         private readonly ConcurrentDictionary<string, Task> _pending = new(StringComparer.Ordinal);
 
-        public CodeGraphTurnRefresher(ICodeAnalysisService analysis, ILogger<CodeGraphTurnRefresher> logger)
+        private readonly ICodeGraphAutoScanPreference _autoScan;
+
+        public CodeGraphTurnRefresher(ICodeAnalysisService analysis, ILogger<CodeGraphTurnRefresher> logger, ICodeGraphAutoScanPreference autoScan = null)
         {
-            _analysis = analysis; _logger = logger;
+            _analysis = analysis; _logger = logger; _autoScan = autoScan;
         }
 
         public async Task BeforeTurnAsync(string projectPath, CancellationToken ct = default)
@@ -49,6 +51,9 @@ namespace MdExplorer.Services.CodeGraph
         public void AfterTurn(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath)) return;
+            // La scansione automatica è una scelta del progetto su questa macchina (impostazioni → linguaggi del codice):
+            // spenta, il grafo si aggiorna solo a richiesta, e il turno dopo non ha niente da aspettare.
+            if (_autoScan != null && !_autoScan.IsEnabled(projectPath)) return;
             _pending.AddOrUpdate(Key(projectPath), _ => RunAsync(projectPath, Task.CompletedTask), (_, previous) => RunAsync(projectPath, previous));
         }
 

@@ -378,6 +378,8 @@
   "PROJECT_SETTINGS": {
     "TITLE": "Project Settings - {{name}}",
     "MARKDOWN_SETTINGS": "Markdown",
+    "CODE_AUTO_SCAN": "Re-analyse the code on its own, when the project opens and after every MarkAgent answer",
+    "CODE_AUTO_SCAN_HINT": "Off: the code graph is updated only when you ask from the graph page, and opening the project and the chat do not wait for the scan. On: the program folders are re-analysed on their own, and MarkAgent always answers about the current code. It applies to this project on this computer.",
     "CODE_LANGUAGES_TAB": "Code graph languages",
     "TEMPLATES_TAB": "Templates",
     "AGENTS_TAB": "Agents",

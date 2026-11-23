@@ -212,6 +212,18 @@ export class ProjectSettingsService {
   }
 
 
+  /**
+   * Scansione automatica del codice per il grafo (all'apertura e dopo ogni turno di MarkAgent): preferenza di questa
+   * macchina, per progetto. Spenta finché non la si accende.
+   */
+  getCodeGraphAutoScanSetting(projectPath: string): Observable<{ enabled: boolean }> {
+    return this.http.get<{ enabled: boolean }>('../api/ProjectSettings/GetCodeGraphAutoScanSetting', { params: { projectPath } });
+  }
+
+  setCodeGraphAutoScanSetting(enabled: boolean, projectPath: string): Observable<{ enabled: boolean }> {
+    return this.http.post<{ enabled: boolean }>('../api/ProjectSettings/SetCodeGraphAutoScanSetting', { enabled, projectPath });
+  }
+
   getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
     const url = '../api/ProjectSettings/GetTextIndexingSetting';
     return this.http.get<{enabled: boolean, extensions: string, defaultExtensions: string}>(url, { params: { projectPath } });

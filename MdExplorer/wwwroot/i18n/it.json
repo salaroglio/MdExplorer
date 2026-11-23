@@ -378,6 +378,8 @@
   "PROJECT_SETTINGS": {
     "TITLE": "Impostazioni Progetto - {{name}}",
     "MARKDOWN_SETTINGS": "Markdown",
+    "CODE_AUTO_SCAN": "Rianalizza il codice da solo, all'apertura del progetto e dopo ogni risposta di MarkAgent",
+    "CODE_AUTO_SCAN_HINT": "Spenta: il grafo del codice si aggiorna solo quando lo chiedi dalla pagina del grafo, e l'apertura del progetto e la chat non aspettano la scansione. Accesa: le cartelle program si rianalizzano da sole, e MarkAgent risponde sempre sul codice di adesso. Vale per questo progetto su questo computer.",
     "CODE_LANGUAGES_TAB": "Linguaggi del grafo",
     "TEMPLATES_TAB": "Template",
     "AGENTS_TAB": "Agenti",

@@ -2229,7 +2229,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                                 outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
                         }
                         // Poi il codice: le cartelle program con dei linguaggi scelti (D16) — git dice che cosa è cambiato (D14).
-                        if (codeAnalysis != null)
+                        var autoScan = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
+                        if (codeAnalysis != null && autoScan != null && !autoScan.IsEnabled(codeGraphProjectPath))
+                        {
+                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': scansione automatica del codice spenta (impostazioni del progetto): le cartelle program non si rianalizzano all'apertura", codeGraphProjectPath);
+                        }
+                        else if (codeAnalysis != null)
                         {
                             // All'apertura NON si rifanno gli script di un estrattore cambiato: si contano, e la pagina del grafo avvisa (D25).
                             var analyzed = await codeAnalysis.AnalyzeProjectAsync(codeGraphProjectPath, includeExtractorChanges: false);

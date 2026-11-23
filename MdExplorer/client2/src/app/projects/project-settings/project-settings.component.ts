@@ -662,6 +662,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
     this.loadRelaySettings();
     this.loadAgentWorktrees();
+    this.loadCodeGraphAutoScan();
     this.loadAgentCards();
   }
 
@@ -686,6 +687,27 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCardsRequire = !this.agentCardsRequire;
         this.saving = false;
       }
+    });
+  }
+
+  /** Scansione automatica del codice per il grafo: preferenza di questa macchina, per progetto (spenta di partenza). */
+  codeGraphAutoScan = false;
+  codeGraphAutoScanSaving = false;
+
+  loadCodeGraphAutoScan(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getCodeGraphAutoScanSetting(this.projectPath).subscribe({
+      next: res => this.codeGraphAutoScan = !!res?.enabled,
+      error: err => console.error('Error loading code graph auto scan setting:', err),
+    });
+  }
+
+  onCodeGraphAutoScanChange(): void {
+    this.codeGraphAutoScanSaving = true;
+    this.projectSettingsService.setCodeGraphAutoScanSetting(this.codeGraphAutoScan, this.projectPath).subscribe({
+      next: res => { this.codeGraphAutoScan = !!res?.enabled; this.codeGraphAutoScanSaving = false; },
+      // Non salvata: la casella torna a dire il vero.
+      error: err => { console.error('Error saving code graph auto scan setting:', err); this.codeGraphAutoScanSaving = false; this.loadCodeGraphAutoScan(); },
     });
   }
 

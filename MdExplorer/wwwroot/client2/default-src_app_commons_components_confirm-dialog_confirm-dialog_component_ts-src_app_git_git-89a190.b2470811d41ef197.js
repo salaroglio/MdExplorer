@@ -4363,6 +4363,23 @@ class ProjectSettingsService {
       slots
     });
   }
+  /**
+   * Scansione automatica del codice per il grafo (all'apertura e dopo ogni turno di MarkAgent): preferenza di questa
+   * macchina, per progetto. Spenta finché non la si accende.
+   */
+  getCodeGraphAutoScanSetting(projectPath) {
+    return this.http.get('../api/ProjectSettings/GetCodeGraphAutoScanSetting', {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setCodeGraphAutoScanSetting(enabled, projectPath) {
+    return this.http.post('../api/ProjectSettings/SetCodeGraphAutoScanSetting', {
+      enabled,
+      projectPath
+    });
+  }
   getTextIndexingSetting(projectPath) {
     const url = '../api/ProjectSettings/GetTextIndexingSetting';
     return this.http.get(url, {
@@ -9066,4 +9083,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.2d4a81258f72fe23.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b2470811d41ef197.js.map

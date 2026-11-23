@@ -730,6 +730,43 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Scansione automatica del codice per il grafo (all'apertura del progetto e dopo ogni turno di MarkAgent):
+        /// preferenza di questa macchina, per progetto. Spenta finché non la si accende.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetCodeGraphAutoScanSetting([FromQuery] string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required") });
+            var pref = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
+            return Ok(new { enabled = pref.IsEnabled(projectPath) });
+        }
+
+        public class SetCodeGraphAutoScanRequest
+        {
+            public string ProjectPath { get; set; }
+            public bool Enabled { get; set; }
+        }
+
+        [HttpPost]
+        public IActionResult SetCodeGraphAutoScanSetting([FromBody] SetCodeGraphAutoScanRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required") });
+            try
+            {
+                var pref = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
+                pref.Set(request.ProjectPath, request.Enabled);
+                return Ok(new { enabled = pref.IsEnabled(request.ProjectPath) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetCodeGraphAutoScanSetting] fallito");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         [HttpPost]
         public IActionResult SetAgentWorktreesSetting([FromBody] SetAgentWorktreesRequest request)
         {
