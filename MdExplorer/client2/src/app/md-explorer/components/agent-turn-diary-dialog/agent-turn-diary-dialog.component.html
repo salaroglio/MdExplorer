@@ -65,3 +65,13 @@
     <span>{{ diary?.diagnostic }}</span>
   </div>
 </div>
+
+<!-- Il turno ha consegnato un lavoro da un posto isolato: resta in vista, sotto il diario, finché non è deciso. -->
+<footer class="diary-delivery" *ngIf="delivered">
+  <mat-icon>call_merge</mat-icon>
+  <div class="diary-delivery__text">
+    <div class="diary-delivery__title">{{ 'AGENT_DIARY.DELIVERED' | translate: { count: delivered.files?.length || 0 } }}</div>
+    <div class="diary-delivery__branch" [title]="delivered.branch">{{ delivered.branch }}</div>
+  </div>
+  <button mat-flat-button color="primary" type="button" (click)="openDelivery()">{{ 'AGENT_DIARY.DELIVERED_REVIEW' | translate }}</button>
+</footer>

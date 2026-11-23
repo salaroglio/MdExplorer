@@ -14,6 +14,8 @@ namespace MdExplorer.Features.Agents
         /// <summary>The engine the turn runs on, as shown to the person (Copilot, Claude Code, opencode).</summary>
         public string Engine { get; set; }
         public DateTime StartedAtUtc { get; set; }
+        /// <summary>The launch this turn belongs to, when it has one: the same id written on the merge request it may deliver.</summary>
+        public string RunId { get; set; }
     }
 
     /// <summary>
@@ -24,7 +26,7 @@ namespace MdExplorer.Features.Agents
     public interface IAgentActivityBoard
     {
         /// <summary>Records a turn as running; disposing what it returns records its end, however it ended.</summary>
-        AgentTurnInProgress Begin(string agentName, string projectPath, string engine);
+        AgentTurnInProgress Begin(string agentName, string projectPath, string engine, string runId = null);
 
         /// <summary>The turns running in a project, the oldest first.</summary>
         IReadOnlyList<AgentActivity> Running(string projectPath);
@@ -46,7 +48,7 @@ namespace MdExplorer.Features.Agents
 
         public event Action<string> Changed;
 
-        public AgentTurnInProgress Begin(string agentName, string projectPath, string engine)
+        public AgentTurnInProgress Begin(string agentName, string projectPath, string engine, string runId = null)
         {
             var activity = new AgentActivity
             {
@@ -55,6 +57,7 @@ namespace MdExplorer.Features.Agents
                 ProjectPath = projectPath,
                 Engine = engine,
                 StartedAtUtc = DateTime.UtcNow,
+                RunId = runId,
             };
             _running[activity.Id] = activity;
             Changed?.Invoke(projectPath);

@@ -20,6 +20,9 @@ namespace MdExplorer.Features.Agents
         /// <summary>Progetto di appartenenza: risolve provider, chiavi e impostazioni.</summary>
         public string ProjectPath { get; set; }
 
+        /// <summary>Il lancio a cui il turno appartiene (lo stesso id della richiesta di unione che ne nasce): finisce nel diario del turno.</summary>
+        public string RunId { get; set; }
+
         /// <summary>
         /// Il manifesto <c>tools:</c> dichiarato dalla card, e la fiducia che l'umano gli ha
         /// dato. Sono <b>dati di dominio</b>, non variabili d'ambiente: l'ambiente serve a

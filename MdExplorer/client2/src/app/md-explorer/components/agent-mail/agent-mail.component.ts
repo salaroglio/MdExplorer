@@ -20,6 +20,8 @@ import { ThemeService } from '../../../services/theme.service';
 
 export interface AgentMailData {
   projectPath: string;
+  /** La consegna da selezionare all'apertura (chi arriva dal diario del turno o dall'avviso di consegna). */
+  selectReviewId?: string | null;
 }
 
 /** Una riga dell'elenco: un messaggio di un agente, un lavoro da approvare, o la richiesta di un collega. */
@@ -163,6 +165,12 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.loading = false;
 
         // La selezione resta sulla stessa voce; se è sparita (letta, approvata), si passa alla prima.
+        // Chi arriva da una consegna precisa la trova selezionata: una volta sola, poi la selezione è della persona.
+        // La si cerca qui sotto come una selezione già fatta, ovunque stia nell'elenco (anche dentro un giro).
+        if (this.data?.selectReviewId) {
+          this.selected = { kind: 'review', id: this.data.selectReviewId } as MailItem;
+          this.data.selectReviewId = null;
+        }
         const kept = this.selected && (this.items.find(i => i.kind === this.selected.kind && i.id === this.selected.id)
           || ([] as MailItem[]).concat(...this.items.filter(i => i.roundMessages).map(i => i.roundMessages)).find(i => i.kind === this.selected.kind && i.id === this.selected.id));
         if (kept) { this.selected = kept; this.loadArtifacts(); }

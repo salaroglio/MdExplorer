@@ -4,6 +4,9 @@ import { marked } from 'marked';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
 import { AgentTurnDiary, AgentTurnDiaryEntry, AgentTurnDiaryService } from '../../services/agent-turn-diary.service';
+import { AgentReviewService, MergeRequest } from '../../services/agent-review.service';
+import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
+import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
 
 export interface AgentTurnDiaryDialogData {
   /** L'identificativo del turno: quello dell'agente «al lavoro» nella toolbar, o di un turno finito. */
@@ -37,6 +40,12 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
   private stopArmedTimer: any = null;
   /** Perché il diario non si legge (turno troppo vecchio, servizio che non risponde): lo si dice, niente pannello vuoto. */
   loadError: string | null = null;
+  /**
+   * Il lavoro che questo turno ha consegnato da un posto isolato, finché aspetta una decisione: da qui lo si va a
+   * rivedere e a unire. Arriva poco DOPO la fine del turno (salvataggio e pubblicazione del ramo), con lo stesso
+   * identificativo di lancio del diario.
+   */
+  delivered: MergeRequest | null = null;
   /** L'ora con cui si calcola «da quanto»: avanza solo finché il turno è in corso. */
   now: number = Date.now();
 
@@ -55,12 +64,16 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
     @Inject(MAT_DIALOG_DATA) public data: AgentTurnDiaryDialogData,
     private diaries: AgentTurnDiaryService,
     private sanitizer: DomSanitizer,
+    private review: AgentReviewService,
+    private serverMessages: MdServerMessagesService,
+    private mailbox: AgentMailboxNotificationService,
   ) {}
 
   ngOnInit(): void {
     this.subscription.add(this.diaries.changed$.subscribe(change => {
       if (change.id === this.data.turnId && change.version > this.version) this.refresh();
     }));
+    this.subscription.add(this.serverMessages.agentMergeRequested$.subscribe(() => this.lookForDelivery()));
     this.clock = setInterval(() => { if (this.running) this.now = Date.now(); }, 1000);
     this.refresh();
   }
@@ -149,6 +162,27 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
     this.dialogRef.close();
   }
 
+  /** «Rivedi e unisci»: la finestra dei messaggi, aperta sulla consegna di questo turno. */
+  openDelivery(): void {
+    if (!this.delivered) return;
+    const id = this.delivered.id;
+    this.dialogRef.close();
+    this.mailbox.open(0, id);
+  }
+
+  /** Cerca, fra le consegne in attesa del progetto, quella nata da questo lancio. */
+  private lookForDelivery(): void {
+    const runId = (this.diary?.runId || '').toLowerCase();
+    if (!runId || !this.diary?.finishedAtUtc) return;
+    this.review.pending(this.diary.projectPath).subscribe({
+      next: res => {
+        this.delivered = (res.requests || []).find(r => r.status === 'pending' && (r.runId || '').toLowerCase() === runId) || null;
+      },
+      // Senza l'elenco delle consegne il diario resta leggibile: la consegna si trova comunque dal pulsante dei messaggi.
+      error: () => {},
+    });
+  }
+
   /** Rilegge dalla versione che ha già. Un avviso arrivato durante la lettura fa rileggere una volta ancora. */
   private refresh(): void {
     if (this.reading) { this.again = true; return; }
@@ -181,9 +215,11 @@ export class AgentTurnDiaryDialogComponent implements OnInit, OnDestroy, AfterVi
       if (changed.kind === 'message') this.html[changed.seq] = this.render(changed.text);
     }
     if (diary.finishedAtUtc) this.stopping = false;
+    const justKnownFinished = !!diary.finishedAtUtc && !this.diary?.finishedAtUtc;
     this.entries.sort((a, b) => a.seq - b.seq);
     this.version = Math.max(this.version, diary.version);
     this.diary = { ...diary, entries: [] };
+    if (justKnownFinished) this.lookForDelivery();
     this.now = Date.now();
     if (this.follow) this.scrollPending = true;
   }

@@ -163,6 +163,8 @@ namespace MdExplorer.Services.AgentRun
                     agentName,
                     branch = pushed.Branch,
                     files = changed.Count,
+                    requestId = opened?.Id,
+                    runId = request.RunId.ToString("N"),
                 }, ct);
 
                 _logger.LogInformation("[AgentRun] '{Agent}': lavoro consegnato su '{Branch}', {N} file.",
@@ -371,6 +373,7 @@ namespace MdExplorer.Services.AgentRun
                         ComposedPrompt = composedPrompt,
                         AgentName = a2aName,
                         ProjectPath = request.ProjectPath,
+                        RunId = request.RunId.ToString("N"),
                         // Solo il cwd cambia: le claim del token e l'ambiente restano sul
                         // progetto vero, altrimenti l'agente parlerebbe a nome di un worktree.
                         WorkingDirectory = workDir,
@@ -454,7 +457,9 @@ namespace MdExplorer.Services.AgentRun
                     agentFilePath = request.AgentFilePath,
                     triggerSource = request.TriggerSource,
                     phase = "completed",
-                    outputTail = Tail(output)
+                    outputTail = Tail(output),
+                    // Ha anche consegnato un lavoro da rivedere: l'avviso della consegna dice già tutto, quello di fine turno lo coprirebbe.
+                    deliveredRequestId = delivered?.Id
                 });
             }
             catch (OperationCanceledException)

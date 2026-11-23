@@ -27,6 +27,8 @@ namespace MdExplorer.Features.Agents
         public string ProjectPath { get; set; }
         public string Engine { get; set; }
         public DateTime StartedAtUtc { get; set; }
+        /// <summary>Il lancio a cui il turno appartiene, se ne ha uno: lo stesso scritto sulla richiesta di unione che può consegnare.</summary>
+        public string RunId { get; set; }
         /// <summary>null finché il turno è in corso.</summary>
         public DateTime? FinishedAtUtc { get; set; }
         /// <summary>null finché il turno è in corso; poi l'esito (<see cref="AgentTurnOutcome"/>) come testo.</summary>
@@ -104,6 +106,7 @@ namespace MdExplorer.Features.Agents
                 ProjectPath = activity.ProjectPath,
                 Engine = activity.Engine,
                 StartedAtUtc = activity.StartedAtUtc,
+                RunId = activity.RunId,
                 Version = 1,
             });
             Changed?.Invoke(activity.Id, activity.ProjectPath);
@@ -198,7 +201,7 @@ namespace MdExplorer.Features.Agents
 
         private static AgentTurnDiaryView Header(AgentTurnDiaryView v) => new()
         {
-            Id = v.Id, AgentName = v.AgentName, ProjectPath = v.ProjectPath, Engine = v.Engine, StartedAtUtc = v.StartedAtUtc,
+            Id = v.Id, AgentName = v.AgentName, ProjectPath = v.ProjectPath, Engine = v.Engine, StartedAtUtc = v.StartedAtUtc, RunId = v.RunId,
             FinishedAtUtc = v.FinishedAtUtc, Outcome = v.Outcome, Diagnostic = v.Diagnostic, Version = v.Version, Truncated = v.Truncated,
         };
 

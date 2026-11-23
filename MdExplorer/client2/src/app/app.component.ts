@@ -114,6 +114,8 @@ export class AppComponent {
     // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
     this.serverMessages.agentJobProgress$.subscribe(evt => {
       if (evt.phase === 'completed') {
+        // Finito consegnando un lavoro da rivedere: lo dice l'avviso della consegna («Rivedi»), che questo coprirebbe.
+        if ((evt as any).deliveredRequestId) return;
         this.snackBar.open(this.translate.instant('APP.AGENT_COMPLETED', { agent: evt.agentName }), 'OK', { duration: 5000 });
       } else if (evt.phase === 'failed') {
         this.snackBar.open(

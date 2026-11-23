@@ -67,6 +67,19 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Carry_the_launch_id_so_that_the_delivered_work_can_be_found_from_the_diary()
+        {
+            var diary = new AgentTurnDiary(_folder); var turn = Turn(); turn.RunId = "0f3a9c5e7b1d4e2f8a6c4b2d0e9f7a51"; diary.Open(turn);
+            Assert.AreEqual(turn.RunId, diary.Read(turn.Id, 0).RunId, "a turno in corso");
+            diary.Close(turn.Id, "Completed", null, "Fatto");
+
+            // La consegna arriva dopo la fine del turno, e il pannello può essere aperto il giorno dopo: l'id sta nel file.
+            var reopened = new AgentTurnDiary(_folder);
+            Assert.AreEqual(turn.RunId, reopened.Read(turn.Id, 0).RunId);
+            Assert.AreEqual(turn.RunId, reopened.Recent("/progetti/acme", 10).Single().RunId, "anche nell'elenco degli ultimi turni");
+        }
+
+        [TestMethod]
         public void Close_with_the_outcome_and_stay_readable_from_disk_in_a_new_process()
         {
             var diary = new AgentTurnDiary(_folder); var turn = Turn(); diary.Open(turn);

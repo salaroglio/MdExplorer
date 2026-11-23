@@ -163,7 +163,10 @@ export class MdServerMessagesService {
     projectPath: string,
     agentName: string,
     branch: string,
-    files: number
+    files: number,
+    /** La richiesta di unione appena aperta, e il lancio che l'ha prodotta (lo stesso del diario del turno). */
+    requestId?: string,
+    runId?: string
   }>();
 
   // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).

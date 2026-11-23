@@ -39,6 +39,20 @@ export class AgentMailboxNotificationService {
     this.serverMessages.agentDelegationRouted$.subscribe(evt => this.onDelegationRouted(evt));
     // Un incarico aspetta che tu lo avvii (workflow, start: ask-owner): finché non lo fai, il lavoro di qualcuno è fermo.
     this.serverMessages.agentStartRequested$.subscribe(evt => this.onStartRequested(evt));
+    this.serverMessages.agentMergeRequested$.subscribe(evt => this.onMergeRequested(evt));
+  }
+
+  /**
+   * Un agente ha consegnato il suo lavoro da un posto isolato: c'è qualcosa da rivedere e da unire. Il numero sul
+   * pulsante si aggiorna e un avviso porta dritti alla consegna — anche a città spenta, dove nessun altro lo direbbe.
+   */
+  private onMergeRequested(evt: { projectPath: string; agentName: string; files: number; requestId?: string }): void {
+    this.refresh();
+    const toast = this.snackBar.open(
+      this.translate.instant('MAILBOX.DELIVERY_TOAST', { agent: evt.agentName || '?', files: evt.files ?? 0 }),
+      this.translate.instant('MAILBOX.DELIVERY_TOAST_REVIEW'),
+      { duration: 15000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
+    toast.onAction().subscribe(() => this.open(0, evt.requestId));
   }
 
   private onStartRequested(evt: { fromAgent: string; toAgent: string; step?: string; projectPath: string }): void {
@@ -78,7 +92,8 @@ export class AgentMailboxNotificationService {
    * di prima, che la pagina sa aprire.
    */
   /** Apre la posta degli agenti a tutto schermo (la finestra di prima non c'è più: «La posta in ordine», F4). */
-  public open(_initialTab: number = 0): void {
+  /** `reviewId`: la consegna da mostrare subito (dal diario del turno, o dall'avviso di consegna). */
+  public open(_initialTab: number = 0, reviewId?: string | null): void {
     const page = this.dialog.open(AgentMailComponent, {
       width: '100vw',
       height: '100vh',
@@ -87,7 +102,7 @@ export class AgentMailboxNotificationService {
       panelClass: 'agent-mail-page',
       position: { top: '0', left: '0' },
       autoFocus: false,
-      data: { projectPath: this.currentProjectPath },
+      data: { projectPath: this.currentProjectPath, selectReviewId: reviewId || null },
     });
     page.afterClosed().subscribe(() => this.refresh());
   }

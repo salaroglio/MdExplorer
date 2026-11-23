@@ -134,7 +134,7 @@ namespace MdExplorer.Services.AgentRun
                 Environment = request.Environment,
             };
             // From here to the end of the turn the agent is «at work» for whoever looks at the application.
-            using var working = _activity.Begin(request.AgentName, request.ProjectPath, choice.Label);
+            using var working = _activity.Begin(request.AgentName, request.ProjectPath, choice.Label, request.RunId);
             // Il diario del turno: ciò che l'agente scrive, pensa e usa mentre lavora, per chi apre il pannello dall'indicatore.
             // Stesso identificativo della lavagna: chi vede l'agente «al lavoro» ha già la chiave per leggerlo.
             var turnId = working.Activity.Id;

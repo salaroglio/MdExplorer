@@ -48,13 +48,15 @@
     <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
       <mat-icon>psychology</mat-icon>
     </button>
-    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
+    <!-- Anche a città spenta, quando c'è qualcosa da decidere: un agente lanciato a mano in un posto isolato consegna
+         un lavoro da rivedere e da unire, e questa è la porta per arrivarci. -->
+    <button *ngIf="cityEnabled || mailboxUnread > 0" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
             [matBadge]="mailboxUnread" [matBadgeHidden]="mailboxUnread === 0" matBadgeColor="warn" matBadgeSize="small">
       <mat-icon>forum</mat-icon>
     </button>
     <!-- Agenti al lavoro: compare solo mentre un agente del progetto sta girando, chiunque l'abbia avviato. -->
     <!-- Resta, spento, anche quando nessuno lavora ma ci sono turni finiti da rileggere (il diario del turno). -->
-    <button *ngIf="agentsRunning.length > 0 || agentsRecent.length > 0" mat-icon-button class="toolbar-btn btn-agents-running"
+    <button *ngIf="agentsRunning.length > 0 || agentsRecent.length > 0 || mailboxUnread > 0" mat-icon-button class="toolbar-btn btn-agents-running"
             [class.btn-agents-idle]="agentsRunning.length === 0"
             [matTooltip]="agentsRunning.length > 0
               ? ('TOOLBAR.AGENTS_RUNNING' | translate: { count: agentsRunning.length, names: agentsRunningNames() })
@@ -423,6 +425,12 @@
 <!-- Menu selettore identità (test città) -->
 <mat-menu #agentsRunningMenu="matMenu">
   <div class="agents-running-menu">
+    <!-- Lavori consegnati e altre cose che aspettano una decisione: lo stesso numero del pulsante dei messaggi. -->
+    <button type="button" class="agents-running-row agents-todo-row" *ngIf="mailboxUnread > 0" (click)="openMailbox()">
+      <mat-icon>call_merge</mat-icon>
+      <span class="agents-running-name">{{ 'TOOLBAR.AGENTS_TODO' | translate: { count: mailboxUnread } }}</span>
+      <mat-icon class="agents-running-open">open_in_new</mat-icon>
+    </button>
     <ng-container *ngIf="agentsRunning.length > 0">
       <div class="agents-running-title">{{ 'TOOLBAR.AGENTS_RUNNING_TITLE' | translate }}</div>
       <!-- Clic su un agente: il pannello col diario del turno (che cosa scrive, che cosa usa). -->

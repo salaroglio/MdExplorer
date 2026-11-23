@@ -157,6 +157,7 @@ namespace MdExplorer.Features.Agents
                     ComposedPrompt = prompt,
                     AgentName = request.AgentName,
                     ProjectPath = request.ProjectPath,
+                    RunId = request.RunId == System.Guid.Empty ? null : request.RunId.ToString("N"),
                     // Autorizzazione dei tool: passata come dato, non via ambiente (vedi
                     // AgentTurnRequest.DeclaredTools).
                     DeclaredTools = request.DeclaredTools,

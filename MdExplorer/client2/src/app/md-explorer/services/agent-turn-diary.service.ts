@@ -20,6 +20,8 @@ export interface AgentTurnDiary {
   /** Il motore del turno, come lo si mostra: Copilot, Claude Code, opencode. */
   engine: string;
   startedAtUtc: string;
+  /** Il lancio a cui il turno appartiene: lo stesso scritto sulla richiesta di unione che ne può nascere. */
+  runId?: string | null;
   /** null finché il turno è in corso. */
   finishedAtUtc: string | null;
   /** null finché il turno è in corso; poi Completed, ProviderError, Cancelled… */

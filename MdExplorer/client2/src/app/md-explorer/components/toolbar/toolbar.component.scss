@@ -339,6 +339,11 @@ mat-toolbar button.git-menu-btn {
     .agents-recent-failed { color: var(--mde-error-fg, #c5221f); }
     .agents-running-detail { flex-basis: 100%; margin-left: 26px; opacity: 0.7; font-size: 12px; }
   }
+  .agents-todo-row {
+    margin-bottom: 8px; padding: 6px; font-weight: 500;
+    background: var(--mde-warning-bg, rgba(249, 171, 0, 0.14));
+    mat-icon:first-child { color: var(--mde-warning-fg, #b06000); }
+  }
   .agents-running-hint { font-size: 12px; opacity: 0.7; margin-top: 8px; white-space: normal; }
 }
 .btn-identity.identity-impersonating mat-icon { color: #ffca28; }

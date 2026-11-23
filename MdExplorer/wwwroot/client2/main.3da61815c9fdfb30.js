@@ -135,6 +135,8 @@ class AppComponent {
     // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
     this.serverMessages.agentJobProgress$.subscribe(evt => {
       if (evt.phase === 'completed') {
+        // Finito consegnando un lavoro da rivedere: lo dice l'avviso della consegna («Rivedi»), che questo coprirebbe.
+        if (evt.deliveredRequestId) return;
         this.snackBar.open(this.translate.instant('APP.AGENT_COMPLETED', {
           agent: evt.agentName
         }), 'OK', {
@@ -22989,8 +22991,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.22.7',
-  buildTime: '2026.11.22 10:48:30'
+  version: '2026.11.22.10',
+  buildTime: '2026.11.22 16:55:56'
 };
 
 /***/ }),
@@ -23024,4 +23026,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.0924188a9abbfa80.js.map
+//# sourceMappingURL=main.3da61815c9fdfb30.js.map

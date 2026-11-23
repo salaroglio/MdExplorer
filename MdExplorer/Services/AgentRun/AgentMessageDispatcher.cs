@@ -668,6 +668,8 @@ namespace MdExplorer.Services.AgentRun
                                         agentName = entry.Name,
                                         branch = pushed.Branch,
                                         files = changed.Count,
+                                        requestId = openedRequest?.Id,
+                                        runId = runId.ToString("N"),
                                     });
                                 }
                                 catch (Exception ex)
