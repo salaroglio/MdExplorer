@@ -197,6 +197,49 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(root.PushWarnings.Any(w => w.Contains("figlio")));
         }
 
+        /// <summary>
+        /// L'elenco dei submodule non passa piu' da <c>git submodule status</c> (16 processi per 4 submodule):
+        /// deve dire le stesse cose, annidati e mai scaricati compresi.
+        /// </summary>
+        [TestMethod]
+        public async Task List_the_same_submodules_git_lists_nested_and_never_downloaded_included()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, sub) = SetupProjectWithSubmodule(ctx, "repos-elenco");
+
+            // Un nipote dentro il figlio, e un secondo figlio che poi si svuota.
+            foreach (var (parent, name) in new[] { (sub, "nipote"), (path, "secondo") })
+            {
+                var origin = Path.Combine(ctx.Factory.DataDir, "origins", "repos-elenco-" + name);
+                Directory.CreateDirectory(origin);
+                InitRepo(origin);
+                File.WriteAllText(Path.Combine(origin, "leggimi.md"), "# " + name + "\n");
+                Git(origin, "add -A");
+                Git(origin, "commit -m \"primo\"");
+                Git(parent, $"submodule add \"{origin}\" {name}");
+                Git(parent, $"commit -m \"aggiungi {name}\"");
+            }
+            Git(path, "add figlio");
+            Git(path, "commit -m \"figlio col nipote\"");
+            Git(path, "submodule deinit -f secondo");
+
+            var expected = Git(path, "submodule status --recursive").Out
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => (l[0] == '-' ? "-" : " ") + l.Substring(1).Split(' ')[1])
+                .OrderBy(x => x, StringComparer.Ordinal).ToList();
+            CollectionAssert.AreEqual(new[] { " figlio", " figlio/nipote", "-secondo" }, expected,
+                "la prova deve partire da cio' che git stesso elenca.");
+
+            var git = ctx.Factory.Services.GetRequiredService<MdExplorer.Services.Git.INativeGitRunner>();
+            var listed = (await MdExplorer.Services.Git.SubmoduleLister.ListAsync(git, path, null))
+                .Select(x => (x.NotInitialized ? "-" : " ") + x.Path)
+                .OrderBy(x => x, StringComparer.Ordinal).ToList();
+
+            CollectionAssert.AreEqual(expected, listed);
+        }
+
         // ---- infrastruttura ----
 
         private static IWorkingChangesService Service(AgentCityContext ctx)

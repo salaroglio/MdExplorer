@@ -894,36 +894,10 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         private async Task<List<SubmoduleEntry>> ReadSubmodulesAsync(string root, CancellationToken ct)
         {
-            var list = new List<SubmoduleEntry>();
-            var res = await _git.RunAsync(root, new[] { "submodule", "status", "--recursive" }, ct);
-            if (!res.Ok)
-            {
-                _logger.LogDebug("[Changes] 'submodule status' non riuscito in '{Root}': {Why}", root, res.Describe());
-                return list;
-            }
-
-            foreach (var line in SplitLines(res.Stdout))
-            {
-                // "<prefisso><sha> <path>[ (<ref>)]" — il prefisso e' un carattere solo:
-                // ' ' allineato, '-' non inizializzato, '+' commit diverso, 'U' conflitti.
-                if (line.Length < 3) continue;
-                var prefix = line[0];
-                var rest = line.Substring(1);
-                var space = rest.IndexOf(' ');
-                if (space <= 0) continue;
-
-                var path = rest.Substring(space + 1).Trim();
-                // Il riferimento fra parentesi in coda non fa parte del percorso.
-                if (path.EndsWith(")", StringComparison.Ordinal))
-                {
-                    var open = path.LastIndexOf(" (", StringComparison.Ordinal);
-                    if (open > 0) path = path.Substring(0, open).Trim();
-                }
-                if (path.Length == 0) continue;
-
-                list.Add(new SubmoduleEntry { Path = path.Replace('\\', '/'), NotInitialized = prefix == '-' });
-            }
-            return list;
+            // Non 'git submodule status': per ogni submodule calcola anche un nome leggibile del commit
+            // (fino a quattro 'git describe'), che qui non serve e su Windows costa decine di secondi.
+            var listed = await MdExplorer.Services.Git.SubmoduleLister.ListAsync(_git, root, _logger, ct);
+            return listed.Select(s => new SubmoduleEntry { Path = s.Path, NotInitialized = s.NotInitialized }).ToList();
         }
 
         /// <summary>
