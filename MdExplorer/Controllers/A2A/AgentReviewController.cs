@@ -219,8 +219,8 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
-        /// «Ci metto mano»: apre la sessione d'intervento (l'agente va in coda) e apre la
-        /// directory del worktree nel file manager, dove il branch è già in check-out.
+        /// «Ci metto mano»: rimette il lavoro dell'agente su un posto di lavoro, se non c'è più, e apre la sessione
+        /// d'intervento (l'agente non tocca quella copia finché non si chiude). Nella copia si entra poi dalla finestra.
         /// </summary>
         [HttpPost("requests/{id}/take")]
         public async Task<IActionResult> Take(Guid id)
@@ -251,9 +251,9 @@ namespace MdExplorer.Controllers.A2A
             // chiusa il posto risultava «sta lavorando» per ore e non si poteva più entrare nella copia dell'agente.
             _worktree.ReleaseSlot(worktreePath);
 
-            var opened = CrossPlatformProcess.OpenFolder(worktreePath);
-            if (!opened)
-                _logger.LogWarning("[Review] impossibile aprire il file manager su '{Path}'", worktreePath);
+            // Il file manager non si apre più (23/11/2026): la cartella da sola non diceva che cosa farne. Nella copia
+            // si entra dalla finestra di MDE (api/AgentWorkspace/enter), ed è Mark a spiegarlo.
+            const bool opened = false;
 
             return Ok(new
             {

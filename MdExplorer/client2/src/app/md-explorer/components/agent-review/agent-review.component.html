@@ -123,6 +123,10 @@
 
     <div class="actions session" *ngIf="r.sessionOpen">
       <p class="session-note">⚙️ {{ 'AGENT_REVIEW.SESSION_OPEN' | translate }}</p>
+      <!-- La sessione è aperta ma la finestra non è nella copia (progetto riaperto, MDE riavviato): ci si rientra da qui. -->
+      <button mat-flat-button color="primary" class="btn-reenter" *ngIf="!workspace.inside" [disabled]="busyId === r.id" (click)="enterCopy(r)">
+        <mat-icon>login</mat-icon> {{ 'AGENT_REVIEW.TAKE_REENTER' | translate }}
+      </button>
       <button mat-stroked-button color="primary" [disabled]="busyId === r.id" (click)="release(r, false)">
         <mat-icon>check</mat-icon> {{ 'AGENT_REVIEW.CONCLUDE' | translate }}
       </button>

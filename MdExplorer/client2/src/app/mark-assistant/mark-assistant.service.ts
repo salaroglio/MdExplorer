@@ -947,6 +947,25 @@ export class MarkAssistantService {
     this._focusInput.next();
   }
 
+  /**
+   * Mark dice una cosa e offre dei pulsanti: il punto d'ingresso generico, per chi deve spiegare un passaggio
+   * dell'applicazione (per esempio «Ci metto mano» nella revisione del lavoro di un agente). Non apre una
+   * conversazione: ciò che l'utente scrive non va a nessun seguito sui diagrammi.
+   */
+  say(text: string, actions: MarkAction[]): void {
+    this.diagramConversation = null;
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(text);
+    this._actions.next(actions);
+    this._continueArrow.next(false);
+  }
+
   /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */
   emitDiagramEvent(evt: any): void {
     if (!this.diagramConversation) return;

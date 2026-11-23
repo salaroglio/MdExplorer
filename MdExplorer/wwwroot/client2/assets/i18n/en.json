@@ -2761,6 +2761,16 @@
     }
   },
   "AGENT_REVIEW": {
+    "TAKE_BACK_LATER": "Later",
+    "TAKE_BACK_OPEN": "Open the delivery",
+    "TAKE_BACK": "You are back in your project. **{{agent}}**'s work, with your fixes, is saved and published on its branch, but **it is not in the project yet**: your approval is missing.",
+    "TAKE_FAILED": "I could not enter the agent's copy.",
+    "TAKE_UNDERSTOOD": "Got it",
+    "TAKE_INSIDE": "You are in **{{agent}}**'s working copy. On the left, the **Changes** tab shows what it changed: a click on a document shows it with the changed parts in *Before / After* boxes.\n\nWhen you are done press **Back to your work**, at the top of the tab.",
+    "TAKE_CANCEL": "Never mind",
+    "TAKE_REENTER": "Go back into the copy",
+    "TAKE_GO": "Take me to the copy",
+    "TAKE_MARK": "**{{agent}}**'s work is not in your project yet: it lives in a **separate working copy**.\n\nTo fix it:\n1. you enter its copy (MdExplorer changes folder: tree, changes and saving are about that one);\n2. you edit the documents; the **Changes** tab shows what changed;\n3. you press **Back to your work**: MdExplorer saves and publishes your fixes;\n4. you come back here and press **Approve**.\n\nShall I take you there?",
     "REJECT_EFFECT_REWORK": "Another agent asked for this work and is waiting for it. If you reject it, it stops: {{agent}} does not restart by itself. You can fix its card and then restart it from here.",
     "REJECT_EFFECT_DEAD": "You asked for this work: if you reject it, it ends here. Usually it is better to «Take over»: fix the artefact and approve it.",
     "REJECT_NOTE_LABEL": "Reason for rejecting",
@@ -2777,8 +2787,8 @@
     "APPROVE": "Approve",
     "REJECT": "Reject",
     "TAKE": "Take it over",
-    "TAKE_TOOLTIP": "Opens the agent's working folder and queues the agent until you are done.",
-    "SESSION_OPEN": "You are working in this folder: the agent is queued and will not touch it.",
+    "TAKE_TOOLTIP": "Mark takes you into the agent's working copy, where you can fix its work before merging it.",
+    "SESSION_OPEN": "You are working in the agent's copy: until you close, the agent does not touch it.",
     "CONCLUDE": "I'm done",
     "DISCARD": "Discard and send back",
     "DISCARD_TOOLTIP": "Throws away your changes and puts the request back in the queue for the agent to redo.",
@@ -2803,7 +2813,7 @@
     "REWORKS_LEFT_ONE": "The workflow lets you restart it once more: it is the last time."
   },
   "CHANGES": {
-    "OPEN_AGENT_DOCUMENT": "Open the document from the agent's copy",
+    "SEE_AS_TEXT": "See as text: added and removed lines",
     "YOUR_WORK": "Your work",
     "BACK_TO_MINE": "Back to your work",
     "REFRESH": "Re-read from git",

@@ -2761,6 +2761,16 @@
     }
   },
   "AGENT_REVIEW": {
+    "TAKE_BACK_LATER": "Più tardi",
+    "TAKE_BACK_OPEN": "Apri la consegna",
+    "TAKE_BACK": "Sei tornato nel tuo progetto. Il lavoro di **{{agent}}**, con le tue correzioni, è salvato e pubblicato sul suo ramo, ma **non è ancora nel progetto**: manca la tua autorizzazione.",
+    "TAKE_FAILED": "Non sono riuscito a entrare nella copia dell'agente.",
+    "TAKE_UNDERSTOOD": "Ho capito",
+    "TAKE_INSIDE": "Sei nella copia di lavoro di **{{agent}}**. A sinistra, nel tab **Differenze**, c'è ciò che ha cambiato: un clic su un documento lo mostra con le parti modificate nei riquadri *Prima / Dopo*.\n\nQuando hai finito premi **Torna al tuo lavoro**, in cima al tab.",
+    "TAKE_CANCEL": "Lascia stare",
+    "TAKE_REENTER": "Rientra nella copia",
+    "TAKE_GO": "Portami nella copia",
+    "TAKE_MARK": "Il lavoro di **{{agent}}** non è ancora nel tuo progetto: sta in una **copia di lavoro separata**.\n\nPer correggerlo:\n1. entri nella sua copia (MdExplorer cambia cartella: albero, differenze e salvataggio parlano di quella);\n2. modifichi i documenti; nel tab **Differenze** vedi che cosa è cambiato;\n3. premi **Torna al tuo lavoro**: MdExplorer salva e pubblica le tue correzioni;\n4. torni qui e premi **Autorizza**.\n\nTi ci porto?",
     "REJECT_EFFECT_REWORK": "Questo lavoro l'aveva chiesto un altro agente, che lo sta aspettando. Se lo rifiuti si ferma: {{agent}} non riparte da solo. Potrai correggere la sua scheda e poi farlo ripartire da qui.",
     "REJECT_EFFECT_DEAD": "Questo lavoro l'avevi chiesto tu: se lo rifiuti si chiude qui. Di solito conviene «Ci metto mano»: correggi l'artefatto e lo approvi.",
     "REJECT_NOTE_LABEL": "Motivo del rifiuto",
@@ -2777,8 +2787,8 @@
     "APPROVE": "Autorizza",
     "REJECT": "Rifiuta",
     "TAKE": "Ci metto mano",
-    "TAKE_TOOLTIP": "Apre la cartella di lavoro dell'agente e lo mette in coda finché non chiudi.",
-    "SESSION_OPEN": "Stai lavorando in questa cartella: l'agente è in coda e non la toccherà.",
+    "TAKE_TOOLTIP": "Mark ti porta nella copia di lavoro dell'agente, dove puoi correggere il suo lavoro prima di unirlo.",
+    "SESSION_OPEN": "Stai lavorando nella copia dell'agente: finché non chiudi, l'agente non la tocca.",
     "CONCLUDE": "Ho finito",
     "DISCARD": "Annulla e rimanda all'agente",
     "DISCARD_TOOLTIP": "Butta le tue modifiche e rimette la richiesta in coda, perché l'agente la rifaccia.",
@@ -2803,7 +2813,7 @@
     "REWORKS_LEFT_ONE": "Il workflow lo lascia far ripartire ancora una volta: è l'ultima."
   },
   "CHANGES": {
-    "OPEN_AGENT_DOCUMENT": "Apri il documento dalla copia dell'agente",
+    "SEE_AS_TEXT": "Vedi come testo: righe aggiunte e tolte",
     "YOUR_WORK": "Il tuo lavoro",
     "BACK_TO_MINE": "Torna al tuo lavoro",
     "REFRESH": "Rileggi da git",

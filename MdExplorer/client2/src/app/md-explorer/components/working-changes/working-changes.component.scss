@@ -172,8 +172,8 @@
     .file-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     // Il pulsante di scarto compare al passaggio: è irreversibile, non deve invitare.
-    .discard { opacity: 0; transform: scale(.8); }
-    &:hover .discard { opacity: .7; }
+    .discard, .as-text { opacity: 0; transform: scale(.8); }
+    &:hover .discard, &:hover .as-text { opacity: .7; }
   }
 
   .f-added .change-icon, .f-untracked .change-icon { color: #2e7d32; }

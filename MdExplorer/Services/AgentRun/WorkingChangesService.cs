@@ -188,6 +188,20 @@ namespace MdExplorer.Services.AgentRun
         public string Problem { get; init; }
     }
 
+    /// <summary>Le due versioni di un file a confronto nel tab delle differenze.</summary>
+    public sealed class DocumentVersions
+    {
+        /// <summary>La cartella del contesto: il progetto, o la copia di lavoro dell'agente.</summary>
+        public string Root { get; set; }
+        public string FullPath { get; set; }
+        /// <summary>Il percorso del file dalla <see cref="Root"/>, con «/» (dentro un submodule comprende il suo percorso).</summary>
+        public string RelativeToRoot { get; set; }
+        /// <summary>Il riferimento del confronto (es. <c>origin/main</c>); null = l'indice del repository.</summary>
+        public string BaseRef { get; set; }
+        public string OldText { get; set; }
+        public string NewText { get; set; }
+    }
+
     public interface IWorkingChangesService
     {
         /// <summary>
@@ -206,6 +220,14 @@ namespace MdExplorer.Services.AgentRun
         /// la rinomina: con un percorso solo la vede come un file nuovo.
         /// </param>
         Task<string> DiffAsync(string projectPath, string agentName, string relativePath,
+            string repoPath = null, string oldPath = null, CancellationToken ct = default);
+
+        /// <summary>
+        /// Le due versioni di un file come testo: quella del riferimento con cui <see cref="DiffAsync"/> confronta
+        /// (null se lì il file non c'è: aggiunto) e quella nella cartella di lavoro (null se non c'è più: tolto).
+        /// Stessi parametri e stesso riferimento di <see cref="DiffAsync"/>: le due viste parlano dello stesso confronto.
+        /// </summary>
+        Task<DocumentVersions> ReadVersionsAsync(string projectPath, string agentName, string relativePath,
             string repoPath = null, string oldPath = null, CancellationToken ct = default);
 
         /// <summary>
@@ -641,6 +663,33 @@ namespace MdExplorer.Services.AgentRun
             if (!res.Ok && string.IsNullOrEmpty(res.Stdout))
                 throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Differenza non calcolabile per '{relativePath}': {res.Describe()}", $"Cannot compute the diff for '{relativePath}': {res.Describe()}"));
             return res.Stdout ?? string.Empty;
+        }
+
+        public async Task<DocumentVersions> ReadVersionsAsync(string projectPath, string agentName, string relativePath,
+            string repoPath = null, string oldPath = null, CancellationToken ct = default)
+        {
+            var (root, _, _, problem) = await ResolveContextAsync(projectPath, agentName, ct);
+            if (problem != null) throw new InvalidOperationException(problem);
+
+            var dir = await ResolveRepoDirAsync(root, repoPath, ct);
+            var safe = SafeRelative(dir, relativePath);
+            var baseRef = await ResolveBaseRefAsync(dir, ct);
+            var full = Path.GetFullPath(Path.Combine(dir, safe));
+
+            // «Prima»: il file com'è nel riferimento (col vecchio nome, se è stato rinominato). Senza riferimento
+            // git diff confronta con l'indice, e così si fa qui. Se lì non c'è, il file è nuovo.
+            var before = string.IsNullOrWhiteSpace(oldPath) ? safe : SafeRelative(dir, oldPath);
+            var shown = await _git.RunAsync(dir, new[] { "show", (baseRef ?? string.Empty) + ":" + before }, ct);
+
+            return new DocumentVersions
+            {
+                Root = root,
+                FullPath = full,
+                RelativeToRoot = Path.GetRelativePath(root, full).Replace(Path.DirectorySeparatorChar, '/'),
+                BaseRef = baseRef,
+                OldText = shown.Ok ? shown.Stdout ?? string.Empty : null,
+                NewText = File.Exists(full) ? await File.ReadAllTextAsync(full, ct) : null,
+            };
         }
 
         public async Task<string> DiscardAsync(string projectPath, string agentName, string relativePath,

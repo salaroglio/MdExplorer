@@ -17,6 +17,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { AgentTakeOverGuideService } from '../../services/agent-take-over-guide.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { WorkingChangesService } from '../../services/working-changes.service';
@@ -59,11 +60,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Il documento mostrato dalla copia di un agente, se ce n'è uno. */
   agentDocument: { agent: string; path: string } | null = null;
   private sourceBeforeAgent: any = '';
+  /** Il documento reso con le parti cambiate (tab delle differenze, clic su un markdown), e che cosa c'era prima. */
+  private changesDocument: DiffRequest | null = null;
+  private changesSource = '';
+  private sourceBeforeChanges: any = '';
 
   /** «Torna al mio lavoro»: si esce dal lavoro dell'agente. */
   backToMyWork(): void {
+    const agent = this.agentWorkspace.inside;
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
     this.agentWorkspace.leave().subscribe({
       next: published => {
+        // Uscito davvero (null = annullato): se la consegna dell'agente aspetta ancora, Mark ricorda di autorizzarla.
+        if (published !== null && agent) this.takeOverGuide.remindToApprove(projectPath, agent);
         if (published?.length) this.snackBar.open(
           this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', { repos: published.join(', ') }),
           this.translate.instant('COMMON.CLOSE'), { duration: 7000 });
@@ -108,6 +117,45 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   closeDiff(): void {
     this.diffViewer.close();
   }
+
+  /**
+   * Il documento markdown reso, con le parti cambiate nei riquadri «Prima / Dopo»: lo compone il servizio
+   * (api/MdExplorerChanges/render), qui si punta la pagina. Il percorso parte dalla radice, submodule compreso,
+   * così i collegamenti relativi del documento funzionano.
+   */
+  private showRenderedChanges(request: DiffRequest): void {
+    this.diffRequest = null;
+    this.diffText = '';
+    this.diffError = '';
+    if (!this.changesDocument) this.sourceBeforeChanges = this.htmlSource;
+    this.changesDocument = request;
+    const path = (request.repo ? request.repo.replace(/\/+$/, '') + '/' : '') + request.path;
+    const query = new URLSearchParams({
+      projectPath: request.projectPath || '',
+      agent: request.agent || '',
+      repo: request.repo || '',
+      oldPath: request.oldPath || '',
+      time: String(new Date().getTime() / 1000),
+      connectionId: this.monitorMDService.connectionId || '',
+      theme: this.themeService.getResolvedTheme(),
+    });
+    this.changesSource = `../api/MdExplorerChanges/render/${this.cleanRelativePath(path)}?${query.toString()}`;
+    this.htmlSource = this.changesSource;
+    this.ref.detectChanges();
+  }
+
+  /** Chiusa la vista delle differenze, torna ciò che c'era — se nel frattempo non si è aperto altro. */
+  private leaveRenderedChanges(): void {
+    if (!this.changesDocument) return;
+    const stillThere = this.htmlSource === this.changesSource;
+    this.changesDocument = null;
+    this.changesSource = '';
+    if (stillThere) {
+      if (this.contentState$.value.currentPath) this.retry();
+      else this.htmlSource = this.sourceBeforeChanges;
+    }
+    this.sourceBeforeChanges = '';
+  }
   public _HideIFrame = false;
 
   // New state management properties
@@ -150,7 +198,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private workingChanges: WorkingChangesService,
     private navService: MdNavigationService,
     private reviewContext: ReviewContextService,
-    private agentWorkspace: AgentWorkspaceService
+    private agentWorkspace: AgentWorkspaceService,
+    private takeOverGuide: AgentTakeOverGuideService
   ) {
     
     // Initialize observables from state
@@ -195,6 +244,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // stava in una colonna stretta e spingeva giu' il resto dell'elenco, facendo perdere il posto
     // proprio mentre si confrontava.
     this.diffViewer.opened$.pipe(takeUntil(this.destroy$)).subscribe(request => {
+      if (request?.rendered) { this.showRenderedChanges(request); return; }
+      if (!request) this.leaveRenderedChanges();
       this.diffRequest = request;
       this.diffText = '';
       this.diffError = '';
@@ -939,6 +990,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
           break;
         case 'mde-ai-selection':
           this.handleAiSelection(event.data);
+          break;
+        // «Vedi come testo», dalla barra del documento reso con le differenze.
+        case 'mde-changes.showAsText':
+          if (this.changesDocument) this.diffViewer.show({ ...this.changesDocument, rendered: false });
           break;
       }
     });

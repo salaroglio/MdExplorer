@@ -14444,6 +14444,24 @@ class MarkAssistantService {
     this._continueArrow.next(false);
     this._focusInput.next();
   }
+  /**
+   * Mark dice una cosa e offre dei pulsanti: il punto d'ingresso generico, per chi deve spiegare un passaggio
+   * dell'applicazione (per esempio «Ci metto mano» nella revisione del lavoro di un agente). Non apre una
+   * conversazione: ciò che l'utente scrive non va a nessun seguito sui diagrammi.
+   */
+  say(text, actions) {
+    this.diagramConversation = null;
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(text);
+    this._actions.next(actions);
+    this._continueArrow.next(false);
+  }
   /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */
   emitDiagramEvent(evt) {
     if (!this.diagramConversation) return;
@@ -22991,8 +23009,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.23.1',
-  buildTime: '2026.11.23 08:43:00'
+  version: '2026.11.23.5',
+  buildTime: '2026.11.23 09:49:14'
 };
 
 /***/ }),
@@ -23026,4 +23044,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.ea36f1c05afbd5a9.js.map
+//# sourceMappingURL=main.72fd97e00232310a.js.map

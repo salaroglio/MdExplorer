@@ -6,6 +6,9 @@ import { AgentReviewService, ApproveChoice, ChangedFile, MergeRequest, NotifyCan
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { AgentWorkspaceService } from '../../services/agent-workspace.service';
+import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
 
 /**
  * La revisione del lavoro degli agenti, accanto a "Documenti progetto".
@@ -52,6 +55,9 @@ export class AgentReviewComponent implements OnInit, OnChanges, OnDestroy {
     private context: ReviewContextService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
+    private dialog: MatDialog,
+    public workspace: AgentWorkspaceService,
+    private mark: MarkAssistantService,
   ) {}
 
   ngOnInit(): void {
@@ -193,25 +199,41 @@ export class AgentReviewComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  /**
+   * «Ci metto mano»: Mark spiega dove sta il lavoro dell'agente e come lo si corregge, e porta lui nella sua copia.
+   * Prima apriva la cartella nel file manager, e lì ci si fermava senza sapere che cosa farne.
+   */
   take(r: MergeRequest): void {
+    this.mark.say(this.translate.instant('AGENT_REVIEW.TAKE_MARK', { agent: r.agentName }), [
+      { labelKey: 'AGENT_REVIEW.TAKE_GO', icon: '➡️', handler: () => this.enterCopy(r) },
+      { labelKey: 'AGENT_REVIEW.TAKE_CANCEL', icon: '✋', handler: () => this.mark.hide() },
+    ]);
+  }
+
+  /** Rimette il lavoro su un posto (se serve), entra nella copia dell'agente e mostra il tab delle differenze. */
+  enterCopy(r: MergeRequest): void {
+    this.mark.hide();
     this.busyId = r.id;
+    const failed = (err: any) => {
+      this.busyId = null;
+      this.snackBar.open(err?.error?.error || this.translate.instant('AGENT_REVIEW.TAKE_FAILED'), 'OK',
+        { duration: 10000, panelClass: ['kg-stale-snack'] });
+    };
     this.review.take(r.id).subscribe({
-      next: (res) => {
-        this.busyId = null;
-        // Da qui in poi il tab delle differenze, gli aggregati e il commit parlano di lui:
-        // stai lavorando nel suo posto, non nel tuo.
-        this.context.enterAgent(r.agentName);
-        this.snackBar.open(
-          this.translate.instant(
-            res.folderOpened ? 'AGENT_REVIEW.TAKEN' : 'AGENT_REVIEW.TAKEN_NO_FOLDER',
-            { path: res.worktreePath }),
-          'OK', { duration: 12000 });
-        this.refresh(); this.changed.emit();
-      },
-      error: (err) => {
-        this.busyId = null;
-        this.snackBar.open(err?.error?.error || 'Errore', 'OK', { duration: 8000 });
-      },
+      next: () => this.workspace.enter(r.agentName).subscribe({
+        next: entered => {
+          this.busyId = null;
+          if (!entered) return;   // un altro ingresso o un'uscita è già in corso
+          // La revisione sta in una finestra sopra il progetto: da qui si lavora nel progetto, nella copia dell'agente.
+          this.dialog.closeAll();
+          this.context.showChanges();
+          this.mark.say(this.translate.instant('AGENT_REVIEW.TAKE_INSIDE', { agent: r.agentName }), [
+            { labelKey: 'AGENT_REVIEW.TAKE_UNDERSTOOD', icon: '👍', handler: () => this.mark.hide() },
+          ]);
+        },
+        error: failed,
+      }),
+      error: failed,
     });
   }
 

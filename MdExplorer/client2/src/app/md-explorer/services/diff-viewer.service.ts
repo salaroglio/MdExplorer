@@ -16,6 +16,11 @@ export interface DiffRequest {
   /** Etichetta del repository, per l'intestazione. */
   repoLabel: string;
   agent: string | null;
+  /**
+   * true = il documento markdown reso, con le parti cambiate nei riquadri «Prima / Dopo» (clic sulla riga);
+   * false o assente = la vista testuale, con le righe aggiunte e tolte (l'occhio sulla riga).
+   */
+  rendered?: boolean;
 }
 
 /**

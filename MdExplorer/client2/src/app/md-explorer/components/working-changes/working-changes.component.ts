@@ -9,6 +9,7 @@ import { MdFileService } from '../../services/md-file.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { MdeGitBusyService } from '../../services/mde-git-busy.service';
+import { AgentTakeOverGuideService } from '../../services/agent-take-over-guide.service';
 
 /**
  * Il tab delle differenze, fratello dell'albero dei documenti.
@@ -57,6 +58,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private translate: TranslateService,
     private mdeGitBusyService: MdeGitBusyService,
+    private takeOverGuide: AgentTakeOverGuideService,
   ) {}
 
   /** N6: MDE sta facendo le sue operazioni git su questo repository: «Scarta» aspetta. */
@@ -109,6 +111,24 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
    */
   open(repo: RepoChanges, file: WorkingChange): void {
     if (this.openedPath === file.path && this.openedRepo === repo.path) { this.closeDiff(); return; }
+    this.show(repo, file, this.rendersAsDocument(file));
+  }
+
+  /** L'occhio sulla riga di un documento: la vista testuale, con le righe aggiunte e tolte. */
+  openAsText(repo: RepoChanges, file: WorkingChange, event: MouseEvent): void {
+    event.stopPropagation();
+    this.show(repo, file, false);
+  }
+
+  /**
+   * Un documento markdown si apre reso, con le parti cambiate in evidenza. Non la copia di un agente guardata da
+   * fuori: immagini e diagrammi della pagina arriverebbero dal progetto, non dalla copia (da dentro la copia sì).
+   */
+  rendersAsDocument(file: WorkingChange): boolean {
+    return /\.md$/i.test(file.path) && !(this.agent && !this.workspace.inside);
+  }
+
+  private show(repo: RepoChanges, file: WorkingChange, rendered: boolean): void {
     this.openedPath = file.path;
     this.openedRepo = repo.path;
     this.diffViewer.show({
@@ -118,6 +138,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
       oldPath: file.oldPath,
       repoLabel: repo.label,
       agent: this.agent,
+      rendered,
     });
   }
 
@@ -206,21 +227,11 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Un file dell'agente che si può leggere impaginato: un markdown del progetto, non eliminato. */
-  canOpenDocument(repo: RepoChanges, file: WorkingChange): boolean {
-    return !!this.agent && !this.workspace.inside && !repo.path && file.change !== 'deleted' && /\.md$/i.test(file.path);
-  }
-
-  /** Apre il documento dalla copia dell'agente, al posto della differenza. */
-  openDocument(file: WorkingChange, event: MouseEvent): void {
-    event.stopPropagation();
-    this.closeDiff();
-    this.mdFiles.viewWorktree(this.agent, file.path);
-  }
-
   backToMyWork(): void {
+    const agent = this.workspace.inside;
     this.workspace.leave().subscribe({
       next: published => {
+        if (published !== null && agent) this.takeOverGuide.remindToApprove(this.projectPath, agent);
         if (published?.length) this.snackBar.open(
           this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', { repos: published.join(', ') }),
           this.translate.instant('COMMON.CLOSE'), { duration: 7000 });

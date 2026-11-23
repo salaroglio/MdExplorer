@@ -31,7 +31,7 @@ namespace MdExplorer.Features.Services.SourceMapping
 
         // Myers diff distance cap. Transforms touch few lines, so the real D is small;
         // this bounds memory (trace ≈ D² ints) on pathological inputs.
-        private const int MaxDiffDistance = 2000;
+        internal const int MaxDiffDistance = 2000;
 
         private readonly ILogger<MarkdownSourceMapService> _logger;
 
@@ -401,7 +401,7 @@ namespace MdExplorer.Features.Services.SourceMapping
         /// Returns matched (originalIndex, transformedIndex) pairs, or null when the edit
         /// distance exceeds <see cref="MaxDiffDistance"/>.
         /// </summary>
-        private static List<KeyValuePair<int, int>> MyersMatch(
+        internal static List<KeyValuePair<int, int>> MyersMatch(
             string[] a, int aStart, int aLen,
             string[] b, int bStart, int bLen)
         {

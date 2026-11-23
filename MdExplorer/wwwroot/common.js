@@ -110,6 +110,11 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/globals.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/utilities.js');
 
+        // CHANGES REVIEW: boxes «Before / After» around the changed parts (differences tab). First after the core
+        // modules: it moves parts of the page, and must do it before the others look at the page.
+        document.write("<link href='/javascripts/jqueryForFirstPage/changes-review/changes-review.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/changes-review/changes-review.js');
+
         // TIPPY: Must load BEFORE emoji modules (emoji-tooltips.js depends on tippy())
         console.log('🔍 [COMMON.JS] Loading Tippy.js libraries...');
         loadScriptOnce('/tippy/popper.js');

@@ -146,9 +146,10 @@
               <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
               <span class="file-path">{{ f.path }}</span>
               <span class="flexExpand"></span>
-              <button mat-icon-button class="open-document" *ngIf="canOpenDocument(r, f)" (click)="openDocument(f, $event)"
-                      [matTooltip]="'CHANGES.OPEN_AGENT_DOCUMENT' | translate">
-                <mat-icon>description</mat-icon>
+              <!-- Un documento si apre reso (clic sulla riga); l'occhio, al passaggio, dà la vista testuale. -->
+              <button mat-icon-button class="as-text" *ngIf="rendersAsDocument(f)" (click)="openAsText(r, f, $event)"
+                      [matTooltip]="'CHANGES.SEE_AS_TEXT' | translate">
+                <mat-icon>visibility</mat-icon>
               </button>
               <button mat-icon-button class="discard" *ngIf="canDiscard(r, f)" (click)="discard(r, f, $event)"
                       [matTooltip]="(agent ? 'CHANGES.DISCARD_AGENT' : 'CHANGES.DISCARD') | translate">

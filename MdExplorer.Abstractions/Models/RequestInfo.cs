@@ -30,6 +30,12 @@ namespace MdExplorer.Abstractions.Models
         public bool ReadOnly { get; set; }
 
         /// <summary>
+        /// With <see cref="ReadOnly"/>: a PlantUML diagram that is not in the cache yet is drawn and cached anyway
+        /// (nothing else is written). The view of the changes needs it: the old version of a diagram is never in the cache.
+        /// </summary>
+        public bool GenerateMissingDiagrams { get; set; }
+
+        /// <summary>
         /// Render of a slide deck: only the commands whose output works in a reveal.js page run
         /// (<c>ICommand.WorksInSlides</c>). The others write HTML that lives on the document view's
         /// scripts (toolbars, date pickers, runnable code…), which the slide page does not load.

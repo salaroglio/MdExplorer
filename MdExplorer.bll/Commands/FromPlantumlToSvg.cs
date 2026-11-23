@@ -309,6 +309,14 @@ namespace MdExplorer.Features.Commands
                     var text = item.Groups[1].Value;
                     var textHash = _helper.GetHashString(text, Encoding.UTF8);
                     var filePathSvg = $"{cacheDir}{Path.DirectorySeparatorChar}{textHash}.svg";
+                    if (!File.Exists(filePathSvg) && requestInfo.GenerateMissingDiagrams)
+                    {
+                        // La vista delle differenze: il diagramma si disegna e va in cache, senza cambiare cartella di lavoro.
+                        Directory.CreateDirectory(cacheDir);
+                        var drawing = _plantumlServer.GetSvgFromJar(text);
+                        drawing.Wait();
+                        File.WriteAllBytes(filePathSvg, drawing.Result);
+                    }
                     if (File.Exists(filePathSvg))
                     {
                         var classes = item.Groups[2].Value;

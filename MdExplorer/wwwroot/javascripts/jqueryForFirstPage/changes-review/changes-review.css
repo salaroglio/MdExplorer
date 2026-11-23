@@ -1,0 +1,118 @@
+/* The changes of a document on the rendered page: see changes-review.js. */
+
+.mde-chg-head {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: 0 0 16px 0;
+}
+
+.mde-chg-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #f6f8fa;
+    color: #24292f;
+    font-size: 13px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.mde-chg-bar-text { font-weight: 600; }
+.mde-chg-bar-ref { color: #57606a; font-family: Consolas, 'Courier New', monospace; font-size: 12px; }
+.mde-chg-bar-space { flex: 0 0 8px; }
+
+.mde-chg-bar-button {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #24292f;
+    font-size: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+}
+.mde-chg-bar-button:hover { background: #eef1f4; }
+
+.mde-chg-note {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #fff8c5;
+    border: 1px solid #d4a72c66;
+    color: #4d3800;
+    font-size: 12px;
+}
+.mde-chg-note-error { background: #ffebe9; border-color: #ff818266; color: #82071e; }
+
+/* The box around a changed part. The stripe on the left says what happened to it. */
+.mde-chg-box {
+    position: relative;
+    margin: 14px 0;
+    padding: 30px 12px 6px 14px;
+    border: 1px solid #d0d7de;
+    border-left: 4px solid #bf8700;
+    border-radius: 8px;
+    background: #fffdf5;
+}
+.mde-chg-box.mde-chg-added { border-left-color: #1a7f37; background: #f6fff8; }
+.mde-chg-box.mde-chg-removed { border-left-color: #cf222e; background: #fff8f8; }
+.mde-chg-box.is-current { box-shadow: 0 0 0 2px #0969da66; }
+
+.mde-chg-tabs {
+    position: absolute;
+    /* A sinistra: a destra, sopra il documento, sta il pannello dell'indice. */
+    top: 4px;
+    left: 12px;
+    display: flex;
+    gap: 2px;
+}
+
+.mde-chg-tab {
+    border: 1px solid #d0d7de;
+    background: #ffffff;
+    color: #57606a;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 1px 10px;
+    cursor: pointer;
+}
+.mde-chg-tab:first-child { border-radius: 6px 0 0 6px; }
+.mde-chg-tab:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+.mde-chg-tab.is-on { background: #0969da; border-color: #0969da; color: #ffffff; font-weight: 600; }
+
+/* La scheda non attiva resta impaginata nel flusso (stessa larghezza dell'altra: i moduli della pagina misurano
+   tabelle e immagini), ma alta zero e invisibile. */
+.mde-chg-pane.is-off {
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}
+.mde-chg-pane > :first-child { margin-top: 0; }
+.mde-chg-pane > :last-child { margin-bottom: 4px; }
+.mde-chg-empty { color: #57606a; font-style: italic; margin: 0 0 4px 0; }
+
+/* The box inside a list is not an item of that list. */
+li.mde-chg-li { display: block; list-style: none; margin-left: -1.2em; }
+li.mde-chg-li > .mde-chg-box { margin: 6px 0; }
+.mde-chg-pane > ul, .mde-chg-pane > ol { margin-bottom: 0; padding-left: 1.6em; }
+/* Le voci nel riquadro restano voci dell'elenco da cui vengono, non di un sottoelenco. */
+.mde-chg-pane > ul { list-style-type: disc; }
+
+/* === Dark theme === */
+body.dark-theme .mde-chg-bar { background: #252526; border-color: #3c3c3c; color: #d4d4d4; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+body.dark-theme .mde-chg-bar-ref { color: #9da5b4; }
+body.dark-theme .mde-chg-bar-button { background: #2d2d30; border-color: #4a4a4a; color: #d4d4d4; }
+body.dark-theme .mde-chg-bar-button:hover { background: #3a3a3d; }
+body.dark-theme .mde-chg-note { background: #3a3000; border-color: #6b5600; color: #f2d675; }
+body.dark-theme .mde-chg-note-error { background: #3d1418; border-color: #7a2a31; color: #ffb3b8; }
+body.dark-theme .mde-chg-box { background: #26241c; border-color: #3c3c3c; border-left-color: #d29922; }
+body.dark-theme .mde-chg-box.mde-chg-added { background: #1b2a20; border-left-color: #3fb950; }
+body.dark-theme .mde-chg-box.mde-chg-removed { background: #2d1e20; border-left-color: #f85149; }
+body.dark-theme .mde-chg-box.is-current { box-shadow: 0 0 0 2px #58a6ff88; }
+body.dark-theme .mde-chg-tab { background: #2d2d30; border-color: #4a4a4a; color: #9da5b4; }
+body.dark-theme .mde-chg-tab.is-on { background: #1f6feb; border-color: #1f6feb; color: #ffffff; }
+body.dark-theme .mde-chg-empty { color: #9da5b4; }

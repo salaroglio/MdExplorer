@@ -41,6 +41,7 @@ using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Features.Services.SourceMapping;
+using UiText = MdExplorer.Features.Services.UiText;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Services.CodeGraph;
 
@@ -539,6 +540,172 @@ namespace MdExplorer.Controllers
             return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
         }
 
+        /// <summary>
+        /// Il documento reso con le parti cambiate in evidenza (tab delle differenze, clic su un file markdown): il
+        /// documento com'è adesso, e per ogni parte cambiata la stessa parte del documento com'era nel riferimento del
+        /// confronto. Stessi parametri di <c>api/WorkingChanges/diff</c>, di cui è la vista resa. Sola lettura: non
+        /// scrive la cache del documento, il database né avvisi; disegna solo i diagrammi che mancano in cache.
+        /// <para>Qui le parti sono solo delimitate (marcatori nel markdown, righe delle voci d'elenco) e il documento
+        /// vecchio è reso intero in un &lt;template&gt;: i riquadri li compone lo script della pagina (changes-review.js).</para>
+        /// </summary>
+        [HttpGet("/api/MdExplorerChanges/render/{*url}")]
+        public async Task<IActionResult> GetChangesViewAsync(string url)
+        {
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
+            var projectPath = Request.Query["projectPath"].ToString();
+            var agent = Request.Query["agent"].ToString();
+            var repo = (Request.Query["repo"].ToString() ?? string.Empty).Replace('\\', '/').Trim('/');
+            var oldPath = Request.Query["oldPath"].ToString();
+
+            var windowRoot = GetProjectPath();
+            var relativePathFile = "/" + (url ?? string.Empty);
+            var extension = Path.GetExtension(relativePathFile);
+            if (!string.Equals(extension, ".md", StringComparison.OrdinalIgnoreCase))
+            {
+                // Un file che il documento richiama con un indirizzo relativo: dalla cartella della finestra.
+                var assetFull = Path.GetFullPath(Path.Combine(windowRoot, relativePathFile.TrimStart('/', '\\')));
+                if (!IsUnderRoot(windowRoot, assetFull)) return BadRequest(UiText.Say("Percorso non valido.", "Path not valid."));
+                var asset = CreateAResponseForNotMdFile(windowRoot + Path.DirectorySeparatorChar, relativePathFile, extension);
+                return asset == null ? NotFound(UiText.Say($"File non trovato: {relativePathFile}", $"File not found: {relativePathFile}")) : (IActionResult)asset;
+            }
+
+            // Il percorso nell'indirizzo parte dalla radice (così i collegamenti relativi del documento funzionano);
+            // git lo vuole dal suo repository, che per un submodule è più in basso.
+            var fromRoot = (url ?? string.Empty).Replace('\\', '/').TrimStart('/');
+            var inRepo = fromRoot;
+            if (repo.Length > 0)
+            {
+                if (!fromRoot.StartsWith(repo + "/", StringComparison.OrdinalIgnoreCase))
+                    return BadRequest(UiText.Say($"'{fromRoot}' non sta nel repository '{repo}'.", $"'{fromRoot}' is not inside the repository '{repo}'."));
+                inRepo = fromRoot.Substring(repo.Length + 1);
+            }
+
+            var changesService = HttpContext.RequestServices.GetService<MdExplorer.Services.AgentRun.IWorkingChangesService>();
+            MdExplorer.Services.AgentRun.DocumentVersions versions;
+            try
+            {
+                versions = await changesService.ReadVersionsAsync(projectPath, string.IsNullOrWhiteSpace(agent) ? null : agent,
+                    inRepo, repo.Length > 0 ? repo : null, string.IsNullOrWhiteSpace(oldPath) ? null : oldPath, HttpContext.RequestAborted);
+            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return UnprocessableEntity(ex.Message); }
+
+            // Immagini e diagrammi della pagina arrivano dalla cartella della finestra: se il confronto è in un'altra
+            // cartella (la copia di un agente guardata da fuori) la pagina sarebbe sbagliata. Lo si dice.
+            if (!MdExplorer.Features.Agents.AgentPathComparer.Equals(versions.Root, windowRoot))
+                return UnprocessableEntity(UiText.Say(
+                    "Il documento reso con le differenze si vede da dentro la copia di lavoro: entra nella copia dell'agente, oppure usa la vista testuale.",
+                    "The rendered document with its changes is shown from inside the working copy: enter the agent's copy, or use the text view."));
+
+            if (versions.OldText == null && versions.NewText == null)
+                return NotFound(UiText.Say($"'{fromRoot}' non c'è né nella cartella né in {versions.BaseRef ?? "git"}.", $"'{fromRoot}' is neither in the folder nor in {versions.BaseRef ?? "git"}."));
+
+            var kind = versions.OldText == null ? "added" : versions.NewText == null ? "deleted" : "modified";
+            var shownText = versions.NewText ?? versions.OldText;
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(shownText)))
+                return UnprocessableEntity(UiText.Say("Le differenze di una presentazione si vedono nella vista testuale.", "The changes of a slide deck are shown in the text view."));
+
+            MarkedChanges marked = null;
+            if (kind == "modified")
+            {
+                try
+                {
+                    marked = MarkdownChangeMarkup.Build(
+                        MarkdownChangeRegions.Compute(versions.OldText, versions.NewText, BuildDocumentViewPipeline()));
+                }
+                catch (InvalidOperationException ex) { return UnprocessableEntity(ex.Message); }
+                shownText = marked.NewText;
+            }
+
+            var documentPath = "/" + versions.RelativeToRoot;
+            var requestInfo = new RequestInfo
+            {
+                CurrentQueryRequest = documentPath,
+                CurrentRoot = versions.Root,
+                AbsolutePathFile = versions.FullPath,
+                RootQueryRequest = documentPath,
+                ConnectionId = connectionId,
+                BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                ReadOnly = true,
+                GenerateMissingDiagrams = true,
+            };
+            var oldBody = marked != null && marked.Regions.Count > 0 ? RenderMarkdownBody(marked.OldText, requestInfo) : string.Empty;
+
+            var data = new
+            {
+                kind,
+                path = fromRoot,
+                baseRef = versions.BaseRef,
+                hiddenChanges = marked?.HiddenChanges ?? false,
+                regions = (marked?.Regions ?? new List<MarkedChangeRegion>()).Select(r => new
+                {
+                    id = r.Id, kind = r.Kind, listItems = r.ListItems, oldItems = r.OldItems, newItems = r.NewItems,
+                    newBeforeItem = r.NewBeforeItem, newAfterItem = r.NewAfterItem,
+                }),
+                labels = new
+                {
+                    before = UiText.Say("Prima", "Before"),
+                    after = UiText.Say("Dopo", "After"),
+                    notThere = UiText.Say("Prima non c'era.", "It was not there before."),
+                    removed = UiText.Say("Tolto.", "Removed."),
+                    added = UiText.Say("Documento nuovo: non c'è un prima.", "New document: there is no before."),
+                    deleted = UiText.Say("Documento tolto: lo vedi com'era.", "Document removed: you see it as it was."),
+                    none = UiText.Say("Nessuna parte cambiata da mostrare.", "No changed part to show."),
+                    count = UiText.Say("parti cambiate", "changed parts"),
+                    one = UiText.Say("parte cambiata", "changed part"),
+                    previous = UiText.Say("Precedente", "Previous"),
+                    next = UiText.Say("Successiva", "Next"),
+                    asText = UiText.Say("Vedi come testo", "See as text"),
+                    hidden = UiText.Say("Sono cambiate anche righe che nella pagina non si vedono (intestazione, definizioni di link, note): sono nella vista testuale.",
+                        "Lines that do not show on the page changed too (front matter, link definitions, footnotes): they are in the text view."),
+                    comparedWith = UiText.Say("Confronto con", "Compared with"),
+                },
+            };
+            var json = System.Text.Json.JsonSerializer.Serialize(data);
+            // Il <template> non resta mai vuoto: vuoto verrebbe scritto <template/>, che in HTML è un tag aperto.
+            var extraHtml =
+                $"<template id=\"mdeChangesOld\"><div class=\"mde-chg-old-root\">{oldBody}</div></template>" +
+                $"<div id=\"mdeChangesData\" style=\"display:none\" data-changes=\"{System.Net.WebUtility.HtmlEncode(json)}\">.</div>";
+
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = versions.FullPath,
+                Name = Path.GetFileName(versions.FullPath),
+                RelativePath = versions.RelativeToRoot,
+                FullPath = versions.FullPath,
+                FullDirectoryPath = Path.GetDirectoryName(versions.FullPath),
+            };
+            var doc1 = await ProcessAsMarkdownTypeDocument(
+                shownText, documentPath, versions.FullPath, connectionId, monitoredMd, theme,
+                explicitRoot: versions.Root, readOnly: true, generateDiagrams: true, extraHtml: extraHtml,
+                // «changes»: le funzioni della pagina che scrivono nel documento (modifica nel rendering, incolla) restano spente.
+                viewKind: "changes");
+            var htmlContent = (doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
+        /// <summary>
+        /// Dal markdown al corpo HTML del documento, con gli stessi passi di <see cref="ProcessAsMarkdownTypeDocument"/>
+        /// (comandi prima, Markdig con le righe del sorgente, comandi dopo) e senza la pagina attorno. Serve alla vista
+        /// delle differenze per il documento com'era.
+        /// </summary>
+        private string RenderMarkdownBody(string markdown, RequestInfo requestInfo)
+        {
+            var transformed = _commandRunner.TransformInNewMDFromMD(markdown, requestInfo);
+            var pipeline = BuildDocumentViewPipeline();
+            string html;
+            try { html = _sourceMapService.RenderHtmlWithSourceMap(markdown, transformed, pipeline); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Changes] mappa delle righe non riuscita per {File}: il documento com'era si rende senza.", requestInfo.AbsolutePathFile);
+                html = Markdown.ToHtml(transformed, pipeline);
+            }
+            return _commandRunner.TransformAfterConversion(html, requestInfo);
+        }
+
         /// <summary>Il path risolto <paramref name="candidate"/> è dentro <paramref name="root"/>? (anti-traversal).</summary>
         private static bool IsUnderRoot(string root, string candidate)
         {
@@ -982,7 +1149,10 @@ namespace MdExplorer.Controllers
                 string theme = "light",
                 string explicitRoot = null,
                 bool readOnly = false,
-                bool staticExport = false)
+                bool staticExport = false,
+                bool generateDiagrams = false,
+                string extraHtml = null,
+                string viewKind = null)
         {
             // Impronta del file COM'È su disco, prima di qualunque trasformazione: la pagina la porta
             // (data-mde-source-hash), e un'azione che punta a "riga N" viene rifiutata se il file non
@@ -1001,6 +1171,7 @@ namespace MdExplorer.Controllers
                 BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
                 ReadOnly = readOnly,   // Fase 7h: i comandi non scrivono su disco né cambiano cwd
                 StaticExport = staticExport,
+                GenerateMissingDiagrams = generateDiagrams,
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))
@@ -1164,11 +1335,11 @@ namespace MdExplorer.Controllers
 
                         <div class=""mdeItemMainPageRightMenu"" ></div>
                     </div>
-                     
+                    {extraHtml}
                     ";
             XmlDocument doc1 = new XmlDocument();
             CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme, sourceHash,
-                exportHead: staticExport ? StaticExportDocumentHead() : null);
+                exportHead: staticExport ? StaticExportDocumentHead() : null, viewKind: viewKind);
 
             try
             {
