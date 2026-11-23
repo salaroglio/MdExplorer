@@ -14,8 +14,18 @@ using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Commands
 {
-    public class PlantumlServer
+    public class PlantumlServer : IDisposable
     {
+        // Un PlantUML acceso per formato: il formato si sceglie all'avvio del processo.
+        private readonly PlantumlPipeWorker _svgWorker = new PlantumlPipeWorker();
+        private readonly PlantumlPipeWorker _pngWorker = new PlantumlPipeWorker();
+
+        public void Dispose()
+        {
+            _svgWorker.Dispose();
+            _pngWorker.Dispose();
+        }
+
         private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly ILogger<PlantumlServer> _logger;
         private readonly Utilities.IJavaLocator _javaLocator;
@@ -120,6 +130,26 @@ namespace MdExplorer.Features.Commands
             if (!string.IsNullOrEmpty(graphvizDotPath))
             {
                 arguments.Append(" -graphvizdot \"").Append(graphvizDotPath).Append('"');
+            }
+
+            // Il processo che resta acceso, quando il diagramma lo permette: avviare un Java per diagramma è ciò che
+            // rendeva lenta la pagina. Se il processo acceso non parte o non risponde, si rende col lancio singolo —
+            // e lo si scrive nel registro: non è un ripiego muto.
+            if (PlantumlPipeWorker.CanRender(plantumlCode))
+            {
+                var worker = formatFlag == "-tpng" ? _pngWorker : _svgWorker;
+                try
+                {
+                    return await worker.RenderAsync(javaPath, arguments.ToString(), plantumlCode).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException ex) when (ex.Message.StartsWith("PlantUML rendering failed", StringComparison.Ordinal))
+                {
+                    throw;   // il diagramma è sbagliato: lo direbbe anche il lancio singolo
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception || ex is IOException)
+                {
+                    _logger.LogWarning(ex, "[PlantUML] il processo acceso non ha reso il diagramma: lo rendo con un lancio singolo");
+                }
             }
 
             var run = await RunProcessAsync(javaPath, arguments.ToString(), plantumlCode).ConfigureAwait(false);
