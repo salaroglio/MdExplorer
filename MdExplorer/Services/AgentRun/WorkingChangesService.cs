@@ -297,8 +297,10 @@ namespace MdExplorer.Services.AgentRun
                     Repos = Array.Empty<RepoChanges>(),
                 };
 
-            var isRepo = await _git.RunAsync(root, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
-            if (!isRepo.Ok)
+            // Un '.git' nella cartella risponde da solo; si chiede a git solo quando non c'è (cartella
+            // dentro un repository più grande, oppure nessun repository).
+            var hasOwnGit = Directory.Exists(Path.Combine(root, ".git")) || File.Exists(Path.Combine(root, ".git"));
+            if (!hasOwnGit && !(await _git.RunAsync(root, new[] { "rev-parse", "--is-inside-work-tree" }, ct)).Ok)
             {
                 return new WorkingChangesView
                 {
@@ -318,7 +320,8 @@ namespace MdExplorer.Services.AgentRun
 
             // Di quali il padre registra un commit diverso da quello in checkout: e' una modifica
             // DEL PADRE, che si committa nel padre — non del submodule.
-            var moved = await ReadMovedPointersAsync(root, ct);
+            var rootStatus = await ReadStatusAsync(root, ct);
+            var moved = rootStatus.MovedPointers;
 
             // Le versioni di ogni submodule viste dal repository che lo contiene. Si leggono PRIMA
             // di costruire le righe: una riga deve sapere dei suoi figli (cosa c'e' da registrare,
@@ -394,7 +397,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 await ReadRepoAsync(root, string.Empty,
                                     Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-                                    0, subPaths, false, PushWarningsForRoot(subRepos), false, null, null, rootChildren, agentDesk, ct),
+                                    0, subPaths, false, PushWarningsForRoot(subRepos), false, null, null, rootChildren, agentDesk, ct, rootStatus),
             };
             repos.AddRange(subRepos);
 
@@ -419,10 +422,19 @@ namespace MdExplorer.Services.AgentRun
             string dir, string relativePath, string label, int depth,
             ISet<string> excludePaths, bool pointerMoved, IReadOnlyList<string> pushWarnings,
             bool recordedCommitUnpublished, string recordedCommitUnknown,
-            SubmodulePointer pointer, IReadOnlyList<RepoChanges> children, bool agentDesk, CancellationToken ct)
+            SubmodulePointer pointer, IReadOnlyList<RepoChanges> children, bool agentDesk, CancellationToken ct,
+            RepoStatus status = null)
         {
-            var (branch, detached, upstream, ahead, behind) = await ReadBranchAsync(dir, ct);
-            var baseRef = await ResolveBaseRefAsync(dir, ct);
+            // UNA lettura di 'git status' per repository: ramo, upstream, avanti/indietro e i file non
+            // salvati stanno tutti lì. Prima erano tre 'status' e un 'rev-parse @{upstream}'.
+            status ??= await ReadStatusAsync(dir, ct);
+            var (branch, detached, upstream, ahead, behind) = (status.Branch, status.Detached, status.Upstream, status.Ahead, status.Behind);
+            // Lo stesso upstream che direbbe 'rev-parse @{upstream}', quando esiste davvero (git ne conta
+            // avanti/indietro); altrimenti si chiede come prima, col ripiego sul ramo predefinito.
+            var baseRef = status.UpstreamExists ? status.Upstream : await ResolveBaseRefAsync(dir, ct);
+            // Avanti di 0 = nessun commit locale che la base non abbia: il confronto sarebbe vuoto. Idem indietro.
+            var nothingAhead = status.UpstreamExists && status.Ahead == 0;
+            var nothingBehind = status.UpstreamExists && status.Behind == 0;
 
             // La scrivania di un agente: il ramo locale segue il ramo di base, quindi «avanti rispetto all'upstream»
             // conterebbe per sempre anche il lavoro già consegnato. Da pubblicare è ciò che manca al ramo PUBBLICATO.
@@ -524,17 +536,23 @@ namespace MdExplorer.Services.AgentRun
             {
                 // '--ignore-submodules=all': un submodule sporco farebbe comparire la sua
                 // cartella qui come "modificata". La sua riga esiste gia', con dentro i suoi file.
-                var mine = await _git.RunAsync(dir,
-                    new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"{baseRef}...HEAD" }, ct);
-                if (mine.Ok) unpushed.AddRange(ParseNameStatus(mine.Stdout));
-                else _logger.LogDebug("[Changes] diff '{Base}...HEAD' non riuscito in '{Dir}': {Why}", baseRef, dir, mine.Describe());
+                if (!nothingAhead)
+                {
+                    var mine = await _git.RunAsync(dir,
+                        new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"{baseRef}...HEAD" }, ct);
+                    if (mine.Ok) unpushed.AddRange(ParseNameStatus(mine.Stdout));
+                    else _logger.LogDebug("[Changes] diff '{Base}...HEAD' non riuscito in '{Dir}': {Why}", baseRef, dir, mine.Describe());
+                }
 
                 // Cio' che il ramo di riferimento ha e tu no: NON e' lavoro tuo, e sta in un
                 // elenco a parte proprio perche' non si confonda con esso.
-                var theirs = await _git.RunAsync(dir,
-                    new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"HEAD...{baseRef}" }, ct);
-                if (theirs.Ok) incoming.AddRange(ParseNameStatus(theirs.Stdout));
-                else _logger.LogDebug("[Changes] diff 'HEAD...{Base}' non riuscito in '{Dir}': {Why}", baseRef, dir, theirs.Describe());
+                if (!nothingBehind)
+                {
+                    var theirs = await _git.RunAsync(dir,
+                        new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"HEAD...{baseRef}" }, ct);
+                    if (theirs.Ok) incoming.AddRange(ParseNameStatus(theirs.Stdout));
+                    else _logger.LogDebug("[Changes] diff 'HEAD...{Base}' non riuscito in '{Dir}': {Why}", baseRef, dir, theirs.Describe());
+                }
             }
 
             files.AddRange(unpushed);
@@ -542,17 +560,16 @@ namespace MdExplorer.Services.AgentRun
             // Il lavoro in corso vince su quello gia' committato: se un file e' stato
             // committato e poi toccato di nuovo, quello che conta e' che va salvato.
             var uncommitted = new List<WorkingChange>();
-            var status = await _git.RunAsync(dir, new[] { "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=all" }, ct);
             if (status.Ok)
             {
-                foreach (var change in ParsePorcelainStatus(status.Stdout))
+                foreach (var change in status.Uncommitted)
                 {
                     files.RemoveAll(f => string.Equals(f.Path, change.Path, StringComparison.Ordinal));
                     files.Add(change);
                     uncommitted.Add(change);
                 }
             }
-            else _logger.LogDebug("[Changes] status non riuscito in '{Dir}': {Why}", dir, status.Describe());
+            else _logger.LogDebug("[Changes] status non riuscito in '{Dir}': {Why}", dir, status.Problem);
 
             if (excludePaths != null && excludePaths.Count > 0)
             {
@@ -900,39 +917,136 @@ namespace MdExplorer.Services.AgentRun
             return listed.Select(s => new SubmoduleEntry { Path = s.Path, NotInitialized = s.NotInitialized }).ToList();
         }
 
+        /// <summary>Ciò che una lettura di <c>git status</c> dice di un repository.</summary>
+        public sealed class RepoStatus
+        {
+            public bool Ok { get; init; }
+            public string Problem { get; init; }
+            public string Branch { get; set; }
+            public bool Detached { get; set; }
+            public string Upstream { get; set; }
+            /// <summary>git ha contato avanti/indietro: l'upstream configurato esiste davvero.</summary>
+            public bool UpstreamExists { get; set; }
+            public int Ahead { get; set; }
+            public int Behind { get; set; }
+            /// <summary>
+            /// I submodule per cui <b>questo</b> repository registra un commit diverso da quello in checkout:
+            /// si committa qui, non nel submodule.
+            /// </summary>
+            public HashSet<string> MovedPointers { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>I file che differiscono da HEAD, submodule esclusi: hanno la loro riga.</summary>
+            public List<WorkingChange> Uncommitted { get; } = new List<WorkingChange>();
+        }
+
+        private async Task<RepoStatus> ReadStatusAsync(string dir, CancellationToken ct)
+        {
+            var res = await _git.RunAsync(dir, new[] { "status", "--porcelain=v2", "--branch", "--untracked-files=all" }, ct);
+            return res.Ok ? ParseStatusV2(res.Stdout) : new RepoStatus { Ok = false, Problem = res.Describe() };
+        }
+
         /// <summary>
-        /// I submodule per cui <b>il padre</b> registra un commit diverso da quello in checkout.
+        /// Legge <c>git status --porcelain=v2 --branch --untracked-files=all</c>.
         /// <para>
-        /// Sta nella colonna <c>&lt;sub&gt;</c> di <c>--porcelain=v2</c>, che vale
-        /// <c>S&lt;c&gt;&lt;m&gt;&lt;u&gt;</c>: <c>C</c> in prima posizione = commit cambiato
-        /// (verificato: <c>SC..</c> puntatore spostato, <c>S.MU</c> solo contenuto sporco).
-        /// È la distinzione fra "si committa nel padre" e "si committa nel submodule", e git la
-        /// da' gia' fatta: non va ricostruita confrontando sha.
+        /// Le righe <c>#</c> dicono ramo, upstream e avanti/indietro. Le altre sono i file: la colonna
+        /// <c>&lt;sub&gt;</c> vale <c>N...</c> per un file e <c>S&lt;c&gt;&lt;m&gt;&lt;u&gt;</c> per un
+        /// submodule, dove <c>C</c> = commit cambiato (verificato: <c>SC..</c> puntatore spostato,
+        /// <c>S.MU</c> solo contenuto sporco). È la distinzione fra «si committa nel padre» e «si
+        /// committa nel submodule», e git la dà già fatta.
+        /// </para>
+        /// <para>
+        /// I submodule non entrano fra i file, come con <c>--ignore-submodules=all</c> (confrontato il
+        /// 23/11/2026 su un repository con submodule sporco, spostato, in stage e appena aggiunto).
         /// </para>
         /// </summary>
-        private async Task<HashSet<string>> ReadMovedPointersAsync(string root, CancellationToken ct)
+        public static RepoStatus ParseStatusV2(string output)
         {
-            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var res = await _git.RunAsync(root, new[] { "status", "--porcelain=v2", "--untracked-files=no" }, ct);
-            if (!res.Ok) return set;
-
-            foreach (var line in SplitLines(res.Stdout))
+            var status = new RepoStatus { Ok = true };
+            foreach (var line in SplitLines(output))
             {
-                if (!line.StartsWith("1 ", StringComparison.Ordinal)) continue;
+                if (line.StartsWith("# ", StringComparison.Ordinal))
+                {
+                    if (line.StartsWith("# branch.head ", StringComparison.Ordinal))
+                    {
+                        var value = line.Substring("# branch.head ".Length).Trim();
+                        if (value == "(detached)") status.Detached = true; else status.Branch = value;
+                    }
+                    else if (line.StartsWith("# branch.upstream ", StringComparison.Ordinal))
+                    {
+                        status.Upstream = line.Substring("# branch.upstream ".Length).Trim();
+                    }
+                    else if (line.StartsWith("# branch.ab ", StringComparison.Ordinal))
+                    {
+                        status.UpstreamExists = true;
+                        foreach (var token in line.Substring("# branch.ab ".Length).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            if (token.Length < 2 || !int.TryParse(token.Substring(1), out var n)) continue;
+                            if (token[0] == '+') status.Ahead = n;
+                            else if (token[0] == '-') status.Behind = n;
+                        }
+                    }
+                    continue;
+                }
+
+                if (line.StartsWith("? ", StringComparison.Ordinal))
+                {
+                    status.Uncommitted.Add(new WorkingChange { Change = "untracked", Path = Unquote(line.Substring(2).Trim()) });
+                    continue;
+                }
+
+                // "1 XY sub mH mI mW hH hI path" · "2 XY sub mH mI mW hH hI Xscore path<TAB>origPath"
+                // "u XY sub m1 m2 m3 mW h1 h2 h3 path": il percorso è l'ultimo campo e può contenere spazi.
+                var kind = line.Length > 1 && line[1] == ' ' ? line[0] : '\0';
+                var pathAt = kind == '1' ? 8 : kind == '2' ? 9 : kind == 'u' ? 10 : -1;
+                if (pathAt < 0) continue;
                 var f = line.Split(' ');
-                if (f.Length < 9) continue;
-                // Spostato = il checkout del submodule differisce dall'indice ('C'), OPPURE il nuovo
-                // puntatore e' gia' in stage ma non committato (X di 'XY' diverso da '.'): prima contava
-                // solo 'C', e un puntatore messo in stage — lo fa il commit della toolbar — spariva dalla
-                // vista senza essere mai stato committato (visto il 29/09/2026).
+                if (f.Length <= pathAt) continue;
                 var xy = f[1];
                 var sub = f[2];
-                if (sub.Length < 4 || sub[0] != 'S') continue;
-                if (sub[1] != 'C' && (xy.Length < 1 || xy[0] == '.')) continue;
-                // Il percorso e' l'ultimo campo e puo' contenere spazi.
-                set.Add(Unquote(string.Join(" ", f.Skip(8))));
+                if (xy.Length < 2) continue;
+                var rest = string.Join(" ", f.Skip(pathAt));
+
+                if (sub.Length >= 4 && sub[0] == 'S')
+                {
+                    // Spostato = il checkout del submodule differisce dall'indice ('C'), OPPURE il nuovo
+                    // puntatore e' gia' in stage ma non committato (X diverso da '.'): prima contava
+                    // solo 'C', e un puntatore messo in stage — lo fa il commit della toolbar — spariva dalla
+                    // vista senza essere mai stato committato (visto il 29/09/2026).
+                    if (kind == '1' && (sub[1] == 'C' || xy[0] != '.')) status.MovedPointers.Add(Unquote(rest));
+                    continue;
+                }
+
+                if (kind == '2')
+                {
+                    var tab = rest.IndexOf('\t');
+                    if (tab > 0)
+                    {
+                        status.Uncommitted.Add(new WorkingChange
+                        {
+                            Change = "renamed",
+                            OldPath = Unquote(rest.Substring(tab + 1).Trim()),
+                            Path = Unquote(rest.Substring(0, tab).Trim()),
+                        });
+                        continue;
+                    }
+                }
+
+                // Conta il codice piu' significativo fra indice (x) e working tree (y):
+                // un file aggiunto all'indice e poi modificato resta "aggiunto".
+                var code = xy[0] != '.' ? xy[0] : xy[1];
+                var change = code switch
+                {
+                    'A' => "added",
+                    'D' => "deleted",
+                    'M' => "modified",
+                    'C' => "added",
+                    'T' => "modified",
+                    'U' => "modified",
+                    _ => null,
+                };
+                if (change == null) continue;
+                status.Uncommitted.Add(new WorkingChange { Change = change, Path = Unquote(rest.Trim()) });
             }
-            return set;
+            return status;
         }
 
         /// <summary>
@@ -960,46 +1074,6 @@ namespace MdExplorer.Services.AgentRun
                 return (true, MdExplorer.Features.Services.UiText.Say($"Il commit {sha.Substring(0, Math.Min(8, sha.Length))} registrato per '{submodulePath}' non è verificabile qui: {probe.Describe()}", $"The commit {sha.Substring(0, Math.Min(8, sha.Length))} recorded for '{submodulePath}' cannot be verified here: {probe.Describe()}"));
 
             return (!string.IsNullOrWhiteSpace(probe.Stdout), null);
-        }
-
-        /// <summary>
-        /// Dove sta il ramo di questo repository: nome, upstream e di quanto e' avanti o indietro.
-        /// Una sola chiamata: le righe <c>#</c> di <c>--porcelain=v2 --branch</c> le dicono tutte.
-        /// </summary>
-        private async Task<(string Branch, bool Detached, string Upstream, int Ahead, int Behind)> ReadBranchAsync(
-            string dir, CancellationToken ct)
-        {
-            string branch = null, upstream = null;
-            var detached = false;
-            int ahead = 0, behind = 0;
-
-            var res = await _git.RunAsync(dir, new[] { "status", "--porcelain=v2", "--branch", "--untracked-files=no" }, ct);
-            if (!res.Ok) return (null, false, null, 0, 0);
-
-            foreach (var line in SplitLines(res.Stdout))
-            {
-                if (!line.StartsWith("# ", StringComparison.Ordinal)) break;   // le righe '#' vengono per prime
-
-                if (line.StartsWith("# branch.head ", StringComparison.Ordinal))
-                {
-                    var value = line.Substring("# branch.head ".Length).Trim();
-                    if (value == "(detached)") detached = true; else branch = value;
-                }
-                else if (line.StartsWith("# branch.upstream ", StringComparison.Ordinal))
-                {
-                    upstream = line.Substring("# branch.upstream ".Length).Trim();
-                }
-                else if (line.StartsWith("# branch.ab ", StringComparison.Ordinal))
-                {
-                    foreach (var token in line.Substring("# branch.ab ".Length).Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        if (token.Length < 2 || !int.TryParse(token.Substring(1), out var n)) continue;
-                        if (token[0] == '+') ahead = n;
-                        else if (token[0] == '-') behind = n;
-                    }
-                }
-            }
-            return (branch, detached, upstream, ahead, behind);
         }
 
         /// <summary>
@@ -1051,7 +1125,7 @@ namespace MdExplorer.Services.AgentRun
         /// file che mancavano perche' non era stato fatto pull.
         /// </para>
         /// </summary>
-        internal static IReadOnlyList<WorkingChange> ParsePorcelainStatus(string output)
+        public static IReadOnlyList<WorkingChange> ParsePorcelainStatus(string output)
         {
             var list = new List<WorkingChange>();
             foreach (var line in SplitLines(output))

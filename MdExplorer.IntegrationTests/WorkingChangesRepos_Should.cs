@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -238,6 +239,74 @@ namespace MdExplorer.IntegrationTests
                 .OrderBy(x => x, StringComparer.Ordinal).ToList();
 
             CollectionAssert.AreEqual(expected, listed);
+        }
+
+        /// <summary>
+        /// La lettura dei file non salvati passa da UN <c>git status</c> (formato v2) invece di tre: deve
+        /// dare gli stessi file, nello stesso ordine, di quello di prima — submodule sporchi, spostati, in
+        /// stage e appena aggiunti compresi, che fra i file non devono comparire.
+        /// </summary>
+        [TestMethod]
+        public void Read_from_one_status_the_same_files_the_old_status_gave()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, sub) = SetupProjectWithSubmodule(ctx, "repos-uno-stato");
+
+            foreach (var name in new[] { "mosso", "stage", "nuovo" })
+            {
+                var origin = Path.Combine(ctx.Factory.DataDir, "origins", "repos-uno-stato-" + name);
+                Directory.CreateDirectory(origin);
+                InitRepo(origin);
+                File.WriteAllText(Path.Combine(origin, "leggimi.md"), "# " + name + "\n");
+                Git(origin, "add -A");
+                Git(origin, "commit -m \"primo\"");
+                if (name == "nuovo") continue;
+                Git(path, $"submodule add \"{origin}\" {name}");
+            }
+            foreach (var f in new[] { "con spazio.md", "vecchio.md", "mod.md", "canc.md" }) File.WriteAllText(Path.Combine(path, f), f + "\n");
+            Git(path, "add -A");
+            Git(path, "commit -m \"base\"");
+
+            // Ogni caso: submodule sporco, spostato, spostato e in stage, appena aggiunto; file rinominato,
+            // modificato, cancellato, in stage e poi ritoccato, non tracciato (anche in una cartella).
+            File.WriteAllText(Path.Combine(sub, "sporco.md"), "x\n");
+            foreach (var name in new[] { "mosso", "stage" })
+            {
+                var dir = Path.Combine(path, name);
+                Git(dir, "config user.email mario.rossi@example.com");
+                Git(dir, "config user.name Test");
+                File.WriteAllText(Path.Combine(dir, "in-piu.md"), "x\n");
+                Git(dir, "add -A");
+                Git(dir, "commit -m \"avanti\"");
+            }
+            Git(path, "add stage");
+            Git(path, $"submodule add \"{Path.Combine(ctx.Factory.DataDir, "origins", "repos-uno-stato-nuovo")}\" nuovo");
+            Git(path, "mv vecchio.md nuovo-nome.md");
+            File.AppendAllText(Path.Combine(path, "mod.md"), "ancora\n");
+            File.Delete(Path.Combine(path, "canc.md"));
+            File.WriteAllText(Path.Combine(path, "non tracciato.md"), "x\n");
+            File.WriteAllText(Path.Combine(path, "in-stage.md"), "x\n");
+            Git(path, "add in-stage.md");
+            File.AppendAllText(Path.Combine(path, "in-stage.md"), "ritoccato\n");
+            Directory.CreateDirectory(Path.Combine(path, "cartella"));
+            File.WriteAllText(Path.Combine(path, "cartella", "dentro.md"), "x\n");
+
+            static string Show(IEnumerable<WorkingChange> changes)
+                => string.Join("\n", changes.Select(c => $"{c.Change} {c.OldPath} -> {c.Path}"));
+
+            var before = WorkingChangesService.ParsePorcelainStatus(
+                Git(path, "status --porcelain --untracked-files=all --ignore-submodules=all").Out);
+            var now = WorkingChangesService.ParseStatusV2(
+                Git(path, "status --porcelain=v2 --branch --untracked-files=all").Out);
+
+            Assert.IsTrue(before.Count >= 7, "la prova deve partire da un repository davvero sporco:\n" + Show(before));
+            Assert.AreEqual(Show(before), Show(now.Uncommitted));
+            Assert.AreEqual("main", now.Branch);
+            // Come prima: da registrare nel padre è il commit diverso da quello registrato, anche già in
+            // stage, e il submodule appena aggiunto (in stage anche lui). Quello solo sporco no.
+            CollectionAssert.AreEquivalent(new[] { "mosso", "nuovo", "stage" }, now.MovedPointers.ToList());
         }
 
         // ---- infrastruttura ----

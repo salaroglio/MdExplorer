@@ -110,8 +110,36 @@ namespace MdExplorer.Services.Git
             _logger = logger;
         }
 
+        /// <summary>
+        /// La cartella git di un repository: <c>.git</c> quando è una cartella, oppure dove punta quando è un
+        /// file (submodule e copie di lavoro: <c>gitdir: …</c>). <c>null</c> quando non si riesce a dirlo.
+        /// </summary>
+        internal static string GitDirOf(string repositoryPath)
+        {
+            var dotGit = Path.Combine(repositoryPath, ".git");
+            if (Directory.Exists(dotGit)) return dotGit;
+            if (!File.Exists(dotGit)) return null;
+
+            string first;
+            try { using var reader = new StreamReader(dotGit); first = reader.ReadLine(); }
+            catch (IOException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
+
+            const string marker = "gitdir:";
+            if (first == null || !first.StartsWith(marker, StringComparison.Ordinal)) return null;
+            var target = first.Substring(marker.Length).Trim();
+            if (target.Length == 0) return null;
+            if (!Path.IsPathRooted(target)) target = Path.Combine(repositoryPath, target);
+            return Directory.Exists(target) ? target : null;
+        }
+
         public async Task<RepoMergeState> ReadMergeAsync(string repositoryPath, CancellationToken ct = default)
         {
+            // Un merge a metà lascia il file MERGE_HEAD nella cartella git del repository: quando la si
+            // trova e il file non c'è, non serve lanciare git per saperlo (succede a ogni lettura del pannello).
+            var gitDir = GitDirOf(repositoryPath);
+            if (gitDir != null && !File.Exists(Path.Combine(gitDir, "MERGE_HEAD"))) return RepoMergeState.None;
+
             var merging = await _git.RunAsync(repositoryPath, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct);
             if (!merging.Ok) return RepoMergeState.None;
 
