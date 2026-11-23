@@ -1399,11 +1399,15 @@ namespace MdExplorer.Controllers
             doc1.AppendChild(html);
             var head = doc1.CreateElement("head");
 
+            // Script e stili della pagina si chiedono con la loro versione: il browser li tiene finché non cambiano
+            // (StaticAssetVersion). Non nell'esportazione statica, che i suoi file li copia e li riscrive da sé.
+            string Versioned(string path) => exportHead == null ? MdExplorer.Utilities.StaticAssetVersion.Url(path) : path;
+
             var link2 = doc1.CreateElement("script");
             var link = doc1.CreateElement("link");
             var linkHref = doc1.CreateAttribute("href");
             var linkRel = doc1.CreateAttribute("rel");
-            linkHref.Value = "/MdCustomCSS.css";
+            linkHref.Value = Versioned("/MdCustomCSS.css");
             linkRel.Value = "stylesheet";
             link.Attributes.Append(linkHref);
             link.Attributes.Append(linkRel);
@@ -1444,10 +1448,10 @@ namespace MdExplorer.Controllers
             }
             html.AppendChild(body);
 
-            var darkThemeLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
-            var scripts = exportHead ?? @"<script src=""/common.js""></script>";
+            var darkThemeLink = isDark ? $@"<link rel=""stylesheet"" href=""{Versioned("/dark-theme.css")}"" />" : "";
+            var scripts = exportHead ?? $@"<script src=""{Versioned("/common.js")}""></script>";
             head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/common.css"" />
+            <link rel=""stylesheet"" href=""{Versioned("/common.css")}"" />
             {darkThemeLink}
             {scripts}";
 
@@ -1465,13 +1469,13 @@ namespace MdExplorer.Controllers
                 // Build complete HTML document as string
                 var darkClass = isDark ? @" class=""dark-theme""" : "";
                 var viewAttribute = string.IsNullOrEmpty(viewKind) ? "" : $@" data-mde-view=""{viewKind}""";
-                var darkLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
+                var darkLink = isDark ? $@"<link rel=""stylesheet"" href=""{Versioned("/dark-theme.css")}"" />" : "";
                 var htmlString = $@"<html style=""overflow: auto; height: auto; min-height: 100%;"">
 <head>
-    <link href=""/MdCustomCSS.css"" rel=""stylesheet"" />
-    <link rel=""stylesheet"" href=""/common.css"" />
+    <link href=""{Versioned("/MdCustomCSS.css")}"" rel=""stylesheet"" />
+    <link rel=""stylesheet"" href=""{Versioned("/common.css")}"" />
     {darkLink}
-    {exportHead ?? @"<script src=""/common.js""></script>"}
+    {exportHead ?? $@"<script src=""{Versioned("/common.js")}""></script>"}
 </head>
 <body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{viewAttribute}{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}

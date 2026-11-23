@@ -8,6 +8,22 @@ if (window.commonJsLoaded) {
     console.log('User Agent:', navigator.userAgent);
     console.log('Is Electron:', navigator.userAgent.includes('Electron'));
 
+    // The version this page's scripts and styles were asked with (/common.js?v=…, see StaticAssetVersion in the
+    // service). Everything common.js writes into the page carries the same version, so the service can answer
+    // «keep it forever»: until the files change the browser never asks again. Before, every opened document made
+    // the browser ask the service about some hundred files. The loading lines below stay as they are — the
+    // static export reads them — and the version is added while they are written.
+    const assetVersion = (function () {
+        try { return new URL(document.currentScript.src).searchParams.get('v') || ''; } catch (e) { return ''; }
+    })();
+    const plainDocumentWrite = document.write;
+    if (assetVersion) {
+        document.write = function (html) {
+            return plainDocumentWrite.call(document, String(html).replace(/\b(src|href)='(\/[^'?#]+)'/g,
+                function (whole, attribute, url) { return attribute + "='" + url + '?v=' + assetVersion + "'"; }));
+        };
+    }
+
     // Function to check if a script is already loaded
     function isScriptLoaded(src) {
         const scripts = document.querySelectorAll('script');
@@ -235,6 +251,9 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/tippy/tippy.js');
     }
     loadScriptOnce('/highlight_within_textarea/highlight-within-textarea.js');
+
+    // Everything is written: document.write goes back to being the browser's own.
+    document.write = plainDocumentWrite;
 
     console.log('=== COMMON.JS END ===');
 }

@@ -657,9 +657,16 @@ namespace MdExplorer
             // no-cache: the browser keeps the files but asks before using them (ETag → 304). Without
             // it a browser ran the OLD copy of a script changed by an update (measured 24/09/2026,
             // sprint Slide-SVG-Interattivi): pages that load several scripts could mix versions.
+            // Un file chiesto con la sua versione (?v=…, gli script e gli stili della pagina del documento: vedi
+            // StaticAssetVersion) non cambia più sotto quell'indirizzo: il browser lo tiene e non lo richiede. È lo stesso
+            // scopo — niente versioni mescolate — senza una richiesta per file a ogni documento aperto.
+            MdExplorer.Utilities.StaticAssetVersion.Use(env.WebRootPath);
             app.UseStaticFiles(new StaticFileOptions
             {
-                OnPrepareResponse = context => context.Context.Response.Headers["Cache-Control"] = "no-cache",
+                OnPrepareResponse = context => context.Context.Response.Headers["Cache-Control"] =
+                    context.Context.Request.Query.ContainsKey(MdExplorer.Utilities.StaticAssetVersion.QueryName)
+                        ? MdExplorer.Utilities.StaticAssetVersion.ImmutableCacheControl
+                        : "no-cache",
             });
             app.UseAuthorization();
 
