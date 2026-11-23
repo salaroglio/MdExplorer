@@ -43,6 +43,31 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Keep_loading_into_fuseki_and_scanning_the_code_as_two_separate_choices()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("grafo-" + Guid.NewGuid().ToString("N")[..6]);
+
+            async Task<(bool Scan, bool Load)> Both()
+            {
+                var body = JsonSerializer.Deserialize<JsonElement>(await (await ctx.Client.GetAsync(
+                    "/api/ProjectSettings/GetCodeGraphAutoScanSetting?projectPath=" + Uri.EscapeDataString(path))).Content.ReadAsStringAsync());
+                return (body.GetProperty("enabled").GetBoolean(), body.GetProperty("loadEnabled").GetBoolean());
+            }
+
+            Assert.AreEqual((false, false), await Both(), "di partenza spente tutte e due");
+
+            await ctx.Client.PostAsJsonAsync("/api/ProjectSettings/SetCodeGraphAutoScanSetting", new { projectPath = path, loadEnabled = true });
+            Assert.AreEqual((false, true), await Both(), "accendere il caricamento non accende la scansione");
+
+            await ctx.Client.PostAsJsonAsync("/api/ProjectSettings/SetCodeGraphAutoScanSetting", new { projectPath = path, enabled = true });
+            Assert.AreEqual((true, true), await Both());
+
+            await ctx.Client.PostAsJsonAsync("/api/ProjectSettings/SetCodeGraphAutoScanSetting", new { projectPath = path, loadEnabled = false });
+            Assert.AreEqual((true, false), await Both(), "spegnere il caricamento lascia la scansione com'è");
+        }
+
+        [TestMethod]
         public void Name_the_setting_by_the_fingerprint_of_the_path()
         {
             var name = CodeGraphAutoScanPreference.SettingName(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "progetti", "acme"));

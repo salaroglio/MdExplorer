@@ -4364,8 +4364,9 @@ class ProjectSettingsService {
     });
   }
   /**
-   * Scansione automatica del codice per il grafo (all'apertura e dopo ogni turno di MarkAgent): preferenza di questa
-   * macchina, per progetto. Spenta finché non la si accende.
+   * Che cosa il grafo del codice fa da solo, per questo progetto su questa macchina (due scelte separate, spente di
+   * partenza): `enabled` = la scansione del codice (all'apertura e dopo ogni turno di MarkAgent); `loadEnabled` = il
+   * caricamento in Fuseki degli script già salvati (all'apertura e quando cambiano), che avvia Java.
    */
   getCodeGraphAutoScanSetting(projectPath) {
     return this.http.get('../api/ProjectSettings/GetCodeGraphAutoScanSetting', {
@@ -4374,9 +4375,10 @@ class ProjectSettingsService {
       }
     });
   }
-  setCodeGraphAutoScanSetting(enabled, projectPath) {
+  /** Si manda solo la scelta che cambia. */
+  setCodeGraphAutoScanSetting(change, projectPath) {
     return this.http.post('../api/ProjectSettings/SetCodeGraphAutoScanSetting', {
-      enabled,
+      ...change,
       projectPath
     });
   }
@@ -9083,4 +9085,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b2470811d41ef197.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.0063c5195a342686.js.map

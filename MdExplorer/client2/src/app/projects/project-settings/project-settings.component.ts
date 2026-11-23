@@ -690,24 +690,33 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Scansione automatica del codice per il grafo: preferenza di questa macchina, per progetto (spenta di partenza). */
+  /** Che cosa il grafo del codice fa da solo: due scelte di questa macchina, per progetto (spente di partenza). */
   codeGraphAutoScan = false;
+  codeGraphAutoLoad = false;
   codeGraphAutoScanSaving = false;
 
   loadCodeGraphAutoScan(): void {
     if (!this.projectPath) return;
     this.projectSettingsService.getCodeGraphAutoScanSetting(this.projectPath).subscribe({
-      next: res => this.codeGraphAutoScan = !!res?.enabled,
-      error: err => console.error('Error loading code graph auto scan setting:', err),
+      next: res => { this.codeGraphAutoScan = !!res?.enabled; this.codeGraphAutoLoad = !!res?.loadEnabled; },
+      error: err => console.error('Error loading code graph automatic settings:', err),
     });
   }
 
   onCodeGraphAutoScanChange(): void {
+    this.saveCodeGraphAutomatic({ enabled: this.codeGraphAutoScan });
+  }
+
+  onCodeGraphAutoLoadChange(): void {
+    this.saveCodeGraphAutomatic({ loadEnabled: this.codeGraphAutoLoad });
+  }
+
+  private saveCodeGraphAutomatic(change: { enabled?: boolean; loadEnabled?: boolean }): void {
     this.codeGraphAutoScanSaving = true;
-    this.projectSettingsService.setCodeGraphAutoScanSetting(this.codeGraphAutoScan, this.projectPath).subscribe({
-      next: res => { this.codeGraphAutoScan = !!res?.enabled; this.codeGraphAutoScanSaving = false; },
-      // Non salvata: la casella torna a dire il vero.
-      error: err => { console.error('Error saving code graph auto scan setting:', err); this.codeGraphAutoScanSaving = false; this.loadCodeGraphAutoScan(); },
+    this.projectSettingsService.setCodeGraphAutoScanSetting(change, this.projectPath).subscribe({
+      next: res => { this.codeGraphAutoScan = !!res?.enabled; this.codeGraphAutoLoad = !!res?.loadEnabled; this.codeGraphAutoScanSaving = false; },
+      // Non salvata: le caselle tornano a dire il vero.
+      error: err => { console.error('Error saving code graph automatic settings:', err); this.codeGraphAutoScanSaving = false; this.loadCodeGraphAutoScan(); },
     });
   }
 

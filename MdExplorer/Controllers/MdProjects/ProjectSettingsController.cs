@@ -740,13 +740,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required") });
             var pref = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
-            return Ok(new { enabled = pref.IsEnabled(projectPath) });
+            return Ok(new { enabled = pref.IsEnabled(projectPath), loadEnabled = pref.IsLoadEnabled(projectPath) });
         }
 
+        /// <summary>Si manda solo la scelta che cambia: <c>Enabled</c> = la scansione del codice, <c>LoadEnabled</c> = il caricamento in Fuseki.</summary>
         public class SetCodeGraphAutoScanRequest
         {
             public string ProjectPath { get; set; }
-            public bool Enabled { get; set; }
+            public bool? Enabled { get; set; }
+            public bool? LoadEnabled { get; set; }
         }
 
         [HttpPost]
@@ -757,8 +759,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
             try
             {
                 var pref = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
-                pref.Set(request.ProjectPath, request.Enabled);
-                return Ok(new { enabled = pref.IsEnabled(request.ProjectPath) });
+                if (request.Enabled != null) pref.Set(request.ProjectPath, request.Enabled.Value);
+                if (request.LoadEnabled != null) pref.SetLoad(request.ProjectPath, request.LoadEnabled.Value);
+                return Ok(new { enabled = pref.IsEnabled(request.ProjectPath), loadEnabled = pref.IsLoadEnabled(request.ProjectPath) });
             }
             catch (Exception ex)
             {

@@ -446,10 +446,15 @@
       <div class="tab-content">
         <!-- Scansione automatica del codice: scelta di questa macchina, spenta di partenza (su un computer lento pesa). -->
         <div class="code-auto-scan">
+          <mat-checkbox [(ngModel)]="codeGraphAutoLoad" (change)="onCodeGraphAutoLoadChange()" [disabled]="codeGraphAutoScanSaving">
+            {{ 'PROJECT_SETTINGS.CODE_AUTO_LOAD' | translate }}
+          </mat-checkbox>
+          <p class="code-auto-scan-hint">{{ 'PROJECT_SETTINGS.CODE_AUTO_LOAD_HINT' | translate }}</p>
           <mat-checkbox [(ngModel)]="codeGraphAutoScan" (change)="onCodeGraphAutoScanChange()" [disabled]="codeGraphAutoScanSaving">
             {{ 'PROJECT_SETTINGS.CODE_AUTO_SCAN' | translate }}
           </mat-checkbox>
           <p class="code-auto-scan-hint">{{ 'PROJECT_SETTINGS.CODE_AUTO_SCAN_HINT' | translate }}</p>
+          <p class="code-auto-scan-hint code-auto-scan-scope">{{ 'PROJECT_SETTINGS.CODE_AUTO_SCOPE' | translate }}</p>
         </div>
         <app-language-library [projectPath]="projectPath"></app-language-library>
       </div>

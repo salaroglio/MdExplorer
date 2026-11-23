@@ -2308,6 +2308,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 lock (batch) { events = batch.Events; batch.Events = 0; }
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 using var scope = _serviceScopeFactory.CreateScope();
+                // Caricamento automatico spento per questo progetto su questa macchina: gli script cambiati (un pull,
+                // un'analisi altrove) non si caricano da soli in Fuseki; li carica «genera» dalla pagina del grafo.
+                var automatic = scope.ServiceProvider.GetService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
+                if (automatic != null && !automatic.IsLoadEnabled(context.ProjectPath))
+                {
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code scripts: {events} eventi raccolti, non caricati (caricamento automatico in Fuseki spento nelle impostazioni del progetto)");
+                    return;
+                }
                 var store = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
                 var outcome = await store.LoadProjectAsync(context.ProjectPath);
                 _logger.LogInformation($"🧩 [{context.ConnectionId}] code scripts: {events} eventi raccolti → {outcome.Loaded} caricati, {outcome.Removed} tolti, {outcome.Failed} falliti in {sw.Elapsed.TotalSeconds:0.0} s");

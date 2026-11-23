@@ -544,4 +544,7 @@
     color: var(--mde-text-secondary, inherit);
     opacity: 0.85;
   }
+
+  mat-checkbox + .code-auto-scan-hint { margin-bottom: 10px; }
+  .code-auto-scan-scope { margin: 0; font-style: italic; }
 }

@@ -378,8 +378,11 @@
   "PROJECT_SETTINGS": {
     "TITLE": "Impostazioni Progetto - {{name}}",
     "MARKDOWN_SETTINGS": "Markdown",
-    "CODE_AUTO_SCAN": "Rianalizza il codice da solo, all'apertura del progetto e dopo ogni risposta di MarkAgent",
-    "CODE_AUTO_SCAN_HINT": "Spenta: il grafo del codice si aggiorna solo quando lo chiedi dalla pagina del grafo, e l'apertura del progetto e la chat non aspettano la scansione. Accesa: le cartelle program si rianalizzano da sole, e MarkAgent risponde sempre sul codice di adesso. Vale per questo progetto su questo computer.",
+    "CODE_AUTO_LOAD": "Carica da solo il grafo del codice in Fuseki",
+    "CODE_AUTO_LOAD_HINT": "Accesa: all'apertura del progetto, e quando gli script del grafo cambiano (per esempio dopo un pull), il grafo si carica in Fuseki — è il passo che avvia Java. Spenta: non si carica niente finché non lo chiedi con «Genera» dalla pagina del grafo.",
+    "CODE_AUTO_SCAN": "Rianalizza da solo il codice",
+    "CODE_AUTO_SCAN_HINT": "Accesa: le cartelle program si rianalizzano all'apertura del progetto e dopo ogni risposta di MarkAgent, che così risponde sempre sul codice di adesso (la risposta dopo aspetta la fine della scansione). Spenta: il codice si analizza solo quando lo chiedi dalla pagina del grafo.",
+    "CODE_AUTO_SCOPE": "Le due scelte valgono per questo progetto su questo computer.",
     "CODE_LANGUAGES_TAB": "Linguaggi del grafo",
     "TEMPLATES_TAB": "Template",
     "AGENTS_TAB": "Agenti",

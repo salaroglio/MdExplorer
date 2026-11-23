@@ -2212,7 +2212,25 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 _logger.LogError(ex, "🧩 [CodeGraph] i servizi del grafo del codice non si sono potuti creare: il progetto si apre senza grafo");
             }
-            if (codeScriptLoader != null)
+            // Caricamento in Fuseki e scansione del codice sono due scelte del progetto su questa macchina (impostazioni →
+            // linguaggi del codice), separate. Spente tutte e due, all'apertura non parte niente — nemmeno Java.
+            var codeGraphLoad = false;
+            var codeGraphScan = false;
+            try
+            {
+                var automatic = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
+                codeGraphLoad = automatic?.IsLoadEnabled(currentPath) ?? false;
+                codeGraphScan = automatic?.IsEnabled(currentPath) ?? false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "🧩 [CodeGraph] preferenze del grafo automatico non leggibili: all'apertura il grafo non parte");
+            }
+            if (codeScriptLoader != null && !codeGraphLoad && !codeGraphScan)
+            {
+                _logger.LogInformation("🧩 [CodeGraph] '{Project}': all'apertura niente caricamento in Fuseki e niente scansione del codice (spenti nelle impostazioni del progetto)", currentPath);
+            }
+            else if (codeScriptLoader != null)
             {
                 var codeGraphProjectPath = currentPath;
                 _ = Task.Run(async () =>
@@ -2220,19 +2238,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     await Task.Yield();
                     try
                     {
-                        var outcome = await codeScriptLoader.LoadProjectAsync(codeGraphProjectPath);
-                        await MdExplorer.Services.CodeGraph.CodeSqlRelinkNotice.SendAsync(_hubContext, codeGraphProjectPath, outcome);
-                        if (!outcome.ScriptsFolderMissing)
+                        if (codeGraphLoad)
                         {
-                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
-                                codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
-                                outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                            var outcome = await codeScriptLoader.LoadProjectAsync(codeGraphProjectPath);
+                            await MdExplorer.Services.CodeGraph.CodeSqlRelinkNotice.SendAsync(_hubContext, codeGraphProjectPath, outcome);
+                            if (!outcome.ScriptsFolderMissing)
+                            {
+                                _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
+                                    codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
+                                    outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                            }
                         }
+                        else _logger.LogInformation("🧩 [CodeGraph] '{Project}': caricamento automatico in Fuseki spento (impostazioni del progetto)", codeGraphProjectPath);
                         // Poi il codice: le cartelle program con dei linguaggi scelti (D16) — git dice che cosa è cambiato (D14).
-                        var autoScan = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeGraphAutoScanPreference>();
-                        if (codeAnalysis != null && autoScan != null && !autoScan.IsEnabled(codeGraphProjectPath))
+                        if (codeAnalysis != null && !codeGraphScan)
                         {
-                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': scansione automatica del codice spenta (impostazioni del progetto): le cartelle program non si rianalizzano all'apertura", codeGraphProjectPath);
+                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': scansione automatica del codice spenta (impostazioni del progetto)", codeGraphProjectPath);
                         }
                         else if (codeAnalysis != null)
                         {

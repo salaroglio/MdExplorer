@@ -213,15 +213,17 @@ export class ProjectSettingsService {
 
 
   /**
-   * Scansione automatica del codice per il grafo (all'apertura e dopo ogni turno di MarkAgent): preferenza di questa
-   * macchina, per progetto. Spenta finché non la si accende.
+   * Che cosa il grafo del codice fa da solo, per questo progetto su questa macchina (due scelte separate, spente di
+   * partenza): `enabled` = la scansione del codice (all'apertura e dopo ogni turno di MarkAgent); `loadEnabled` = il
+   * caricamento in Fuseki degli script già salvati (all'apertura e quando cambiano), che avvia Java.
    */
-  getCodeGraphAutoScanSetting(projectPath: string): Observable<{ enabled: boolean }> {
-    return this.http.get<{ enabled: boolean }>('../api/ProjectSettings/GetCodeGraphAutoScanSetting', { params: { projectPath } });
+  getCodeGraphAutoScanSetting(projectPath: string): Observable<{ enabled: boolean; loadEnabled: boolean }> {
+    return this.http.get<{ enabled: boolean; loadEnabled: boolean }>('../api/ProjectSettings/GetCodeGraphAutoScanSetting', { params: { projectPath } });
   }
 
-  setCodeGraphAutoScanSetting(enabled: boolean, projectPath: string): Observable<{ enabled: boolean }> {
-    return this.http.post<{ enabled: boolean }>('../api/ProjectSettings/SetCodeGraphAutoScanSetting', { enabled, projectPath });
+  /** Si manda solo la scelta che cambia. */
+  setCodeGraphAutoScanSetting(change: { enabled?: boolean; loadEnabled?: boolean }, projectPath: string): Observable<{ enabled: boolean; loadEnabled: boolean }> {
+    return this.http.post<{ enabled: boolean; loadEnabled: boolean }>('../api/ProjectSettings/SetCodeGraphAutoScanSetting', { ...change, projectPath });
   }
 
   getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
