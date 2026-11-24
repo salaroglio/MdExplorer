@@ -2120,6 +2120,7 @@
     "SETUP_GUIDE": "What to install"
   },
   "MARK": {
+    "COPILOT_PROBLEM_OK": "Got it",
     "TRANSMITTING": "▌ TRANSMITTING",
     "TIDY": {
       "ERROR": "I stopped while tidying the document: {{error}}",

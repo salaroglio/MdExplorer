@@ -157,6 +157,21 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         }
 
         /// <summary>
+        /// The file MdExplorer starts as «copilot» — the executable, or npm's shim behind cmd/PowerShell — or null
+        /// when there is none. For messages: a machine can have several copies (npm, winget, the one VS Code
+        /// adds to the PATH), and what the user must act on is this one, not whichever their terminal opens.
+        /// </summary>
+        public static string DescribeTarget()
+        {
+            try
+            {
+                var (path, prefixArgs) = ResolveStdioTarget();
+                return prefixArgs != null && prefixArgs.Count > 0 ? prefixArgs[prefixArgs.Count - 1] : path;
+            }
+            catch (InvalidOperationException) { return null; }
+        }
+
+        /// <summary>
         /// Builds a <see cref="ProcessStartInfo"/> that runs <c>copilot</c> with the given args.
         /// Caller is responsible for additional settings (RedirectStandardOutput, WorkingDirectory, ...).
         /// </summary>

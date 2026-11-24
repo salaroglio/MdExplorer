@@ -2120,6 +2120,7 @@
     "SETUP_GUIDE": "Che cosa installare"
   },
   "MARK": {
+    "COPILOT_PROBLEM_OK": "Ho capito",
     "TRANSMITTING": "▌ IN ONDA",
     "INPUT": {
       "PLACEHOLDER": "Scrivi qualcosa a Mark...",

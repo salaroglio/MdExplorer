@@ -135,7 +135,7 @@ namespace MdExplorer.Controllers.AI
                     return StatusCode(500, new { error = "Copilot CLI model discovery not available" });
                 }
 
-                var models = await _modelDiscovery.RefreshModelsAsync();
+                var (models, problem) = await _modelDiscovery.RefreshWithOutcomeAsync();
 
                 // Persist discovered models to AvailableModel table
                 PersistModels(models, "CopilotCli");
@@ -144,7 +144,9 @@ namespace MdExplorer.Controllers.AI
                 {
                     success = true,
                     count = models.Count,
-                    models
+                    models,
+                    // Why the CLI could not be read, in words for the user (null when it could): the window shows it.
+                    problem
                 });
             }
             catch (TimeoutException ex)

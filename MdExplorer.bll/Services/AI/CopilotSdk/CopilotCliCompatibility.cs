@@ -40,6 +40,36 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             return false;
         }
 
+        /// <summary>The text the CLI answers when nobody has logged in; used only to RECOGNISE the case.</summary>
+        private const string NotAuthenticatedMarker = "Not authenticated";
+
+        /// <summary>
+        /// True when <paramref name="ex"/> (or one of its inner exceptions) is the CLI saying that it has no login.
+        /// On 23/11/2026 a machine answered so for a whole day: MdExplorer showed no models and said nothing.
+        /// </summary>
+        public static bool IsNotAuthenticated(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e.Message?.IndexOf(NotAuthenticatedMarker, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The message for the user: what is wrong and what to do. <paramref name="target"/> is the file MdExplorer
+        /// starts (<see cref="CopilotProcessLauncher.DescribeTarget"/>): the login must be made with THAT copy, which on
+        /// a machine with several of them is not necessarily the one the terminal opens. Null when it is not known.
+        /// </summary>
+        public static string DescribeNotAuthenticated(string target)
+        {
+            var whichIt = target != null ? $"avvia questo programma: `{target}`" : "avvia `copilot`";
+            var whichEn = target != null ? $"start this program: `{target}`" : "start `copilot`";
+            return UiText.Say(
+                $"Copilot non ha un accesso su questo computer: MdExplorer non può leggere i modelli né fargli domande. Apri un terminale, {whichIt}, scrivi `/login` e completa l'accesso nel browser; poi riapri il progetto.",
+                $"Copilot is not logged in on this computer: MdExplorer cannot read its models nor ask it anything. Open a terminal, {whichEn}, type `/login` and complete the sign-in in the browser; then reopen the project.");
+        }
+
         /// <summary>The first <c>x.y.z</c> in the output of <c>copilot --version</c>, or null.</summary>
         public static string ParseVersion(string output)
         {

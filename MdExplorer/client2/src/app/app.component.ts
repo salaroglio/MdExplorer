@@ -18,6 +18,7 @@ import { MdServerMessagesService } from './signalR/services/server-messages.serv
 import { ProjectsService } from './md-explorer/services/projects.service';
 import { DevelopmentConfigStateService } from './md-explorer/services/development-config-state.service';
 import { UiStallMonitorService } from './services/ui-stall-monitor.service';
+import { CopilotProblemNoticeService } from './services/copilot-problem-notice.service';
 
 @Component({
   selector: 'app-root',
@@ -57,9 +58,12 @@ export class AppComponent {
     private projectsService: ProjectsService,
     private developmentConfig: DevelopmentConfigStateService,
     private translate: TranslateService,
-    uiStallMonitor: UiStallMonitorService) {
+    uiStallMonitor: UiStallMonitorService,
+    copilotProblemNotice: CopilotProblemNoticeService) {
     // La finestra misura i propri blocchi e li dice al servizio, per «Invia diagnostica».
     uiStallMonitor.start();
+    // Copilot che non si lascia leggere: Mark dice perché e cosa fare.
+    copilotProblemNotice.start();
 
     currentFolder.folderName.subscribe((data: any) => {
       this.titleService.setTitle(data.currentFolder);

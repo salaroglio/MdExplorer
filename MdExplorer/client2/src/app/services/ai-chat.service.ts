@@ -1032,12 +1032,20 @@ export class AiChatService {
    * Refresh models via Copilot CLI discovery (slow, ~5s).
    * Deduplicates concurrent calls. Updates DB cache on the backend.
    */
+  /**
+   * Perché Copilot non ha dato i suoi modelli, con le parole del servizio. Una lista vuota da sola
+   * sembra «Copilot non c'è»: chi ascolta qui lo dice all'utente.
+   */
+  readonly copilotProblem$ = new Subject<string>();
+
   refreshCopilotCliModels(): Observable<any> {
     if (this._refreshInFlight) {
       return this._refreshInFlight;
     }
     this._refreshInFlight = this.http.post('/api/copilotcli/refresh-models', {}).pipe(
       tap((response: any) => {
+        // Il servizio dice perché la CLI non si è lasciata leggere (per esempio: nessun accesso fatto).
+        if (response?.problem) this.copilotProblem$.next(response.problem);
         const modelList = response?.models || [];
         if (modelList.length) {
           this._cachedModels = modelList.map((m: any) => ({

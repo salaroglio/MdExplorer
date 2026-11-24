@@ -79,7 +79,13 @@ namespace MdExplorer.Features.Services.AI
         /// <summary>
         /// Refreshes the model list by invoking the Copilot CLI and caching the result in UserDB.
         /// </summary>
-        public async Task<List<AiProviderModel>> RefreshModelsAsync()
+        public async Task<List<AiProviderModel>> RefreshModelsAsync() => (await RefreshWithOutcomeAsync()).Models;
+
+        /// <summary>
+        /// Like <see cref="RefreshModelsAsync"/>, and when the CLI could not be read it also says WHY, in words for
+        /// the user (<c>Problem</c>, null when all went well): an empty list alone looks like «Copilot is not there».
+        /// </summary>
+        public async Task<(List<AiProviderModel> Models, string Problem)> RefreshWithOutcomeAsync()
         {
             _logger.LogInformation("[CopilotCliModelDiscovery] Refreshing models from Copilot CLI...");
 
@@ -93,13 +99,20 @@ namespace MdExplorer.Features.Services.AI
                 // Lista vuota, non di ripiego: la schermata mostrerà che non ci sono modelli,
                 // e il log dice perché. È l'informazione utile; un elenco inventato non lo è.
                 _logger.LogError(ex, "[CopilotCliModelDiscovery] Impossibile leggere i modelli dal CLI");
-                return new List<AiProviderModel>();
+                string problem;
+                if (CopilotSdk.CopilotCliCompatibility.IsNotAuthenticated(ex))
+                    problem = CopilotSdk.CopilotCliCompatibility.DescribeNotAuthenticated(CopilotAcp.CopilotProcessLauncher.DescribeTarget());
+                else if (CopilotSdk.CopilotCliCompatibility.IsProtocolMismatch(ex))
+                    problem = (await CopilotSdk.CopilotCliCompatibility.ExplainAsync(ex)).Message;
+                else
+                    problem = ex.Message;
+                return (new List<AiProviderModel>(), problem);
             }
 
             if (models.Count == 0)
             {
                 _logger.LogWarning("[CopilotCliModelDiscovery] Il CLI non ha dichiarato alcun modello");
-                return models;
+                return (models, null);
             }
 
             try
@@ -112,7 +125,7 @@ namespace MdExplorer.Features.Services.AI
                 _logger.LogError(ex, "[CopilotCliModelDiscovery] Error saving models to DB cache");
             }
 
-            return models.OrderBy(m => m.Name).ToList();
+            return (models.OrderBy(m => m.Name).ToList(), null);
         }
 
         // NOTA: qui vivevano ~210 righe che scoprivano i modelli chiedendoli all'LLM
