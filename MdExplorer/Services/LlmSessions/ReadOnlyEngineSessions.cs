@@ -188,7 +188,7 @@ namespace MdExplorer.Services.LlmSessions
                             {
                             if (chunk.Kind == CopilotChatChunk.KindMessage) answer.Append(chunk.Text);
                             else if (chunk.Kind == CopilotChatChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
-                            else if (chunk.Kind == CopilotChatChunk.KindTool) onActivity?.Invoke(ActivityTool, chunk.Text);
+                            else if (chunk.Kind == CopilotChatChunk.KindTool && !string.IsNullOrEmpty(chunk.Text)) onActivity?.Invoke(ActivityTool, chunk.Text);
                         }
                     }
                     finally { await _copilot.ReleaseAsync(key).ConfigureAwait(false); }

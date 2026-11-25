@@ -1492,7 +1492,10 @@ namespace MdExplorer.Hubs
                         // Same channel Claude Code already uses: a status line, not the answer,
                         // and it never enters the final text. On the SDK transport Copilot now
                         // reports its steps; on ACP this never arrives.
-                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        // La chiamata e il risultato interi vanno nella cronologia; a video resta la riga corta.
+                        if (chunk.Record != null) _turnRecording?.Tool(chunk.Record);
+                        if (!string.IsNullOrEmpty(chunk.Text))
+                            await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }

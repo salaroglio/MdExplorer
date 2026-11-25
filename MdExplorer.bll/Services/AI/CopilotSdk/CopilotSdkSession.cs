@@ -473,9 +473,24 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     break;
 
                 case ToolExecutionStartEvent tool:
-                    Write(turn.Channel, CopilotChatChunk.KindTool, CopilotSdkActivityDescriber.DescribeTool(
-                        tool.Data?.ToolName, tool.Data?.Arguments, tool.Data?.McpServerName, tool.Data?.McpToolName,
-                        _workingDirectory));
+                {
+                    // A video la riga descritta; nella cronologia gli argomenti interi (sprint 2026-11-24-Chat-Memorizzate, F3).
+                    var name = ToolName(tool.Data?.ToolName, tool.Data?.McpServerName, tool.Data?.McpToolName);
+                    if (tool.Data?.ToolCallId != null) _toolNames[tool.Data.ToolCallId] = name;
+                    WriteTool(turn.Channel, CopilotSdkActivityDescriber.DescribeTool(
+                            tool.Data?.ToolName, tool.Data?.Arguments, tool.Data?.McpServerName, tool.Data?.McpToolName,
+                            _workingDirectory),
+                        MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Call(name, tool.Data?.ToolCallId, tool.Data?.Arguments));
+                    break;
+                }
+
+                case ToolExecutionCompleteEvent finished:
+                    // Prima di F3 non si guardava: il risultato degli strumenti andava perso. A video non mostra niente di nuovo.
+                {
+                    string finishedName = null;
+                    if (finished.Data?.ToolCallId != null) _toolNames.TryRemove(finished.Data.ToolCallId, out finishedName);
+                    WriteTool(turn.Channel, null, ToolResult(finished, finishedName));
+                }
                     break;
 
                 case ToolExecutionProgressEvent progress:
@@ -837,6 +852,49 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         {
             if (string.IsNullOrEmpty(text)) return;
             channel.Writer.TryWrite(new CopilotChatChunk(kind, text));
+        }
+
+        // The tool names by call id: the result carries only the id.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _toolNames = new(StringComparer.Ordinal);
+
+        private static void WriteTool(Channel<CopilotChatChunk> channel, string text,
+            MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord record)
+        {
+            if (string.IsNullOrEmpty(text) && record == null) return;
+            channel.Writer.TryWrite(new CopilotChatChunk(CopilotChatChunk.KindTool, text, record));
+        }
+
+        /// <summary>The tool's name as the history keeps it: «server/tool» for an MCP tool, the plain name otherwise.</summary>
+        internal static string ToolName(string toolName, string mcpServer, string mcpTool)
+            => !string.IsNullOrEmpty(mcpServer) && !string.IsNullOrEmpty(mcpTool) ? mcpServer + "/" + mcpTool : toolName;
+
+        /// <summary>
+        /// The whole result of a tool for the history: the text the model got (<c>Result.Content</c>, or the error message),
+        /// and everything else the SDK gives (detailed content — a diff for an edit —, structured content, error code) as JSON.
+        /// </summary>
+        internal static MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord ToolResult(ToolExecutionCompleteEvent finished, string name)
+        {
+            var data = finished?.Data;
+            if (data == null) return null;
+            var content = data.Result?.Content ?? data.Error?.Message;
+            JsonElement? structured;
+            try
+            {
+                structured = JsonSerializer.SerializeToElement(new
+                {
+                    success = data.Success,
+                    detailedContent = data.Result?.DetailedContent,
+                    structuredContent = data.Result?.StructuredContent,
+                    errorCode = data.Error?.Code,
+                    errorMessage = data.Error?.Message,
+                });
+            }
+            catch (Exception ex) when (ex is NotSupportedException || ex is InvalidOperationException || ex is JsonException)
+            {
+                // What does not serialise is said, not dropped: the text of the result is already in content.
+                structured = JsonSerializer.SerializeToElement(new { success = data.Success, unserializable = ex.Message });
+            }
+            return MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Result(name, data.ToolCallId, content, structured, isError: !data.Success);
         }
 
         /// <summary>

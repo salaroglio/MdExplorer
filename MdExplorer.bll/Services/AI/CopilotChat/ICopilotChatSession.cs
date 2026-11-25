@@ -27,7 +27,11 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
     {
         public string Kind { get; }
         public string Text { get; }
-        public CopilotChatChunk(string kind, string text) { Kind = kind; Text = text; }
+        /// <summary>For <see cref="KindTool"/>: the whole call or result, for the chat history. May be missing; Text may then be null.</summary>
+        public MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord Record { get; }
+        public CopilotChatChunk(string kind, string text) { Kind = kind; Text = text; Record = null; }
+        public CopilotChatChunk(string kind, string text, MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord record)
+        { Kind = kind; Text = text; Record = record; }
 
         /// <summary>Text the user is meant to read.</summary>
         public const string KindMessage = "message";
