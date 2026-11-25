@@ -750,7 +750,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== Drag & Drop ====================
 
   onDragStart(event: DragEvent, node: MdFile): void {
-    if (node.type !== 'mdFile' && node.type !== 'mdFileTimer') {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const isProjectFolder = node.type === 'folder' && !!projectPath
+      && node.fullPath.toLowerCase().startsWith(projectPath.toLowerCase())
+      && node.fullPath.length > projectPath.length;
+    if (node.type !== 'mdFile' && node.type !== 'mdFileTimer' && !isProjectFolder) {
       event.preventDefault();
       return;
     }
@@ -771,8 +775,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dragOverSegment = null;
   }
 
+  /** Una cartella non si rilascia dentro se stessa né in una sua sottocartella. */
+  private isInsideDragged(targetPath: string, dragged: MdFile[] = this.draggedNodes): boolean {
+    const t = (targetPath || '').toLowerCase();
+    return dragged.some(d => d.type === 'folder'
+      && (t === d.fullPath.toLowerCase() || t.startsWith(d.fullPath.toLowerCase() + '/') || t.startsWith(d.fullPath.toLowerCase() + '\\')));
+  }
+
   onDragOver(event: DragEvent, node: MdFile): void {
-    if (node.type !== 'folder' || !this.draggedNode) {
+    if (node.type !== 'folder' || !this.draggedNode || this.isInsideDragged(node.fullPath)) {
       return;
     }
     event.preventDefault();
@@ -789,7 +800,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Drag over a specific compact segment
   onSegmentDragOver(event: DragEvent, segment: CompactSegment, node: MdFile): void {
-    if (node.type !== 'folder' || !this.draggedNode) {
+    if (node.type !== 'folder' || !this.draggedNode || this.isInsideDragged(segment.fullPath)) {
       return;
     }
     event.preventDefault();
@@ -842,6 +853,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dragOverSegment = null;
 
     // Quelli già nella cartella restano dove sono.
+    if (this.isInsideDragged(targetPath, dragged)) return;
     const files = dragged.filter(f => this.getParentDirPath(f.fullPath) !== targetPath);
     if (files.length === 0) {
       this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
@@ -858,7 +870,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
           ? this.translate.instant('MD_TREE.MOVED_FILE', { fileName: files[0].name, targetName })
           : this.translate.instant('MD_TREE.MOVED_FILES', { count: files.length, targetName });
         this.snackBar.open(message, 'OK', { duration: 3000 });
-        this.showMovedInTree(files, targetPath, separator);
+        const folders = files.filter(f => f.type === 'folder');
+        if (folders.length) this.reloadTreeAfterFolderMove(folders, targetPath, separator);
+        else this.showMovedInTree(files, targetPath, separator);
         this.clearMultiSelection();
       },
       error: (err) => {
@@ -872,6 +886,29 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
           'OK', { duration: 10000 });
       }
     });
+  }
+
+  /**
+   * Dopo lo spostamento di una cartella l'albero si ricarica come dopo un pull: livelli, cartelle compattate e figli li
+   * ricostruisce il servizio. Le cartelle aperte restano aperte, con i percorsi nuovi per quelle dentro la cartella spostata.
+   */
+  private reloadTreeAfterFolderMove(folders: MdFile[], targetPath: string, separator: string): void {
+    const expanded = this.captureExpansionState();
+    const remapped = new Set<string>();
+    for (const path of expanded) {
+      let mapped = path;
+      for (const f of folders) {
+        const oldPrefix = f.fullPath;
+        const newPrefix = targetPath + separator + f.name;
+        if (path.toLowerCase() === oldPrefix.toLowerCase() || path.toLowerCase().startsWith(oldPrefix.toLowerCase() + separator))
+          mapped = newPrefix + path.substring(oldPrefix.length);
+      }
+      remapped.add(mapped);
+    }
+    remapped.add(targetPath);
+    this.expansionStateBeforeRefresh = remapped;
+    this.dndMovingPaths = null;
+    this.mdFileService.loadAll(null, null);
   }
 
   /** L'albero dopo uno spostamento, senza ricaricarlo: ogni documento esce dalla cartella vecchia ed entra nella nuova. */

@@ -407,6 +407,9 @@
                  style="cursor:pointer" matTreeNodePadding
                  (contextmenu)="onRightClick($event, node)"
                  (click)="onFolderClick(node)"
+                 draggable="true"
+                 (dragstart)="onDragStart($event, node)"
+                 (dragend)="onDragEnd($event)"
                  (dragover)="onDragOver($event, node)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, node)"
