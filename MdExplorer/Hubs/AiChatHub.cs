@@ -421,10 +421,18 @@ namespace MdExplorer.Hubs
             // tra un turno accodato e il suo avvio.
             _chatTurnsInFlight.AddOrUpdate(connectionId, 1, (_, n) => n + 1);
 
+            var announce = recording.TakeThreadToAnnounce();
             _ = Task.Run(async () =>
             {
                 try
                 {
+                    // L'id della chat appena aperta: il client lo tiene per riprenderla dopo una riconnessione. Va al client
+                    // così com'è, non nella cronologia (è il nome della chat, non un suo evento).
+                    if (announce != null)
+                    {
+                        try { await caller.SendAsync("ReceiveChatThread", announce.Value.ToString("D")); }
+                        catch (Exception ex) { logger.LogWarning(ex, "[{Origin}] id della chat non consegnato al client", origin); }
+                    }
                     await gate.WaitAsync(aborted);
                     try { await turn(); }
                     finally { gate.Release(); }
@@ -833,6 +841,21 @@ namespace MdExplorer.Hubs
             await base.OnDisconnectedAsync(exception);
         }
         
+        /// <summary>
+        /// Dopo una riconnessione (connectionId nuovo) il client riaggancia la chat che stava mostrando: i turni dopo
+        /// proseguono nella stessa cronologia. Va chiamata dopo <c>SetProjectConnectionId</c>: il progetto serve a
+        /// controllare che la chat sia sua. La sessione del motore NON riparte da qui (sprint, F6).
+        /// </summary>
+        public Task<object> ResumeChatThread(string threadId)
+        {
+            if (!Guid.TryParse(threadId, out var id))
+                return Task.FromResult<object>(new { resumed = false, reason = MdExplorer.Features.Services.UiText.Say(
+                    $"«{threadId}» non è l'id di una chat.", $"«{threadId}» is not a chat id.") });
+            var outcome = _chatHistory.Resume(ConnectionId, id, GetProjectPath());
+            if (!outcome.Resumed) _logger.LogWarning("[ResumeChatThread] chat {ThreadId} non ripresa: {Reason}", id, outcome.Reason);
+            return Task.FromResult<object>(new { resumed = outcome.Resumed, reason = outcome.Reason, problems = outcome.Problems });
+        }
+
         public Task ClearHistory(string channelId = null)
         {
             if (string.IsNullOrEmpty(channelId))
@@ -1238,6 +1261,9 @@ namespace MdExplorer.Hubs
                 promptCts.Dispose();
             }
 
+            // La sessione del motore va nella riga della cronologia: è da lì che il motore potrà ripartire.
+            _turnRecording?.EngineSession(session.SessionId);
+
             // Consuntivo del turno: il dato che su Copilot ACP non esiste.
             try
             {
@@ -1375,6 +1401,8 @@ namespace MdExplorer.Hubs
                 _openCodePool.UnregisterActivePrompt(ConnectionId, promptCts);
                 promptCts.Dispose();
             }
+
+            _turnRecording?.EngineSession(session.SessionId);
 
             // Consuntivo del turno: token e costo, come per Claude Code. Evento diverso perché
             // i campi sono diversi: qui non esistono le finestre di consumo.
@@ -1539,6 +1567,7 @@ namespace MdExplorer.Hubs
                     new { requestedModel, answeredModel = session.AnsweredModel }, channelId);
             }
 
+            _turnRecording?.EngineSession(session.SessionId);
             await SendCopilotUsageAsync(session, channelId);
 
             var finalResponse = responseText.ToString().TrimEnd();

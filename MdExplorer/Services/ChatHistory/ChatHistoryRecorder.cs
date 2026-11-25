@@ -46,6 +46,20 @@ namespace MdExplorer.Services.ChatHistory
             public string ProjectPath;
             public long NextSeq = 1;
             public int Turn;
+            /// <summary>Vero finché il client non ha saputo l'id della chat (lo riceve al primo turno).</summary>
+            public bool Announce;
+            /// <summary>L'ultima sessione del motore scritta nella riga: si riscrive solo se cambia.</summary>
+            public string EngineSessionId;
+        }
+
+        /// <summary>Come è andato un <see cref="Resume"/>.</summary>
+        public sealed class ResumeOutcome
+        {
+            public bool Resumed { get; init; }
+            /// <summary>Perché non si è ripresa, detto all'utente; null se si è ripresa.</summary>
+            public string Reason { get; init; }
+            /// <summary>Righe del file che non si leggono (si riprende lo stesso, dal progressivo più alto letto).</summary>
+            public IReadOnlyList<string> Problems { get; init; } = Array.Empty<string>();
         }
 
         /// <summary>
@@ -96,6 +110,58 @@ namespace MdExplorer.Services.ChatHistory
             _toldNoProject.TryRemove(connectionId, out _);
         }
 
+        /// <summary>
+        /// Riaggancia alla connessione una chat già nella cronologia (una riconnessione di SignalR, o «riprendi»): i turni
+        /// dopo proseguono nello stesso file, col progressivo e il numero di turno letti da lì. Rifiuta, dicendo perché, una
+        /// chat che non c'è, di un altro progetto o senza file.
+        /// </summary>
+        public ResumeOutcome Resume(string connectionId, Guid threadId, string projectPath)
+        {
+            if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("Manca la connessione della chat.", nameof(connectionId));
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return new ResumeOutcome { Reason = UiText.Say("Nessun progetto aperto per questa chat.", "No project open for this chat.") };
+
+            ChatThread row;
+            using (var scope = _scopes.CreateScope())
+            {
+                var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
+                using var session = factory.OpenSession();
+                row = session.GetDal<ChatThread>().GetList().SingleOrDefault(t => t.Id == threadId);
+            }
+            if (row == null)
+                return new ResumeOutcome { Reason = UiText.Say($"La chat {threadId} non è nella cronologia.", $"The chat {threadId} is not in the history.") };
+            if (!string.Equals(row.ProjectPath, projectPath, StringComparison.Ordinal))
+                return new ResumeOutcome { Reason = UiText.Say(
+                    $"La chat {threadId} è di un altro progetto ({row.ProjectPath}).", $"The chat {threadId} belongs to another project ({row.ProjectPath}).") };
+
+            var content = _files.Read(row.FilePath);
+            if (!content.Exists)
+                return new ResumeOutcome { Reason = UiText.Say(
+                    $"Il file della chat non c'è più: {row.FilePath}.", $"The chat file is gone: {row.FilePath}.") };
+
+            var state = new ThreadState
+            {
+                Id = row.Id,
+                RelativePath = row.FilePath,
+                ProjectPath = row.ProjectPath,
+                NextSeq = content.Events.Count == 0 ? 1 : content.Events.Max(e => e.Seq) + 1,
+                Turn = content.Events.Count == 0 ? 0 : content.Events.Max(e => e.Turn),
+                EngineSessionId = row.EngineSessionId,
+            };
+            _threads[connectionId] = state;
+            _toldNoProject.TryRemove(connectionId, out _);
+            foreach (var p in content.Problems) _logger.LogWarning("[ChatHistory] chat {ThreadId} ripresa con una riga illeggibile: {Problem}", threadId, p);
+            _logger.LogInformation("[ChatHistory] chat {ThreadId} ripresa su {ConnectionId} dal progressivo {Seq}", threadId, connectionId, state.NextSeq);
+            return new ResumeOutcome { Resumed = true, Problems = content.Problems };
+        }
+
+        /// <summary>Una chat eliminata: nessuna connessione deve più scriverci.</summary>
+        public void ForgetThread(Guid threadId)
+        {
+            foreach (var pair in _threads.Where(p => p.Value.Id == threadId).ToList())
+                _threads.TryRemove(pair.Key, out _);
+        }
+
         /// <summary>La chat registrata per la connessione, se c'è (per i test e per F4).</summary>
         public Guid? CurrentThreadId(string connectionId)
             => connectionId != null && _threads.TryGetValue(connectionId, out var s) ? s.Id : null;
@@ -125,7 +191,7 @@ namespace MdExplorer.Services.ChatHistory
             session.GetDal<ChatThread>().Save(row);
             tx.Commit();
             _logger.LogInformation("[ChatHistory] chat {ThreadId} aperta ({Engine}) in {File}", row.Id, engine, row.FilePath);
-            return new ThreadState { Id = row.Id, RelativePath = row.FilePath, ProjectPath = projectPath };
+            return new ThreadState { Id = row.Id, RelativePath = row.FilePath, ProjectPath = projectPath, Announce = true };
         }
 
         internal void Write(ThreadState state, IReadOnlyList<ChatRecordEvent> events, long nextSeq)
@@ -138,7 +204,7 @@ namespace MdExplorer.Services.ChatHistory
             }
         }
 
-        internal void Touch(ThreadState state, string engine, string modelId)
+        internal void Touch(ThreadState state, string engine, string modelId, string engineSessionId)
         {
             using var scope = _scopes.CreateScope();
             var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
@@ -150,6 +216,11 @@ namespace MdExplorer.Services.ChatHistory
             row.LastActivityAt = DateTime.UtcNow;
             if (!string.IsNullOrEmpty(engine)) row.Engine = engine;
             if (!string.IsNullOrEmpty(modelId)) row.ModelId = modelId;
+            if (!string.IsNullOrEmpty(engineSessionId))
+            {
+                row.EngineSessionId = engineSessionId;
+                state.EngineSessionId = engineSessionId;
+            }
             session.GetDal<ChatThread>().Save(row);
             tx.Commit();
         }
@@ -192,6 +263,28 @@ namespace MdExplorer.Services.ChatHistory
 
         public bool IsRecording => _accumulator != null && _failure == null;
         public Guid? ThreadId => _state?.Id;
+        private string _engineSessionId;
+
+        /// <summary>
+        /// L'id della chat, la prima volta che lo si chiede per una chat appena aperta: il client lo tiene per riprenderla
+        /// dopo una riconnessione. Poi null.
+        /// </summary>
+        public Guid? TakeThreadToAnnounce()
+        {
+            if (_state == null) return null;
+            lock (_state)
+            {
+                if (!_state.Announce) return null;
+                _state.Announce = false;
+                return _state.Id;
+            }
+        }
+
+        /// <summary>La sessione del motore che ha risposto: va nella riga, per far ripartire il motore da lì.</summary>
+        public void EngineSession(string engineSessionId)
+        {
+            if (!string.IsNullOrWhiteSpace(engineSessionId)) _engineSessionId = engineSessionId;
+        }
 
         public void UserPrompt(string text) => Run(a => a.UserPrompt(text));
         public void Meta(string what, object data) => Run(a => a.Meta(what, data));
@@ -204,7 +297,7 @@ namespace MdExplorer.Services.ChatHistory
         {
             Run(a => a.Complete());
             if (!IsRecording) return;
-            try { _recorder.Touch(_state, _engine, _modelId); }
+            try { _recorder.Touch(_state, _engine, _modelId, _engineSessionId); }
             catch (Exception ex) { Fail(ex); }
         }
 

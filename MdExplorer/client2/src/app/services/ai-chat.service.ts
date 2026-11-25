@@ -159,6 +159,15 @@ export class AiChatService {
   // every prompt fails with "Copilot not available".
   private _lastChatMode: { provider: string; modelId: string | null } | null = null;
 
+  // The chat of the MarkAgent tab in the history (sprint 2026-11-24-Chat-Memorizzate, F4): the hub sends its id when it
+  // opens it; after a reconnection (new connectionId) the client hooks it back so the turns go on in the same chat.
+  private _chatThreadId: string | null = null;
+
+  /** The id of the chat being saved in the history, or null before the first turn of a new chat. */
+  get chatThreadId(): string | null {
+    return this._chatThreadId;
+  }
+
   private readonly _connectionLost$ = new Subject<void>();
   /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
   readonly connectionLost$ = this._connectionLost$.asObservable();
@@ -211,6 +220,10 @@ export class AiChatService {
     this.hubConnection.on('ModelLoadError', (error: string) => {
       console.error('[AiChatService] Received ModelLoadError event:', error);
       this._isModelLoaded$.next(false);
+    });
+
+    this.hubConnection.on('ReceiveChatThread', (threadId: string) => {
+      this._chatThreadId = threadId;
     });
 
     this.hubConnection.on('ReceiveMessage', (role: string, content: string) => {
@@ -315,7 +328,8 @@ export class AiChatService {
 
     this.hubConnection.onreconnected(() => {
       console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
-      this.sendProjectConnectionId();
+      // The project first: the hub checks that the chat being resumed belongs to it.
+      this.sendProjectConnectionId().then(() => this.resumeChatThread());
       if (this._lastChatMode) {
         this.hubConnection.invoke('SetChatMode', this._lastChatMode.provider, this._lastChatMode.modelId)
           .then(() => console.log('[AiChatService] Chat mode replayed after reconnect:', this._lastChatMode))
@@ -385,19 +399,39 @@ export class AiChatService {
    * A no-op while the chat hub is not connected: the value is kept and sent again on
    * connect and on reconnect, because the backend forgets it for the old connectionId.
    */
-  private sendProjectConnectionId(): void {
+  private sendProjectConnectionId(): Promise<void> {
     const projectConnId = this._projectConnId;
     if (!projectConnId) {
       console.log('[AiChatService] Project connectionId not known yet \u2014 will send as soon as it is');
-      return;
+      return Promise.resolve();
     }
     if (this.hubConnection.state !== 'Connected') {
       console.log('[AiChatService] Chat hub not connected yet \u2014 project connectionId will be sent on connect');
-      return;
+      return Promise.resolve();
     }
-    this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
+    return this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
       .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
       .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+  }
+
+  /**
+   * After a reconnection: the chat shown in the tab goes on in the same history. When the hub cannot resume it (deleted,
+   * another project, file gone) the reason is shown, and the next turn opens a new chat.
+   */
+  private resumeChatThread(): Promise<void> {
+    const threadId = this._chatThreadId;
+    if (!threadId || this.hubConnection.state !== 'Connected') return Promise.resolve();
+    return this.hubConnection.invoke<{ resumed: boolean; reason?: string }>('ResumeChatThread', threadId)
+      .then(outcome => {
+        if (outcome?.resumed) {
+          console.log('[AiChatService] Chat resumed in the history after reconnect:', threadId);
+          return;
+        }
+        console.warn('[AiChatService] Chat not resumed after reconnect:', outcome?.reason);
+        this._chatThreadId = null;
+        if (outcome?.reason) this.addMessage('system', outcome.reason);
+      })
+      .catch(err => console.error('[AiChatService] Error resuming the chat after reconnect:', err));
   }
 
   // Model Management
@@ -713,6 +747,8 @@ export class AiChatService {
 
   clearMessages(): void {
     this._messages$.next([]);
+    // A new chat: the next turn opens a new one in the history (the previous one stays there).
+    this._chatThreadId = null;
     // Clear backend conversation history too
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('ClearHistory', null).catch(err => {
