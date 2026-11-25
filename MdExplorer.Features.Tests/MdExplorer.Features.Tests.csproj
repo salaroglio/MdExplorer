@@ -52,6 +52,10 @@
     <None Update="ClaudeCode\Fixtures\*.ndjson">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Risposte vere di «Impara da questa attività» (sprint skill che migliorano, F0), senza dati personali. -->
+    <None Update="AI\Fixtures\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
