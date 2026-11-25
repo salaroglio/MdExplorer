@@ -166,6 +166,7 @@ namespace MdExplorer.Controllers.AI
                 UseWorktree = request.UseWorktree,
                 Engine = request.Engine,
                 Model = request.Model,
+                BaseBranch = string.IsNullOrWhiteSpace(request.BaseBranch) ? null : request.BaseBranch.Trim(),
             };
 
             try
@@ -431,6 +432,8 @@ namespace MdExplorer.Controllers.AI
         /// <summary>The engine chosen in the dialog (claude, copilot, opencode) and its model; absent = the card's, then the project's.</summary>
         public string? Engine { get; set; }
         public string? Model { get; set; }
+        /// <summary>Il ramo da cui parte il posto isolato (la casella «nel nuovo ramo», B2); assente = il ramo di default di origin.</summary>
+        public string? BaseBranch { get; set; }
     }
 
     public class AgentParamDto

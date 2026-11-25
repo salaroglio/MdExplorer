@@ -338,7 +338,7 @@ namespace MdExplorer.Services.AgentRun
                 if (isolate)
                 {
                     var prep = await _worktree.PrepareForRunAsync(
-                        request.ProjectPath, a2aName, request.RunId.ToString("N"), ct: cts.Token);
+                        request.ProjectPath, a2aName, request.RunId.ToString("N"), baseBranch: request.BaseBranch, ct: cts.Token);
                     if (!prep.Success)
                     {
                         // Non ripiego sul progetto: chi ha chiesto l'isolamento non deve

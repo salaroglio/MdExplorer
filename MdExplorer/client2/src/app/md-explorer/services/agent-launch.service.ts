@@ -81,6 +81,8 @@ export class AgentLaunchService {
     /** Motore scelto nella finestra (claude | copilot | opencode): vince sul runtime: della scheda (D12). */
     engine?: string,
     model?: string,
+    /** Il ramo da cui parte il posto isolato (la casella «nel nuovo ramo»); assente = il ramo di default di origin. */
+    baseBranch?: string,
   ): Observable<LaunchAgentResponse> {
     return this.http.post<LaunchAgentResponse>('/api/AgentPrompts/launch', {
       projectPath,
@@ -90,6 +92,7 @@ export class AgentLaunchService {
       useWorktree,
       engine,
       model,
+      baseBranch,
     });
   }
 
