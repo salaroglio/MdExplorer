@@ -127,6 +127,28 @@ namespace MdExplorer.IntegrationTests
                 p.Read("index.md"));
         }
 
+        [TestMethod]
+        public async Task Follow_a_reference_style_link_from_its_definition()
+        {
+            using var p = await Project.Open("mv-riferimento", ("docs/a.md", "# A\n"), ("docs/sub/README.md", "# Sub\n"),
+                ("index.md", "Vedi [A][r] e di nuovo [A][r].\n\n[r]: docs/a.md \"A\"\n"));
+
+            await p.Move("docs/a.md", "docs/sub");
+
+            Assert.AreEqual("Vedi [A][r] e di nuovo [A][r].\n\n[r]: docs/sub/a.md \"A\"\n", p.Read("index.md"));
+        }
+
+        [TestMethod]
+        public async Task Follow_a_file_with_a_space_in_its_name_moved_up_to_the_root()
+        {
+            using var p = await Project.Open("mv-spazio", ("docs/sub/il file.md", "Torna a [B](../b.md).\n"), ("docs/b.md", "Vedi [F](sub/il%20file.md) e [G](<sub/il file.md>).\n"));
+
+            await p.Move("docs/sub/il file.md", "");
+
+            Assert.AreEqual("Torna a [B](docs/b.md).\n", p.Read("il file.md"));
+            Assert.AreEqual("Vedi [F](../il%20file.md) e [G](<../il file.md>).\n", p.Read("docs/b.md"));
+        }
+
         // ---- l'indice dopo lo spostamento ----
 
         [TestMethod]

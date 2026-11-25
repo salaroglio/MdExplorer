@@ -13,27 +13,20 @@ namespace MdExplorer.Features.ActionLinkModifiers
 {
     public class WorkLinkFromMarkdown : IWorkLink
     {
+        /// <summary>
+        /// I link (non le immagini) letti con Markdig, come la pagina: anche in prima riga, senza titolo né parentesi
+        /// angolari nel percorso, mai dentro il codice; i link stile riferimento dalla loro definizione.
+        /// </summary>
         public LinkDetail[] GetLinksFromMarkdown(string markdown)
-        {
-            //Regex rx = new Regex(@"MdShowH2\((.*?),(.*?),(.*?)(?:,(.*?))?\)", //
-
-            var rx = new Regex(@"[^!]\[[^\]]*\]\((.*?)(?:(#.*?))?\)",
-                               RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var matches = rx.Matches(markdown);
-            var listToReturn = new List<LinkDetail>();
-            foreach (Match item in matches)
-            {
-
-                var toStore = new LinkDetail
+            => MdExplorer.Features.Refactoring.MarkdownLinks.Read(markdown)
+                .Where(l => !l.IsImage)
+                .Select(l => new LinkDetail
                 {
-                    LinkedCommand = item.Groups[0].Value,
-                    FullPath = item.Groups[1].Value,
-                    HTMLTitle = item.Groups[2].Value,
-                };
-                listToReturn.Add(toStore);
-            }
-            return listToReturn.ToArray();
-        }
+                    LinkedCommand = l.Command,
+                    FullPath = l.Target,
+                    HTMLTitle = l.Suffix.StartsWith("#") ? l.Suffix : string.Empty,
+                })
+                .ToArray();
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {

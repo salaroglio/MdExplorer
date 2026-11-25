@@ -757,9 +757,6 @@ namespace MdExplorer.Services.IndexingPipeline
                             var linksToStore = parser.GetLinksFromFile(mdf.Path);
                             foreach (var singleLink in linksToStore)
                             {
-                                var fullPath = Path.GetDirectoryName(mdf.Path)
-                                    + Path.DirectorySeparatorChar
-                                    + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
 
                                 var mdContext = (Path.GetDirectoryName(mdf.Path) ?? string.Empty)
                                     .Replace(projectPath, string.Empty)
@@ -767,7 +764,7 @@ namespace MdExplorer.Services.IndexingPipeline
 
                                 linkDal.Save(new LinkInsideMarkdown
                                 {
-                                    FullPath = _helper.NormalizePath(fullPath),
+                                    FullPath = MdExplorer.Features.Refactoring.RefactoringManager.LinkIndexPath(projectPath, mdf.Path, singleLink.FullPath),
                                     Path = singleLink.FullPath,
                                     Source = parser.GetType().Name,
                                     LinkedCommand = singleLink.LinkedCommand,

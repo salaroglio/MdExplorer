@@ -2061,10 +2061,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                         var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
                         foreach (var singleLink in linksToStore)
                         {
-                            var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
                             var linkToStore = new LinkInsideMarkdown
                             {
-                                FullPath = _helper.NormalizePath(fullPath),
+                                FullPath = MdExplorer.Features.Refactoring.RefactoringManager.LinkIndexPath(dbContext.ProjectPath, e.FullPath, singleLink.FullPath),
                                 Path = singleLink.FullPath,
                                 Source = getModifier.GetType().Name,
                                 LinkedCommand = singleLink.LinkedCommand,

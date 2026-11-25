@@ -282,28 +282,26 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
                     fromRelativePathFileName, toRelativePathFileName);
 
+                var refSourceAct = _refactoringManager
+                    .SaveRefactoringActionForMoveFile(fileName,
+                    Path.GetDirectoryName(fromFullPathFileName),
+                    requestMoveMdFile.DestinationPath);
+
+                // I link markdown e le immagini (sprint 2026-11-25-Spostamento-File-E-Link): si leggono i documenti, non
+                // l'indice, quindi valgono anche con l'indicizzazione dei link spenta.
+                var relinked = _refactoringManager.RelinkMovedDocument(projectBasePath, fromFullPathFileName, toFullPathFileName);
+                _logger.LogInformation("[MoveMdFile] Link riscritti in {Count} documenti", relinked.Count);
+
                 if (IsLinkIndexingEnabled())
                 {
-                    var refSourceAct = _refactoringManager
-                        .SaveRefactoringActionForMoveFile(fileName,
-                        Path.GetDirectoryName(fromFullPathFileName),
-                        requestMoveMdFile.DestinationPath);
-
-                    _refactoringManager.SetExternalLinks(
-                       toRelativePathFileName,
-                       refSourceAct);
-
-                    _refactoringManager.SetInternalLinks(
-                        toRelativePathFileName,
-                        projectBasePath,
-                        refSourceAct);
-
+                    // Le altre sorgenti (PlantUML, MdShow) con i comandi salvati nell'indice.
+                    _refactoringManager.SetExternalLinks(toRelativePathFileName, refSourceAct);
+                    _refactoringManager.SetInternalLinks(toRelativePathFileName, projectBasePath, refSourceAct);
                     _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
+                    // L'indice dei documenti toccati torna a dire il vero.
+                    _refactoringManager.ReindexLinks(projectBasePath, relinked.Append(toFullPathFileName));
                 }
-                else
-                {
-                    _logger.LogInformation("[MoveMdFile] Link indexing disabled, skipping link recalculation");
-                }
+                _refactoringManager.CloseAction(refSourceAct);
 
                 _logger.LogInformation("[MoveMdFile] Completed successfully");
                 SetFileSystemWatcherEnabled(true);

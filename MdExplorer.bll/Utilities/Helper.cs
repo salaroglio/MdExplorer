@@ -23,7 +23,8 @@ namespace MdExplorer.Features.Utilities
         public string NormalizePath(string requestInfo)
         {
             var dictionary = NomalizeArray(requestInfo);            
-            return string.Join("\\", dictionary.Select(_ => _.Value));
+            // Il separatore del sistema: con «\» fisso su Linux l'indice dei link aveva «\tmp\…» e niente lo ritrovava.
+            return string.Join(Path.DirectorySeparatorChar, dictionary.Select(_ => _.Value));
         }
 
 
