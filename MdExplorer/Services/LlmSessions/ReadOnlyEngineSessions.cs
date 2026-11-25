@@ -203,7 +203,8 @@ namespace MdExplorer.Services.LlmSessions
                         {
                             if (chunk.Kind == OpenCodeChunk.KindMessage) answer.Append(chunk.Text);
                             else if (chunk.Kind == OpenCodeChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
-                            else if (chunk.Kind == OpenCodeChunk.KindTool) onActivity?.Invoke(ActivityTool, chunk.Text);
+                            // Un pezzo che porta solo il record per la cronologia non ha testo da mostrare.
+                            else if (chunk.Kind == OpenCodeChunk.KindTool && !string.IsNullOrEmpty(chunk.Text)) onActivity?.Invoke(ActivityTool, chunk.Text);
                         }
                     break;
                 }

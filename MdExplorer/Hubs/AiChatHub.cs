@@ -1353,7 +1353,10 @@ namespace MdExplorer.Hubs
                     }
                     else if (chunk.Kind == OpenCodeChunk.KindTool)
                     {
-                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        // La chiamata e il risultato interi vanno nella cronologia; a video resta la riga corta.
+                        if (chunk.Record != null) _turnRecording?.Tool(chunk.Record);
+                        if (!string.IsNullOrEmpty(chunk.Text))
+                            await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }

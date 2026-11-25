@@ -733,7 +733,13 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                         if (!turn.ToolsAnnounced.Add(key)) return;
                     }
                     var label = status == null ? tool : $"{tool} · {status}";
-                    turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, label, DiaryLine(tool, status, part)));
+                    var records = ToolRecords(turn.ToolsAnnounced, tool, callId, status, part).ToList();
+                    // Uno strumento che salta «running»: la sua chiamata viaggia da sola, senza riga a video né diario,
+                    // e la riga di stato va col risultato.
+                    for (var r = 0; r < records.Count - 1; r++)
+                        turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, null, null, records[r]));
+                    turn.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, label, DiaryLine(tool, status, part),
+                        records.Count > 0 ? records[records.Count - 1] : null));
                     return;
 
                 case "session.idle":
@@ -747,6 +753,38 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// tipo che non conosciamo non diventa testo della risposta: nel dubbio non si mostra
         /// niente, invece di sporcare la chat con dati interni.
         /// </summary>
+        /// <summary>
+        /// Che cosa di questo stato va nella cronologia della chat (sprint 2026-11-24-Chat-Memorizzate, F3): la chiamata al
+        /// primo stato in cui gli argomenti sono completi (<c>running</c>), il risultato a <c>completed</c> o <c>error</c>.
+        /// Uno strumento che salta <c>running</c> ha la sua chiamata subito prima del risultato. Verificato sul flusso SSE di
+        /// opencode 1.18.30: a <c>completed</c> lo stato porta <c>input</c>, <c>output</c> e <c>metadata</c>.
+        /// </summary>
+        internal static IEnumerable<MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord> ToolRecords(
+            HashSet<string> announced, string tool, string callId, string status, JsonElement part)
+        {
+            if (status != "running" && status != "completed" && status != "error") yield break;
+            if (!part.TryGetProperty("state", out var state) || state.ValueKind != JsonValueKind.Object) yield break;
+
+            bool firstCall;
+            lock (announced) firstCall = announced.Add("call|" + callId);
+            if (firstCall)
+                yield return MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Call(tool, callId,
+                    state.TryGetProperty("input", out var input) ? input.Clone() : (JsonElement?)null);
+
+            if (status == "completed")
+            {
+                var output = state.TryGetProperty("output", out var o) ? (o.ValueKind == JsonValueKind.String ? o.GetString() : o.GetRawText()) : null;
+                yield return MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Result(tool, callId, output,
+                    state.TryGetProperty("metadata", out var meta) ? meta.Clone() : (JsonElement?)null, isError: false);
+            }
+            else if (status == "error")
+            {
+                var error = state.TryGetProperty("error", out var e) ? (e.ValueKind == JsonValueKind.String ? e.GetString() : e.GetRawText()) : null;
+                yield return MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Result(tool, callId, error,
+                    state.TryGetProperty("metadata", out var meta) ? meta.Clone() : (JsonElement?)null, isError: true);
+            }
+        }
+
         private void EmitDelta(Turn turn, string partType, string delta)
         {
             switch (partType)

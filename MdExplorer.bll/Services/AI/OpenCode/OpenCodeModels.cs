@@ -16,9 +16,14 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// </summary>
         public string Diary { get; }
 
+        /// <summary>Per <see cref="KindTool"/>: la chiamata o il risultato interi, per la cronologia della chat. Può mancare.</summary>
+        public MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord Record { get; }
+
         // Un avviso sugli strumenti che non è uno stato (un permesso negato, la verifica dei diagrammi) vale anche per il diario.
-        public OpenCodeChunk(string kind, string text) { Kind = kind; Text = text; Diary = kind == KindTool ? text : null; }
-        public OpenCodeChunk(string kind, string text, string diary) { Kind = kind; Text = text; Diary = diary; }
+        public OpenCodeChunk(string kind, string text) { Kind = kind; Text = text; Diary = kind == KindTool ? text : null; Record = null; }
+        public OpenCodeChunk(string kind, string text, string diary) { Kind = kind; Text = text; Diary = diary; Record = null; }
+        public OpenCodeChunk(string kind, string text, string diary, MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord record)
+        { Kind = kind; Text = text; Diary = diary; Record = record; }
 
         /// <summary>Testo visibile (evento <c>message.part.delta</c> con <c>field: "text"</c>).</summary>
         public const string KindMessage = "message";
