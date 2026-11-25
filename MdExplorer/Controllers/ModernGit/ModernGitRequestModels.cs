@@ -92,6 +92,21 @@ namespace MdExplorer.Controllers.ModernGit
     /// <summary>
     /// Request model for checkout operations
     /// </summary>
+    /// <summary>«Nuovo ramo» (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A1).</summary>
+    public class NewBranchRequest : GitOperationRequest
+    {
+        [Required]
+        [StringLength(200, MinimumLength = 1)]
+        public string Name { get; set; }
+
+        [StringLength(100)]
+        public string ConnectionId { get; set; }
+
+        /// <summary>Facoltativo: il lavoro aperto si registra nel ramo nuovo con questo messaggio (B1, partenza dell'agente).</summary>
+        [StringLength(2000)]
+        public string CommitMessage { get; set; }
+    }
+
     public class CheckoutRequest : GitOperationRequest
     {
         [Required]

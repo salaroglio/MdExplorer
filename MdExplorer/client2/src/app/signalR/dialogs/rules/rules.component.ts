@@ -75,7 +75,10 @@ export class RulesComponent implements OnInit {
           
           // Mostra messaggio di errore user-friendly
           let errorMessage = this.translate.instant('SIGNALR.RENAME_FAILED');
-          if (error.status === 500) {
+          if (error?.error?.error) {
+            // Il servizio dice perché (nome già preso, caratteri non validi): meglio del messaggio generico.
+            errorMessage = error.error.error;
+          } else if (error.status === 500) {
             errorMessage = this.translate.instant('SIGNALR.RENAME_SPECIAL_CHARS');
           } else if (error.status === 400) {
             errorMessage = this.translate.instant('SIGNALR.RENAME_INVALID');

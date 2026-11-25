@@ -700,7 +700,11 @@
     "ALREADY_ON_BRANCH": "Sei già su questo branch",
     "SWITCHED_TO": "Passato al branch {{branch}}",
     "SWITCH_ERROR": "Errore durante il cambio branch",
-    "NETWORK_ERROR": "Errore di rete durante il cambio branch"
+    "NETWORK_ERROR": "Errore di rete durante il cambio branch",
+    "STATUS_UNKNOWN": "Non so com'è la cartella, quindi non cambio ramo:",
+    "CARRY_CONFIRM": "Passando a «{{branch}}» questi {{count}} file non registrati vengono con te:",
+    "CARRY_NOTE": "Niente si perde: se uno di questi file è in conflitto con il ramo di arrivo, git non cambia ramo e lo dice.",
+    "CARRY_GO": "Cambia ramo"
   },
   "GIT_HISTORY": {
     "TITLE": "Cronologia Git",
@@ -908,6 +912,9 @@
     "NAV_ERROR": "Errore di navigazione",
     "ALREADY_IN_FOLDER": "Il file è già in questa cartella",
     "MOVED_FILE": "Spostato \"{{fileName}}\" in \"{{targetName}}\"",
+    "MOVED_FILES": "Spostati {{count}} documenti in {{targetName}}",
+    "RENAME_DOCUMENT": "Rinomina",
+    "RENAMED_FILE": "Rinominato \"{{oldName}}\" in \"{{newName}}\"",
     "MOVE_ERROR": "Errore nello spostamento del file: {{error}}",
     "IS_LANDING_PAGE": "{{name}} è la pagina iniziale del progetto",
     "EXPLORER_OPENED": "esplora file aperto",
@@ -3011,7 +3018,15 @@
     "COMMIT_AND_PUBLISH": "Fai il commit, pubblica e avvia",
     "PUBLISH": "Pubblica e avvia",
     "PROCEED": "Avvia senza salvare",
-    "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
+    "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito.",
+    "IN_NEW_BRANCH": "Metti questo lavoro in un ramo nuovo e fai partire l'agente da lì",
+    "IN_NEW_BRANCH_HINT": "Il ramo nasce da dove sei, il lavoro ci entra con un commit a tuo nome e si pubblica. Tu resti sul ramo nuovo; il ramo di prima non cambia.",
+    "IN_NEW_BRANCH_SUBMODULES": "Non disponibile: c'è lavoro da salvare dentro {{repos}}, e il ramo nuovo nasce solo nel progetto.",
+    "BRANCH_LABEL": "Nome del ramo",
+    "CREATE_BRANCH_AND_START": "Crea il ramo e avvia",
+    "NEW_BRANCH_FAILED": "L'agente non è partito: {{problem}}",
+    "NOTHING_COMMITTED": "il lavoro non è entrato nel ramo nuovo.",
+    "PENDING_FAILED": "Non riesco a sapere com'è la cartella del progetto: l'agente non è partito."
   },
   "BACKGROUND_WORK": {
     "OPENING_WAITING": "Il servizio sta aprendo il progetto: {{count}} richieste della pagina aspettano e partono appena è pronto.",
@@ -3209,5 +3224,32 @@
     "WRITTEN_CORRECTED": "Scritta con la tua correzione in {{path}} (versione {{version}}): MDE la registra in git.",
     "REJECTED": "Rifiutata: non verrà riproposta senza prove nuove.",
     "COUNTS": "{{written}} scritte · {{pending}} in sospeso: puoi continuare la chat e premere di nuovo «Impara»"
+  },
+  "RENAME_DOCUMENT": {
+    "TITLE_FOLDER": "Rinomina la cartella",
+    "HINT_FOLDER": "I link verso i file della cartella si aggiornano da soli.",
+    "TITLE": "Rinomina il documento",
+    "NAME": "Nome",
+    "HINT": "I link verso il documento si aggiornano da soli.",
+    "SAVE": "Rinomina"
+  },
+  "NEW_BRANCH": {
+    "MENU": "Nuovo ramo",
+    "TITLE": "Nuovo ramo",
+    "FROM_BRANCH": "Parte da «{{branch}}» ({{sha}})",
+    "FROM_DETACHED": "Parte dal commit {{sha}} (HEAD staccato)",
+    "WITH_UNPUBLISHED": ", con {{count}} commit non ancora pubblicati",
+    "NAME": "Nome del ramo",
+    "CARRIED": "Vengono con te nel ramo nuovo ({{count}} file non registrati)",
+    "CARRIED_NOTE": "Restano esattamente come sono: git li porta nel ramo nuovo senza toccarli.",
+    "NOTHING_OPEN": "Niente di aperto: la cartella è pulita.",
+    "SUBMODULES": "Il ramo nasce solo in questo repository: i submodule restano sui loro rami.",
+    "NO_ORIGIN": "Il progetto non ha un remoto: il ramo resterà su questo computer.",
+    "CREATE_AND_PUBLISH": "Crea, passa al ramo e pubblica",
+    "CREATE": "Crea e passa al ramo",
+    "CREATED": "Sei sul ramo nuovo «{{branch}}».",
+    "PUBLISHED": "Pubblicato su GitHub.",
+    "CARRIED_DONE": "{{count}} file non registrati sono venuti con te.",
+    "PUBLISH": "Pubblica"
   }
 }

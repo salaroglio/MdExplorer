@@ -23,6 +23,7 @@ export interface BranchGroup {
   branches: BranchInfo[];
 }
 
+import { NewBranchDialogComponent } from '../new-branch-dialog/new-branch-dialog.component';
 @Component({
   selector: 'app-git-branch-dialog',
   templateUrl: './git-branch-dialog.component.html',
@@ -208,37 +209,50 @@ export class GitBranchDialogComponent implements OnInit {
       return; // Prevent multiple simultaneous switches
     }
 
-    // Check for uncommitted changes
-    this.gitService.getRepositoryStatus(this.activePath).subscribe({
-      next: (status) => {
-        const hasChanges = status.hasChanges ||
-                          (this.currentBranch?.somethingIsChangedInTheBranch);
-
-        if (hasChanges) {
-          this.showUncommittedChangesDialog(branch);
+    // Il lavoro aperto: lo si elenca e si chiede conferma qui dentro (prima era un confirm() del browser con un testo
+    // che parlava di «perdere le modifiche», e un force che non arrivava mai al servizio). Se non si sa com'è la cartella,
+    // non si cambia ramo alla cieca: lo si dice.
+    this.gitService.newBranchPreview(this.activePath).subscribe({
+      next: (preview) => {
+        if (preview.carriedFiles.length > 0) {
+          this.pendingSwitch = { branch, files: preview.carriedFiles };
         } else {
           this.performCheckout(branch);
         }
       },
       error: (err) => {
-        console.error('Error checking status:', err);
-        // Proceed anyway
-        this.performCheckout(branch);
+        this.switchRefusal = this.translate.instant('GIT_BRANCH.STATUS_UNKNOWN') + ' ' + (err?.error?.error || err?.message || err);
       }
     });
   }
 
-  private showUncommittedChangesDialog(branch: BranchInfo): void {
-    const changesCount = this.currentBranch?.howManyFilesAreChanged || 0;
-    const message = `Hai ${changesCount} file${changesCount !== 1 ? 's' : ''} modificati senza commit. Cambiando branch potresti perdere le modifiche.`;
+  /** Il cambio di ramo in attesa di conferma, con i file non registrati che vengono con te. */
+  pendingSwitch: { branch: BranchInfo; files: string[] } | null = null;
 
-    const confirmed = confirm(`${message}\n\nVuoi comunque cambiare branch?`);
-    if (confirmed) {
-      this.performCheckout(branch, true);
-    }
+  confirmSwitch(): void {
+    const pending = this.pendingSwitch;
+    this.pendingSwitch = null;
+    if (pending) this.performCheckout(pending.branch);
   }
 
-  private performCheckout(branch: BranchInfo, force: boolean = false): void {
+  cancelSwitch(): void {
+    this.pendingSwitch = null;
+  }
+
+  /** «Nuovo ramo» anche da qui: nasce nel repository che si sta guardando. */
+  openNewBranch(): void {
+    this.dialog.open(NewBranchDialogComponent, {
+      width: '620px',
+      data: { projectName: this.data.projectName, repos: this.activeRepo ? [this.activeRepo] : this.repos },
+    }).afterClosed().subscribe(created => {
+      if (!created) return;
+      this.switched = true;
+      this.loadBranchInfo();
+      this.loadBranches();
+    });
+  }
+
+  private performCheckout(branch: BranchInfo): void {
     this.isSwitching = true;
     this.error = null;
     this.switchRefusal = null;

@@ -41,6 +41,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Modello dichiarato nel blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
         public string RuntimeModel { get; set; }
+
+        /// <summary>
+        /// La firma git del turno (autore l'agente, committer la persona responsabile), calcolata da chi sveglia, che
+        /// conosce il progetto. Null = solo l'agente (<see cref="AgentGitIdentity.EnvFor(string)"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, string> GitIdentity { get; set; }
     }
 
     /// <summary>Un fatto recuperato dalla memoria dell'agente, per l'iniezione nel prompt (§11).</summary>
@@ -149,7 +155,7 @@ namespace MdExplorer.Features.Agents
 
                 // Firma git per-agente (§10): ogni commit che l'agente fa nel workspace è
                 // attribuito a lui (`<name>@agents.mde`), non all'umano. git blame resta giusto.
-                foreach (var kv in AgentGitIdentity.EnvFor(request.AgentName))
+                foreach (var kv in request.GitIdentity ?? AgentGitIdentity.EnvFor(request.AgentName))
                     env[kv.Key] = kv.Value;
 
                 var result = await _runner.RunTurnAsync(new AgentTurnRequest

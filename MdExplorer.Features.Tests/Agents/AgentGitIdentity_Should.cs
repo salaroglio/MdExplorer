@@ -25,6 +25,28 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Sign_the_agent_as_author_and_the_responsible_person_as_committer()
+        {
+            var env = AgentGitIdentity.EnvFor("deploy-sentinel", "Mario Rossi", "mario.rossi@example.com");
+
+            Assert.AreEqual("deploy-sentinel", env[AgentGitIdentity.EnvAuthorName]);
+            Assert.AreEqual("deploy-sentinel@agents.mde", env[AgentGitIdentity.EnvAuthorEmail]);
+            Assert.AreEqual("Mario Rossi", env[AgentGitIdentity.EnvCommitterName]);
+            Assert.AreEqual("mario.rossi@example.com", env[AgentGitIdentity.EnvCommitterEmail]);
+            Assert.AreEqual("deploy-sentinel", AgentGitIdentity.EnvFor("deploy-sentinel", "Mario Rossi", null)[AgentGitIdentity.EnvCommitterName],
+                "senza email della persona il committer resta l'agente");
+        }
+
+        [TestMethod]
+        public void Sign_an_approval_as_the_person()
+        {
+            var env = AgentGitIdentity.EnvForPerson("Mario Rossi", "mario.rossi@example.com");
+            Assert.AreEqual("Mario Rossi", env[AgentGitIdentity.EnvAuthorName]);
+            Assert.AreEqual("mario.rossi@example.com", env[AgentGitIdentity.EnvCommitterEmail]);
+            Assert.AreEqual(0, AgentGitIdentity.EnvForPerson(null, "x@example.com").Count);
+        }
+
+        [TestMethod]
         public void Produce_nothing_without_a_name()
         {
             Assert.AreEqual(0, AgentGitIdentity.EnvFor(null).Count);

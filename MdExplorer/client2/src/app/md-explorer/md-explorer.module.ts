@@ -41,6 +41,7 @@ import { DocumentSettingsComponent } from './components/document-settings/docume
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { GitModule } from '../git/git.module';
 import { MoveMdFileComponent } from './components/dialogs/move-md-file/move-md-file.component';
+import { RenameDocumentComponent } from './components/dialogs/rename-document/rename-document.component';
 import { OcrForAttachmentsComponent } from './components/dialogs/ocr-for-attachments/ocr-for-attachments.component';
 import { AddNewFileToMDEComponent } from './components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { MilkdownReactHostComponent } from './components/milkdown-react-host/milkdown-react-host.component';
@@ -138,7 +139,7 @@ const routes: Routes = [
     GitlabSettingsComponent,
     DocumentSettingsComponent,
     CopyFromClipboardComponent,
-    MoveMdFileComponent, AddNewFileToMDEComponent, OcrForAttachmentsComponent,
+    MoveMdFileComponent, RenameDocumentComponent, AddNewFileToMDEComponent, OcrForAttachmentsComponent,
     MilkdownReactHostComponent,
     DocumentShowComponent, // Added to declarations
     TocProgressDialogComponent,

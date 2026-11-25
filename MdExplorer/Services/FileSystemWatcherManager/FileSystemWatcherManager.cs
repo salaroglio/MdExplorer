@@ -2061,10 +2061,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                         var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
                         foreach (var singleLink in linksToStore)
                         {
-                            var fullPath = Path.GetDirectoryName(e.FullPath) + Path.DirectorySeparatorChar + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
                             var linkToStore = new LinkInsideMarkdown
                             {
-                                FullPath = _helper.NormalizePath(fullPath),
+                                FullPath = MdExplorer.Features.Refactoring.RefactoringManager.LinkIndexPath(dbContext.ProjectPath, e.FullPath, singleLink.FullPath),
                                 Path = singleLink.FullPath,
                                 Source = getModifier.GetType().Name,
                                 LinkedCommand = singleLink.LinkedCommand,
@@ -2139,6 +2138,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// come dopo un salvataggio: i collegamenti relativi (un <c>../altro.md</c>) ora puntano altrove, e la ricerca testuale
         /// ha la riga col percorso nuovo.
         /// </summary>
+        public bool MoveFolderInIndex(string connectionId, string oldDir, string newDir)
+        {
+            if (string.IsNullOrEmpty(connectionId) || !_watchers.TryGetValue(connectionId, out var context)) return false;
+            context.DbSemaphore.Wait();
+            try { MoveFolderInDB(context, oldDir, newDir); }
+            finally { context.DbSemaphore.Release(); }
+            return true;
+        }
+
         private void MoveFolderInDB(WatcherContext context, string oldDir, string newDir)
         {
             // GetFullPath: per uno spostamento fra due cartelle il watcher di Linux dà il vecchio come «sotto/../vecchia».

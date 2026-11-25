@@ -1,6 +1,6 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { E2eDialogComponent, E2eDialogData } from '../e2e-dialog/e2e-dialog.component';
-import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy, ElementRef, HostListener } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
@@ -9,10 +9,9 @@ import { Observable, BehaviorSubject, Subject, Subscription, fromEvent } from 'r
 import { auditTime, distinctUntilChanged, filter, map, takeUntil } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
-import { MdFileService } from '../../services/md-file.service';
+import { MdFileService, RenamedDocument } from '../../services/md-file.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
-import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { SeedDialogComponent, SeedDialogData } from '../dialogs/seed-analysis/seed-dialog.component';
@@ -33,6 +32,7 @@ import { Router } from '@angular/router';
 import { fadeInOnEnterAnimation } from 'angular-animations';
 import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.component';
+import { RenameDocumentComponent } from '../dialogs/rename-document/rename-document.component';
 import { AddNewFileToMDEComponent } from '../dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
@@ -103,7 +103,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   draggedNode: MdFile | null = null;
   dragOverNode: MdFile | null = null;
   dragOverSegment: CompactSegment | null = null;
-  private dndMovingPaths: { oldPath: string; newPath: string } | null = null;
+  private dndMovingPaths: { oldPath: string; newPath: string }[] | null = null;
+  /** I documenti trascinati insieme: quelli selezionati con Ctrl/Shift se si trascina uno di loro, altrimenti quello solo. */
+  private draggedNodes: MdFile[] = [];
+  /** La selezione multipla dei documenti (Ctrl/Shift+clic), per percorso completo. */
+  multiSelection = new Map<string, MdFile>();
+  /** Il documento da cui parte uno Shift+clic. */
+  private selectionAnchor: string | null = null;
 
   // Skeleton loader state
   isLoading = true;
@@ -230,7 +236,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
-    private codeRootsService: CodeRootsService
+    private codeRootsService: CodeRootsService,
+    private elementRef: ElementRef<HTMLElement>,
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -743,11 +750,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== Drag & Drop ====================
 
   onDragStart(event: DragEvent, node: MdFile): void {
-    if (node.type !== 'mdFile' && node.type !== 'mdFileTimer') {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const isProjectFolder = node.type === 'folder' && !!projectPath
+      && node.fullPath.toLowerCase().startsWith(projectPath.toLowerCase())
+      && node.fullPath.length > projectPath.length;
+    if (node.type !== 'mdFile' && node.type !== 'mdFileTimer' && !isProjectFolder) {
       event.preventDefault();
       return;
     }
     this.draggedNode = node;
+    // Trascinando un documento selezionato si portano tutti i selezionati; uno non selezionato va da solo.
+    this.draggedNodes = this.multiSelection.has(node.fullPath) && this.multiSelection.size > 1
+      ? Array.from(this.multiSelection.values())
+      : [node];
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', node.fullPath);
     event.stopPropagation();
@@ -755,12 +770,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onDragEnd(event: DragEvent): void {
     this.draggedNode = null;
+    this.draggedNodes = [];
     this.dragOverNode = null;
     this.dragOverSegment = null;
   }
 
+  /** Una cartella non si rilascia dentro se stessa né in una sua sottocartella. */
+  private isInsideDragged(targetPath: string, dragged: MdFile[] = this.draggedNodes): boolean {
+    const t = (targetPath || '').toLowerCase();
+    return dragged.some(d => d.type === 'folder'
+      && (t === d.fullPath.toLowerCase() || t.startsWith(d.fullPath.toLowerCase() + '/') || t.startsWith(d.fullPath.toLowerCase() + '\\')));
+  }
+
   onDragOver(event: DragEvent, node: MdFile): void {
-    if (node.type !== 'folder' || !this.draggedNode) {
+    if (node.type !== 'folder' || !this.draggedNode || this.isInsideDragged(node.fullPath)) {
       return;
     }
     event.preventDefault();
@@ -777,7 +800,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Drag over a specific compact segment
   onSegmentDragOver(event: DragEvent, segment: CompactSegment, node: MdFile): void {
-    if (node.type !== 'folder' || !this.draggedNode) {
+    if (node.type !== 'folder' || !this.draggedNode || this.isInsideDragged(segment.fullPath)) {
       return;
     }
     event.preventDefault();
@@ -818,92 +841,115 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private performDrop(targetPath: string, targetName: string): void {
-    console.log('[DnD] performDrop called', { targetPath, targetName, hasDraggedNode: !!this.draggedNode });
     if (!this.draggedNode) {
-      console.warn('[DnD] performDrop: draggedNode is null, aborting');
       this.dragOverNode = null;
       this.dragOverSegment = null;
       return;
     }
-
-    // Skip if file is already in the target folder
-    const fileDirPath = this.getParentDirPath(this.draggedNode.fullPath);
-    console.log('[DnD] performDrop paths', { fileDirPath, targetPath, draggedFullPath: this.draggedNode.fullPath });
-    if (fileDirPath === targetPath) {
-      this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
-      this.draggedNode = null;
-      this.dragOverNode = null;
-      this.dragOverSegment = null;
-      return;
-    }
-
-    const draggedFile = this.draggedNode;
+    const dragged = this.draggedNodes.length ? this.draggedNodes : [this.draggedNode];
     this.draggedNode = null;
+    this.draggedNodes = [];
     this.dragOverNode = null;
     this.dragOverSegment = null;
 
-    const oldFullPath = draggedFile.fullPath;
-    const separator = oldFullPath.includes('\\') ? '\\' : '/';
-    const newFullPath = targetPath + separator + draggedFile.name;
+    // Quelli già nella cartella restano dove sono.
+    if (this.isInsideDragged(targetPath, dragged)) return;
+    const files = dragged.filter(f => this.getParentDirPath(f.fullPath) !== targetPath);
+    if (files.length === 0) {
+      this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
+      return;
+    }
 
-    // Set suppress flag BEFORE HTTP call so SignalR handlers skip FSW-leaked events
-    this.dndMovingPaths = { oldPath: oldFullPath, newPath: newFullPath };
+    const separator = (files[0].fullPath.includes('\\') ? '\\' : '/');
+    // Prima della chiamata: i gestori SignalR saltano gli eventi del watcher di questi file.
+    this.dndMovingPaths = files.map(f => ({ oldPath: f.fullPath, newPath: targetPath + separator + f.name }));
 
-    console.log('[DnD] calling moveMdFile', { name: draggedFile.name, relativePath: draggedFile.relativePath, targetPath });
-    this.mdFileService.moveMdFile(draggedFile, targetPath).subscribe({
+    this.mdFileService.moveMdFiles(files, targetPath).subscribe({
       next: () => {
-        console.log('[DnD] moveMdFile success');
-        this.snackBar.open(this.translate.instant('MD_TREE.MOVED_FILE', { fileName: draggedFile.name, targetName: targetName }), 'OK', { duration: 3000 });
-
-        // Save expansion state BEFORE any _mdFiles.next() calls
-        const expandedPaths = this.captureExpansionState();
-
-        // Incremental update: remove from old parent, add to new parent
-        this.mdFileService.recursiveDeleteFileFromDataStore(draggedFile);
-
-        // Compute new relativePath from project root
-        const projectPath = this.projectsService.currentProjects$.value?.path || '';
-        let newRelativePath = newFullPath;
-        if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
-          newRelativePath = newFullPath.substring(projectPath.length);
-          // Remove leading separator
-          if (newRelativePath.startsWith('\\') || newRelativePath.startsWith('/')) {
-            newRelativePath = newRelativePath.substring(1);
-          }
-        }
-
-        const movedFile = {
-          ...draggedFile,
-          fullPath: newFullPath,
-          relativePath: newRelativePath,
-          path: newRelativePath.replace(/\\/g, '/'),
-          fullDirectoryPath: targetPath,
-          isIndexed: true,
-          indexingStatus: 'completed'
-        } as MdFile;
-
-        this.mdFileService.addFileToParent(movedFile, targetPath);
-
-        // Update indexed files tracking Set: remove old path, add new
-        const currentSet = this.indexedFilesSubject.value;
-        const newSet = new Set(currentSet);
-        newSet.delete(oldFullPath);
-        newSet.add(newFullPath);
-        this.indexedFilesSubject.next(newSet);
-
-        // Restore expansion state (uses setTimeout internally)
-        this.restoreExpansionState(expandedPaths);
-        this.changeDetectorRef.markForCheck();
-
-        // Clear suppress flag after delay to catch any buffered FSW events
-        setTimeout(() => { this.dndMovingPaths = null; }, 500);
+        const message = files.length === 1
+          ? this.translate.instant('MD_TREE.MOVED_FILE', { fileName: files[0].name, targetName })
+          : this.translate.instant('MD_TREE.MOVED_FILES', { count: files.length, targetName });
+        this.snackBar.open(message, 'OK', { duration: 3000 });
+        const folders = files.filter(f => f.type === 'folder');
+        if (folders.length) this.reloadTreeAfterFolderMoves(
+          folders.map(f => ({ oldPath: f.fullPath, newPath: targetPath + separator + f.name })), targetPath);
+        else this.showMovedInTree(files, targetPath, separator);
+        this.clearMultiSelection();
       },
       error: (err) => {
-        console.error('[DnD] moveMdFile error:', err);
-        this.dndMovingPaths = null;
-        this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', { error: err.error?.message || err.message }), 'OK', { duration: 5000 });
+        console.error('[DnD] moveMdFiles error:', err);
+        // Interrotto a metà: quelli spostati si mostrano al posto nuovo.
+        const movedFrom: string[] = (err?.error?.moved || []).map((m: { from: string }) => m.from);
+        const moved = files.filter(f => movedFrom.some(p => p.toLowerCase() === f.fullPath.toLowerCase()));
+        if (moved.length) this.showMovedInTree(moved, targetPath, separator);
+        else this.dndMovingPaths = null;
+        this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', { error: err?.error?.error || err?.error?.message || err.message }),
+          'OK', { duration: 10000 });
       }
     });
+  }
+
+  /**
+   * Dopo lo spostamento o la rinomina di cartelle l'albero si ricarica come dopo un pull: livelli, cartelle compattate e
+   * figli li ricostruisce il servizio. Le cartelle aperte restano aperte, con i percorsi nuovi; se il documento aperto
+   * stava in una di quelle cartelle, la pagina lo riapre dal posto nuovo.
+   */
+  private reloadTreeAfterFolderMoves(moves: { oldPath: string; newPath: string }[], alsoExpand: string | null): void {
+    const sep = (p: string) => (p.includes('\\') ? '\\' : '/');
+    const remap = (path: string): string => {
+      for (const m of moves) {
+        const o = m.oldPath.toLowerCase();
+        const p = path.toLowerCase();
+        if (p === o || p.startsWith(o + sep(m.oldPath))) return m.newPath + path.substring(m.oldPath.length);
+      }
+      return path;
+    };
+    const remapped = new Set<string>(Array.from(this.captureExpansionState()).map(remap));
+    if (alsoExpand) remapped.add(alsoExpand);
+    this.expansionStateBeforeRefresh = remapped;
+    this.dndMovingPaths = null;
+
+    const open = this.selectedNode;
+    if (open && (open.type === 'mdFile' || open.type === 'mdFileTimer')) {
+      const newFull = remap(open.fullPath);
+      if (newFull !== open.fullPath) {
+        const projectPath = this.projectsService.currentProjects$.value?.path || '';
+        const rel = newFull.toLowerCase().startsWith(projectPath.toLowerCase()) ? newFull.substring(projectPath.length) : newFull;
+        this.getNode({ ...open, fullPath: newFull, relativePath: rel, path: rel.replace(/\\/g, '/') } as MdFile);
+      }
+    }
+    this.mdFileService.loadAll(null, null);
+  }
+
+  /** L'albero dopo uno spostamento, senza ricaricarlo: ogni documento esce dalla cartella vecchia ed entra nella nuova. */
+  private showMovedInTree(files: MdFile[], targetPath: string, separator: string): void {
+    const expandedPaths = this.captureExpansionState();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const indexed = new Set(this.indexedFilesSubject.value);
+    for (const file of files) {
+      const newFullPath = targetPath + separator + file.name;
+      this.mdFileService.recursiveDeleteFileFromDataStore(file);
+      let newRelativePath = newFullPath;
+      if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
+        newRelativePath = newFullPath.substring(projectPath.length).replace(/^[\\/]/, '');
+      }
+      this.mdFileService.addFileToParent({
+        ...file,
+        fullPath: newFullPath,
+        relativePath: newRelativePath,
+        path: newRelativePath.replace(/\\/g, '/'),
+        fullDirectoryPath: targetPath,
+        isIndexed: true,
+        indexingStatus: 'completed'
+      } as MdFile, targetPath);
+      indexed.delete(file.fullPath);
+      indexed.add(newFullPath);
+    }
+    this.indexedFilesSubject.next(indexed);
+    this.restoreExpansionState(expandedPaths);
+    this.changeDetectorRef.markForCheck();
+    // Gli eventi del watcher arrivano in ritardo: si ignorano ancora per un poco.
+    setTimeout(() => { this.dndMovingPaths = null; }, 500);
   }
 
   // ==================== End Drag & Drop ====================
@@ -941,6 +987,54 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** «Rinomina» dal menu o con F2: la finestra chiede il nome, poi l'albero e la pagina passano al nome nuovo. */
+  renameDocument(node: MdFile): void {
+    this.dialog.open(RenameDocumentComponent, { width: '420px', data: node, autoFocus: false })
+      .afterClosed().subscribe((result: RenamedDocument | null) => {
+        if (!result) return;
+        this.showRenamedInTree(node, result);
+        this.snackBar.open(this.translate.instant('MD_TREE.RENAMED_FILE', { oldName: result.oldName, newName: result.newName }),
+          'OK', { duration: 3000 });
+      });
+  }
+
+  /** F2 sul documento selezionato nell'albero, come in ogni esploratore di file; mai mentre si scrive altrove. */
+  @HostListener('document:keydown.f2', ['$event'])
+  onF2(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+    if (this.dialog.openDialogs.length > 0) return;
+    const node = this.selectedNode;
+    if (!node || !this.isMovableDocument(node)) return;
+    event.preventDefault();
+    this.renameDocument(node);
+  }
+
+  /** Il documento rinominato prende il posto del vecchio nell'albero; se era quello aperto, la pagina lo riapre. */
+  private showRenamedInTree(node: MdFile, result: RenamedDocument): void {
+    const expandedPaths = this.captureExpansionState();
+    const wasOpen = this.selectedNode?.fullPath === node.fullPath || this.activeNode?.fullPath === node.fullPath;
+    const replaceName = (p: string) => (p || '').substring(0, (p || '').length - node.name.length) + result.newName;
+    const renamed = {
+      ...node,
+      name: result.newName,
+      fullPath: result.newPath,
+      relativePath: replaceName(node.relativePath),
+      path: replaceName(node.path),
+    } as MdFile;
+    this.dndMovingPaths = [{ oldPath: result.oldPath, newPath: result.newPath }];
+    this.mdFileService.recursiveDeleteFileFromDataStore(node);
+    this.mdFileService.addFileToParent(renamed, this.getParentDirPath(result.newPath));
+    const indexed = new Set(this.indexedFilesSubject.value);
+    indexed.delete(result.oldPath);
+    indexed.add(result.newPath);
+    this.indexedFilesSubject.next(indexed);
+    this.restoreExpansionState(expandedPaths);
+    this.changeDetectorRef.markForCheck();
+    setTimeout(() => { this.dndMovingPaths = null; }, 500);
+    if (wasOpen) this.getNode(renamed);
+  }
+
   moveDocument(node: MdFile):void {
     this.dialog.open(MoveMdFileComponent, {
       width: '300px',
@@ -959,16 +1053,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** «Rinomina cartella»: la stessa finestra dei documenti; la cartella si rinomina davvero sul disco, con i link. */
   renameDirectoryOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(ChangeDirectoryComponent, {
-      width: '300px',
-      data: node,
-    });
+    if (!node || node.type !== 'folder') return;
+    this.dialog.open(RenameDocumentComponent, { width: '420px', data: node, autoFocus: false })
+      .afterClosed().subscribe((result: RenamedDocument | null) => {
+        if (!result) return;
+        this.reloadTreeAfterFolderMoves([{ oldPath: result.oldPath, newPath: result.newPath }], null);
+        this.snackBar.open(this.translate.instant('MD_TREE.RENAMED_FILE', { oldName: result.oldName, newName: result.newName }),
+          'OK', { duration: 3000 });
+      });
   }
+
 
   openFolderOn(node: MdFile) {
     console.log('[MdTreeComponent] openFolderOn() called');
@@ -1691,7 +1787,70 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   
   // Helper per verificare se un nodo è selezionato
   isNodeSelected(node: MdFile): boolean {
+    // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
+    if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+
+  /**
+   * Il clic su un documento, come in ogni esploratore di file: Ctrl (Cmd su Mac) aggiunge o toglie dalla selezione,
+   * Shift seleziona tutti i documenti visibili fra l'ultimo cliccato e questo; il clic semplice apre il documento e la
+   * selezione torna a uno. I documenti selezionati si trascinano insieme in una cartella.
+   */
+  onDocumentClick(event: MouseEvent, node: MdFile): void {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      if (this.multiSelection.size === 0 && this.selectedNode && this.isMovableDocument(this.selectedNode))
+        this.multiSelection.set(this.selectedNode.fullPath, this.selectedNode);
+      if (this.multiSelection.has(node.fullPath)) this.multiSelection.delete(node.fullPath);
+      else this.multiSelection.set(node.fullPath, node);
+      this.selectionAnchor = node.fullPath;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();   // lo Shift+clic seleziona anche il testo della pagina
+      const anchor = this.selectionAnchor ?? this.selectedNode?.fullPath ?? node.fullPath;
+      this.selectRange(anchor, node.fullPath);
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    this.clearMultiSelection();
+    this.selectionAnchor = node.fullPath;
+    this.getNode(node);
+  }
+
+  /** I documenti visibili, nell'ordine dell'albero, fra due percorsi (compresi). */
+  private selectRange(fromPath: string, toPath: string): void {
+    const rows = Array.from(this.elementRef.nativeElement.querySelectorAll('mat-tree-node.md-file[data-fullpath]') as NodeListOf<HTMLElement>)
+      .map(el => el.getAttribute('data-fullpath') || '');
+    let a = rows.indexOf(fromPath);
+    let b = rows.indexOf(toPath);
+    if (b < 0) return;
+    if (a < 0) a = b;
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    const byPath = new Map((this.treeControl.dataNodes || []).map(n => [n.fullPath, n as unknown as MdFile]));
+    this.multiSelection.clear();
+    for (const path of rows.slice(lo, hi + 1)) {
+      const n = byPath.get(path);
+      if (n && this.isMovableDocument(n)) this.multiSelection.set(path, n);
+    }
+  }
+
+  private isMovableDocument(node: MdFile): boolean {
+    return node.type === 'mdFile' || node.type === 'mdFileTimer';
+  }
+
+  clearMultiSelection(): void {
+    if (this.multiSelection.size === 0) return;
+    this.multiSelection.clear();
+    this.changeDetectorRef.markForCheck();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.clearMultiSelection();
   }
   
   // Espandi manualmente l'albero fino alla landing page
@@ -1910,7 +2069,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // senza navigare al documento né mostrare la snackbar per-file.
   private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.newPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
       return;
     }
@@ -2071,7 +2230,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // Handler per la cancellazione di file markdown
   private handleMarkdownFileDeleted(fileData: any): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.oldPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.oldPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileDeleted for:', fileData.fullPath);
       return;
     }

@@ -13,23 +13,12 @@ namespace MdExplorer.Features.LinkModifiers
 {
     public class WorkLinkImagesFromMarkdown: IWorkLink
     {
+        /// <summary>Le immagini lette con Markdig, come la pagina: mai dentro il codice, senza titolo nel percorso.</summary>
         public LinkDetail[] GetLinksFromMarkdown(string markdown)
-        {
-            var rx = new Regex(@"!\[[^\]]*\]\(([^\)]*)\)",
-                                RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var matches = rx.Matches(markdown);
-            var listToReturn = new List<LinkDetail>();
-            foreach (Match item in matches) 
-            {
-                var toStore = new LinkDetail {
-                    LinkedCommand = item.Groups[0].Value,
-                    FullPath = item.Groups[1].Value,
-                } ;
-                listToReturn.Add(toStore);
-            }
-            return listToReturn.ToArray();
-        }       
-
+            => MdExplorer.Features.Refactoring.MarkdownLinks.Read(markdown)
+                .Where(l => l.IsImage)
+                .Select(l => new LinkDetail { LinkedCommand = l.Command, FullPath = l.Target })
+                .ToArray();
 
         public LinkDetail[] GetLinksFromFile(string filepath)
         {

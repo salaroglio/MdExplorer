@@ -72,7 +72,7 @@ namespace MdExplorer.IntegrationTests
             var found = fts.SearchContent(path, "parolarara1").Select(r => r.Path).ToList();
             CollectionAssert.AreEquivalent(new[] { Path.Combine(moved, "uno.md"), Path.Combine(moved, "due.md") }, found, "la ricerca testuale: " + string.Join(", ", found));
 
-            // NormalizePath scrive i collegamenti con '\\' anche su Linux (comportamento di prima): si confronta senza separatore.
+            // Si confronta senza separatore: prima del 25/11/2026 NormalizePath scriveva '\\' anche su Linux.
             using (var engine = dbm.CreateIsolatedEngineDB(conn))
             {
                 var links = engine.GetDal<LinkInsideMarkdown>().GetList().Where(l => l.MarkdownFile.Id == unoId).ToList();

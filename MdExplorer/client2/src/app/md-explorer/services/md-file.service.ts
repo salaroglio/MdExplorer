@@ -10,6 +10,17 @@ import { SpecialFolder, Drive } from '../../commons/components/show-file-system/
 import { AppStoreService } from './app-store.service';
 import { OpenPerf } from '../../shared/open-perf';
 
+/** La risposta di una rinomina: nomi e percorsi completi, prima e dopo. */
+export interface RenamedDocument {
+  oldName: string;
+  newName: string;
+  oldPath: string;
+  newPath: string;
+  oldLevel: number;
+  newLevel: number;
+  relativePath: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -176,6 +187,29 @@ export class MdFileService {
       sourceRelativePath: mdFile.relativePath,
       sourceFileName: mdFile.name,
       destinationPath: pathDestination
+    });
+  }
+
+  /**
+   * Rinomina un documento: il servizio lo tratta come uno spostamento nella stessa cartella, quindi i link verso di lui
+   * si ricalcolano. `newName` con o senza `.md`.
+   */
+  renameMdFile(mdFile: MdFile, newName: string) {
+    return this.http.post<RenamedDocument>('../api/mdfiles/RenameMdFile', {
+      sourcePath: mdFile.relativePath,
+      newName,
+      level: mdFile.level ?? 0,
+    });
+  }
+
+  /**
+   * Più documenti scelti nell'albero (Ctrl/Shift) portati insieme in una cartella: il servizio controlla tutto
+   * l'elenco prima e, con un nome già presente o ripetuto, non sposta niente.
+   */
+  moveMdFiles(mdFiles: MdFile[], pathDestination: string) {
+    return this.http.post<{ message: string; moved: { from: string; to: string }[]; skipped: string[] }>('../api/mdfiles/MoveMdFiles', {
+      sourceRelativePaths: mdFiles.map(f => f.relativePath),
+      destinationPath: pathDestination,
     });
   }
 

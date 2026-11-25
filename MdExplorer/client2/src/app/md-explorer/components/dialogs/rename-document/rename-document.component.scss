@@ -1,0 +1,6 @@
+.rename-document {
+  min-width: 360px;
+  .rename-document-label { display: block; font-size: 12px; font-weight: 600; margin: 4px 0 2px; }
+  .rename-document-field { width: 100%; }
+  .rename-document-error { color: var(--mat-warn, #c62828); font-size: 12px; margin: 4px 0 0; }
+}

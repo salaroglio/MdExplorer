@@ -1,0 +1,62 @@
+<h2 mat-dialog-title>
+  <mat-icon>add</mat-icon> {{ 'NEW_BRANCH.TITLE' | translate }} {{ data.projectName ? '- ' + data.projectName : '' }}
+</h2>
+
+<mat-dialog-content class="nb-content">
+  <app-git-repo-picker *ngIf="repos.length > 1" [repos]="repos" [selected]="activeRepo"
+                       [disabled]="loading || creating || !!result" (selectedChange)="selectRepo($event)"></app-git-repo-picker>
+
+  <div *ngIf="loading" class="nb-center"><mat-spinner diameter="28"></mat-spinner></div>
+
+  <ng-container *ngIf="preview && !result">
+    <p class="nb-problem" *ngIf="preview.blocker"><mat-icon inline>block</mat-icon> {{ preview.blocker }}</p>
+
+    <p class="nb-base">
+      <ng-container *ngIf="preview.currentBranch">
+        {{ 'NEW_BRANCH.FROM_BRANCH' | translate:{ branch: preview.currentBranch, sha: preview.headShort } }}
+      </ng-container>
+      <ng-container *ngIf="!preview.currentBranch">
+        {{ 'NEW_BRANCH.FROM_DETACHED' | translate:{ sha: preview.headShort } }}
+      </ng-container>
+      <span *ngIf="preview.unpublishedCommits > 0">
+        {{ 'NEW_BRANCH.WITH_UNPUBLISHED' | translate:{ count: preview.unpublishedCommits } }}
+      </span>
+    </p>
+
+    <label class="nb-label" for="newBranchName">{{ 'NEW_BRANCH.NAME' | translate }}</label>
+    <mat-form-field appearance="outline" class="nb-name">
+      <input matInput id="newBranchName" [(ngModel)]="name" cdkFocusInitial (keyup.enter)="create()" autocomplete="off">
+    </mat-form-field>
+
+    <section *ngIf="preview.carriedFiles.length">
+      <h3>{{ 'NEW_BRANCH.CARRIED' | translate:{ count: preview.carriedFiles.length } }}</h3>
+      <ul class="nb-files"><li *ngFor="let f of preview.carriedFiles">{{ f }}</li></ul>
+      <p class="nb-muted">{{ 'NEW_BRANCH.CARRIED_NOTE' | translate }}</p>
+    </section>
+    <p class="nb-muted" *ngIf="!preview.carriedFiles.length">{{ 'NEW_BRANCH.NOTHING_OPEN' | translate }}</p>
+
+    <p class="nb-muted" *ngIf="preview.hasSubmodules">{{ 'NEW_BRANCH.SUBMODULES' | translate }}</p>
+    <p class="nb-muted" *ngIf="!preview.hasOrigin">{{ 'NEW_BRANCH.NO_ORIGIN' | translate }}</p>
+  </ng-container>
+
+  <p class="nb-problem" *ngIf="error"><mat-icon inline>error_outline</mat-icon> {{ error }}</p>
+
+  <ng-container *ngIf="result">
+    <p class="nb-ok"><mat-icon inline>check_circle</mat-icon> {{ 'NEW_BRANCH.CREATED' | translate:{ branch: result.branch } }}</p>
+    <p class="nb-ok" *ngIf="result.published"><mat-icon inline>cloud_done</mat-icon> {{ 'NEW_BRANCH.PUBLISHED' | translate }}</p>
+    <p class="nb-problem" *ngIf="!result.published && result.publishProblem"><mat-icon inline>cloud_off</mat-icon> {{ result.publishProblem }}</p>
+    <ul class="nb-notes" *ngIf="result.notes?.length"><li *ngFor="let n of result.notes">{{ n }}</li></ul>
+    <p class="nb-muted" *ngIf="result.carriedFiles?.length">{{ 'NEW_BRANCH.CARRIED_DONE' | translate:{ count: result.carriedFiles.length } }}</p>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" [disabled]="creating || publishing">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-stroked-button *ngIf="result && !result.published && preview?.hasOrigin" (click)="publish()" [disabled]="publishing">
+    <mat-icon>cloud_upload</mat-icon> {{ 'NEW_BRANCH.PUBLISH' | translate }}
+  </button>
+  <button mat-flat-button color="primary" *ngIf="!result" (click)="create()" [disabled]="!canCreate">
+    <mat-spinner *ngIf="creating" diameter="16" class="nb-inline-spinner"></mat-spinner>
+    {{ (preview?.hasOrigin ? 'NEW_BRANCH.CREATE_AND_PUBLISH' : 'NEW_BRANCH.CREATE') | translate }}
+  </button>
+</mat-dialog-actions>

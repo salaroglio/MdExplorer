@@ -1,0 +1,16 @@
+<h2 mat-dialog-title>{{ (isFolder ? 'RENAME_DOCUMENT.TITLE_FOLDER' : 'RENAME_DOCUMENT.TITLE') | translate }}</h2>
+<mat-dialog-content class="rename-document">
+  <label class="rename-document-label" for="renameDocumentName">{{ 'RENAME_DOCUMENT.NAME' | translate }}</label>
+  <mat-form-field appearance="outline" class="rename-document-field">
+    <input matInput #nameInput id="renameDocumentName" [(ngModel)]="name" spellcheck="false"
+           (keyup.enter)="save()" (keydown.escape)="cancel()" (ngModelChange)="error = null">
+    <mat-hint>{{ (isFolder ? 'RENAME_DOCUMENT.HINT_FOLDER' : 'RENAME_DOCUMENT.HINT') | translate }}</mat-hint>
+  </mat-form-field>
+  <p class="rename-document-error" *ngIf="error">{{ error }}</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">{{ 'COMMON.CANCEL' | translate }}</button>
+  <button mat-flat-button color="primary" class="btn-rename-document" [disabled]="!canSave" (click)="save()">
+    {{ 'RENAME_DOCUMENT.SAVE' | translate }}
+  </button>
+</mat-dialog-actions>

@@ -234,94 +234,175 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { message = "done" });
         }
 
+        /// <summary>Un documento solo: è lo spostamento di più documenti con un elenco di uno.</summary>
         [HttpPost]
         public IActionResult MoveMdFile([FromBody] RequestMoveMdFile requestMoveMdFile)
         {
-            _logger.LogInformation("[MoveMdFile] Method called");
-            _logger.LogInformation($"[MoveMdFile] SourceRelativePath: {requestMoveMdFile?.SourceRelativePath}");
-            _logger.LogInformation($"[MoveMdFile] DestinationPath: {requestMoveMdFile?.DestinationPath}");
-
-            if (string.IsNullOrEmpty(requestMoveMdFile?.SourceRelativePath) || string.IsNullOrEmpty(requestMoveMdFile?.SourceFileName) || string.IsNullOrEmpty(requestMoveMdFile.DestinationPath))
-            {
-                _logger.LogError("[MoveMdFile] Invalid request data");
+            if (string.IsNullOrEmpty(requestMoveMdFile?.SourceRelativePath) || string.IsNullOrEmpty(requestMoveMdFile.DestinationPath))
                 return BadRequest(new { error = "Invalid request data" });
+            return MoveMdFiles(new RequestMoveMdFiles
+            {
+                SourceRelativePaths = new List<string> { requestMoveMdFile.SourceRelativePath },
+                DestinationPath = requestMoveMdFile.DestinationPath,
+            });
+        }
+
+        /// <summary>
+        /// Sposta i documenti scelti nell'albero (sprint 2026-11-25-Spostamento-File-E-Link): prima si controlla TUTTO
+        /// l'elenco, e con un solo problema (file che manca, fuori dal progetto, nome già presente nell'arrivo o ripetuto
+        /// nella scelta) non si sposta niente. Poi un documento alla volta, ognuno con il ricalcolo dei link: in quest'ordine
+        /// anche i link fra i documenti spostati restano giusti. Niente sovrascritture: prima <c>File.Move(…, true)</c>
+        /// cancellava in silenzio un documento con lo stesso nome nella cartella di arrivo.
+        /// </summary>
+        [HttpPost]
+        public IActionResult MoveMdFiles([FromBody] RequestMoveMdFiles request)
+        {
+            if (request?.SourceRelativePaths == null || request.SourceRelativePaths.Count == 0 || string.IsNullOrEmpty(request.DestinationPath))
+                return BadRequest(new { error = "Invalid request data" });
+
+            var projectBasePath = GetProjectPath();
+            var plan = MdExplorer.Features.Refactoring.DocumentMovePlanner.Plan(projectBasePath, request.SourceRelativePaths, request.DestinationPath);
+            if (plan.Refusal != null)
+            {
+                _logger.LogWarning("[MoveMdFiles] Rifiutato: {Why}", plan.Refusal);
+                return Conflict(new { error = plan.Refusal });
             }
 
+            var moved = new List<object>();
             SetFileSystemWatcherEnabled(false);
             try
             {
-                var projectBasePath = GetProjectPath();
-                // SourceRelativePath may or may not start with a path separator: files at
-                // the project root arrive as "file.md" (no leading slash), nested files as
-                // "\folder\file.md". TrimStart handles both — a blind Substring(1) would
-                // eat the first character of a root-level filename.
-                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.TrimStart('/', '\\');
-                var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
-
-                _logger.LogInformation($"[MoveMdFile] From: {fromFullPathFileName}");
-
-                var fileName = requestMoveMdFile.SourceFileName;
-                // Same separator caveat as the source path above; TrimStart also avoids a
-                // crash when the destination is the project root (Replace yields "").
-                var relativeDestinationPath = requestMoveMdFile.DestinationPath
-                                        .Replace(GetProjectPath(), "").TrimStart('/', '\\');
-                var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
-                var toFullPathFileName = Path.Combine(GetProjectPath(), toRelativePathFileName);
-
-                _logger.LogInformation($"[MoveMdFile] To: {toFullPathFileName}");
-
-                MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
-
-                // NOTE: No BeginTransaction/Commit on GetEngineDB() here.
-                // RefactoringManager uses its own DI-injected IEngineDB session (different from
-                // GetEngineDB() which comes from DatabaseManager). Starting a transaction on
-                // GetEngineDB() would lock the SQLite DB, causing "database is locked" when
-                // RefactoringManager.Flush() tries to write on its separate session.
-                // Each Flush() in RefactoringManager auto-commits on its own session.
-
-                _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath,
-                    fromRelativePathFileName, toRelativePathFileName);
-
-                if (IsLinkIndexingEnabled())
+                foreach (var move in plan.Moves)
                 {
-                    var refSourceAct = _refactoringManager
-                        .SaveRefactoringActionForMoveFile(fileName,
-                        Path.GetDirectoryName(fromFullPathFileName),
-                        requestMoveMdFile.DestinationPath);
-
-                    _refactoringManager.SetExternalLinks(
-                       toRelativePathFileName,
-                       refSourceAct);
-
-                    _refactoringManager.SetInternalLinks(
-                        toRelativePathFileName,
-                        projectBasePath,
-                        refSourceAct);
-
-                    _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
+                    if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
+                    else MoveOneDocument(projectBasePath, move.From, move.To);
+                    moved.Add(new { from = move.From, to = move.To });
                 }
-                else
-                {
-                    _logger.LogInformation("[MoveMdFile] Link indexing disabled, skipping link recalculation");
-                }
-
-                _logger.LogInformation("[MoveMdFile] Completed successfully");
-                SetFileSystemWatcherEnabled(true);
-                return Ok(new { message = "done" });
+                _logger.LogInformation("[MoveMdFiles] Spostati {Moved}, saltati {Skipped}", moved.Count, plan.Skipped.Count);
+                return Ok(new { message = "done", moved, skipped = plan.Skipped });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[MoveMdFile] Error during move operation");
+                _logger.LogError(ex, "[MoveMdFiles] Errore dopo {Moved} documenti spostati", moved.Count);
+                var notMoved = plan.Moves.Skip(moved.Count).Select(m => m.From).ToList();
+                return StatusCode(500, new
+                {
+                    error = MdExplorer.Features.Services.UiText.Say(
+                        $"Spostamento interrotto: {ex.Message}. Spostati {moved.Count}, non spostati {notMoved.Count}.",
+                        $"Move interrupted: {ex.Message}. Moved {moved.Count}, not moved {notMoved.Count}."),
+                    moved, notMoved,
+                });
+            }
+            finally
+            {
                 SetFileSystemWatcherEnabled(true);
+            }
+        }
+
+        /// <summary>
+        /// Rinomina un documento o una cartella (sprint 2026-11-25-Spostamento-File-E-Link): uno spostamento nello stesso
+        /// posto con un altro nome, quindi gli stessi link ricalcolati, lo stesso indice, nessuna sovrascrittura. Lo usano il «Rinomina»
+        /// dell'albero e la finestra delle regole (nome del file come il titolo); la risposta ha anche la forma che quella
+        /// finestra usava (vecchio <c>refactoringfiles/RenameFileName</c>).
+        /// </summary>
+        [HttpPost]
+        public IActionResult RenameMdFile([FromBody] RequestRenameMdFile request)
+        {
+            if (string.IsNullOrEmpty(request?.SourcePath)) return BadRequest(new { error = "Invalid request data" });
+            var projectBasePath = GetProjectPath();
+            var plan = MdExplorer.Features.Refactoring.DocumentMovePlanner.PlanRename(projectBasePath, request.SourcePath, request.NewName);
+            if (plan.Refusal != null) return Conflict(new { error = plan.Refusal });
+
+            var move = plan.Moves[0];
+            SetFileSystemWatcherEnabled(false);
+            try
+            {
+                if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
+                else MoveOneDocument(projectBasePath, move.From, move.To);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RenameMdFile] {From} → {To}", move.From, move.To);
                 return StatusCode(500, new { error = ex.Message });
             }
+            finally { SetFileSystemWatcherEnabled(true); }
+
+            var relativeDir = Path.GetDirectoryName(Path.GetRelativePath(projectBasePath, move.From)) ?? string.Empty;
+            return Ok(new
+            {
+                oldName = Path.GetFileName(move.From),
+                newName = Path.GetFileName(move.To),
+                oldPath = move.From,
+                newPath = move.To,
+                oldLevel = request.Level,
+                newLevel = request.Level,
+                relativePath = Path.DirectorySeparatorChar + relativeDir,
+                isFolder = move.IsFolder,
+            });
+        }
+
+        /// <summary>
+        /// Una cartella intera: sul disco, poi i link (dei documenti dentro verso fuori, e degli altri verso qualunque file
+        /// dentro), poi l'indice come quando il watcher vede una cartella spostata.
+        /// </summary>
+        private void MoveOneFolder(string projectBasePath, string fromDir, string toDir)
+        {
+            Directory.Move(fromDir, toDir);
+            var relinked = _refactoringManager.RelinkMovedFolder(projectBasePath, fromDir, toDir);
+            _logger.LogInformation("[MoveMdFiles] cartella {From} → {To}: link riscritti in {Count} documenti",
+                Path.GetRelativePath(projectBasePath, fromDir), Path.GetRelativePath(projectBasePath, toDir), relinked.Count);
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            if (!_fileSystemWatcherManager.MoveFolderInIndex(connectionId, fromDir, toDir))
+                _logger.LogWarning("[MoveMdFiles] nessun watcher per {Conn}: l'indice della cartella lo ripara la prossima indicizzazione", connectionId);
+            if (IsLinkIndexingEnabled())
+            {
+                var newPrefix = Path.GetFullPath(toDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                _refactoringManager.ReindexLinks(projectBasePath, relinked.Where(d => !Path.GetFullPath(d).StartsWith(newPrefix)));
+            }
+        }
+
+        /// <summary>Un documento: sul disco, nell'indice dei file, poi i link (dentro di lui e degli altri verso di lui).</summary>
+        private void MoveOneDocument(string projectBasePath, string fromFullPathFileName, string toFullPathFileName)
+        {
+            MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
+
+            // NOTE: No BeginTransaction/Commit on GetEngineDB() here.
+            // RefactoringManager uses its own DI-injected IEngineDB session (different from
+            // GetEngineDB() which comes from DatabaseManager). Starting a transaction on
+            // GetEngineDB() would lock the SQLite DB, causing "database is locked" when
+            // RefactoringManager.Flush() tries to write on its separate session.
+            // Each Flush() in RefactoringManager auto-commits on its own session.
+            var fromRelativePathFileName = Path.GetRelativePath(projectBasePath, fromFullPathFileName);
+            var toRelativePathFileName = Path.GetRelativePath(projectBasePath, toFullPathFileName);
+            _refactoringManager.RenameTheMdFileIntoEngineDB(projectBasePath, fromRelativePathFileName, toRelativePathFileName);
+
+            var refSourceAct = _refactoringManager.SaveRefactoringActionForMoveFile(Path.GetFileName(toFullPathFileName),
+                Path.GetDirectoryName(fromFullPathFileName), Path.GetDirectoryName(toFullPathFileName));
+
+            // I link markdown e le immagini: si leggono i documenti, non l'indice, quindi valgono anche con
+            // l'indicizzazione dei link spenta.
+            var relinked = _refactoringManager.RelinkMovedDocument(projectBasePath, fromFullPathFileName, toFullPathFileName);
+            _logger.LogInformation("[MoveMdFiles] {From} → {To}: link riscritti in {Count} documenti",
+                fromRelativePathFileName, toRelativePathFileName, relinked.Count);
+
+            if (IsLinkIndexingEnabled())
+            {
+                // Le altre sorgenti (PlantUML, MdShow) con i comandi salvati nell'indice.
+                _refactoringManager.SetExternalLinks(toRelativePathFileName, refSourceAct);
+                _refactoringManager.SetInternalLinks(toRelativePathFileName, projectBasePath, refSourceAct);
+                _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
+                _refactoringManager.ReindexLinks(projectBasePath, relinked.Append(toFullPathFileName));
+            }
+            _refactoringManager.CloseAction(refSourceAct);
         }
 
         private void MoveFileOnFilesystem(string oldFullPath, string newFullPath)
         {
 
-            // gestisci il rename di un file
-            System.IO.File.Move(oldFullPath, newFullPath, true);
+            // Mai sovrascrivere: il piano ha già controllato che l'arrivo sia libero, e se nel frattempo non lo è più
+            // meglio un errore che un documento cancellato.
+            System.IO.File.Move(oldFullPath, newFullPath, false);
             if (_visualStudioCode.CurrentVisualStudio != null)
             {
                 _visualStudioCode.ReopenVisualStudioCode(newFullPath);
@@ -2693,6 +2774,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return list;
         }
 
+        /// <remarks>
+        /// ⚠️ Non rinomina niente sul disco: restituisce i nodi dell'albero per «cartella/nome». L'albero dei documenti usa
+        /// <see cref="RenameMdFile"/> (sprint 2026-11-25-Spostamento-File-E-Link); resta solo per l'albero di pubblicazione.
+        /// </remarks>
         [HttpPost]
         public IActionResult RenameDirectory([FromBody] RenameDirectory fileData)
         {

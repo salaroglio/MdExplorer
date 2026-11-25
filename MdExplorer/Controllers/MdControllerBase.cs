@@ -271,20 +271,9 @@ namespace MdExplorer.Service.Controllers
                 var linksToStore = relationship.FileType == "File" ? getModifier.GetLinksFromFile(relationship.Path) : new List<LinkDetail>().ToArray();
                 foreach (var singleLink in linksToStore)
                 {
-                    // manage relative path
-                    var fullPath = Path.GetDirectoryName(relationship.Path)
-                        + Path.DirectorySeparatorChar
-                        + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
-
-                    // manage absolute path in link
-                    if (singleLink.FullPath.StartsWith("/"))
-                    {
-                        var projectPath = GetProjectPath();
-                        fullPath = projectPath
-                            + singleLink.FullPath.Replace('/', Path.DirectorySeparatorChar);
-                    }
-
-                    var normalizedFullPath = _helper.NormalizePath(fullPath);
+                    // Il bersaglio vero, dalla radice per «/…»: lo stesso calcolo di tutti quelli che scrivono l'indice.
+                    var normalizedFullPath = MdExplorer.Features.Refactoring.RefactoringManager.LinkIndexPath(
+                        GetProjectPath(), relationship.Path, singleLink.FullPath);
 
                     var projectPath2 = GetProjectPath();
                     var context = Path.GetDirectoryName(relationship.Path)

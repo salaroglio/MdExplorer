@@ -14,6 +14,7 @@ import { TranslateModule } from '@ngx-translate/core';
 
 
 
+import { NewBranchDialogComponent } from './dialogs/new-branch-dialog/new-branch-dialog.component';
 @NgModule({
   declarations: [
     GitMessagesComponent,
@@ -21,6 +22,7 @@ import { TranslateModule } from '@ngx-translate/core';
     CommitMessageDialogComponent,
     GitHistoryDialogComponent,
     GitBranchDialogComponent,
+    NewBranchDialogComponent,
     GitSetupRemoteGenericDialogComponent,
     GitInitWizardDialogComponent,
     GitAddSubmoduleDialogComponent
@@ -35,6 +37,7 @@ import { TranslateModule } from '@ngx-translate/core';
     CommitMessageDialogComponent,
     GitHistoryDialogComponent,
     GitBranchDialogComponent,
+    NewBranchDialogComponent,
     GitSetupRemoteGenericDialogComponent,
     GitInitWizardDialogComponent,
     GitAddSubmoduleDialogComponent

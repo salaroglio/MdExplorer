@@ -85,6 +85,11 @@
       <mat-icon>schedule</mat-icon>
       <span>{{ 'MD_TREE.AGENT_SCHEDULING' | translate }}</span>
     </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="renameDocument(item)">
+      <mat-icon>drive_file_rename_outline</mat-icon>
+      <span>{{ 'MD_TREE.RENAME_DOCUMENT' | translate }}</span>
+      <span style="margin-left: 16px; opacity: .6; font-size: 12px;">F2</span>
+    </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
       <mat-icon>open_with</mat-icon>
       <span>{{ 'MD_TREE.MOVE' | translate }}</span>
@@ -316,7 +321,7 @@
     <button mat-icon-button color="primary" style="cursor:pointer">
       <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
     </button>
-    <div (click)="getNode(node)"
+    <div (click)="onDocumentClick($event, node)"
          style="cursor: pointer; padding: 2px;"
          class="node-text">
        {{node.name}}
@@ -407,6 +412,9 @@
                  style="cursor:pointer" matTreeNodePadding
                  (contextmenu)="onRightClick($event, node)"
                  (click)="onFolderClick(node)"
+                 draggable="true"
+                 (dragstart)="onDragStart($event, node)"
+                 (dragend)="onDragEnd($event)"
                  (dragover)="onDragOver($event, node)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, node)"
