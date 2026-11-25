@@ -6,11 +6,14 @@ using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Refactoring
 {
+    /// <summary>Un documento o una cartella da spostare: percorsi completi di partenza e di arrivo.</summary>
+    public sealed record DocumentMove(string From, string To, bool IsFolder);
+
     /// <summary>Che cosa farà uno spostamento di documenti, deciso prima di toccare il disco.</summary>
     public sealed class DocumentMovePlan
     {
         /// <summary>Da spostare, in ordine: percorsi completi di partenza e di arrivo.</summary>
-        public IReadOnlyList<(string From, string To)> Moves { get; init; } = Array.Empty<(string, string)>();
+        public IReadOnlyList<DocumentMove> Moves { get; init; } = Array.Empty<DocumentMove>();
         /// <summary>Già nella cartella di arrivo: non c'è niente da fare (percorsi completi).</summary>
         public IReadOnlyList<string> Skipped { get; init; } = Array.Empty<string>();
         /// <summary>Perché non si sposta niente; null se si può.</summary>
@@ -39,19 +42,32 @@ namespace MdExplorer.Features.Refactoring
             if (!Directory.Exists(dest))
                 return Refuse(UiText.Say($"La cartella «{Rel(root, dest)}» non c'è.", $"The folder «{Rel(root, dest)}» does not exist."));
 
-            var moves = new List<(string From, string To)>();
+            var moves = new List<DocumentMove>();
+            var inputs = (sourceRelativePaths ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => (Raw: s, Full: Path.GetFullPath(Path.Combine(root, Clean(s))))).ToList();
+            // Le cartelle scelte: quello che sta dentro di loro viaggia con loro, non da solo.
+            var chosenFolders = inputs.Where(i => Directory.Exists(i.Full)).Select(i => i.Full.TrimEnd(Path.DirectorySeparatorChar)).ToList();
             var skipped = new List<string>();
             var names = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-            foreach (var raw in (sourceRelativePaths ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s)))
+            foreach (var (raw, fullFrom) in inputs)
             {
-                var from = Path.GetFullPath(Path.Combine(root, Clean(raw)));
+                var from = fullFrom.TrimEnd(Path.DirectorySeparatorChar);
                 if (moves.Any(m => string.Equals(m.From, from, cmp)) || skipped.Any(s => string.Equals(s, from, cmp))) continue;
+                if (chosenFolders.Any(f => !string.Equals(f, from, cmp) && from.StartsWith(f + Path.DirectorySeparatorChar, cmp))) continue;
                 if (!Inside(root, from, cmp))
                     return Refuse(UiText.Say($"«{raw}» è fuori dal progetto.", $"«{raw}» is outside the project."));
-                if (!File.Exists(from))
+                var isFolder = Directory.Exists(from);
+                if (isFolder)
+                {
+                    if (string.Equals(from, root.TrimEnd(Path.DirectorySeparatorChar), cmp))
+                        return Refuse(UiText.Say("La cartella del progetto non si sposta.", "The project folder cannot be moved."));
+                    if (string.Equals(dest, from, cmp) || dest.StartsWith(from + Path.DirectorySeparatorChar, cmp))
+                        return Refuse(UiText.Say($"«{Rel(root, from)}» non può andare dentro se stessa.", $"«{Rel(root, from)}» cannot go inside itself."));
+                }
+                else if (!File.Exists(from))
                     return Refuse(UiText.Say($"«{Rel(root, from)}» non c'è più: forse è stato spostato o cancellato.",
                         $"«{Rel(root, from)}» is no longer there: maybe it was moved or deleted."));
-                if (!from.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                if (!isFolder && !from.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                     return Refuse(UiText.Say($"«{Rel(root, from)}» non è un documento markdown: per ora si spostano solo quelli.",
                         $"«{Rel(root, from)}» is not a markdown document: for now only those can be moved."));
                 if (string.Equals(Path.GetDirectoryName(from), dest, cmp)) { skipped.Add(from); continue; }
@@ -65,10 +81,10 @@ namespace MdExplorer.Features.Refactoring
                     return Refuse(UiText.Say($"In «{Rel(root, dest)}» c'è già «{name}»: non sposto niente, per non cancellarlo.",
                         $"«{Rel(root, dest)}» already has «{name}»: nothing is moved, so as not to delete it."));
                 names[name] = from;
-                moves.Add((from, to));
+                moves.Add(new DocumentMove(from, to, isFolder));
             }
             if (moves.Count == 0 && skipped.Count == 0)
-                return Refuse(UiText.Say("Nessun documento da spostare.", "No document to move."));
+                return Refuse(UiText.Say("Niente da spostare.", "Nothing to move."));
             return new DocumentMovePlan { Moves = moves, Skipped = skipped };
         }
 

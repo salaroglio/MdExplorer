@@ -157,20 +157,45 @@ namespace MdExplorer.Features.Refactoring
             bool isMovedDocument, out int changed)
         {
             var sameAs = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            // Il documento spostato si legge come stava nel posto vecchio: i suoi link relativi erano relativi a quello.
-            var readAs = isMovedDocument ? oldPath : documentPath;
+            var old = Path.GetFullPath(oldPath);
+            return RelinkForMoves(markdown, documentPath, isMovedDocument ? oldPath : documentPath, projectRoot,
+                target => string.Equals(target, old, sameAs) ? newPath : null, out changed);
+        }
+
+        /// <summary>
+        /// Il caso generale (un documento, una cartella intera, più cose insieme): <paramref name="newLocationOf"/> dice
+        /// dove è finito un percorso spostato, o null se non si è mosso. Il documento si legge come stava in
+        /// <paramref name="documentOldPath"/> (i suoi link relativi erano relativi a quel posto) e si scrive per dove sta ora,
+        /// <paramref name="documentPath"/>. Si cambia un link solo se il documento o il suo bersaglio si sono mossi.
+        /// </summary>
+        public static string RelinkForMoves(string markdown, string documentPath, string documentOldPath, string projectRoot,
+            Func<string, string> newLocationOf, out int changed)
+        {
+            var sameAs = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var (text, count) = Rewrite(markdown, link =>
             {
-                var target = ResolveTarget(projectRoot, readAs, link.Target);
+                var target = ResolveTarget(projectRoot, documentOldPath, link.Target);
                 if (target == null) return null;
                 var fromRoot = link.Target.StartsWith('/');
-                var pointsToMoved = string.Equals(target, Path.GetFullPath(oldPath), sameAs);
-                if (pointsToMoved) return WriteTarget(projectRoot, documentPath, newPath, fromRoot);
-                if (!isMovedDocument || fromRoot) return null;
-                return WriteTarget(projectRoot, documentPath, target, false);
+                var shouldReach = Path.GetFullPath(newLocationOf(target) ?? target);
+                // Letto da dove sta ora il documento, il link porta già lì (due documenti spostati insieme, un link dalla
+                // radice a un bersaglio fermo): resta scritto com'è, «./» compreso.
+                if (string.Equals(ResolveTarget(projectRoot, documentPath, link.Target), shouldReach, sameAs)) return null;
+                return WriteTarget(projectRoot, documentPath, shouldReach, fromRoot);
             });
             changed = count;
             return text;
+        }
+
+        /// <summary>Dove è finito <paramref name="path"/> se stava dentro la cartella spostata; null se era fuori.</summary>
+        public static string InsideMovedFolder(string path, string oldDir, string newDir)
+        {
+            var sameAs = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var oldPrefix = Path.GetFullPath(oldDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (string.Equals(path, oldPrefix.TrimEnd(Path.DirectorySeparatorChar), sameAs)) return Path.GetFullPath(newDir);
+            return path.StartsWith(oldPrefix, sameAs)
+                ? Path.Combine(Path.GetFullPath(newDir), path.Substring(oldPrefix.Length))
+                : null;
         }
     }
 }

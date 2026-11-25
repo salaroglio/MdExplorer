@@ -289,6 +289,55 @@ namespace MdExplorer.Features.Refactoring
             }
         }
 
+        /// <summary>
+        /// Una cartella spostata da <paramref name="oldDir"/> a <paramref name="newDir"/> (già spostata sul disco): ogni
+        /// documento dentro si legge come stava prima e i suoi link verso fuori si ricalcolano; ogni documento fuori con link
+        /// verso qualcosa dentro (documenti, immagini, qualunque file) porta al posto nuovo. I link fra documenti della
+        /// cartella non cambiano. I documenti fuori da guardare sono quelli il cui testo contiene il nome della cartella:
+        /// un link che entra nella cartella lo deve attraversare.
+        /// </summary>
+        public IReadOnlyList<string> RelinkMovedFolder(string projectRoot, string oldDir, string newDir)
+        {
+            oldDir = Path.GetFullPath(oldDir).TrimEnd(Path.DirectorySeparatorChar);
+            newDir = Path.GetFullPath(newDir).TrimEnd(Path.DirectorySeparatorChar);
+            var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var newPrefix = newDir + Path.DirectorySeparatorChar;
+            string Map(string target) => MarkdownLinks.InsideMovedFolder(target, oldDir, newDir);
+            var changed = new List<string>();
+
+            foreach (var doc in ProjectDocuments(newDir))
+            {
+                var oldDoc = Path.Combine(oldDir, doc.Substring(newPrefix.Length));
+                if (TryRelinkMoves(doc, oldDoc, projectRoot, Map)) changed.Add(doc);
+            }
+
+            var name = Path.GetFileName(oldDir);
+            var escaped = Uri.EscapeDataString(name);
+            var others = ProjectDocuments(projectRoot)
+                .Concat(_engineDB.GetDal<MarkdownFile>().GetList().Select(m => m.Path).ToList())
+                .Where(d => d != null && d.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                            && !Path.GetFullPath(d).StartsWith(newPrefix, cmp)
+                            && !Path.GetFullPath(d).StartsWith(oldDir + Path.DirectorySeparatorChar, cmp))
+                .Distinct().ToList();
+            foreach (var doc in others)
+            {
+                if (!File.Exists(doc)) continue;
+                var text = ReadText(doc, out _);
+                if (text.IndexOf(name, cmp) < 0 && text.IndexOf(escaped, cmp) < 0) continue;
+                if (TryRelinkMoves(doc, doc, projectRoot, Map)) changed.Add(doc);
+            }
+            return changed;
+        }
+
+        private static bool TryRelinkMoves(string document, string documentOldPath, string projectRoot, Func<string, string> map)
+        {
+            var text = ReadText(document, out var bom);
+            var updated = MarkdownLinks.RelinkForMoves(text, document, documentOldPath, projectRoot, map, out var count);
+            if (count == 0 || updated == text) return false;
+            File.WriteAllText(document, updated, new System.Text.UTF8Encoding(bom));
+            return true;
+        }
+
         private static bool TryRelink(string document, string projectRoot, string oldFullPath, string newFullPath, bool isMoved)
         {
             var text = ReadText(document, out var bom);

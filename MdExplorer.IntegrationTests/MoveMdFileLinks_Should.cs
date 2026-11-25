@@ -211,6 +211,55 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(File.Exists(Path.Combine(p.Root, "uno", "note.md")) && File.Exists(Path.Combine(p.Root, "due", "note.md")));
         }
 
+        // ---- cartelle ----
+
+        [TestMethod]
+        public async Task Move_a_whole_folder_and_keep_every_link_right()
+        {
+            using var p = await Project.Open("mv-cartella", ("archivio/README.md", "# Archivio\n"),
+                ("docs/guida/a.md", "Torna all'[indice](../../index.md), vedi [B](b.md) e ![figura](img/schema.png).\n"),
+                ("docs/guida/b.md", "Torna ad [A](./a.md).\n"),
+                ("docs/guida/img/schema.png", "PNG"),
+                ("docs/altro.md", "Vedi la [guida](guida/a.md).\n"),
+                ("index.md", "[A](docs/guida/a.md) e ![schema](docs/guida/img/schema.png) e [radice](/docs/guida/b.md)\n"));
+
+            var (status, body) = await p.MoveMany("archivio", "docs/guida");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.AreEqual("Torna all'[indice](../../index.md), vedi [B](b.md) e ![figura](img/schema.png).\n", p.Read("archivio/guida/a.md"),
+                "dentro la cartella: i link restano relativi fra loro; l'indice è ancora due livelli su");
+            Assert.AreEqual("Torna ad [A](./a.md).\n", p.Read("archivio/guida/b.md"), "un link fra documenti della cartella non cambia");
+            Assert.AreEqual("Vedi la [guida](../archivio/guida/a.md).\n", p.Read("docs/altro.md"));
+            Assert.AreEqual("[A](archivio/guida/a.md) e ![schema](archivio/guida/img/schema.png) e [radice](/archivio/guida/b.md)\n", p.Read("index.md"),
+                "anche le immagini dentro la cartella si seguono");
+            Assert.IsTrue(p.IndexedPaths().Any(x => x.EndsWith(Path.Combine("archivio", "guida", "a.md"))), "l'indice ha il percorso nuovo");
+            Assert.IsFalse(p.IndexedPaths().Any(x => x.Contains(Path.Combine("docs", "guida"))), "l'indice non ha più il vecchio");
+        }
+
+        [TestMethod]
+        public async Task Refuse_to_move_a_folder_inside_itself()
+        {
+            using var p = await Project.Open("mv-dentro-se", ("docs/guida/a.md", "# A\n"), ("docs/guida/sotto/README.md", "# Sotto\n"));
+
+            var (status, body) = await p.MoveMany("docs/guida/sotto", "docs/guida");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
+            Assert.IsTrue(File.Exists(Path.Combine(p.Root, "docs", "guida", "a.md")));
+        }
+
+        [TestMethod]
+        public async Task Let_a_chosen_file_inside_a_chosen_folder_travel_with_the_folder()
+        {
+            using var p = await Project.Open("mv-cartella-e-file", ("arrivo/README.md", "# Arrivo\n"),
+                ("docs/guida/a.md", "# A\n"), ("index.md", "[A](docs/guida/a.md)\n"));
+
+            var (status, body) = await p.MoveMany("arrivo", "docs/guida", "docs/guida/a.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.IsTrue(File.Exists(Path.Combine(p.Root, "arrivo", "guida", "a.md")), "a.md è dentro la cartella spostata");
+            Assert.AreEqual("[A](arrivo/guida/a.md)\n", p.Read("index.md"));
+        }
+
         // ---- infrastruttura ----
 
         /// <summary>Un progetto vero: file scritti, aperto con SetFolderProject, indicizzato fino ai link.</summary>
@@ -276,6 +325,13 @@ namespace MdExplorer.IntegrationTests
                     sourceRelativePaths = relativeFiles.Select(f => "/" + f).ToArray(),
                     destinationPath = Path.Combine(Root, relativeFolder.Replace('/', Path.DirectorySeparatorChar)),
                 }));
+
+            /// <summary>I percorsi dei documenti nell'indice dei file.</summary>
+            public System.Collections.Generic.List<string> IndexedPaths()
+            {
+                using var engine = _ctx.Factory.Services.GetRequiredService<IDatabaseManager>().CreateIsolatedEngineDB(_conn);
+                return engine.GetDal<MarkdownFile>().GetList().Select(m => m.Path).ToList();
+            }
 
             public string Read(string relative) => File.ReadAllText(Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar)));
 

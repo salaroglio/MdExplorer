@@ -31,6 +31,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         bool HasWatcher(string connectionId);
 
         /// <summary>
+        /// Una cartella spostata da MDE stesso (trascinamento nell'albero, sprint 2026-11-25-Spostamento-File-E-Link) con il
+        /// watcher spento: l'indice la segue come quando il watcher vede una cartella rinominata (percorsi spostati tenendo
+        /// gli Id, ricerca testuale, collegamenti dei file dentro). False se per la connessione non c'è un watcher.
+        /// </summary>
+        bool MoveFolderInIndex(string connectionId, string oldDir, string newDir);
+
+        /// <summary>
         /// Gets the project path being monitored for a connection.
         /// </summary>
         /// <param name="connectionId">SignalR ConnectionId</param>

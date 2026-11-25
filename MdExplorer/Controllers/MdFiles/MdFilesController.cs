@@ -274,7 +274,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 foreach (var move in plan.Moves)
                 {
-                    MoveOneDocument(projectBasePath, move.From, move.To);
+                    if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
+                    else MoveOneDocument(projectBasePath, move.From, move.To);
                     moved.Add(new { from = move.From, to = move.To });
                 }
                 _logger.LogInformation("[MoveMdFiles] Spostati {Moved}, saltati {Skipped}", moved.Count, plan.Skipped.Count);
@@ -295,6 +296,27 @@ namespace MdExplorer.Service.Controllers.MdFiles
             finally
             {
                 SetFileSystemWatcherEnabled(true);
+            }
+        }
+
+        /// <summary>
+        /// Una cartella intera: sul disco, poi i link (dei documenti dentro verso fuori, e degli altri verso qualunque file
+        /// dentro), poi l'indice come quando il watcher vede una cartella spostata.
+        /// </summary>
+        private void MoveOneFolder(string projectBasePath, string fromDir, string toDir)
+        {
+            Directory.Move(fromDir, toDir);
+            var relinked = _refactoringManager.RelinkMovedFolder(projectBasePath, fromDir, toDir);
+            _logger.LogInformation("[MoveMdFiles] cartella {From} → {To}: link riscritti in {Count} documenti",
+                Path.GetRelativePath(projectBasePath, fromDir), Path.GetRelativePath(projectBasePath, toDir), relinked.Count);
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            if (!_fileSystemWatcherManager.MoveFolderInIndex(connectionId, fromDir, toDir))
+                _logger.LogWarning("[MoveMdFiles] nessun watcher per {Conn}: l'indice della cartella lo ripara la prossima indicizzazione", connectionId);
+            if (IsLinkIndexingEnabled())
+            {
+                var newPrefix = Path.GetFullPath(toDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                _refactoringManager.ReindexLinks(projectBasePath, relinked.Where(d => !Path.GetFullPath(d).StartsWith(newPrefix)));
             }
         }
 
