@@ -31,6 +31,7 @@ namespace MdExplorer.Controllers.AI
         public sealed class ReviewRequest
         {
             public string? ProjectPath { get; set; }
+            public Guid ThreadId { get; set; }
             public long From { get; set; }
             public long To { get; set; }
             public string? Answer { get; set; }
@@ -53,12 +54,50 @@ namespace MdExplorer.Controllers.AI
             }
         }
 
+        public sealed class DecisionRequest
+        {
+            public string? ProjectPath { get; set; }
+            public Guid RecordId { get; set; }
+            /// <summary>Per «Approva»: il testo corretto dall'utente; null = quello proposto.</summary>
+            public string? Content { get; set; }
+        }
+
+        /// <summary>«Approva» (U5): scrive subito la skill e la registra col commit automatico di MDE.</summary>
+        [HttpPost("approve")]
+        public IActionResult Approve([FromBody] DecisionRequest request)
+        {
+            try
+            {
+                var decision = _learning.Approve(request?.ProjectPath, request?.RecordId ?? Guid.Empty, request?.Content);
+                _logger.LogInformation("[SkillLearning] skill scritta: {Path} versione {Version} ({Outcome})", decision.TargetPath, decision.Version, decision.Outcome);
+                return Ok(decision);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>«Rifiuta» (U5): si ricorda subito, per il progetto.</summary>
+        [HttpPost("reject")]
+        public IActionResult Reject([FromBody] DecisionRequest request)
+        {
+            try
+            {
+                return Ok(_learning.Reject(request?.ProjectPath, request?.RecordId ?? Guid.Empty));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("review")]
         public IActionResult Review([FromBody] ReviewRequest request)
         {
             try
             {
-                return Ok(_learning.Review(request?.ProjectPath, request?.From ?? 0, request?.To ?? 0, request?.Answer));
+                return Ok(_learning.Review(request?.ProjectPath, request?.ThreadId ?? Guid.Empty, request?.From ?? 0, request?.To ?? 0, request?.Answer));
             }
             catch (InvalidOperationException ex)
             {

@@ -3205,6 +3205,9 @@
     "SHOW_DIFF": "Differenze",
     "REJECT": "Rifiuta",
     "APPROVE": "Approva",
-    "APPROVED_COUNT": "{{count}} approvate su {{total}}"
+    "WRITTEN": "Scritta in {{path}} (versione {{version}}): MDE la registra in git.",
+    "WRITTEN_CORRECTED": "Scritta con la tua correzione in {{path}} (versione {{version}}): MDE la registra in git.",
+    "REJECTED": "Rifiutata: non verrà riproposta senza prove nuove.",
+    "COUNTS": "{{written}} scritte · {{pending}} in sospeso: puoi continuare la chat e premere di nuovo «Impara»"
   }
 }

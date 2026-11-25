@@ -28,7 +28,7 @@
     <p *ngIf="!review.blockProblem && views.length === 0" class="sl-muted">{{ 'SKILL_LEARNING.NOTHING' | translate }}</p>
 
     <div *ngFor="let view of views; trackBy: byIndex" class="sl-proposal"
-         [class.sl-approved]="view.decision === 'approved'" [class.sl-rejected]="view.decision === 'rejected'"
+         [class.sl-approved]="view.decision && view.decision.outcome !== 'rejected'" [class.sl-rejected]="view.decision?.outcome === 'rejected'"
          [class.sl-invalid]="!view.proposal.isValid">
       <div class="sl-head">
         <mat-icon>{{ view.proposal.action === 'update' ? 'edit_note' : 'note_add' }}</mat-icon>
@@ -55,27 +55,38 @@
 </span></pre>
       <textarea *ngIf="view.editing" class="sl-editor" [(ngModel)]="view.content" rows="18"></textarea>
 
-      <div class="sl-actions">
-        <button mat-button (click)="toggleEdit(view)" [disabled]="!view.proposal.isValid">
+      <p *ngIf="view.problem" class="sl-problem"><mat-icon inline>error_outline</mat-icon> {{ view.problem }}</p>
+
+      <div class="sl-actions" *ngIf="!view.decision">
+        <button mat-button (click)="toggleEdit(view)" [disabled]="!view.proposal.isValid || view.busy">
           <mat-icon>{{ view.editing ? 'visibility' : 'edit' }}</mat-icon>
           {{ (view.editing ? 'SKILL_LEARNING.SHOW_DIFF' : 'SKILL_LEARNING.CORRECT') | translate }}
         </button>
         <span class="flexExpand"></span>
-        <button mat-button (click)="decide(view, 'rejected')" [class.sl-on]="view.decision === 'rejected'">
+        <mat-spinner *ngIf="view.busy" diameter="18"></mat-spinner>
+        <button mat-button (click)="decide(view, 'reject')" [disabled]="view.busy || !view.proposal.recordId">
           <mat-icon>thumb_down</mat-icon> {{ 'SKILL_LEARNING.REJECT' | translate }}
         </button>
-        <button mat-flat-button color="primary" (click)="decide(view, 'approved')" [disabled]="!view.proposal.isValid"
-                [class.sl-on]="view.decision === 'approved'">
+        <button mat-flat-button color="primary" (click)="decide(view, 'approve')" [disabled]="!view.proposal.isValid || view.busy">
           <mat-icon>thumb_up</mat-icon> {{ 'SKILL_LEARNING.APPROVE' | translate }}
         </button>
       </div>
+      <p class="sl-outcome" *ngIf="view.decision as d">
+        <ng-container *ngIf="d.outcome !== 'rejected'">
+          <mat-icon inline>check_circle</mat-icon>
+          {{ (d.outcome === 'corrected' ? 'SKILL_LEARNING.WRITTEN_CORRECTED' : 'SKILL_LEARNING.WRITTEN') | translate:{ path: d.targetPath, version: d.version } }}
+        </ng-container>
+        <ng-container *ngIf="d.outcome === 'rejected'">
+          <mat-icon inline>block</mat-icon> {{ 'SKILL_LEARNING.REJECTED' | translate }}
+        </ng-container>
+      </p>
     </div>
   </ng-container>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
   <span class="sl-muted" *ngIf="state === 'review' && views.length">
-    {{ 'SKILL_LEARNING.APPROVED_COUNT' | translate:{ count: approvedCount, total: views.length } }}
+    {{ 'SKILL_LEARNING.COUNTS' | translate:{ written: writtenCount, pending: pendingCount } }}
   </span>
   <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
 </mat-dialog-actions>

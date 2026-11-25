@@ -3205,6 +3205,9 @@
     "SHOW_DIFF": "Differences",
     "REJECT": "Reject",
     "APPROVE": "Approve",
-    "APPROVED_COUNT": "{{count}} approved out of {{total}}"
+    "WRITTEN": "Written to {{path}} (version {{version}}): MDE commits it.",
+    "WRITTEN_CORRECTED": "Written with your correction to {{path}} (version {{version}}): MDE commits it.",
+    "REJECTED": "Rejected: it will not be proposed again without new evidence.",
+    "COUNTS": "{{written}} written · {{pending}} pending: you can go on with the chat and press «Learn» again"
   }
 }

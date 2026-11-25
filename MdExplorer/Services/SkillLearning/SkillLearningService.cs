@@ -42,6 +42,17 @@ namespace MdExplorer.Services.SkillLearning
         /// <summary>Il testo di oggi, per un update; null per una skill nuova.</summary>
         public string CurrentContent { get; init; }
         public IReadOnlyList<DiffLine> Diff { get; init; }
+        /// <summary>La riga di <see cref="ChatLearning"/> da approvare o rifiutare; null per una proposta non valida.</summary>
+        public Guid? RecordId { get; init; }
+    }
+
+    /// <summary>Com'è andata una decisione: la skill scritta (dove, quale versione) o il motivo per cui no.</summary>
+    public sealed class LearnDecision
+    {
+        public Guid RecordId { get; init; }
+        public string Outcome { get; init; }
+        public string TargetPath { get; init; }
+        public int? Version { get; init; }
     }
 
     public sealed class LearnReview
@@ -95,7 +106,7 @@ namespace MdExplorer.Services.SkillLearning
             var prompt = _template.Value
                 .Replace("{{harness}}", inventory.Harness)
                 .Replace("{{skills}}", ProjectSkillInventory.ForPrompt(inventory))
-                .Replace("{{rejected}}", UiText.Say("(nessuna)", "(none)"))
+                .Replace("{{previous}}", Previous(projectPath, threadId))
                 .Replace("{{thread}}", threadId.ToString("D"))
                 .Replace("{{from}}", from.ToString())
                 .Replace("{{to}}", to.ToString())
@@ -105,7 +116,13 @@ namespace MdExplorer.Services.SkillLearning
         }
 
         /// <summary>La risposta del motore: proposte lette, controllate e messe a confronto con i file del progetto.</summary>
-        public LearnReview Review(string projectPath, long from, long to, string answer)
+        public LearnReview Review(string projectPath, long from, long to, string answer) => Review(projectPath, Guid.Empty, from, to, answer);
+
+        /// <summary>
+        /// Come sopra, e le proposte valide diventano righe <see cref="ChatLearning"/> in sospeso: l'utente le approva o rifiuta
+        /// una alla volta (U5). Quelle in sospeso di un «Impara» precedente della stessa chat passano a «riviste».
+        /// </summary>
+        public LearnReview Review(string projectPath, Guid threadId, long from, long to, string answer)
         {
             var inventory = ProjectSkillInventory.For(projectPath);
             if (inventory.Unavailable != null) throw new InvalidOperationException(inventory.Unavailable);
@@ -124,7 +141,176 @@ namespace MdExplorer.Services.SkillLearning
                     Diff = LineDiff.Compute(current, p.Content),
                 };
             }).ToList();
+            if (threadId != Guid.Empty) proposals = Remember(projectPath, threadId, proposals);
             return new LearnReview { Prose = read.Prose, BlockProblem = read.BlockProblem, Proposals = proposals };
+        }
+
+        private List<ReviewedProposal> Remember(string projectPath, Guid threadId, List<ReviewedProposal> proposals)
+        {
+            WithSession(session =>
+            {
+                var dal = session.GetDal<ChatLearning>();
+                var now = DateTime.UtcNow;
+                foreach (var old in dal.GetList().Where(l => l.ThreadId == threadId && l.Outcome == ChatLearning.Pending).ToList())
+                {
+                    old.Outcome = ChatLearning.Superseded;
+                    old.DecidedAt = now;
+                    dal.Save(old);
+                }
+                for (var i = 0; i < proposals.Count; i++)
+                {
+                    var p = proposals[i];
+                    if (!p.IsValid) continue;
+                    var row = new ChatLearning
+                    {
+                        ThreadId = threadId, ProjectPath = projectPath, Action = p.Action, Skill = p.Skill, Why = p.Why,
+                        Evidence = string.Join(",", p.Evidence), Content = p.Content, TargetPath = p.TargetPath,
+                        Outcome = ChatLearning.Pending, CreatedAt = now,
+                    };
+                    dal.Save(row);
+                    proposals[i] = new ReviewedProposal
+                    {
+                        Index = p.Index, Action = p.Action, Skill = p.Skill, Why = p.Why, Evidence = p.Evidence, Content = p.Content,
+                        Problems = p.Problems, TargetPath = p.TargetPath, CurrentContent = p.CurrentContent, Diff = p.Diff, RecordId = row.Id,
+                    };
+                }
+            });
+            return proposals;
+        }
+
+        /// <summary>
+        /// «Approva» (U5): scrive subito la skill, con il blocco <c>learned:</c> (versione, data, chat), passando dallo scrittore
+        /// di MDE, quindi col commit automatico. <paramref name="correctedContent"/> = il testo corretto dall'utente, controllato
+        /// come una proposta. Eccezione con il motivo quando non si può (e la riga resta in sospeso).
+        /// </summary>
+        public LearnDecision Approve(string projectPath, Guid recordId, string correctedContent)
+        {
+            var row = Record(recordId, projectPath);
+            var content = string.IsNullOrWhiteSpace(correctedContent) ? row.Content : correctedContent.Replace("\r\n", "\n");
+            var problem = SkillLearningBlock.ContentProblem(content, row.Skill);
+            if (problem != null) throw new InvalidOperationException(problem);
+
+            var inventory = ProjectSkillInventory.For(projectPath);
+            if (inventory.Unavailable != null) throw new InvalidOperationException(inventory.Unavailable);
+            var expected = $"{inventory.SkillsFolder}/{row.Skill}/SKILL.md";
+            if (!string.Equals(expected, row.TargetPath, StringComparison.Ordinal))
+                throw new InvalidOperationException(UiText.Say(
+                    $"Il motore del progetto è cambiato: la skill andrebbe in {expected}, non più in {row.TargetPath}. Premi di nuovo «Impara».",
+                    $"The project's engine changed: the skill would go to {expected}, no longer to {row.TargetPath}. Press «Learn» again."));
+            var existing = inventory.Skills.FirstOrDefault(s => s.Name == row.Skill);
+            if (existing?.IsMde == true)
+                throw new InvalidOperationException(UiText.Say($"«{row.Skill}» è di MdExplorer: non si scrive.", $"«{row.Skill}» belongs to MdExplorer: not written."));
+            if (row.Action == SkillProposal.ActionCreate && existing != null)
+                throw new InvalidOperationException(UiText.Say(
+                    $"Nel frattempo la skill «{row.Skill}» è nata: premi di nuovo «Impara» per avere una correzione invece di una skill nuova.",
+                    $"Meanwhile the skill «{row.Skill}» was created: press «Learn» again to get an update instead of a new skill."));
+
+            var full = Path.Combine(projectPath, row.TargetPath);
+            var previous = File.Exists(full) ? LearnedVersion(File.ReadAllText(full, Encoding.UTF8)) : 0;
+            var version = previous + 1;
+            var written = WithLearned(content, version, row.ThreadId);
+            Directory.CreateDirectory(Path.GetDirectoryName(full));
+            MdExplorer.Utilities.MdeRepoWriter.WriteIfChanged(full, written, new MdExplorer.Utilities.MdeWhy(
+                $"skill «{row.Skill}» imparata da una chat (versione {version})", $"skill «{row.Skill}» learned from a chat (version {version})"));
+
+            var outcome = string.IsNullOrWhiteSpace(correctedContent) || correctedContent.Replace("\r\n", "\n") == row.Content ? ChatLearning.Approved : ChatLearning.Corrected;
+            WithSession(session =>
+            {
+                var r = session.GetDal<ChatLearning>().GetList().Single(l => l.Id == recordId);
+                r.Outcome = outcome;
+                r.Content = content;
+                r.WrittenVersion = version;
+                r.DecidedAt = DateTime.UtcNow;
+                session.GetDal<ChatLearning>().Save(r);
+            });
+            return new LearnDecision { RecordId = recordId, Outcome = outcome, TargetPath = row.TargetPath, Version = version };
+        }
+
+        /// <summary>«Rifiuta» (U5): si ricorda subito, e il prossimo «Impara» del progetto non la ripropone senza prove nuove.</summary>
+        public LearnDecision Reject(string projectPath, Guid recordId)
+        {
+            Record(recordId, projectPath);
+            WithSession(session =>
+            {
+                var r = session.GetDal<ChatLearning>().GetList().Single(l => l.Id == recordId);
+                r.Outcome = ChatLearning.Rejected;
+                r.DecidedAt = DateTime.UtcNow;
+                session.GetDal<ChatLearning>().Save(r);
+            });
+            return new LearnDecision { RecordId = recordId, Outcome = ChatLearning.Rejected };
+        }
+
+        /// <summary>Le proposte precedenti per il prompt: le rifiutate del progetto, e le approvate e in sospeso di questa chat.</summary>
+        private string Previous(string projectPath, Guid threadId)
+        {
+            List<ChatLearning> rows = null;
+            WithSession(session => rows = session.GetDal<ChatLearning>().GetList()
+                .Where(l => l.ProjectPath == projectPath
+                            && (l.Outcome == ChatLearning.Rejected
+                                || (l.ThreadId == threadId && (l.Outcome == ChatLearning.Pending || l.Outcome == ChatLearning.Approved || l.Outcome == ChatLearning.Corrected))))
+                .OrderBy(l => l.CreatedAt).ToList());
+            if (rows.Count == 0) return UiText.Say("(nessuna)", "(none)");
+            return string.Join("\n", rows.Select(l =>
+            {
+                var state = l.Outcome switch
+                {
+                    ChatLearning.Rejected => "rifiutata",
+                    ChatLearning.Pending => "in sospeso",
+                    ChatLearning.Corrected => $"approvata dopo una correzione dell'utente (versione {l.WrittenVersion})",
+                    _ => $"approvata (versione {l.WrittenVersion})",
+                };
+                var body = l.Outcome == ChatLearning.Pending ? $"\n  Testo proposto:\n  ```\n{l.Content}\n  ```" : "";
+                return $"- {state}: {l.Action} `{l.Skill}` — {l.Why}{body}";
+            }));
+        }
+
+        private ChatLearning Record(Guid recordId, string projectPath)
+        {
+            ChatLearning row = null;
+            WithSession(session => row = session.GetDal<ChatLearning>().GetList().SingleOrDefault(l => l.Id == recordId));
+            if (row == null) throw new InvalidOperationException(UiText.Say($"La proposta {recordId} non c'è.", $"The proposal {recordId} does not exist."));
+            if (!string.Equals(row.ProjectPath, projectPath, StringComparison.Ordinal))
+                throw new InvalidOperationException(UiText.Say("La proposta è di un altro progetto.", "The proposal belongs to another project."));
+            if (row.Outcome != ChatLearning.Pending)
+                throw new InvalidOperationException(UiText.Say($"La proposta è già decisa ({row.Outcome}).", $"The proposal is already decided ({row.Outcome})."));
+            return row;
+        }
+
+        /// <summary>La versione <c>learned:</c> di una skill, 0 se non ne ha (scritta a mano, o nuova).</summary>
+        internal static int LearnedVersion(string text)
+        {
+            var m = Regex.Match(text ?? string.Empty, @"\A---[ \t]*\r?\n(.*?)\r?\n---", RegexOptions.Singleline);
+            if (!m.Success) return 0;
+            var v = Regex.Match(m.Groups[1].Value, @"^learned:\s*\r?\n(?:[ \t]+.*\r?\n)*?[ \t]+version:\s*(\d+)", RegexOptions.Multiline);
+            return v.Success ? int.Parse(v.Groups[1].Value) : 0;
+        }
+
+        /// <summary>Il testo approvato con il blocco <c>learned:</c> in fondo al frontmatter (lo scrive MdExplorer, mai il modello).</summary>
+        internal static string WithLearned(string content, int version, Guid threadId)
+        {
+            var m = Regex.Match(content, @"\A(---[ \t]*\r?\n)(.*?)(\r?\n---[ \t]*(\r?\n|\z))", RegexOptions.Singleline);
+            if (!m.Success) throw new InvalidOperationException(UiText.Say("Il testo non comincia con il frontmatter.", "The text does not start with the frontmatter."));
+            var learned = $"\nlearned:\n  version: {version}\n  updated: {DateTime.Now:yyyy-MM-dd}\n  chat: {threadId:D}";
+            var text = m.Groups[1].Value + m.Groups[2].Value + learned + m.Groups[3].Value + content.Substring(m.Length);
+            return text.EndsWith("\n") ? text : text + "\n";
+        }
+
+        private void WithSession(Action<IUserSettingsDB> work)
+        {
+            using var scope = _scopes.CreateScope();
+            var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
+            using var session = factory.OpenSession();
+            session.BeginTransaction();
+            try
+            {
+                work(session);
+                session.Commit();
+            }
+            catch
+            {
+                session.Rollback();
+                throw;
+            }
         }
 
         private ChatThread Row(Guid id)

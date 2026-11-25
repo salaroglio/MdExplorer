@@ -32,6 +32,16 @@ export interface ReviewedProposal {
   targetPath: string | null;
   currentContent: string | null;
   diff: DiffLine[];
+  /** The ChatLearning row to approve or reject; null for a proposal that is not valid. */
+  recordId: string | null;
+}
+
+/** What happened to a decision: the skill written (where, which version), or rejected. */
+export interface LearnDecision {
+  recordId: string;
+  outcome: 'approved' | 'corrected' | 'rejected';
+  targetPath: string | null;
+  version: number | null;
 }
 
 export interface LearnReview {
@@ -52,7 +62,17 @@ export class SkillLearningService {
     return this.http.post<LearnRequest>(`${this.baseUrl}/prepare`, { projectPath, threadId });
   }
 
-  review(projectPath: string, from: number, to: number, answer: string): Observable<LearnReview> {
-    return this.http.post<LearnReview>(`${this.baseUrl}/review`, { projectPath, from, to, answer });
+  review(projectPath: string, threadId: string, from: number, to: number, answer: string): Observable<LearnReview> {
+    return this.http.post<LearnReview>(`${this.baseUrl}/review`, { projectPath, threadId, from, to, answer });
+  }
+
+  /** «Approva» (U5): the skill is written now, and MDE commits it. content = the text corrected by the user, if any. */
+  approve(projectPath: string, recordId: string, content: string | null): Observable<LearnDecision> {
+    return this.http.post<LearnDecision>(`${this.baseUrl}/approve`, { projectPath, recordId, content });
+  }
+
+  /** «Rifiuta» (U5): remembered now, for the project. */
+  reject(projectPath: string, recordId: string): Observable<LearnDecision> {
+    return this.http.post<LearnDecision>(`${this.baseUrl}/reject`, { projectPath, recordId });
   }
 }

@@ -19,6 +19,12 @@ namespace MdExplorer.Utilities
         /// (09/11/2026, decisione dell'utente); chi ha un MDE più vecchio riceve l'invito ad aggiornarlo.
         /// </summary>
         Versioned,
+        /// <summary>
+        /// Una skill imparata da «Impara da questa attività» (frontmatter <c>learned:</c>), approvata dall'utente. MDE la scrive e
+        /// la registra col commit automatico; in un conflitto non sceglie lui: è contenuto del gruppo, decide chi fa il pull.
+        /// Si riconosce dal contenuto, quindi solo da <see cref="MdeOwnedFiles.Find(string, string)"/>.
+        /// </summary>
+        Learned,
     }
 
     /// <summary>Un file del repository che MDE scrive da sé.</summary>
@@ -97,9 +103,31 @@ namespace MdExplorer.Utilities
             var found = Find(relative);
             if (found != null) return found;
             // La copia di una skill di un template (09/11/2026): MDE la mette nella cartella del motore e la toglie dalle altre.
-            return MdExplorer.Services.Templates.TemplateSkillFolders.IsTemplateSkillPath(projectPath, relative)
-                ? new MdeOwnedFile(relative.Replace('\\', '/'), MdeMergeKind.Copy, "la copia di una skill di un template nella cartella del motore del progetto")
+            if (MdExplorer.Services.Templates.TemplateSkillFolders.IsTemplateSkillPath(projectPath, relative))
+                return new MdeOwnedFile(relative.Replace('\\', '/'), MdeMergeKind.Copy, "la copia di una skill di un template nella cartella del motore del progetto");
+            return IsLearnedSkill(fullPath, relative)
+                ? new MdeOwnedFile(relative.Replace('\\', '/'), MdeMergeKind.Learned, "una skill imparata con «Impara da questa attività»")
                 : null;
+        }
+
+        /// <summary>
+        /// True se il file è il SKILL.md di una skill imparata: nella cartella delle skill di un motore, con <c>learned:</c> nel
+        /// frontmatter. Si legge il file: è l'unico segno, il nome è libero.
+        /// </summary>
+        public static bool IsLearnedSkill(string fullPath, string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath) || !relativePath.Replace('\\', '/').EndsWith("/SKILL.md", StringComparison.Ordinal)) return false;
+            var p = relativePath.Replace('\\', '/').TrimStart('/');
+            if (!HarnessLayout.All.Any(l => p.StartsWith(l.SkillsFolder + "/", StringComparison.OrdinalIgnoreCase))) return false;
+            try
+            {
+                if (!File.Exists(fullPath)) return false;
+                var text = File.ReadAllText(fullPath);
+                var m = System.Text.RegularExpressions.Regex.Match(text, @"\A---[ \t]*\r?\n(.*?)\r?\n---", System.Text.RegularExpressions.RegexOptions.Singleline);
+                return m.Success && System.Text.RegularExpressions.Regex.IsMatch(m.Groups[1].Value, @"^learned:\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
+            }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
         }
     }
 }

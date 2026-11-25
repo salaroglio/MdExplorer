@@ -8,7 +8,7 @@ mde:
 
 <!--
 MdExplorer-managed prompt, letto SOLO dal servizio (risorsa incorporata): il blocco della risposta lo legge il codice
-(sprint 2026-11-24-Skill-Che-Migliorano). Segnaposto: {{harness}}, {{skills}}, {{rejected}}, {{activity}}, {{thread}}, {{from}}, {{to}}.
+(sprint 2026-11-24-Skill-Che-Migliorano). Segnaposto: {{harness}}, {{skills}}, {{previous}}, {{activity}}, {{thread}}, {{from}}, {{to}}.
 -->
 
 [Istruzione di MdExplorer] L'utente ha premuto «Impara da questa attività». Rileggi l'attività appena conclusa e proponi le skill che renderebbero **la prossima attività dello stesso tipo** più veloce o più corretta: skill nuove, o correzioni a quelle che il progetto ha già. Non rifare l'attività e non modificare file: qui si propone soltanto, l'utente approva una proposta alla volta e MdExplorer scrive.
@@ -26,7 +26,7 @@ MdExplorer-managed prompt, letto SOLO dal servizio (risorsa incorporata): il blo
 - Quello che il codice o la documentazione del progetto dicono già, e quello che le skill `mde-*` dicono già.
 - Una cosa successa una volta sola e senza un motivo per ripetersi.
 - Dati sensibili: password, chiavi, nomi di persone o di clienti, indirizzi interni. Mai in una skill: finisce nel repository.
-- Una proposta uguale a una già rifiutata (elenco sotto), a meno che l'attività non porti una prova nuova: dilla in `why`.
+- Una proposta uguale a una già **rifiutata** (elenco sotto), a meno che l'attività non porti una prova nuova: dilla in `why`.
 
 Meglio **nessuna proposta** che una proposta debole: se l'attività non insegna niente di durevole, rispondi con `{"proposals": []}` e dillo in una frase.
 
@@ -49,9 +49,14 @@ description: <che cosa fa, in una frase>. Use when: <parole e situazioni che dev
 
 {{skills}}
 
-## Proposte rifiutate in passato su questo progetto
+## Proposte precedenti
 
-{{rejected}}
+L'utente approva o rifiuta una proposta alla volta, e può anche non decidere e continuare la chat per aggiungere o correggere. Quindi:
+- **approvata**: è già una skill del progetto (è nell'elenco sopra); se l'attività ha insegnato altro, proponi un `update`;
+- **rifiutata**: non riproporla, a meno di una prova nuova;
+- **in sospeso**: l'hai proposta tu in un «Impara» precedente di questa chat e l'utente non ha deciso; rivedila alla luce di quello che è venuto dopo (correzioni comprese) e riproponila corretta, oppure lasciala cadere.
+
+{{previous}}
 
 ## L'attività (chat `{{thread}}`, eventi da {{from}} a {{to}})
 

@@ -3,19 +3,19 @@ import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDia
 import { TranslateService } from '@ngx-translate/core';
 import { AiChatService } from '../../services/ai-chat.service';
 import { ChatHistoryService, ChatRecordEvent } from '../../services/chat-history.service';
-import { LearnRequest, LearnReview, ReviewedProposal, SkillLearningService } from '../../services/skill-learning.service';
+import { LearnDecision, LearnRequest, LearnReview, ReviewedProposal, SkillLearningService } from '../../services/skill-learning.service';
 
 export interface SkillLearningDialogData {
   projectPath: string;
   threadId: string;
 }
 
-type Decision = 'pending' | 'approved' | 'rejected';
-
-/** A proposal in the window, with what the user decided and, if corrected, the text to write. */
+/** A proposal in the window: undecided, or what the service did with the user's decision (U5: one at a time, at once). */
 interface ProposalView {
   proposal: ReviewedProposal;
-  decision: Decision;
+  decision: LearnDecision | null;
+  busy: boolean;
+  problem: string | null;
   editing: boolean;
   content: string;
   /** The evidence event opened under the proposal, read in full from the chat. */
@@ -68,11 +68,11 @@ export class SkillLearningDialogComponent implements OnInit {
         this.streamed += chunk;
         this.cd.detectChanges();
       });
-      this.learning.review(this.data.projectPath, request.from, request.to, answer).subscribe({
+      this.learning.review(this.data.projectPath, this.data.threadId, request.from, request.to, answer).subscribe({
         next: review => {
           this.review = review;
           this.views = review.proposals.map(p => ({
-            proposal: p, decision: 'pending', editing: false, content: p.content || '', openedEvidence: null,
+            proposal: p, decision: null, busy: false, problem: null, editing: false, content: p.content || '', openedEvidence: null,
           }));
           this.state = 'review';
           this.cd.detectChanges();
@@ -90,9 +90,23 @@ export class SkillLearningDialogComponent implements OnInit {
     this.cd.detectChanges();
   }
 
-  decide(view: ProposalView, decision: Decision): void {
-    if (decision === 'approved' && !view.proposal.isValid) return;
-    view.decision = view.decision === decision ? 'pending' : decision;
+  /**
+   * «Approva» writes the skill now (with the corrected text, if the user changed it); «Rifiuta» is remembered now. A proposal
+   * left alone stays pending: the user can go on with the chat and press «Impara» again.
+   */
+  decide(view: ProposalView, decision: 'approve' | 'reject'): void {
+    if (view.decision || view.busy || !view.proposal.recordId) return;
+    if (decision === 'approve' && !view.proposal.isValid) return;
+    view.busy = true;
+    view.problem = null;
+    const corrected = view.content !== (view.proposal.content || '') ? view.content : null;
+    const call = decision === 'approve'
+      ? this.learning.approve(this.data.projectPath, view.proposal.recordId, corrected)
+      : this.learning.reject(this.data.projectPath, view.proposal.recordId);
+    call.subscribe({
+      next: d => { view.decision = d; view.busy = false; view.editing = false; this.cd.detectChanges(); },
+      error: err => { view.problem = err?.error?.message || err?.message || String(err); view.busy = false; this.cd.detectChanges(); },
+    });
   }
 
   toggleEdit(view: ProposalView): void {
@@ -121,8 +135,17 @@ export class SkillLearningDialogComponent implements OnInit {
     return `${head}\n\n${body}`;
   }
 
-  get approvedCount(): number {
-    return this.views.filter(v => v.decision === 'approved').length;
+  /** Numbers for the footer: computed when a decision changes, not allocated at every change detection. */
+  get writtenCount(): number {
+    let n = 0;
+    for (const v of this.views) if (v.decision && v.decision.outcome !== 'rejected') n++;
+    return n;
+  }
+
+  get pendingCount(): number {
+    let n = 0;
+    for (const v of this.views) if (!v.decision && v.proposal.isValid) n++;
+    return n;
   }
 
   close(): void {

@@ -72,6 +72,13 @@ namespace MdExplorer.Features.Tests.Migrations
                     Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), $"La tabella {table} deve esistere.");
                 }
 
+                // Le proposte di «Impara da questa attività» (sprint skill che migliorano, F4).
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ChatLearning'";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), "La tabella ChatLearning deve esistere dopo la catena completa.");
+                }
+
                 // Cronologia delle chat di MarkAgent (sprint 2026-11-24-Chat-Memorizzate, F1).
                 using (var cmd = conn.CreateCommand())
                 {
