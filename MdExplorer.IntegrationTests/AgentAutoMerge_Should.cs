@@ -82,6 +82,33 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Sign_the_agent_work_as_its_author_with_the_responsible_person_as_committer_and_the_approval_as_the_person()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "am-firme");
+            var m = ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();
+
+            var prep = await m.PrepareForRunAsync(path, "worker", "act1");
+            Assert.IsTrue(prep.Success, prep.Error);
+            File.WriteAllText(Path.Combine(prep.WorktreePath, "deliverable.md"), "# out\n");
+            var pushed = await m.CommitAndPushBranchAsync(path, "worker", "deliverable");
+            Assert.IsNotNull(pushed);
+            Git(path, "fetch origin");
+            Assert.AreEqual("worker <worker@agents.mde> | Test <agent@test.local>",
+                Git(path, $"log -1 --format=\"%an <%ae> | %cn <%ce>\" {pushed.HeadSha}").Out.Trim(), "autore l'agente, committer chi ne risponde");
+
+            var outcome = (await m.MergeDeliverableIntoDefaultAsync(path, "worker", pushed.LocalBranch, pushed.HeadSha)).Outcome;
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, outcome);
+            Git(path, "fetch origin");
+            Assert.AreEqual("Test <agent@test.local> | Test <agent@test.local>",
+                Git(path, "log -1 --format=\"%an <%ae> | %cn <%ce>\" origin/main").Out.Trim(), "la fusione la firma chi approva");
+            Assert.AreEqual(2, Git(path, "log -1 --format=%p origin/main").Out.Trim().Split(' ').Length,
+                "l'approvazione è un commit di fusione anche senza novità su main");
+            StringAssert.Contains(Git(path, "log -1 --format=%s origin/main").Out, "worker");
+        }
+
+        [TestMethod]
         public async Task Report_conflict_when_the_deliverable_clashes_with_main()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

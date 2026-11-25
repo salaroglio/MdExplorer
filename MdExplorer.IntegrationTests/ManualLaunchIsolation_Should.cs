@@ -93,12 +93,34 @@ namespace MdExplorer.IntegrationTests
                 "nessun turno deve partire se il posto di lavoro non è preparabile");
         }
 
+        [TestMethod]
+        public async Task Start_the_isolated_desk_from_the_branch_given_at_launch()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var path = SetupGitProject(ctx, "lancio-ramo");
+            var agentFile = WriteAgent(path, "curatore");
+            // La casella di «Prima di avviare» (B1): ramo nuovo con dentro il lavoro non registrato, pubblicato.
+            Git(path, "switch -c 2026-11-25-per-agente");
+            File.WriteAllText(Path.Combine(path, "bozza.md"), "lavoro non ancora registrato\n");
+            Git(path, "add -A");
+            Git(path, "commit -m bozza");
+            Git(path, "push -u origin 2026-11-25-per-agente");
+
+            await Launch(ctx, path, agentFile, useWorktree: true, baseBranch: "2026-11-25-per-agente");
+
+            var desk = ctx.Runner.LastRequest.WorkingDirectory;
+            StringAssert.StartsWith(desk, Path.Combine(path, ".worktrees"));
+            Assert.IsTrue(File.Exists(Path.Combine(desk, "bozza.md")), "l'agente parte dal ramo con dentro il lavoro");
+        }
+
         // ---- infrastruttura ----
 
         private static IAgentWorktreePreference Pref(AgentCityContext ctx)
             => ctx.Factory.Services.GetRequiredService<IAgentWorktreePreference>();
 
-        private static Task Launch(AgentCityContext ctx, string path, string agentFile, bool? useWorktree)
+        private static Task Launch(AgentCityContext ctx, string path, string agentFile, bool? useWorktree, string baseBranch = null)
             => ctx.Factory.Services.GetRequiredService<IAgentRunJobService>().RunAsync(new AgentRunRequestModel
             {
                 ProjectPath = path,
@@ -106,6 +128,7 @@ namespace MdExplorer.IntegrationTests
                 PreparedPrompt = "fai qualcosa",
                 TriggerSource = "manual",
                 UseWorktree = useWorktree,
+                BaseBranch = baseBranch,
             });
 
         private static string WriteAgent(string projectPath, string name)

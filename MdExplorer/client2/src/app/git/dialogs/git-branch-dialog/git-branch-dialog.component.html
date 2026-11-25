@@ -14,6 +14,17 @@
     <span>{{ (onRoot ? 'GITFLOW.ROOT_SWITCH_NOTE' : 'GITFLOW.CHILD_SWITCH_NOTE') | translate }}</span>
   </div>
 
+  <!-- Conferma del cambio con lavoro aperto: che cosa viene con te, e che niente si perde. -->
+  <div class="switch-confirm" *ngIf="pendingSwitch">
+    <p><mat-icon inline>info</mat-icon> {{ 'GIT_BRANCH.CARRY_CONFIRM' | translate:{ branch: pendingSwitch.branch.name, count: pendingSwitch.files.length } }}</p>
+    <ul class="switch-confirm-files"><li *ngFor="let f of pendingSwitch.files">{{ f }}</li></ul>
+    <p class="switch-confirm-note">{{ 'GIT_BRANCH.CARRY_NOTE' | translate }}</p>
+    <div class="switch-confirm-actions">
+      <button mat-button (click)="cancelSwitch()">{{ 'COMMON.CANCEL' | translate }}</button>
+      <button mat-flat-button color="primary" (click)="confirmSwitch()">{{ 'GIT_BRANCH.CARRY_GO' | translate }}</button>
+    </div>
+  </div>
+
   <!-- Il cambio è stato rifiutato: il motivo dice cosa fare prima, e resta finché non si riprova. -->
   <div class="switch-refusal" *ngIf="switchRefusal">
     <mat-icon>block</mat-icon>
@@ -163,6 +174,9 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="openNewBranch()" [disabled]="isSwitching || isLoading">
+    <mat-icon>add</mat-icon> {{ 'NEW_BRANCH.MENU' | translate }}
+  </button>
   <button mat-button (click)="onClose()" [disabled]="isSwitching">
     <mat-icon>close</mat-icon>
     {{ 'COMMON.CLOSE' | translate }}

@@ -50,16 +50,39 @@ namespace MdExplorer.Features.Agents
         /// dell'agente come l'agente stesso (autore <b>e</b> committer). Vuoto se il nome manca.
         /// </summary>
         public static IReadOnlyDictionary<string, string> EnvFor(string agentName)
+            => EnvFor(agentName, null, null);
+
+        /// <summary>
+        /// Autore l'agente, che ha scritto la modifica; committer la <b>persona responsabile</b> che l'ha fatto partire
+        /// e ne risponde (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente): ogni agente gira sul computer di chi ne
+        /// risponde, che ne autorizza la partenza. Così <c>git blame</c> distingue le righe dell'agente e il log dice chi
+        /// ha innescato la modifica. Senza la persona (nome o email mancanti) committer resta l'agente.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> EnvFor(string agentName, string responsibleName, string responsibleEmail)
         {
             var name = (agentName ?? string.Empty).Trim();
             if (name.Length == 0) return new Dictionary<string, string>();
             var email = EmailFor(name);
+            var hasPerson = !string.IsNullOrWhiteSpace(responsibleName) && !string.IsNullOrWhiteSpace(responsibleEmail);
             return new Dictionary<string, string>
             {
                 [EnvAuthorName] = name,
                 [EnvAuthorEmail] = email,
-                [EnvCommitterName] = name,
-                [EnvCommitterEmail] = email,
+                [EnvCommitterName] = hasPerson ? responsibleName.Trim() : name,
+                [EnvCommitterEmail] = hasPerson ? responsibleEmail.Trim() : email,
+            };
+        }
+
+        /// <summary>Una persona come autore e committer: la fusione approvata la firma chi approva.</summary>
+        public static IReadOnlyDictionary<string, string> EnvForPerson(string personName, string personEmail)
+        {
+            if (string.IsNullOrWhiteSpace(personName) || string.IsNullOrWhiteSpace(personEmail)) return new Dictionary<string, string>();
+            return new Dictionary<string, string>
+            {
+                [EnvAuthorName] = personName.Trim(),
+                [EnvAuthorEmail] = personEmail.Trim(),
+                [EnvCommitterName] = personName.Trim(),
+                [EnvCommitterEmail] = personEmail.Trim(),
             };
         }
     }

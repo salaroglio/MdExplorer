@@ -700,7 +700,11 @@
     "ALREADY_ON_BRANCH": "You are already on this branch",
     "SWITCHED_TO": "Switched to branch: {{branch}}",
     "SWITCH_ERROR": "Error switching branch",
-    "NETWORK_ERROR": "Network error switching branch"
+    "NETWORK_ERROR": "Network error switching branch",
+    "STATUS_UNKNOWN": "I do not know the state of the folder, so I do not switch branch:",
+    "CARRY_CONFIRM": "Switching to «{{branch}}», these {{count}} uncommitted files come with you:",
+    "CARRY_NOTE": "Nothing is lost: if one of these files conflicts with the target branch, git does not switch and says so.",
+    "CARRY_GO": "Switch branch"
   },
   "GIT_HISTORY": {
     "TITLE": "Git History",
@@ -3014,7 +3018,15 @@
     "COMMIT_AND_PUBLISH": "Commit, publish and start",
     "PUBLISH": "Publish and start",
     "PROCEED": "Start without saving",
-    "SAVE_FAILED": "Could not save: the agent did not start."
+    "SAVE_FAILED": "Could not save: the agent did not start.",
+    "IN_NEW_BRANCH": "Put this work in a new branch and start the agent from there",
+    "IN_NEW_BRANCH_HINT": "The branch starts where you are, the work goes in with a commit in your name and is published. You stay on the new branch; the previous branch does not change.",
+    "IN_NEW_BRANCH_SUBMODULES": "Not available: there is work to save inside {{repos}}, and the new branch is created in the project only.",
+    "BRANCH_LABEL": "Branch name",
+    "CREATE_BRANCH_AND_START": "Create the branch and start",
+    "NEW_BRANCH_FAILED": "The agent did not start: {{problem}}",
+    "NOTHING_COMMITTED": "the work did not go into the new branch.",
+    "PENDING_FAILED": "I cannot tell the state of the project folder: the agent did not start."
   },
   "BACKGROUND_WORK": {
     "OPENING_WAITING": "The service is opening the project: {{count}} page requests are waiting and leave as soon as it is ready.",
@@ -3220,5 +3232,24 @@
     "NAME": "Name",
     "HINT": "Links to the document are updated automatically.",
     "SAVE": "Rename"
+  },
+  "NEW_BRANCH": {
+    "MENU": "New branch",
+    "TITLE": "New branch",
+    "FROM_BRANCH": "Starts from «{{branch}}» ({{sha}})",
+    "FROM_DETACHED": "Starts from commit {{sha}} (detached HEAD)",
+    "WITH_UNPUBLISHED": ", with {{count}} commits not yet published",
+    "NAME": "Branch name",
+    "CARRIED": "Coming with you into the new branch ({{count}} uncommitted files)",
+    "CARRIED_NOTE": "They stay exactly as they are: git carries them into the new branch without touching them.",
+    "NOTHING_OPEN": "Nothing open: the folder is clean.",
+    "SUBMODULES": "The branch is created in this repository only: the submodules stay on their branches.",
+    "NO_ORIGIN": "The project has no remote: the branch will stay on this computer.",
+    "CREATE_AND_PUBLISH": "Create, switch and publish",
+    "CREATE": "Create and switch",
+    "CREATED": "You are on the new branch «{{branch}}».",
+    "PUBLISHED": "Published on GitHub.",
+    "CARRIED_DONE": "{{count}} uncommitted files came with you.",
+    "PUBLISH": "Publish"
   }
 }

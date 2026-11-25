@@ -1,0 +1,9 @@
+.nb-content { min-width: 480px; }
+.nb-center { display: flex; justify-content: center; padding: 16px 0; }
+.nb-label { display: block; margin-top: 8px; font-weight: 500; }
+.nb-name { width: 100%; }
+.nb-files { max-height: 180px; overflow: auto; font-family: monospace; font-size: 12px; user-select: text; }
+.nb-muted { opacity: 0.75; }
+.nb-problem { color: var(--mat-sys-error, #b3261e); }
+.nb-ok { color: #2e7d32; font-weight: 500; }
+.nb-inline-spinner { display: inline-block; margin-right: 6px; vertical-align: middle; }

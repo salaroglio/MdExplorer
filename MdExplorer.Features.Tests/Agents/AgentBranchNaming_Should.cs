@@ -16,14 +16,14 @@ namespace MdExplorer.Features.Tests.Agents
 
         private static string Compose(string[] files, string fallback = null)
             => AgentBranchNaming.ComposePublishedBranch(
-                "salaroglio@hotmail.com", "wiki-curator", files, "a1b2c3d4e5f6", When, fallback);
+                "mario@example.com", "wiki-curator", files, "a1b2c3d4e5f6", When, fallback);
 
         [TestMethod]
         public void Name_the_branch_after_the_folder_that_was_touched()
         {
             var branch = Compose(new[] { "llm-wiki/log.md", "llm-wiki/index.md" });
 
-            Assert.AreEqual("agent/salaroglio/wiki-curator/2026-08-02-llm-wiki-a1b2c3", branch);
+            Assert.AreEqual("agent/mario/wiki-curator/2026-08-02-llm-wiki-a1b2c3", branch);
         }
 
         [TestMethod]

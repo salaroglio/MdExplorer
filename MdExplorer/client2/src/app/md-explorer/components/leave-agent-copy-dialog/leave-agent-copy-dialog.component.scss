@@ -8,4 +8,6 @@ h2 { display: flex; align-items: center; gap: 8px; }
   .leave-copy-label { display: block; font-size: 12px; font-weight: 600; margin: 8px 0 2px; }
   .leave-copy-message { width: 100%; }
   .leave-copy-intro, .leave-copy-note { font-size: 13px; opacity: 0.85; }
+  .leave-copy-new-branch { margin: 4px 0 8px; }
+  .leave-copy-hint { font-size: 12px; opacity: 0.8; margin: 4px 0 4px 28px; }
 }

@@ -46,6 +46,13 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         public string Engine { get; set; }
         public string Model { get; set; }
+
+        /// <summary>
+        /// Il ramo da cui parte il posto isolato (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, B2): quello appena creato
+        /// dalla casella di «Prima di avviare l'agente», con dentro il lavoro non ancora registrato. Null = il ramo di default di origin.
+        /// Solo per il lancio a mano: gli agenti avviati da altri agenti partono da quello che è nel repository.
+        /// </summary>
+        public string BaseBranch { get; set; }
     }
 
     /// <summary>

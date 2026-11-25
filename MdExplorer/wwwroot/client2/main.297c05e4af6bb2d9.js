@@ -11577,6 +11577,30 @@ class GITService {
    * Checkout/switch to a different branch
    * Sends connectionId to backend for client-specific SignalR notifications
    */
+  /** «Nuovo ramo»: da dove si parte, i commit non pubblicati e i file che vengono nel ramo nuovo, e se adesso non si può. */
+  newBranchPreview(repositoryPath) {
+    return this.http.get('../api/ModernGit/new-branch/preview', {
+      params: {
+        repositoryPath
+      }
+    });
+  }
+  /** «Nuovo ramo»: git switch -c dal punto in cui si è (il lavoro aperto viene con te), poi pubblicato. 409 = non creato, con il motivo. */
+  createNewBranch(repositoryPath, name, connectionId, commitMessage) {
+    return this.http.post('../api/ModernGit/new-branch', {
+      repositoryPath,
+      name,
+      connectionId: connectionId || null,
+      commitMessage: commitMessage || null
+    });
+  }
+  /** «Pubblica» un ramo nuovo il cui push non era riuscito. */
+  publishNewBranch(repositoryPath, name) {
+    return this.http.post('../api/ModernGit/new-branch/publish', {
+      repositoryPath,
+      name
+    });
+  }
   checkoutBranch(projectPath, branchName, connectionId) {
     const url = '../api/ModernGit/checkout';
     const request = {
@@ -23623,8 +23647,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.25.11',
-  buildTime: '2026.11.25 16:48:13'
+  version: '2026.11.25.12',
+  buildTime: '2026.11.25 16:53:57'
 };
 
 /***/ }),
@@ -23658,4 +23682,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.8d63a4b03e80c1bc.js.map
+//# sourceMappingURL=main.297c05e4af6bb2d9.js.map

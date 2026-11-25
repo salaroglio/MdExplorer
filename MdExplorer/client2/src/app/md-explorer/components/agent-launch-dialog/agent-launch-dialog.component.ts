@@ -1,6 +1,6 @@
 import { EMPTY, Observable, of } from 'rxjs';
 import { finalize, switchMap } from 'rxjs/operators';
-import { AgentStartGuardService } from '../../services/agent-start-guard.service';
+import { AgentStartGuardService, StartDecision } from '../../services/agent-start-guard.service';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { Component, Inject, OnInit } from '@angular/core';
 import {
@@ -458,14 +458,15 @@ export class AgentLaunchDialogComponent implements OnInit {
 
     // In un posto di lavoro isolato l'agente parte da ciò che è pubblicato: se nella cartella c'è lavoro non
     // salvato lo si dice prima, con la possibilità di committare e pubblicare. Nel progetto (non isolato) vede tutto.
-    const ready = this.useWorktree === false
-      ? of(true)
-      : this.startGuard.beforeStart(this.data.projectPath, this.data.agentName);
+    // Con la casella «nel ramo nuovo» il lavoro aperto va in un ramo pubblicato, e l'agente parte da lì.
+    const ready: Observable<StartDecision | null> = this.useWorktree === false
+      ? of({})
+      : this.startGuard.beforeManualLaunch(this.data.projectPath, this.data.agentName);
 
     ready.pipe(
-      switchMap(go => go
+      switchMap(decision => decision
         ? this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues,
-            this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined)
+            this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined, decision.baseBranch)
         : EMPTY),
       // Annullato: nessuna risposta arriva, e il pulsante deve tornare premibile.
       finalize(() => { this.isLaunching = false; }),
