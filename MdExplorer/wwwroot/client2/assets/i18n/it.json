@@ -3015,7 +3015,15 @@
     "COMMIT_AND_PUBLISH": "Fai il commit, pubblica e avvia",
     "PUBLISH": "Pubblica e avvia",
     "PROCEED": "Avvia senza salvare",
-    "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
+    "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito.",
+    "IN_NEW_BRANCH": "Metti questo lavoro in un ramo nuovo e fai partire l'agente da lì",
+    "IN_NEW_BRANCH_HINT": "Il ramo nasce da dove sei, il lavoro ci entra con un commit a tuo nome e si pubblica. Tu resti sul ramo nuovo; il ramo di prima non cambia.",
+    "IN_NEW_BRANCH_SUBMODULES": "Non disponibile: c'è lavoro da salvare dentro {{repos}}, e il ramo nuovo nasce solo nel progetto.",
+    "BRANCH_LABEL": "Nome del ramo",
+    "CREATE_BRANCH_AND_START": "Crea il ramo e avvia",
+    "NEW_BRANCH_FAILED": "L'agente non è partito: {{problem}}",
+    "NOTHING_COMMITTED": "il lavoro non è entrato nel ramo nuovo.",
+    "PENDING_FAILED": "Non riesco a sapere com'è la cartella del progetto: l'agente non è partito."
   },
   "BACKGROUND_WORK": {
     "OPENING_WAITING": "Il servizio sta aprendo il progetto: {{count}} richieste della pagina aspettano e partono appena è pronto.",

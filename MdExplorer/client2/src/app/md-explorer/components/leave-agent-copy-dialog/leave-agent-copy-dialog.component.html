@@ -18,6 +18,22 @@
       <textarea matInput id="leaveCopyMessage" rows="2" [(ngModel)]="message" cdkFocusInitial
                 [placeholder]="(k + '.MESSAGE_PLACEHOLDER') | translate"></textarea>
     </mat-form-field>
+
+    <div class="leave-copy-new-branch" *ngIf="showNewBranch">
+      <mat-checkbox [(ngModel)]="inNewBranch" [disabled]="submoduleWork.length > 0" class="btn-in-new-branch">
+        {{ 'BEFORE_START.IN_NEW_BRANCH' | translate }}
+      </mat-checkbox>
+      <p class="leave-copy-hint" *ngIf="submoduleWork.length">
+        {{ 'BEFORE_START.IN_NEW_BRANCH_SUBMODULES' | translate: { repos: submoduleWork.join(', ') } }}
+      </p>
+      <ng-container *ngIf="inNewBranch && !submoduleWork.length">
+        <p class="leave-copy-hint">{{ 'BEFORE_START.IN_NEW_BRANCH_HINT' | translate }}</p>
+        <label class="leave-copy-label" for="leaveCopyBranch">{{ 'BEFORE_START.BRANCH_LABEL' | translate }}</label>
+        <mat-form-field appearance="outline" class="leave-copy-message">
+          <input matInput id="leaveCopyBranch" [(ngModel)]="branchName" spellcheck="false">
+        </mat-form-field>
+      </ng-container>
+    </div>
   </section>
 
   <section *ngIf="data.pending.unpublished.length">
@@ -39,6 +55,7 @@
   </button>
   <button mat-flat-button color="primary" class="btn-commit-and-publish" [disabled]="!canAuthorize" (click)="authorize()">
     <mat-icon>cloud_upload</mat-icon>
-    {{ (k + (hasFiles ? '.COMMIT_AND_PUBLISH' : '.PUBLISH')) | translate }}
+    {{ (inNewBranch && showNewBranch && !submoduleWork.length) ? ('BEFORE_START.CREATE_BRANCH_AND_START' | translate)
+       : ((k + (hasFiles ? '.COMMIT_AND_PUBLISH' : '.PUBLISH')) | translate) }}
   </button>
 </mat-dialog-actions>

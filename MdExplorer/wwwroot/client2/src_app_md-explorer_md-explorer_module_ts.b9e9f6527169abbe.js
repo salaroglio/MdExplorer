@@ -10718,8 +10718,9 @@ class AgentLaunchDialogComponent {
     this.aiError = null;
     // In un posto di lavoro isolato l'agente parte da ciò che è pubblicato: se nella cartella c'è lavoro non
     // salvato lo si dice prima, con la possibilità di committare e pubblicare. Nel progetto (non isolato) vede tutto.
-    const ready = this.useWorktree === false ? (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.of)(true) : this.startGuard.beforeStart(this.data.projectPath, this.data.agentName);
-    ready.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.switchMap)(go => go ? this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues, this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined) : rxjs__WEBPACK_IMPORTED_MODULE_16__.EMPTY),
+    // Con la casella «nel ramo nuovo» il lavoro aperto va in un ramo pubblicato, e l'agente parte da lì.
+    const ready = this.useWorktree === false ? (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.of)({}) : this.startGuard.beforeManualLaunch(this.data.projectPath, this.data.agentName);
+    ready.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.switchMap)(decision => decision ? this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues, this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined, decision.baseBranch) : rxjs__WEBPACK_IMPORTED_MODULE_16__.EMPTY),
     // Annullato: nessuna risposta arriva, e il pulsante deve tornare premibile.
     (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_14__.finalize)(() => {
       this.isLaunching = false;
@@ -36837,12 +36838,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
-/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-checkbox */ 8469);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/icon */ 7822);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/forms */ 2508);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+
 
 
 
@@ -36860,31 +36863,108 @@ function LeaveAgentCopyDialogComponent_section_9_div_4_li_4_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const f_r6 = ctx.$implicit;
+    const f_r7 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](f_r6);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](f_r7);
   }
 }
 function LeaveAgentCopyDialogComponent_section_9_div_4_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "div", 13)(1, "div", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "div", 14)(1, "div", 15);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](3, "ul");
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](4, LeaveAgentCopyDialogComponent_section_9_div_4_li_4_Template, 2, 1, "li", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](4, LeaveAgentCopyDialogComponent_section_9_div_4_li_4_Template, 2, 1, "li", 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const r_r4 = ctx.$implicit;
+    const r_r5 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](r_r4.label);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](r_r5.label);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngForOf", r_r4.files);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngForOf", r_r5.files);
+  }
+}
+const _c0 = function (a0) {
+  return {
+    repos: a0
+  };
+};
+function LeaveAgentCopyDialogComponent_section_9_div_11_p_4_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "p", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r8 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind2"](2, 1, "BEFORE_START.IN_NEW_BRANCH_SUBMODULES", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction1"](4, _c0, ctx_r8.submoduleWork.join(", "))), " ");
+  }
+}
+function LeaveAgentCopyDialogComponent_section_9_div_11_ng_container_5_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r11 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](1, "p", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](4, "label", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](7, "mat-form-field", 11)(8, "input", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("ngModelChange", function LeaveAgentCopyDialogComponent_section_9_div_11_ng_container_5_Template_input_ngModelChange_8_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r11);
+      const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r10.branchName = $event);
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementContainerEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](3, 3, "BEFORE_START.IN_NEW_BRANCH_HINT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](6, 5, "BEFORE_START.BRANCH_LABEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx_r9.branchName);
+  }
+}
+function LeaveAgentCopyDialogComponent_section_9_div_11_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r13 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "div", 17)(1, "mat-checkbox", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("ngModelChange", function LeaveAgentCopyDialogComponent_section_9_div_11_Template_mat_checkbox_ngModelChange_1_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r13);
+      const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r12.inNewBranch = $event);
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](4, LeaveAgentCopyDialogComponent_section_9_div_11_p_4_Template, 3, 6, "p", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](5, LeaveAgentCopyDialogComponent_section_9_div_11_ng_container_5_Template, 9, 7, "ng-container", 3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx_r4.inNewBranch)("disabled", ctx_r4.submoduleWork.length > 0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](3, 5, "BEFORE_START.IN_NEW_BRANCH"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx_r4.submoduleWork.length);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx_r4.inNewBranch && !ctx_r4.submoduleWork.length);
   }
 }
 function LeaveAgentCopyDialogComponent_section_9_Template(rf, ctx) {
   if (rf & 1) {
-    const _r8 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
+    const _r15 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "section")(1, "h3");
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](3, "translate");
@@ -36896,26 +36976,30 @@ function LeaveAgentCopyDialogComponent_section_9_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](8, "mat-form-field", 11)(9, "textarea", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("ngModelChange", function LeaveAgentCopyDialogComponent_section_9_Template_textarea_ngModelChange_9_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r8);
-      const ctx_r7 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r7.message = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r15);
+      const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r14.message = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](10, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](11, LeaveAgentCopyDialogComponent_section_9_div_11_Template, 6, 7, "div", 13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
     const ctx_r0 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](3, 5, ctx_r0.k + ".TO_COMMIT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](3, 6, ctx_r0.k + ".TO_COMMIT"));
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngForOf", ctx_r0.data.pending.uncommitted);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](7, 7, ctx_r0.k + ".MESSAGE_LABEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](7, 8, ctx_r0.k + ".MESSAGE_LABEL"));
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx_r0.message)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](10, 9, ctx_r0.k + ".MESSAGE_PLACEHOLDER"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngModel", ctx_r0.message)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](10, 10, ctx_r0.k + ".MESSAGE_PLACEHOLDER"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("ngIf", ctx_r0.showNewBranch);
   }
 }
-const _c0 = function (a0, a1) {
+const _c1 = function (a0, a1) {
   return {
     count: a0,
     label: a1
@@ -36929,10 +37013,10 @@ function LeaveAgentCopyDialogComponent_section_10_li_5_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const r_r10 = ctx.$implicit;
-    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](2);
+    const r_r17 = ctx.$implicit;
+    const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind2"](2, 1, ctx_r9.k + ".COMMITS_OF", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction2"](4, _c0, r_r10.commits, r_r10.label)), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind2"](2, 1, ctx_r16.k + ".COMMITS_OF", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction2"](4, _c1, r_r17.commits, r_r17.label)), " ");
   }
 }
 function LeaveAgentCopyDialogComponent_section_10_Template(rf, ctx) {
@@ -36942,7 +37026,7 @@ function LeaveAgentCopyDialogComponent_section_10_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](3, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](4, "ul");
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](5, LeaveAgentCopyDialogComponent_section_10_li_5_Template, 3, 7, "li", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](5, LeaveAgentCopyDialogComponent_section_10_li_5_Template, 3, 7, "li", 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -36955,12 +37039,12 @@ function LeaveAgentCopyDialogComponent_section_10_Template(rf, ctx) {
 }
 function LeaveAgentCopyDialogComponent_button_18_Template(rf, ctx) {
   if (rf & 1) {
-    const _r12 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "button", 16);
+    const _r19 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "button", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵlistener"]("click", function LeaveAgentCopyDialogComponent_button_18_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r12);
-      const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r11.proceedWithoutSaving());
+      _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵrestoreView"](_r19);
+      const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵresetView"](ctx_r18.proceedWithoutSaving());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](2, "translate");
@@ -36971,7 +37055,7 @@ function LeaveAgentCopyDialogComponent_button_18_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](2, 1, "BEFORE_START.PROCEED"), " ");
   }
 }
-const _c1 = function (a0) {
+const _c2 = function (a0) {
   return {
     agent: a0
   };
@@ -36986,16 +37070,40 @@ class LeaveAgentCopyDialogComponent {
   constructor(dialogRef, data) {
     this.dialogRef = dialogRef;
     this.data = data;
+    /** La casella «nel ramo nuovo». */
+    this.inNewBranch = false;
     this.message = '';
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    // Dal lancio a mano arriva il nome del file (curatore.agent.md): nel ramo va il nome dell'agente.
+    const agent = (data.agent || 'agente').replace(/(\.agent)?\.md$/i, '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+    this.branchName = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${agent || 'agente'}`;
+  }
+  /** La casella si mostra nel lancio a mano quando c'è lavoro senza commit. */
+  get showNewBranch() {
+    return this.starting && !!this.data.offerNewBranch && this.hasFiles;
+  }
+  /**
+   * Il ramo nasce solo nel repository del progetto: lavoro aperto o commit non pubblicati dentro un submodule non
+   * arriverebbero all'agente, quindi la casella si spegne e dice perché.
+   */
+  get submoduleWork() {
+    const labels = [...this.data.pending.uncommitted.filter(r => !!r.repo).map(r => r.label), ...this.data.pending.unpublished.filter(r => !!r.repo).map(r => r.label)];
+    return Array.from(new Set(labels));
   }
   get hasFiles() {
     return this.data.pending.uncommitted.length > 0;
   }
   get canAuthorize() {
+    if (this.inNewBranch && !this.branchName.trim()) return false;
     return !this.hasFiles || this.message.trim().length > 0;
   }
   authorize() {
-    if (this.canAuthorize) this.dialogRef.close(this.message.trim());
+    if (!this.canAuthorize) return;
+    if (this.inNewBranch && this.showNewBranch && !this.submoduleWork.length) this.dialogRef.close({
+      branch: this.branchName.trim(),
+      message: this.message.trim()
+    });else this.dialogRef.close(this.message.trim());
   }
   stay() {
     this.dialogRef.close(null);
@@ -37019,9 +37127,9 @@ class LeaveAgentCopyDialogComponent {
     this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineComponent"]({
       type: LeaveAgentCopyDialogComponent,
       selectors: [["app-leave-agent-copy-dialog"]],
-      decls: 24,
-      vars: 22,
-      consts: [["mat-dialog-title", ""], [1, "leave-copy"], [1, "leave-copy-intro"], [4, "ngIf"], [1, "leave-copy-note"], ["align", "end"], ["mat-button", "", 1, "btn-stay-in-copy", 3, "click"], ["mat-stroked-button", "", "class", "btn-proceed-without-saving", 3, "click", 4, "ngIf"], ["mat-flat-button", "", "color", "primary", 1, "btn-commit-and-publish", 3, "disabled", "click"], ["class", "leave-copy-repo", 4, "ngFor", "ngForOf"], ["for", "leaveCopyMessage", 1, "leave-copy-label"], ["appearance", "outline", 1, "leave-copy-message"], ["matInput", "", "id", "leaveCopyMessage", "rows", "2", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "ngModelChange"], [1, "leave-copy-repo"], [1, "leave-copy-repo-name"], [4, "ngFor", "ngForOf"], ["mat-stroked-button", "", 1, "btn-proceed-without-saving", 3, "click"]],
+      decls: 25,
+      vars: 24,
+      consts: [["mat-dialog-title", ""], [1, "leave-copy"], [1, "leave-copy-intro"], [4, "ngIf"], [1, "leave-copy-note"], ["align", "end"], ["mat-button", "", 1, "btn-stay-in-copy", 3, "click"], ["mat-stroked-button", "", "class", "btn-proceed-without-saving", 3, "click", 4, "ngIf"], ["mat-flat-button", "", "color", "primary", 1, "btn-commit-and-publish", 3, "disabled", "click"], ["class", "leave-copy-repo", 4, "ngFor", "ngForOf"], ["for", "leaveCopyMessage", 1, "leave-copy-label"], ["appearance", "outline", 1, "leave-copy-message"], ["matInput", "", "id", "leaveCopyMessage", "rows", "2", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "ngModelChange"], ["class", "leave-copy-new-branch", 4, "ngIf"], [1, "leave-copy-repo"], [1, "leave-copy-repo-name"], [4, "ngFor", "ngForOf"], [1, "leave-copy-new-branch"], [1, "btn-in-new-branch", 3, "ngModel", "disabled", "ngModelChange"], ["class", "leave-copy-hint", 4, "ngIf"], [1, "leave-copy-hint"], ["for", "leaveCopyBranch", 1, "leave-copy-label"], ["matInput", "", "id", "leaveCopyBranch", "spellcheck", "false", 3, "ngModel", "ngModelChange"], ["mat-stroked-button", "", 1, "btn-proceed-without-saving", 3, "click"]],
       template: function LeaveAgentCopyDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon");
@@ -37034,7 +37142,7 @@ class LeaveAgentCopyDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](7);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](8, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](9, LeaveAgentCopyDialogComponent_section_9_Template, 11, 11, "section", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](9, LeaveAgentCopyDialogComponent_section_9_Template, 12, 12, "section", 3);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtemplate"](10, LeaveAgentCopyDialogComponent_section_10_Template, 6, 4, "section", 3);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementStart"](11, "p", 4);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](12);
@@ -37057,11 +37165,12 @@ class LeaveAgentCopyDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtext"](22);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](23, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipe"](24, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind2"](4, 9, ctx.k + ".TITLE", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction1"](20, _c1, ctx.data.agent)), "\n");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind2"](4, 9, ctx.k + ".TITLE", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpureFunction1"](22, _c2, ctx.data.agent)), "\n");
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](4);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](8, 12, ctx.k + ".INTRO"));
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](2);
@@ -37077,11 +37186,11 @@ class LeaveAgentCopyDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵproperty"]("disabled", !ctx.canAuthorize);
           _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](23, 18, ctx.k + (ctx.hasFiles ? ".COMMIT_AND_PUBLISH" : ".PUBLISH")), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵtextInterpolate1"](" ", ctx.inNewBranch && ctx.showNewBranch && !ctx.submoduleWork.length ? _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](23, 18, "BEFORE_START.CREATE_BRANCH_AND_START") : _angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵpipeBind1"](24, 20, ctx.k + (ctx.hasFiles ? ".COMMIT_AND_PUBLISH" : ".PUBLISH")), " ");
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_2__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_2__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_3__.MatLegacyFormField, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_4__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_5__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_6__.MatIcon, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_7__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_7__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_7__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_8__.TranslatePipe],
-      styles: ["h2[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.leave-copy[_ngcontent-%COMP%] {\n  min-width: 460px;\n  max-width: 640px;\n}\n.leave-copy[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  font-size: 13px;\n  font-weight: 600;\n  margin: 14px 0 4px;\n}\n.leave-copy[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%] {\n  margin: 2px 0 8px;\n  padding-left: 20px;\n  max-height: 160px;\n  overflow: auto;\n}\n.leave-copy[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  font-family: ui-monospace, Menlo, Consolas, monospace;\n  font-size: 12px;\n  line-height: 1.5;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-repo-name[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.75;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-label[_ngcontent-%COMP%] {\n  display: block;\n  font-size: 12px;\n  font-weight: 600;\n  margin: 8px 0 2px;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-message[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-intro[_ngcontent-%COMP%], .leave-copy[_ngcontent-%COMP%]   .leave-copy-note[_ngcontent-%COMP%] {\n  font-size: 13px;\n  opacity: 0.85;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9sZWF2ZS1hZ2VudC1jb3B5LWRpYWxvZy9sZWF2ZS1hZ2VudC1jb3B5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUFLLGFBQUE7RUFBZSxtQkFBQTtFQUFxQixRQUFBO0FBSXpDOztBQUhBO0VBQ0UsZ0JBQUE7RUFBa0IsZ0JBQUE7QUFPcEI7QUFORTtFQUFLLGVBQUE7RUFBaUIsZ0JBQUE7RUFBa0Isa0JBQUE7QUFXMUM7QUFWRTtFQUFLLGlCQUFBO0VBQW1CLGtCQUFBO0VBQW9CLGlCQUFBO0VBQW1CLGNBQUE7QUFnQmpFO0FBZkU7RUFBSyxxREFBQTtFQUF1RCxlQUFBO0VBQWlCLGdCQUFBO0FBb0IvRTtBQW5CRTtFQUF3QixlQUFBO0VBQWlCLGFBQUE7QUF1QjNDO0FBdEJFO0VBQW9CLGNBQUE7RUFBZ0IsZUFBQTtFQUFpQixnQkFBQTtFQUFrQixpQkFBQTtBQTRCekU7QUEzQkU7RUFBc0IsV0FBQTtBQThCeEI7QUE3QkU7RUFBc0MsZUFBQTtFQUFpQixhQUFBO0FBaUN6RCIsInNvdXJjZXNDb250ZW50IjpbImgyIHsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGNlbnRlcjsgZ2FwOiA4cHg7IH1cbi5sZWF2ZS1jb3B5IHtcbiAgbWluLXdpZHRoOiA0NjBweDsgbWF4LXdpZHRoOiA2NDBweDtcbiAgaDMgeyBmb250LXNpemU6IDEzcHg7IGZvbnQtd2VpZ2h0OiA2MDA7IG1hcmdpbjogMTRweCAwIDRweDsgfVxuICB1bCB7IG1hcmdpbjogMnB4IDAgOHB4OyBwYWRkaW5nLWxlZnQ6IDIwcHg7IG1heC1oZWlnaHQ6IDE2MHB4OyBvdmVyZmxvdzogYXV0bzsgfVxuICBsaSB7IGZvbnQtZmFtaWx5OiB1aS1tb25vc3BhY2UsIE1lbmxvLCBDb25zb2xhcywgbW9ub3NwYWNlOyBmb250LXNpemU6IDEycHg7IGxpbmUtaGVpZ2h0OiAxLjU7IH1cbiAgLmxlYXZlLWNvcHktcmVwby1uYW1lIHsgZm9udC1zaXplOiAxMnB4OyBvcGFjaXR5OiAwLjc1OyB9XG4gIC5sZWF2ZS1jb3B5LWxhYmVsIHsgZGlzcGxheTogYmxvY2s7IGZvbnQtc2l6ZTogMTJweDsgZm9udC13ZWlnaHQ6IDYwMDsgbWFyZ2luOiA4cHggMCAycHg7IH1cbiAgLmxlYXZlLWNvcHktbWVzc2FnZSB7IHdpZHRoOiAxMDAlOyB9XG4gIC5sZWF2ZS1jb3B5LWludHJvLCAubGVhdmUtY29weS1ub3RlIHsgZm9udC1zaXplOiAxM3B4OyBvcGFjaXR5OiAwLjg1OyB9XG59XG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_2__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_2__.NgIf, _angular_material_legacy_checkbox__WEBPACK_IMPORTED_MODULE_3__.MatLegacyCheckbox, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyFormField, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_1__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__.TranslatePipe],
+      styles: ["h2[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.leave-copy[_ngcontent-%COMP%] {\n  min-width: 460px;\n  max-width: 640px;\n}\n.leave-copy[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  font-size: 13px;\n  font-weight: 600;\n  margin: 14px 0 4px;\n}\n.leave-copy[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%] {\n  margin: 2px 0 8px;\n  padding-left: 20px;\n  max-height: 160px;\n  overflow: auto;\n}\n.leave-copy[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  font-family: ui-monospace, Menlo, Consolas, monospace;\n  font-size: 12px;\n  line-height: 1.5;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-repo-name[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.75;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-label[_ngcontent-%COMP%] {\n  display: block;\n  font-size: 12px;\n  font-weight: 600;\n  margin: 8px 0 2px;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-message[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-intro[_ngcontent-%COMP%], .leave-copy[_ngcontent-%COMP%]   .leave-copy-note[_ngcontent-%COMP%] {\n  font-size: 13px;\n  opacity: 0.85;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-new-branch[_ngcontent-%COMP%] {\n  margin: 4px 0 8px;\n}\n.leave-copy[_ngcontent-%COMP%]   .leave-copy-hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.8;\n  margin: 4px 0 4px 28px;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9sZWF2ZS1hZ2VudC1jb3B5LWRpYWxvZy9sZWF2ZS1hZ2VudC1jb3B5LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUFLLGFBQUE7RUFBZSxtQkFBQTtFQUFxQixRQUFBO0FBSXpDOztBQUhBO0VBQ0UsZ0JBQUE7RUFBa0IsZ0JBQUE7QUFPcEI7QUFORTtFQUFLLGVBQUE7RUFBaUIsZ0JBQUE7RUFBa0Isa0JBQUE7QUFXMUM7QUFWRTtFQUFLLGlCQUFBO0VBQW1CLGtCQUFBO0VBQW9CLGlCQUFBO0VBQW1CLGNBQUE7QUFnQmpFO0FBZkU7RUFBSyxxREFBQTtFQUF1RCxlQUFBO0VBQWlCLGdCQUFBO0FBb0IvRTtBQW5CRTtFQUF3QixlQUFBO0VBQWlCLGFBQUE7QUF1QjNDO0FBdEJFO0VBQW9CLGNBQUE7RUFBZ0IsZUFBQTtFQUFpQixnQkFBQTtFQUFrQixpQkFBQTtBQTRCekU7QUEzQkU7RUFBc0IsV0FBQTtBQThCeEI7QUE3QkU7RUFBc0MsZUFBQTtFQUFpQixhQUFBO0FBaUN6RDtBQWhDRTtFQUF5QixpQkFBQTtBQW1DM0I7QUFsQ0U7RUFBbUIsZUFBQTtFQUFpQixZQUFBO0VBQWMsc0JBQUE7QUF1Q3BEIiwic291cmNlc0NvbnRlbnQiOlsiaDIgeyBkaXNwbGF5OiBmbGV4OyBhbGlnbi1pdGVtczogY2VudGVyOyBnYXA6IDhweDsgfVxuLmxlYXZlLWNvcHkge1xuICBtaW4td2lkdGg6IDQ2MHB4OyBtYXgtd2lkdGg6IDY0MHB4O1xuICBoMyB7IGZvbnQtc2l6ZTogMTNweDsgZm9udC13ZWlnaHQ6IDYwMDsgbWFyZ2luOiAxNHB4IDAgNHB4OyB9XG4gIHVsIHsgbWFyZ2luOiAycHggMCA4cHg7IHBhZGRpbmctbGVmdDogMjBweDsgbWF4LWhlaWdodDogMTYwcHg7IG92ZXJmbG93OiBhdXRvOyB9XG4gIGxpIHsgZm9udC1mYW1pbHk6IHVpLW1vbm9zcGFjZSwgTWVubG8sIENvbnNvbGFzLCBtb25vc3BhY2U7IGZvbnQtc2l6ZTogMTJweDsgbGluZS1oZWlnaHQ6IDEuNTsgfVxuICAubGVhdmUtY29weS1yZXBvLW5hbWUgeyBmb250LXNpemU6IDEycHg7IG9wYWNpdHk6IDAuNzU7IH1cbiAgLmxlYXZlLWNvcHktbGFiZWwgeyBkaXNwbGF5OiBibG9jazsgZm9udC1zaXplOiAxMnB4OyBmb250LXdlaWdodDogNjAwOyBtYXJnaW46IDhweCAwIDJweDsgfVxuICAubGVhdmUtY29weS1tZXNzYWdlIHsgd2lkdGg6IDEwMCU7IH1cbiAgLmxlYXZlLWNvcHktaW50cm8sIC5sZWF2ZS1jb3B5LW5vdGUgeyBmb250LXNpemU6IDEzcHg7IG9wYWNpdHk6IDAuODU7IH1cbiAgLmxlYXZlLWNvcHktbmV3LWJyYW5jaCB7IG1hcmdpbjogNHB4IDAgOHB4OyB9XG4gIC5sZWF2ZS1jb3B5LWhpbnQgeyBmb250LXNpemU6IDEycHg7IG9wYWNpdHk6IDAuODsgbWFyZ2luOiA0cHggMCA0cHggMjhweDsgfVxufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }
@@ -52715,7 +52824,8 @@ class AgentLaunchService {
   }
   launch(projectPath, agentFilePath, prompt, parameterValues, /** `true` = posto di lavoro isolato, `false` = nel progetto. Assente = come da impostazione. */
   useWorktree, /** Motore scelto nella finestra (claude | copilot | opencode): vince sul runtime: della scheda (D12). */
-  engine, model) {
+  engine, model, /** Il ramo da cui parte il posto isolato (la casella «nel nuovo ramo»); assente = il ramo di default di origin. */
+  baseBranch) {
     return this.http.post('/api/AgentPrompts/launch', {
       projectPath,
       agentFilePath,
@@ -52723,7 +52833,8 @@ class AgentLaunchService {
       parameterValues,
       useWorktree,
       engine,
-      model
+      model,
+      baseBranch
     });
   }
   /** Da dove parte il selettore del motore: il runtime: della scheda, altrimenti il motore del progetto. */
@@ -53049,16 +53160,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "AgentStartGuardService": () => (/* binding */ AgentStartGuardService)
 /* harmony export */ });
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 745);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs/operators */ 3158);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 2673);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 745);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs/operators */ 3158);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 2673);
 /* harmony import */ var _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../components/leave-agent-copy-dialog/leave-agent-copy-dialog.component */ 5215);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../git/services/gitservice.service */ 7224);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
+
+
 
 
 
@@ -53070,55 +53185,102 @@ __webpack_require__.r(__webpack_exports__);
 /**
  * Prima che un agente parta. La copia in cui lavora nasce da ciò che è pubblicato su `origin`: i file che la
  * persona non ha committato e i commit che non ha pubblicato, l'agente non li vede. Qui lo si dice a chi sta
- * per farlo partire, e gli si offre di committare e pubblicare prima — oppure di partire lo stesso.
+ * per farlo partire, e gli si offre di committare e pubblicare prima — oppure di partire lo stesso. Nel lancio a
+ * mano c'è in più la casella «nel ramo nuovo» (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, B3).
  */
 class AgentStartGuardService {
-  constructor(http, dialog, snackBar, translate) {
+  constructor(http, dialog, snackBar, translate, git, serverMessages) {
     this.http = http;
     this.dialog = dialog;
     this.snackBar = snackBar;
     this.translate = translate;
+    this.git = git;
+    this.serverMessages = serverMessages;
   }
   /** Emette `true` se l'agente può partire, `false` se la persona ha annullato o il salvataggio non è riuscito. */
   beforeStart(projectPath, agent) {
+    return this.guard(projectPath, agent, false).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(decision => decision !== null));
+  }
+  /**
+   * Il lancio a mano con la copia isolata: come {@link beforeStart}, e con la casella spuntata il lavoro aperto va
+   * in un ramo nuovo (commit della persona, pubblicato) da cui l'agente parte. Emette null se l'agente non parte.
+   */
+  beforeManualLaunch(projectPath, agent) {
+    return this.guard(projectPath, agent, true);
+  }
+  guard(projectPath, agent, offerNewBranch) {
     return this.http.post('../api/AgentWorkspace/project-pending', {
       projectPath
-    }).pipe(
-    // Se non si riesce a sapere com'è la cartella, non è un motivo per fermare l'agente: si parte come prima.
-    (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.catchError)(() => (0,rxjs__WEBPACK_IMPORTED_MODULE_2__.of)({
-      uncommitted: [],
-      unpublished: []
-    })), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(pending => {
-      if (!pending.uncommitted.length && !pending.unpublished.length) return (0,rxjs__WEBPACK_IMPORTED_MODULE_2__.of)(true);
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(pending => pending),
+    // Se non si sa com'è la cartella non si parte alla cieca: lo si dice, e l'agente non parte.
+    (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.catchError)(err => {
+      this.fail(err?.error?.error || this.translate.instant('BEFORE_START.PENDING_FAILED'));
+      return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(null);
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.switchMap)(pending => {
+      if (pending === null) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(null);
+      if (!pending.uncommitted.length && !pending.unpublished.length) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)({});
       return this.dialog.open(_components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_0__.LeaveAgentCopyDialogComponent, {
         data: {
           agent,
           pending,
-          mode: 'start'
+          mode: 'start',
+          offerNewBranch
         },
         autoFocus: false
-      }).afterClosed().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.switchMap)(answer => {
-        if (answer === null || answer === undefined) return (0,rxjs__WEBPACK_IMPORTED_MODULE_2__.of)(false);
-        if (answer === _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_0__.PROCEED_WITHOUT_SAVING) return (0,rxjs__WEBPACK_IMPORTED_MODULE_2__.of)(true);
+      }).afterClosed().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.switchMap)(answer => {
+        if (answer === null || answer === undefined) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(null);
+        if (answer === _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_0__.PROCEED_WITHOUT_SAVING) return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)({});
+        if (typeof answer !== 'string') return this.intoNewBranch(projectPath, answer);
         return this.http.post('../api/AgentWorkspace/project-save', {
           projectPath,
           commitMessage: answer
-        }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.map)(() => true), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_1__.catchError)(err => {
-          this.snackBar.open(err?.error?.error || this.translate.instant('BEFORE_START.SAVE_FAILED'), this.translate.instant('COMMON.CLOSE'), {
-            duration: 10000
-          });
-          return (0,rxjs__WEBPACK_IMPORTED_MODULE_2__.of)(false);
+        }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(() => ({})), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.catchError)(err => {
+          this.fail(err?.error?.error || this.translate.instant('BEFORE_START.SAVE_FAILED'));
+          return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(null);
         }));
       }));
     }));
   }
+  /**
+   * «Nuovo ramo» con il messaggio: il ramo nasce dal punto in cui si è, il lavoro aperto vi si registra con il commit
+   * della persona e si pubblica. L'agente parte da `origin/<ramo>`, quindi senza commit o senza pubblicazione non parte.
+   */
+  intoNewBranch(projectPath, answer) {
+    return this.git.createNewBranch(projectPath, answer.branch, this.serverMessages.connectionId, answer.message).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.map)(result => {
+      const problem = !result.created ? result.error : !result.committed ? result.commitProblem || this.translate.instant('BEFORE_START.NOTHING_COMMITTED') : !result.published ? result.publishProblem : null;
+      if (problem) {
+        this.fail(this.translate.instant('BEFORE_START.NEW_BRANCH_FAILED', {
+          problem
+        }));
+        return null;
+      }
+      // La barra in alto legge il ramo da currentBranch$: la persona adesso è sul ramo nuovo, senza file aperti.
+      this.git.modernGetBranchStatus(projectPath).subscribe({
+        next: b => this.git.currentBranch$.next(b),
+        error: () => {}
+      });
+      return {
+        baseBranch: result.branch || answer.branch
+      };
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_4__.catchError)(err => {
+      this.fail(this.translate.instant('BEFORE_START.NEW_BRANCH_FAILED', {
+        problem: err?.error?.error || err?.message || ''
+      }));
+      return (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.of)(null);
+    }));
+  }
+  fail(text) {
+    this.snackBar.open(text, this.translate.instant('COMMON.CLOSE'), {
+      duration: 12000
+    });
+  }
   static {
     this.ɵfac = function AgentStartGuardService_Factory(t) {
-      return new (t || AgentStartGuardService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_7__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_8__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__.TranslateService));
+      return new (t || AgentStartGuardService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_8__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_10__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_11__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_1__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
       token: AgentStartGuardService,
       factory: AgentStartGuardService.ɵfac,
       providedIn: 'root'
@@ -61246,4 +61408,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.a91fd908ba5afb39.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.b9e9f6527169abbe.js.map

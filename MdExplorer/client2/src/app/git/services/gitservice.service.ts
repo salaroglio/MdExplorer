@@ -47,6 +47,9 @@ export interface NewBranchResult {
   error: string | null;
   notes: string[];
   carriedFiles: string[];
+  /** Con il messaggio di commit (la casella di «Prima di avviare»): il lavoro aperto è registrato nel ramo nuovo. */
+  committed?: boolean;
+  commitProblem?: string | null;
 }
 
 @Injectable({
@@ -698,8 +701,9 @@ export class GITService implements OnDestroy {
   }
 
   /** «Nuovo ramo»: git switch -c dal punto in cui si è (il lavoro aperto viene con te), poi pubblicato. 409 = non creato, con il motivo. */
-  createNewBranch(repositoryPath: string, name: string, connectionId?: string): Observable<NewBranchResult> {
-    return this.http.post<NewBranchResult>('../api/ModernGit/new-branch', { repositoryPath, name, connectionId: connectionId || null });
+  createNewBranch(repositoryPath: string, name: string, connectionId?: string, commitMessage?: string): Observable<NewBranchResult> {
+    return this.http.post<NewBranchResult>('../api/ModernGit/new-branch',
+      { repositoryPath, name, connectionId: connectionId || null, commitMessage: commitMessage || null });
   }
 
   /** «Pubblica» un ramo nuovo il cui push non era riuscito. */
