@@ -270,6 +270,10 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnDiary>(_ => new MdExplorer.Features.Agents.AgentTurnDiary(
                 Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "agent-turns")));
             services.AddHostedService<Services.AgentRun.AgentTurnDiaryBroadcaster>();
+            // Le chat di MarkAgent, intere: un file JSONL per chat fra i dati dell'utente (non nel progetto: non va in git).
+            // Nel DB utente resta solo la riga della cronologia (ChatThread). Sprint 2026-11-24-Chat-Memorizzate.
+            services.AddSingleton<MdExplorer.Features.Services.AI.ChatHistory.IChatFileStore>(_ => new MdExplorer.Features.Services.AI.ChatHistory.ChatFileStore(
+                Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "chats")));
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.

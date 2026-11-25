@@ -72,6 +72,19 @@ namespace MdExplorer.Features.Tests.Migrations
                     Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), $"La tabella {table} deve esistere.");
                 }
 
+                // Cronologia delle chat di MarkAgent (sprint 2026-11-24-Chat-Memorizzate, F1).
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ChatThread'";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), "La tabella ChatThread deve esistere dopo la catena completa.");
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='IX_ChatThread_ProjectPath_LastActivityAt'";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), "L'indice della lista della cronologia deve esistere.");
+                }
+
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "SELECT COUNT(*) FROM VersionInfo WHERE Version = 20260715002";
