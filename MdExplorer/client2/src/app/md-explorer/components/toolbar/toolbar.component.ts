@@ -58,6 +58,7 @@ import { GitRequestQueueService } from 'src/app/services/git-request-queue.servi
 /** I tre pannelli git della toolbar: stessa forma, una riga per repository. */
 type GitPanel = 'commit' | 'pull' | 'push' | 'upstream';
 
+import { NewBranchDialogComponent } from '../../../git/dialogs/new-branch-dialog/new-branch-dialog.component';
 @Component({
   selector: 'app-toolbar',
   templateUrl: './toolbar.component.html',
@@ -1155,6 +1156,18 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.refreshLocalGitCounters();
     });
 
+    this.matMenuTrigger?.closeMenu();
+  }
+
+  /** «Nuovo ramo» (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A2): il ramo nasce nel repository scelto, dal punto in cui è. */
+  openNewBranchDialog(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    const currentProject = this.projectService.currentProjects$.value;
+    this.dialog.open(NewBranchDialogComponent, {
+      width: '620px',
+      data: { projectName: currentProject?.name, repos: this.dialogRepos() },
+    }).afterClosed().subscribe(() => this.refreshLocalGitCounters());
     this.matMenuTrigger?.closeMenu();
   }
 

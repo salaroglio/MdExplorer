@@ -524,6 +524,15 @@
         <mat-icon style="text-align:right" class="branch-icon">account_tree</mat-icon>
       </button>
     </div>
+    <!-- «Nuovo ramo»: dal punto in cui sei, con il lavoro aperto, e pubblicato (sprint 2026-11-25). -->
+    <div (click)="openNewBranchDialog()"
+         class="container"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>{{ 'NEW_BRANCH.MENU' | translate }}</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" class="branch-icon">add</mat-icon>
+      </button>
+    </div>
     <!-- Fase 7h: review read-only dei worktree degli agenti -->
     <div [matMenuTriggerFor]="agentWorktrees"
          class="container"

@@ -26,6 +26,29 @@ import {
 } from '../models/modern-git-models';
 
 
+/** Com'è il repository prima di creare un ramo (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A2). */
+export interface NewBranchPreview {
+  currentBranch: string | null;
+  headShort: string | null;
+  unpublishedCommits: number;
+  carriedFiles: string[];
+  hasOrigin: boolean;
+  hasSubmodules: boolean;
+  /** Why a branch cannot be created now (a merge left half done…); null if it can. */
+  blocker: string | null;
+  suggestedPrefix: string;
+}
+
+export interface NewBranchResult {
+  created: boolean;
+  branch: string | null;
+  published: boolean;
+  publishProblem: string | null;
+  error: string | null;
+  notes: string[];
+  carriedFiles: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -669,6 +692,21 @@ export class GITService implements OnDestroy {
    * Checkout/switch to a different branch
    * Sends connectionId to backend for client-specific SignalR notifications
    */
+  /** «Nuovo ramo»: da dove si parte, i commit non pubblicati e i file che vengono nel ramo nuovo, e se adesso non si può. */
+  newBranchPreview(repositoryPath: string): Observable<NewBranchPreview> {
+    return this.http.get<NewBranchPreview>('../api/ModernGit/new-branch/preview', { params: { repositoryPath } });
+  }
+
+  /** «Nuovo ramo»: git switch -c dal punto in cui si è (il lavoro aperto viene con te), poi pubblicato. 409 = non creato, con il motivo. */
+  createNewBranch(repositoryPath: string, name: string, connectionId?: string): Observable<NewBranchResult> {
+    return this.http.post<NewBranchResult>('../api/ModernGit/new-branch', { repositoryPath, name, connectionId: connectionId || null });
+  }
+
+  /** «Pubblica» un ramo nuovo il cui push non era riuscito. */
+  publishNewBranch(repositoryPath: string, name: string): Observable<NewBranchResult> {
+    return this.http.post<NewBranchResult>('../api/ModernGit/new-branch/publish', { repositoryPath, name });
+  }
+
   checkoutBranch(projectPath: string, branchName: string, connectionId?: string): Observable<CheckoutResult> {
     const url = '../api/ModernGit/checkout';
     const request = {
