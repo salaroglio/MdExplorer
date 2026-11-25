@@ -1460,6 +1460,13 @@ namespace MdExplorer.Hubs
 
             await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);
+            // La strada di riserva ACP non manda le chiamate degli strumenti né i risultati: la chat lo scrive, non lo nasconde.
+            if (session.Transport == CopilotChatTransport.Acp)
+                _turnRecording?.Meta("tools-not-recorded", new
+                {
+                    transport = "acp",
+                    reason = "Copilot ACP non manda chiamate e risultati degli strumenti: in questo turno ci sono solo testo e ragionamento.",
+                });
             // Before the answer too: a new session shows the quota straight away.
             await SendCopilotUsageAsync(session, channelId);
 
