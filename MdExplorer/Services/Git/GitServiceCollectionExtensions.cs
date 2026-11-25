@@ -27,6 +27,8 @@ namespace MdExplorer.Services.Git
             services.TryAddSingleton<GitCredentialMoveReportHolder>();
             services.AddScoped<IGitCredentialMoveService, GitCredentialMoveService>();
             services.AddScoped<IModernGitService, ModernGitService>();
+            // «Nuovo ramo» dalla title bar (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A1).
+            services.AddScoped<BranchCreationService>();
 
             // Register GitHub service for repository management
 
@@ -73,6 +75,8 @@ namespace MdExplorer.Services.Git
             services.TryAddSingleton<GitCredentialMoveReportHolder>();
             services.AddScoped<IGitCredentialMoveService, GitCredentialMoveService>();
             services.AddScoped<IModernGitService, ModernGitService>();
+            // «Nuovo ramo» dalla title bar (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A1).
+            services.AddScoped<BranchCreationService>();
 
             // Register generic remote services for multi-provider support
             services.AddScoped<IGitRemoteUrlParser, GitRemoteUrlParser>();

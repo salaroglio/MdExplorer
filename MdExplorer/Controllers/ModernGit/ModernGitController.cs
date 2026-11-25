@@ -502,6 +502,46 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
+        /// «Nuovo ramo»: com'è il repository prima di crearlo — da dove si parte, i commit non pubblicati e i file che vengono
+        /// nel ramo nuovo, e se adesso non si può (sprint 2026-11-25-Nuovo-Ramo-E-Lavoro-All-Agente, A1).
+        /// </summary>
+        [HttpGet("new-branch/preview")]
+        public async Task<IActionResult> NewBranchPreview([FromQuery] string repositoryPath, [FromServices] Services.Git.BranchCreationService branches)
+        {
+            try { return Ok(await branches.PreviewAsync(repositoryPath)); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        /// <summary>
+        /// «Nuovo ramo»: lo crea dal punto in cui si è con <c>git switch -c</c> (il lavoro aperto viene con te) e lo pubblica.
+        /// Watcher spento come nel cambio ramo; il risultato dice se è pubblicato e, se no, perché.
+        /// </summary>
+        [HttpPost("new-branch")]
+        public async Task<IActionResult> NewBranch([FromBody] NewBranchRequest request, [FromServices] Services.Git.BranchCreationService branches)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            SetFileSystemWatcherEnabled(false);
+            Services.Git.NewBranchResult result;
+            try { result = await branches.CreateAsync(request.RepositoryPath, request.Name); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+            finally { SetFileSystemWatcherEnabled(true); }
+
+            if (!result.Created) return Conflict(new { error = result.Error });
+            try { await NotifyTreeRefreshAsync(request.ConnectionId, null); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[NuovoRamo] notifica del ramo nuovo fallita (il ramo c'è)"); }
+            return Ok(result);
+        }
+
+        /// <summary>«Pubblica» un ramo nuovo il cui push non era riuscito.</summary>
+        [HttpPost("new-branch/publish")]
+        public async Task<IActionResult> PublishNewBranch([FromBody] NewBranchRequest request, [FromServices] Services.Git.BranchCreationService branches)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            try { return Ok(await branches.PublishAsync(request.RepositoryPath, request.Name)); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        /// <summary>
         /// Adds a git submodule via native git CLI and triggers full tree refresh.
         /// Authentication relies entirely on git's own credential chain (Git Credential Manager).
         /// </summary>
