@@ -12,7 +12,6 @@ import { MdFile } from '../../models/md-file';
 import { MdFileService, RenamedDocument } from '../../services/md-file.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
-import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { SeedDialogComponent, SeedDialogData } from '../dialogs/seed-analysis/seed-dialog.component';
@@ -872,7 +871,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
           : this.translate.instant('MD_TREE.MOVED_FILES', { count: files.length, targetName });
         this.snackBar.open(message, 'OK', { duration: 3000 });
         const folders = files.filter(f => f.type === 'folder');
-        if (folders.length) this.reloadTreeAfterFolderMove(folders, targetPath, separator);
+        if (folders.length) this.reloadTreeAfterFolderMoves(
+          folders.map(f => ({ oldPath: f.fullPath, newPath: targetPath + separator + f.name })), targetPath);
         else this.showMovedInTree(files, targetPath, separator);
         this.clearMultiSelection();
       },
@@ -890,25 +890,34 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Dopo lo spostamento di una cartella l'albero si ricarica come dopo un pull: livelli, cartelle compattate e figli li
-   * ricostruisce il servizio. Le cartelle aperte restano aperte, con i percorsi nuovi per quelle dentro la cartella spostata.
+   * Dopo lo spostamento o la rinomina di cartelle l'albero si ricarica come dopo un pull: livelli, cartelle compattate e
+   * figli li ricostruisce il servizio. Le cartelle aperte restano aperte, con i percorsi nuovi; se il documento aperto
+   * stava in una di quelle cartelle, la pagina lo riapre dal posto nuovo.
    */
-  private reloadTreeAfterFolderMove(folders: MdFile[], targetPath: string, separator: string): void {
-    const expanded = this.captureExpansionState();
-    const remapped = new Set<string>();
-    for (const path of expanded) {
-      let mapped = path;
-      for (const f of folders) {
-        const oldPrefix = f.fullPath;
-        const newPrefix = targetPath + separator + f.name;
-        if (path.toLowerCase() === oldPrefix.toLowerCase() || path.toLowerCase().startsWith(oldPrefix.toLowerCase() + separator))
-          mapped = newPrefix + path.substring(oldPrefix.length);
+  private reloadTreeAfterFolderMoves(moves: { oldPath: string; newPath: string }[], alsoExpand: string | null): void {
+    const sep = (p: string) => (p.includes('\\') ? '\\' : '/');
+    const remap = (path: string): string => {
+      for (const m of moves) {
+        const o = m.oldPath.toLowerCase();
+        const p = path.toLowerCase();
+        if (p === o || p.startsWith(o + sep(m.oldPath))) return m.newPath + path.substring(m.oldPath.length);
       }
-      remapped.add(mapped);
-    }
-    remapped.add(targetPath);
+      return path;
+    };
+    const remapped = new Set<string>(Array.from(this.captureExpansionState()).map(remap));
+    if (alsoExpand) remapped.add(alsoExpand);
     this.expansionStateBeforeRefresh = remapped;
     this.dndMovingPaths = null;
+
+    const open = this.selectedNode;
+    if (open && (open.type === 'mdFile' || open.type === 'mdFileTimer')) {
+      const newFull = remap(open.fullPath);
+      if (newFull !== open.fullPath) {
+        const projectPath = this.projectsService.currentProjects$.value?.path || '';
+        const rel = newFull.toLowerCase().startsWith(projectPath.toLowerCase()) ? newFull.substring(projectPath.length) : newFull;
+        this.getNode({ ...open, fullPath: newFull, relativePath: rel, path: rel.replace(/\\/g, '/') } as MdFile);
+      }
+    }
     this.mdFileService.loadAll(null, null);
   }
 
@@ -1044,16 +1053,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** «Rinomina cartella»: la stessa finestra dei documenti; la cartella si rinomina davvero sul disco, con i link. */
   renameDirectoryOn(node: MdFile) {
-    if (node == null) {
-      node = new MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(ChangeDirectoryComponent, {
-      width: '300px',
-      data: node,
-    });
+    if (!node || node.type !== 'folder') return;
+    this.dialog.open(RenameDocumentComponent, { width: '420px', data: node, autoFocus: false })
+      .afterClosed().subscribe((result: RenamedDocument | null) => {
+        if (!result) return;
+        this.reloadTreeAfterFolderMoves([{ oldPath: result.oldPath, newPath: result.newPath }], null);
+        this.snackBar.open(this.translate.instant('MD_TREE.RENAMED_FILE', { oldName: result.oldName, newName: result.newName }),
+          'OK', { duration: 3000 });
+      });
   }
+
 
   openFolderOn(node: MdFile) {
     console.log('[MdTreeComponent] openFolderOn() called');

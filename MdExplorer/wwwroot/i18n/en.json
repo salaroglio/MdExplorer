@@ -3214,6 +3214,8 @@
     "COUNTS": "{{written}} written · {{pending}} pending: you can go on with the chat and press «Learn» again"
   },
   "RENAME_DOCUMENT": {
+    "TITLE_FOLDER": "Rename the folder",
+    "HINT_FOLDER": "Links to the files in the folder are updated automatically.",
     "TITLE": "Rename the document",
     "NAME": "Name",
     "HINT": "Links to the document are updated automatically.",

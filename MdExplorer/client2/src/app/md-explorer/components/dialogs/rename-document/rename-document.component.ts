@@ -20,6 +20,8 @@ import { MdFileService, RenamedDocument } from '../../../services/md-file.servic
 export class RenameDocumentComponent implements AfterViewInit {
   @ViewChild('nameInput') nameInput: ElementRef<HTMLInputElement>;
   name: string;
+  /** Una cartella: niente .md da lasciare fuori dalla selezione, titolo e spiegazione suoi. */
+  readonly isFolder: boolean;
   error: string | null = null;
   saving = false;
 
@@ -29,6 +31,7 @@ export class RenameDocumentComponent implements AfterViewInit {
     private mdFileService: MdFileService,
   ) {
     this.name = data.name;
+    this.isFolder = data.type === 'folder';
   }
 
   ngAfterViewInit(): void {
@@ -37,7 +40,7 @@ export class RenameDocumentComponent implements AfterViewInit {
       const input = this.nameInput?.nativeElement;
       if (!input) return;
       input.focus();
-      const dot = this.name.toLowerCase().endsWith('.md') ? this.name.length - 3 : this.name.length;
+      const dot = !this.isFolder && this.name.toLowerCase().endsWith('.md') ? this.name.length - 3 : this.name.length;
       input.setSelectionRange(0, dot);
     });
   }

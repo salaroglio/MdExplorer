@@ -3214,6 +3214,8 @@
     "COUNTS": "{{written}} scritte · {{pending}} in sospeso: puoi continuare la chat e premere di nuovo «Impara»"
   },
   "RENAME_DOCUMENT": {
+    "TITLE_FOLDER": "Rinomina la cartella",
+    "HINT_FOLDER": "I link verso i file della cartella si aggiornano da soli.",
     "TITLE": "Rinomina il documento",
     "NAME": "Nome",
     "HINT": "I link verso il documento si aggiornano da soli.",
