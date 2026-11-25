@@ -72,3 +72,4 @@ mde-learn>>>
 - `action`: `create` per una skill nuova, `update` per una che c'è già (con lo stesso `skill` dell'elenco).
 - `evidence`: i progressivi degli eventi da cui nasce la proposta; almeno uno.
 - `content`: il testo intero di `SKILL.md`, con gli a capo scritti come `\n`.
+- In questa risposta **non** aggiungere il blocco `mde-thread` delle altre risposte: qui c'è solo `mde-learn`.

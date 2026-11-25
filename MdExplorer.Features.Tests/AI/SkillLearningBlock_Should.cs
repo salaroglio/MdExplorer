@@ -101,6 +101,15 @@ namespace MdExplorer.Features.Tests.AI
         }
 
         [TestMethod]
+        public void Leave_the_chat_thread_block_out_of_the_prose()
+        {
+            var answer = SkillLearningBlock.Read("Niente da imparare.\n\n<<<mde-thread\n{}\nmde-thread>>>\n<<<mde-learn\n{\"proposals\": []}\nmde-learn>>>", Project);
+
+            Assert.AreEqual("Niente da imparare.", answer.Prose);
+            Assert.IsNull(answer.BlockProblem);
+        }
+
+        [TestMethod]
         public void Mark_two_proposals_on_the_same_skill()
         {
             var answer = SkillLearningBlock.Read(Answer(Proposal(skill: "doppia") + "," + Proposal(skill: "doppia")), Project);

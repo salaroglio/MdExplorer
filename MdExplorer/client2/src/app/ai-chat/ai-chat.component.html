@@ -41,6 +41,11 @@
     <button mat-icon-button (click)="toggleModelManager()" [matTooltip]="'AI_CHAT.MODEL_MANAGER' | translate">
       <mat-icon>settings</mat-icon>
     </button>
+    <!-- «Impara da questa attività»: MarkAgent rilegge la chat e propone skill per la prossima volta. -->
+    <button mat-icon-button (click)="learnFromActivity()" [disabled]="!chatThreadId"
+            [matTooltip]="(chatThreadId ? 'SKILL_LEARNING.BUTTON' : 'SKILL_LEARNING.BUTTON_NO_CHAT') | translate">
+      <mat-icon>school</mat-icon>
+    </button>
     <!-- La cronologia delle chat: la lista si apre nel riquadro grande, dove sta il documento. -->
     <button mat-icon-button (click)="toggleChatHistory()" [class.active]="chatHistory.open$ | async"
             [matTooltip]="'CHAT_HISTORY.BUTTON' | translate">

@@ -275,6 +275,8 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Features.Services.AI.ChatHistory.IChatFileStore>(_ => new MdExplorer.Features.Services.AI.ChatHistory.ChatFileStore(
                 Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "chats")));
             services.AddSingleton<Services.ChatHistory.ChatHistoryRecorder>();
+            // «Impara da questa attività»: il prompt per il motore del tab e la lettura della risposta (skill che migliorano).
+            services.AddSingleton<Services.SkillLearning.SkillLearningService>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.

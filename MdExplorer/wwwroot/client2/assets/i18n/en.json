@@ -3188,5 +3188,23 @@
     "NOT_CONNECTED": "The chat is not connected to the service: try again shortly.",
     "NOT_RESUMED": "The chat could not be resumed.",
     "UNREADABLE_LINES": "Resumed, but {{count}} lines of the file cannot be read: they are missing from the chat."
+  },
+  "SKILL_LEARNING": {
+    "BUTTON": "Learn from this activity",
+    "BUTTON_NO_CHAT": "Learn from this activity: a saved chat is needed first",
+    "TITLE": "What I learned",
+    "PREPARING": "Preparing the activity to read back…",
+    "ASKING": "MarkAgent is reading the activity back (events {{from}}-{{to}})…",
+    "BLOCK_PROBLEM": "The proposals cannot be read",
+    "NOTHING": "No proposals: this activity has nothing durable to learn.",
+    "CREATE": "new skill",
+    "UPDATE": "correction",
+    "EVIDENCE": "Evidence:",
+    "EVIDENCE_MISSING": "Event {{seq}} is not in the chat.",
+    "CORRECT": "Correct",
+    "SHOW_DIFF": "Differences",
+    "REJECT": "Reject",
+    "APPROVE": "Approve",
+    "APPROVED_COUNT": "{{count}} approved out of {{total}}"
   }
 }

@@ -1,0 +1,81 @@
+<h2 mat-dialog-title>
+  <mat-icon>school</mat-icon> {{ 'SKILL_LEARNING.TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="sl-content">
+  <div *ngIf="state === 'preparing'" class="sl-center">
+    <mat-spinner diameter="28"></mat-spinner>
+    <p>{{ 'SKILL_LEARNING.PREPARING' | translate }}</p>
+  </div>
+
+  <div *ngIf="state === 'asking'">
+    <p class="sl-muted">
+      <mat-spinner diameter="16" class="sl-inline-spinner"></mat-spinner>
+      {{ 'SKILL_LEARNING.ASKING' | translate:{ from: request?.from, to: request?.to } }}
+    </p>
+    <pre class="sl-stream">{{ streamed }}</pre>
+  </div>
+
+  <div *ngIf="state === 'error'" class="sl-problem">
+    <mat-icon>error_outline</mat-icon> {{ error }}
+  </div>
+
+  <ng-container *ngIf="state === 'review' && review">
+    <p class="sl-prose">{{ review.prose }}</p>
+    <p *ngIf="review.blockProblem" class="sl-problem">
+      <mat-icon inline>error_outline</mat-icon> {{ 'SKILL_LEARNING.BLOCK_PROBLEM' | translate }}: {{ review.blockProblem }}
+    </p>
+    <p *ngIf="!review.blockProblem && views.length === 0" class="sl-muted">{{ 'SKILL_LEARNING.NOTHING' | translate }}</p>
+
+    <div *ngFor="let view of views; trackBy: byIndex" class="sl-proposal"
+         [class.sl-approved]="view.decision === 'approved'" [class.sl-rejected]="view.decision === 'rejected'"
+         [class.sl-invalid]="!view.proposal.isValid">
+      <div class="sl-head">
+        <mat-icon>{{ view.proposal.action === 'update' ? 'edit_note' : 'note_add' }}</mat-icon>
+        <span class="sl-skill">{{ view.proposal.skill || '?' }}</span>
+        <span class="sl-action">{{ (view.proposal.action === 'update' ? 'SKILL_LEARNING.UPDATE' : 'SKILL_LEARNING.CREATE') | translate }}</span>
+        <span class="flexExpand"></span>
+        <span class="sl-path" *ngIf="view.proposal.targetPath">{{ view.proposal.targetPath }}</span>
+      </div>
+
+      <p class="sl-why">{{ view.proposal.why }}</p>
+
+      <div class="sl-evidence" *ngIf="view.proposal.evidence?.length">
+        <span class="sl-muted">{{ 'SKILL_LEARNING.EVIDENCE' | translate }}</span>
+        <button mat-stroked-button *ngFor="let seq of view.proposal.evidence" (click)="openEvidence(view, seq)"
+                [class.sl-chip-open]="view.openedEvidence?.seq === seq">{{ seq }}</button>
+      </div>
+      <pre *ngIf="view.openedEvidence" class="sl-evidence-text">{{ view.openedEvidence.text }}</pre>
+
+      <ul *ngIf="!view.proposal.isValid" class="sl-problem">
+        <li *ngFor="let p of view.proposal.problems">{{ p }}</li>
+      </ul>
+
+      <pre *ngIf="!view.editing" class="sl-diff"><span *ngFor="let l of view.proposal.diff" [ngClass]="'d-' + l.kind">{{ l.kind === 'add' ? '+ ' : l.kind === 'del' ? '- ' : '  ' }}{{ l.text }}
+</span></pre>
+      <textarea *ngIf="view.editing" class="sl-editor" [(ngModel)]="view.content" rows="18"></textarea>
+
+      <div class="sl-actions">
+        <button mat-button (click)="toggleEdit(view)" [disabled]="!view.proposal.isValid">
+          <mat-icon>{{ view.editing ? 'visibility' : 'edit' }}</mat-icon>
+          {{ (view.editing ? 'SKILL_LEARNING.SHOW_DIFF' : 'SKILL_LEARNING.CORRECT') | translate }}
+        </button>
+        <span class="flexExpand"></span>
+        <button mat-button (click)="decide(view, 'rejected')" [class.sl-on]="view.decision === 'rejected'">
+          <mat-icon>thumb_down</mat-icon> {{ 'SKILL_LEARNING.REJECT' | translate }}
+        </button>
+        <button mat-flat-button color="primary" (click)="decide(view, 'approved')" [disabled]="!view.proposal.isValid"
+                [class.sl-on]="view.decision === 'approved'">
+          <mat-icon>thumb_up</mat-icon> {{ 'SKILL_LEARNING.APPROVE' | translate }}
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <span class="sl-muted" *ngIf="state === 'review' && views.length">
+    {{ 'SKILL_LEARNING.APPROVED_COUNT' | translate:{ count: approvedCount, total: views.length } }}
+  </span>
+  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+</mat-dialog-actions>

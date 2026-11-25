@@ -23,6 +23,7 @@ import { AiChatComponent } from './ai-chat.component';
 import { ModelManagerComponent } from './model-manager.component';
 import { CodeRuleWizardComponent } from './code-rule-wizard/code-rule-wizard.component';
 import { CodeLanguageWizardComponent } from './code-language-wizard/code-language-wizard.component';
+import { SkillLearningDialogComponent } from './skill-learning-dialog/skill-learning-dialog.component';
 
 const routes: Routes = [
   {
@@ -40,7 +41,8 @@ const routes: Routes = [
     AiChatComponent,
     ModelManagerComponent,
     CodeRuleWizardComponent,
-    CodeLanguageWizardComponent
+    CodeLanguageWizardComponent,
+    SkillLearningDialogComponent
   ],
   imports: [
     CommonModule,

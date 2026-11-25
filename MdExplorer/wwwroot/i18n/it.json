@@ -3188,5 +3188,23 @@
     "NOT_CONNECTED": "La chat non è collegata al servizio: riprova fra poco.",
     "NOT_RESUMED": "La chat non si è potuta riprendere.",
     "UNREADABLE_LINES": "Ripresa, ma {{count}} righe del file non si leggono: mancano nella chat."
+  },
+  "SKILL_LEARNING": {
+    "BUTTON": "Impara da questa attività",
+    "BUTTON_NO_CHAT": "Impara da questa attività: prima serve una chat salvata",
+    "TITLE": "Che cosa ho imparato",
+    "PREPARING": "Preparo l'attività da rileggere…",
+    "ASKING": "MarkAgent rilegge l'attività (eventi {{from}}-{{to}})…",
+    "BLOCK_PROBLEM": "Le proposte non si leggono",
+    "NOTHING": "Nessuna proposta: da questa attività non c'è niente di durevole da imparare.",
+    "CREATE": "skill nuova",
+    "UPDATE": "correzione",
+    "EVIDENCE": "Prove:",
+    "EVIDENCE_MISSING": "L'evento {{seq}} non è nella chat.",
+    "CORRECT": "Correggi",
+    "SHOW_DIFF": "Differenze",
+    "REJECT": "Rifiuta",
+    "APPROVE": "Approva",
+    "APPROVED_COUNT": "{{count}} approvate su {{total}}"
   }
 }

@@ -67,10 +67,10 @@ namespace MdExplorer.Features.Services.AI.SkillLearning
             var text = answer ?? string.Empty;
             var start = text.LastIndexOf(Start, StringComparison.Ordinal);
             if (start < 0)
-                return new SkillLearningAnswer { Prose = text.Trim(), BlockProblem = UiText.Say(
+                return new SkillLearningAnswer { Prose = WithoutThreadBlock(text), BlockProblem = UiText.Say(
                     "il modello non ha mandato il blocco delle proposte", "the model did not send the proposals block") };
             var end = text.IndexOf(End, start + Start.Length, StringComparison.Ordinal);
-            var prose = text.Substring(0, start).Trim();
+            var prose = WithoutThreadBlock(text.Substring(0, start));
             if (end < 0)
                 return new SkillLearningAnswer { Prose = prose, BlockProblem = UiText.Say(
                     "il blocco delle proposte è cominciato ma non è stato chiuso", "the proposals block was started but not closed") };
@@ -193,6 +193,14 @@ namespace MdExplorer.Features.Services.AI.SkillLearning
                 return UiText.Say($"{lines} righe invece di {MaxContentLines} al massimo: va divisa", $"{lines} lines instead of at most {MaxContentLines}: split it");
             return null;
         }
+
+        /// <summary>
+        /// Il blocco titolo/dettaglio della chat (mde-thread) non c'entra con «Impara», ma un modello che lo ha mandato a ogni
+        /// turno lo aggiunge per abitudine anche qui (visto il 25/11/2026 con opencode): fuori dalla prosa.
+        /// </summary>
+        private static string WithoutThreadBlock(string text)
+            => Regex.Replace(text ?? string.Empty, Regex.Escape(AI.ChatHistory.ChatThreadBlock.Start) + ".*?" + Regex.Escape(AI.ChatHistory.ChatThreadBlock.End),
+                string.Empty, RegexOptions.Singleline).Trim();
 
         private static string Str(JsonElement item, string name)
             => item.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

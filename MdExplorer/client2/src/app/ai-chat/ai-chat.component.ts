@@ -1,3 +1,4 @@
+import { SkillLearningDialogComponent, SkillLearningDialogData } from './skill-learning-dialog/skill-learning-dialog.component';
 import { ChatHistoryService } from '../services/chat-history.service';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -661,6 +662,25 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       event.preventDefault();
       this.sendMessage();
     }
+  }
+
+  /** La chat salvata nel tab, se c'è (serve a «Impara»): un getter senza allocazioni, letto dal template. */
+  get chatThreadId(): string | null {
+    return this.aiService.chatThreadId;
+  }
+
+  /** «Impara da questa attività»: la finestra prepara la richiesta, la manda al motore del tab e mostra le proposte. */
+  learnFromActivity(): void {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    const threadId = this.aiService.chatThreadId;
+    if (!projectPath || !threadId) return;
+    this.dialog.open<SkillLearningDialogComponent, SkillLearningDialogData>(SkillLearningDialogComponent, {
+      data: { projectPath, threadId },
+      width: '960px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      disableClose: true,
+    });
   }
 
   /** Apre o chiude la cronologia delle chat nel riquadro grande. */
