@@ -3170,5 +3170,23 @@
     "STATE_RESTART": "serve un riavvio",
     "STATE_ERROR": "controllo non riuscito",
     "STATE_CHECKING": "controllo…"
+  },
+  "CHAT_HISTORY": {
+    "BUTTON": "Cronologia delle chat",
+    "TITLE": "Cronologia delle chat",
+    "REFRESH": "Aggiorna",
+    "CLOSE": "Chiudi e torna al documento",
+    "EMPTY": "Nessuna chat salvata per questo progetto.",
+    "UNTITLED": "(senza titolo)",
+    "CURRENT": "nel tab",
+    "NO_DETAIL": "Nessun dettaglio: il modello non l'ha ancora scritto.",
+    "FILE_MISSING": "Il file di questa chat non c'è più: si può solo eliminare.",
+    "RESUME": "Riprendi",
+    "DELETE": "Elimina",
+    "CONFIRM_DELETE": "Elimina davvero",
+    "NO_PROJECT": "Nessun progetto aperto.",
+    "NOT_CONNECTED": "La chat non è collegata al servizio: riprova fra poco.",
+    "NOT_RESUMED": "La chat non si è potuta riprendere.",
+    "UNREADABLE_LINES": "Ripresa, ma {{count}} righe del file non si leggono: mancano nella chat."
   }
 }

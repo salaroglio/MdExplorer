@@ -3170,5 +3170,23 @@
     "STATE_RESTART": "needs a restart",
     "STATE_ERROR": "check failed",
     "STATE_CHECKING": "checking…"
+  },
+  "CHAT_HISTORY": {
+    "BUTTON": "Chat history",
+    "TITLE": "Chat history",
+    "REFRESH": "Refresh",
+    "CLOSE": "Close and go back to the document",
+    "EMPTY": "No saved chat for this project.",
+    "UNTITLED": "(untitled)",
+    "CURRENT": "in the tab",
+    "NO_DETAIL": "No detail: the model has not written it yet.",
+    "FILE_MISSING": "This chat's file is gone: it can only be deleted.",
+    "RESUME": "Resume",
+    "DELETE": "Delete",
+    "CONFIRM_DELETE": "Really delete",
+    "NO_PROJECT": "No project open.",
+    "NOT_CONNECTED": "The chat is not connected to the service: try again shortly.",
+    "NOT_RESUMED": "The chat could not be resumed.",
+    "UNREADABLE_LINES": "Resumed, but {{count}} lines of the file cannot be read: they are missing from the chat."
   }
 }

@@ -717,8 +717,21 @@
       display: none;
     }
 
+    // Nella barra laterale stretta i pulsanti restano tutti visibili (anche la cronologia): a stringersi è
+    // l'etichetta del motore, che si taglia.
+    button.mat-mdc-icon-button {
+      flex-shrink: 0;
+    }
+
+    .spacer {
+      flex: 0 1 0;
+    }
+
     .model-status {
       margin-right: 4px;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
 
       ::ng-deep .mat-chip-list {
         .mat-chip {

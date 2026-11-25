@@ -1,3 +1,4 @@
+import { ChatHistoryService } from '../services/chat-history.service';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { AiChatService, ChatMessage } from '../services/ai-chat.service';
@@ -149,6 +150,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private aiService: AiChatService,
     private router: Router,
     private sanitizer: DomSanitizer,
+    public chatHistory: ChatHistoryService,
     private layoutService: LayoutService,
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -659,6 +661,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       event.preventDefault();
       this.sendMessage();
     }
+  }
+
+  /** Apre o chiude la cronologia delle chat nel riquadro grande. */
+  toggleChatHistory(): void {
+    this.chatHistory.toggle();
   }
 
   newSession(): void {

@@ -65,6 +65,24 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
         }
 
+        // La sessione del motore da riprendere alla prossima creazione per questa connessione (cronologia delle chat, F6):
+        // «Riprendi» su una chat salvata, o una riconnessione. Si usa una volta sola e poi si dimentica.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _pendingResume = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// La prossima sessione creata per <paramref name="connectionId"/> riprende <paramref name="engineSessionId"/>;
+        /// null lo toglie. Una sessione già viva per la connessione va rilasciata prima (<c>ReleaseAsync</c>).
+        /// </summary>
+        public void ResumeNextSession(string connectionId, string engineSessionId)
+        {
+            if (string.IsNullOrEmpty(connectionId)) return;
+            if (string.IsNullOrWhiteSpace(engineSessionId)) _pendingResume.TryRemove(connectionId, out _);
+            else _pendingResume[connectionId] = engineSessionId;
+        }
+
+        private string TakePendingResume(string connectionId)
+            => connectionId != null && _pendingResume.TryRemove(connectionId, out var id) ? id : null;
+
         /// <summary>
         /// Restituisce la sessione della connessione se combacia per working directory e modello.
         /// Se cambia solo il modello, lo cambia sulla sessione viva (<see cref="ClaudeCodeSession.SetModelAsync"/>)
@@ -131,6 +149,14 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 }
 
                 if (_sessions.Count >= _maxSessions) EvictOldest();
+
+                // Una chat ripresa dalla cronologia (o dopo una riconnessione): il CLI riparte dalla sua conversazione.
+                var pending = TakePendingResume(connectionId);
+                if (pending != null && options.ResumeSessionId == null)
+                {
+                    options = options.WithResume(pending);
+                    _logger.LogInformation("[ClaudeCodeSessionPool] {ConnectionId}: riprendo la sessione {SessionId} della cronologia", connectionId, pending);
+                }
 
                 var sessionLogger = _loggerFactory.CreateLogger<ClaudeCodeSession>();
                 var session = new ClaudeCodeSession(sessionLogger, workingDirectory, modelId, options);

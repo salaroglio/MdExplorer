@@ -30,6 +30,7 @@ import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
 import { AgentReviewComponent } from './components/agent-review/agent-review.component';
 import { WorkingChangesComponent } from './components/working-changes/working-changes.component';
+import { ChatHistoryPanelComponent } from './components/chat-history-panel/chat-history-panel.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
@@ -108,6 +109,7 @@ const routes: Routes = [
   declarations: [
     AgentReviewComponent,
     WorkingChangesComponent,
+    ChatHistoryPanelComponent,
     SidenavComponent,
     ToolbarComponent,
     SafePipe,

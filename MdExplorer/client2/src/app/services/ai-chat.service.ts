@@ -1,4 +1,5 @@
 import { TranslateService } from '@ngx-translate/core';
+import { ChatRecordEvent, ChatThreadContent } from './chat-history.service';
 import { Injectable, Inject, forwardRef } from '@angular/core';
 import { applySignalrTimeouts } from '../signalR/signalr-timeouts';
 import { HttpClient } from '@angular/common/http';
@@ -421,10 +422,12 @@ export class AiChatService {
   private resumeChatThread(): Promise<void> {
     const threadId = this._chatThreadId;
     if (!threadId || this.hubConnection.state !== 'Connected') return Promise.resolve();
-    return this.hubConnection.invoke<{ resumed: boolean; reason?: string }>('ResumeChatThread', threadId)
+    return this.hubConnection.invoke<{ resumed: boolean; reason?: string; notice?: string }>('ResumeChatThread', threadId)
       .then(outcome => {
         if (outcome?.resumed) {
           console.log('[AiChatService] Chat resumed in the history after reconnect:', threadId);
+          // The engine could not go on from its conversation (another engine, Copilot ACP…): said, not hidden.
+          if (outcome.notice) this.addMessage('system', outcome.notice);
           return;
         }
         console.warn('[AiChatService] Chat not resumed after reconnect:', outcome?.reason);
@@ -743,6 +746,61 @@ export class AiChatService {
 
     this.currentStreamingMessageId = null;
     this.currentStreamingProviderType = null;
+  }
+
+  /**
+   * «Riprendi» from the chat history (F6): the saved chat goes back into the tab — questions, answers, reasoning, system
+   * messages; the tools stay in the history — and the hub hooks it to this connection, so the next turns go on in the
+   * same chat and, when the engine can, in the same engine conversation. When the hub refuses, the tab is not touched
+   * and the reason comes back.
+   */
+  async resumeFromHistory(content: ChatThreadContent): Promise<{ resumed: boolean; reason?: string; notice?: string }> {
+    if (this.hubConnection.state !== 'Connected') {
+      return { resumed: false, reason: this.translate.instant('CHAT_HISTORY.NOT_CONNECTED') };
+    }
+    const outcome = await this.hubConnection.invoke<{ resumed: boolean; reason?: string; notice?: string }>('ResumeChatThread', content.id);
+    if (!outcome?.resumed) return { resumed: false, reason: outcome?.reason };
+
+    this._chatThreadId = content.id;
+    this.currentStreamingMessageId = null;
+    this.currentStreamingProviderType = null;
+    this._messages$.next(AiChatService.messagesFromHistory(content.events));
+    if (outcome.notice) this.addMessage('system', outcome.notice);
+    return { resumed: true, notice: outcome.notice };
+  }
+
+  /** The tab's own conversation (channel «default») rebuilt from the saved events: one assistant message per turn. */
+  static messagesFromHistory(events: ChatRecordEvent[]): ChatMessage[] {
+    const messages: ChatMessage[] = [];
+    let answer: ChatMessage | null = null;
+    let answerTurn = -1;
+    for (const e of events) {
+      if ((e.channel || 'default') !== 'default') continue;
+      const at = new Date(e.at);
+      if (e.kind === 'user_prompt') {
+        messages.push({ id: `h-${e.seq}`, role: 'user', content: e.content || '', timestamp: at });
+        answer = null;
+        continue;
+      }
+      if (e.kind === 'text' || e.kind === 'thinking') {
+        if (!answer || answerTurn !== e.turn) {
+          answer = { id: `h-${e.seq}`, role: 'assistant', content: '', timestamp: at, providerType: e.engine };
+          answerTurn = e.turn;
+          messages.push(answer);
+        }
+        if (e.kind === 'text') answer.content += e.content || '';
+        else answer.thinkingContent = (answer.thinkingContent || '') + (e.content || '');
+        continue;
+      }
+      if (e.kind === 'error') {
+        messages.push({ id: `h-${e.seq}`, role: 'system', content: `Error: ${e.content || ''}`, timestamp: at });
+        continue;
+      }
+      if (e.kind === 'meta' && e.json?.event === 'ReceiveMessage' && e.content) {
+        messages.push({ id: `h-${e.seq}`, role: 'system', content: e.content, timestamp: at });
+      }
+    }
+    return messages;
   }
 
   clearMessages(): void {

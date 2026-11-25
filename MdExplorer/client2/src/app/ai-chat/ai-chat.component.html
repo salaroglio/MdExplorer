@@ -41,6 +41,11 @@
     <button mat-icon-button (click)="toggleModelManager()" [matTooltip]="'AI_CHAT.MODEL_MANAGER' | translate">
       <mat-icon>settings</mat-icon>
     </button>
+    <!-- La cronologia delle chat: la lista si apre nel riquadro grande, dove sta il documento. -->
+    <button mat-icon-button (click)="toggleChatHistory()" [class.active]="chatHistory.open$ | async"
+            [matTooltip]="'CHAT_HISTORY.BUTTON' | translate">
+      <mat-icon>history</mat-icon>
+    </button>
   </mat-toolbar>
 
   <!-- D42: compare solo quando MarkAgent ha proposto una regola che chiude un buco del grafo -->

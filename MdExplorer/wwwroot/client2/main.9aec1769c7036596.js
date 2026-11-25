@@ -18722,6 +18722,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AiChatService {
+  /** The id of the chat being saved in the history, or null before the first turn of a new chat. */
+  get chatThreadId() {
+    return this._chatThreadId;
+  }
   /** The engine the MarkAgent tab chose for this connection, as sent to the hub; null if none yet. */
   get chatMode() {
     return this._lastChatMode;
@@ -18806,6 +18810,9 @@ class AiChatService {
     // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
     // every prompt fails with "Copilot not available".
     this._lastChatMode = null;
+    // The chat of the MarkAgent tab in the history (sprint 2026-11-24-Chat-Memorizzate, F4): the hub sends its id when it
+    // opens it; after a reconnection (new connectionId) the client hooks it back so the turns go on in the same chat.
+    this._chatThreadId = null;
     this._connectionLost$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
     this.connectionLost$ = this._connectionLost$.asObservable();
@@ -18855,6 +18862,9 @@ class AiChatService {
     this.hubConnection.on('ModelLoadError', error => {
       console.error('[AiChatService] Received ModelLoadError event:', error);
       this._isModelLoaded$.next(false);
+    });
+    this.hubConnection.on('ReceiveChatThread', threadId => {
+      this._chatThreadId = threadId;
     });
     this.hubConnection.on('ReceiveMessage', (role, content) => {
       this.addMessage(role, content);
@@ -18969,7 +18979,8 @@ class AiChatService {
     this.hubConnection.onclose(() => this._connectionLost$.next());
     this.hubConnection.onreconnected(() => {
       console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
-      this.sendProjectConnectionId();
+      // The project first: the hub checks that the chat being resumed belongs to it.
+      this.sendProjectConnectionId().then(() => this.resumeChatThread());
       if (this._lastChatMode) {
         this.hubConnection.invoke('SetChatMode', this._lastChatMode.provider, this._lastChatMode.modelId).then(() => console.log('[AiChatService] Chat mode replayed after reconnect:', this._lastChatMode)).catch(err => console.error('[AiChatService] Error replaying chat mode after reconnect:', err));
       }
@@ -19036,13 +19047,32 @@ class AiChatService {
     const projectConnId = this._projectConnId;
     if (!projectConnId) {
       console.log('[AiChatService] Project connectionId not known yet \u2014 will send as soon as it is');
-      return;
+      return Promise.resolve();
     }
     if (this.hubConnection.state !== 'Connected') {
       console.log('[AiChatService] Chat hub not connected yet \u2014 project connectionId will be sent on connect');
-      return;
+      return Promise.resolve();
     }
-    this.hubConnection.invoke('SetProjectConnectionId', projectConnId).then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId)).catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+    return this.hubConnection.invoke('SetProjectConnectionId', projectConnId).then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId)).catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
+  }
+  /**
+   * After a reconnection: the chat shown in the tab goes on in the same history. When the hub cannot resume it (deleted,
+   * another project, file gone) the reason is shown, and the next turn opens a new chat.
+   */
+  resumeChatThread() {
+    const threadId = this._chatThreadId;
+    if (!threadId || this.hubConnection.state !== 'Connected') return Promise.resolve();
+    return this.hubConnection.invoke('ResumeChatThread', threadId).then(outcome => {
+      if (outcome?.resumed) {
+        console.log('[AiChatService] Chat resumed in the history after reconnect:', threadId);
+        // The engine could not go on from its conversation (another engine, Copilot ACP…): said, not hidden.
+        if (outcome.notice) this.addMessage('system', outcome.notice);
+        return;
+      }
+      console.warn('[AiChatService] Chat not resumed after reconnect:', outcome?.reason);
+      this._chatThreadId = null;
+      if (outcome?.reason) this.addMessage('system', outcome.reason);
+    }).catch(err => console.error('[AiChatService] Error resuming the chat after reconnect:', err));
   }
   // Model Management
   getAvailableModels() {
@@ -19324,8 +19354,94 @@ class AiChatService {
     this.currentStreamingMessageId = null;
     this.currentStreamingProviderType = null;
   }
+  /**
+   * «Riprendi» from the chat history (F6): the saved chat goes back into the tab — questions, answers, reasoning, system
+   * messages; the tools stay in the history — and the hub hooks it to this connection, so the next turns go on in the
+   * same chat and, when the engine can, in the same engine conversation. When the hub refuses, the tab is not touched
+   * and the reason comes back.
+   */
+  resumeFromHistory(content) {
+    var _this3 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      if (_this3.hubConnection.state !== 'Connected') {
+        return {
+          resumed: false,
+          reason: _this3.translate.instant('CHAT_HISTORY.NOT_CONNECTED')
+        };
+      }
+      const outcome = yield _this3.hubConnection.invoke('ResumeChatThread', content.id);
+      if (!outcome?.resumed) return {
+        resumed: false,
+        reason: outcome?.reason
+      };
+      _this3._chatThreadId = content.id;
+      _this3.currentStreamingMessageId = null;
+      _this3.currentStreamingProviderType = null;
+      _this3._messages$.next(AiChatService.messagesFromHistory(content.events));
+      if (outcome.notice) _this3.addMessage('system', outcome.notice);
+      return {
+        resumed: true,
+        notice: outcome.notice
+      };
+    })();
+  }
+  /** The tab's own conversation (channel «default») rebuilt from the saved events: one assistant message per turn. */
+  static messagesFromHistory(events) {
+    const messages = [];
+    let answer = null;
+    let answerTurn = -1;
+    for (const e of events) {
+      if ((e.channel || 'default') !== 'default') continue;
+      const at = new Date(e.at);
+      if (e.kind === 'user_prompt') {
+        messages.push({
+          id: `h-${e.seq}`,
+          role: 'user',
+          content: e.content || '',
+          timestamp: at
+        });
+        answer = null;
+        continue;
+      }
+      if (e.kind === 'text' || e.kind === 'thinking') {
+        if (!answer || answerTurn !== e.turn) {
+          answer = {
+            id: `h-${e.seq}`,
+            role: 'assistant',
+            content: '',
+            timestamp: at,
+            providerType: e.engine
+          };
+          answerTurn = e.turn;
+          messages.push(answer);
+        }
+        if (e.kind === 'text') answer.content += e.content || '';else answer.thinkingContent = (answer.thinkingContent || '') + (e.content || '');
+        continue;
+      }
+      if (e.kind === 'error') {
+        messages.push({
+          id: `h-${e.seq}`,
+          role: 'system',
+          content: `Error: ${e.content || ''}`,
+          timestamp: at
+        });
+        continue;
+      }
+      if (e.kind === 'meta' && e.json?.event === 'ReceiveMessage' && e.content) {
+        messages.push({
+          id: `h-${e.seq}`,
+          role: 'system',
+          content: e.content,
+          timestamp: at
+        });
+      }
+    }
+    return messages;
+  }
   clearMessages() {
     this._messages$.next([]);
+    // A new chat: the next turn opens a new one in the history (the previous one stays there).
+    this._chatThreadId = null;
     // Clear backend conversation history too
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('ClearHistory', null).catch(err => {
@@ -19483,30 +19599,30 @@ class AiChatService {
    * so the UI can show a spinner until the backend has registered the provider.
    */
   setProviderAsync(provider, modelId) {
-    var _this3 = this;
+    var _this4 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
-      _this3._lastChatMode = {
+      _this4._lastChatMode = {
         provider,
         modelId
       };
       if (provider === 'gemini') {
-        _this3._useGemini$.next(true);
+        _this4._useGemini$.next(true);
         if (modelId) {
-          _this3._geminiModel$.next(modelId);
+          _this4._geminiModel$.next(modelId);
         }
       } else {
-        _this3._useGemini$.next(false);
+        _this4._useGemini$.next(false);
       }
-      if (_this3.hubConnection.state !== 'Connected') {
+      if (_this4.hubConnection.state !== 'Connected') {
         return;
       }
-      _this3._isConfiguringProvider$.next(true);
+      _this4._isConfiguringProvider$.next(true);
       try {
-        yield _this3.hubConnection.invoke('SetChatMode', provider, modelId);
+        yield _this4.hubConnection.invoke('SetChatMode', provider, modelId);
         console.log('[AiChatService] SetChatMode completed for:', provider, modelId);
       } finally {
-        _this3._isConfiguringProvider$.next(false);
+        _this4._isConfiguringProvider$.next(false);
       }
     })();
   }
@@ -23486,8 +23602,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.23.15',
-  buildTime: '2026.11.23 17:48:33'
+  version: '2026.11.25.3',
+  buildTime: '2026.11.25 10:02:30'
 };
 
 /***/ }),
@@ -23521,4 +23637,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.60931613648476b4.js.map
+//# sourceMappingURL=main.9aec1769c7036596.js.map

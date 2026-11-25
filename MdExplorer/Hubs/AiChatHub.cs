@@ -131,9 +131,11 @@ namespace MdExplorer.Hubs
             Services.CodeGraph.ICodeRootService codeRoots,
             Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher,
             IServiceScopeFactory scopeFactory,
-            Services.ChatHistory.ChatHistoryRecorder chatHistory)
+            Services.ChatHistory.ChatHistoryRecorder chatHistory,
+            ICopilotChatTransportSource copilotTransport)
         {
             _chatHistory = chatHistory;
+            _copilotTransport = copilotTransport;
             _scopeFactory = scopeFactory;
             _briefings = briefings;
             _codeRoots = codeRoots;
@@ -346,6 +348,8 @@ namespace MdExplorer.Hubs
 
         /// <summary>La cronologia delle chat (sprint 2026-11-24-Chat-Memorizzate): ogni turno vi scrive quello che manda al client.</summary>
         private readonly Services.ChatHistory.ChatHistoryRecorder _chatHistory;
+        /// <summary>SDK o ACP: con ACP una conversazione di Copilot non si riprende.</summary>
+        private readonly ICopilotChatTransportSource _copilotTransport;
 
         /// <summary>«Ragguagli» from the diagram sessions, put at the head of the tab's next message (D9).</summary>
         private readonly Services.MarkDiagram.MarkAgentBriefings _briefings;
@@ -864,8 +868,80 @@ namespace MdExplorer.Hubs
                 return Task.FromResult<object>(new { resumed = false, reason = MdExplorer.Features.Services.UiText.Say(
                     $"«{threadId}» non è l'id di una chat.", $"«{threadId}» is not a chat id.") });
             var outcome = _chatHistory.Resume(ConnectionId, id, GetProjectPath());
-            if (!outcome.Resumed) _logger.LogWarning("[ResumeChatThread] chat {ThreadId} non ripresa: {Reason}", id, outcome.Reason);
-            return Task.FromResult<object>(new { resumed = outcome.Resumed, reason = outcome.Reason, problems = outcome.Problems });
+            if (!outcome.Resumed)
+            {
+                _logger.LogWarning("[ResumeChatThread] chat {ThreadId} non ripresa: {Reason}", id, outcome.Reason);
+                return Task.FromResult<object>(new { resumed = false, reason = outcome.Reason, problems = outcome.Problems });
+            }
+            var (engineResumed, notice) = ResumeEngine(outcome);
+            return Task.FromResult<object>(new { resumed = true, engineResumed, notice, problems = outcome.Problems });
+        }
+
+        /// <summary>
+        /// Fa ripartire il motore del tab dalla sessione della chat ripresa (F6): la sessione viva della connessione si
+        /// chiude, e la prossima nasce riprendendo quella salvata. Restituisce l'avviso per l'utente quando il motore non
+        /// può riprendere (motore diverso, nessuna sessione salvata, Copilot ACP): la cronologia continua lo stesso.
+        /// </summary>
+        private (bool resumed, string notice) ResumeEngine(Services.ChatHistory.ChatHistoryRecorder.ResumeOutcome outcome)
+        {
+            var current = GetChatMode().ProviderType?.ToString().ToLowerInvariant();
+            if (string.IsNullOrEmpty(outcome.EngineSessionId))
+                return (false, MdExplorer.Features.Services.UiText.Say(
+                    "Questa chat non ha una sessione del motore salvata: il motore riparte da capo, la cronologia continua.",
+                    "This chat has no saved engine session: the engine starts over, the history goes on."));
+            if (!string.Equals(current, outcome.Engine, StringComparison.Ordinal))
+                return (false, MdExplorer.Features.Services.UiText.Say(
+                    $"La chat era con {outcome.Engine}, ora il tab usa {current ?? "il modello locale"}: il motore riparte da capo, la cronologia continua.",
+                    $"The chat was with {outcome.Engine}, the tab now uses {current ?? "the local model"}: the engine starts over, the history goes on."));
+            if (current == "copilotcli" && _copilotTransport?.Current() == CopilotChatTransport.Acp)
+                return (false, MdExplorer.Features.Services.UiText.Say(
+                    "Copilot è sul trasporto ACP, che non sa riprendere una conversazione: il motore riparte da capo, la cronologia continua.",
+                    "Copilot is on the ACP transport, which cannot resume a conversation: the engine starts over, the history goes on."));
+
+            // Si chiudono le sessioni vive della connessione quando il turno in corso ha lasciato il posto (la stessa fila
+            // dei turni di ClearHistory, in sfondo: aspettare qui fermerebbe le altre invocazioni, Stop compreso), poi il
+            // pool giusto sa che cosa riprendere alla prossima domanda. Chi riprende una chat non vuole più la risposta in corso.
+            var connectionId = ConnectionId;
+            var sessionId = outcome.EngineSessionId;
+            var gate = _turnGates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+            var logger = _logger;
+            var client = _hubContext.Clients.Client(connectionId);
+            var (copilot, claude, opencode) = (_copilotChatPool, _claudeCodePool, _openCodePool);
+            _connectionHistories.TryRemove(connectionId, out _);
+            copilot?.CancelActivePrompt(connectionId);
+            claude?.CancelActivePrompt(connectionId);
+            opencode?.CancelActivePrompt(connectionId);
+            _ = Task.Run(async () =>
+            {
+                await gate.WaitAsync();
+                try
+                {
+                    await Task.WhenAll(
+                        copilot?.ReleaseAsync(connectionId) ?? Task.CompletedTask,
+                        claude?.ReleaseAsync(connectionId) ?? Task.CompletedTask,
+                        opencode?.ReleaseAsync(connectionId) ?? Task.CompletedTask);
+                    switch (current)
+                    {
+                        case "claudecode": claude?.ResumeNextSession(connectionId, sessionId); break;
+                        case "opencode": opencode?.ResumeNextSession(connectionId, sessionId); break;
+                        case "copilotcli": copilot?.ResumeNextSession(connectionId, sessionId); break;
+                    }
+                    logger.LogInformation("[ResumeChatThread] {ConnectionId}: la prossima domanda riprende la sessione {SessionId} di {Engine}", connectionId, sessionId, current);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[ResumeChatThread] sessioni del motore non chiuse per {ConnectionId}", connectionId);
+                    try
+                    {
+                        await client.SendAsync("ReceiveMessage", "system", MdExplorer.Features.Services.UiText.Say(
+                            "La sessione del motore aperta non si è chiusa: il motore non riparte dalla chat ripresa. ",
+                            "The open engine session did not close: the engine does not resume the chat. ") + ex.Message);
+                    }
+                    catch { /* connessione chiusa */ }
+                }
+                finally { gate.Release(); }
+            });
+            return (true, null);
         }
 
         public Task ClearHistory(string channelId = null)

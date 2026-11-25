@@ -84,6 +84,9 @@ namespace MdExplorer.Services.ChatHistory
             public string Reason { get; init; }
             /// <summary>Righe del file che non si leggono (si riprende lo stesso, dal progressivo più alto letto).</summary>
             public IReadOnlyList<string> Problems { get; init; } = Array.Empty<string>();
+            /// <summary>Il motore dell'ultimo turno della chat e la sua sessione, per farlo ripartire da lì.</summary>
+            public string Engine { get; init; }
+            public string EngineSessionId { get; init; }
         }
 
         /// <summary>
@@ -178,7 +181,7 @@ namespace MdExplorer.Services.ChatHistory
             _toldNoProject.TryRemove(connectionId, out _);
             foreach (var p in content.Problems) _logger.LogWarning("[ChatHistory] chat {ThreadId} ripresa con una riga illeggibile: {Problem}", threadId, p);
             _logger.LogInformation("[ChatHistory] chat {ThreadId} ripresa su {ConnectionId} dal progressivo {Seq}", threadId, connectionId, state.NextSeq);
-            return new ResumeOutcome { Resumed = true, Problems = content.Problems };
+            return new ResumeOutcome { Resumed = true, Problems = content.Problems, Engine = row.Engine, EngineSessionId = row.EngineSessionId };
         }
 
         /// <summary>Una chat eliminata: nessuna connessione deve più scriverci.</summary>

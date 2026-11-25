@@ -92,8 +92,11 @@
     </div>
   </div>
 
+  <!-- La cronologia delle chat di MarkAgent: il pulsante sta nel tab, la lista qui, dove si guarda il documento. -->
+  <app-chat-history-panel *ngIf="chatHistoryOpen" class="chat-history-view"></app-chat-history-panel>
+
   <!-- La differenza di un file: qui, dove si guarda il documento, non in una colonna stretta. -->
-  <div class="diff-view" *ngIf="diffRequest">
+  <div class="diff-view" *ngIf="diffRequest && !chatHistoryOpen">
     <div class="diff-view-header">
       <mat-icon>difference</mat-icon>
       <span class="dv-repo" *ngIf="diffRequest.repo">{{ diffRequest.repoLabel }}</span>
@@ -125,7 +128,7 @@
           id="mdIframe"
           name="mdIframe"
           class="content-iframe"
-          [hidden]="diffRequest || _HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'deleted'"
+          [hidden]="chatHistoryOpen || diffRequest || _HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'deleted'"
           [src]="htmlSource | safe"
           tabindex="0"
           role="document"

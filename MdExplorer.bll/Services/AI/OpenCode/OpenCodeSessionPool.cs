@@ -50,6 +50,24 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
         }
 
+        // La sessione del motore da riprendere alla prossima creazione per questa connessione (cronologia delle chat, F6):
+        // «Riprendi» su una chat salvata, o una riconnessione. Si usa una volta sola e poi si dimentica.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _pendingResume = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// La prossima sessione creata per <paramref name="connectionId"/> riprende <paramref name="engineSessionId"/>;
+        /// null lo toglie. Una sessione già viva per la connessione va rilasciata prima (<c>ReleaseAsync</c>).
+        /// </summary>
+        public void ResumeNextSession(string connectionId, string engineSessionId)
+        {
+            if (string.IsNullOrEmpty(connectionId)) return;
+            if (string.IsNullOrWhiteSpace(engineSessionId)) _pendingResume.TryRemove(connectionId, out _);
+            else _pendingResume[connectionId] = engineSessionId;
+        }
+
+        private string TakePendingResume(string connectionId)
+            => connectionId != null && _pendingResume.TryRemove(connectionId, out var id) ? id : null;
+
         /// <summary>
         /// La sessione di questa connessione, creandola se serve. Stesso progetto = stessa
         /// sessione, anche se il modello cambia: il nuovo modello vale dal messaggio successivo
@@ -99,8 +117,13 @@ namespace MdExplorer.Features.Services.AI.OpenCode
 
                 if (_sessions.Count >= DefaultMaxSessions) EvictOldest();
 
-                var session = new OpenCodeSession(
-                    _loggerFactory.CreateLogger<OpenCodeSession>(), _server, workingDirectory, model);
+                // Una chat ripresa dalla cronologia (o dopo una riconnessione): si lavora sulla sua sessione del server.
+                var pending = TakePendingResume(connectionId);
+                if (pending != null)
+                    _logger.LogInformation("[OpenCodeSessionPool] {ConnectionId}: riprendo la sessione {SessionId} della cronologia", connectionId, pending);
+                var session = pending == null
+                    ? new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), _server, workingDirectory, model)
+                    : new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), _server, workingDirectory, model, pending, rejectPermissions: false);
                 session.SetExtraRoots(extraRoots);
                 if (_plantumlServer != null) session.DiagramVerifier = new MdExplorer.Features.Diagrams.PlantumlBlockVerifier(_plantumlServer.CheckAsync);
 

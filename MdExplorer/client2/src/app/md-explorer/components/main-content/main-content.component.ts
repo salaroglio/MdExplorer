@@ -17,6 +17,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { ChatHistoryService } from '../../../services/chat-history.service';
 import { AgentTakeOverGuideService } from '../../services/agent-take-over-guide.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
@@ -54,6 +55,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Cosa si sta guardando. `null` = si torna al documento. */
   diffRequest: DiffRequest | null = null;
+  /** La cronologia delle chat è aperta qui, al posto del documento (sprint 2026-11-24-Chat-Memorizzate, F6). */
+  chatHistoryOpen = false;
 
   /** L'agente di cui si sta guardando il lavoro (null = il proprio). */
   reviewAgent: string | null = null;
@@ -195,6 +198,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private translate: TranslateService,
     private themeService: ThemeService,
     private diffViewer: DiffViewerService,
+    private chatHistory: ChatHistoryService,
     private workingChanges: WorkingChangesService,
     private navService: MdNavigationService,
     private reviewContext: ReviewContextService,
@@ -243,6 +247,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // La differenza di un file si guarda QUI, dove si guarda il documento: nella barra laterale
     // stava in una colonna stretta e spingeva giu' il resto dell'elenco, facendo perdere il posto
     // proprio mentre si confrontava.
+    this.chatHistory.open$.pipe(takeUntil(this.destroy$)).subscribe(open => {
+      this.chatHistoryOpen = open;
+      this.ref.detectChanges();
+    });
+
     this.diffViewer.opened$.pipe(takeUntil(this.destroy$)).subscribe(request => {
       if (request?.rendered) { this.showRenderedChanges(request); return; }
       if (!request) this.leaveRenderedChanges();
@@ -481,6 +490,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Si apre un documento: la differenza che era qui non c'entra piu' e va via da sola. Due cose
     // non possono stare nello stesso riquadro, e lasciarla sarebbe peggio che chiuderla.
     this.diffViewer.close();
+    this.chatHistory.close();
 
     // Update state to loading
     this.loadingStartTime = new Date();

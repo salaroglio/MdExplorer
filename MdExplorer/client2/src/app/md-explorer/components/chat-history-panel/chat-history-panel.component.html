@@ -1,0 +1,62 @@
+<div class="chat-history">
+  <div class="ch-header">
+    <mat-icon>history</mat-icon>
+    <span class="ch-title">{{ 'CHAT_HISTORY.TITLE' | translate }}</span>
+    <span class="flexExpand"></span>
+    <button mat-icon-button (click)="reload()" [matTooltip]="'CHAT_HISTORY.REFRESH' | translate">
+      <mat-icon>refresh</mat-icon>
+    </button>
+    <button mat-icon-button (click)="close()" [matTooltip]="'CHAT_HISTORY.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="ch-body">
+    <div *ngIf="loading" class="ch-center"><mat-spinner diameter="28"></mat-spinner></div>
+    <div *ngIf="!loading && error" class="ch-center ch-problem">
+      <mat-icon>error_outline</mat-icon>
+      <p>{{ error }}</p>
+    </div>
+    <div *ngIf="!loading && !error && chats.length === 0" class="ch-center ch-muted">
+      <p>{{ 'CHAT_HISTORY.EMPTY' | translate }}</p>
+    </div>
+
+    <mat-accordion *ngIf="!loading && !error && chats.length > 0" multi>
+      <mat-expansion-panel *ngFor="let chat of chats; trackBy: byId" [class.ch-current]="chat.id === currentId">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <span class="ch-chat-title">{{ chat.title || ('CHAT_HISTORY.UNTITLED' | translate) }}</span>
+          </mat-panel-title>
+          <mat-panel-description>
+            <span *ngIf="chat.id === currentId" class="ch-badge">{{ 'CHAT_HISTORY.CURRENT' | translate }}</span>
+            {{ chat.lastActivityAt | date:'short' }}<span *ngIf="chat.engine">&nbsp;·&nbsp;{{ chat.engine }}</span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <div *ngIf="chat.detailHtml" class="ch-detail" [innerHTML]="chat.detailHtml"></div>
+        <p *ngIf="!chat.detail" class="ch-muted">{{ 'CHAT_HISTORY.NO_DETAIL' | translate }}</p>
+        <p *ngIf="!chat.fileExists" class="ch-problem">
+          <mat-icon inline>warning</mat-icon> {{ 'CHAT_HISTORY.FILE_MISSING' | translate }}
+        </p>
+        <p *ngIf="rowProblem?.id === chat.id" class="ch-problem">
+          <mat-icon inline>error_outline</mat-icon> {{ rowProblem?.text }}
+        </p>
+
+        <mat-action-row>
+          <button mat-button color="primary" (click)="resume(chat)" [disabled]="!chat.fileExists || busyId === chat.id">
+            <mat-icon>play_arrow</mat-icon> {{ 'CHAT_HISTORY.RESUME' | translate }}
+          </button>
+          <button mat-button *ngIf="confirmDeleteId !== chat.id" (click)="askDelete(chat)" [disabled]="busyId === chat.id">
+            <mat-icon>delete_outline</mat-icon> {{ 'CHAT_HISTORY.DELETE' | translate }}
+          </button>
+          <ng-container *ngIf="confirmDeleteId === chat.id">
+            <button mat-button (click)="confirmDeleteId = null">{{ 'COMMON.CANCEL' | translate }}</button>
+            <button mat-flat-button color="warn" (click)="delete(chat)" [disabled]="busyId === chat.id">
+              {{ 'CHAT_HISTORY.CONFIRM_DELETE' | translate }}
+            </button>
+          </ng-container>
+        </mat-action-row>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+</div>
