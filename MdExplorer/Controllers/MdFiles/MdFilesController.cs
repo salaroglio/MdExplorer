@@ -300,8 +300,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
-        /// Rinomina un documento (sprint 2026-11-25-Spostamento-File-E-Link): uno spostamento nella stessa cartella con un
-        /// altro nome, quindi gli stessi link ricalcolati, lo stesso indice, nessuna sovrascrittura. Lo usano il «Rinomina»
+        /// Rinomina un documento o una cartella (sprint 2026-11-25-Spostamento-File-E-Link): uno spostamento nello stesso
+        /// posto con un altro nome, quindi gli stessi link ricalcolati, lo stesso indice, nessuna sovrascrittura. Lo usano il «Rinomina»
         /// dell'albero e la finestra delle regole (nome del file come il titolo); la risposta ha anche la forma che quella
         /// finestra usava (vecchio <c>refactoringfiles/RenameFileName</c>).
         /// </summary>
@@ -315,7 +315,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             var move = plan.Moves[0];
             SetFileSystemWatcherEnabled(false);
-            try { MoveOneDocument(projectBasePath, move.From, move.To); }
+            try
+            {
+                if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
+                else MoveOneDocument(projectBasePath, move.From, move.To);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[RenameMdFile] {From} → {To}", move.From, move.To);
@@ -333,6 +337,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 oldLevel = request.Level,
                 newLevel = request.Level,
                 relativePath = Path.DirectorySeparatorChar + relativeDir,
+                isFolder = move.IsFolder,
             });
         }
 
@@ -2769,6 +2774,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return list;
         }
 
+        /// <remarks>
+        /// ⚠️ Non rinomina niente sul disco: restituisce i nodi dell'albero per «cartella/nome». L'albero dei documenti usa
+        /// <see cref="RenameMdFile"/> (sprint 2026-11-25-Spostamento-File-E-Link); resta solo per l'albero di pubblicazione.
+        /// </remarks>
         [HttpPost]
         public IActionResult RenameDirectory([FromBody] RenameDirectory fileData)
         {

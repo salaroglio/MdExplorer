@@ -89,9 +89,10 @@ namespace MdExplorer.Features.Refactoring
         }
 
         /// <summary>
-        /// La rinomina di un documento: uno spostamento nella stessa cartella con un altro nome. Il nome nuovo non ha
-        /// cartelle, resta un <c>.md</c> (si aggiunge se manca) e non è di un altro file; su Windows cambiare solo maiuscole
-        /// e minuscole è ammesso. <paramref name="source"/> è relativo al progetto o completo.
+        /// La rinomina di un documento o di una cartella: uno spostamento nello stesso posto con un altro nome. Il nome
+        /// nuovo non ha barre né caratteri non validi e non è di un altro file o cartella; un documento resta un <c>.md</c>
+        /// (si aggiunge se manca); su Windows cambiare solo maiuscole e minuscole è ammesso. <paramref name="source"/> è
+        /// relativo al progetto o completo.
         /// </summary>
         public static DocumentMovePlan PlanRename(string projectRoot, string source, string newName)
         {
@@ -100,12 +101,16 @@ namespace MdExplorer.Features.Refactoring
             var root = Path.GetFullPath(projectRoot);
             var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var from = SourcePath(root, source);
+            from = from.TrimEnd(Path.DirectorySeparatorChar);
             if (!Inside(root, from, cmp))
                 return Refuse(UiText.Say($"«{source}» è fuori dal progetto.", $"«{source}» is outside the project."));
-            if (!File.Exists(from))
+            var isFolder = Directory.Exists(from);
+            if (isFolder && string.Equals(from, root.TrimEnd(Path.DirectorySeparatorChar), cmp))
+                return Refuse(UiText.Say("La cartella del progetto non si rinomina da qui.", "The project folder cannot be renamed from here."));
+            if (!isFolder && !File.Exists(from))
                 return Refuse(UiText.Say($"«{Rel(root, from)}» non c'è più: forse è stato spostato o cancellato.",
                     $"«{Rel(root, from)}» is no longer there: maybe it was moved or deleted."));
-            if (!from.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            if (!isFolder && !from.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                 return Refuse(UiText.Say($"«{Rel(root, from)}» non è un documento markdown.", $"«{Rel(root, from)}» is not a markdown document."));
 
             var name = (newName ?? string.Empty).Trim();
@@ -113,8 +118,8 @@ namespace MdExplorer.Features.Refactoring
             if (name.IndexOfAny(new[] { '/', '\\' }) >= 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name == "." || name == "..")
                 return Refuse(UiText.Say($"«{name}» non è un nome di file valido (niente barre né caratteri speciali).",
                     $"«{name}» is not a valid file name (no slashes or special characters)."));
-            if (!name.EndsWith(".md", StringComparison.OrdinalIgnoreCase)) name += ".md";
-            if (name.Length == 3) return Refuse(UiText.Say("Manca il nome nuovo.", "The new name is missing."));
+            if (!isFolder && !name.EndsWith(".md", StringComparison.OrdinalIgnoreCase)) name += ".md";
+            if (!isFolder && name.Length == 3) return Refuse(UiText.Say("Manca il nome nuovo.", "The new name is missing."));
 
             var to = Path.Combine(Path.GetDirectoryName(from), name);
             if (string.Equals(to, from, StringComparison.Ordinal))
@@ -124,7 +129,7 @@ namespace MdExplorer.Features.Refactoring
             if (!sameFile && (File.Exists(to) || Directory.Exists(to)))
                 return Refuse(UiText.Say($"In «{Rel(root, Path.GetDirectoryName(from))}» c'è già «{name}»: scegli un altro nome.",
                     $"«{Rel(root, Path.GetDirectoryName(from))}» already has «{name}»: choose another name."));
-            return new DocumentMovePlan { Moves = new[] { new DocumentMove(from, to, false) } };
+            return new DocumentMovePlan { Moves = new[] { new DocumentMove(from, to, isFolder) } };
         }
 
         /// <summary>Un percorso del client: completo se comincia con la radice del progetto, altrimenti relativo all'albero.</summary>

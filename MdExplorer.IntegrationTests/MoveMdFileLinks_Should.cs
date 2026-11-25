@@ -293,6 +293,38 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("[A](docs/a.md)\n", p.Read("index.md"));
         }
 
+        // ---- rinomina di una cartella ----
+
+        [TestMethod]
+        public async Task Rename_a_folder_and_keep_every_link_right()
+        {
+            using var p = await Project.Open("rn-cartella",
+                ("docs/guida/a.md", "Torna all'[indice](../../index.md) e a [B](./b.md).\n"), ("docs/guida/b.md", "# B\n"),
+                ("docs/guida/img/schema.png", "PNG"),
+                ("index.md", "[A](docs/guida/a.md), ![s](docs/guida/img/schema.png), [radice](/docs/guida/b.md)\n"));
+
+            var (status, body) = await p.Rename("docs/guida", "manuale");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.IsTrue(Directory.Exists(Path.Combine(p.Root, "docs", "manuale")) && !Directory.Exists(Path.Combine(p.Root, "docs", "guida")),
+                "la cartella è davvero rinominata sul disco");
+            Assert.IsFalse(File.Exists(Path.Combine(p.Root, "docs", "manuale.md")), "a una cartella non si aggiunge .md");
+            Assert.AreEqual("Torna all'[indice](../../index.md) e a [B](./b.md).\n", p.Read("docs/manuale/a.md"));
+            Assert.AreEqual("[A](docs/manuale/a.md), ![s](docs/manuale/img/schema.png), [radice](/docs/manuale/b.md)\n", p.Read("index.md"));
+            Assert.IsTrue(p.IndexedPaths().Any(x => x.EndsWith(Path.Combine("docs", "manuale", "a.md"))), "l'indice ha il percorso nuovo");
+        }
+
+        [TestMethod]
+        public async Task Refuse_a_folder_rename_onto_an_existing_name()
+        {
+            using var p = await Project.Open("rn-cartella-presa", ("docs/guida/a.md", "# A\n"), ("docs/manuale/x.md", "# X\n"));
+
+            var (status, body) = await p.Rename("docs/guida", "manuale");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
+            Assert.IsTrue(File.Exists(Path.Combine(p.Root, "docs", "guida", "a.md")) && File.Exists(Path.Combine(p.Root, "docs", "manuale", "x.md")));
+        }
+
         // ---- infrastruttura ----
 
         /// <summary>Un progetto vero: file scritti, aperto con SetFolderProject, indicizzato fino ai link.</summary>
