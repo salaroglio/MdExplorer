@@ -1,0 +1,264 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Features.Services;
+using MdExplorer.Features.Services.AI.ChatHistory;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace MdExplorer.Services.ChatHistory
+{
+    /// <summary>
+    /// Registra le chat di MarkAgent mentre succedono (sprint 2026-11-24-Chat-Memorizzate, F2): la riga della cronologia
+    /// nel DB utente (<see cref="ChatThread"/>) e il contenuto nel file JSONL (<see cref="IChatFileStore"/>).
+    /// Una chat per connessione del tab: i canali laterali (commit, diagrammi…) ci entrano col loro canale (D2);
+    /// «nuova chat» e la disconnessione la chiudono. La scrittura avviene nel turno stesso, che gira già in background:
+    /// l'ordine è quello degli eventi e un errore si vede subito.
+    /// </summary>
+    public sealed class ChatHistoryRecorder
+    {
+        private readonly IChatFileStore _files;
+        private readonly IServiceScopeFactory _scopes;
+        private readonly ILogger<ChatHistoryRecorder> _logger;
+        private readonly ConcurrentDictionary<string, ThreadState> _threads = new(StringComparer.Ordinal);
+        // Le connessioni a cui si è già detto che la chat non si salva perché manca il progetto: una volta sola, non a ogni turno.
+        private readonly ConcurrentDictionary<string, byte> _toldNoProject = new(StringComparer.Ordinal);
+
+        public ChatHistoryRecorder(IChatFileStore files, IServiceScopeFactory scopes, ILogger<ChatHistoryRecorder> logger)
+        {
+            _files = files ?? throw new ArgumentNullException(nameof(files));
+            _scopes = scopes ?? throw new ArgumentNullException(nameof(scopes));
+            _logger = logger;
+        }
+
+        internal sealed class ThreadState
+        {
+            public Guid Id;
+            public string RelativePath;
+            public string ProjectPath;
+            public long NextSeq = 1;
+            public int Turn;
+        }
+
+        /// <summary>
+        /// Apre la registrazione di un turno. Se la chat della connessione non c'è ancora (o il progetto è cambiato), la
+        /// crea. Con nessun progetto non si registra: la cronologia è per progetto, e lo si dice nel turno.
+        /// </summary>
+        public ChatTurnRecording BeginTurn(string connectionId, string projectPath, string engine, string modelId, string channel)
+        {
+            if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("Manca la connessione della chat.", nameof(connectionId));
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                _logger.LogWarning("[ChatHistory] turno di {ConnectionId} non registrato: nessun progetto", connectionId);
+                return ChatTurnRecording.NotRecorded(UiText.Say(
+                    "Questa chat non viene salvata nella cronologia: non è legata a un progetto aperto.",
+                    "This chat is not saved in the history: it is not tied to an open project."),
+                    tell: _toldNoProject.TryAdd(connectionId, 0));
+            }
+
+            try
+            {
+                var state = _threads.AddOrUpdate(connectionId,
+                    _ => OpenThread(projectPath, engine, modelId),
+                    (_, existing) => string.Equals(existing.ProjectPath, projectPath, StringComparison.Ordinal)
+                        ? existing
+                        : OpenThread(projectPath, engine, modelId));
+                int turn;
+                long seq;
+                lock (state)
+                {
+                    turn = ++state.Turn;
+                    seq = state.NextSeq;
+                }
+                var accumulator = new ChatTurnAccumulator(seq, turn, channel, engine);
+                return new ChatTurnRecording(this, state, accumulator, engine, modelId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ChatHistory] apertura della chat fallita per {ConnectionId}", connectionId);
+                return ChatTurnRecording.NotRecorded(Unsaved(ex), tell: true);
+            }
+        }
+
+        /// <summary>«Nuova chat» o disconnessione: il turno dopo apre una chat nuova. Il file e la riga restano.</summary>
+        public void Forget(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId)) return;
+            _threads.TryRemove(connectionId, out _);
+            _toldNoProject.TryRemove(connectionId, out _);
+        }
+
+        /// <summary>La chat registrata per la connessione, se c'è (per i test e per F4).</summary>
+        public Guid? CurrentThreadId(string connectionId)
+            => connectionId != null && _threads.TryGetValue(connectionId, out var s) ? s.Id : null;
+
+        internal static string Unsaved(Exception ex) => UiText.Say(
+            "La chat non viene salvata nella cronologia: ", "The chat is not being saved in the history: ") + ex.Message;
+
+        private ThreadState OpenThread(string projectPath, string engine, string modelId)
+        {
+            using var scope = _scopes.CreateScope();
+            var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
+            using var session = factory.OpenSession();
+            using var tx = session.BeginTransaction();
+            var now = DateTime.UtcNow;
+            var row = new ChatThread
+            {
+                ProjectPath = projectPath,
+                // Il percorso dipende dall'Id, che nasce al Save (GuidComb): segnaposto, poi il vero nella stessa transazione.
+                FilePath = "-",
+                Engine = engine,
+                ModelId = modelId,
+                StartedAt = now,
+                LastActivityAt = now,
+            };
+            session.GetDal<ChatThread>().Save(row);
+            row.FilePath = _files.RelativePathFor(projectPath, row.Id);
+            session.GetDal<ChatThread>().Save(row);
+            tx.Commit();
+            _logger.LogInformation("[ChatHistory] chat {ThreadId} aperta ({Engine}) in {File}", row.Id, engine, row.FilePath);
+            return new ThreadState { Id = row.Id, RelativePath = row.FilePath, ProjectPath = projectPath };
+        }
+
+        internal void Write(ThreadState state, IReadOnlyList<ChatRecordEvent> events, long nextSeq)
+        {
+            if (events.Count == 0) return;
+            lock (state)
+            {
+                _files.Append(state.RelativePath, events);
+                state.NextSeq = Math.Max(state.NextSeq, nextSeq);
+            }
+        }
+
+        internal void Touch(ThreadState state, string engine, string modelId)
+        {
+            using var scope = _scopes.CreateScope();
+            var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
+            using var session = factory.OpenSession();
+            using var tx = session.BeginTransaction();
+            var row = session.GetDal<ChatThread>().GetList().SingleOrDefault(t => t.Id == state.Id)
+                ?? throw new InvalidOperationException(UiText.Say(
+                    $"la riga della chat {state.Id} non è più nella cronologia.", $"the chat row {state.Id} is no longer in the history."));
+            row.LastActivityAt = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(engine)) row.Engine = engine;
+            if (!string.IsNullOrEmpty(modelId)) row.ModelId = modelId;
+            session.GetDal<ChatThread>().Save(row);
+            tx.Commit();
+        }
+
+        internal ILogger Logger => _logger;
+    }
+
+    /// <summary>
+    /// La registrazione di un turno: riceve quello che il turno manda al client e lo scrive. Se qualcosa non si può
+    /// scrivere, il turno va avanti e il motivo si dice una volta (<see cref="TakeFailureToTell"/>).
+    /// </summary>
+    public sealed class ChatTurnRecording
+    {
+        private readonly ChatHistoryRecorder _recorder;
+        private readonly ChatHistoryRecorder.ThreadState _state;
+        private readonly ChatTurnAccumulator _accumulator;
+        private readonly string _engine;
+        private readonly string _modelId;
+        private readonly object _gate = new();
+        private string _failure;
+        private int _told;
+
+        internal ChatTurnRecording(ChatHistoryRecorder recorder, ChatHistoryRecorder.ThreadState state,
+            ChatTurnAccumulator accumulator, string engine, string modelId)
+        {
+            _recorder = recorder;
+            _state = state;
+            _accumulator = accumulator;
+            _engine = engine;
+            _modelId = modelId;
+        }
+
+        private ChatTurnRecording(string failure, bool tell)
+        {
+            _failure = failure;
+            _told = tell ? 0 : 1;
+        }
+
+        internal static ChatTurnRecording NotRecorded(string why, bool tell) => new(why, tell);
+
+        public bool IsRecording => _accumulator != null && _failure == null;
+        public Guid? ThreadId => _state?.Id;
+
+        public void UserPrompt(string text) => Run(a => a.UserPrompt(text));
+        public void Meta(string what, object data) => Run(a => a.Meta(what, data));
+        public void OnClientEvent(string method, object[] args) => Run(a => a.OnClientEvent(method, args));
+
+        /// <summary>Fine del turno: chiude il blocco aperto e aggiorna la riga della cronologia.</summary>
+        public void Complete()
+        {
+            Run(a => a.Complete());
+            if (!IsRecording) return;
+            try { _recorder.Touch(_state, _engine, _modelId); }
+            catch (Exception ex) { Fail(ex); }
+        }
+
+        /// <summary>Il motivo per cui la chat non si salva, la prima volta che lo si chiede; poi null (si dice una volta).</summary>
+        public string TakeFailureToTell()
+        {
+            if (_failure == null) return null;
+            return Interlocked.Exchange(ref _told, 1) == 0 ? _failure : null;
+        }
+
+        private void Run(Func<ChatTurnAccumulator, IReadOnlyList<ChatRecordEvent>> step)
+        {
+            if (!IsRecording) return;
+            lock (_gate)
+            {
+                if (!IsRecording) return;
+                try
+                {
+                    var events = step(_accumulator);
+                    _recorder.Write(_state, events, _accumulator.NextSeq);
+                }
+                catch (Exception ex) { Fail(ex); }
+            }
+        }
+
+        private void Fail(Exception ex)
+        {
+            _recorder.Logger.LogError(ex, "[ChatHistory] scrittura della chat {ThreadId} fallita", _state?.Id);
+            _failure ??= ChatHistoryRecorder.Unsaved(ex);
+        }
+    }
+
+    /// <summary>
+    /// Il client del turno, che inoltra tutto e intanto lo registra. Il client vede esattamente quello che vedeva prima;
+    /// se la registrazione fallisce, glielo si dice una volta con un messaggio di sistema, e la chat continua.
+    /// </summary>
+    public sealed class RecordingClientProxy : IClientProxy
+    {
+        private readonly IClientProxy _inner;
+        private readonly ChatTurnRecording _recording;
+        private readonly string _channel;
+
+        public RecordingClientProxy(IClientProxy inner, ChatTurnRecording recording, string channel)
+        {
+            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            _recording = recording ?? throw new ArgumentNullException(nameof(recording));
+            _channel = channel;
+        }
+
+        public async Task SendCoreAsync(string method, object[] args, CancellationToken cancellationToken = default)
+        {
+            await _inner.SendCoreAsync(method, args, cancellationToken);
+            _recording.OnClientEvent(method, args);
+            var failure = _recording.TakeFailureToTell();
+            if (failure != null)
+                await _inner.SendCoreAsync("ReceiveError", new object[] { failure, _channel }, cancellationToken);
+        }
+    }
+}

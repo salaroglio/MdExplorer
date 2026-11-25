@@ -126,8 +126,10 @@ namespace MdExplorer.Hubs
             Services.MarkDiagram.MarkAgentBriefings briefings,
             Services.CodeGraph.ICodeRootService codeRoots,
             Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            Services.ChatHistory.ChatHistoryRecorder chatHistory)
         {
+            _chatHistory = chatHistory;
             _scopeFactory = scopeFactory;
             _briefings = briefings;
             _codeRoots = codeRoots;
@@ -338,6 +340,9 @@ namespace MdExplorer.Hubs
             return header + "\n\n" + string.Join("\n", parts);
         }
 
+        /// <summary>La cronologia delle chat (sprint 2026-11-24-Chat-Memorizzate): ogni turno vi scrive quello che manda al client.</summary>
+        private readonly Services.ChatHistory.ChatHistoryRecorder _chatHistory;
+
         /// <summary>«Ragguagli» from the diagram sessions, put at the head of the tab's next message (D9).</summary>
         private readonly Services.MarkDiagram.MarkAgentBriefings _briefings;
         private readonly Services.CodeGraph.ICodeRootService _codeRoots;
@@ -377,7 +382,8 @@ namespace MdExplorer.Hubs
                     message = Services.MarkDiagram.MarkAgentBriefings.Block(briefings) + message;
                 }
             }
-            StartTurnInBackground(channelId, "SendMessage", () => SendMessageCore(message, channelId));
+            StartTurnInBackground(channelId, "SendMessage", () => SendMessageCore(message, channelId),
+                recording => recording.UserPrompt(message));
         }
 
         /// <summary>
@@ -385,7 +391,9 @@ namespace MdExplorer.Hubs
         /// e lo Stop (<see cref="CancelPrompt"/>) arriva mentre il turno è in corso. Cattura ciò che il
         /// turno usa e che sparisce col Dispose dell'hub; i turni della stessa connessione restano in fila.
         /// </summary>
-        private void StartTurnInBackground(string channelId, string origin, Func<Task> turn)
+        /// <param name="record">Quello che il turno registra prima di partire (la domanda dell'utente, una modifica…).</param>
+        private void StartTurnInBackground(string channelId, string origin, Func<Task> turn,
+            Action<Services.ChatHistory.ChatTurnRecording> record = null)
         {
             channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
             var connectionId = Context.ConnectionId;
@@ -393,8 +401,12 @@ namespace MdExplorer.Hubs
             var caller = _hubContext.Clients.Client(connectionId);
             var scope = _scopeFactory.CreateScope();
             _turnConnectionId = connectionId;
-            _turnCaller = caller;
             _turnAborted = aborted;
+            // La chat si registra mentre succede: il client del turno inoltra tutto e intanto lo scrive nella cronologia.
+            var recording = BeginChatRecording(connectionId, channelId);
+            record?.Invoke(recording);
+            IClientProxy recordingCaller = new Services.ChatHistory.RecordingClientProxy(caller, recording, channelId);
+            _turnCaller = recordingCaller;
             _turnToolExecutor = scope.ServiceProvider.GetRequiredService<ToolExecutor>();
             _turnUserSettingsDB = scope.ServiceProvider.GetRequiredService<Abstractions.DB.IUserSettingsDB>();
 
@@ -423,17 +435,35 @@ namespace MdExplorer.Hubs
                     logger.LogError(ex, "[{Origin}] turno in background fallito", origin);
                     try
                     {
-                        await caller.SendAsync("ReceiveError", ex.Message, channelId);
-                        await caller.SendAsync("StreamComplete", channelId);
+                        await recordingCaller.SendAsync("ReceiveError", ex.Message, channelId);
+                        await recordingCaller.SendAsync("StreamComplete", channelId);
                     }
                     catch { /* connessione chiusa */ }
                 }
                 finally
                 {
+                    recording.Complete();
+                    var unsaved = recording.TakeFailureToTell();
+                    if (unsaved != null)
+                    {
+                        try { await caller.SendAsync("ReceiveError", unsaved, channelId); }
+                        catch { /* connessione chiusa */ }
+                    }
                     _chatTurnsInFlight.AddOrUpdate(connectionId, 0, (_, n) => Math.Max(0, n - 1));
                     scope.Dispose();
                 }
             });
+        }
+
+        /// <summary>
+        /// Apre la registrazione del turno nella cronologia. Non ferma mai il turno: se la chat non si può salvare, la
+        /// registrazione lo sa e il motivo arriva al client una volta.
+        /// </summary>
+        private Services.ChatHistory.ChatTurnRecording BeginChatRecording(string connectionId, string channelId)
+        {
+            var mode = GetChatMode();
+            var engine = mode.ProviderType?.ToString().ToLowerInvariant() ?? "local";
+            return _chatHistory.BeginTurn(connectionId, GetProjectPath(), engine, mode.ModelId, channelId);
         }
 
         private async Task SendMessageCore(string message, string channelId)
@@ -778,6 +808,7 @@ namespace MdExplorer.Hubs
             _connectionDocumentContexts.TryRemove(ConnectionId, out _);
             _connectionHistories.TryRemove(ConnectionId, out _);
             _connectionProjectConnectionIds.TryRemove(ConnectionId, out _);
+            _chatHistory.Forget(ConnectionId);
             // La fila dei turni: chi la sta usando ne tiene il riferimento e la rilascia lo stesso.
             _turnGates.TryRemove(ConnectionId, out _);
             // Kill any persistent Copilot session (SDK or ACP) attached to this connection.
@@ -803,6 +834,8 @@ namespace MdExplorer.Hubs
                 // Clear all channels for this connection (backwards compat)
                 _logger.LogInformation($"[ClearHistory] Clearing ALL conversation history for connection {ConnectionId}");
                 _connectionHistories.TryRemove(ConnectionId, out _);
+                // Nuova chat: il turno dopo apre una chat nuova nella cronologia; quella di prima resta.
+                _chatHistory.Forget(ConnectionId);
 
                 // Recycle the persistent Copilot session too (SDK or ACP). Its process keeps
                 // server-side conversation memory across turns; a "new chat" must start
@@ -1519,7 +1552,13 @@ namespace MdExplorer.Hubs
         {
             // Rigenera = un turno intero: in background come SendMessage, così lo Stop arriva.
             StartTurnInBackground(channelId, "EditAndRegenerateFromMessage",
-                () => EditAndRegenerateFromMessageCore(messageIndex, newContent, channelId));
+                () => EditAndRegenerateFromMessageCore(messageIndex, newContent, channelId),
+                recording =>
+                {
+                    // La chat si scrive solo in coda: la modifica resta come evento, e la domanda nuova dopo.
+                    recording.Meta("EditAndRegenerateFromMessage", new { messageIndex });
+                    recording.UserPrompt(newContent);
+                });
             return Task.CompletedTask;
         }
 

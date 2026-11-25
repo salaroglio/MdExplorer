@@ -274,6 +274,7 @@ namespace MdExplorer
             // Nel DB utente resta solo la riga della cronologia (ChatThread). Sprint 2026-11-24-Chat-Memorizzate.
             services.AddSingleton<MdExplorer.Features.Services.AI.ChatHistory.IChatFileStore>(_ => new MdExplorer.Features.Services.AI.ChatHistory.ChatFileStore(
                 Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "chats")));
+            services.AddSingleton<Services.ChatHistory.ChatHistoryRecorder>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.
