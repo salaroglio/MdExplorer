@@ -1,6 +1,6 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { E2eDialogComponent, E2eDialogData } from '../e2e-dialog/e2e-dialog.component';
-import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy, ElementRef, HostListener } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
@@ -103,7 +103,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   draggedNode: MdFile | null = null;
   dragOverNode: MdFile | null = null;
   dragOverSegment: CompactSegment | null = null;
-  private dndMovingPaths: { oldPath: string; newPath: string } | null = null;
+  private dndMovingPaths: { oldPath: string; newPath: string }[] | null = null;
+  /** I documenti trascinati insieme: quelli selezionati con Ctrl/Shift se si trascina uno di loro, altrimenti quello solo. */
+  private draggedNodes: MdFile[] = [];
+  /** La selezione multipla dei documenti (Ctrl/Shift+clic), per percorso completo. */
+  multiSelection = new Map<string, MdFile>();
+  /** Il documento da cui parte uno Shift+clic. */
+  private selectionAnchor: string | null = null;
 
   // Skeleton loader state
   isLoading = true;
@@ -230,7 +236,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
-    private codeRootsService: CodeRootsService
+    private codeRootsService: CodeRootsService,
+    private elementRef: ElementRef<HTMLElement>,
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -748,6 +755,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     this.draggedNode = node;
+    // Trascinando un documento selezionato si portano tutti i selezionati; uno non selezionato va da solo.
+    this.draggedNodes = this.multiSelection.has(node.fullPath) && this.multiSelection.size > 1
+      ? Array.from(this.multiSelection.values())
+      : [node];
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', node.fullPath);
     event.stopPropagation();
@@ -755,6 +766,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onDragEnd(event: DragEvent): void {
     this.draggedNode = null;
+    this.draggedNodes = [];
     this.dragOverNode = null;
     this.dragOverSegment = null;
   }
@@ -818,92 +830,79 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private performDrop(targetPath: string, targetName: string): void {
-    console.log('[DnD] performDrop called', { targetPath, targetName, hasDraggedNode: !!this.draggedNode });
     if (!this.draggedNode) {
-      console.warn('[DnD] performDrop: draggedNode is null, aborting');
       this.dragOverNode = null;
       this.dragOverSegment = null;
       return;
     }
-
-    // Skip if file is already in the target folder
-    const fileDirPath = this.getParentDirPath(this.draggedNode.fullPath);
-    console.log('[DnD] performDrop paths', { fileDirPath, targetPath, draggedFullPath: this.draggedNode.fullPath });
-    if (fileDirPath === targetPath) {
-      this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
-      this.draggedNode = null;
-      this.dragOverNode = null;
-      this.dragOverSegment = null;
-      return;
-    }
-
-    const draggedFile = this.draggedNode;
+    const dragged = this.draggedNodes.length ? this.draggedNodes : [this.draggedNode];
     this.draggedNode = null;
+    this.draggedNodes = [];
     this.dragOverNode = null;
     this.dragOverSegment = null;
 
-    const oldFullPath = draggedFile.fullPath;
-    const separator = oldFullPath.includes('\\') ? '\\' : '/';
-    const newFullPath = targetPath + separator + draggedFile.name;
+    // Quelli già nella cartella restano dove sono.
+    const files = dragged.filter(f => this.getParentDirPath(f.fullPath) !== targetPath);
+    if (files.length === 0) {
+      this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', { duration: 2000 });
+      return;
+    }
 
-    // Set suppress flag BEFORE HTTP call so SignalR handlers skip FSW-leaked events
-    this.dndMovingPaths = { oldPath: oldFullPath, newPath: newFullPath };
+    const separator = (files[0].fullPath.includes('\\') ? '\\' : '/');
+    // Prima della chiamata: i gestori SignalR saltano gli eventi del watcher di questi file.
+    this.dndMovingPaths = files.map(f => ({ oldPath: f.fullPath, newPath: targetPath + separator + f.name }));
 
-    console.log('[DnD] calling moveMdFile', { name: draggedFile.name, relativePath: draggedFile.relativePath, targetPath });
-    this.mdFileService.moveMdFile(draggedFile, targetPath).subscribe({
+    this.mdFileService.moveMdFiles(files, targetPath).subscribe({
       next: () => {
-        console.log('[DnD] moveMdFile success');
-        this.snackBar.open(this.translate.instant('MD_TREE.MOVED_FILE', { fileName: draggedFile.name, targetName: targetName }), 'OK', { duration: 3000 });
-
-        // Save expansion state BEFORE any _mdFiles.next() calls
-        const expandedPaths = this.captureExpansionState();
-
-        // Incremental update: remove from old parent, add to new parent
-        this.mdFileService.recursiveDeleteFileFromDataStore(draggedFile);
-
-        // Compute new relativePath from project root
-        const projectPath = this.projectsService.currentProjects$.value?.path || '';
-        let newRelativePath = newFullPath;
-        if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
-          newRelativePath = newFullPath.substring(projectPath.length);
-          // Remove leading separator
-          if (newRelativePath.startsWith('\\') || newRelativePath.startsWith('/')) {
-            newRelativePath = newRelativePath.substring(1);
-          }
-        }
-
-        const movedFile = {
-          ...draggedFile,
-          fullPath: newFullPath,
-          relativePath: newRelativePath,
-          path: newRelativePath.replace(/\\/g, '/'),
-          fullDirectoryPath: targetPath,
-          isIndexed: true,
-          indexingStatus: 'completed'
-        } as MdFile;
-
-        this.mdFileService.addFileToParent(movedFile, targetPath);
-
-        // Update indexed files tracking Set: remove old path, add new
-        const currentSet = this.indexedFilesSubject.value;
-        const newSet = new Set(currentSet);
-        newSet.delete(oldFullPath);
-        newSet.add(newFullPath);
-        this.indexedFilesSubject.next(newSet);
-
-        // Restore expansion state (uses setTimeout internally)
-        this.restoreExpansionState(expandedPaths);
-        this.changeDetectorRef.markForCheck();
-
-        // Clear suppress flag after delay to catch any buffered FSW events
-        setTimeout(() => { this.dndMovingPaths = null; }, 500);
+        const message = files.length === 1
+          ? this.translate.instant('MD_TREE.MOVED_FILE', { fileName: files[0].name, targetName })
+          : this.translate.instant('MD_TREE.MOVED_FILES', { count: files.length, targetName });
+        this.snackBar.open(message, 'OK', { duration: 3000 });
+        this.showMovedInTree(files, targetPath, separator);
+        this.clearMultiSelection();
       },
       error: (err) => {
-        console.error('[DnD] moveMdFile error:', err);
-        this.dndMovingPaths = null;
-        this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', { error: err.error?.message || err.message }), 'OK', { duration: 5000 });
+        console.error('[DnD] moveMdFiles error:', err);
+        // Interrotto a metà: quelli spostati si mostrano al posto nuovo.
+        const movedFrom: string[] = (err?.error?.moved || []).map((m: { from: string }) => m.from);
+        const moved = files.filter(f => movedFrom.some(p => p.toLowerCase() === f.fullPath.toLowerCase()));
+        if (moved.length) this.showMovedInTree(moved, targetPath, separator);
+        else this.dndMovingPaths = null;
+        this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', { error: err?.error?.error || err?.error?.message || err.message }),
+          'OK', { duration: 10000 });
       }
     });
+  }
+
+  /** L'albero dopo uno spostamento, senza ricaricarlo: ogni documento esce dalla cartella vecchia ed entra nella nuova. */
+  private showMovedInTree(files: MdFile[], targetPath: string, separator: string): void {
+    const expandedPaths = this.captureExpansionState();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const indexed = new Set(this.indexedFilesSubject.value);
+    for (const file of files) {
+      const newFullPath = targetPath + separator + file.name;
+      this.mdFileService.recursiveDeleteFileFromDataStore(file);
+      let newRelativePath = newFullPath;
+      if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
+        newRelativePath = newFullPath.substring(projectPath.length).replace(/^[\\/]/, '');
+      }
+      this.mdFileService.addFileToParent({
+        ...file,
+        fullPath: newFullPath,
+        relativePath: newRelativePath,
+        path: newRelativePath.replace(/\\/g, '/'),
+        fullDirectoryPath: targetPath,
+        isIndexed: true,
+        indexingStatus: 'completed'
+      } as MdFile, targetPath);
+      indexed.delete(file.fullPath);
+      indexed.add(newFullPath);
+    }
+    this.indexedFilesSubject.next(indexed);
+    this.restoreExpansionState(expandedPaths);
+    this.changeDetectorRef.markForCheck();
+    // Gli eventi del watcher arrivano in ritardo: si ignorano ancora per un poco.
+    setTimeout(() => { this.dndMovingPaths = null; }, 500);
   }
 
   // ==================== End Drag & Drop ====================
@@ -1691,7 +1690,70 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   
   // Helper per verificare se un nodo è selezionato
   isNodeSelected(node: MdFile): boolean {
+    // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
+    if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+
+  /**
+   * Il clic su un documento, come in ogni esploratore di file: Ctrl (Cmd su Mac) aggiunge o toglie dalla selezione,
+   * Shift seleziona tutti i documenti visibili fra l'ultimo cliccato e questo; il clic semplice apre il documento e la
+   * selezione torna a uno. I documenti selezionati si trascinano insieme in una cartella.
+   */
+  onDocumentClick(event: MouseEvent, node: MdFile): void {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      if (this.multiSelection.size === 0 && this.selectedNode && this.isMovableDocument(this.selectedNode))
+        this.multiSelection.set(this.selectedNode.fullPath, this.selectedNode);
+      if (this.multiSelection.has(node.fullPath)) this.multiSelection.delete(node.fullPath);
+      else this.multiSelection.set(node.fullPath, node);
+      this.selectionAnchor = node.fullPath;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();   // lo Shift+clic seleziona anche il testo della pagina
+      const anchor = this.selectionAnchor ?? this.selectedNode?.fullPath ?? node.fullPath;
+      this.selectRange(anchor, node.fullPath);
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    this.clearMultiSelection();
+    this.selectionAnchor = node.fullPath;
+    this.getNode(node);
+  }
+
+  /** I documenti visibili, nell'ordine dell'albero, fra due percorsi (compresi). */
+  private selectRange(fromPath: string, toPath: string): void {
+    const rows = Array.from(this.elementRef.nativeElement.querySelectorAll('mat-tree-node.md-file[data-fullpath]') as NodeListOf<HTMLElement>)
+      .map(el => el.getAttribute('data-fullpath') || '');
+    let a = rows.indexOf(fromPath);
+    let b = rows.indexOf(toPath);
+    if (b < 0) return;
+    if (a < 0) a = b;
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    const byPath = new Map((this.treeControl.dataNodes || []).map(n => [n.fullPath, n as unknown as MdFile]));
+    this.multiSelection.clear();
+    for (const path of rows.slice(lo, hi + 1)) {
+      const n = byPath.get(path);
+      if (n && this.isMovableDocument(n)) this.multiSelection.set(path, n);
+    }
+  }
+
+  private isMovableDocument(node: MdFile): boolean {
+    return node.type === 'mdFile' || node.type === 'mdFileTimer';
+  }
+
+  clearMultiSelection(): void {
+    if (this.multiSelection.size === 0) return;
+    this.multiSelection.clear();
+    this.changeDetectorRef.markForCheck();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.clearMultiSelection();
   }
   
   // Espandi manualmente l'albero fino alla landing page
@@ -1910,7 +1972,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // senza navigare al documento né mostrare la snackbar per-file.
   private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.newPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
       return;
     }
@@ -2071,7 +2133,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // Handler per la cancellazione di file markdown
   private handleMarkdownFileDeleted(fileData: any): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.oldPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.oldPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileDeleted for:', fileData.fullPath);
       return;
     }

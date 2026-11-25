@@ -16008,6 +16008,16 @@ class MdFileService {
       destinationPath: pathDestination
     });
   }
+  /**
+   * Più documenti scelti nell'albero (Ctrl/Shift) portati insieme in una cartella: il servizio controlla tutto
+   * l'elenco prima e, con un nome già presente o ripetuto, non sposta niente.
+   */
+  moveMdFiles(mdFiles, pathDestination) {
+    return this.http.post('../api/mdfiles/MoveMdFiles', {
+      sourceRelativePaths: mdFiles.map(f => f.relativePath),
+      destinationPath: pathDestination
+    });
+  }
   openInheritingTemplateWord(InheringTemplate) {
     const url = '../api/mdFiles/openinheritingtemplateWord';
     return this.http.post(url, {
@@ -23602,8 +23612,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.25.5',
-  buildTime: '2026.11.25 11:21:19'
+  version: '2026.11.25.7',
+  buildTime: '2026.11.25 16:14:38'
 };
 
 /***/ }),
@@ -23637,4 +23647,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.ddbdb2c2bd401193.js.map
+//# sourceMappingURL=main.e243a042b06624f1.js.map

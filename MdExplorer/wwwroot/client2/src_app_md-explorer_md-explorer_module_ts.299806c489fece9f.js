@@ -41644,11 +41644,11 @@ function MdTreeComponent_mat_tree_8_mat_tree_node_1_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](3, "text_snippet");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](4, "div", 56);
-    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵlistener"]("click", function MdTreeComponent_mat_tree_8_mat_tree_node_1_Template_div_click_4_listener() {
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵlistener"]("click", function MdTreeComponent_mat_tree_8_mat_tree_node_1_Template_div_click_4_listener($event) {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵrestoreView"](_r287);
       const node_r277 = restoredCtx.$implicit;
       const ctx_r290 = _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵresetView"](ctx_r290.getNode(node_r277));
+      return _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵresetView"](ctx_r290.onDocumentClick($event, node_r277));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
@@ -42355,7 +42355,7 @@ class MdTreeComponent {
     if (!icon) return false;
     return icon.startsWith('data:image/') || icon.startsWith('http://') || icon.startsWith('https://');
   }
-  constructor(router, mdFileService, navService, dialog, snackBar, clipboard, changeDetectorRef, mdServerMessages, tocService, tocProgressService, projectsService, urlHandlerService, p2pService, projectSettingsService, appStoreService, bulkExportProgressService, fileEventsService, http, translate, markAssistant, codeRootsService) {
+  constructor(router, mdFileService, navService, dialog, snackBar, clipboard, changeDetectorRef, mdServerMessages, tocService, tocProgressService, projectsService, urlHandlerService, p2pService, projectSettingsService, appStoreService, bulkExportProgressService, fileEventsService, http, translate, markAssistant, codeRootsService, elementRef) {
     this.router = router;
     this.mdFileService = mdFileService;
     this.navService = navService;
@@ -42377,6 +42377,7 @@ class MdTreeComponent {
     this.translate = translate;
     this.markAssistant = markAssistant;
     this.codeRootsService = codeRootsService;
+    this.elementRef = elementRef;
     this.hooked = false;
     this.selectedNode = null;
     // Completed in ngOnDestroy: EVERY subscription in this component must pipe
@@ -42405,6 +42406,12 @@ class MdTreeComponent {
     this.dragOverNode = null;
     this.dragOverSegment = null;
     this.dndMovingPaths = null;
+    /** I documenti trascinati insieme: quelli selezionati con Ctrl/Shift se si trascina uno di loro, altrimenti quello solo. */
+    this.draggedNodes = [];
+    /** La selezione multipla dei documenti (Ctrl/Shift+clic), per percorso completo. */
+    this.multiSelection = new Map();
+    /** Il documento da cui parte uno Shift+clic. */
+    this.selectionAnchor = null;
     // Skeleton loader state
     this.isLoading = true;
     // Event queue with debounce: accumulates events for 200ms, then processes as batch
@@ -42986,12 +42993,15 @@ class MdTreeComponent {
       return;
     }
     this.draggedNode = node;
+    // Trascinando un documento selezionato si portano tutti i selezionati; uno non selezionato va da solo.
+    this.draggedNodes = this.multiSelection.has(node.fullPath) && this.multiSelection.size > 1 ? Array.from(this.multiSelection.values()) : [node];
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', node.fullPath);
     event.stopPropagation();
   }
   onDragEnd(event) {
     this.draggedNode = null;
+    this.draggedNodes = [];
     this.dragOverNode = null;
     this.dragOverSegment = null;
   }
@@ -43051,107 +43061,90 @@ class MdTreeComponent {
     this.performDrop(targetPath, targetName);
   }
   performDrop(targetPath, targetName) {
-    console.log('[DnD] performDrop called', {
-      targetPath,
-      targetName,
-      hasDraggedNode: !!this.draggedNode
-    });
     if (!this.draggedNode) {
-      console.warn('[DnD] performDrop: draggedNode is null, aborting');
       this.dragOverNode = null;
       this.dragOverSegment = null;
       return;
     }
-    // Skip if file is already in the target folder
-    const fileDirPath = this.getParentDirPath(this.draggedNode.fullPath);
-    console.log('[DnD] performDrop paths', {
-      fileDirPath,
-      targetPath,
-      draggedFullPath: this.draggedNode.fullPath
-    });
-    if (fileDirPath === targetPath) {
+    const dragged = this.draggedNodes.length ? this.draggedNodes : [this.draggedNode];
+    this.draggedNode = null;
+    this.draggedNodes = [];
+    this.dragOverNode = null;
+    this.dragOverSegment = null;
+    // Quelli già nella cartella restano dove sono.
+    const files = dragged.filter(f => this.getParentDirPath(f.fullPath) !== targetPath);
+    if (files.length === 0) {
       this.snackBar.open(this.translate.instant('MD_TREE.ALREADY_IN_FOLDER'), '', {
         duration: 2000
       });
-      this.draggedNode = null;
-      this.dragOverNode = null;
-      this.dragOverSegment = null;
       return;
     }
-    const draggedFile = this.draggedNode;
-    this.draggedNode = null;
-    this.dragOverNode = null;
-    this.dragOverSegment = null;
-    const oldFullPath = draggedFile.fullPath;
-    const separator = oldFullPath.includes('\\') ? '\\' : '/';
-    const newFullPath = targetPath + separator + draggedFile.name;
-    // Set suppress flag BEFORE HTTP call so SignalR handlers skip FSW-leaked events
-    this.dndMovingPaths = {
-      oldPath: oldFullPath,
-      newPath: newFullPath
-    };
-    console.log('[DnD] calling moveMdFile', {
-      name: draggedFile.name,
-      relativePath: draggedFile.relativePath,
-      targetPath
-    });
-    this.mdFileService.moveMdFile(draggedFile, targetPath).subscribe({
+    const separator = files[0].fullPath.includes('\\') ? '\\' : '/';
+    // Prima della chiamata: i gestori SignalR saltano gli eventi del watcher di questi file.
+    this.dndMovingPaths = files.map(f => ({
+      oldPath: f.fullPath,
+      newPath: targetPath + separator + f.name
+    }));
+    this.mdFileService.moveMdFiles(files, targetPath).subscribe({
       next: () => {
-        console.log('[DnD] moveMdFile success');
-        this.snackBar.open(this.translate.instant('MD_TREE.MOVED_FILE', {
-          fileName: draggedFile.name,
-          targetName: targetName
-        }), 'OK', {
+        const message = files.length === 1 ? this.translate.instant('MD_TREE.MOVED_FILE', {
+          fileName: files[0].name,
+          targetName
+        }) : this.translate.instant('MD_TREE.MOVED_FILES', {
+          count: files.length,
+          targetName
+        });
+        this.snackBar.open(message, 'OK', {
           duration: 3000
         });
-        // Save expansion state BEFORE any _mdFiles.next() calls
-        const expandedPaths = this.captureExpansionState();
-        // Incremental update: remove from old parent, add to new parent
-        this.mdFileService.recursiveDeleteFileFromDataStore(draggedFile);
-        // Compute new relativePath from project root
-        const projectPath = this.projectsService.currentProjects$.value?.path || '';
-        let newRelativePath = newFullPath;
-        if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
-          newRelativePath = newFullPath.substring(projectPath.length);
-          // Remove leading separator
-          if (newRelativePath.startsWith('\\') || newRelativePath.startsWith('/')) {
-            newRelativePath = newRelativePath.substring(1);
-          }
-        }
-        const movedFile = {
-          ...draggedFile,
-          fullPath: newFullPath,
-          relativePath: newRelativePath,
-          path: newRelativePath.replace(/\\/g, '/'),
-          fullDirectoryPath: targetPath,
-          isIndexed: true,
-          indexingStatus: 'completed'
-        };
-        this.mdFileService.addFileToParent(movedFile, targetPath);
-        // Update indexed files tracking Set: remove old path, add new
-        const currentSet = this.indexedFilesSubject.value;
-        const newSet = new Set(currentSet);
-        newSet.delete(oldFullPath);
-        newSet.add(newFullPath);
-        this.indexedFilesSubject.next(newSet);
-        // Restore expansion state (uses setTimeout internally)
-        this.restoreExpansionState(expandedPaths);
-        this.changeDetectorRef.markForCheck();
-        // Clear suppress flag after delay to catch any buffered FSW events
-        setTimeout(() => {
-          this.dndMovingPaths = null;
-        }, 500);
+        this.showMovedInTree(files, targetPath, separator);
+        this.clearMultiSelection();
       },
       error: err => {
-        console.error('[DnD] moveMdFile error:', err);
-        this.dndMovingPaths = null;
+        console.error('[DnD] moveMdFiles error:', err);
+        // Interrotto a metà: quelli spostati si mostrano al posto nuovo.
+        const movedFrom = (err?.error?.moved || []).map(m => m.from);
+        const moved = files.filter(f => movedFrom.some(p => p.toLowerCase() === f.fullPath.toLowerCase()));
+        if (moved.length) this.showMovedInTree(moved, targetPath, separator);else this.dndMovingPaths = null;
         this.snackBar.open(this.translate.instant('MD_TREE.MOVE_ERROR', {
-          error: err.error?.message || err.message
+          error: err?.error?.error || err?.error?.message || err.message
         }), 'OK', {
-          duration: 5000
+          duration: 10000
         });
       }
     });
+  }
+  /** L'albero dopo uno spostamento, senza ricaricarlo: ogni documento esce dalla cartella vecchia ed entra nella nuova. */
+  showMovedInTree(files, targetPath, separator) {
+    const expandedPaths = this.captureExpansionState();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const indexed = new Set(this.indexedFilesSubject.value);
+    for (const file of files) {
+      const newFullPath = targetPath + separator + file.name;
+      this.mdFileService.recursiveDeleteFileFromDataStore(file);
+      let newRelativePath = newFullPath;
+      if (projectPath && newFullPath.toLowerCase().startsWith(projectPath.toLowerCase())) {
+        newRelativePath = newFullPath.substring(projectPath.length).replace(/^[\\/]/, '');
+      }
+      this.mdFileService.addFileToParent({
+        ...file,
+        fullPath: newFullPath,
+        relativePath: newRelativePath,
+        path: newRelativePath.replace(/\\/g, '/'),
+        fullDirectoryPath: targetPath,
+        isIndexed: true,
+        indexingStatus: 'completed'
+      }, targetPath);
+      indexed.delete(file.fullPath);
+      indexed.add(newFullPath);
+    }
+    this.indexedFilesSubject.next(indexed);
+    this.restoreExpansionState(expandedPaths);
+    this.changeDetectorRef.markForCheck();
+    // Gli eventi del watcher arrivano in ritardo: si ignorano ancora per un poco.
+    setTimeout(() => {
+      this.dndMovingPaths = null;
+    }, 500);
   }
   // ==================== End Drag & Drop ====================
   // Manu management
@@ -43892,7 +43885,61 @@ class MdTreeComponent {
   }
   // Helper per verificare se un nodo è selezionato
   isNodeSelected(node) {
+    // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
+    if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+  /**
+   * Il clic su un documento, come in ogni esploratore di file: Ctrl (Cmd su Mac) aggiunge o toglie dalla selezione,
+   * Shift seleziona tutti i documenti visibili fra l'ultimo cliccato e questo; il clic semplice apre il documento e la
+   * selezione torna a uno. I documenti selezionati si trascinano insieme in una cartella.
+   */
+  onDocumentClick(event, node) {
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      if (this.multiSelection.size === 0 && this.selectedNode && this.isMovableDocument(this.selectedNode)) this.multiSelection.set(this.selectedNode.fullPath, this.selectedNode);
+      if (this.multiSelection.has(node.fullPath)) this.multiSelection.delete(node.fullPath);else this.multiSelection.set(node.fullPath, node);
+      this.selectionAnchor = node.fullPath;
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    if (event.shiftKey) {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges(); // lo Shift+clic seleziona anche il testo della pagina
+      const anchor = this.selectionAnchor ?? this.selectedNode?.fullPath ?? node.fullPath;
+      this.selectRange(anchor, node.fullPath);
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+    this.clearMultiSelection();
+    this.selectionAnchor = node.fullPath;
+    this.getNode(node);
+  }
+  /** I documenti visibili, nell'ordine dell'albero, fra due percorsi (compresi). */
+  selectRange(fromPath, toPath) {
+    const rows = Array.from(this.elementRef.nativeElement.querySelectorAll('mat-tree-node.md-file[data-fullpath]')).map(el => el.getAttribute('data-fullpath') || '');
+    let a = rows.indexOf(fromPath);
+    let b = rows.indexOf(toPath);
+    if (b < 0) return;
+    if (a < 0) a = b;
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    const byPath = new Map((this.treeControl.dataNodes || []).map(n => [n.fullPath, n]));
+    this.multiSelection.clear();
+    for (const path of rows.slice(lo, hi + 1)) {
+      const n = byPath.get(path);
+      if (n && this.isMovableDocument(n)) this.multiSelection.set(path, n);
+    }
+  }
+  isMovableDocument(node) {
+    return node.type === 'mdFile' || node.type === 'mdFileTimer';
+  }
+  clearMultiSelection() {
+    if (this.multiSelection.size === 0) return;
+    this.multiSelection.clear();
+    this.changeDetectorRef.markForCheck();
+  }
+  onEscape() {
+    this.clearMultiSelection();
   }
   // Espandi manualmente l'albero fino alla landing page
   expandToLandingPage(targetNode) {
@@ -44092,7 +44139,7 @@ class MdTreeComponent {
   // senza navigare al documento né mostrare la snackbar per-file.
   handleNewMarkdownFileCreated(fileData, suppressNavigation = false) {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.newPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
       return;
     }
@@ -44224,7 +44271,7 @@ class MdTreeComponent {
   // Handler per la cancellazione di file markdown
   handleMarkdownFileDeleted(fileData) {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
-    if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.oldPath?.toLowerCase()) {
+    if (this.dndMovingPaths?.some(m => fileData.fullPath?.toLowerCase() === m.oldPath?.toLowerCase())) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileDeleted for:', fileData.fullPath);
       return;
     }
@@ -45270,7 +45317,7 @@ class MdTreeComponent {
   }
   static {
     this.ɵfac = function MdTreeComponent_Factory(t) {
-      return new (t || MdTreeComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_48__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_23__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_24__.MdNavigationService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_49__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_50__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_51__.Clipboard), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_37__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_25__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_toc_generation_service__WEBPACK_IMPORTED_MODULE_26__.TocGenerationService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_toc_progress_service__WEBPACK_IMPORTED_MODULE_27__.TocProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_28__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_29__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_p2p_service__WEBPACK_IMPORTED_MODULE_30__.P2PService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_31__.ProjectSettingsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_app_store_service__WEBPACK_IMPORTED_MODULE_32__.AppStoreService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_bulk_export_progress_service__WEBPACK_IMPORTED_MODULE_33__.BulkExportProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_34__.FileEventsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_52__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_53__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_35__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_code_roots_service__WEBPACK_IMPORTED_MODULE_36__.CodeRootsService));
+      return new (t || MdTreeComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_48__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_23__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_24__.MdNavigationService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_49__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_50__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_51__.Clipboard), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_37__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_25__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_toc_generation_service__WEBPACK_IMPORTED_MODULE_26__.TocGenerationService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_toc_progress_service__WEBPACK_IMPORTED_MODULE_27__.TocProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_28__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_29__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_p2p_service__WEBPACK_IMPORTED_MODULE_30__.P2PService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_31__.ProjectSettingsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_app_store_service__WEBPACK_IMPORTED_MODULE_32__.AppStoreService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_bulk_export_progress_service__WEBPACK_IMPORTED_MODULE_33__.BulkExportProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_34__.FileEventsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_52__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_53__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_35__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_services_code_roots_service__WEBPACK_IMPORTED_MODULE_36__.CodeRootsService), _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_37__.ElementRef));
     };
   }
   static {
@@ -45284,6 +45331,13 @@ class MdTreeComponent {
         if (rf & 2) {
           let _t;
           _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵloadQuery"]()) && (ctx.matMenuTrigger = _t.first);
+        }
+      },
+      hostBindings: function MdTreeComponent_HostBindings(rf, ctx) {
+        if (rf & 1) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵlistener"]("keydown.escape", function MdTreeComponent_keydown_escape_HostBindingHandler() {
+            return ctx.onEscape();
+          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵresolveDocument"]);
         }
       },
       decls: 9,
@@ -61214,4 +61268,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.1a1b03e00f7c92d6.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.299806c489fece9f.js.map

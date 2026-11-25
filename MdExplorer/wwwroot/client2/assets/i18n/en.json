@@ -908,6 +908,7 @@
     "NAV_ERROR": "Navigation error",
     "ALREADY_IN_FOLDER": "File is already in this folder",
     "MOVED_FILE": "Moved \"{{fileName}}\" to \"{{targetName}}\"",
+    "MOVED_FILES": "Moved {{count}} documents to {{targetName}}",
     "MOVE_ERROR": "Error moving file: {{error}}",
     "IS_LANDING_PAGE": "{{name}} is project landing page",
     "EXPLORER_OPENED": "file explorer open",

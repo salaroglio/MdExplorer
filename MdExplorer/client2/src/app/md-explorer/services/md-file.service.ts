@@ -179,6 +179,17 @@ export class MdFileService {
     });
   }
 
+  /**
+   * Più documenti scelti nell'albero (Ctrl/Shift) portati insieme in una cartella: il servizio controlla tutto
+   * l'elenco prima e, con un nome già presente o ripetuto, non sposta niente.
+   */
+  moveMdFiles(mdFiles: MdFile[], pathDestination: string) {
+    return this.http.post<{ message: string; moved: { from: string; to: string }[]; skipped: string[] }>('../api/mdfiles/MoveMdFiles', {
+      sourceRelativePaths: mdFiles.map(f => f.relativePath),
+      destinationPath: pathDestination,
+    });
+  }
+
   openInheritingTemplateWord(InheringTemplate: string) {
     const url = '../api/mdFiles/openinheritingtemplateWord';
     return this.http.post<any>(url, { templateName: InheringTemplate });

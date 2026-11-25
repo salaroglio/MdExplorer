@@ -316,7 +316,7 @@
     <button mat-icon-button color="primary" style="cursor:pointer">
       <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
     </button>
-    <div (click)="getNode(node)"
+    <div (click)="onDocumentClick($event, node)"
          style="cursor: pointer; padding: 2px;"
          class="node-text">
        {{node.name}}
