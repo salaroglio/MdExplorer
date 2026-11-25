@@ -50,6 +50,30 @@ namespace MdExplorer.Services.ChatHistory
             public bool Announce;
             /// <summary>L'ultima sessione del motore scritta nella riga: si riscrive solo se cambia.</summary>
             public string EngineSessionId;
+            /// <summary>Titolo e dettaglio attuali (F5): vanno nelle istruzioni del turno dopo.</summary>
+            public string Title;
+            public string Detail;
+        }
+
+        private const string ThreadPromptResource = "MdExplorer.Service.skills.mde_mark_thread.prompt.md";
+        private static readonly Lazy<string> _threadPrompt = new(LoadThreadPrompt);
+
+        /// <summary>
+        /// Il testo delle istruzioni del blocco titolo/dettaglio (skill mde-mark-thread), dalla risorsa incorporata e mai
+        /// dal progetto: il formato lo legge il codice. Senza frontmatter né commenti.
+        /// </summary>
+        internal static string ThreadPrompt => _threadPrompt.Value;
+
+        private static string LoadThreadPrompt()
+        {
+            using var stream = typeof(ChatHistoryRecorder).Assembly.GetManifestResourceStream(ThreadPromptResource)
+                ?? throw new InvalidOperationException($"Manca la risorsa {ThreadPromptResource}: il pacchetto non è completo.");
+            using var reader = new System.IO.StreamReader(stream);
+            var text = reader.ReadToEnd();
+            var fm = System.Text.RegularExpressions.Regex.Match(text, @"^---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n", System.Text.RegularExpressions.RegexOptions.Singleline);
+            if (fm.Success && fm.Index == 0) text = text.Substring(fm.Length);
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"<!--.*?-->", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+            return text.Trim();
         }
 
         /// <summary>Come è andato un <see cref="Resume"/>.</summary>
@@ -147,6 +171,8 @@ namespace MdExplorer.Services.ChatHistory
                 NextSeq = content.Events.Count == 0 ? 1 : content.Events.Max(e => e.Seq) + 1,
                 Turn = content.Events.Count == 0 ? 0 : content.Events.Max(e => e.Turn),
                 EngineSessionId = row.EngineSessionId,
+                Title = row.Title,
+                Detail = row.Detail,
             };
             _threads[connectionId] = state;
             _toldNoProject.TryRemove(connectionId, out _);
@@ -204,7 +230,7 @@ namespace MdExplorer.Services.ChatHistory
             }
         }
 
-        internal void Touch(ThreadState state, string engine, string modelId, string engineSessionId)
+        internal void Touch(ThreadState state, string engine, string modelId, string engineSessionId, string title, string detail)
         {
             using var scope = _scopes.CreateScope();
             var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
@@ -221,6 +247,8 @@ namespace MdExplorer.Services.ChatHistory
                 row.EngineSessionId = engineSessionId;
                 state.EngineSessionId = engineSessionId;
             }
+            if (title != null) { row.Title = title; lock (state) state.Title = title; }
+            if (detail != null) { row.Detail = detail; lock (state) state.Detail = detail; }
             session.GetDal<ChatThread>().Save(row);
             tx.Commit();
         }
@@ -280,6 +308,50 @@ namespace MdExplorer.Services.ChatHistory
             }
         }
 
+        private string _newTitle;
+        private string _newDetail;
+
+        /// <summary>Vero se in questo turno al modello è stato chiesto il blocco titolo/dettaglio (solo il tab, F5).</summary>
+        public bool ExpectsThreadBlock { get; private set; }
+
+        /// <summary>
+        /// Le istruzioni del blocco titolo/dettaglio da mettere in fondo alla domanda, con titolo e dettaglio attuali; da
+        /// qui in poi il turno aspetta il blocco. Null se il turno non si registra.
+        /// </summary>
+        public string ThreadInstruction()
+        {
+            if (!IsRecording) return null;
+            string title, detail;
+            lock (_state) { title = _state.Title; detail = _state.Detail; }
+            ExpectsThreadBlock = true;
+            return ChatThreadBlock.Instruction(ChatHistoryRecorder.ThreadPrompt, title, detail);
+        }
+
+        /// <summary>
+        /// Il blocco arrivato a fine risposta (null se non è arrivato). Registra il blocco nella chat e prepara titolo e
+        /// dettaglio per la riga. Restituisce l'avviso per l'utente, o null se è tutto a posto.
+        /// </summary>
+        public string ApplyThreadBlock(string inner, bool unclosed)
+        {
+            if (!ExpectsThreadBlock || !IsRecording) return null;
+            if (inner == null)
+            {
+                var why = unclosed
+                    ? UiText.Say("il blocco è cominciato ma non è stato chiuso", "the block was started but not closed")
+                    : UiText.Say("il modello non ha mandato il blocco", "the model did not send the block");
+                Meta("thread-block-missing", new { reason = why });
+                return UiText.Say($"Titolo e dettaglio della chat non aggiornati a questo turno: {why}.",
+                    $"Chat title and detail not updated this turn: {why}.");
+            }
+            var parsed = ChatThreadBlock.Parse(inner);
+            Meta("thread-block", new { raw = inner, title = parsed.Title, detail = parsed.Detail, problems = parsed.Problems });
+            _newTitle = parsed.Title;
+            _newDetail = parsed.Detail;
+            return parsed.Problems.Count == 0 ? null : UiText.Say(
+                "Titolo o dettaglio della chat non aggiornati: " + string.Join("; ", parsed.Problems) + ".",
+                "Chat title or detail not updated: " + string.Join("; ", parsed.Problems) + ".");
+        }
+
         /// <summary>La sessione del motore che ha risposto: va nella riga, per far ripartire il motore da lì.</summary>
         public void EngineSession(string engineSessionId)
         {
@@ -297,7 +369,7 @@ namespace MdExplorer.Services.ChatHistory
         {
             Run(a => a.Complete());
             if (!IsRecording) return;
-            try { _recorder.Touch(_state, _engine, _modelId, _engineSessionId); }
+            try { _recorder.Touch(_state, _engine, _modelId, _engineSessionId, _newTitle, _newDetail); }
             catch (Exception ex) { Fail(ex); }
         }
 
@@ -339,6 +411,9 @@ namespace MdExplorer.Services.ChatHistory
         private readonly IClientProxy _inner;
         private readonly ChatTurnRecording _recording;
         private readonly string _channel;
+        // Il blocco titolo/dettaglio non va a video (F5): lo si toglie dal testo mentre arriva.
+        private readonly ChatThreadBlock.StreamFilter _filter = new();
+        private bool _blockApplied;
 
         public RecordingClientProxy(IClientProxy inner, ChatTurnRecording recording, string channel)
         {
@@ -349,6 +424,23 @@ namespace MdExplorer.Services.ChatHistory
 
         public async Task SendCoreAsync(string method, object[] args, CancellationToken cancellationToken = default)
         {
+            if (_recording.ExpectsThreadBlock && method == "ReceiveStreamChunk" && args?.Length > 0 && args[0] is string piece)
+            {
+                var shown = _filter.Feed(piece);
+                if (shown.Length == 0) return;
+                args = (object[])args.Clone();
+                args[0] = shown;
+            }
+            else if (_recording.ExpectsThreadBlock && method == "StreamComplete" && !_blockApplied)
+            {
+                // Fine della risposta: il testo trattenuto va a video, il blocco nella chat, e l'eventuale avviso prima della fine.
+                _blockApplied = true;
+                var rest = _filter.Flush();
+                if (rest.Length > 0) await SendCoreAsync("ReceiveStreamChunk", new object[] { rest, _channel }, cancellationToken);
+                var notice = _recording.ApplyThreadBlock(_filter.Block, _filter.Unclosed);
+                if (notice != null) await SendCoreAsync("ReceiveMessage", new object[] { "system", notice }, cancellationToken);
+            }
+
             await _inner.SendCoreAsync(method, args, cancellationToken);
             _recording.OnClientEvent(method, args);
             var failure = _recording.TakeFailureToTell();

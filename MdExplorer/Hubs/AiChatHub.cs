@@ -472,6 +472,18 @@ namespace MdExplorer.Hubs
         /// Apre la registrazione del turno nella cronologia. Non ferma mai il turno: se la chat non si può salvare, la
         /// registrazione lo sa e il motivo arriva al client una volta.
         /// </summary>
+        /// <summary>
+        /// La domanda per uno dei tre motori agentici, con in fondo le istruzioni del blocco titolo/dettaglio della chat
+        /// (sprint 2026-11-24-Chat-Memorizzate, F5): stessa sessione e stesso motore, nessuna chiamata in più. Solo il tab;
+        /// i canali laterali (commit, diagrammi…) no. Se il turno non si registra, la domanda resta com'è.
+        /// </summary>
+        private string WithThreadInstruction(string message, string channelId)
+        {
+            if (!string.IsNullOrEmpty(channelId) && channelId != "default") return message;
+            var instruction = _turnRecording?.ThreadInstruction();
+            return instruction == null ? message : message + "\n\n" + instruction;
+        }
+
         private Services.ChatHistory.ChatTurnRecording BeginChatRecording(string connectionId, string channelId)
         {
             var mode = GetChatMode();
@@ -545,7 +557,7 @@ namespace MdExplorer.Hubs
                         string response;
                         try
                         {
-                            response = await StreamCopilotCliSessionResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                            response = await StreamCopilotCliSessionResponseAsync(WithThreadInstruction(message, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (CopilotMidStreamException midEx)
                         {
@@ -571,7 +583,7 @@ namespace MdExplorer.Hubs
                         string response;
                         try
                         {
-                            response = await StreamClaudeCodeResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                            response = await StreamClaudeCodeResponseAsync(WithThreadInstruction(message, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (ClaudeCodeMidStreamException midEx)
                         {
@@ -596,7 +608,7 @@ namespace MdExplorer.Hubs
                         string response;
                         try
                         {
-                            response = await StreamOpenCodeResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                            response = await StreamOpenCodeResponseAsync(WithThreadInstruction(message, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (OpenCodeMidStreamException midEx)
                         {
@@ -1735,7 +1747,7 @@ namespace MdExplorer.Hubs
                     {
                         try
                         {
-                            await StreamCopilotCliSessionResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                            await StreamCopilotCliSessionResponseAsync(WithThreadInstruction(lastUserMessage, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (CopilotMidStreamException midEx)
                         {
@@ -1754,7 +1766,7 @@ namespace MdExplorer.Hubs
                     {
                         try
                         {
-                            await StreamClaudeCodeResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                            await StreamClaudeCodeResponseAsync(WithThreadInstruction(lastUserMessage, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (ClaudeCodeMidStreamException midEx)
                         {
@@ -1773,7 +1785,7 @@ namespace MdExplorer.Hubs
                     {
                         try
                         {
-                            await StreamOpenCodeResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                            await StreamOpenCodeResponseAsync(WithThreadInstruction(lastUserMessage, channelId), chatMode.ModelId, currentDoc, history, channelId);
                         }
                         catch (OpenCodeMidStreamException midEx)
                         {
