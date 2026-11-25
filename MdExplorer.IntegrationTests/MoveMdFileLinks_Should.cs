@@ -166,6 +166,51 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("Vedi [A](docs/sub2/a.md).\n", p.Read("guide.md"));
         }
 
+        // ---- più documenti insieme (Ctrl/Shift nell'albero) ----
+
+        [TestMethod]
+        public async Task Move_several_documents_together_keeping_the_links_between_them_and_to_them()
+        {
+            using var p = await Project.Open("mv-insieme", ("docs/arrivo/README.md", "# Arrivo\n"),
+                ("docs/a.md", "Vedi [B](b.md) e l'[indice](../index.md).\n"),
+                ("docs/b.md", "Torna ad [A](./a.md#inizio).\n"),
+                ("index.md", "[A](docs/a.md) e [B](docs/b.md)\n"));
+
+            var (status, body) = await p.MoveMany("docs/arrivo", "docs/a.md", "docs/b.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.AreEqual("Vedi [B](b.md) e l'[indice](../../index.md).\n", p.Read("docs/arrivo/a.md"));
+            Assert.AreEqual("Torna ad [A](a.md#inizio).\n", p.Read("docs/arrivo/b.md"));
+            Assert.AreEqual("[A](docs/arrivo/a.md) e [B](docs/arrivo/b.md)\n", p.Read("index.md"));
+        }
+
+        [TestMethod]
+        public async Task Move_nothing_when_a_name_is_already_in_the_destination()
+        {
+            using var p = await Project.Open("mv-nome-preso", ("docs/arrivo/b.md", "# Il b che c'era\n"),
+                ("docs/a.md", "# A\n"), ("docs/b.md", "# B\n"), ("index.md", "[A](docs/a.md)\n"));
+
+            var (status, body) = await p.MoveMany("docs/arrivo", "docs/a.md", "docs/b.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
+            StringAssert.Contains(body, "b.md");
+            Assert.AreEqual("# Il b che c'era\n", p.Read("docs/arrivo/b.md"), "il documento che c'era non è stato cancellato");
+            Assert.IsTrue(File.Exists(Path.Combine(p.Root, "docs", "a.md")), "nemmeno a.md si è mosso");
+            Assert.AreEqual("[A](docs/a.md)\n", p.Read("index.md"));
+        }
+
+        [TestMethod]
+        public async Task Move_nothing_when_two_chosen_documents_have_the_same_name()
+        {
+            using var p = await Project.Open("mv-stesso-nome", ("arrivo/README.md", "# Arrivo\n"),
+                ("uno/note.md", "# Uno\n"), ("due/note.md", "# Due\n"));
+
+            var (status, body) = await p.MoveMany("arrivo", "uno/note.md", "due/note.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
+            Assert.IsTrue(File.Exists(Path.Combine(p.Root, "uno", "note.md")) && File.Exists(Path.Combine(p.Root, "due", "note.md")));
+        }
+
         // ---- infrastruttura ----
 
         /// <summary>Un progetto vero: file scritti, aperto con SetFolderProject, indicizzato fino ai link.</summary>
@@ -223,6 +268,14 @@ namespace MdExplorer.IntegrationTests
                 Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
                 Assert.IsTrue(File.Exists(Path.Combine(Root, relativeFolder, Path.GetFileName(relativeFile))), "il file è arrivato");
             }
+
+            /// <summary>Più documenti scelti nell'albero e trascinati insieme; restituisce la risposta senza pretendere che sia riuscita.</summary>
+            public Task<(System.Net.HttpStatusCode Status, string Body)> MoveMany(string relativeFolder, params string[] relativeFiles)
+                => _ctx.PostJson("/api/mdfiles/MoveMdFiles?ConnectionId=" + _conn, JsonSerializer.Serialize(new
+                {
+                    sourceRelativePaths = relativeFiles.Select(f => "/" + f).ToArray(),
+                    destinationPath = Path.Combine(Root, relativeFolder.Replace('/', Path.DirectorySeparatorChar)),
+                }));
 
             public string Read(string relative) => File.ReadAllText(Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar)));
 
