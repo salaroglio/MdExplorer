@@ -57,16 +57,48 @@ namespace MdExplorer.Controllers.AI
             }));
         }
 
-        /// <summary>Tutto quello che c'è nel file della chat, e le righe che non si leggono.</summary>
+        /// <summary>Quanto testo restituisce al massimo una lettura per intervallo (<c>chat_read</c>), se non lo si dice.</summary>
+        public const int DefaultMaxChars = 60_000;
+
+        /// <summary>
+        /// Quello che c'è nel file della chat, e le righe che non si leggono. Senza parametri, tutto (la cronologia del tab).
+        /// Con <paramref name="from"/>/<paramref name="to"/> (progressivi, inclusi) un intervallo; con <paramref name="maxChars"/>
+        /// un tetto al testo restituito: un evento non si taglia mai, e se il tetto ferma la lettura <c>nextFrom</c> dice da
+        /// dove continuare (strumento MCP <c>chat_read</c>, sprint skill che migliorano F1). Con <paramref name="projectPath"/> la
+        /// chat deve essere di quel progetto.
+        /// </summary>
         [HttpGet("{id:guid}/events")]
-        public IActionResult Events(Guid id)
+        public IActionResult Events(Guid id, [FromQuery] long? from = null, [FromQuery] long? to = null,
+            [FromQuery] int? maxChars = null, [FromQuery] string projectPath = null)
         {
             var row = Find(id);
             if (row == null) return NotFound(new { message = NotInHistory(id) });
+            if (!string.IsNullOrWhiteSpace(projectPath) && !string.Equals(row.ProjectPath, projectPath, StringComparison.Ordinal))
+                return BadRequest(new { message = UiText.Say($"La chat {id} è di un altro progetto ({row.ProjectPath}).", $"The chat {id} belongs to another project ({row.ProjectPath}).") });
+            if (from.HasValue && to.HasValue && from > to)
+                return BadRequest(new { message = UiText.Say($"Intervallo vuoto: from {from} è dopo to {to}.", $"Empty range: from {from} is after to {to}.") });
             var content = _files.Read(row.FilePath);
             if (!content.Exists)
                 return NotFound(new { message = UiText.Say($"Il file della chat non c'è più: {row.FilePath}.", $"The chat file is gone: {row.FilePath}.") });
-            return Ok(new { id = row.Id, title = row.Title, detail = row.Detail, events = content.Events, problems = content.Problems });
+
+            var inRange = content.Events.Where(e => (!from.HasValue || e.Seq >= from) && (!to.HasValue || e.Seq <= to)).ToList();
+            var lastSeq = content.Events.Count == 0 ? 0 : content.Events.Max(e => e.Seq);
+            if (!maxChars.HasValue && !from.HasValue && !to.HasValue)
+                return Ok(new { id = row.Id, title = row.Title, detail = row.Detail, events = inRange, problems = content.Problems, lastSeq, nextFrom = (long?)null });
+
+            var budget = maxChars ?? DefaultMaxChars;
+            var taken = new System.Collections.Generic.List<ChatRecordEvent>();
+            var used = 0;
+            long? nextFrom = null;
+            foreach (var e in inRange)
+            {
+                var size = System.Text.Json.JsonSerializer.Serialize(e).Length;
+                // Il primo evento entra sempre, anche se da solo supera il tetto: un evento non si taglia.
+                if (taken.Count > 0 && used + size > budget) { nextFrom = e.Seq; break; }
+                taken.Add(e);
+                used += size;
+            }
+            return Ok(new { id = row.Id, title = row.Title, detail = row.Detail, events = taken, problems = content.Problems, lastSeq, nextFrom });
         }
 
         /// <summary>Elimina la chat: il file e la riga. Una connessione che ci stava scrivendo apre una chat nuova al turno dopo.</summary>

@@ -15,6 +15,37 @@ public sealed class CoreTools : McpToolsBase
     public CoreTools(IHttpClientFactory httpClientFactory) : base(httpClientFactory) { }
 
     [McpServerTool, Description(
+        "Reads a saved MarkAgent chat of the project IN FULL: every event with its whole content — the user's questions, " +
+        "the answers, the reasoning, each tool call with its complete arguments and its complete result. Use it when " +
+        "MdExplorer asks you to learn from an activity and the compact view it gave you is not enough (e.g. to read the " +
+        "exact command that failed and the one that worked). Events are numbered (seq): ask for a range with fromSeq/toSeq. " +
+        "A long range comes back in pieces: when 'nextFrom' is not null, call again with fromSeq = nextFrom.")]
+    public async Task<string> chat_read(
+        [Description("MdExplorer project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The chat id (a GUID), as given by MdExplorer.")] string chat,
+        [Description("First event to read (seq, included). Optional: from the start.")] long? fromSeq = null,
+        [Description("Last event to read (seq, included). Optional: to the end.")] long? toSeq = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var projectPath = await ResolveProjectPathAsync(client, project);
+        if (projectPath == null) return $"Project '{project}' not found. Use GetProjects to see the available names.";
+        if (!Guid.TryParse(chat, out var id)) return $"'{chat}' is not a chat id (a GUID).";
+        var url = $"/api/chats/{id}/events?maxChars=60000&projectPath={Uri.EscapeDataString(projectPath)}"
+            + (fromSeq.HasValue ? $"&from={fromSeq}" : "") + (toSeq.HasValue ? $"&to={toSeq}" : "");
+        try
+        {
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("chat_read", project, $"chat={id},from={fromSeq},to={toSeq}", $"{(int)resp.StatusCode} {body.Length} chars");
+            return resp.IsSuccessStatusCode ? body : $"chat_read failed ({(int)resp.StatusCode}): {body}";
+        }
+        catch (Exception ex)
+        {
+            return $"chat_read failed: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "List all MdExplorer projects with their names and paths. " +
         "Use this FIRST to discover available projects before calling SearchDocuments. " +
         "The project name from the results must be passed to SearchDocuments via the 'project' parameter.")]

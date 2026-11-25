@@ -112,6 +112,39 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Read_a_range_in_pieces_without_cutting_an_event_and_only_for_its_project()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, projectPath) = ctx.SeedProject("chat-range");
+            var (_, otherPath) = ctx.SeedProject("chat-range-other");
+            var recorder = ctx.Factory.Services.GetRequiredService<ChatHistoryRecorder>();
+            var big = new string('x', 3000);
+            var id = OneTurn(recorder, "r", projectPath, "uno", big);          // seq 1-2
+            OneTurn(recorder, "r", projectPath, "due", big);                    // seq 3-4
+            OneTurn(recorder, "r", projectPath, "tre", big);                    // seq 5-6
+            var q = "&projectPath=" + Uri.EscapeDataString(projectPath);
+
+            var first = await ctx.Client.GetFromJsonAsync<JsonElement>($"/api/chats/{id}/events?from=2&maxChars=5000{q}");
+            var seqs = first.GetProperty("events").EnumerateArray().Select(e => e.GetProperty("seq").GetInt64()).ToArray();
+            CollectionAssert.AreEqual(new long[] { 2, 3 }, seqs, "il tetto ferma la lettura fra un evento e l'altro");
+            Assert.AreEqual(big, first.GetProperty("events")[0].GetProperty("content").GetString(), "un evento non si taglia");
+            Assert.AreEqual(4, first.GetProperty("nextFrom").GetInt64());
+            Assert.AreEqual(6, first.GetProperty("lastSeq").GetInt64());
+
+            var rest = await ctx.Client.GetFromJsonAsync<JsonElement>($"/api/chats/{id}/events?from=4&to=5&maxChars=100{q}");
+            CollectionAssert.AreEqual(new long[] { 4 }, rest.GetProperty("events").EnumerateArray().Select(e => e.GetProperty("seq").GetInt64()).ToArray(),
+                "il primo evento entra anche se da solo supera il tetto");
+            Assert.AreEqual(5, rest.GetProperty("nextFrom").GetInt64());
+
+            var end = await ctx.Client.GetFromJsonAsync<JsonElement>($"/api/chats/{id}/events?from=5{q}");
+            Assert.AreEqual(JsonValueKind.Null, end.GetProperty("nextFrom").ValueKind, "finito: niente da dove continuare");
+
+            var wrongProject = await ctx.Client.GetAsync($"/api/chats/{id}/events?from=1&projectPath={Uri.EscapeDataString(otherPath)}");
+            Assert.AreEqual(HttpStatusCode.BadRequest, wrongProject.StatusCode);
+            Assert.AreEqual(HttpStatusCode.BadRequest, (await ctx.Client.GetAsync($"/api/chats/{id}/events?from=5&to=2")).StatusCode);
+        }
+
+        [TestMethod]
         public void Keep_the_engine_session_in_the_row()
         {
             using var ctx = new AgentCityContext();
