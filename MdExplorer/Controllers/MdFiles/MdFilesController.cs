@@ -300,6 +300,43 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
+        /// Rinomina un documento (sprint 2026-11-25-Spostamento-File-E-Link): uno spostamento nella stessa cartella con un
+        /// altro nome, quindi gli stessi link ricalcolati, lo stesso indice, nessuna sovrascrittura. Lo usano il «Rinomina»
+        /// dell'albero e la finestra delle regole (nome del file come il titolo); la risposta ha anche la forma che quella
+        /// finestra usava (vecchio <c>refactoringfiles/RenameFileName</c>).
+        /// </summary>
+        [HttpPost]
+        public IActionResult RenameMdFile([FromBody] RequestRenameMdFile request)
+        {
+            if (string.IsNullOrEmpty(request?.SourcePath)) return BadRequest(new { error = "Invalid request data" });
+            var projectBasePath = GetProjectPath();
+            var plan = MdExplorer.Features.Refactoring.DocumentMovePlanner.PlanRename(projectBasePath, request.SourcePath, request.NewName);
+            if (plan.Refusal != null) return Conflict(new { error = plan.Refusal });
+
+            var move = plan.Moves[0];
+            SetFileSystemWatcherEnabled(false);
+            try { MoveOneDocument(projectBasePath, move.From, move.To); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RenameMdFile] {From} → {To}", move.From, move.To);
+                return StatusCode(500, new { error = ex.Message });
+            }
+            finally { SetFileSystemWatcherEnabled(true); }
+
+            var relativeDir = Path.GetDirectoryName(Path.GetRelativePath(projectBasePath, move.From)) ?? string.Empty;
+            return Ok(new
+            {
+                oldName = Path.GetFileName(move.From),
+                newName = Path.GetFileName(move.To),
+                oldPath = move.From,
+                newPath = move.To,
+                oldLevel = request.Level,
+                newLevel = request.Level,
+                relativePath = Path.DirectorySeparatorChar + relativeDir,
+            });
+        }
+
+        /// <summary>
         /// Una cartella intera: sul disco, poi i link (dei documenti dentro verso fuori, e degli altri verso qualunque file
         /// dentro), poi l'indice come quando il watcher vede una cartella spostata.
         /// </summary>

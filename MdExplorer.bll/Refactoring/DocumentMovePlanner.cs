@@ -88,6 +88,54 @@ namespace MdExplorer.Features.Refactoring
             return new DocumentMovePlan { Moves = moves, Skipped = skipped };
         }
 
+        /// <summary>
+        /// La rinomina di un documento: uno spostamento nella stessa cartella con un altro nome. Il nome nuovo non ha
+        /// cartelle, resta un <c>.md</c> (si aggiunge se manca) e non è di un altro file; su Windows cambiare solo maiuscole
+        /// e minuscole è ammesso. <paramref name="source"/> è relativo al progetto o completo.
+        /// </summary>
+        public static DocumentMovePlan PlanRename(string projectRoot, string source, string newName)
+        {
+            if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot))
+                return Refuse(UiText.Say("Nessun progetto aperto.", "No project is open."));
+            var root = Path.GetFullPath(projectRoot);
+            var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var from = SourcePath(root, source);
+            if (!Inside(root, from, cmp))
+                return Refuse(UiText.Say($"«{source}» è fuori dal progetto.", $"«{source}» is outside the project."));
+            if (!File.Exists(from))
+                return Refuse(UiText.Say($"«{Rel(root, from)}» non c'è più: forse è stato spostato o cancellato.",
+                    $"«{Rel(root, from)}» is no longer there: maybe it was moved or deleted."));
+            if (!from.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                return Refuse(UiText.Say($"«{Rel(root, from)}» non è un documento markdown.", $"«{Rel(root, from)}» is not a markdown document."));
+
+            var name = (newName ?? string.Empty).Trim();
+            if (name.Length == 0) return Refuse(UiText.Say("Manca il nome nuovo.", "The new name is missing."));
+            if (name.IndexOfAny(new[] { '/', '\\' }) >= 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name == "." || name == "..")
+                return Refuse(UiText.Say($"«{name}» non è un nome di file valido (niente barre né caratteri speciali).",
+                    $"«{name}» is not a valid file name (no slashes or special characters)."));
+            if (!name.EndsWith(".md", StringComparison.OrdinalIgnoreCase)) name += ".md";
+            if (name.Length == 3) return Refuse(UiText.Say("Manca il nome nuovo.", "The new name is missing."));
+
+            var to = Path.Combine(Path.GetDirectoryName(from), name);
+            if (string.Equals(to, from, StringComparison.Ordinal))
+                return Refuse(UiText.Say("Il nome è uguale a quello di adesso.", "The name is the same as the current one."));
+            // Su Windows «A.md» e «a.md» sono lo stesso file: cambiare solo le maiuscole è una rinomina, non un conflitto.
+            var sameFile = string.Equals(to, from, StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsWindows();
+            if (!sameFile && (File.Exists(to) || Directory.Exists(to)))
+                return Refuse(UiText.Say($"In «{Rel(root, Path.GetDirectoryName(from))}» c'è già «{name}»: scegli un altro nome.",
+                    $"«{Rel(root, Path.GetDirectoryName(from))}» already has «{name}»: choose another name."));
+            return new DocumentMovePlan { Moves = new[] { new DocumentMove(from, to, false) } };
+        }
+
+        /// <summary>Un percorso del client: completo se comincia con la radice del progetto, altrimenti relativo all'albero.</summary>
+        private static string SourcePath(string root, string raw)
+        {
+            var r = (raw ?? string.Empty).Trim();
+            if (Path.IsPathRooted(r) && Path.GetFullPath(r).StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                return Path.GetFullPath(r);
+            return Path.GetFullPath(Path.Combine(root, Clean(r)));
+        }
+
         private static DocumentMovePlan Refuse(string why) => new() { Refusal = why };
 
         /// <summary>Un percorso dell'albero: senza la barra iniziale e con il separatore del sistema.</summary>

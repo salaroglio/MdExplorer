@@ -68,30 +68,6 @@ namespace MdExplorer.Features.Refactoring
             return refSourceAct;
         }
 
-        public RefactoringSourceAction SaveRefactoringActionForRenameFile(
-            string fullPath,
-            string fromFileName,
-            string toFileName)
-        {
-            var oldFullPath = fullPath + Path.DirectorySeparatorChar + fromFileName;
-            var newFullPath = fullPath + Path.DirectorySeparatorChar + toFileName;
-
-            var sourceActionDal = _engineDB.GetDal<RefactoringSourceAction>();
-            var refSourceAct = new RefactoringSourceAction
-            {
-                Action = "Rename File",
-                NewFullPath = newFullPath,
-                OldFullPath = oldFullPath,
-                NewName = toFileName,
-                OldName = fromFileName,
-                CreationDate = DateTime.Now,
-                Status = "ToDo"
-            };
-            sourceActionDal.Save(refSourceAct);
-            _engineDB.Flush();
-            return refSourceAct;
-        }
-
         public void SetInternalLinks(
             string toDestinationFileName,
             string projectBasePath,
@@ -199,49 +175,6 @@ namespace MdExplorer.Features.Refactoring
         }
 
 
-        public void SetRefactoringInvolvedFilesActionsForRenameFile(
-            //FileToRename fileData,
-            string fromFileName,
-            string toFileName,
-            string oldFullPath,
-            RefactoringSourceAction refSourceAct
-            )
-        {
-            var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
-            var listOfLink = linkInsideMdDal.GetList()
-                .Where(_ => _.FullPath.ToLower() == oldFullPath.ToLower());
-            var RefInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
-            foreach (var item in listOfLink)
-            {
-                var refactoringInvolvedFile = new RefactoringInvolvedFilesAction
-                {
-                    CreationDate = DateTime.Now,
-                    FileName = item.MarkdownFile.FileName,
-                    FullPath = item.MarkdownFile.Path,
-                    NewLinkToReplace = Regex.Replace(item.LinkedCommand,
-                            Regex.Escape(fromFileName), toFileName, RegexOptions.IgnoreCase),
-                    OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Relink",
-                    RefactoringSourceAction = refSourceAct,
-                    LinkInsideMarkdown = item
-                };
-                RefInvolvedFilesActionDal.Save(refactoringInvolvedFile);
-            }
-            _engineDB.Flush();
-        }
-
-        /// <summary>
-        /// Lo spostamento di un documento (sprint 2026-11-25-Spostamento-File-E-Link): ogni link porta dove portava prima.
-        /// Nel documento spostato i link relativi si ricalcolano dalla cartella nuova; negli altri documenti i link al vecchio
-        /// posto portano al nuovo. Si riscrive per POSIZIONE solo la destinazione (<see cref="MarkdownLinks"/>): testo
-        /// visibile, titoli, ancore e codice restano come sono.
-        /// <para>
-        /// I documenti da guardare NON vengono dall'indice dei link: un indice vecchio (su Linux aveva i percorsi con
-        /// <c>\</c>, e un file che non cambia non si reindicizza) farebbe perdere link in silenzio. Si leggono i documenti del
-        /// progetto il cui testo contiene il nome del file spostato: un link a quel file lo deve contenere.
-        /// </para>
-        /// Restituisce i documenti cambiati (percorso completo), il documento spostato compreso se è cambiato.
-        /// </summary>
         public IReadOnlyList<string> RelinkMovedDocument(string projectRoot, string oldFullPath, string newFullPath)
         {
             oldFullPath = Path.GetFullPath(oldFullPath);

@@ -260,6 +260,39 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("[A](arrivo/guida/a.md)\n", p.Read("index.md"));
         }
 
+        // ---- rinomina di un documento ----
+
+        [TestMethod]
+        public async Task Rename_a_document_and_follow_it_from_every_link_without_touching_similar_names()
+        {
+            using var p = await Project.Open("rn-documento",
+                ("docs/a.md", "# A\n\nVedi [i dati](data.md).\n"), ("docs/data.md", "# Dati\n"),
+                ("index.md", "[a.md](docs/a.md), [sezione](docs/a.md#s), [radice](/docs/a.md), [dati](docs/data.md), [r][r]\n\n[r]: docs/a.md\n"));
+
+            var (status, body) = await p.Rename("docs/a.md", "nuovo");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            StringAssert.Contains(body, "nuovo.md", "il .md si aggiunge da sé");
+            Assert.IsFalse(File.Exists(Path.Combine(p.Root, "docs", "a.md")));
+            Assert.AreEqual("# A\n\nVedi [i dati](data.md).\n", p.Read("docs/nuovo.md"), "i suoi link restano: è nella stessa cartella");
+            Assert.AreEqual("[a.md](docs/nuovo.md), [sezione](docs/nuovo.md#s), [radice](/docs/nuovo.md), [dati](docs/data.md), [r][r]\n\n[r]: docs/nuovo.md\n",
+                p.Read("index.md"), "testo visibile intatto, data.md non toccato anche se contiene «a.md»");
+        }
+
+        [TestMethod]
+        public async Task Refuse_a_rename_onto_an_existing_name_or_with_a_folder_in_it()
+        {
+            using var p = await Project.Open("rn-rifiuti", ("docs/a.md", "# A\n"), ("docs/b.md", "# B che c'era\n"), ("index.md", "[A](docs/a.md)\n"));
+
+            var (taken, takenBody) = await p.Rename("docs/a.md", "b.md");
+            var (slash, _) = await p.Rename("docs/a.md", "altra/c.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, taken, takenBody);
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, slash);
+            Assert.AreEqual("# B che c'era\n", p.Read("docs/b.md"), "il documento che c'era non è stato cancellato");
+            Assert.AreEqual("[A](docs/a.md)\n", p.Read("index.md"));
+        }
+
         // ---- infrastruttura ----
 
         /// <summary>Un progetto vero: file scritti, aperto con SetFolderProject, indicizzato fino ai link.</summary>
@@ -332,6 +365,10 @@ namespace MdExplorer.IntegrationTests
                 using var engine = _ctx.Factory.Services.GetRequiredService<IDatabaseManager>().CreateIsolatedEngineDB(_conn);
                 return engine.GetDal<MarkdownFile>().GetList().Select(m => m.Path).ToList();
             }
+
+            public Task<(System.Net.HttpStatusCode Status, string Body)> Rename(string relativeFile, string newName)
+                => _ctx.PostJson("/api/mdfiles/RenameMdFile?ConnectionId=" + _conn,
+                    JsonSerializer.Serialize(new { sourcePath = "/" + relativeFile, newName }));
 
             public string Read(string relative) => File.ReadAllText(Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar)));
 
