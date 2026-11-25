@@ -202,5 +202,69 @@ namespace MdExplorer.IntegrationTests
             Assert.IsFalse(result.Published);
             StringAssert.Contains(result.PublishProblem, "origin");
         }
+
+        [TestMethod]
+        public async Task With_a_commit_message_record_the_open_work_new_files_included_in_the_new_branch_and_publish_it()
+        {
+            var (origin, user) = Repo();
+            File.WriteAllText(Path.Combine(user, ".gitignore"), "");   // un progetto MDE vero: EnsureGitignoreEntries ci mette .worktrees/
+            Git(user, "add", ".gitignore"); Git(user, "commit", "-qm", "gitignore"); Git(user, "push", "-q", "origin", "main");
+            File.WriteAllText(Path.Combine(user, "a.txt"), "uno modificato\n");
+            File.WriteAllText(Path.Combine(user, "nuovo.txt"), "nuovo\n");
+            Directory.CreateDirectory(Path.Combine(user, ".worktrees", "agente"));
+            File.WriteAllText(Path.Combine(user, ".worktrees", "agente", "x.txt"), "copia dell'agente\n");
+            var (ctx, service, scope) = Service();
+            using var _ = ctx; using var __ = scope;
+
+            var result = await service.CreateAsync(user, "2026-11-25-per-agente", "lavoro per l'agente");
+
+            Assert.IsTrue(result.Created, result.Error);
+            Assert.IsTrue(result.Committed, result.CommitProblem);
+            Assert.IsTrue(result.Published, result.PublishProblem);
+            Assert.AreEqual("lavoro per l'agente", Git(user, "log", "-1", "--format=%s"));
+            var inCommit = Git(user, "show", "--name-only", "--format=", "HEAD");
+            StringAssert.Contains(inCommit, "a.txt");
+            StringAssert.Contains(inCommit, "nuovo.txt", "anche i file nuovi");
+            Assert.IsFalse(inCommit.Contains(".worktrees"), "le copie degli agenti restano fuori: " + inCommit);
+            Assert.AreEqual(Git(user, "rev-parse", "HEAD"), Git(origin, "rev-parse", "2026-11-25-per-agente"), "su GitHub c'è il ramo con il lavoro");
+            Assert.AreEqual("main", Git(user, "rev-parse", "--abbrev-ref", "main@{upstream}").Replace("origin/", ""));
+            Assert.AreNotEqual(Git(user, "rev-parse", "main"), Git(user, "rev-parse", "HEAD"), "main non è toccato");
+        }
+
+        [TestMethod]
+        public async Task With_a_commit_message_and_nothing_open_just_create_the_branch()
+        {
+            var (_, user) = Repo();
+            var (ctx, service, scope) = Service();
+            using var _ = ctx; using var __ = scope;
+
+            var result = await service.CreateAsync(user, "vuoto", "niente da registrare");
+
+            Assert.IsTrue(result.Created && result.Published, result.Error ?? result.PublishProblem);
+            Assert.IsFalse(result.Committed);
+            Assert.AreEqual("init", Git(user, "log", "-1", "--format=%s"));
+        }
+
+        [TestMethod]
+        public async Task When_the_commit_fails_keep_the_work_open_and_do_not_publish()
+        {
+            var (origin, user) = Repo();
+            File.WriteAllText(Path.Combine(user, "a.txt"), "uno modificato\n");
+            var hook = Path.Combine(user, ".git", "hooks", "pre-commit");
+            File.WriteAllText(hook, "#!/bin/sh\necho rifiutato >&2\nexit 1\n");
+            File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var (ctx, service, scope) = Service();
+            using var _ = ctx; using var __ = scope;
+
+            var result = await service.CreateAsync(user, "commit-rifiutato", "non passerà");
+
+            Assert.IsTrue(result.Created);
+            Assert.IsFalse(result.Committed);
+            Assert.IsNotNull(result.CommitProblem);
+            Assert.IsFalse(result.Published);
+            Assert.AreEqual("commit-rifiutato", Git(user, "branch", "--show-current"));
+            StringAssert.Contains(Git(user, "status", "--porcelain"), "a.txt", "il lavoro è ancora aperto");
+            Assert.IsFalse(Git(origin, "branch").Contains("commit-rifiutato"));
+        }
     }
 }

@@ -522,7 +522,7 @@ namespace MdExplorer.Controllers.ModernGit
             if (!ModelState.IsValid) return BadRequest(ModelState);
             SetFileSystemWatcherEnabled(false);
             Services.Git.NewBranchResult result;
-            try { result = await branches.CreateAsync(request.RepositoryPath, request.Name); }
+            try { result = await branches.CreateAsync(request.RepositoryPath, request.Name, request.CommitMessage); }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
             finally { SetFileSystemWatcherEnabled(true); }
 

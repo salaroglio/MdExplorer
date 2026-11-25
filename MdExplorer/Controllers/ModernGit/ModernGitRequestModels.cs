@@ -101,6 +101,10 @@ namespace MdExplorer.Controllers.ModernGit
 
         [StringLength(100)]
         public string ConnectionId { get; set; }
+
+        /// <summary>Facoltativo: il lavoro aperto si registra nel ramo nuovo con questo messaggio (B1, partenza dell'agente).</summary>
+        [StringLength(2000)]
+        public string CommitMessage { get; set; }
     }
 
     public class CheckoutRequest : GitOperationRequest

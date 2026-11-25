@@ -41,6 +41,10 @@ namespace MdExplorer.Services.Git
         /// <summary>Cose da sapere (HEAD staccato, submodule lasciati dove sono, GitHub non controllato…).</summary>
         public IReadOnlyList<string> Notes { get; init; } = Array.Empty<string>();
         public IReadOnlyList<string> CarriedFiles { get; init; } = Array.Empty<string>();
+        /// <summary>Con il messaggio di commit (la casella di «Prima di avviare l'agente», B1): il lavoro aperto è registrato nel ramo nuovo.</summary>
+        public bool Committed { get; init; }
+        /// <summary>Perché il commit non è riuscito: il ramo c'è e ci sei sopra, il lavoro è ancora aperto e il ramo non è pubblicato.</summary>
+        public string CommitProblem { get; init; }
     }
 
     /// <summary>
@@ -55,10 +59,13 @@ namespace MdExplorer.Services.Git
         private readonly INativeGitRunner _git;
         private readonly INativeGitTransport _transport;
         private readonly IRepoWorkflowGuard _guard;
+        private readonly AgentRun.IAgentWorktreeManager _worktree;
         private readonly ILogger<BranchCreationService> _logger;
 
-        public BranchCreationService(INativeGitRunner git, INativeGitTransport transport, IRepoWorkflowGuard guard, ILogger<BranchCreationService> logger)
+        public BranchCreationService(INativeGitRunner git, INativeGitTransport transport, IRepoWorkflowGuard guard,
+            AgentRun.IAgentWorktreeManager worktree, ILogger<BranchCreationService> logger)
         {
+            _worktree = worktree;
             _git = git;
             _transport = transport;
             _guard = guard;
@@ -96,7 +103,12 @@ namespace MdExplorer.Services.Git
             };
         }
 
-        public async Task<NewBranchResult> CreateAsync(string repositoryPath, string name, CancellationToken ct = default)
+        /// <param name="commitMessage">
+        /// Facoltativo (B1, la casella di «Prima di avviare l'agente»): dopo lo switch il lavoro aperto si registra nel ramo
+        /// nuovo con il commit di sempre di MDE (<c>add -A</c>, file nuovi compresi; <c>.worktrees/</c> resta fuori grazie al
+        /// <c>.gitignore</c>), così l'agente parte dal ramo con dentro quel lavoro. Senza messaggio è il «Nuovo ramo» della title bar.
+        /// </param>
+        public async Task<NewBranchResult> CreateAsync(string repositoryPath, string name, string commitMessage = null, CancellationToken ct = default)
         {
             Require(repositoryPath);
             name = (name ?? string.Empty).Trim();
@@ -136,10 +148,28 @@ namespace MdExplorer.Services.Git
             if (!switched.Ok) return Refused(UiText.Say("Il ramo non è stato creato: ", "The branch was not created: ") + switched.Describe());
             _logger.LogInformation("[NuovoRamo] {Repo}: creato {Branch}, {Files} file portati", repositoryPath, name, carried.Count);
 
+            var committed = false;
+            if (!string.IsNullOrWhiteSpace(commitMessage) && carried.Count > 0)
+            {
+                MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(repositoryPath);
+                var problem = await _worktree.CommitAllAsync(repositoryPath, commitMessage, ct);
+                if (problem != null)
+                {
+                    _logger.LogWarning("[NuovoRamo] {Repo}: {Branch} creato, commit non riuscito: {Error}", repositoryPath, name, problem);
+                    return new NewBranchResult
+                    {
+                        Created = true, Branch = name, Notes = notes, CarriedFiles = carried,
+                        CommitProblem = UiText.Say($"Il ramo è creato e ci sei sopra, ma il commit non è riuscito e il lavoro è ancora aperto: {problem}",
+                            $"The branch is created and you are on it, but the commit failed and the work is still open: {problem}"),
+                    };
+                }
+                committed = true;
+            }
+
             if (!hasOrigin)
                 return new NewBranchResult
                 {
-                    Created = true, Branch = name, Notes = notes, CarriedFiles = carried,
+                    Created = true, Branch = name, Notes = notes, CarriedFiles = carried, Committed = committed,
                     PublishProblem = UiText.Say("Il progetto non ha un remoto «origin»: il ramo resta su questo computer.",
                         "The project has no «origin» remote: the branch stays on this computer."),
                 };
@@ -148,7 +178,7 @@ namespace MdExplorer.Services.Git
             if (!push.Ok) _logger.LogWarning("[NuovoRamo] {Repo}: {Branch} creato ma non pubblicato: {Error}", repositoryPath, name, push.Error);
             return new NewBranchResult
             {
-                Created = true, Branch = name, Notes = notes, CarriedFiles = carried, Published = push.Ok,
+                Created = true, Branch = name, Notes = notes, CarriedFiles = carried, Committed = committed, Published = push.Ok,
                 PublishProblem = push.Ok ? null : UiText.Say($"Il ramo è creato e ci sei sopra, ma non è pubblicato: {push.Error}",
                     $"The branch is created and you are on it, but it is not published: {push.Error}"),
             };
