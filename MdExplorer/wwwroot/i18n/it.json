@@ -909,6 +909,8 @@
     "ALREADY_IN_FOLDER": "Il file è già in questa cartella",
     "MOVED_FILE": "Spostato \"{{fileName}}\" in \"{{targetName}}\"",
     "MOVED_FILES": "Spostati {{count}} documenti in {{targetName}}",
+    "RENAME_DOCUMENT": "Rinomina",
+    "RENAMED_FILE": "Rinominato \"{{oldName}}\" in \"{{newName}}\"",
     "MOVE_ERROR": "Errore nello spostamento del file: {{error}}",
     "IS_LANDING_PAGE": "{{name}} è la pagina iniziale del progetto",
     "EXPLORER_OPENED": "esplora file aperto",
@@ -3210,5 +3212,11 @@
     "WRITTEN_CORRECTED": "Scritta con la tua correzione in {{path}} (versione {{version}}): MDE la registra in git.",
     "REJECTED": "Rifiutata: non verrà riproposta senza prove nuove.",
     "COUNTS": "{{written}} scritte · {{pending}} in sospeso: puoi continuare la chat e premere di nuovo «Impara»"
+  },
+  "RENAME_DOCUMENT": {
+    "TITLE": "Rinomina il documento",
+    "NAME": "Nome",
+    "HINT": "I link verso il documento si aggiornano da soli.",
+    "SAVE": "Rinomina"
   }
 }

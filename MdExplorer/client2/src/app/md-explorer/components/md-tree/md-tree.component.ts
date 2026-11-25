@@ -9,7 +9,7 @@ import { Observable, BehaviorSubject, Subject, Subscription, fromEvent } from 'r
 import { auditTime, distinctUntilChanged, filter, map, takeUntil } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
-import { MdFileService } from '../../services/md-file.service';
+import { MdFileService, RenamedDocument } from '../../services/md-file.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
@@ -33,6 +33,7 @@ import { Router } from '@angular/router';
 import { fadeInOnEnterAnimation } from 'angular-animations';
 import { CopyFromClipboardComponent } from '../dialogs/copy-from-clipboard/copy-from-clipboard.component';
 import { MoveMdFileComponent } from '../dialogs/move-md-file/move-md-file.component';
+import { RenameDocumentComponent } from '../dialogs/rename-document/rename-document.component';
 import { AddNewFileToMDEComponent } from '../dialogs/add-new-file-to-mde/add-new-file-to-mde.component';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
@@ -975,6 +976,54 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.navigate(['/main/navigation/document']);
       }, 100);
     });
+  }
+
+  /** «Rinomina» dal menu o con F2: la finestra chiede il nome, poi l'albero e la pagina passano al nome nuovo. */
+  renameDocument(node: MdFile): void {
+    this.dialog.open(RenameDocumentComponent, { width: '420px', data: node, autoFocus: false })
+      .afterClosed().subscribe((result: RenamedDocument | null) => {
+        if (!result) return;
+        this.showRenamedInTree(node, result);
+        this.snackBar.open(this.translate.instant('MD_TREE.RENAMED_FILE', { oldName: result.oldName, newName: result.newName }),
+          'OK', { duration: 3000 });
+      });
+  }
+
+  /** F2 sul documento selezionato nell'albero, come in ogni esploratore di file; mai mentre si scrive altrove. */
+  @HostListener('document:keydown.f2', ['$event'])
+  onF2(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+    if (this.dialog.openDialogs.length > 0) return;
+    const node = this.selectedNode;
+    if (!node || !this.isMovableDocument(node)) return;
+    event.preventDefault();
+    this.renameDocument(node);
+  }
+
+  /** Il documento rinominato prende il posto del vecchio nell'albero; se era quello aperto, la pagina lo riapre. */
+  private showRenamedInTree(node: MdFile, result: RenamedDocument): void {
+    const expandedPaths = this.captureExpansionState();
+    const wasOpen = this.selectedNode?.fullPath === node.fullPath || this.activeNode?.fullPath === node.fullPath;
+    const replaceName = (p: string) => (p || '').substring(0, (p || '').length - node.name.length) + result.newName;
+    const renamed = {
+      ...node,
+      name: result.newName,
+      fullPath: result.newPath,
+      relativePath: replaceName(node.relativePath),
+      path: replaceName(node.path),
+    } as MdFile;
+    this.dndMovingPaths = [{ oldPath: result.oldPath, newPath: result.newPath }];
+    this.mdFileService.recursiveDeleteFileFromDataStore(node);
+    this.mdFileService.addFileToParent(renamed, this.getParentDirPath(result.newPath));
+    const indexed = new Set(this.indexedFilesSubject.value);
+    indexed.delete(result.oldPath);
+    indexed.add(result.newPath);
+    this.indexedFilesSubject.next(indexed);
+    this.restoreExpansionState(expandedPaths);
+    this.changeDetectorRef.markForCheck();
+    setTimeout(() => { this.dndMovingPaths = null; }, 500);
+    if (wasOpen) this.getNode(renamed);
   }
 
   moveDocument(node: MdFile):void {

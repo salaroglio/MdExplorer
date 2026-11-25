@@ -909,6 +909,8 @@
     "ALREADY_IN_FOLDER": "File is already in this folder",
     "MOVED_FILE": "Moved \"{{fileName}}\" to \"{{targetName}}\"",
     "MOVED_FILES": "Moved {{count}} documents to {{targetName}}",
+    "RENAME_DOCUMENT": "Rename",
+    "RENAMED_FILE": "Renamed \"{{oldName}}\" to \"{{newName}}\"",
     "MOVE_ERROR": "Error moving file: {{error}}",
     "IS_LANDING_PAGE": "{{name}} is project landing page",
     "EXPLORER_OPENED": "file explorer open",
@@ -3210,5 +3212,11 @@
     "WRITTEN_CORRECTED": "Written with your correction to {{path}} (version {{version}}): MDE commits it.",
     "REJECTED": "Rejected: it will not be proposed again without new evidence.",
     "COUNTS": "{{written}} written · {{pending}} pending: you can go on with the chat and press «Learn» again"
+  },
+  "RENAME_DOCUMENT": {
+    "TITLE": "Rename the document",
+    "NAME": "Name",
+    "HINT": "Links to the document are updated automatically.",
+    "SAVE": "Rename"
   }
 }

@@ -16009,6 +16009,17 @@ class MdFileService {
     });
   }
   /**
+   * Rinomina un documento: il servizio lo tratta come uno spostamento nella stessa cartella, quindi i link verso di lui
+   * si ricalcolano. `newName` con o senza `.md`.
+   */
+  renameMdFile(mdFile, newName) {
+    return this.http.post('../api/mdfiles/RenameMdFile', {
+      sourcePath: mdFile.relativePath,
+      newName,
+      level: mdFile.level ?? 0
+    });
+  }
+  /**
    * Più documenti scelti nell'albero (Ctrl/Shift) portati insieme in una cartella: il servizio controlla tutto
    * l'elenco prima e, con un nome già presente o ripetuto, non sposta niente.
    */
@@ -23612,8 +23623,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.25.9',
-  buildTime: '2026.11.25 16:31:57'
+  version: '2026.11.25.10',
+  buildTime: '2026.11.25 16:41:38'
 };
 
 /***/ }),
@@ -23647,4 +23658,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.0cc443f2c0471d32.js.map
+//# sourceMappingURL=main.b937f62dd17374bf.js.map

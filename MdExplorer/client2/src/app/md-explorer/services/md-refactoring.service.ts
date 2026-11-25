@@ -25,22 +25,19 @@ export class MdRefactoringService {
     return this.http.get<IRefactoringSourceAction[]>(url, { params });
   }
 
+  /**
+   * La finestra delle regole (nome del file come il titolo): la stessa rinomina dell'albero, quindi link ricalcolati e
+   * nessuna sovrascrittura. La risposta ha la forma che la finestra usa.
+   */
   renameFileName(data: any): Observable<IChangeFileData> {
-    console.log('🔧 [Refactoring] renameFileName chiamato con data:', data);
-    
-    const url = '../api/refactoringfiles/RenameFileName';
-    var newData = {
-      message: data.message,
-      fromFileName: data.fromFileName,
-      toFileName: data.toFileName,
-      fullPath: data.fullPath,
-      relativePath: data.relativePath,
-      level: 0 // Campo richiesto dal backend, default 0
-    }
-    
-    console.log('🔧 [Refactoring] Inviando al backend:', newData);
-    return this.http.post<IChangeFileData>(url, newData );
+    const sep = (data.fullPath || '').includes('\\') ? '\\' : '/';
+    return this.http.post<IChangeFileData>('../api/mdfiles/RenameMdFile', {
+      sourcePath: data.fullPath + sep + data.fromFileName,
+      newName: data.toFileName,
+      level: data.level ?? 0,
+    });
   }
+
 
  
 
