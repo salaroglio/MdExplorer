@@ -116,6 +116,22 @@ namespace MdExplorer.Features.Services.AI.ChatHistory
             return done;
         }
 
+        /// <summary>Una chiamata di strumento o il suo risultato, interi, dal parser del motore (F3).</summary>
+        public IReadOnlyList<ChatRecordEvent> Tool(ChatToolRecord record)
+        {
+            var done = new List<ChatRecordEvent>();
+            if (_completed || record == null) return done;
+            if (record.Kind != ChatRecordEvent.KindToolCall && record.Kind != ChatRecordEvent.KindToolResult)
+                throw new ArgumentException($"Tipo di strumento sconosciuto: «{record.Kind}».", nameof(record));
+            CloseOpen(done);
+            var e = Make(record.Kind, record.Content, record.Json);
+            e.Tool = record.Tool;
+            e.CallId = record.CallId;
+            e.IsError = record.IsError;
+            done.Add(e);
+            return done;
+        }
+
         /// <summary>Il turno è finito: chiude il blocco aperto. Dopo, gli eventi si ignorano.</summary>
         public IReadOnlyList<ChatRecordEvent> Complete()
         {

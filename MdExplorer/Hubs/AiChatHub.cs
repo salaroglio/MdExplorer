@@ -56,6 +56,10 @@ namespace MdExplorer.Hubs
         private CancellationToken? _turnAborted;
         private ToolExecutor _turnToolExecutor;
         private Abstractions.DB.IUserSettingsDB _turnUserSettingsDB;
+        /// <summary>La registrazione del turno nella cronologia: i parser vi mandano chiamate e risultati interi degli strumenti.</summary>
+        private Services.ChatHistory.ChatTurnRecording _turnRecording;
+        /// <summary>Connessioni a cui si è già detto che il CLI di Claude non dà il testo del ragionamento: una volta sola.</summary>
+        private static readonly ConcurrentDictionary<string, byte> _toldNoClaudeThinking = new();
 
         private string ConnectionId => _turnConnectionId ?? Context.ConnectionId;
         private IClientProxy Caller => _turnCaller ?? Clients.Caller;
@@ -405,6 +409,7 @@ namespace MdExplorer.Hubs
             // La chat si registra mentre succede: il client del turno inoltra tutto e intanto lo scrive nella cronologia.
             var recording = BeginChatRecording(connectionId, channelId);
             record?.Invoke(recording);
+            _turnRecording = recording;
             IClientProxy recordingCaller = new Services.ChatHistory.RecordingClientProxy(caller, recording, channelId);
             _turnCaller = recordingCaller;
             _turnToolExecutor = scope.ServiceProvider.GetRequiredService<ToolExecutor>();
@@ -809,6 +814,7 @@ namespace MdExplorer.Hubs
             _connectionHistories.TryRemove(ConnectionId, out _);
             _connectionProjectConnectionIds.TryRemove(ConnectionId, out _);
             _chatHistory.Forget(ConnectionId);
+            _toldNoClaudeThinking.TryRemove(ConnectionId, out _);
             // La fila dei turni: chi la sta usando ne tiene il riferimento e la rilascia lo stesso.
             _turnGates.TryRemove(ConnectionId, out _);
             // Kill any persistent Copilot session (SDK or ACP) attached to this connection.
@@ -1171,6 +1177,16 @@ namespace MdExplorer.Hubs
             await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "claudecode", modelId = effectiveModel, transport = "stream-json" }, channelId);
 
+            // Senza --thinking-display il CLI in -p manda il ragionamento VUOTO: lo si dice una volta, non lo si nasconde.
+            if (string.IsNullOrEmpty(session.ThinkingDisplay) && _toldNoClaudeThinking.TryAdd(ConnectionId, 0))
+            {
+                await Caller.SendAsync("ReceiveMessage", "system", MdExplorer.Features.Services.UiText.Say(
+                    $"Il Claude Code installato ({session.CliVersion ?? "versione sconosciuta"}) non manda il testo del ragionamento: "
+                    + "aggiornalo con `npm i -g @anthropic-ai/claude-code` per vederlo qui e averlo nella cronologia.",
+                    $"The installed Claude Code ({session.CliVersion ?? "unknown version"}) does not send the reasoning text: "
+                    + "update it with `npm i -g @anthropic-ai/claude-code` to see it here and keep it in the history."));
+            }
+
             var promptText = string.IsNullOrEmpty(currentDoc)
                 ? userMessage
                 : $"[Documento corrente: {currentDoc}]\n\n{userMessage}";
@@ -1199,7 +1215,10 @@ namespace MdExplorer.Hubs
                         // Attività sui tool: è una riga di stato, non la risposta, e non entra
                         // nel testo finale. Copilot la manda sullo stesso canale, ma solo col
                         // trasporto SDK: sull'ACP questa informazione non esiste.
-                        await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                        // La chiamata e il risultato interi vanno nella cronologia; a video resta la riga corta.
+                        if (chunk.Record != null) _turnRecording?.Tool(chunk.Record);
+                        if (!string.IsNullOrEmpty(chunk.Text))
+                            await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }

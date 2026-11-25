@@ -14,7 +14,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
     {
         public string Kind { get; }
         public string Text { get; }
-        public ClaudeCodeChunk(string kind, string text) { Kind = kind; Text = text; }
+        /// <summary>Per <see cref="KindTool"/>: la chiamata o il risultato interi, per la cronologia della chat. Può mancare.</summary>
+        public MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord Record { get; }
+        public ClaudeCodeChunk(string kind, string text) { Kind = kind; Text = text; Record = null; }
+        public ClaudeCodeChunk(string kind, string text, MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord record)
+        { Kind = kind; Text = text; Record = record; }
 
         /// <summary>Testo visibile della risposta (delta <c>text_delta</c>).</summary>
         public const string KindMessage = "message";
@@ -164,6 +168,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// conversazione riparte da dove era, anche dopo un riavvio del processo o di MDE.
         /// </summary>
         public string ResumeSessionId { get; init; }
+
+        /// <summary>
+        /// <c>--thinking-display</c>. null = automatico: <c>summarized</c> se il CLI installato conosce l'opzione
+        /// (<see cref="ClaudeCodeCliFeatures"/>); stringa vuota = non passarla. Senza, in <c>-p</c> il testo del
+        /// ragionamento arriva VUOTO (solo i conteggi dei token): verificato il 25/11/2026 su claude 2.1.331.
+        /// </summary>
+        public string ThinkingDisplay { get; init; }
 
         /// <summary>
         /// Regole di divieto in più (<c>--disallowedTools</c>), per esempio <c>Read(//percorso/**)</c> per un

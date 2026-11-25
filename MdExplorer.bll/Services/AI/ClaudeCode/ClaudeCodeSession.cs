@@ -99,6 +99,15 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         public string EffectiveModel { get; private set; }
         /// <summary>Versione del CLI, dall'ultimo <c>init</c>.</summary>
         public string CliVersion { get; private set; }
+
+        /// <summary>
+        /// Il <c>--thinking-display</c> con cui è partito il processo; null o vuoto = nessuno, e allora il testo del
+        /// ragionamento non arriva (solo i conteggi). Chi mostra la chat lo dice all'utente.
+        /// </summary>
+        public string ThinkingDisplay { get; private set; }
+
+        // I nomi degli strumenti per id della chiamata: il risultato porta solo l'id.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _toolNames = new(StringComparer.Ordinal);
         /// <summary>Consuntivo dell'ultimo turno concluso (costo, token, durata).</summary>
         public ClaudeCodeTurnUsage LastTurnUsage { get; private set; }
         /// <summary>Ultimo stato noto delle finestre di consumo dell'abbonamento.</summary>
@@ -123,6 +132,10 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// poter leggere in un test o in un log senza lanciare niente.
         /// </summary>
         public static string BuildArguments(string modelId, ClaudeCodeSessionOptions options)
+            => BuildArguments(modelId, options, (options ?? ClaudeCodeSessionOptions.Default).ThinkingDisplay);
+
+        /// <param name="thinkingDisplay">Il valore di <c>--thinking-display</c> già deciso; null o vuoto = non passarlo.</param>
+        public static string BuildArguments(string modelId, ClaudeCodeSessionOptions options, string thinkingDisplay)
         {
             options ??= ClaudeCodeSessionOptions.Default;
             var sb = new StringBuilder();
@@ -187,6 +200,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 sb.Append(" --resume ").Append(Quote(options.ResumeSessionId));
             }
 
+            if (!string.IsNullOrWhiteSpace(thinkingDisplay))
+            {
+                sb.Append(" --thinking-display ").Append(Quote(thinkingDisplay));
+            }
+
             return sb.ToString();
         }
 
@@ -237,7 +255,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                         "does not work. Set an API key or leave Bare = false."));
             }
 
-            var arguments = BuildArguments(_modelId, _options);
+            ThinkingDisplay = _options.ThinkingDisplay ?? ClaudeCodeCliFeatures.DefaultThinkingDisplay(_logger);
+            var arguments = BuildArguments(_modelId, _options, ThinkingDisplay);
             var psi = ClaudeCodeProcessLauncher.BuildStartInfo(arguments);
             psi.RedirectStandardInput = true;
             psi.RedirectStandardOutput = true;
@@ -622,6 +641,30 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             }
         }
 
+        /// <summary>
+        /// Solo per i test: passa al parser righe NDJSON registrate da un CLI vero e restituisce i pezzi che ne escono,
+        /// come se arrivassero durante un turno. Nessun processo.
+        /// </summary>
+        internal IReadOnlyList<ClaudeCodeChunk> DispatchRecordedLines(IEnumerable<string> lines)
+        {
+            var channel = Channel.CreateUnbounded<ClaudeCodeChunk>();
+            _activeStreamChannel = channel;
+            try
+            {
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    using var doc = SafeParse(line);
+                    if (doc != null) Dispatch(doc.RootElement);
+                }
+            }
+            finally { _activeStreamChannel = null; }
+            channel.Writer.TryComplete();
+            var chunks = new List<ClaudeCodeChunk>();
+            while (channel.Reader.TryRead(out var chunk)) chunks.Add(chunk);
+            return chunks;
+        }
+
         private void Dispatch(JsonElement root)
         {
             if (!root.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String) return;
@@ -745,9 +788,14 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             {
                 if (!block.TryGetProperty("type", out var bt) || bt.GetString() != "tool_use") continue;
                 var name = block.TryGetProperty("name", out var n) ? n.GetString() : "?";
+                var callId = block.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? idEl.GetString() : null;
+                if (callId != null) _toolNames[callId] = name;
                 if (block.TryGetProperty("input", out var toolInput)) _diagrams?.ToolInput(toolInput);
                 var input = block.TryGetProperty("input", out var i) ? Truncate(i.GetRawText(), 160) : string.Empty;
-                Emit(ClaudeCodeChunk.KindTool, $"{name} {input}");
+                // A video la riga corta; nella cronologia gli argomenti interi.
+                Emit(ClaudeCodeChunk.KindTool, $"{name} {input}",
+                    MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Call(name, callId,
+                        block.TryGetProperty("input", out var whole) ? whole.Clone() : (JsonElement?)null));
             }
         }
 
@@ -772,7 +820,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             {
                 if (!block.TryGetProperty("type", out var bt) || bt.GetString() != "tool_result") continue;
                 var isError = block.TryGetProperty("is_error", out var e) && e.ValueKind == JsonValueKind.True;
-                Emit(ClaudeCodeChunk.KindTool, isError ? "↳ errore" : "↳ ok");
+                var callId = block.TryGetProperty("tool_use_id", out var idEl) && idEl.ValueKind == JsonValueKind.String ? idEl.GetString() : null;
+                string tool = null;
+                if (callId != null) _toolNames.TryRemove(callId, out tool);
+                // Il risultato strutturato (stdout/stderr di Bash, il file letto…) sta fuori dal messaggio, alla radice.
+                JsonElement? structured = root.TryGetProperty("tool_use_result", out var tur) ? tur.Clone() : null;
+                Emit(ClaudeCodeChunk.KindTool, isError ? "↳ errore" : "↳ ok",
+                    MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord.Result(tool, callId, ToolResultText(block), structured, isError));
             }
         }
 
@@ -900,6 +954,33 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         {
             if (string.IsNullOrEmpty(text)) return;
             _activeStreamChannel?.Writer.TryWrite(new ClaudeCodeChunk(kind, text));
+        }
+
+        private void Emit(string kind, string text, MdExplorer.Features.Services.AI.ChatHistory.ChatToolRecord record)
+        {
+            if (string.IsNullOrEmpty(text) && record == null) return;
+            _activeStreamChannel?.Writer.TryWrite(new ClaudeCodeChunk(kind, text, record));
+        }
+
+        /// <summary>
+        /// Il testo intero di un <c>tool_result</c>: una stringa, oppure una lista di blocchi (testo, immagini…). I blocchi
+        /// che non sono testo restano come JSON: niente sparisce.
+        /// </summary>
+        internal static string ToolResultText(JsonElement block)
+        {
+            if (!block.TryGetProperty("content", out var content)) return string.Empty;
+            if (content.ValueKind == JsonValueKind.String) return content.GetString();
+            if (content.ValueKind != JsonValueKind.Array) return content.GetRawText();
+            var parts = new List<string>();
+            foreach (var part in content.EnumerateArray())
+            {
+                if (part.ValueKind == JsonValueKind.Object && part.TryGetProperty("type", out var t) && t.GetString() == "text"
+                    && part.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
+                    parts.Add(text.GetString());
+                else
+                    parts.Add(part.GetRawText());
+            }
+            return string.Join("\n", parts);
         }
 
         private string DescribeStderr()

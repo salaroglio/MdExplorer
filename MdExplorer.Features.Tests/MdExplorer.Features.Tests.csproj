@@ -48,6 +48,10 @@
     <None Update="Yaml\Inputs\ParseYaml.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <!-- Flussi registrati da motori veri (sprint 2026-11-24-Chat-Memorizzate, F0), ripuliti dai dati della macchina. -->
+    <None Update="ClaudeCode\Fixtures\*.ndjson">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

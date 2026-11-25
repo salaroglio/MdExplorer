@@ -196,6 +196,8 @@ namespace MdExplorer.Services.ChatHistory
         public void UserPrompt(string text) => Run(a => a.UserPrompt(text));
         public void Meta(string what, object data) => Run(a => a.Meta(what, data));
         public void OnClientEvent(string method, object[] args) => Run(a => a.OnClientEvent(method, args));
+        /// <summary>Una chiamata di strumento o il suo risultato, interi, dal parser del motore.</summary>
+        public void Tool(ChatToolRecord record) => Run(a => a.Tool(record));
 
         /// <summary>Fine del turno: chiude il blocco aperto e aggiorna la riga della cronologia.</summary>
         public void Complete()
