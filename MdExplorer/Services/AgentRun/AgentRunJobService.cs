@@ -356,7 +356,7 @@ namespace MdExplorer.Services.AgentRun
                     [MdExplorer.Features.Agents.LlmAgentWaker.EnvAgentName] = a2aName ?? string.Empty,
                     [MdExplorer.Features.Agents.LlmAgentWaker.EnvProjectPath] = request.ProjectPath ?? string.Empty,
                 };
-                foreach (var kv in AgentGitIdentity.EnvFor(gitName))
+                foreach (var kv in await _worktree.AgentGitIdentityAsync(request.ProjectPath, gitName, cts.Token))
                     env[kv.Key] = kv.Value;
 
                 // Il motore (sprint 2026-09-29-Motore-LLM-Unico, D3/D12): la scelta della finestra di lancio,

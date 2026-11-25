@@ -136,6 +136,12 @@ namespace MdExplorer.Services.AgentRun
         Task<WorktreePrepareResult> ContinueChainAsync(
             string projectPath, string expectedBranch, CancellationToken ct = default);
 
+        /// <summary>
+        /// La firma git di un turno: autore l'agente, committer la persona responsabile su questo computer (il nome e
+        /// l'email git del progetto, o l'identità impersonata nei test). Persona sconosciuta = solo l'agente.
+        /// </summary>
+        Task<IReadOnlyDictionary<string, string>> AgentGitIdentityAsync(string projectPath, string agentName, CancellationToken ct = default);
+
         Task<WorktreePrepareResult> PrepareForRunAsync(
             string projectPath, string agentName, string activityId,
             string baseBranch = null, string handoffRef = null, CancellationToken ct = default);
@@ -371,6 +377,30 @@ namespace MdExplorer.Services.AgentRun
             _hold = hold;
             _ownerIdentity = ownerIdentity;
             _preference = preference;
+        }
+
+        public async Task<IReadOnlyDictionary<string, string>> AgentGitIdentityAsync(string projectPath, string agentName, CancellationToken ct = default)
+        {
+            var (name, email) = await ResponsiblePersonAsync(projectPath, ct);
+            return AgentGitIdentity.EnvFor(agentName, name, email);
+        }
+
+        /// <summary>La persona che risponde degli agenti di questo computer: chi ne autorizza la partenza e ne approva il lavoro.</summary>
+        private async Task<(string Name, string Email)> ResponsiblePersonAsync(string projectPath, CancellationToken ct)
+        {
+            try
+            {
+                var owner = _ownerIdentity?.Resolve(projectPath);
+                if (string.IsNullOrWhiteSpace(owner?.Email)) return (null, null);
+                if (owner.Impersonated) return (owner.Email, owner.Email);
+                var (c, name, _) = await GitAsync(projectPath, new[] { "config", "user.name" }, ct);
+                return (c == 0 && !string.IsNullOrWhiteSpace(name) ? name.Trim() : owner.Email, owner.Email);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "[Worktree] persona responsabile non leggibile per '{Project}': firma solo dell'agente.", projectPath);
+                return (null, null);
+            }
         }
 
         public string WorktreeRootForProject(string projectPath)
@@ -1011,7 +1041,7 @@ namespace MdExplorer.Services.AgentRun
             await gate.WaitAsync(ct);
             try
             {
-                var identity = AgentGitIdentity.EnvFor(agentName);
+                var identity = await AgentGitIdentityAsync(projectPath, agentName, ct);
                 await GitAsync(worktreePath, new[] { "add", "-A" }, ct);
 
                 // Distinguo "nulla in attesa di commit" (ok, si prosegue) da un commit FALLITO (index.lock,
@@ -1206,9 +1236,13 @@ namespace MdExplorer.Services.AgentRun
                 var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "--detach", "origin/" + def }, ct);
                 if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return new DeliverableMerge(DeliverableMergeOutcome.Failed); }
 
-                // Il commit di merge, se serve, porta la firma dell'agente: lo stesso che ha scritto il lavoro.
-                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", "-m", $"Merge branch '{activityBranch}' ({seen})", seen }, ct,
-                    AgentGitIdentity.EnvFor(agentName));
+                // Il commit di merge lo firma chi approva: è la persona che fa entrare il lavoro dell'agente, e ne risponde.
+                // --no-ff: anche quando il default non è avanzato l'approvazione resta scritta nella storia, con il suo nome.
+                // I commit dell'agente restano suoi (autore), con il responsabile come committer.
+                var (approverName, approverEmail) = await ResponsiblePersonAsync(projectPath, ct);
+                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-ff", "--no-edit", "-m",
+                        $"Merge branch '{activityBranch}' ({seen}): lavoro di {agentName}, approvato", seen }, ct,
+                    approverEmail != null ? AgentGitIdentity.EnvForPerson(approverName, approverEmail) : AgentGitIdentity.EnvFor(agentName));
                 if (mc != 0)
                 {
                     await GitAsync(worktreePath, new[] { "merge", "--abort" }, ct);

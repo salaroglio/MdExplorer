@@ -565,6 +565,7 @@ namespace MdExplorer.Services.AgentRun
                         // cambiato motore, il modello della scheda non vale più: decide il suo, o il predefinito.
                         RuntimeProvider = snapshot.StartProvider ?? entry.RuntimeProvider,
                         RuntimeModel = snapshot.StartProvider != null ? snapshot.StartModel : snapshot.StartModel ?? entry.RuntimeModel,
+                        GitIdentity = await _worktree.AgentGitIdentityAsync(snapshot.ProjectPath, entry.Name, ct),
                     }, ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
