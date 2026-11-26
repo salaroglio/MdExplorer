@@ -4733,6 +4733,24 @@ class ProjectSettingsService {
     });
   }
   /**
+   * La chat di MarkAgent può leggere pagine web in questo progetto: scelta di questo utente (userdb), spenta di default.
+   */
+  getChatWebAccessSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetChatWebAccessSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setChatWebAccessSetting(enabled, projectPath) {
+    const url = '../api/ProjectSettings/SetChatWebAccessSetting';
+    return this.http.post(url, {
+      enabled,
+      projectPath
+    });
+  }
+  /**
    * Modello di Claude Code per MarkAgent in questo progetto: un id dell'elenco del CLI.
    * null = mai scelto (la chat usa sonnet).
    */
@@ -9484,4 +9502,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.6c7accc552bf9d6e.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.0047de009ea5f8be.js.map

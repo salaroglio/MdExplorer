@@ -31,5 +31,13 @@ namespace MdExplorer.Features.Tests.AI
                 Assert.AreEqual("deny", bash[command + " *"]!.GetValue<string>(), command + " *");
             }
         }
+
+        [TestMethod]
+        public void Ask_for_the_web_so_each_project_answers_with_its_own_choice()
+        {
+            var permission = JsonNode.Parse(RemoteCopyShellRules.OpenCodeChatConfig())!["permission"]!.AsObject();
+            foreach (var web in MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.WebPermissions)
+                Assert.AreEqual("ask", permission[web]!.GetValue<string>(), web + ": il default di opencode («allow») apriva il web a ogni chat");
+        }
     }
 }

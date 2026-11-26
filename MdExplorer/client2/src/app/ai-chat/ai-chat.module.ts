@@ -16,6 +16,7 @@ import { MatLegacySelectModule as MatSelectModule } from '@angular/material/lega
 import { MatLegacyInputModule as MatInputModule } from '@angular/material/legacy-input';
 import { MatLegacyTooltipModule as MatTooltipModule } from '@angular/material/legacy-tooltip';
 import { MatLegacyDialogModule as MatDialogModule } from '@angular/material/legacy-dialog';
+import { MatLegacySlideToggleModule as MatSlideToggleModule } from '@angular/material/legacy-slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 
 // Components
@@ -50,6 +51,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     MatCardModule,
     MatButtonModule,
+    MatSlideToggleModule,
     MatIconModule,
     MatToolbarModule,
     MatProgressBarModule,

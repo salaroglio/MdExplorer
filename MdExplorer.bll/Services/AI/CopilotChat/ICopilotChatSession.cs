@@ -84,6 +84,13 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         /// </summary>
         string ExtraRootsKey => string.Empty;
 
+        /// <summary>
+        /// La chat può leggere pagine web (<c>Project.ChatWebAccessEnabled</c>). L'hub la imposta a ogni messaggio, così un
+        /// cambio nella rotella vale dal messaggio dopo senza riavviare la sessione. Il trasporto ACP non la gestisce: resta
+        /// com'era (le sue regole le dà la riga di comando del CLI).
+        /// </summary>
+        bool WebAccess { get => false; set { } }
+
         public static string RootsKey(IReadOnlyList<string> roots) => roots == null ? string.Empty : string.Join("\n", roots);
 
         /// <summary>

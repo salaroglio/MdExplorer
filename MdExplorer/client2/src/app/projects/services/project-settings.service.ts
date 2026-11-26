@@ -185,6 +185,19 @@ export class ProjectSettingsService {
   }
 
   /**
+   * La chat di MarkAgent può leggere pagine web in questo progetto: scelta di questo utente (userdb), spenta di default.
+   */
+  getChatWebAccessSetting(projectPath: string): Observable<{ enabled: boolean }> {
+    const url = '../api/ProjectSettings/GetChatWebAccessSetting';
+    return this.http.get<{ enabled: boolean }>(url, { params: { projectPath } });
+  }
+
+  setChatWebAccessSetting(enabled: boolean, projectPath: string): Observable<{ enabled: boolean }> {
+    const url = '../api/ProjectSettings/SetChatWebAccessSetting';
+    return this.http.post<{ enabled: boolean }>(url, { enabled, projectPath });
+  }
+
+  /**
    * Modello di Claude Code per MarkAgent in questo progetto: un id dell'elenco del CLI.
    * null = mai scelto (la chat usa sonnet).
    */

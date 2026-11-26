@@ -168,7 +168,9 @@ namespace MdExplorer.Utilities
         /// consentita". Paths relative to the session folder, the project.
         /// </para>
         /// </summary>
-        public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument, IReadOnlyList<string> codeRoots = null) => new ClaudeCodeSessionOptions
+        /// <param name="webAccess">«Consenti alla chat l'accesso al web» del progetto: WebFetch e WebSearch autorizzati. Spento,
+        /// in dontAsk restano negati come prima. Cambiato → il pool riavvia la sessione riprendendo la conversazione.</param>
+        public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument, IReadOnlyList<string> codeRoots = null, bool webAccess = false) => new ClaudeCodeSessionOptions
         {
             McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
             McpGroups = mcpGroupsArgument ?? string.Empty,   // cambiati → il pool riavvia con --resume (D28)
@@ -178,8 +180,12 @@ namespace MdExplorer.Utilities
             AdditionalDirectories = codeRoots ?? Array.Empty<string>(),
             AllowedTools = new[] { "Edit(./**)", "Write(./**)" }
                 .Concat((codeRoots ?? Array.Empty<string>()).SelectMany(r => new[] { AbsoluteRule("Read", r), AbsoluteRule("Edit", r), AbsoluteRule("Write", r) }))
+                .Concat(webAccess ? WebTools : Array.Empty<string>())
                 .ToArray(),
         };
+
+        /// <summary>Gli strumenti di Claude Code che leggono la rete, autorizzati quando il progetto accende l'accesso al web.</summary>
+        public static readonly string[] WebTools = { "WebFetch", "WebSearch" };
 
         /// <summary>
         /// Una regola di permesso di Claude Code su un percorso assoluto: <c>Edit(//home/x/backend/**)</c>. Il doppio «/» è

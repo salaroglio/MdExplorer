@@ -95,6 +95,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>
+        /// La chat di MarkAgent può leggere pagine web in questo progetto (Copilot: le richieste di indirizzo; Claude:
+        /// <c>WebFetch</c>/<c>WebSearch</c>; opencode: <c>webfetch</c>/<c>websearch</c>). Per utente e per progetto, spenta di
+        /// default. Non apre nient'altro: shell, ssh/scp e scritture restano con le loro regole. Migrazione M2026_11_26_001.
+        /// </summary>
+        public virtual bool ChatWebAccessEnabled { get; set; } = false;
+
+        /// <summary>
         /// Isolamento worktree per-agente su QUESTA macchina. <c>null</c> = non deciso → default
         /// (acceso se il progetto è git con remoto <c>origin</c>). Vive qui e non nel
         /// <c>.development.yml</c> perché costa spazio disco locale: è una scelta della macchina,

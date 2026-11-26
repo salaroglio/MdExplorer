@@ -33,6 +33,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.ClaudeCodeDescriptionModel).Length(200).Nullable();
             Map(_ => _.OpenCodeCodeDescriptionModel).Length(200).Nullable();
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
+            Map(_ => _.ChatWebAccessEnabled).Not.Nullable().Default("0");
             Map(_ => _.UseAgentWorktrees).Nullable();
             Map(_ => _.AgentWorktreeSlots).Nullable();
             Map(_ => _.IndexAllTextFiles).Not.Nullable().Default("0");

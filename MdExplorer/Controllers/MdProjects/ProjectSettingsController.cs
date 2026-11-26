@@ -306,6 +306,56 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         /// <summary>
+        /// La chat di MarkAgent può leggere pagine web in questo progetto? Per utente e per progetto (userdb), spenta di
+        /// default. Un progetto che non c'è risponde «spenta», come le altre impostazioni lette qui.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetChatWebAccessSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                return Ok(new { enabled = FindProject(projectPath)?.ChatWebAccessEnabled ?? false });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting ChatWebAccess setting");
+                return StatusCode(500, new { error = "Failed to get ChatWebAccess setting" });
+            }
+        }
+
+        /// <summary>
+        /// Accende o spegne la lettura del web per la chat di questo progetto. Vale dal prossimo messaggio: Copilot e
+        /// opencode la leggono a ogni richiesta di permesso, Claude riparte da solo riprendendo la conversazione.
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetChatWebAccessSetting([FromBody] SetChatWebAccessRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var project = FindProject(request.ProjectPath);
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning("[SetChatWebAccessSetting] Project not found for path: '{Path}'", request.ProjectPath);
+                    return NotFound(new { error = "Project not found" });
+                }
+                project.ChatWebAccessEnabled = request.Enabled;
+                _userSettingsDB.GetDal<Project>().Save(project);
+                _userSettingsDB.Commit();
+                return Ok(new { enabled = project.ChatWebAccessEnabled });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving ChatWebAccess setting");
+                return StatusCode(500, new { error = "Failed to save ChatWebAccess setting" });
+            }
+        }
+
+        /// <summary>
         /// Il motore di MarkAgent per un progetto, e da dove viene.
         /// <para>
         /// Una risposta sola perché la domanda è una sola: qual è l'ambiente agentico di questo
@@ -962,6 +1012,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
     }
 
     public class SetLinkIndexingRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetChatWebAccessRequest
     {
         public bool Enabled { get; set; }
         public string ProjectPath { get; set; }

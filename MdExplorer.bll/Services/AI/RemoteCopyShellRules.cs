@@ -31,13 +31,18 @@ namespace MdExplorer.Features.Services.AI
             => Commands.SelectMany(c => new[] { new KeyValuePair<string, string>(c, "deny"), new KeyValuePair<string, string>(c + " *", "deny") });
 
         /// <summary>
-        /// <c>OPENCODE_CONFIG_CONTENT</c> del server della chat: solo i divieti, che si sommano alla configurazione dell'utente.
+        /// <c>OPENCODE_CONFIG_CONTENT</c> del server della chat: i divieti, che si sommano alla configurazione dell'utente, e il
+        /// web su «ask». Il server è uno per tutti i progetti, mentre l'accesso al web si sceglie per progetto: così ogni domanda
+        /// arriva alla sessione, che risponde con la scelta del suo progetto (<c>OpenCodeSession.ChatReply</c>). Senza, il
+        /// default di opencode («allow») apriva il web a ogni chat.
         /// </summary>
         public static string OpenCodeChatConfig()
         {
             var bash = new JsonObject();
             foreach (var rule in OpenCode) bash[rule.Key] = rule.Value;
-            return new JsonObject { ["permission"] = new JsonObject { ["bash"] = bash } }.ToJsonString();
+            var permission = new JsonObject { ["bash"] = bash };
+            foreach (var web in MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.WebPermissions) permission[web] = "ask";
+            return new JsonObject { ["permission"] = permission }.ToJsonString();
         }
     }
 }

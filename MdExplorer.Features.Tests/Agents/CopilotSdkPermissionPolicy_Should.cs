@@ -112,6 +112,17 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsNotNull(verdict.Reason, "a refusal must say why");
         }
 
+        [TestMethod]
+        public void OpenTheWeb_OnlyWhenTheProjectAllowsIt_AndNeverInAnE2eSession()
+        {
+            var url = new PermissionRequestUrl { Url = "https://example.com/syllabus.pdf", Intention = "test" };
+            Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(url, Project, allowWeb: true).Approved, "acceso dalla rotella");
+            Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(url, Project, allowWeb: false).Approved, "spento: come prima");
+            Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(url, Project, (MdExplorer.Features.Services.AI.CopilotChat.CopilotSessionProfile)null, null, allowWeb: true).Approved,
+                "chat normale passata dall'overload col profilo");
+            Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(Shell("ssh host cat x"), Project, allowWeb: true).Approved, "il web non apre ssh");
+        }
+
         private static PermissionRequestShell ShellParsed(string command, params string[] identifiers)
             => new PermissionRequestShell
             {

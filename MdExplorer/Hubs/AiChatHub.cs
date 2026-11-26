@@ -1281,7 +1281,8 @@ namespace MdExplorer.Hubs
             // nelle impostazioni vale dalla prossima chat.
             var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(
                 MdExplorer.Service.ProjectsManager.McpGroupsArgument(UserSettings, projectPath),
-                await LinkedCodeRootsAsync(projectPath));
+                await LinkedCodeRootsAsync(projectPath),
+                MdExplorer.Service.ProjectsManager.ChatWebAccessEnabled(UserSettings, projectPath));
             var session = await _claudeCodePool.GetOrCreateAsync(
                 ConnectionId, projectPath, effectiveModel, options);
 
@@ -1438,6 +1439,9 @@ namespace MdExplorer.Hubs
             }
 
             var session = await _openCodePool.GetOrCreateAsync(ConnectionId, projectPath, modelId, await LinkedCodeRootsAsync(projectPath));
+            // La rotella di MarkAgent, letta a ogni messaggio: il server opencode è uno per tutti i progetti, quindi
+            // webfetch/websearch li chiede e la risposta la dà la sessione, con la scelta di QUESTO progetto.
+            session.WebAccess = MdExplorer.Service.ProjectsManager.ChatWebAccessEnabled(UserSettings, projectPath);
 
             await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "opencode", modelId = modelId, transport = "serve-sse" }, channelId);
@@ -1573,6 +1577,8 @@ namespace MdExplorer.Hubs
             var requestedModel = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
             var session = await _copilotChatPool.GetOrCreateAsync(
                 ConnectionId, projectPath, requestedModel, await LinkedCodeRootsAsync(projectPath));
+            // La rotella di MarkAgent, letta a ogni messaggio: vale subito, senza riavviare la sessione.
+            session.WebAccess = MdExplorer.Service.ProjectsManager.ChatWebAccessEnabled(UserSettings, projectPath);
 
             await Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);

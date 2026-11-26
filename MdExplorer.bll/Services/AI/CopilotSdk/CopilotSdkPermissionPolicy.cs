@@ -49,7 +49,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// and no reading of the credentials and secrets files. Everything else as <see cref="Decide(PermissionRequest, string)"/>.
         /// </summary>
         public static Verdict Decide(PermissionRequest request, string workingDirectory, CopilotChat.CopilotSessionProfile profile,
-            IReadOnlyList<string> extraRoots = null)
+            IReadOnlyList<string> extraRoots = null, bool allowWeb = false)
         {
             if (profile != null)
             {
@@ -74,7 +74,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     return new Verdict(false, "scrivere " + write.FileName,
                         MdExplorer.Features.Services.UiText.Say("durante i test e2e la configurazione degli agenti non si modifica", "during e2e tests the agents configuration is not changed"));
             }
-            return Decide(request, workingDirectory, extraRoots);
+            // Un profilo e2e il web non lo apre mai, qualunque sia la scelta del progetto.
+            return Decide(request, workingDirectory, extraRoots, allowWeb && profile == null);
         }
 
         private static string Full(string path, string workingDirectory) =>
@@ -137,7 +138,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
         /// <param name="extraRoots">Le radici di codice esterne collegate del progetto (radici esterne F3, R3): dentro, MarkAgent
         /// legge e scrive come nel progetto. Il resto fuori resta negato.</param>
-        public static Verdict Decide(PermissionRequest request, string workingDirectory, IReadOnlyList<string> extraRoots = null)
+        /// <param name="allowWeb">L'utente ha acceso «Consenti alla chat l'accesso al web» per questo progetto
+        /// (<c>Project.ChatWebAccessEnabled</c>): le richieste di indirizzo web sono approvate. Spento = negate, come prima.</param>
+        public static Verdict Decide(PermissionRequest request, string workingDirectory, IReadOnlyList<string> extraRoots = null, bool allowWeb = false)
         {
             switch (request)
             {
@@ -165,8 +168,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     return new Verdict(true, "usare la memoria dell'agente", null);
 
                 case PermissionRequestUrl url:
-                    return new Verdict(false, "aprire " + url.Url,
-                        MdExplorer.Features.Services.UiText.Say("la chat di MDE non autorizza l'accesso a indirizzi web", "the MDE chat does not allow access to web addresses"));
+                    return allowWeb
+                        ? new Verdict(true, "aprire " + url.Url, null)
+                        : new Verdict(false, "aprire " + url.Url,
+                            MdExplorer.Features.Services.UiText.Say("in questo progetto la chat non ha l'accesso al web: si accende dalla rotella di MarkAgent, «Consenti alla chat l'accesso al web»",
+                                "in this project the chat has no web access: turn it on from the MarkAgent gear, «Allow the chat to access the web»"));
 
                 default:
                     return new Verdict(false, "richiesta di tipo " + (request?.Kind ?? "sconosciuto"),

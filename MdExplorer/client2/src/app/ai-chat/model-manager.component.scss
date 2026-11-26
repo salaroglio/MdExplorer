@@ -388,3 +388,23 @@ mat-chip.brand-github-green-bg {
 
 // NOTE: nessun override dark/milan necessario — tutte le superfici e i testi
 // usano i token globali; le card provider mantengono gli header gradient brand.
+
+// La chat di questo progetto (accesso al web): in cima, prima dei motori.
+.project-chat-settings {
+  margin: 0 0 20px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--mde-border-color);
+  border-radius: 8px;
+
+  .project-chat-settings-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--mde-text-secondary);
+  }
+
+  .project-chat-settings-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--mde-error-fg);
+  }
+}

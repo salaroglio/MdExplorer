@@ -37,5 +37,18 @@ namespace MdExplorer.Features.Tests.AI
                 StringAssert.StartsWith(note, permission + " · ", "la chat dice che cosa ha negato");
             }
         }
+
+        [TestMethod]
+        public void Answer_the_web_with_the_choice_of_the_project()
+        {
+            foreach (var permission in OpenCodeSession.WebPermissions)
+            {
+                Assert.AreEqual(("once", (string)null), OpenCodeSession.ChatReply(permission, new[] { "https://example.com" }, null, allowWeb: true), permission);
+                var (response, note) = OpenCodeSession.ChatReply(permission, new[] { "https://example.com" }, null, allowWeb: false);
+                Assert.AreEqual("reject", response, permission);
+                StringAssert.StartsWith(note, permission + " · ");
+            }
+            Assert.AreEqual("reject", OpenCodeSession.ChatReply("bash", new[] { "*" }, null, allowWeb: true).Response, "il web non apre altro");
+        }
     }
 }

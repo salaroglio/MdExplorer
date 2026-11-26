@@ -979,6 +979,33 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
 
+        /// <summary>
+        /// L'utente ha acceso «Consenti alla chat l'accesso al web» in questo progetto (<c>Project.ChatWebAccessEnabled</c>)?
+        /// Si legge a ogni messaggio della chat, in una transazione propria e corta. Un progetto che non c'è, o un DB che non
+        /// risponde, vale «spento»: si nega, che è com'era prima, e il log dice perché.
+        /// </summary>
+        public static bool ChatWebAccessEnabled(IUserSettingsDB db, string projectPath)
+        {
+            if (db == null || string.IsNullOrWhiteSpace(projectPath)) return false;
+            try
+            {
+                db.BeginTransaction();
+                try
+                {
+                    return FindProjectByPath(db, projectPath)?.ChatWebAccessEnabled ?? false;
+                }
+                finally
+                {
+                    db.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProjectsManager] accesso web della chat non letto per {projectPath}: {ex.Message}. Resta spento.");
+                return false;
+            }
+        }
+
         internal static string McpGroupsArgument(IServiceProvider serviceProvider, string projectPath)
             => McpGroupsArgument(serviceProvider?.GetService<IUserSettingsDB>(), projectPath);
 

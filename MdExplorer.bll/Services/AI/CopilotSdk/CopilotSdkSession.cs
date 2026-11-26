@@ -176,6 +176,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private readonly IReadOnlyList<string> _extraRoots;
         public string ExtraRootsKey => CopilotChat.ICopilotChatSession.RootsKey(_extraRoots);
 
+        /// <inheritdoc/>
+        public bool WebAccess { get; set; }
+
         /// <summary>
         /// Where the session loads skills from: the project's <c>.github/skills</c>, where MdExplorer
         /// installs its own (mde-plantuml, mde-slide, …) for the Copilot harness. The SDK does not
@@ -836,7 +839,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 #pragma warning disable GHCP001
         private Task<PermissionDecision> DecidePermissionAsync(PermissionRequest request, PermissionInvocation invocation)
         {
-            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory, _profile, _extraRoots);
+            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory, _profile, _extraRoots, WebAccess);
             if (verdict.Approved)
             {
                 _logger.LogInformation("[CopilotSdkSession] permesso concesso: {What}", verdict.What);

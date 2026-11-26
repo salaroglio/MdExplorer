@@ -148,6 +148,15 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         public void SetExtraRoots(IReadOnlyList<string> roots) => _extraRoots = roots ?? Array.Empty<string>();
 
         /// <summary>
+        /// I permessi di opencode che leggono la rete: la chat li mette su «ask» (il server è uno per tutti i progetti) e li
+        /// risponde con la scelta del progetto, <see cref="WebAccess"/>.
+        /// </summary>
+        public static readonly IReadOnlyCollection<string> WebPermissions = new[] { "webfetch", "websearch", "codesearch" };
+
+        /// <summary>«Consenti alla chat l'accesso al web» del progetto, impostata dall'hub a ogni messaggio.</summary>
+        public volatile bool WebAccess;
+
+        /// <summary>
         /// Vero se ogni percorso chiesto con <c>external_directory</c> sta dentro una delle radici. I <c>patterns</c> arrivano
         /// come <c>&lt;cartella&gt;/*</c>: il carattere jolly finale si toglie. Nessun percorso, o nessuna radice: falso.
         /// </summary>
@@ -172,9 +181,18 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// «ask» che l'utente ha scritto nella sua configurazione. La chat non ha una finestra per chiederglielo, e approvarle
         /// da soli scavalcherebbe la sua scelta: si negano dicendo dove cambiarla. Lasciarle senza risposta fermava il turno.
         /// </summary>
-        public static (string Response, string Note) ChatReply(string permission, IEnumerable<string> paths, IReadOnlyList<string> roots)
+        /// <param name="allowWeb">«Consenti alla chat l'accesso al web» di questo progetto: le domande sul web
+        /// (<see cref="WebPermissions"/>, che la chat chiede sempre, vedi <c>RemoteCopyShellRules.OpenCodeChatConfig</c>) «once»
+        /// se acceso, «reject» se spento.</param>
+        public static (string Response, string Note) ChatReply(string permission, IEnumerable<string> paths, IReadOnlyList<string> roots,
+            bool allowWeb = false)
         {
             var say = MdExplorer.Features.Services.UiText.Say;
+            if (WebPermissions.Contains(permission))
+                return allowWeb
+                    ? ("once", null)
+                    : ("reject", say($"{permission} · in questo progetto la chat non ha l'accesso al web: si accende dalla rotella di MarkAgent, «Consenti alla chat l'accesso al web»",
+                        $"{permission} · in this project the chat has no web access: turn it on from the MarkAgent gear, «Allow the chat to access the web»"));
             switch (permission)
             {
                 case "external_directory":
@@ -653,7 +671,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                     foreach (var pattern in patterns.EnumerateArray()) paths.Add(pattern.GetString());
                 if (props.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object
                     && meta.TryGetProperty("filepath", out var file)) paths.Add(file.GetString());
-                var (response, note) = ChatReply(permission, paths, _extraRoots);
+                var (response, note) = ChatReply(permission, paths, _extraRoots, WebAccess);
                 _ = ReplyPermissionAsync(askingSession, askId, permission, response);
                 if (note != null) _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, note));
                 return;

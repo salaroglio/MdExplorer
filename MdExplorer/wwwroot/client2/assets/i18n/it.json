@@ -1798,6 +1798,10 @@
     "COPILOT_USAGE_CONTEXT_TOOLTIP": "{{tokens}} token su {{limit}} nel contesto della conversazione. Quando si riempie, Copilot la riassume da solo."
   },
   "MODEL_MANAGER": {
+    "CHAT_WEB_ACCESS": "Consenti alla chat l'accesso al web",
+    "CHAT_WEB_ACCESS_HINT": "Solo per questo progetto e solo per te: la chat può leggere pagine web e fare ricerche. Shell, ssh e scritture restano con le loro regole.",
+    "CHAT_WEB_ACCESS_LOAD_FAILED": "Non ho letto l'impostazione dell'accesso al web: {{error}}",
+    "CHAT_WEB_ACCESS_SAVE_FAILED": "Non ho salvato l'impostazione dell'accesso al web: {{error}}",
     "TITLE": "Gestione Modelli AI",
     "CONNECTED_TO": "Connesso a:",
     "LOCAL_MODEL": "Modello Locale:",

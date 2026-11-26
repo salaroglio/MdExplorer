@@ -1798,6 +1798,10 @@
     "COPILOT_USAGE_CONTEXT_TOOLTIP": "{{tokens}} of {{limit}} tokens in the conversation's context. When it fills up, Copilot summarizes it on its own."
   },
   "MODEL_MANAGER": {
+    "CHAT_WEB_ACCESS": "Allow the chat to access the web",
+    "CHAT_WEB_ACCESS_HINT": "Only for this project and only for you: the chat can read web pages and search. Shell, ssh and writes keep their rules.",
+    "CHAT_WEB_ACCESS_LOAD_FAILED": "I could not read the web access setting: {{error}}",
+    "CHAT_WEB_ACCESS_SAVE_FAILED": "I could not save the web access setting: {{error}}",
     "TITLE": "AI Model Manager",
     "CONNECTED_TO": "Connected to:",
     "LOCAL_MODEL": "Local Model:",

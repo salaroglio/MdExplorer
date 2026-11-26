@@ -231,6 +231,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// <summary>Le cartelle esterne con cui è partita, in una stringa confrontabile (vuota se nessuna).</summary>
         public string AdditionalDirectoriesKey => DirectoriesKey(_options.AdditionalDirectories);
         public static string DirectoriesKey(IReadOnlyList<string> dirs) => dirs == null ? string.Empty : string.Join("\n", dirs);
+        /// <summary>Gli strumenti autorizzati in più con cui è partita (<c>--allowedTools</c>), in una stringa confrontabile:
+        /// per esempio WebFetch/WebSearch quando il progetto accende l'accesso al web.</summary>
+        public string AllowedToolsKey => DirectoriesKey(_options.AllowedTools);
 
         /// <summary>
         /// Lancia il processo e avvia i loop di lettura. <b>Non</b> fa handshake: il CLI non

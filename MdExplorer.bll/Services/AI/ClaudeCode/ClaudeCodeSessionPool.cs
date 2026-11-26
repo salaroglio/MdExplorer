@@ -125,8 +125,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                             options = options.WithResume(existing.SessionId);
                         }
                         _logger.LogInformation(
-                            "[ClaudeCodeSessionPool] Configurazione diversa per {ConnectionId} (profilo {OldProfile}→{NewProfile}, gruppi MCP {OldGroups}→{NewGroups}): riavvio {Resume}",
+                            "[ClaudeCodeSessionPool] Configurazione diversa per {ConnectionId} (profilo {OldProfile}→{NewProfile}, gruppi MCP {OldGroups}→{NewGroups}, strumenti {OldTools}→{NewTools}): riavvio {Resume}",
                             connectionId, existing.ProfileKey ?? "chat", options.ProfileKey ?? "chat", existing.McpGroups ?? "-", options.McpGroups ?? "-",
+                            existing.AllowedToolsKey.Replace('\n', ','), ClaudeCodeSession.DirectoriesKey(options.AllowedTools).Replace('\n', ','),
                             options.ResumeSessionId != null ? "riprendendo la conversazione" : "da capo");
                         await ReleaseAsync(connectionId).ConfigureAwait(false);
                         existing = null;
@@ -239,7 +240,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             // i gruppi MCP: chi non li dichiara (null) non chiede un riavvio
             (options?.McpGroups == null || string.Equals(session.McpGroups ?? string.Empty, options.McpGroups, StringComparison.Ordinal)) &&
             // le radici di codice esterne: idem (F3 delle radici esterne)
-            (options?.AdditionalDirectories == null || string.Equals(session.AdditionalDirectoriesKey, ClaudeCodeSession.DirectoriesKey(options.AdditionalDirectories), StringComparison.Ordinal));
+            (options?.AdditionalDirectories == null || string.Equals(session.AdditionalDirectoriesKey, ClaudeCodeSession.DirectoriesKey(options.AdditionalDirectories), StringComparison.Ordinal)) &&
+            // gli strumenti autorizzati in più (l'accesso al web dalla rotella di MarkAgent): idem
+            (options?.AllowedTools == null || string.Equals(session.AllowedToolsKey, ClaudeCodeSession.DirectoriesKey(options.AllowedTools), StringComparison.Ordinal));
 
         private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&

@@ -81,6 +81,12 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   backendDownloading = false;
   backendDownloadVariant: string = '';
 
+  /** «Consenti alla chat l'accesso al web» del progetto aperto (userdb, per utente e per progetto). */
+  chatProjectPath: string | null = null;
+  chatWebAccess = false;
+  chatWebAccessSaving = false;
+  chatWebAccessError: string | null = null;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -93,6 +99,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.loadChatWebAccess();
     this.loadBackendStatus();
     this.loadModels();
     this.loadSystemPrompt();
@@ -1015,6 +1022,32 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
       'vulkan': 'MODEL_MANAGER.VULKAN'
     };
     return keys[variant] ? this.translate.instant(keys[variant]) : variant;
+  }
+
+  private loadChatWebAccess(): void {
+    this.chatProjectPath = this.projectsService.currentProjects$.getValue()?.path ?? null;
+    if (!this.chatProjectPath) return;
+    this.projectSettingsService.getChatWebAccessSetting(this.chatProjectPath).subscribe({
+      next: r => { this.chatWebAccess = !!r?.enabled; this.cdr.markForCheck(); },
+      error: err => { this.chatWebAccessError = this.translate.instant('MODEL_MANAGER.CHAT_WEB_ACCESS_LOAD_FAILED', { error: err?.error?.error ?? err?.message ?? '' }); }
+    });
+  }
+
+  onChatWebAccessToggle(): void {
+    if (!this.chatProjectPath) return;
+    const wanted = this.chatWebAccess;
+    this.chatWebAccessSaving = true;
+    this.chatWebAccessError = null;
+    this.projectSettingsService.setChatWebAccessSetting(wanted, this.chatProjectPath).subscribe({
+      next: r => { this.chatWebAccess = !!r?.enabled; this.chatWebAccessSaving = false; this.cdr.markForCheck(); },
+      error: err => {
+        // Non salvato: l'interruttore torna dov'era e si dice perché.
+        this.chatWebAccess = !wanted;
+        this.chatWebAccessSaving = false;
+        this.chatWebAccessError = this.translate.instant('MODEL_MANAGER.CHAT_WEB_ACCESS_SAVE_FAILED', { error: err?.error?.error ?? err?.message ?? '' });
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   ngOnDestroy(): void {

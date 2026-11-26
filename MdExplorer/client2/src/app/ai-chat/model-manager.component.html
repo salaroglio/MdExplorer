@@ -34,6 +34,15 @@
     </mat-card-header>
     
     <mat-card-content style="overflow: visible !important;">
+      <!-- La chat di questo progetto: scelte dell'utente, salvate nello userdb per progetto -->
+      <div class="project-chat-settings" *ngIf="chatProjectPath">
+        <mat-slide-toggle [(ngModel)]="chatWebAccess" (change)="onChatWebAccessToggle()" [disabled]="chatWebAccessSaving"
+                          color="primary">
+          {{ 'MODEL_MANAGER.CHAT_WEB_ACCESS' | translate }}
+        </mat-slide-toggle>
+        <div class="project-chat-settings-hint">{{ 'MODEL_MANAGER.CHAT_WEB_ACCESS_HINT' | translate }}</div>
+        <div class="project-chat-settings-error" *ngIf="chatWebAccessError">{{ chatWebAccessError }}</div>
+      </div>
       <!-- AI Engine (llama.cpp Backend) -->
       <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card engine-warning-card"
                 style="margin-bottom: 20px;">
