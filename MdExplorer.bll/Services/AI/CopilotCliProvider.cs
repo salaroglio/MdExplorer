@@ -787,6 +787,9 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
             else
                 args.Append("--allow-all-tools");
+            // ssh/scp & co. sempre vietati: i file delle radici remote passano da MDE Remote, che tiene la codifica.
+            foreach (var rule in MdExplorer.Features.Services.AI.CopilotSdk.CopilotSdkPermissionPolicy.DeniedShellRules)
+                args.Append($" --deny-tool={rule}");
             // Gli strumenti che il manifesto dell'agente non dichiara: il divieto esplicito prevale
             // su --allow-all-tools. Nomi fissi del nostro vocabolario (shell, write), mai testo libero.
             if (invocation?.DeniedTools != null)

@@ -21,7 +21,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var bytes = File.ReadAllBytes(path);
             var assigned = TextDecoding.ForExtension(path, bytes, extensionEncodings);
-            var decoded = assigned != null ? TextDecoding.DecodeAs(bytes, assigned) : TextDecoding.Decode(bytes);
+            // con la regola, il file per quello che è (26/11/2026): un .bs che qualcuno ha riscritto in UTF-8 non si legge come CP-850
+            var decoded = assigned != null ? TextDecoding.DecodeWithRule(bytes, assigned) : TextDecoding.Decode(bytes);
             return decoded?.Text ?? throw new InvalidDataException(NotText(path, bytes));
         }
 

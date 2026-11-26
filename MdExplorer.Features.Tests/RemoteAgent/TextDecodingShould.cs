@@ -65,7 +65,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
                 var original = In("ibm850", Italian);
                 File.WriteAllBytes(Path.Combine(dir, "prog.cbl"), original);
                 var ws = new RemoteWorkspace(dir);
-                var (text, stamp, _, encoding) = ws.Read("prog.cbl");
+                var (text, stamp, _, encoding, _, _) = ws.Read("prog.cbl");
                 Assert.AreEqual(TextDecoding.Ibm850, encoding);
 
                 stamp = ws.Write("prog.cbl", text, stamp);
@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
                 ws.Write("prog.cbl", text.Replace("quantità", "quantità è più"), stamp);
                 CollectionAssert.AreEqual(In("ibm850", Italian.Replace("quantità", "quantità è più")), File.ReadAllBytes(Path.Combine(dir, "prog.cbl")), "il testo nuovo in CP-850");
 
-                var (_, stamp2, _, _) = ws.Read("prog.cbl");
+                var (_, stamp2, _, _, _, _) = ws.Read("prog.cbl");
                 try { ws.Write("prog.cbl", "emoji 😀", stamp2); Assert.Fail("doveva rifiutare"); }
                 catch (RemoteFailure f)
                 {
@@ -203,6 +203,71 @@ namespace MdExplorer.Features.Tests.RemoteAgent
                 var stamp = ws.Read("nuovo.cbl").Stamp;
                 ws.Write("nuovo.cbl", "più\n", stamp);
                 CollectionAssert.AreEqual(In("ibm850", "più\n"), File.ReadAllBytes(Path.Combine(dir, "nuovo.cbl")));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- il formato VERO del file anche con una regola (l'utente, 26/11/2026: «se il file ha 2 byte per lettera, non
+        // visualizzarlo come CP-850»; un .bs CP-850 riscritto in UTF-8 da Copilot via ssh si vedeva con ├¿ e nessuno se n'era accorto) ----
+
+        private static readonly System.Collections.Generic.Dictionary<string, string> BsCp850 = new() { [".bs"] = TextDecoding.Ibm850 };
+
+        [TestMethod]
+        public void Show_a_utf8_file_as_utf8_even_when_the_rule_says_cp850_and_say_the_rule()
+        {
+            var dir = Dir();
+            try
+            {
+                File.WriteAllBytes(Path.Combine(dir, "ORDINI.BS"), Encoding.UTF8.GetBytes(Italian));
+                var ws = new RemoteWorkspace(dir) { ExtensionEncodings = BsCp850 };
+                var read = ws.Read("ORDINI.BS");
+                Assert.AreEqual(TextDecoding.Utf8, read.Encoding, "due byte per lettera: è UTF-8, non CP-850");
+                Assert.AreEqual(TextDecoding.Ibm850, read.RuleEncoding, "e si dice che la regola voleva CP-850");
+                Assert.AreEqual(Italian, read.Text, "«è», non «├¿»");
+                Assert.AreEqual(0, read.Utf8Letters);
+
+                // salvare senza scegliere non converte di nascosto: resta UTF-8
+                ws.Write("ORDINI.BS", read.Text.Replace("città", "paese"), read.Stamp);
+                CollectionAssert.AreEqual(Encoding.UTF8.GetBytes(Italian.Replace("città", "paese")), File.ReadAllBytes(Path.Combine(dir, "ORDINI.BS")));
+                // convertire è una scelta: «Salva in → CP-850»
+                var again = ws.Read("ORDINI.BS");
+                ws.Write("ORDINI.BS", again.Text, again.Stamp, TextDecoding.Ibm850);
+                CollectionAssert.AreEqual(In("ibm850", Italian.Replace("città", "paese")), File.ReadAllBytes(Path.Combine(dir, "ORDINI.BS")));
+                var fixedRead = ws.Read("ORDINI.BS");
+                Assert.AreEqual((TextDecoding.Ibm850, TextDecoding.Ibm850), (fixedRead.Encoding, fixedRead.RuleEncoding), "ora rispetta la regola");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [TestMethod]
+        public void Keep_a_cp850_file_as_cp850_even_when_its_dos_boxes_happen_to_be_valid_utf8()
+        {
+            // «═╗» = CD BB è UTF-8 valido («ͻ» greco): un file di sole maschere con quelle coppie NON è UTF-8
+            var bytes = In("ibm850", "═╗\n═╗ ═╗\n");
+            Assert.AreEqual(TextDecoding.Utf8, TextDecoding.Decode(bytes).Encoding, "per caso è UTF-8 valido…");
+            var read = TextDecoding.DecodeWithRule(bytes, TextDecoding.Ibm850);
+            Assert.AreEqual(TextDecoding.Ibm850, read.Encoding, "…ma «ͻ» non è una lettera che qualcuno scrive: resta CP-850");
+            Assert.AreEqual("═╗\n═╗ ═╗\n", read.Text);
+            Assert.AreEqual(0, read.Utf8Letters);
+
+            var masks = TextDecoding.DecodeWithRule(In("ibm850", DosScreen), TextDecoding.Ibm850);
+            Assert.AreEqual((TextDecoding.Ibm850, DosScreen, 0), (masks.Encoding, masks.Text, masks.Utf8Letters));
+        }
+
+        [TestMethod]
+        public void Count_the_utf8_letters_of_a_mixed_file_and_leave_its_bytes_alone_on_save()
+        {
+            var dir = Dir();
+            try
+            {
+                var mixed = In("ibm850", Italian).Concat(Encoding.UTF8.GetBytes("      * Aggiunta: è più semplice – € 10\r\n")).ToArray();
+                File.WriteAllBytes(Path.Combine(dir, "m.bs"), mixed);
+                var ws = new RemoteWorkspace(dir) { ExtensionEncodings = BsCp850 };
+                var read = ws.Read("m.bs");
+                Assert.AreEqual(TextDecoding.Ibm850, read.Encoding, "non è tutto UTF-8: si legge con la regola");
+                Assert.AreEqual(4, read.Utf8Letters, "la riga aggiunta in UTF-8 ha è, ù, –, €");
+                ws.Write("m.bs", read.Text, read.Stamp);
+                CollectionAssert.AreEqual(mixed, File.ReadAllBytes(Path.Combine(dir, "m.bs")), "salvare senza riparare non cambia un byte");
             }
             finally { Directory.Delete(dir, true); }
         }

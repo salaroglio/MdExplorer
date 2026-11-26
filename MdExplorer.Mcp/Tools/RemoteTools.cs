@@ -42,7 +42,8 @@ public sealed class RemoteTools : McpToolsBase
 
     [McpServerTool, Description(
         "Read a text file of a REMOTE code root. Returns its text with line numbers ('  12| …') for reference — the numbers are NOT " +
-        "part of the file. Binary and non-UTF-8 files are refused.")]
+        "part of the file — and its real encoding when it is not UTF-8 (e.g. CP-850), with a warning when it does not match the " +
+        "root's rule for that extension. Binary files are refused.")]
     public async Task<string> remote_read(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path)
@@ -52,12 +53,21 @@ public sealed class RemoteTools : McpToolsBase
         var parsed = JsonDocument.Parse(result).RootElement;
         var text = parsed.GetProperty("text").GetString() ?? "";
         var encoding = parsed.TryGetProperty("encoding", out var enc) && enc.ValueKind == JsonValueKind.String ? enc.GetString() : null;
+        var rule = parsed.TryGetProperty("ruleEncoding", out var ru) && ru.ValueKind == JsonValueKind.String ? ru.GetString() : null;
+        var utf8Letters = parsed.TryGetProperty("utf8Letters", out var ul) && ul.ValueKind == JsonValueKind.Number ? ul.GetInt32() : 0;
         var numbered = new StringBuilder();
         var lines = text.Split('\n');
         var count = text.EndsWith('\n') ? lines.Length - 1 : lines.Length;
         for (var i = 0; i < count; i++) numbered.Append((i + 1).ToString().PadLeft(5)).Append("| ").Append(lines[i]).Append('\n');
         // la codifica (CP-850…) si dice: remote_edit e remote_write riscrivono in quella, e un carattere che non ha è rifiutato
         var encodingNote = encoding is null or "utf-8" ? "" : $", encoding {encoding}: write only characters it can hold";
+        // la codifica VERA del file, e quando non è quella della regola della radice lo si dice: il file è già sbagliato
+        if (rule != null && encoding != null && rule != encoding)
+            encodingNote += $". WARNING: the root's rule says {rule} for this extension, but the file is {encoding} — it was written " +
+                            "by something that ignored the rule. Edits keep the file's real encoding; tell the user, do not convert on your own";
+        if (utf8Letters > 0)
+            encodingNote += $". WARNING: the file is mixed: {utf8Letters} letters inside are UTF-8 (two or more bytes) and show as garbage " +
+                            "in this encoding; tell the user (the MDE editor has «Repair mixed encoding»), do not rewrite them";
         return $"{path} ({count} lines{encodingNote})\n{numbered}";
     }
 
@@ -110,7 +120,9 @@ public sealed class RemoteTools : McpToolsBase
 
     [McpServerTool, Description(
         "Write a whole text file of a REMOTE code root: creates it (with missing folders) if it does not exist, otherwise replaces " +
-        "its content (UTF-8; an existing BOM is kept). For small changes to an existing file prefer remote_edit.")]
+        "its content. The write goes through MDE Remote on the server and keeps the encoding: an existing file stays in its own " +
+        "encoding (and BOM), a new file gets the encoding the root assigns to its extension (e.g. CP-850 for .cbl), UTF-8 if none; " +
+        "a character the encoding cannot hold is refused. For small changes to an existing file prefer remote_edit.")]
     public async Task<string> remote_write(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path,

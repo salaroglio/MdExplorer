@@ -25,11 +25,15 @@ namespace MdExplorer.RemoteProtocol
         /// <summary>Le codifiche per estensione della radice (arrivano con ogni richiesta; vedi <see cref="TextDecoding.ForExtension"/>).</summary>
         public IReadOnlyDictionary<string, string>? ExtensionEncodings { get; set; }
 
-        /// <summary>Il testo di un file: la codifica dell'estensione se assegnata, altrimenti UTF-8 o la stima. Null = binario.</summary>
+        /// <summary>
+        /// Il testo di un file per quello che è davvero: con una regola per l'estensione, la regola, salvo che il file sia
+        /// tutto UTF-8 (allora UTF-8, e la discordanza si dice: <see cref="TextDecoding.DecodeWithRule"/>); senza, UTF-8 o la
+        /// stima. Null = binario.
+        /// </summary>
         private DecodedText? DecodeFile(string fullPath, byte[] bytes)
         {
             var assigned = TextDecoding.ForExtension(fullPath, bytes, ExtensionEncodings);
-            if (assigned != null) return bytes.AsSpan().IndexOf((byte)0) >= 0 && !assigned.StartsWith("utf-16", StringComparison.Ordinal) ? null : TextDecoding.DecodeAs(bytes, assigned);
+            if (assigned != null) return bytes.AsSpan().IndexOf((byte)0) >= 0 && !assigned.StartsWith("utf-16", StringComparison.Ordinal) ? null : TextDecoding.DecodeWithRule(bytes, assigned);
             return TextDecoding.Decode(bytes);
         }
 
@@ -119,14 +123,16 @@ namespace MdExplorer.RemoteProtocol
 
         /// <summary>Il testo nella sua codifica, riconosciuta dal contenuto (<see cref="TextDecoding"/>): UTF-8, CP-850, CP-1252, UTF-16.</summary>
         /// <param name="encoding">Rileggere in questa invece di riconoscerla (l'editor, «Rileggi come» / «Ripara»).</param>
-        public (string Text, string Stamp, bool Bom, string Encoding) Read(string? path, string? encoding = null)
+        public (string Text, string Stamp, bool Bom, string Encoding, string? RuleEncoding, int Utf8Letters) Read(string? path, string? encoding = null)
         {
             var file = ExistingFile(path);
             var bytes = File.ReadAllBytes(file.FullName);
             var decoded = string.IsNullOrEmpty(encoding)
                 ? DecodeFile(file.FullName, bytes) ?? throw new RemoteFailure(RemoteErrorCodes.Binary, $"binary file: {path}")
                 : TextDecoding.DecodeAs(bytes, encoding);
-            return (decoded.Text, StampOf(file), decoded.Bom, decoded.Encoding);
+            // la regola si dice anche quando si rilegge in una codifica scelta: il riquadro dell'editor la confronta
+            var rule = decoded.RuleEncoding ?? TextDecoding.ForExtension(file.FullName, bytes, ExtensionEncodings);
+            return (decoded.Text, StampOf(file), decoded.Bom, decoded.Encoding, rule, decoded.Utf8Letters);
         }
 
         /// <summary>Riscrive un file esistente se è ancora quello letto (<paramref name="stamp"/>); BOM e permessi restano.</summary>

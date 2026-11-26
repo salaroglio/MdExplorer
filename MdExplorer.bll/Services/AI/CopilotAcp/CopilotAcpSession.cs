@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -98,7 +99,10 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         {
             if (_process != null) throw new InvalidOperationException("Session already started");
 
-            var psi = CopilotProcessLauncher.BuildStartInfo("--acp --allow-all-tools --no-color --log-level error");
+            // ssh/scp & co. vietati: i file delle radici remote passano da MDE Remote, che tiene la codifica (il divieto vince
+            // su --allow-all-tools, provato dal vivo su Copilot CLI 1.0.114).
+            var deny = string.Join(" ", MdExplorer.Features.Services.AI.CopilotSdk.CopilotSdkPermissionPolicy.DeniedShellRules.Select(r => $"--deny-tool={r}"));
+            var psi = CopilotProcessLauncher.BuildStartInfo("--acp --allow-all-tools " + deny + " --no-color --log-level error");
             psi.RedirectStandardInput = true;
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;

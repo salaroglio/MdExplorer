@@ -1014,7 +1014,12 @@
     "SAVE_IN": "Save in",
     "REPAIRED_NOTE": "Repaired: the UTF-8 and {{encoding}} parts are put back together. Check the text, then save: the file will be all {{encoding}}.",
     "READ_AS_NOTE": "Read as {{encoding}}: saving keeps it {{encoding}}.",
-    "CONVERT_NOTE": "On save the file will be converted to {{encoding}}."
+    "CONVERT_NOTE": "On save the file will be converted to {{encoding}}.",
+    "FORMAT_EIGHT_BIT": "File format: {{encoding}}, one byte per letter. It is saved in {{encoding}}.",
+    "FORMAT_EIGHT_BIT_RULE": "File format: {{encoding}}, one byte per letter, as the root's rule for {{ext}} requires. It is saved in {{encoding}}.",
+    "FORMAT_UTF16": "File format: {{encoding}}, two bytes per character. It is saved in {{encoding}}.",
+    "FORMAT_NOT_RULE": "Warning: the file is {{encoding}} (accented letters take two bytes), but the root's rule for {{ext}} says {{rule}}. You see it as it really is; saving keeps it in {{encoding}}. To bring it back to {{rule}}: «Save in → {{rule}}».",
+    "FORMAT_MIXED": "Warning: the file is {{encoding}}, but it holds {{count}} letters written in UTF-8 (two bytes each), which show here as pairs of symbols (├¿ instead of è). «Repair mixed encoding» puts them back together; saving without repairing leaves the bytes as they are."
   },
   "REMOTE_TREE": {
     "FIND": "Find files…",

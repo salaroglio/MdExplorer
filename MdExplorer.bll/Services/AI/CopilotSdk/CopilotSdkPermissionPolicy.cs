@@ -102,6 +102,39 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 : string.Equals(relative, p, StringComparison.OrdinalIgnoreCase) || string.Equals(name, p, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// I comandi che raggiungono un server da soli: nella chat di MDE i file delle radici remote passano SOLO da MDE
+        /// Remote (remote_edit, remote_write), che tiene la codifica dell'estensione. Lo stesso elenco va a Copilot CLI come
+        /// <c>--deny-tool=shell(…)</c> sul trasporto ACP (<see cref="DeniedShellRules"/>), dove decide il CLI.
+        /// </summary>
+        public static readonly IReadOnlyList<string> RemoteCopyCommands = new[] { "ssh", "scp", "sftp", "rsync" };
+
+        /// <summary>Le regole <c>--deny-tool</c> per Copilot CLI: provato dal vivo (1.0.114), blocca anche «echo ciao &amp;&amp; ssh -V».</summary>
+        public static IEnumerable<string> DeniedShellRules => RemoteCopyCommands.Select(c => $"shell({c})");
+
+        // Un comando in posizione di comando: a inizio riga o dopo ; & | ( ` $( , con davanti sudo, env, VAR=… o un percorso.
+        private static readonly System.Text.RegularExpressions.Regex RemoteCopyInText = new(
+            @"(?:^|[;&|\n(`]|\$\()\s*(?:(?:sudo|env|exec|command|nohup)\s+|\w+=\S*\s+)*(?:""?[^\s""]*[/\\])?(ssh|scp|sftp|rsync)(?:\.exe)?""?(?=\s|$|[;&|)])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>Il comando ssh/scp/sftp/rsync che la riga lancia, o null: dai comandi scomposti dal CLI, poi dal testo.</summary>
+        public static string RemoteCopyCommand(PermissionRequestShell shell)
+        {
+            foreach (var command in shell.Commands ?? Array.Empty<PermissionRequestShellCommand>())
+            {
+                var first = (command?.Identifier ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+                var name = Path.GetFileNameWithoutExtension(first.Trim('"', '\''));
+                var hit = RemoteCopyCommands.FirstOrDefault(c => string.Equals(c, name, StringComparison.OrdinalIgnoreCase));
+                if (hit != null) return hit;
+            }
+            var match = RemoteCopyInText.Match(shell.FullCommandText ?? "");
+            return match.Success ? match.Groups[1].Value.ToLowerInvariant() : null;
+        }
+
+        private static string RemoteCopyReason(string command) => MdExplorer.Features.Services.UiText.Say(
+            $"nella chat di MDE «{command}» non si usa: i file di una radice remota si leggono e si scrivono con remote_read, remote_edit e remote_write, che passano da MDE Remote e tengono la codifica della radice (CP-850…)",
+            $"«{command}» is not used in the MDE chat: the files of a remote root are read and written with remote_read, remote_edit and remote_write, which go through MDE Remote and keep the root's encoding (CP-850…)");
+
         /// <param name="extraRoots">Le radici di codice esterne collegate del progetto (radici esterne F3, R3): dentro, MarkAgent
         /// legge e scrive come nel progetto. Il resto fuori resta negato.</param>
         public static Verdict Decide(PermissionRequest request, string workingDirectory, IReadOnlyList<string> extraRoots = null)
@@ -115,6 +148,10 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     return InsideProject(write.FileName, workingDirectory, "scrivere", extraRoots);
 
                 case PermissionRequestShell shell:
+                    // Un file di una radice remota scritto con ssh/scp salta MDE Remote, e con lui la codifica della radice
+                    // (26/11/2026: un .bs CP-850 riscritto in UTF-8 da Copilot, e nessuno se n'è accorto).
+                    if (RemoteCopyCommand(shell) is { } remote)
+                        return new Verdict(false, "eseguire: " + shell.FullCommandText, RemoteCopyReason(remote));
                     // --allow-all-tools approved shell commands, and the ACP chat relied on it.
                     return new Verdict(true, "eseguire: " + shell.FullCommandText, null);
 

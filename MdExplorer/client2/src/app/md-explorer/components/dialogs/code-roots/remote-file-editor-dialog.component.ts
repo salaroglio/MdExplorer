@@ -39,6 +39,10 @@ export interface RemoteFileEditorData {
       <span class="dirty" *ngIf="dirty">●</span>
     </div>
     <mat-dialog-content class="editor-content">
+      <!-- Il formato VERO del file (l'utente, 26/11/2026): quando non è UTF-8, o non è quello della regola, o è misto. -->
+      <div class="format-box" *ngIf="!loading && formatText" [class.warn]="formatWarn">
+        <mat-icon>{{ formatWarn ? 'warning' : 'info' }}</mat-icon><span>{{ formatText }}</span>
+      </div>
       <div class="loading" *ngIf="loading"><mat-spinner diameter="24"></mat-spinner></div>
       <textarea *ngIf="!loading && loaded" class="editor" [(ngModel)]="text" (ngModelChange)="dirty = true" spellcheck="false" wrap="off"></textarea>
       <div class="error" *ngIf="errorMessage"><mat-icon>error</mat-icon><span>{{ errorMessage }}</span></div>
@@ -65,6 +69,10 @@ export interface RemoteFileEditorData {
     .encoding-button mat-icon { font-size: 16px; width: 16px; height: 16px; margin-right: 4px; }
     .menu-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; height: 32px; line-height: 32px; }
     .repair-note { font-size: 12px; color: var(--mde-accent, #1976d2); }
+    .format-box { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; padding: 6px 10px; margin-bottom: 6px;
+                  border-radius: 4px; border: 1px solid rgba(25, 118, 210, .35); background: rgba(25, 118, 210, .07); }
+    .format-box mat-icon { font-size: 18px; width: 18px; height: 18px; flex: 0 0 auto; }
+    .format-box.warn { border-color: rgba(230, 120, 0, .6); background: rgba(230, 120, 0, .10); }
     .saved { font-size: 12px; opacity: 0.7; }
   `]
 })
@@ -82,6 +90,9 @@ export class RemoteFileEditorDialogComponent implements OnInit {
   /** Al salvataggio il file cambia codifica (convertito, o riparato da una lettura mista). */
   public converting = false;
   public encodingNote = '';
+  /** Il riquadro del formato vero del file; vuoto = UTF-8 senza regola, niente da dire. */
+  public formatText = '';
+  public formatWarn = false;
   public readonly encodings = ['utf-8', 'ibm850', 'windows-1252'];
   public readonly eightBit = ['ibm850', 'windows-1252'];
   public readonly labelOf = labelOf;
@@ -98,6 +109,31 @@ export class RemoteFileEditorDialogComponent implements OnInit {
 
   ngOnInit(): void { this.load(); }
 
+  /**
+   * Il formato com'è sul server, detto chiaro: a un byte per lettera (CP-850, CP-1252), UTF-8 (2 byte per le accentate)
+   * quando la regola della radice voleva altro, o misto. MDE Remote legge il file per quello che è: un file UTF-8 non si
+   * mostra come CP-850 (sarebbero «├¿» al posto di «è»).
+   */
+  private describeFormat(read: string, rule: string | undefined, utf8Letters: number): void {
+    const ext = (this.data.path.match(/\.[^./\\]+$/)?.[0] ?? '').toLowerCase();
+    const real = read.startsWith('mixed-') ? read.substring('mixed-'.length) : read;
+    this.formatWarn = false;
+    if (utf8Letters > 0) {
+      this.formatWarn = true;
+      this.formatText = this.translate.instant('REMOTE_EDITOR.FORMAT_MIXED', { encoding: labelOf(real), count: utf8Letters });
+    } else if (rule && rule !== real) {
+      this.formatWarn = true;
+      this.formatText = this.translate.instant('REMOTE_EDITOR.FORMAT_NOT_RULE', { encoding: labelOf(real), rule: labelOf(rule), ext });
+    } else if (real.startsWith('utf-16')) {
+      this.formatText = this.translate.instant('REMOTE_EDITOR.FORMAT_UTF16', { encoding: labelOf(real) });
+    } else if (real !== 'utf-8') {
+      this.formatText = this.translate.instant(rule ? 'REMOTE_EDITOR.FORMAT_EIGHT_BIT_RULE' : 'REMOTE_EDITOR.FORMAT_EIGHT_BIT',
+        { encoding: labelOf(real), ext });
+    } else {
+      this.formatText = '';
+    }
+  }
+
   /** @param as una codifica scelta (Rileggi come / Ripara); assente = riconosciuta dal contenuto. */
   load(as?: string): void {
     this.loading = true; this.errorMessage = ''; this.changedOnServer = false;
@@ -106,6 +142,7 @@ export class RemoteFileEditorDialogComponent implements OnInit {
         this.text = r.text ?? ''; this.stamp = r.stamp ?? ''; this.loading = false; this.loaded = true; this.dirty = false;
         this.converting = false; this.encodingNote = '';
         const read = r.encoding ?? 'utf-8';
+        this.describeFormat(read, r.ruleEncoding, r.utf8Letters ?? 0);
         if (read.startsWith('mixed-')) {
           // riparato: il testo è ricomposto, si salva in UNA codifica (quella a 8 bit scelta)
           this.encoding = read.substring('mixed-'.length);

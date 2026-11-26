@@ -61,6 +61,29 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(RemoteErrorCodes.NotEmpty, Assert.ThrowsExactly<RemoteOperationException>(() => Op(RemoteOps.Delete, "src")).Code);
         }
 
+        /// <summary>
+        /// Una regola scritta a mano nel .development.yml («BS» senza punto, «CP850») vale come quella della finestra: prima
+        /// non combaciava mai con «.bs» e il file si scriveva in UTF-8 senza che nessuno lo dicesse (26/11/2026).
+        /// </summary>
+        [TestMethod]
+        public void Apply_an_encoding_rule_written_by_hand_without_the_dot()
+        {
+            var map = MdExplorer.Services.CodeGraph.CodeRootService.EncodingMap(new MdExplorer.Service.Models.CodeRootConfig
+            {
+                Encodings = new System.Collections.Generic.List<MdExplorer.Service.Models.CodeRootEncodingRule>
+                {
+                    new() { Extensions = new System.Collections.Generic.List<string> { "BS", "bh, .CBL" }, Encoding = "CP850" },
+                    new() { Extensions = new System.Collections.Generic.List<string> { "txt" }, Encoding = "Windows-1252" },
+                },
+            });
+            Assert.AreEqual(TextDecoding.Ibm850, map[".bs"]);
+            Assert.AreEqual(TextDecoding.Ibm850, map[".bh"]);
+            Assert.AreEqual(TextDecoding.Ibm850, map[".cbl"]);
+            Assert.AreEqual(TextDecoding.Windows1252, map[".txt"]);
+            Assert.AreEqual(TextDecoding.Ibm850, TextDecoding.ForExtension("/srv/app/ORDINI.BS", System.ReadOnlySpan<byte>.Empty, map),
+                "e MDE Remote la trova per il file vero");
+        }
+
         [TestMethod]
         public void Validate_and_save_the_encoding_rules_of_a_root_in_the_development_yml()
         {

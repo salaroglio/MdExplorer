@@ -400,10 +400,33 @@ namespace MdExplorer.Services.CodeGraph
             return result;
         }
 
-        private static IReadOnlyDictionary<string, string> EncodingMap(CodeRootConfig root)
+        /// <summary>
+        /// Le regole come le usa MDE Remote: estensione con il punto e in minuscolo, codifica col suo nome canonico. Una regola
+        /// scritta a mano nel .development.yml («BS», «bs, cpy», «CP850») vale come quella salvata dalla finestra
+        /// (<see cref="NormalizeEncodings"/>): prima «BS» senza punto non combaciava mai con «.bs» ed era ignorata in silenzio.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> EncodingMap(CodeRootConfig root)
             => (root.Encodings ?? new List<CodeRootEncodingRule>())
-                .SelectMany(r => (r.Extensions ?? new List<string>()).Select(e => (Ext: e.ToLowerInvariant(), r.Encoding)))
+                .SelectMany(r => (r.Extensions ?? new List<string>())
+                    .SelectMany(e => (e ?? "").Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    .Select(e => (Ext: (e.StartsWith(".", StringComparison.Ordinal) ? e : "." + e).ToLowerInvariant(), Encoding: CanonicalEncoding(r.Encoding))))
+                .Where(x => x.Ext.Length > 1 && !string.IsNullOrEmpty(x.Encoding))
                 .GroupBy(x => x.Ext).ToDictionary(g => g.Key, g => g.First().Encoding, StringComparer.Ordinal);
+
+        /// <summary>Il nome che MDE Remote conosce: «CP850», «IBM850» → <c>ibm850</c>; «UTF-8» → <c>utf-8</c>.</summary>
+        private static string CanonicalEncoding(string name)
+        {
+            var n = (name ?? "").Trim();
+            var known = MdExplorer.RemoteProtocol.TextDecoding.Assignable.FirstOrDefault(a => string.Equals(a, n, StringComparison.OrdinalIgnoreCase));
+            if (known != null) return known;
+            return n.Replace("-", "").ToLowerInvariant() switch
+            {
+                "cp850" or "ibm850" or "850" => MdExplorer.RemoteProtocol.TextDecoding.Ibm850,
+                "cp1252" or "windows1252" or "1252" => MdExplorer.RemoteProtocol.TextDecoding.Windows1252,
+                "utf8" => MdExplorer.RemoteProtocol.TextDecoding.Utf8,
+                _ => n,
+            };
+        }
 
         public void Unlink(string projectPath, string alias)
         {

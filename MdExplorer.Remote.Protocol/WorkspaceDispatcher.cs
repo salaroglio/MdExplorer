@@ -57,8 +57,9 @@ namespace MdExplorer.RemoteProtocol
                 case RemoteOps.Stat:
                     return new RemoteResponse { Entry = ws.Stat(r.Path) };
                 case RemoteOps.Read:
-                    var (text, stamp, bom, encoding) = ws.Read(r.Path, r.Encoding);
-                    return new RemoteResponse { Text = text, Stamp = stamp, Bom = bom, Encoding = encoding };
+                    var (text, stamp, bom, encoding, rule, utf8Letters) = ws.Read(r.Path, r.Encoding);
+                    return new RemoteResponse { Text = text, Stamp = stamp, Bom = bom, Encoding = encoding,
+                        RuleEncoding = rule, Utf8Letters = utf8Letters > 0 ? utf8Letters : null };
                 case RemoteOps.Write:
                     return new RemoteResponse { Stamp = ws.Write(r.Path, r.Text, r.Stamp, r.Encoding) };
                 case RemoteOps.Create:

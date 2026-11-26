@@ -61,6 +61,10 @@ namespace MdExplorer.RemoteProtocol
         public bool? Bom { get; set; }
         /// <summary><c>read</c>: la codifica riconosciuta (<see cref="TextDecoding"/>), in cui <c>write</c> riscrive.</summary>
         public string? Encoding { get; set; }
+        /// <summary>Lettura: la codifica che la regola della radice assegna all'estensione (null = nessuna regola).</summary>
+        public string? RuleEncoding { get; set; }
+        /// <summary>Lettura a 8 bit: quante lettere UTF-8 ci sono dentro (file misto); null = nessuna.</summary>
+        public int? Utf8Letters { get; set; }
         public List<RemoteHit>? Hits { get; set; }
         /// <summary><c>grep</c>: c'erano altre righe oltre <see cref="RemoteRequest.MaxHits"/>; <c>find</c>: altri file oltre <see cref="RemoteRequest.MaxHits"/>.</summary>
         public bool? Truncated { get; set; }

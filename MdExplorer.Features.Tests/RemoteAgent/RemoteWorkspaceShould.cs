@@ -101,7 +101,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
         [TestMethod]
         public void Read_and_write_with_the_stamp_of_the_read()
         {
-            var (text, stamp, bom, _) = _ws.Read("src/caller.js");
+            var (text, stamp, bom, _, _, _) = _ws.Read("src/caller.js");
             Assert.AreEqual("SaveOrder(42);\nnothing\n", text);
             Assert.IsFalse(bom);
             var after = _ws.Write("src/caller.js", "SaveOrder(7); // àè\n", stamp);
@@ -119,7 +119,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
             var file = Path.Combine(_root, "bom.txt");
             File.WriteAllBytes(file, new byte[] { 0xEF, 0xBB, 0xBF, (byte)'a' });
             if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(file, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            var (text, stamp, bom, _) = _ws.Read("bom.txt");
+            var (text, stamp, bom, _, _, _) = _ws.Read("bom.txt");
             Assert.AreEqual("a", text, "il BOM non entra nel testo");
             Assert.IsTrue(bom);
             _ws.Write("bom.txt", "b", stamp);
@@ -133,7 +133,7 @@ namespace MdExplorer.Features.Tests.RemoteAgent
         {
             Assert.AreEqual(RemoteErrorCodes.Binary, Code(() => _ws.Read("logo.png")));
             File.WriteAllBytes(Path.Combine(_root, "latin1.txt"), new byte[] { (byte)'c', 0xE0 });
-            var (text, _, _, encoding) = _ws.Read("latin1.txt");
+            var (text, _, _, encoding, _, _) = _ws.Read("latin1.txt");
             Assert.AreEqual("cà", text, "non UTF-8: una codifica a 8 bit, riconosciuta dal contenuto");
             Assert.AreEqual(TextDecoding.Windows1252, encoding);
             Assert.AreEqual(RemoteErrorCodes.BadRequest, Code(() => _ws.Read("src")), "una cartella non si legge");

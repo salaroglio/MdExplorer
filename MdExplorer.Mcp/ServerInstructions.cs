@@ -16,6 +16,8 @@ public static class ServerInstructions
         "Details: a MdExplorer project can link external code roots (@alias/...), often CP-850 or CP-1252 legacy code, and a root can assign an encoding per extension " +
         "(e.g. .cbl, .cpy -> ibm850): code_roots lists each root's `encodings`, and remote_read states the encoding of a " +
         "file that is not UTF-8. When the remote_* tools are available, edit through them: they keep the file's encoding. " +
+        "The files of a REMOTE root (ssh://host/path) are written ONLY with remote_edit/remote_write, never with ssh, scp, " +
+        "sftp or rsync from the shell: those skip the encoding and the MDE chat refuses them. " +
         "With your own tools (Edit, Write, sed, perl...), write the new text in the file's own encoding. Never insert " +
         "UTF-8 text into a non-UTF-8 file: it breaks the file for its compiler. If unsure, ask the user.";
 

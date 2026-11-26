@@ -81,6 +81,10 @@ export interface RemoteFileResult {
   bom?: boolean;
   /** La codifica riconosciuta dal contenuto (utf-8, ibm850, windows-1252, utf-16): il file si riscrive in quella. */
   encoding?: string;
+  /** read: la codifica che la regola della radice assegna all'estensione (assente = nessuna regola). */
+  ruleEncoding?: string;
+  /** read a 8 bit: quante lettere UTF-8 (2+ byte) ci sono dentro, cioè un file misto. */
+  utf8Letters?: number;
   truncated?: boolean;
   hits?: { path: string; line: number; text: string }[];
   /** find: i file trovati per nome (con truncated se ce n'erano altri). */

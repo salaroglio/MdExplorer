@@ -1014,7 +1014,12 @@
     "SAVE_IN": "Salva in",
     "REPAIRED_NOTE": "Riparato: le parti UTF-8 e quelle {{encoding}} sono ricomposte. Controlla il testo, poi salva: il file sarà tutto in {{encoding}}.",
     "READ_AS_NOTE": "Riletto come {{encoding}}: salvando resta in {{encoding}}.",
-    "CONVERT_NOTE": "Al salvataggio il file sarà convertito in {{encoding}}."
+    "CONVERT_NOTE": "Al salvataggio il file sarà convertito in {{encoding}}.",
+    "FORMAT_EIGHT_BIT": "Formato del file: {{encoding}}, un byte per lettera. Si salva in {{encoding}}.",
+    "FORMAT_EIGHT_BIT_RULE": "Formato del file: {{encoding}}, un byte per lettera, come vuole la regola della radice per {{ext}}. Si salva in {{encoding}}.",
+    "FORMAT_UTF16": "Formato del file: {{encoding}}, due byte per carattere. Si salva in {{encoding}}.",
+    "FORMAT_NOT_RULE": "Attenzione: il file è in {{encoding}} (le lettere accentate occupano due byte), ma la regola della radice per {{ext}} dice {{rule}}. Lo vedi com'è davvero; salvando resta in {{encoding}}. Per riportarlo in {{rule}}: «Salva in → {{rule}}».",
+    "FORMAT_MIXED": "Attenzione: il file è {{encoding}}, ma dentro ha {{count}} lettere scritte in UTF-8 (due byte ciascuna), che qui si vedono come coppie di simboli (├¿ al posto di è). «Ripara codifica mista» le ricompone; salvando senza riparare i byte restano come sono."
   },
   "REMOTE_TREE": {
     "FIND": "Cerca file…",

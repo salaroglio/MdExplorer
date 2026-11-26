@@ -1,3 +1,4 @@
+using System.Linq;
 using System.IO;
 using GitHub.Copilot;
 using MdExplorer.Features.Services.AI.CopilotSdk;
@@ -109,6 +110,48 @@ namespace MdExplorer.Features.Tests.Agents
 
             Assert.IsFalse(verdict.Approved);
             Assert.IsNotNull(verdict.Reason, "a refusal must say why");
+        }
+
+        private static PermissionRequestShell ShellParsed(string command, params string[] identifiers)
+            => new PermissionRequestShell
+            {
+                FullCommandText = command, Intention = "test", CanOfferSessionApproval = false,
+                HasWriteFileRedirection = false, Commands = identifiers.Select(i => new PermissionRequestShellCommand { Identifier = i, ReadOnly = false }).ToArray(),
+                PossiblePaths = new string[0], PossibleUrls = new PermissionRequestShellPossibleUrl[0]
+            };
+
+        /// <summary>
+        /// 26/11/2026: Copilot aveva riscritto un .bs CP-850 in UTF-8 passando dalla shell (ssh) invece che da MDE Remote.
+        /// Nella chat ssh, scp, sftp e rsync si rifiutano, con il motivo che rimanda ai remote_*.
+        /// </summary>
+        [TestMethod]
+        public void RefuseSshAndScpFromTheShellAndSendTheModelToTheRemoteTools()
+        {
+            foreach (var command in new[]
+            {
+                "ssh server01 'cat > /srv/app/ORDINI.BS'", "scp ORDINI.BS server01:/srv/app/", "sftp server01",
+                "rsync -a src/ server01:/srv/app/", "echo ciao && ssh -V", "cd /tmp; sudo ssh host ls",
+                "C:\\Windows\\System32\\OpenSSH\\ssh.exe host", "cat x | ssh host 'cat > y'", "FOO=1 scp a b:c",
+            })
+            {
+                var verdict = CopilotSdkPermissionPolicy.Decide(Shell(command), Project);
+                Assert.IsFalse(verdict.Approved, command);
+                StringAssert.Contains(verdict.Reason, "remote_edit", command);
+            }
+            Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(ShellParsed("qualcosa", "ssh"), Project).Approved, "dai comandi scomposti dal CLI");
+        }
+
+        [TestMethod]
+        public void LetThroughCommandsThatOnlyMentionSsh()
+        {
+            foreach (var command in new[]
+            {
+                "git commit -m 'fix ssh config'", "git push origin main", "ssh-keygen -l -f key.pub", "cat ~/.ssh/config",
+                "grep -r rsync docs/", "dotnet test --filter Ssh", "ls",
+            })
+                Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(Shell(command), Project).Approved, command);
+            CollectionAssert.AreEqual(new[] { "shell(ssh)", "shell(scp)", "shell(sftp)", "shell(rsync)" },
+                CopilotSdkPermissionPolicy.DeniedShellRules.ToArray(), "le stesse regole vanno a Copilot CLI con --deny-tool");
         }
     }
 }

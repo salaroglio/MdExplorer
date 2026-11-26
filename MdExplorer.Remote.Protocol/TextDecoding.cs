@@ -7,11 +7,21 @@ namespace MdExplorer.RemoteProtocol
     /// <summary>Un file di testo decodificato: il testo, la codifica in cui va riscritto, se aveva il BOM.</summary>
     public sealed class DecodedText
     {
-        public DecodedText(string text, string encoding, bool bom) { Text = text; Encoding = encoding; Bom = bom; }
+        public DecodedText(string text, string encoding, bool bom, string? ruleEncoding = null, int utf8Letters = 0)
+        {
+            Text = text; Encoding = encoding; Bom = bom; RuleEncoding = ruleEncoding; Utf8Letters = utf8Letters;
+        }
         public string Text { get; }
-        /// <summary>Nome web: <c>utf-8</c>, <c>ibm850</c>, <c>windows-1252</c>, <c>utf-16</c> (LE), <c>utf-16BE</c>.</summary>
+        /// <summary>Nome web: <c>utf-8</c>, <c>ibm850</c>, <c>windows-1252</c>, <c>utf-16</c> (LE), <c>utf-16BE</c>. La codifica VERA del file.</summary>
         public string Encoding { get; }
         public bool Bom { get; }
+        /// <summary>La codifica che la regola della radice assegna all'estensione, se ce n'è una; diversa da <see cref="Encoding"/> = il file non la rispetta.</summary>
+        public string? RuleEncoding { get; }
+        /// <summary>
+        /// In un file letto a 8 bit: quante lettere ci sono scritte in UTF-8 (due o più byte), cioè un file misto. Si mostrano
+        /// come sono nella codifica a 8 bit (<c>├¿</c> per <c>è</c>): il numero lo dice, «Ripara codifica mista» le converte.
+        /// </summary>
+        public int Utf8Letters { get; }
     }
 
     /// <summary>
@@ -54,7 +64,66 @@ namespace MdExplorer.RemoteProtocol
             try { return new DecodedText(StrictUtf8.GetString(bytes, offset, bytes.Length - offset), Utf8, bom); }
             catch (DecoderFallbackException) when (!bom) { /* non è UTF-8: una codifica a 8 bit */ }
             var name = Guess8Bit(bytes);
-            return new DecodedText(Get(name).GetString(bytes), name, bom: false);
+            return new DecodedText(Get(name).GetString(bytes), name, bom: false, utf8Letters: CountUtf8Letters(bytes));
+        }
+
+        /// <summary>
+        /// Un file la cui estensione ha una regola a 8 bit (CP-850, CP-1252), letto per quello che è DAVVERO (l'utente,
+        /// 26/11/2026: «se il file ha 2 byte per lettera non visualizzarlo come CP-850»):
+        /// <list type="bullet">
+        /// <item>tutto UTF-8 valido, con lettere a più byte tutte plausibili → UTF-8, e <see cref="DecodedText.RuleEncoding"/>
+        /// dice che la regola voleva altro;</item>
+        /// <item>altrimenti nella codifica della regola; se dentro ci sono lettere UTF-8 (un file misto) le conta.</item>
+        /// </list>
+        /// «Plausibili» come in <see cref="DecodeMixed"/>: i riquadri DOS in CP-850 formano UTF-8 valido per caso
+        /// (<c>═╗</c> = <c>CD BB</c> = «ͻ» greco), e un file di maschere non deve passare per UTF-8.
+        /// </summary>
+        public static DecodedText DecodeWithRule(byte[] bytes, string rule)
+        {
+            if (rule.StartsWith("utf-16", StringComparison.Ordinal) || rule == Utf8 || rule.StartsWith(MixedPrefix, StringComparison.Ordinal))
+                return DecodeAs(bytes, rule);
+            string? asUtf8 = null;
+            try { asUtf8 = StrictUtf8.GetString(bytes); }
+            catch (DecoderFallbackException) { /* non è tutto UTF-8 */ }
+            if (asUtf8 != null && HasOnlyPlausibleNonAscii(asUtf8, out var nonAscii) && nonAscii)
+                return new DecodedText(asUtf8, Utf8, bom: false, ruleEncoding: rule);
+            return new DecodedText(Get(rule).GetString(bytes), rule, bom: false, ruleEncoding: rule, utf8Letters: CountUtf8Letters(bytes));
+        }
+
+        private static bool HasOnlyPlausibleNonAscii(string text, out bool any)
+        {
+            any = false;
+            for (var i = 0; i < text.Length; i++)
+            {
+                var c = text[i];
+                if (c < 0x80) continue;
+                any = true;
+                var one = char.IsHighSurrogate(c) && i + 1 < text.Length ? text.Substring(i++, 2) : c.ToString();
+                if (!PlausibleAdded(one)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>Quante sequenze UTF-8 valide e plausibili (lettere accentate, €, virgolette…) ci sono fra i byte.</summary>
+        public static int CountUtf8Letters(byte[] bytes)
+        {
+            var count = 0;
+            var i = 0;
+            while (i < bytes.Length)
+            {
+                var b = bytes[i];
+                var length = b >= 0xC2 && b <= 0xDF ? 2 : b >= 0xE0 && b <= 0xEF ? 3 : b >= 0xF0 && b <= 0xF4 ? 4 : 0;
+                if (length > 0 && i + length <= bytes.Length)
+                {
+                    try
+                    {
+                        if (PlausibleAdded(StrictUtf8.GetString(bytes, i, length))) { count++; i += length; continue; }
+                    }
+                    catch (DecoderFallbackException) { /* byte della codifica a 8 bit */ }
+                }
+                i++;
+            }
+            return count;
         }
 
         /// <summary>Le codifiche che si possono assegnare a un'estensione (e scegliere nell'editor).</summary>
