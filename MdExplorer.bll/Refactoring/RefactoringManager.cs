@@ -68,136 +68,118 @@ namespace MdExplorer.Features.Refactoring
             return refSourceAct;
         }
 
-        public void SetInternalLinks(
-            string toDestinationFileName,
-            string projectBasePath,
-            RefactoringSourceAction refSourceAction
-            )
-        {
-            var linkDal = _engineDB.GetDal<LinkInsideMarkdown>();
-            var refInvolvedDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
-
-            // All links INSIDE the moved file (MarkdownFile.Path already updated by RenameTheMdFileIntoEngineDB)
-            var linksInMovedFile = linkDal.GetList()
-                .Where(_ => _.MarkdownFile.Path == refSourceAction.NewFullPath)
-                .ToList();
-
-            var newFileDir = Path.GetDirectoryName(refSourceAction.NewFullPath);
-
-            foreach (var item in linksInMovedFile.Where(_ => !ReadByMarkdig(_.Source)))
-            {
-                // Skip external links, anchor-only, data URI
-                if (string.IsNullOrEmpty(item.Path) ||
-                    item.Path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                    item.Path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                    item.Path.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
-                    item.Path.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
-                    item.Path.StartsWith("#"))
-                    continue;
-
-                // The link target (image, other .md) does NOT move.
-                // item.FullPath = absolute path of the target, resolved during indexing.
-                var targetAbsolutePath = item.FullPath;
-
-                // Calculate new relative path from the new file location to the target
-                var newRelativePath = Path.GetRelativePath(newFileDir, targetAbsolutePath)
-                    .Replace(Path.DirectorySeparatorChar, '/');
-
-                // If the path hasn't changed, skip
-                if (newRelativePath == item.Path.Replace(Path.DirectorySeparatorChar, '/'))
-                    continue;
-
-                // Build new LinkedCommand by replacing the old path with the new one
-                var newLinkedCommand = item.LinkedCommand.Replace(item.Path, newRelativePath);
-
-                var workLink = _workLinks.FirstOrDefault(_ => _.GetType().Name == item.Source);
-                if (workLink == null) continue;
-
-                var involved = new RefactoringInvolvedFilesAction
-                {
-                    CreationDate = DateTime.Now,
-                    FileName = Path.GetFileName(refSourceAction.NewName),
-                    FullPath = refSourceAction.NewFullPath,
-                    NewLinkToReplace = newLinkedCommand,
-                    OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Relink",
-                    RefactoringSourceAction = refSourceAction,
-                    LinkInsideMarkdown = item
-                };
-                refInvolvedDal.Save(involved);
-            }
-            _engineDB.Flush();
-        }
-
-        public void SetExternalLinks(
-            string toDestinationFileName,
-            RefactoringSourceAction refSourceAction
-            )
-        {
-            var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
-            var refInvolvedDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
-
-            // Links in OTHER files whose target (FullPath) points to the old location of the moved file
-            var linksToMovedFile = linkInsideMdDal.GetList()
-                .ToList()
-                .Where(_ => _.FullPath != null && string.Equals(_.FullPath, Path.GetFullPath(refSourceAction.OldFullPath), StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            foreach (var item in linksToMovedFile.Where(_ => !ReadByMarkdig(_.Source)))
-            {
-                var workLink = _workLinks.FirstOrDefault(_ => _.GetType().Name == item.Source);
-                if (workLink == null) continue;
-
-                // Directory of the file that CONTAINS the link (does not move)
-                var referenceFileDir = Path.GetDirectoryName(item.MarkdownFile.Path);
-
-                // Calculate new relative path from the referencing file to the new location of the moved file
-                var newRelativePath = Path.GetRelativePath(referenceFileDir, refSourceAction.NewFullPath)
-                    .Replace(Path.DirectorySeparatorChar, '/');
-
-                // Build new LinkedCommand
-                var newLinkedCommand = item.LinkedCommand.Replace(item.Path, newRelativePath);
-
-                var involved = new RefactoringInvolvedFilesAction
-                {
-                    CreationDate = DateTime.Now,
-                    FileName = item.MarkdownFile.FileName,
-                    FullPath = item.MarkdownFile.Path,
-                    NewLinkToReplace = newLinkedCommand,
-                    OldLinkStored = item.LinkedCommand,
-                    SuggestedAction = "Relink",
-                    RefactoringSourceAction = refSourceAction,
-                    LinkInsideMarkdown = item
-                };
-                refInvolvedDal.Save(involved);
-            }
-            _engineDB.Flush();
-        }
-
-
-        public IReadOnlyList<string> RelinkMovedDocument(string projectRoot, string oldFullPath, string newFullPath)
+        /// <summary>
+        /// Un documento spostato (già sul disco), con i file che si è portato dietro (<paramref name="alsoMoved"/>: da
+        /// <see cref="CarryDocumentAssets"/>): i suoi link si ricalcolano dal posto nuovo, e ogni documento che portava a
+        /// lui o a uno di quei file porta al posto nuovo. Si guardano i documenti il cui testo contiene uno dei nomi.
+        /// </summary>
+        public IReadOnlyList<string> RelinkMovedDocument(string projectRoot, string oldFullPath, string newFullPath,
+            IReadOnlyCollection<DocumentMove> alsoMoved = null)
         {
             oldFullPath = Path.GetFullPath(oldFullPath);
             newFullPath = Path.GetFullPath(newFullPath);
             var changed = new List<string>();
             var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var moved = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                { [oldFullPath] = newFullPath };
+            foreach (var m in alsoMoved ?? Array.Empty<DocumentMove>()) moved[Path.GetFullPath(m.From)] = Path.GetFullPath(m.To);
+            string Map(string target) => moved.TryGetValue(target, out var to) ? to : null;
 
-            if (TryRelink(newFullPath, projectRoot, oldFullPath, newFullPath, isMoved: true)) changed.Add(newFullPath);
+            if (TryRelinkMoves(newFullPath, oldFullPath, projectRoot, Map)) changed.Add(newFullPath);
 
-            var name = Path.GetFileName(oldFullPath);
-            var escaped = Uri.EscapeDataString(name);
-            // Dal disco E dall'indice: mentre il progetto si indicizza l'indice è incompleto.
-            var documents = ProjectDocuments(projectRoot)
-                .Concat(_engineDB.GetDal<MarkdownFile>().GetList().Select(m => m.Path).ToList())
-                .Where(d => d != null && d.EndsWith(".md", StringComparison.OrdinalIgnoreCase)).ToList();
-            foreach (var doc in documents.Where(d => d != null && !string.Equals(Path.GetFullPath(d), newFullPath, cmp)).Distinct())
+            var names = moved.Keys.Select(Path.GetFileName).SelectMany(n => new[] { n, Uri.EscapeDataString(n) }).Distinct().ToList();
+            foreach (var doc in OtherDocuments(projectRoot, newFullPath))
             {
-                if (!File.Exists(doc)) continue;
                 var text = ReadText(doc, out _);
-                if (text.IndexOf(name, cmp) < 0 && text.IndexOf(escaped, cmp) < 0) continue;
-                if (TryRelink(doc, projectRoot, oldFullPath, newFullPath, isMoved: false)) changed.Add(doc);
+                if (!names.Any(n => text.IndexOf(n, cmp) >= 0)) continue;
+                if (TryRelinkMoves(doc, doc, projectRoot, Map)) changed.Add(doc);
             }
             return changed;
+        }
+
+        /// <summary>I documenti del progetto che ci sono sul disco, tranne <paramref name="except"/>: dal disco E dall'indice,
+        /// perché mentre il progetto si indicizza l'indice è incompleto.</summary>
+        private List<string> OtherDocuments(string projectRoot, params string[] except)
+        {
+            var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            return ProjectDocuments(projectRoot)
+                .Concat(_engineDB.GetDal<MarkdownFile>().GetList().Select(m => m.Path).ToList())
+                .Where(d => d != null && d.EndsWith(".md", StringComparison.OrdinalIgnoreCase) && File.Exists(d))
+                .Select(Path.GetFullPath)
+                .Where(d => !except.Any(e => e != null && string.Equals(d, Path.GetFullPath(e), cmp)))
+                .Distinct(comparer).ToList();
+        }
+
+        /// <summary>
+        /// I file della cartella <c>assets</c> che seguono un documento spostato o rinominato (il documento è già al posto
+        /// nuovo). Vanno con lui nella <c>assets</c> della cartella d'arrivo i file a cui portano i suoi link e che nessun
+        /// altro documento usa (o che usano solo documenti spostati con lui nella stessa cartella, <paramref name="batch"/>);
+        /// quelli usati anche da altri restano dove sono e il documento li raggiunge da lì. Il <c>.reference.docx</c> del
+        /// documento (<c>assets/&lt;nome&gt;.md.reference.docx</c>) lo segue sempre e prende il nome nuovo. Mai sovrascrivere:
+        /// se all'arrivo c'è già un file con quel nome, quello resta dov'è. Restituisce i file spostati.
+        /// </summary>
+        public IReadOnlyList<DocumentMove> CarryDocumentAssets(string projectRoot, string oldDoc, string newDoc,
+            IReadOnlyCollection<DocumentMove> batch = null)
+        {
+            oldDoc = Path.GetFullPath(oldDoc);
+            newDoc = Path.GetFullPath(newDoc);
+            var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var oldDir = Path.GetDirectoryName(oldDoc);
+            var newDir = Path.GetDirectoryName(newDoc);
+            var oldAssets = Path.Combine(oldDir, "assets");
+            var newAssets = Path.Combine(newDir, "assets");
+            var carried = new List<DocumentMove>();
+            if (!Directory.Exists(oldAssets) || !File.Exists(newDoc)) return carried;
+
+            var reference = Path.Combine(oldAssets, Path.GetFileName(oldDoc) + ".reference.docx");
+            var plan = new List<DocumentMove>();
+            if (File.Exists(reference))
+                plan.Add(new DocumentMove(reference, Path.Combine(newAssets, Path.GetFileName(newDoc) + ".reference.docx"), false));
+
+            if (!string.Equals(oldDir, newDir, cmp))
+            {
+                var prefix = oldAssets + Path.DirectorySeparatorChar;
+                var used = MarkdownLinks.TargetsOf(ReadText(newDoc, out _), oldDoc, projectRoot)
+                    .Where(t => t.StartsWith(prefix, cmp) && File.Exists(t) && !t.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(t, reference, cmp))
+                    .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToList();
+                if (used.Count > 0)
+                {
+                    // Dove finirà ogni documento: quelli del gruppo nella loro cartella d'arrivo, gli altri dove sono.
+                    string FinalDir(string doc)
+                    {
+                        var m = batch?.FirstOrDefault(b => string.Equals(Path.GetFullPath(b.From), doc, cmp));
+                        return Path.GetDirectoryName(m != null ? Path.GetFullPath(m.To) : doc);
+                    }
+                    var others = OtherDocuments(projectRoot, newDoc, oldDoc)
+                        .Select(d => (Doc: d, Text: ReadText(d, out _))).ToList();
+                    foreach (var file in used)
+                    {
+                        var name = Path.GetFileName(file);
+                        var users = others.Where(o => (o.Text.IndexOf(name, cmp) >= 0 || o.Text.IndexOf(Uri.EscapeDataString(name), cmp) >= 0)
+                                                      && MarkdownLinks.TargetsOf(o.Text, o.Doc, projectRoot).Any(t => string.Equals(t, file, cmp)));
+                        if (users.All(u => string.Equals(FinalDir(u.Doc), newDir, cmp)))
+                            plan.Add(new DocumentMove(file, Path.Combine(newAssets, file.Substring(prefix.Length)), false));
+                    }
+                }
+            }
+
+            foreach (var move in plan)
+            {
+                if (File.Exists(move.To) || Directory.Exists(move.To)) continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(move.To));
+                File.Move(move.From, move.To, false);
+                carried.Add(move);
+            }
+            // Le cartelle rimaste vuote dentro la vecchia assets (le immagini di un Word convertito, assets stessa).
+            foreach (var dir in carried.Select(c => Path.GetDirectoryName(c.From)).Distinct().OrderByDescending(d => d.Length))
+                for (var d = dir; d != null && (d.StartsWith(oldAssets + Path.DirectorySeparatorChar, cmp) || string.Equals(d, oldAssets, cmp)); d = Path.GetDirectoryName(d))
+                {
+                    if (!Directory.Exists(d) || Directory.EnumerateFileSystemEntries(d).Any()) break;
+                    Directory.Delete(d);
+                }
+            return carried;
         }
 
         // Le cartelle che non sono documenti del progetto: git, le copie degli agenti, le dipendenze, i dati di MDE.
@@ -271,15 +253,6 @@ namespace MdExplorer.Features.Refactoring
             return true;
         }
 
-        private static bool TryRelink(string document, string projectRoot, string oldFullPath, string newFullPath, bool isMoved)
-        {
-            var text = ReadText(document, out var bom);
-            var updated = MarkdownLinks.RelinkForMove(text, document, projectRoot, oldFullPath, newFullPath, isMoved, out var count);
-            if (count == 0 || updated == text) return false;
-            File.WriteAllText(document, updated, new System.Text.UTF8Encoding(bom));
-            return true;
-        }
-
         private static string ReadText(string path, out bool bom)
         {
             var bytes = File.ReadAllBytes(path);
@@ -340,56 +313,5 @@ namespace MdExplorer.Features.Refactoring
             _engineDB.Flush();
         }
 
-        public void UpdateAllInvolvedFilesAndReferencesToDB(
-            RefactoringSourceAction refSourceAct)
-        {
-            var refInvolvedFilesActionDal = _engineDB.GetDal<RefactoringInvolvedFilesAction>();
-            var linkInsideMdDal = _engineDB.GetDal<LinkInsideMarkdown>();
-
-            var listOfInvolvedFiles = refInvolvedFilesActionDal
-                .GetList().Where(_ => _.RefactoringSourceAction.Id == refSourceAct.Id).ToList();
-
-            foreach (var refactInvolvedFile in listOfInvolvedFiles)
-            {
-                foreach (var getModifier in _workLinks
-                    .Where(_ => _.GetType().Name == refactInvolvedFile.LinkInsideMarkdown.Source))
-                {
-                    // 1. Update the .md file on disk
-                    getModifier.SetLinkIntoFile(refactInvolvedFile.FullPath,
-                        refactInvolvedFile.OldLinkStored, refactInvolvedFile.NewLinkToReplace);
-
-                    // 2. Update LinkedCommand in DB
-                    refactInvolvedFile.LinkInsideMarkdown.LinkedCommand = refactInvolvedFile.NewLinkToReplace;
-
-                    // 3. Extract the new relative path from the new LinkedCommand using the parser
-                    var parsedLinks = getModifier.GetLinksFromMarkdown(refactInvolvedFile.NewLinkToReplace);
-                    if (parsedLinks.Length > 0)
-                    {
-                        var newRelPath = parsedLinks[0].FullPath; // relative path extracted by parser
-                        refactInvolvedFile.LinkInsideMarkdown.Path = newRelPath;
-
-                        // 4. Resolve absolute FullPath: containing file directory + relative path
-                        var containingFileDir = Path.GetDirectoryName(refactInvolvedFile.FullPath);
-                        var resolvedFullPath = Path.GetFullPath(
-                            Path.Combine(containingFileDir,
-                                newRelPath.Replace('/', Path.DirectorySeparatorChar)));
-                        refactInvolvedFile.LinkInsideMarkdown.FullPath = resolvedFullPath;
-                    }
-
-                    linkInsideMdDal.Save(refactInvolvedFile.LinkInsideMarkdown);
-                }
-                refInvolvedFilesActionDal.Save(refactInvolvedFile);
-            }
-            // Senza, le righe aggiornate restavano nella sessione e l'indice teneva i valori vecchi.
-            _engineDB.Flush();
-        }
-
-        /// <summary>
-        /// I link markdown e le immagini li sposta <see cref="RelinkMovedDocument"/> con Markdig; il meccanismo dei comandi
-        /// salvati (<see cref="SetExternalLinks"/>, <see cref="SetInternalLinks"/>) resta per le altre sorgenti (PlantUML, MdShow).
-        /// </summary>
-        private static bool ReadByMarkdig(string source)
-            => source == nameof(MdExplorer.Features.ActionLinkModifiers.WorkLinkFromMarkdown)
-               || source == nameof(MdExplorer.Features.LinkModifiers.WorkLinkImagesFromMarkdown);
     }
 }

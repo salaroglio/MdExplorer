@@ -3,15 +3,34 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
 namespace MdExplorer.Features.Refactoring
 {
+    /// <summary>Che tipo di link è: dice da dove si legge il percorso e come si riscrive.</summary>
+    public enum MarkdownLinkKind
+    {
+        /// <summary><c>[t](p)</c>, <c>![t](p)</c>, <c>[r]: p</c>.</summary>
+        Markdown,
+        /// <summary><c>href="p"</c> o <c>src="p"</c> in un pezzo di HTML del documento.</summary>
+        Html,
+        /// <summary>Il file di <c>```text(p)</c>, <c>```html(p)</c>, <c>```plantuml(@json, p)</c>.</summary>
+        IncludeCommand,
+        /// <summary><c>[[p etichetta]]</c> dentro un diagramma PlantUML.</summary>
+        PlantumlLink,
+        /// <summary><c>&lt;img:p&gt;</c> dentro un diagramma PlantUML: PlantUML la cerca dalla cartella del documento.</summary>
+        PlantumlImage,
+        /// <summary><c>mdShowMd(p)</c>, <c>MDShowH2(p, …)</c>.</summary>
+        MdShow,
+    }
+
     /// <summary>Un link scritto in un markdown, come Markdig lo vede: dove sta la sua destinazione nel testo.</summary>
     public sealed class MarkdownLinkSpan
     {
+        public MarkdownLinkKind Kind { get; init; } = MarkdownLinkKind.Markdown;
         /// <summary>Posizione della destinazione nel testo, parentesi angolari comprese se ci sono.</summary>
         public int Start { get; init; }
         public int Length { get; init; }
@@ -66,6 +85,102 @@ namespace MdExplorer.Features.Refactoring
             return result.OrderBy(s => s.Start).ToList();
         }
 
+        // ```text(p)  ```html(p)  ```plantuml(@json, p): la prima riga del blocco, come la leggono i comandi.
+        private static readonly Regex IncludeHead = new(@"^[ \t]*(?:`{3,}|~{3,})[ \t]*(?:(?:text|html)\((?<p>[^)\r\n]+)\)|plantuml\(\s*@[A-Za-z]+\s*,\s*(?<p>[^)\r\n]+?)\s*\))",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex PlantumlHead = new(@"^[ \t]*(?:`{3,}|~{3,})[ \t]*plantuml\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex PlantumlLinkRx = new(@"\[\[\s*(?<p>[^\]\s{]+)", RegexOptions.Compiled);
+        private static readonly Regex PlantumlImageRx = new(@"<img:(?<p>[^>{]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex HtmlAttributeRx = new(@"\b(?:href|src)\s*=\s*(?:""(?<p>[^""]*)""|'(?<p>[^']*)')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex MdShowRx = new(@"(?:mdShowMd|MDShowH2)\((?<p>[^,)\r\n]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Tutti i link che portano a un file, non solo quelli markdown: i comandi che includono un file, i link e le
+        /// immagini dei diagrammi PlantUML, gli attributi <c>href</c>/<c>src</c> dell'HTML, <c>mdShow</c>. Il codice
+        /// d'esempio resta fuori, come per i link markdown. In ordine di posizione.
+        /// </summary>
+        public static IReadOnlyList<MarkdownLinkSpan> ReadAll(string markdown)
+        {
+            if (string.IsNullOrEmpty(markdown)) return Array.Empty<MarkdownLinkSpan>();
+            var result = Read(markdown).ToList();
+            var doc = Markdown.Parse(markdown, Pipeline);
+
+            foreach (var block in doc.Descendants<FencedCodeBlock>())
+            {
+                var start = block.Span.Start;
+                if (start < 0 || start >= markdown.Length) continue;
+                var lineEnd = markdown.IndexOf('\n', start);
+                if (lineEnd < 0) lineEnd = markdown.Length;
+                var head = markdown.Substring(start, lineEnd - start);
+                var inc = IncludeHead.Match(head);
+                if (inc.Success)
+                {
+                    var g = inc.Groups["p"];
+                    var raw = g.Value.TrimEnd();
+                    result.Add(Plain(MarkdownLinkKind.IncludeCommand, start + g.Index, raw, head));
+                    continue;
+                }
+                if (!PlantumlHead.IsMatch(head)) continue;
+                var end = Math.Min(markdown.Length, block.Span.End + 1);
+                var body = markdown.Substring(lineEnd, Math.Max(0, end - lineEnd));
+                foreach (Match m in PlantumlLinkRx.Matches(body))
+                    result.Add(Linkish(MarkdownLinkKind.PlantumlLink, lineEnd + m.Groups["p"].Index, m.Groups["p"].Value, m.Value));
+                foreach (Match m in PlantumlImageRx.Matches(body))
+                {
+                    var raw = m.Groups["p"].Value.TrimEnd();
+                    result.Add(Plain(MarkdownLinkKind.PlantumlImage, lineEnd + m.Groups["p"].Index, raw, m.Value));
+                }
+            }
+
+            foreach (var html in doc.Descendants<HtmlBlock>().Select(b => b.Span)
+                         .Concat(doc.Descendants<HtmlInline>().Select(i => i.Span)))
+            {
+                if (html.Start < 0 || html.End >= markdown.Length || html.Length <= 0) continue;
+                var text = markdown.Substring(html.Start, html.Length);
+                foreach (Match m in HtmlAttributeRx.Matches(text))
+                {
+                    var g = m.Groups["p"];
+                    if (g.Length == 0) continue;
+                    result.Add(Linkish(MarkdownLinkKind.Html, html.Start + g.Index, g.Value, m.Value));
+                }
+            }
+
+            var code = MdExplorer.Features.Utilities.MarkdownCodeRegions.Of(markdown);
+            foreach (Match m in MdShowRx.Matches(markdown))
+            {
+                var g = m.Groups["p"];
+                if (code.IsCode(m.Index)) continue;
+                var raw = g.Value.Trim();
+                result.Add(Plain(MarkdownLinkKind.MdShow, g.Index + (g.Value.Length - g.Value.TrimStart().Length), raw, m.Value));
+            }
+
+            return result.Where(l => l != null).GroupBy(l => l.Start).Select(g => g.First()).OrderBy(l => l.Start).ToList();
+        }
+
+        /// <summary>Un percorso scritto com'è, senza ancora né codifica (comandi, immagini di PlantUML, mdShow).</summary>
+        private static MarkdownLinkSpan Plain(MarkdownLinkKind kind, int start, string raw, string command)
+            => string.IsNullOrWhiteSpace(raw) ? null : new MarkdownLinkSpan
+            {
+                Kind = kind, Start = start, Length = raw.Length, Raw = raw, Target = raw, Suffix = string.Empty,
+                IsImage = kind == MarkdownLinkKind.PlantumlImage, Command = command,
+            };
+
+        /// <summary>Un percorso con ancora o query possibili e la codifica degli URL (HTML, link di PlantUML).</summary>
+        private static MarkdownLinkSpan Linkish(MarkdownLinkKind kind, int start, string raw, string command)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var cut = raw.IndexOfAny(new[] { '#', '?' });
+            var path = cut >= 0 ? raw[..cut] : raw;
+            string target;
+            try { target = Uri.UnescapeDataString(path); }
+            catch (UriFormatException) { target = path; }
+            return new MarkdownLinkSpan
+            {
+                Kind = kind, Start = start, Length = raw.Length, Raw = raw, Target = target,
+                Suffix = cut >= 0 ? raw[cut..] : string.Empty, Command = command,
+            };
+        }
+
         private static MarkdownLinkSpan Make(string markdown, int start, int length, bool image, bool definition, SourceSpan whole)
         {
             if (length <= 0 || start < 0 || start + length > markdown.Length) return null;
@@ -114,6 +229,21 @@ namespace MdExplorer.Features.Refactoring
         }
 
         /// <summary>
+        /// Il file a cui porta un link del suo tipo. Le immagini di PlantUML le cerca PlantUML dalla cartella del documento:
+        /// per loro <c>/</c> è la radice del disco, non del progetto.
+        /// </summary>
+        public static string ResolveTarget(string projectRoot, string documentPath, MarkdownLinkSpan link)
+        {
+            if (link.Kind != MarkdownLinkKind.PlantumlImage) return ResolveTarget(projectRoot, documentPath, link.Target);
+            if (IsExternal(link.Target) && !Path.IsPathRooted(link.Target)) return null;
+            var t = link.Target.Trim();
+            if (t.Length == 0) return null;
+            return Path.IsPathRooted(t)
+                ? Path.GetFullPath(t)
+                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(documentPath) ?? string.Empty, t.Replace('\\', '/').Replace('/', Path.DirectorySeparatorChar)));
+        }
+
+        /// <summary>
         /// Come scrivere nel documento <paramref name="documentPath"/> un link verso <paramref name="targetFullPath"/>:
         /// dalla radice se il link era dalla radice, altrimenti relativo alla cartella del documento, con le <c>/</c>.
         /// </summary>
@@ -131,35 +261,22 @@ namespace MdExplorer.Features.Refactoring
         /// </summary>
         public static (string Text, int Changed) Rewrite(string markdown, Func<MarkdownLinkSpan, string> newTarget)
         {
-            var links = Read(markdown);
+            var links = ReadAll(markdown);
             var sb = new StringBuilder(markdown);
             var changed = 0;
             foreach (var link in links.OrderByDescending(l => l.Start))
             {
                 var path = newTarget(link);
                 if (path == null) continue;
-                var pointy = link.Raw.StartsWith('<') && link.Raw.EndsWith('>');
-                var written = pointy ? path : path.Replace(" ", "%20");
+                var pointy = link.Kind == MarkdownLinkKind.Markdown && link.Raw.StartsWith('<') && link.Raw.EndsWith('>');
+                var encoded = link.Kind is MarkdownLinkKind.Markdown or MarkdownLinkKind.Html or MarkdownLinkKind.PlantumlLink;
+                var written = pointy || !encoded ? path : path.Replace(" ", "%20");
                 var replacement = pointy ? "<" + written + link.Suffix + ">" : written + link.Suffix;
                 if (replacement == link.Raw) continue;
                 sb.Remove(link.Start, link.Length).Insert(link.Start, replacement);
                 changed++;
             }
             return (sb.ToString(), changed);
-        }
-
-        /// <summary>
-        /// I link da cambiare quando un documento si sposta da <paramref name="oldPath"/> a <paramref name="newPath"/>: per
-        /// il documento spostato, ogni link relativo che puntava altrove torna a puntarci dalla cartella nuova; per gli
-        /// altri, ogni link che puntava al vecchio posto porta al nuovo. I link dalla radice restano dalla radice.
-        /// </summary>
-        public static string RelinkForMove(string markdown, string documentPath, string projectRoot, string oldPath, string newPath,
-            bool isMovedDocument, out int changed)
-        {
-            var sameAs = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            var old = Path.GetFullPath(oldPath);
-            return RelinkForMoves(markdown, documentPath, isMovedDocument ? oldPath : documentPath, projectRoot,
-                target => string.Equals(target, old, sameAs) ? newPath : null, out changed);
         }
 
         /// <summary>
@@ -174,18 +291,33 @@ namespace MdExplorer.Features.Refactoring
             var sameAs = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var (text, count) = Rewrite(markdown, link =>
             {
-                var target = ResolveTarget(projectRoot, documentOldPath, link.Target);
+                var target = ResolveTarget(projectRoot, documentOldPath, link);
                 if (target == null) return null;
-                var fromRoot = link.Target.StartsWith('/');
                 var shouldReach = Path.GetFullPath(newLocationOf(target) ?? target);
+                var written = link.Kind == MarkdownLinkKind.PlantumlImage
+                    ? (Path.IsPathRooted(link.Target.Trim())
+                        ? shouldReach
+                        : Path.GetRelativePath(Path.GetDirectoryName(documentPath), shouldReach).Replace(Path.DirectorySeparatorChar, '/'))
+                    : WriteTarget(projectRoot, documentPath, shouldReach, link.Target.StartsWith('/'));
                 // Letto da dove sta ora il documento, il link porta già lì (due documenti spostati insieme, un link dalla
-                // radice a un bersaglio fermo): resta scritto com'è, «./» compreso.
-                if (string.Equals(ResolveTarget(projectRoot, documentPath, link.Target), shouldReach, sameAs)) return null;
-                return WriteTarget(projectRoot, documentPath, shouldReach, fromRoot);
+                // radice a un bersaglio fermo): resta scritto com'è, «./» compreso. Ma non un giro che esce e rientra
+                // (`../archivio/assets/x.png` da dentro archivio), lasciato da uno spostamento precedente dello stesso gruppo.
+                var moved = !string.Equals(documentPath, documentOldPath, sameAs) || newLocationOf(target) != null;
+                if (string.Equals(ResolveTarget(projectRoot, documentPath, link), shouldReach, sameAs)
+                    && !(moved && UpLevels(link.Target) > UpLevels(written)))
+                    return null;
+                return written;
             });
             changed = count;
             return text;
         }
+
+        private static int UpLevels(string path)
+            => (path ?? string.Empty).Replace('\\', '/').Split('/').Count(seg => seg == "..");
+
+        /// <summary>I file a cui portano i link del documento (percorsi completi), di ogni tipo.</summary>
+        public static IEnumerable<string> TargetsOf(string markdown, string documentPath, string projectRoot)
+            => ReadAll(markdown).Select(l => ResolveTarget(projectRoot, documentPath, l)).Where(t => t != null);
 
         /// <summary>Dove è finito <paramref name="path"/> se stava dentro la cartella spostata; null se era fuori.</summary>
         public static string InsideMovedFolder(string path, string oldDir, string newDir)

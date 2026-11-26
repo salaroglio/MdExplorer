@@ -328,6 +328,92 @@ namespace MdExplorer.IntegrationTests
         // ---- infrastruttura ----
 
         /// <summary>Un progetto vero: file scritti, aperto con SetFolderProject, indicizzato fino ai link.</summary>
+        // ---- Gli altri link e i file di assets (26/11) ----
+
+        [TestMethod]
+        public async Task Follow_every_kind_of_link_inside_the_moved_document_and_towards_it()
+        {
+            using var p = await Project.Open("mv-tipi", ("archivio/README.md", "# Archivio\n"), ("src/a.cs", "class A {}\n"),
+                ("docs/c.md", "# C\n"),
+                ("docs/nota.md",
+                    "```text(../src/a.cs)\n```\n\n" +
+                    "```plantuml\n@startuml\nA : [[c.md Vai]]\n@enduml\n```\n\n" +
+                    "<a href=\"c.md#s\">C</a>\n"),
+                ("index.md", "```plantuml\n@startuml\nN : [[docs/nota.md Nota]]\n@enduml\n```\n\n<a href=\"docs/nota.md\">Nota</a> mdShowMd(docs/nota.md)\n"));
+
+            await p.Move("docs/nota.md", "archivio");
+
+            Assert.AreEqual(
+                "```text(../src/a.cs)\n```\n\n" +
+                "```plantuml\n@startuml\nA : [[../docs/c.md Vai]]\n@enduml\n```\n\n" +
+                "<a href=\"../docs/c.md#s\">C</a>\n", p.Read("archivio/nota.md"), "text() è alla stessa profondità: resta");
+            Assert.AreEqual("```plantuml\n@startuml\nN : [[archivio/nota.md Nota]]\n@enduml\n```\n\n<a href=\"archivio/nota.md\">Nota</a> mdShowMd(archivio/nota.md)\n",
+                p.Read("index.md"));
+        }
+
+        [TestMethod]
+        public async Task Carry_the_assets_only_the_moved_document_uses_and_its_word_reference()
+        {
+            using var p = await Project.Open("mv-assets", ("archivio/README.md", "# Archivio\n"),
+                ("docs/assets/foto.png", "png"), ("docs/assets/schema.png", "png"), ("docs/assets/nota.md.reference.docx", "docx"),
+                ("docs/assets/nota_img/img1.png", "png"),
+                ("docs/nota.md", "![f](assets/foto.png) ![s](/docs/assets/schema.png) ![w](assets/nota_img/img1.png)\n\n" +
+                                 "```plantuml\n@startuml\nA : <img:assets/schema.png>\n@enduml\n```\n"));
+
+            var (status, body) = await p.MoveMany("archivio", "docs/nota.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            foreach (var f in new[] { "foto.png", "schema.png", "nota.md.reference.docx", "nota_img/img1.png" })
+                Assert.IsTrue(p.Exists("archivio/assets/" + f), f + " è andato con il documento");
+            Assert.IsFalse(p.Exists("docs/assets"), "la vecchia assets, rimasta vuota, non c'è più");
+            Assert.AreEqual("![f](assets/foto.png) ![s](/archivio/assets/schema.png) ![w](assets/nota_img/img1.png)\n\n" +
+                            "```plantuml\n@startuml\nA : <img:assets/schema.png>\n@enduml\n```\n", p.Read("archivio/nota.md"),
+                "i link relativi restano uguali, quello dalla radice porta al posto nuovo");
+        }
+
+        [TestMethod]
+        public async Task Leave_a_shared_asset_where_it_is_and_reach_it_from_the_new_place()
+        {
+            using var p = await Project.Open("mv-condiviso", ("archivio/README.md", "# Archivio\n"),
+                ("docs/assets/logo.png", "png"), ("docs/assets/solo.png", "png"),
+                ("docs/a.md", "![l](assets/logo.png) ![s](assets/solo.png)\n"),
+                ("docs/b.md", "<img src=\"assets/logo.png\">\n"));
+
+            await p.Move("docs/a.md", "archivio");
+
+            Assert.IsTrue(p.Exists("docs/assets/logo.png"), "lo usa anche b.md: resta");
+            Assert.IsTrue(p.Exists("archivio/assets/solo.png"), "lo usava solo a.md: va con lui");
+            Assert.AreEqual("![l](../docs/assets/logo.png) ![s](assets/solo.png)\n", p.Read("archivio/a.md"));
+            Assert.AreEqual("<img src=\"assets/logo.png\">\n", p.Read("docs/b.md"));
+        }
+
+        [TestMethod]
+        public async Task Carry_an_asset_shared_only_by_documents_moved_together_to_the_same_folder()
+        {
+            using var p = await Project.Open("mv-gruppo", ("archivio/README.md", "# Archivio\n"),
+                ("docs/assets/logo.png", "png"),
+                ("docs/a.md", "![l](assets/logo.png)\n"), ("docs/b.md", "![l](assets/logo.png)\n"));
+
+            var (status, body) = await p.MoveMany("archivio", "docs/a.md", "docs/b.md");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.IsTrue(p.Exists("archivio/assets/logo.png"));
+            Assert.AreEqual("![l](assets/logo.png)\n", p.Read("archivio/a.md"));
+            Assert.AreEqual("![l](assets/logo.png)\n", p.Read("archivio/b.md"));
+        }
+
+        [TestMethod]
+        public async Task Rename_the_word_reference_with_the_document()
+        {
+            using var p = await Project.Open("rn-reference", ("docs/assets/nota.md.reference.docx", "docx"), ("docs/nota.md", "# Nota\n"));
+
+            var (status, body) = await p.Rename("docs/nota.md", "verbale");
+
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            Assert.IsTrue(p.Exists("docs/assets/verbale.md.reference.docx"));
+            Assert.IsFalse(p.Exists("docs/assets/nota.md.reference.docx"));
+        }
+
         private sealed class Project : IDisposable
         {
             private AgentCityContext _ctx;
@@ -401,6 +487,12 @@ namespace MdExplorer.IntegrationTests
             public Task<(System.Net.HttpStatusCode Status, string Body)> Rename(string relativeFile, string newName)
                 => _ctx.PostJson("/api/mdfiles/RenameMdFile?ConnectionId=" + _conn,
                     JsonSerializer.Serialize(new { sourcePath = "/" + relativeFile, newName }));
+
+            public bool Exists(string relative)
+            {
+                var full = Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar));
+                return File.Exists(full) || Directory.Exists(full);
+            }
 
             public string Read(string relative) => File.ReadAllText(Path.Combine(Root, relative.Replace('/', Path.DirectorySeparatorChar)));
 

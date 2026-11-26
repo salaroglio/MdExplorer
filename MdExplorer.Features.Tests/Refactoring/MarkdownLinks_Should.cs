@@ -9,6 +9,19 @@ namespace MdExplorer.Features.Tests.Refactoring
     [TestClass]
     public class MarkdownLinks_Should
     {
+        /// <summary>
+        /// Le immagini ridimensionate o spostate nella pagina portano dopo il link una classe (<c>{.img1}</c>) e il suo
+        /// CSS; da quella classe nasce il «linkHash» dei bottoni. Riscrivendo il percorso, classe e CSS restano.
+        /// </summary>
+        [TestMethod]
+        public void Keep_the_image_class_that_names_its_css_when_the_path_changes()
+        {
+            var md = "![schema](assets/a.png){.img1 md-plantuml=\"dynamic:true\"}\n\n<style>\n.img1 { width: 300px; }\n</style>\n";
+            var (text, changed) = MarkdownLinks.Rewrite(md, l => "../assets/a.png");
+            Assert.AreEqual(1, changed);
+            Assert.AreEqual(md.Replace("(assets/a.png)", "(../assets/a.png)"), text);
+        }
+
         [TestMethod]
         public void See_a_link_on_the_first_line_and_never_inside_code()
         {
@@ -62,6 +75,59 @@ namespace MdExplorer.Features.Tests.Refactoring
             Assert.AreEqual(Path.Combine(root, "index.md"), MarkdownLinks.ResolveTarget(root, doc, "../index.md#s"));
             Assert.AreEqual(Path.Combine(root, "docs", "a.md"), MarkdownLinks.ResolveTarget(root, doc, "./a.md"));
             Assert.IsNull(MarkdownLinks.ResolveTarget(root, doc, "https://example.com"));
+        }
+
+        // ---- Gli altri link: comandi che includono un file, PlantUML, HTML, mdShow ----
+
+        private const string Mixed =
+            "```text(src/a.cs)\ncodice\n```\n\n" +
+            "```plantuml(@json, dati/b.json)\n```\n\n" +
+            "```plantuml\n@startuml\nA : [[docs/c.md#s{suggerimento} Vai]]\nB : <img:assets/d.png{scale=0.5}>\n@enduml\n```\n\n" +
+            "<a href=\"docs/e%20f.md#t\">E</a> <img src='assets/g.png'>\n\n" +
+            "mdShowMd(docs/h.md)\n\n" +
+            "```\n<a href=\"no.md\">esempio</a> mdShowMd(no.md)\n```\n";
+
+        [TestMethod]
+        public void Read_every_kind_of_link_and_none_written_as_an_example_in_code()
+        {
+            var links = MarkdownLinks.ReadAll(Mixed);
+            CollectionAssert.AreEqual(
+                new[] { "src/a.cs", "dati/b.json", "docs/c.md", "assets/d.png", "docs/e f.md", "assets/g.png", "docs/h.md" },
+                links.Select(l => l.Target).ToArray());
+            CollectionAssert.AreEqual(new[]
+            {
+                MarkdownLinkKind.IncludeCommand, MarkdownLinkKind.IncludeCommand, MarkdownLinkKind.PlantumlLink,
+                MarkdownLinkKind.PlantumlImage, MarkdownLinkKind.Html, MarkdownLinkKind.Html, MarkdownLinkKind.MdShow,
+            }, links.Select(l => l.Kind).ToArray());
+        }
+
+        [TestMethod]
+        public void Relink_every_kind_of_link_when_the_document_goes_one_folder_down()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "mde-links");
+            var oldDoc = Path.Combine(root, "nota.md");
+            var newDoc = Path.Combine(root, "archivio", "nota.md");
+            var text = MarkdownLinks.RelinkForMoves(Mixed, newDoc, oldDoc, root, _ => null, out var changed);
+            Assert.AreEqual(7, changed);
+            StringAssert.Contains(text, "```text(../src/a.cs)");
+            StringAssert.Contains(text, "```plantuml(@json, ../dati/b.json)");
+            StringAssert.Contains(text, "[[../docs/c.md#s{suggerimento} Vai]]");
+            StringAssert.Contains(text, "<img:../assets/d.png{scale=0.5}>");
+            StringAssert.Contains(text, "<a href=\"../docs/e%20f.md#t\">E</a> <img src='../assets/g.png'>");
+            StringAssert.Contains(text, "mdShowMd(../docs/h.md)");
+            StringAssert.Contains(text, "```\n<a href=\"no.md\">esempio</a> mdShowMd(no.md)\n```");
+        }
+
+        [TestMethod]
+        public void Keep_root_links_from_the_root_but_a_plantuml_image_from_the_document_folder()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "mde-links");
+            var md = "```text(/src/a.cs)\n```\n\n```plantuml\n@startuml\nA : [[/docs/c.md]]\nB : <img:d.png>\n@enduml\n```\n";
+            var text = MarkdownLinks.RelinkForMoves(md, Path.Combine(root, "x", "nota.md"), Path.Combine(root, "nota.md"), root, _ => null, out var changed);
+            Assert.AreEqual(1, changed);
+            StringAssert.Contains(text, "```text(/src/a.cs)");
+            StringAssert.Contains(text, "[[/docs/c.md]]");
+            StringAssert.Contains(text, "<img:../d.png>");
         }
     }
 }

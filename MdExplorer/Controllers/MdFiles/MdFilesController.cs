@@ -269,17 +269,21 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             var moved = new List<object>();
+            var carried = new List<object>();
             SetFileSystemWatcherEnabled(false);
             try
             {
+                var documents = plan.Moves.Where(m => !m.IsFolder).ToList();
                 foreach (var move in plan.Moves)
                 {
                     if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
-                    else MoveOneDocument(projectBasePath, move.From, move.To);
+                    else carried.AddRange(MoveOneDocument(projectBasePath, move.From, move.To, documents)
+                        .Select(c => new { from = c.From, to = c.To }));
                     moved.Add(new { from = move.From, to = move.To });
                 }
-                _logger.LogInformation("[MoveMdFiles] Spostati {Moved}, saltati {Skipped}", moved.Count, plan.Skipped.Count);
-                return Ok(new { message = "done", moved, skipped = plan.Skipped });
+                _logger.LogInformation("[MoveMdFiles] Spostati {Moved}, saltati {Skipped}, file di assets portati {Carried}",
+                    moved.Count, plan.Skipped.Count, carried.Count);
+                return Ok(new { message = "done", moved, skipped = plan.Skipped, carried });
             }
             catch (Exception ex)
             {
@@ -318,7 +322,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             try
             {
                 if (move.IsFolder) MoveOneFolder(projectBasePath, move.From, move.To);
-                else MoveOneDocument(projectBasePath, move.From, move.To);
+                else MoveOneDocument(projectBasePath, move.From, move.To, plan.Moves);
             }
             catch (Exception ex)
             {
@@ -362,8 +366,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
-        /// <summary>Un documento: sul disco, nell'indice dei file, poi i link (dentro di lui e degli altri verso di lui).</summary>
-        private void MoveOneDocument(string projectBasePath, string fromFullPathFileName, string toFullPathFileName)
+        /// <summary>
+        /// Un documento: sul disco, nell'indice dei file, i file di <c>assets</c> che usa solo lui (vanno con lui), poi i
+        /// link di ogni tipo (dentro di lui e degli altri verso di lui e verso quei file). <paramref name="batch"/> sono i
+        /// documenti spostati insieme: un file che usano solo loro, se vanno nella stessa cartella, li segue.
+        /// </summary>
+        private IReadOnlyList<MdExplorer.Features.Refactoring.DocumentMove> MoveOneDocument(string projectBasePath,
+            string fromFullPathFileName, string toFullPathFileName, IReadOnlyCollection<MdExplorer.Features.Refactoring.DocumentMove> batch)
         {
             MoveFileOnFilesystem(fromFullPathFileName, toFullPathFileName);
 
@@ -380,21 +389,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var refSourceAct = _refactoringManager.SaveRefactoringActionForMoveFile(Path.GetFileName(toFullPathFileName),
                 Path.GetDirectoryName(fromFullPathFileName), Path.GetDirectoryName(toFullPathFileName));
 
-            // I link markdown e le immagini: si leggono i documenti, non l'indice, quindi valgono anche con
-            // l'indicizzazione dei link spenta.
-            var relinked = _refactoringManager.RelinkMovedDocument(projectBasePath, fromFullPathFileName, toFullPathFileName);
-            _logger.LogInformation("[MoveMdFiles] {From} → {To}: link riscritti in {Count} documenti",
-                fromRelativePathFileName, toRelativePathFileName, relinked.Count);
+            var carried = _refactoringManager.CarryDocumentAssets(projectBasePath, fromFullPathFileName, toFullPathFileName, batch);
+
+            // Tutti i link (markdown, HTML, comandi che includono un file, PlantUML, mdShow): si leggono i documenti, non
+            // l'indice, quindi valgono anche con l'indicizzazione dei link spenta.
+            var relinked = _refactoringManager.RelinkMovedDocument(projectBasePath, fromFullPathFileName, toFullPathFileName, carried);
+            _logger.LogInformation("[MoveMdFiles] {From} → {To}: {Carried} file di assets portati, link riscritti in {Count} documenti",
+                fromRelativePathFileName, toRelativePathFileName, carried.Count, relinked.Count);
 
             if (IsLinkIndexingEnabled())
-            {
-                // Le altre sorgenti (PlantUML, MdShow) con i comandi salvati nell'indice.
-                _refactoringManager.SetExternalLinks(toRelativePathFileName, refSourceAct);
-                _refactoringManager.SetInternalLinks(toRelativePathFileName, projectBasePath, refSourceAct);
-                _refactoringManager.UpdateAllInvolvedFilesAndReferencesToDB(refSourceAct);
                 _refactoringManager.ReindexLinks(projectBasePath, relinked.Append(toFullPathFileName));
-            }
             _refactoringManager.CloseAction(refSourceAct);
+            return carried;
         }
 
         private void MoveFileOnFilesystem(string oldFullPath, string newFullPath)
