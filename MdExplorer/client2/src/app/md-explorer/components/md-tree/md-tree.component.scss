@@ -284,6 +284,11 @@
     }
 
     // Highlight when a file is being dragged over this segment
+    &.segment-picked {
+      background-color: rgba(33, 150, 243, 0.25);
+      font-weight: 600;
+    }
+
     &.segment-drag-over {
       background-color: rgba(33, 150, 243, 0.3);
       outline: 2px dashed #2196F3;

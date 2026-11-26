@@ -493,6 +493,7 @@
               [attr.data-fullpath]="segment.fullPath"
               [class.segment-hover]="hoveredSegment?.fullPath === segment.fullPath"
               [class.segment-drag-over]="dragOverSegment?.fullPath === segment.fullPath"
+              [class.segment-picked]="isSegmentPicked(segment)"
               (mouseenter)="onSegmentHover(segment)"
               (mouseleave)="onSegmentLeave()"
               (contextmenu)="onSegmentRightClick($event, segment, node)"

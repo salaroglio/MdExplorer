@@ -106,6 +106,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   private dndMovingPaths: { oldPath: string; newPath: string }[] | null = null;
   /** I documenti trascinati insieme: quelli selezionati con Ctrl/Shift se si trascina uno di loro, altrimenti quello solo. */
   private draggedNodes: MdFile[] = [];
+  /** Il pezzo di una riga compattata che si sta trascinando (si vede evidenziato). */
+  draggedSegmentPath: string | null = null;
   /** La selezione multipla dei documenti (Ctrl/Shift+clic), per percorso completo. */
   multiSelection = new Map<string, MdFile>();
   /** Il documento da cui parte uno Shift+clic. */
@@ -599,13 +601,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hoveredSegment = null;
   }
 
-  onSegmentRightClick(event: MouseEvent, segment: CompactSegment, node: MdFile): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Store the selected segment for use in create operations
-    this.selectedCompactSegment = segment;
-
+  /**
+   * Un pezzo di una riga compattata come cartella a sé (menu, trascinamento, F2). La riga ha il percorso del PRIMO
+   * pezzo: qui si ricostruisce quello del pezzo voluto.
+   */
+  private segmentAsFolder(segment: CompactSegment, node: MdFile): MdFile {
     // Build a synthetic MdFile representing the clicked segment. Downstream
     // consumers (openTocDirectory → navigateToTocFile, createDirectoryOn, etc.)
     // rely on relativePath being populated; without it they hit the no-prefix
@@ -644,6 +644,17 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
       }
     }
+    return segmentItem;
+  }
+
+  onSegmentRightClick(event: MouseEvent, segment: CompactSegment, node: MdFile): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Store the selected segment for use in create operations
+    this.selectedCompactSegment = segment;
+
+    const segmentItem = this.segmentAsFolder(segment, node);
 
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
@@ -763,6 +774,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       event.preventDefault();
       return;
     }
+    // Di una riga compattata si trascina il pezzo afferrato, non la prima cartella della catena.
+    if (node.isCompacted) {
+      node = this.pointedFolder(node);
+      this.draggedSegmentPath = node.fullPath;
+      const label = (this.elementRef.nativeElement as HTMLElement)
+        .querySelector(`.compact-segment[data-fullpath="${CSS.escape(node.fullPath)}"]`) as HTMLElement | null;
+      if (label) event.dataTransfer.setDragImage(label, 8, 8);
+      this.changeDetectorRef.markForCheck();
+    }
     this.draggedNode = node;
     // Trascinando un documento selezionato si portano tutti i selezionati; uno non selezionato va da solo.
     this.draggedNodes = this.multiSelection.has(node.fullPath) && this.multiSelection.size > 1
@@ -774,6 +794,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDragEnd(event: DragEvent): void {
+    this.draggedSegmentPath = null;
     this.draggedNode = null;
     this.draggedNodes = [];
     this.dragOverNode = null;
@@ -1012,7 +1033,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const folder = this.currentFocusedFolder();
     if (folder) {
       event.preventDefault();
-      this.renameDirectoryOn(this.folderToRename(folder));
+      this.renameDirectoryOn(folder);
       return;
     }
     const node = this.selectedNode;
@@ -1066,18 +1087,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** «Rinomina cartella»: la stessa finestra dei documenti; la cartella si rinomina davvero sul disco, con i link. */
   /**
-   * Per una riga compattata («docs / guida») la cartella vera è l'ultimo pezzo, come per l'indice e Mark: la riga ha il
-   * percorso del primo. Le cartelle di mezzo si rinominano dal loro menu (tasto destro sul pezzo).
+   * La cartella a cui si riferisce un gesto sulla riga: per una riga compattata («arch / dettagli») il pezzo sotto il
+   * mouse; fuori dai nomi (l'icona) l'ultimo, la cartella di cui la riga mostra il contenuto.
    */
-  private folderToRename(node: MdFile): MdFile {
+  private pointedFolder(node: MdFile): MdFile {
     const segs = node.isCompacted ? node.compactedSegments : null;
     if (!segs?.length) return node;
-    const last = segs[segs.length - 1];
-    const item = new MdFile(last.name, last.fullPath, last.level, true);
-    item.fullPath = last.fullPath;
-    item.relativePath = last.fullPath;   // RenameMdFile accetta anche il percorso completo dentro il progetto
-    item.type = 'folder';
-    return item;
+    const segment = segs.find(s => s.fullPath === this.hoveredSegment?.fullPath) ?? segs[segs.length - 1];
+    return this.segmentAsFolder(segment, node);
   }
 
   renameDirectoryOn(node: MdFile) {
@@ -1220,7 +1237,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   onFolderClick(node: MdFile) {
     this.clearMultiSelection();
     this.focusedFolder = node.type === 'folder'
-      ? { node, openWhenClicked: this.selectedNode?.fullPath ?? null }
+      ? { node: this.pointedFolder(node), openWhenClicked: this.selectedNode?.fullPath ?? null }
       : null;
     if (node.isExtra && !this.folderHasRevealedExtras(node)) {
       // Expand SYNCHRONOUSLY now (idempotent) so the revealed files appear the instant they
@@ -1820,8 +1837,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
     if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
     const folder = this.currentFocusedFolder();
-    if (folder) return folder.fullPath === node.fullPath;
+    if (folder) return folder.fullPath === node.fullPath || !!node.compactedSegments?.some(s => s.fullPath === folder.fullPath);
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+
+  /** Il pezzo di una riga compattata che è la cartella scelta o quella che si sta trascinando. */
+  isSegmentPicked(segment: CompactSegment): boolean {
+    if (this.draggedSegmentPath) return this.draggedSegmentPath === segment.fullPath;
+    return this.currentFocusedFolder()?.fullPath === segment.fullPath;
   }
 
   /** La cartella cliccata, se dopo non si è aperto un altro documento. */
