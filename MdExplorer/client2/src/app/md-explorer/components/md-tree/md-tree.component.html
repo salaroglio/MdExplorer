@@ -30,6 +30,7 @@
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="renameDirectoryOn(item)">
       <mat-icon>drive_file_rename_outline</mat-icon>
       <span>{{ 'MD_TREE.RENAME_FOLDER' | translate }}</span>
+      <span style="margin-left: 16px; opacity: .6; font-size: 12px;">F2</span>
     </button>
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)">
       <mat-icon>create_new_folder</mat-icon>

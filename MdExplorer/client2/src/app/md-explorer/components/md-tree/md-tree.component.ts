@@ -110,6 +110,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   multiSelection = new Map<string, MdFile>();
   /** Il documento da cui parte uno Shift+clic. */
   private selectionAnchor: string | null = null;
+  /**
+   * La cartella cliccata per ultima: si vede evidenziata e F2 la rinomina. Vale finché non si apre un altro
+   * documento (da qui o da fuori: ricerca, link), per questo si ricorda quale era aperto quando è stata cliccata.
+   */
+  private focusedFolder: { node: MdFile; openWhenClicked: string | null } | null = null;
 
   // Skeleton loader state
   isLoading = true;
@@ -1004,6 +1009,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const target = event.target as HTMLElement | null;
     if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
     if (this.dialog.openDialogs.length > 0) return;
+    const folder = this.currentFocusedFolder();
+    if (folder) {
+      event.preventDefault();
+      this.renameDirectoryOn(this.folderToRename(folder));
+      return;
+    }
     const node = this.selectedNode;
     if (!node || !this.isMovableDocument(node)) return;
     event.preventDefault();
@@ -1054,6 +1065,21 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** «Rinomina cartella»: la stessa finestra dei documenti; la cartella si rinomina davvero sul disco, con i link. */
+  /**
+   * Per una riga compattata («docs / guida») la cartella vera è l'ultimo pezzo, come per l'indice e Mark: la riga ha il
+   * percorso del primo. Le cartelle di mezzo si rinominano dal loro menu (tasto destro sul pezzo).
+   */
+  private folderToRename(node: MdFile): MdFile {
+    const segs = node.isCompacted ? node.compactedSegments : null;
+    if (!segs?.length) return node;
+    const last = segs[segs.length - 1];
+    const item = new MdFile(last.name, last.fullPath, last.level, true);
+    item.fullPath = last.fullPath;
+    item.relativePath = last.fullPath;   // RenameMdFile accetta anche il percorso completo dentro il progetto
+    item.type = 'folder';
+    return item;
+  }
+
   renameDirectoryOn(node: MdFile) {
     if (!node || node.type !== 'folder') return;
     this.dialog.open(RenameDocumentComponent, { width: '420px', data: node, autoFocus: false })
@@ -1192,6 +1218,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    * just expands/collapses.
    */
   onFolderClick(node: MdFile) {
+    this.clearMultiSelection();
+    this.focusedFolder = node.type === 'folder'
+      ? { node, openWhenClicked: this.selectedNode?.fullPath ?? null }
+      : null;
     if (node.isExtra && !this.folderHasRevealedExtras(node)) {
       // Expand SYNCHRONOUSLY now (idempotent) so the revealed files appear the instant they
       // load — not after the async HTTP round-trip. Using expand (not toggle) also makes repeated
@@ -1789,7 +1819,16 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isNodeSelected(node: MdFile): boolean {
     // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
     if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
+    const folder = this.currentFocusedFolder();
+    if (folder) return folder.fullPath === node.fullPath;
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+
+  /** La cartella cliccata, se dopo non si è aperto un altro documento. */
+  private currentFocusedFolder(): MdFile | null {
+    const f = this.focusedFolder;
+    if (!f || (this.selectedNode?.fullPath ?? null) !== f.openWhenClicked) return null;
+    return f.node;
   }
 
   /**
@@ -1798,6 +1837,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    * selezione torna a uno. I documenti selezionati si trascinano insieme in una cartella.
    */
   onDocumentClick(event: MouseEvent, node: MdFile): void {
+    this.focusedFolder = null;
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
       if (this.multiSelection.size === 0 && this.selectedNode && this.isMovableDocument(this.selectedNode))

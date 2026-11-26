@@ -40409,6 +40409,9 @@ function MdTreeComponent_ng_template_3_button_17_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](3, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](6, "span", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](7, "F2");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -40587,7 +40590,7 @@ function MdTreeComponent_ng_template_3_button_25_Template(rf, ctx) {
       const ctx_r140 = _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵresetView"](ctx_r140.deleteFile(item_r5));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](1, "mat-icon", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](1, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](2, "delete");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](3, "span");
@@ -40610,7 +40613,7 @@ function MdTreeComponent_ng_template_3_button_26_Template(rf, ctx) {
       const ctx_r143 = _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵresetView"](ctx_r143.pasteFromClipboard(item_r5));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](1, "mat-icon", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](1, "mat-icon", 24);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](2, "archive");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](3, "span");
@@ -40732,7 +40735,7 @@ function MdTreeComponent_ng_template_3_button_31_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵpipe"](5, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](6, "span", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementStart"](6, "span", 23);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtext"](7, "F2");
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]()();
   }
@@ -41482,7 +41485,7 @@ function MdTreeComponent_ng_template_3_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](15, MdTreeComponent_ng_template_3_button_15_Template, 4, 3, "button", 9);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](16, MdTreeComponent_ng_template_3_button_16_Template, 4, 3, "button", 9);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](17, MdTreeComponent_ng_template_3_button_17_Template, 6, 3, "button", 12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](17, MdTreeComponent_ng_template_3_button_17_Template, 8, 3, "button", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](18, MdTreeComponent_ng_template_3_button_18_Template, 6, 3, "button", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](19, MdTreeComponent_ng_template_3_button_19_Template, 6, 3, "button", 12);
     _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵtemplate"](20, MdTreeComponent_ng_template_3_button_20_Template, 6, 3, "button", 12);
@@ -42618,6 +42621,11 @@ class MdTreeComponent {
     this.multiSelection = new Map();
     /** Il documento da cui parte uno Shift+clic. */
     this.selectionAnchor = null;
+    /**
+     * La cartella cliccata per ultima: si vede evidenziata e F2 la rinomina. Vale finché non si apre un altro
+     * documento (da qui o da fuori: ricerca, link), per questo si ricorda quale era aperto quando è stata cliccata.
+     */
+    this.focusedFolder = null;
     // Skeleton loader state
     this.isLoading = true;
     // Event queue with debounce: accumulates events for 200ms, then processes as batch
@@ -43452,6 +43460,12 @@ class MdTreeComponent {
     const target = event.target;
     if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
     if (this.dialog.openDialogs.length > 0) return;
+    const folder = this.currentFocusedFolder();
+    if (folder) {
+      event.preventDefault();
+      this.renameDirectoryOn(this.folderToRename(folder));
+      return;
+    }
     const node = this.selectedNode;
     if (!node || !this.isMovableDocument(node)) return;
     event.preventDefault();
@@ -43503,6 +43517,20 @@ class MdTreeComponent {
     });
   }
   /** «Rinomina cartella»: la stessa finestra dei documenti; la cartella si rinomina davvero sul disco, con i link. */
+  /**
+   * Per una riga compattata («docs / guida») la cartella vera è l'ultimo pezzo, come per l'indice e Mark: la riga ha il
+   * percorso del primo. Le cartelle di mezzo si rinominano dal loro menu (tasto destro sul pezzo).
+   */
+  folderToRename(node) {
+    const segs = node.isCompacted ? node.compactedSegments : null;
+    if (!segs?.length) return node;
+    const last = segs[segs.length - 1];
+    const item = new _models_md_file__WEBPACK_IMPORTED_MODULE_2__.MdFile(last.name, last.fullPath, last.level, true);
+    item.fullPath = last.fullPath;
+    item.relativePath = last.fullPath; // RenameMdFile accetta anche il percorso completo dentro il progetto
+    item.type = 'folder';
+    return item;
+  }
   renameDirectoryOn(node) {
     if (!node || node.type !== 'folder') return;
     this.dialog.open(_dialogs_rename_document_rename_document_component__WEBPACK_IMPORTED_MODULE_16__.RenameDocumentComponent, {
@@ -43648,6 +43676,11 @@ class MdTreeComponent {
    * just expands/collapses.
    */
   onFolderClick(node) {
+    this.clearMultiSelection();
+    this.focusedFolder = node.type === 'folder' ? {
+      node,
+      openWhenClicked: this.selectedNode?.fullPath ?? null
+    } : null;
     if (node.isExtra && !this.folderHasRevealedExtras(node)) {
       // Expand SYNCHRONOUSLY now (idempotent) so the revealed files appear the instant they
       // load — not after the async HTTP round-trip. Using expand (not toggle) also makes repeated
@@ -44207,7 +44240,15 @@ class MdTreeComponent {
   isNodeSelected(node) {
     // Con una selezione multipla si vede solo quella: è ciò che un trascinamento sposterebbe.
     if (this.multiSelection.size > 0) return this.multiSelection.has(node.fullPath);
+    const folder = this.currentFocusedFolder();
+    if (folder) return folder.fullPath === node.fullPath;
     return this.selectedNode?.fullPath === node.fullPath;
+  }
+  /** La cartella cliccata, se dopo non si è aperto un altro documento. */
+  currentFocusedFolder() {
+    const f = this.focusedFolder;
+    if (!f || (this.selectedNode?.fullPath ?? null) !== f.openWhenClicked) return null;
+    return f.node;
   }
   /**
    * Il clic su un documento, come in ogni esploratore di file: Ctrl (Cmd su Mac) aggiunge o toglie dalla selezione,
@@ -44215,6 +44256,7 @@ class MdTreeComponent {
    * selezione torna a uno. I documenti selezionati si trascinano insieme in una cartella.
    */
   onDocumentClick(event, node) {
+    this.focusedFolder = null;
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
       if (this.multiSelection.size === 0 && this.selectedNode && this.isMovableDocument(this.selectedNode)) this.multiSelection.set(this.selectedNode.fullPath, this.selectedNode);
@@ -45664,7 +45706,7 @@ class MdTreeComponent {
       },
       decls: 9,
       vars: 8,
-      consts: [[2, "visibility", "hidden", "position", "fixed", 3, "matMenuTriggerFor"], ["rightMenu", "matMenu"], ["matMenuContent", ""], [1, "tree-scroll-container"], ["class", "sticky-ancestors-panel", 4, "ngIf"], [1, "tree-scroll-wrapper"], ["class", "md-tree-skeleton", 4, "ngIf"], [3, "dataSource", "treeControl", "trackBy", "contextmenu", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click", 4, "ngIf"], ["mat-menu-item", "", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-rag", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-p2p", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-force-open", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click"], ["src", "/assets/rename.png", "alt", "Rename directory"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["src", "/assets/mark.png", "alt", "Mark", 2, "width", "22px", "height", "22px", "border-radius", "4px"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click"], ["mat-menu-item", "", 3, "click"], [1, "menu-icon-danger"], [2, "margin-left", "16px", "opacity", ".6", "font-size", "12px"], [1, "gold-icon"], ["mat-menu-item", "", 1, "menu-item-rag", 3, "click"], ["mat-menu-item", "", 1, "menu-item-p2p", 3, "click"], ["mat-menu-item", "", 1, "menu-item-force-open", 3, "click"], [1, "sticky-ancestors-panel"], ["class", "sticky-ancestor-row", 3, "padding-left", "click", 4, "ngFor", "ngForOf"], [1, "sticky-ancestor-row", 3, "click"], ["class", "folder-name", 4, "ngIf"], ["class", "folder-name compacted-folder", 4, "ngIf"], [1, "folder-name"], [1, "folder-name", "compacted-folder"], [4, "ngFor", "ngForOf"], ["class", "compact-separator", 4, "ngIf"], [1, "compact-separator"], [1, "md-tree-skeleton"], ["class", "skeleton-item", 3, "class", 4, "ngFor", "ngForOf"], [1, "skeleton-item"], [1, "skeleton-icon"], [1, "skeleton-text"], [3, "dataSource", "treeControl", "trackBy", "contextmenu"], ["matTreeNodePadding", "", "style", "cursor:pointer", "draggable", "true", 3, "ngClass", "contextmenu", "dragstart", "dragend", 4, "matTreeNodeDef"], ["matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "class", "code-root-node", 3, "matTooltip", "ngClass", "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "class", "code-root-node", 3, "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", "draggable", "true", 3, "ngClass", "contextmenu", "click", "dragstart", "dragend", "dragover", "dragleave", "drop", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer; opacity: 0.55;", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "contextmenu", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "dragstart", "dragend"], ["mat-icon-button", "", "color", "primary", 2, "cursor", "pointer"], [1, "mat-icon-rtl-mirror"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", 3, "click"], ["class", "agent-indicator", 3, "matTooltip", "click", 4, "ngIf"], [1, "agent-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click"], ["mat-icon-button", "", "color", "basic"], [1, "mat-icon-rtl-mirror", "generic-file-icon"], [1, "node-text", "generic-file-name", 2, "padding", "2px"], ["matTreeNodePadding", "", 1, "code-root-node", 3, "matTooltip", "ngClass", "contextmenu", "click"], ["mat-icon-button", "", "color", "primary"], [1, "code-root-icon"], [1, "node-text", "code-root-name"], ["class", "code-root-status", 4, "ngIf"], [1, "code-root-status"], ["matTreeNodePadding", "", 1, "code-root-node", 3, "contextmenu", "click"], ["color", "primary", "class", "mat-icon-rtl-mirror terminal-icon", 4, "ngIf"], ["class", "code-root-folder-icon", 4, "ngIf"], [1, "node-text"], ["color", "primary", 1, "mat-icon-rtl-mirror", "terminal-icon"], [1, "code-root-folder-icon"], ["class", "seed-mark", "style", "font-size: 16px; width: 16px; height: 16px; margin-left: 4px; color: var(--mde-accent, #1976d2);", 4, "ngIf"], [1, "seed-mark", 2, "font-size", "16px", "width", "16px", "height", "16px", "margin-left", "4px", "color", "var(--mde-accent, #1976d2)"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "click", "dragstart", "dragend", "dragover", "dragleave", "drop"], ["mat-icon-button", "", 3, "ngClass"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", "class", "custom-folder-icon github-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["src", "/assets/opencode.svg", "alt", "opencode", "class", "custom-folder-icon opencode-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["class", "mat-icon-rtl-mirror claude-icon", 4, "ngIf"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", "class", "custom-folder-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "extra-revealed", 4, "ngIf"], ["diameter", "20", "class", "folder-spinner", 4, "ngIf"], ["color", "accent", "class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "ngClass", 4, "ngIf"], ["class", "folder-name node-text", 3, "extra-revealed", 4, "ngIf"], ["class", "folder-name node-text compacted-folder", 4, "ngIf"], ["class", "toc-indicator", 3, "matTooltip", "click", 4, "ngIf"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", 1, "custom-folder-icon", "github-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["src", "/assets/opencode.svg", "alt", "opencode", 1, "custom-folder-icon", "opencode-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], [1, "mat-icon-rtl-mirror", "claude-icon"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", 1, "custom-folder-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], [1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon"], ["diameter", "20", 1, "folder-spinner"], ["color", "accent", 1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon", 3, "ngClass"], [1, "folder-name", "node-text"], [1, "folder-name", "node-text", "compacted-folder"], [1, "compact-segment", 3, "mouseenter", "mouseleave", "contextmenu", "dragover", "dragleave", "drop"], [1, "toc-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img", 2, "width", "24px", "height", "24px"], [1, "node-text", 2, "font-weight", "500"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer"], ["class", "app-icon-img", 3, "src", 4, "ngIf"], ["src", "/assets/apps-rocket.svg", "class", "app-icon-img", 4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 3, "src"], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img"], ["matTreeNodePadding", "", 2, "cursor", "pointer", "opacity", "0.55", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 1, "not-installed-muted", 2, "cursor", "pointer"], ["class", "app-icon-img", "style", "opacity: 0.5; filter: grayscale(100%);", 3, "src", 4, "ngIf"], [4, "ngIf"], [1, "node-text", "not-installed-muted", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 2, "opacity", "0.5", "filter", "grayscale(100%)", 3, "src"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"]],
+      consts: [[2, "visibility", "hidden", "position", "fixed", 3, "matMenuTriggerFor"], ["rightMenu", "matMenu"], ["matMenuContent", ""], [1, "tree-scroll-container"], ["class", "sticky-ancestors-panel", 4, "ngIf"], [1, "tree-scroll-wrapper"], ["class", "md-tree-skeleton", 4, "ngIf"], [3, "dataSource", "treeControl", "trackBy", "contextmenu", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click", 4, "ngIf"], ["mat-menu-item", "", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-rag", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-p2p", 3, "click", 4, "ngIf"], ["mat-menu-item", "", "class", "menu-item-force-open", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", 3, "matTooltip", "click"], ["src", "/assets/rename.png", "alt", "Rename directory"], ["mat-icon-button", "", "color", "primary", 3, "matTooltip", "click"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["src", "/assets/mark.png", "alt", "Mark", 2, "width", "22px", "height", "22px", "border-radius", "4px"], ["mat-icon-button", "", "color", "warn", 3, "matTooltip", "click"], ["mat-menu-item", "", 3, "click"], [2, "margin-left", "16px", "opacity", ".6", "font-size", "12px"], [1, "menu-icon-danger"], [1, "gold-icon"], ["mat-menu-item", "", 1, "menu-item-rag", 3, "click"], ["mat-menu-item", "", 1, "menu-item-p2p", 3, "click"], ["mat-menu-item", "", 1, "menu-item-force-open", 3, "click"], [1, "sticky-ancestors-panel"], ["class", "sticky-ancestor-row", 3, "padding-left", "click", 4, "ngFor", "ngForOf"], [1, "sticky-ancestor-row", 3, "click"], ["class", "folder-name", 4, "ngIf"], ["class", "folder-name compacted-folder", 4, "ngIf"], [1, "folder-name"], [1, "folder-name", "compacted-folder"], [4, "ngFor", "ngForOf"], ["class", "compact-separator", 4, "ngIf"], [1, "compact-separator"], [1, "md-tree-skeleton"], ["class", "skeleton-item", 3, "class", 4, "ngFor", "ngForOf"], [1, "skeleton-item"], [1, "skeleton-icon"], [1, "skeleton-text"], [3, "dataSource", "treeControl", "trackBy", "contextmenu"], ["matTreeNodePadding", "", "style", "cursor:pointer", "draggable", "true", 3, "ngClass", "contextmenu", "dragstart", "dragend", 4, "matTreeNodeDef"], ["matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "class", "code-root-node", 3, "matTooltip", "ngClass", "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "class", "code-root-node", 3, "contextmenu", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", "draggable", "true", 3, "ngClass", "contextmenu", "click", "dragstart", "dragend", "dragover", "dragleave", "drop", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "style", "cursor:pointer; opacity: 0.55;", 3, "ngClass", "matTooltip", "click", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "contextmenu", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "dragstart", "dragend"], ["mat-icon-button", "", "color", "primary", 2, "cursor", "pointer"], [1, "mat-icon-rtl-mirror"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px", 3, "click"], ["class", "agent-indicator", 3, "matTooltip", "click", 4, "ngIf"], [1, "agent-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 3, "ngClass", "contextmenu", "click"], ["mat-icon-button", "", "color", "basic"], [1, "mat-icon-rtl-mirror", "generic-file-icon"], [1, "node-text", "generic-file-name", 2, "padding", "2px"], ["matTreeNodePadding", "", 1, "code-root-node", 3, "matTooltip", "ngClass", "contextmenu", "click"], ["mat-icon-button", "", "color", "primary"], [1, "code-root-icon"], [1, "node-text", "code-root-name"], ["class", "code-root-status", 4, "ngIf"], [1, "code-root-status"], ["matTreeNodePadding", "", 1, "code-root-node", 3, "contextmenu", "click"], ["color", "primary", "class", "mat-icon-rtl-mirror terminal-icon", 4, "ngIf"], ["class", "code-root-folder-icon", 4, "ngIf"], [1, "node-text"], ["color", "primary", 1, "mat-icon-rtl-mirror", "terminal-icon"], [1, "code-root-folder-icon"], ["class", "seed-mark", "style", "font-size: 16px; width: 16px; height: 16px; margin-left: 4px; color: var(--mde-accent, #1976d2);", 4, "ngIf"], [1, "seed-mark", 2, "font-size", "16px", "width", "16px", "height", "16px", "margin-left", "4px", "color", "var(--mde-accent, #1976d2)"], ["matTreeNodePadding", "", "draggable", "true", 2, "cursor", "pointer", 3, "ngClass", "contextmenu", "click", "dragstart", "dragend", "dragover", "dragleave", "drop"], ["mat-icon-button", "", 3, "ngClass"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", "class", "custom-folder-icon github-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["src", "/assets/opencode.svg", "alt", "opencode", "class", "custom-folder-icon opencode-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["class", "mat-icon-rtl-mirror claude-icon", 4, "ngIf"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", "class", "custom-folder-icon", "style", "width: 24px; height: 24px; margin: 12px;", 4, "ngIf"], ["class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "extra-revealed", 4, "ngIf"], ["diameter", "20", "class", "folder-spinner", 4, "ngIf"], ["color", "accent", "class", "gold-icon mat-icon-rtl-mirror folder-icon", 3, "ngClass", 4, "ngIf"], ["class", "folder-name node-text", 3, "extra-revealed", 4, "ngIf"], ["class", "folder-name node-text compacted-folder", 4, "ngIf"], ["class", "toc-indicator", 3, "matTooltip", "click", 4, "ngIf"], ["src", "/assets/github-copilot.svg", "alt", "GitHub Copilot", 1, "custom-folder-icon", "github-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], ["src", "/assets/opencode.svg", "alt", "opencode", 1, "custom-folder-icon", "opencode-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], [1, "mat-icon-rtl-mirror", "claude-icon"], ["src", "/assets/promptlab-flask.svg", "alt", "PromptLab", 1, "custom-folder-icon", 2, "width", "24px", "height", "24px", "margin", "12px"], [1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon"], ["diameter", "20", 1, "folder-spinner"], ["color", "accent", 1, "gold-icon", "mat-icon-rtl-mirror", "folder-icon", 3, "ngClass"], [1, "folder-name", "node-text"], [1, "folder-name", "node-text", "compacted-folder"], [1, "compact-segment", 3, "mouseenter", "mouseleave", "contextmenu", "dragover", "dragleave", "drop"], [1, "toc-indicator", 3, "matTooltip", "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "click"], ["mat-icon-button", "", "matTreeNodeToggle", ""], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img", 2, "width", "24px", "height", "24px"], [1, "node-text", 2, "font-weight", "500"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 2, "cursor", "pointer"], ["class", "app-icon-img", 3, "src", 4, "ngIf"], ["src", "/assets/apps-rocket.svg", "class", "app-icon-img", 4, "ngIf"], [1, "node-text", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 3, "src"], ["src", "/assets/apps-rocket.svg", 1, "app-icon-img"], ["matTreeNodePadding", "", 2, "cursor", "pointer", "opacity", "0.55", 3, "ngClass", "matTooltip", "click"], ["mat-icon-button", "", 1, "not-installed-muted", 2, "cursor", "pointer"], ["class", "app-icon-img", "style", "opacity: 0.5; filter: grayscale(100%);", 3, "src", 4, "ngIf"], [4, "ngIf"], [1, "node-text", "not-installed-muted", 2, "cursor", "pointer", "padding", "2px"], [1, "app-icon-img", 2, "opacity", "0.5", "filter", "grayscale(100%)", 3, "src"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"]],
       template: function MdTreeComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_37__["ɵɵelement"](0, "div", 0);
@@ -61187,4 +61229,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.bbb24d853c68d0cd.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.b4d7adf47a16fdfc.js.map
