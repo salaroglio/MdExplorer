@@ -8,10 +8,27 @@ import { ChatHistoryService, ChatThreadSummary } from '../../../services/chat-hi
 import { AiChatService } from '../../../services/ai-chat.service';
 import { ProjectsService } from '../../services/projects.service';
 
-/** A row of the list, with its detail already turned into HTML (once, not at every change detection). */
+/** A point of the chat, numbered from the start of the chat: its label and its text already turned into HTML. */
+interface ChatPoint {
+  /** «7️⃣» up to 🔟, then the plain number (shown bold). */
+  label: string;
+  emoji: boolean;
+  html: SafeHtml;
+}
+
+/** A row of the list, with its points already prepared (once, not at every change detection). */
 interface ChatRow extends ChatThreadSummary {
+  /** The last {@link RECENT_POINTS} points, most recent first, numbered: the number says the order. */
+  recent: ChatPoint[];
+  /** The ones before, most recent first, as a plain list (closed until asked). */
+  older: ChatPoint[];
+  /** A detail that is not a list of points (none should be): shown as it is. */
   detailHtml: SafeHtml | null;
 }
+
+/** How many points get a number emoji; the older ones become a plain list. */
+const RECENT_POINTS = 5;
+const KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
 /**
  * The MarkAgent chat history (sprint 2026-11-24-Chat-Memorizzate, F6), in the big pane where the document is: the
@@ -26,6 +43,8 @@ interface ChatRow extends ChatThreadSummary {
 })
 export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
   chats: ChatRow[] = [];
+  /** The chats whose older points are open. */
+  olderOpen = new Set<string>();
   loading = false;
   error = '';
   /** The row waiting for the second click on «Elimina». */
@@ -73,7 +92,7 @@ export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
     this.error = '';
     this.history.list(projectPath).subscribe({
       next: rows => {
-        this.chats = rows.map(r => ({ ...r, detailHtml: this.toHtml(r.detail) }));
+        this.chats = rows.map(r => this.toRow(r));
         this.loading = false;
         this.ref.detectChanges();
       },
@@ -144,6 +163,34 @@ export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
 
   byId(_: number, chat: ChatRow): string {
     return chat.id;
+  }
+
+  toggleOlder(chat: ChatRow): void {
+    if (this.olderOpen.has(chat.id)) this.olderOpen.delete(chat.id);
+    else this.olderOpen.add(chat.id);
+  }
+
+  /**
+   * The detail is the log of the chat's points, one «- …» per line from the oldest (the model sends only the new
+   * point of each turn, MDE appends it). Shown upside down: the most recent on top with the highest number.
+   */
+  private toRow(r: ChatThreadSummary): ChatRow {
+    const lines = (r.detail || '').replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
+    const texts = lines.filter(l => l.startsWith('- ') || l.startsWith('* ')).map(l => l.substring(2).trim()).filter(l => l.length > 0);
+    const points = texts.map((text, i) => {
+      const n = i + 1;
+      return {
+        label: n < KEYCAPS.length ? KEYCAPS[n] : String(n),
+        emoji: n < KEYCAPS.length,
+        html: this.sanitizer.bypassSecurityTrustHtml(marked.parseInline(text) as string),
+      } as ChatPoint;
+    }).reverse();
+    return {
+      ...r,
+      recent: points.slice(0, RECENT_POINTS),
+      older: points.slice(RECENT_POINTS),
+      detailHtml: texts.length === 0 ? this.toHtml(r.detail) : null,
+    };
   }
 
   private toHtml(markdown: string | null): SafeHtml | null {

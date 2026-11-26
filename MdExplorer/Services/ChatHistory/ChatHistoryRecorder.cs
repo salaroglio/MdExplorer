@@ -347,9 +347,12 @@ namespace MdExplorer.Services.ChatHistory
                     $"Chat title and detail not updated this turn: {why}.");
             }
             var parsed = ChatThreadBlock.Parse(inner);
-            Meta("thread-block", new { raw = inner, title = parsed.Title, detail = parsed.Detail, problems = parsed.Problems });
+            Meta("thread-block", new { raw = inner, title = parsed.Title, point = parsed.Point, problems = parsed.Problems });
             _newTitle = parsed.Title;
-            _newDetail = parsed.Detail;
+            // Il punto nuovo va in fondo al registro: la storia intera resta, il modello non la riscrive più.
+            string log;
+            lock (_state) log = _state.Detail;
+            _newDetail = ChatThreadBlock.AppendPoint(log, parsed.Point);
             return parsed.Problems.Count == 0 ? null : UiText.Say(
                 "Titolo o dettaglio della chat non aggiornati: " + string.Join("; ", parsed.Problems) + ".",
                 "Chat title or detail not updated: " + string.Join("; ", parsed.Problems) + ".");

@@ -3195,6 +3195,7 @@
     "UNTITLED": "(senza titolo)",
     "CURRENT": "nel tab",
     "NO_DETAIL": "Nessun dettaglio: il modello non l'ha ancora scritto.",
+    "OLDER_POINTS": "Punti precedenti ({{count}})",
     "FILE_MISSING": "Il file di questa chat non c'è più: si può solo eliminare.",
     "RESUME": "Riprendi",
     "DELETE": "Elimina",

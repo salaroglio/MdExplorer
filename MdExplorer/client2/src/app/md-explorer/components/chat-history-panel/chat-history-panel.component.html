@@ -33,6 +33,21 @@
           </mat-panel-description>
         </mat-expansion-panel-header>
 
+        <ol *ngIf="chat.recent.length" class="ch-points">
+          <li *ngFor="let p of chat.recent; let first = first" [class.ch-latest]="first">
+            <span class="ch-num" [class.ch-num-text]="!p.emoji">{{ p.label }}</span>
+            <span class="ch-point" [innerHTML]="p.html"></span>
+          </li>
+        </ol>
+        <ng-container *ngIf="chat.older.length">
+          <button mat-button class="ch-older-toggle" (click)="toggleOlder(chat)">
+            <mat-icon>{{ olderOpen.has(chat.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            {{ 'CHAT_HISTORY.OLDER_POINTS' | translate:{ count: chat.older.length } }}
+          </button>
+          <ul *ngIf="olderOpen.has(chat.id)" class="ch-older">
+            <li *ngFor="let p of chat.older" [innerHTML]="p.html"></li>
+          </ul>
+        </ng-container>
         <div *ngIf="chat.detailHtml" class="ch-detail" [innerHTML]="chat.detailHtml"></div>
         <p *ngIf="!chat.detail" class="ch-muted">{{ 'CHAT_HISTORY.NO_DETAIL' | translate }}</p>
         <p *ngIf="!chat.fileExists" class="ch-problem">

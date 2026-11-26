@@ -65,24 +65,31 @@ namespace MdExplorer.IntegrationTests
             var files = ctx.Factory.Services.GetRequiredService<IChatFileStore>();
 
             var (client, turn, instruction) = await Turn(recorder, projectPath,
-                "Fatto.\n\n<<<mde-thread\n{\"title\": \"Note di rilascio\", \"detail\": \"- Versione letta\\n- Data aggiunta\"}\nmde-thread>>>");
+                "Fatto.\n\n<<<mde-thread\n{\"title\": \"Note di rilascio\", \"point\": \"Versione letta\"}\nmde-thread>>>");
 
             StringAssert.Contains(instruction, "<<<mde-thread", "il modello riceve le istruzioni del blocco");
             Assert.AreEqual("Fatto.", client.Text, "il blocco non arriva a video");
             Assert.AreEqual(0, client.System.Count, "tutto a posto: nessun avviso");
             var row = Row(ctx, turn.ThreadId.Value);
             Assert.AreEqual("Note di rilascio", row.Title);
-            Assert.AreEqual("- Versione letta\n- Data aggiunta", row.Detail);
+            Assert.AreEqual("- Versione letta", row.Detail);
 
             var events = files.Read(row.FilePath).Events;
             Assert.AreEqual("Fatto.", events.Single(e => e.Kind == ChatRecordEvent.KindText).Content, "nella chat il testo come l'ha visto l'utente");
             Assert.AreEqual("thread-block", events.Single(e => e.Kind == ChatRecordEvent.KindMeta).Content, "e il blocco come evento a sé");
 
-            // Il turno dopo: le istruzioni portano titolo e dettaglio attuali; un blocco {} non cambia niente.
+            // Il turno dopo: le istruzioni portano titolo e ultimi punti; un blocco {} non cambia niente.
             var (_, _, next) = await Turn(recorder, projectPath, "Ancora.\n<<<mde-thread\n{}\nmde-thread>>>");
             StringAssert.Contains(next, "Note di rilascio");
-            StringAssert.Contains(next, "- Data aggiunta");
+            StringAssert.Contains(next, "- Versione letta");
             Assert.AreEqual("Note di rilascio", Row(ctx, turn.ThreadId.Value).Title);
+            Assert.AreEqual("- Versione letta", Row(ctx, turn.ThreadId.Value).Detail);
+
+            // Un punto nuovo va in fondo: la storia resta intera, anche oltre i 5 punti.
+            for (var i = 2; i <= 7; i++)
+                await Turn(recorder, projectPath, $"Turno {i}.\n<<<mde-thread\n{{\"point\": \"Punto {i}\"}}\nmde-thread>>>");
+            Assert.AreEqual("- Versione letta\n- Punto 2\n- Punto 3\n- Punto 4\n- Punto 5\n- Punto 6\n- Punto 7",
+                Row(ctx, turn.ThreadId.Value).Detail);
         }
 
         [TestMethod]
@@ -93,20 +100,19 @@ namespace MdExplorer.IntegrationTests
             var recorder = ctx.Factory.Services.GetRequiredService<ChatHistoryRecorder>();
 
             var (_, first, _) = await Turn(recorder, projectPath,
-                "Uno.\n<<<mde-thread\n{\"title\": \"Prima\", \"detail\": \"- a\"}\nmde-thread>>>");
+                "Uno.\n<<<mde-thread\n{\"title\": \"Prima\", \"point\": \"a\"}\nmde-thread>>>");
 
             var (missing, _, _) = await Turn(recorder, projectPath, "Due, senza blocco.");
             Assert.AreEqual("Due, senza blocco.", missing.Text);
             Assert.AreEqual(1, missing.System.Count, "si dice che titolo e dettaglio non sono aggiornati");
 
-            var six = string.Join("\\n", Enumerable.Range(1, 6).Select(i => "- p" + i));
-            var (tooMany, _, _) = await Turn(recorder, projectPath, "Tre.\n<<<mde-thread\n{\"detail\": \"" + six + "\"}\nmde-thread>>>");
-            Assert.AreEqual(1, tooMany.System.Count);
-            StringAssert.Contains(tooMany.System[0], "6");
+            var (wholeList, _, _) = await Turn(recorder, projectPath, "Tre.\n<<<mde-thread\n{\"detail\": \"- p1\\n- p2\"}\nmde-thread>>>");
+            Assert.AreEqual(1, wholeList.System.Count, "l'elenco intero di prima non si usa più, e lo si dice");
+            StringAssert.Contains(wholeList.System[0], "point");
 
             var row = Row(ctx, first.ThreadId.Value);
             Assert.AreEqual("Prima", row.Title);
-            Assert.AreEqual("- a", row.Detail, "il dettaglio fuori regola non sostituisce quello di prima");
+            Assert.AreEqual("- a", row.Detail, "un blocco fuori regola non tocca il registro");
         }
 
         [TestMethod]

@@ -62,41 +62,57 @@ namespace MdExplorer.Features.Tests.AI
         }
 
         [TestMethod]
-        public void Read_title_and_detail_and_leave_out_what_does_not_change()
+        public void Read_title_and_point_and_leave_out_what_does_not_change()
         {
-            var full = ChatThreadBlock.Parse("{\"title\": \"Note di rilascio\", \"detail\": \"- uno\\n- due\"}");
+            var full = ChatThreadBlock.Parse("{\"title\": \"Note di rilascio\", \"point\": \"Prova su Windows\"}");
             Assert.AreEqual("Note di rilascio", full.Title);
-            Assert.AreEqual("- uno\n- due", full.Detail);
+            Assert.AreEqual("Prova su Windows", full.Point);
             Assert.AreEqual(0, full.Problems.Count);
+
+            Assert.AreEqual("Prova su Windows", ChatThreadBlock.Parse("{\"point\": \"- Prova su Windows\"}").Point, "il trattino dell'elenco non fa parte del punto");
 
             var nothing = ChatThreadBlock.Parse("{}");
             Assert.IsNull(nothing.Title);
-            Assert.IsNull(nothing.Detail);
+            Assert.IsNull(nothing.Point);
             Assert.AreEqual(0, nothing.Problems.Count, "un blocco vuoto vuol dire «niente cambia»");
         }
 
         [TestMethod]
-        public void Refuse_a_detail_off_the_rule_without_cutting_it()
+        public void Refuse_a_point_off_the_rule_and_the_old_whole_list()
         {
-            var six = string.Join("\\n", Enumerable.Range(1, 6).Select(i => $"- punto {i}"));
-            var tooMany = ChatThreadBlock.Parse("{\"title\": \"ok\", \"detail\": \"" + six + "\"}");
-            Assert.AreEqual("ok", tooMany.Title, "il titolo valido passa lo stesso");
-            Assert.IsNull(tooMany.Detail, "il dettaglio fuori regola non passa, e non viene tagliato a 5");
-            StringAssert.Contains(tooMany.Problems.Single(), "6");
+            var twoLines = ChatThreadBlock.Parse("{\"title\": \"ok\", \"point\": \"uno\\ndue\"}");
+            Assert.AreEqual("ok", twoLines.Title, "il titolo valido passa lo stesso");
+            Assert.IsNull(twoLines.Point);
+            Assert.AreEqual(1, twoLines.Problems.Count);
 
-            Assert.IsNotNull(ChatThreadBlock.DetailProblem("Un paragrafo invece di un elenco"));
-            Assert.IsNotNull(ChatThreadBlock.DetailProblem("- uno\n  continua sotto"));
-            Assert.IsNull(ChatThreadBlock.DetailProblem("- uno\n* due\n\n- tre"));
+            Assert.IsNull(ChatThreadBlock.Parse("{\"point\": \"" + new string('x', 201) + "\"}").Point);
+            var old = ChatThreadBlock.Parse("{\"detail\": \"- uno\\n- due\"}");
+            Assert.IsNull(old.Point, "l'elenco intero non riscrive più il registro");
+            StringAssert.Contains(old.Problems.Single(), "point");
             Assert.IsNotNull(ChatThreadBlock.Parse("non json").Problems.SingleOrDefault());
             Assert.IsNotNull(ChatThreadBlock.Parse("{\"title\": \"riga\\naltra riga\"}").Problems.SingleOrDefault());
         }
 
         [TestMethod]
-        public void Put_the_current_title_and_detail_into_the_instruction()
+        public void Append_the_new_point_at_the_end_keeping_the_whole_history()
         {
-            var text = ChatThreadBlock.Instruction("Titolo: {{title}}\nDettaglio:\n{{detail}}", "Studio macOS", "- costi");
+            var log = ChatThreadBlock.AppendPoint(null, "uno");
+            Assert.AreEqual("- uno", log);
+            for (var i = 2; i <= 7; i++) log = ChatThreadBlock.AppendPoint(log, "punto " + i);
+            CollectionAssert.AreEqual(new[] { "uno", "punto 2", "punto 3", "punto 4", "punto 5", "punto 6", "punto 7" },
+                ChatThreadBlock.Points(log).ToArray(), "oltre 5 non si perde niente");
+            Assert.IsNull(ChatThreadBlock.AppendPoint(log, "Punto 7"), "lo stesso punto dell'ultimo non si ripete");
+            Assert.IsNull(ChatThreadBlock.AppendPoint(log, null));
+            CollectionAssert.AreEqual(new[] { "a", "b" }, ChatThreadBlock.Points("- a\r\n\n* b\n").ToArray(), "anche il registro di prima");
+        }
 
-            Assert.AreEqual("Titolo: Studio macOS\nDettaglio:\n- costi", text);
+        [TestMethod]
+        public void Put_the_current_title_and_the_last_points_into_the_instruction()
+        {
+            var log = string.Join("\n", Enumerable.Range(1, 7).Select(i => "- p" + i));
+            var text = ChatThreadBlock.Instruction("Titolo: {{title}}\nPunti:\n{{detail}}", "Studio macOS", log);
+
+            Assert.AreEqual("Titolo: Studio macOS\nPunti:\n- p3\n- p4\n- p5\n- p6\n- p7", text, "gli ultimi 5, dal più vecchio");
             StringAssert.DoesNotMatch(ChatThreadBlock.Instruction("{{title}} {{detail}}", null, null), new System.Text.RegularExpressions.Regex("\\{\\{"));
         }
     }

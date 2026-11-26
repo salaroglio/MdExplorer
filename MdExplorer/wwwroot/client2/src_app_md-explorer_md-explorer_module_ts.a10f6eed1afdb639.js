@@ -21068,7 +21068,7 @@ function ChatHistoryPanelComponent_div_19_Template(rf, ctx) {
 }
 function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_span_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "span", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "span", 25);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](2, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
@@ -21090,18 +21090,107 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_span_1
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"]("\u00A0\u00B7\u00A0", chat_r5.engine, "");
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_div_11_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ol_11_li_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](0, "div", 25);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "li")(1, "span", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](3, "span", 29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const p_r18 = ctx.$implicit;
+    const first_r19 = ctx.first;
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵclassProp"]("ch-latest", first_r19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵclassProp"]("ch-num-text", !p_r18.emoji);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](p_r18.label);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("innerHTML", p_r18.html, _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵsanitizeHtml"]);
+  }
+}
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ol_11_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "ol", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ol_11_li_1_Template, 4, 6, "li", 27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngForOf", chat_r5.recent);
+  }
+}
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_ul_6_li_1_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](0, "li", 34);
+  }
+  if (rf & 2) {
+    const p_r23 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("innerHTML", p_r23.html, _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵsanitizeHtml"]);
+  }
+}
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_ul_6_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "ul", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_ul_6_li_1_Template, 1, 1, "li", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2).$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngForOf", chat_r5.older);
+  }
+}
+const _c0 = function (a0) {
+  return {
+    count: a0
+  };
+};
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r27 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](1, "button", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_Template_button_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r27);
+      const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
+      const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r25.toggleOlder(chat_r5));
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](6, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_ul_6_Template, 2, 1, "ul", 31);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementContainerEnd"]();
+  }
+  if (rf & 2) {
+    const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
+    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](ctx_r9.olderOpen.has(chat_r5.id) ? "expand_less" : "expand_more");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind2"](5, 3, "CHAT_HISTORY.OLDER_POINTS", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpureFunction1"](6, _c0, chat_r5.older.length)), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx_r9.olderOpen.has(chat_r5.id));
+  }
+}
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_div_13_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelement"](0, "div", 35);
   }
   if (rf & 2) {
     const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("innerHTML", chat_r5.detailHtml, _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵsanitizeHtml"]);
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_12_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_14_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 36);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](2, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
@@ -21111,9 +21200,9 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_12_T
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](2, 1, "CHAT_HISTORY.NO_DETAIL"));
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_13_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_15_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 27)(1, "mat-icon", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 37)(1, "mat-icon", 38);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2, "warning");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3);
@@ -21125,29 +21214,29 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_13_T
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](4, 1, "CHAT_HISTORY.FILE_MISSING"), " ");
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_14_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_16_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 27)(1, "mat-icon", 28);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "p", 37)(1, "mat-icon", 38);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2, "error_outline");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r11 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](3);
+    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", ctx_r11.rowProblem == null ? null : ctx_r11.rowProblem.text, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", ctx_r13.rowProblem == null ? null : ctx_r13.rowProblem.text, " ");
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_21_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_23_Template(rf, ctx) {
   if (rf & 1) {
-    const _r18 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "button", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_21_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r18);
+    const _r32 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "button", 39);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_23_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r32);
       const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
-      const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r16.askDelete(chat_r5));
+      const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r30.askDelete(chat_r5));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2, "delete_outline");
@@ -21158,31 +21247,31 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button
   }
   if (rf & 2) {
     const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
-    const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", ctx_r12.busyId === chat_r5.id);
+    const ctx_r14 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", ctx_r14.busyId === chat_r5.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](4, 2, "CHAT_HISTORY.DELETE"), " ");
   }
 }
-function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_22_Template(rf, ctx) {
+function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_24_Template(rf, ctx) {
   if (rf & 1) {
-    const _r21 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
+    const _r35 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](1, "button", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_22_Template_button_click_1_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r21);
-      const ctx_r20 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](3);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r20.confirmDeleteId = null);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](1, "button", 40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_24_Template_button_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r35);
+      const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](3);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r34.confirmDeleteId = null);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](3, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](4, "button", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_22_Template_button_click_4_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](4, "button", 41);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_24_Template_button_click_4_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r35);
       const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
-      const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r22.delete(chat_r5));
+      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r36.delete(chat_r5));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](6, "translate");
@@ -21191,18 +21280,18 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_con
   }
   if (rf & 2) {
     const chat_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"]().$implicit;
-    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+    const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](3, 3, "COMMON.CANCEL"));
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", ctx_r13.busyId === chat_r5.id);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", ctx_r15.busyId === chat_r5.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](6, 5, "CHAT_HISTORY.CONFIRM_DELETE"), " ");
   }
 }
 function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Template(rf, ctx) {
   if (rf & 1) {
-    const _r26 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
+    const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "mat-expansion-panel")(1, "mat-expansion-panel-header")(2, "mat-panel-title")(3, "span", 16);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](5, "translate");
@@ -21213,25 +21302,27 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Templa
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](9, "date");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](10, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_span_10_Template, 2, 1, "span", 18);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](11, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_div_11_Template, 1, 1, "div", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](12, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_12_Template, 3, 3, "p", 20);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](13, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_13_Template, 5, 3, "p", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](14, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_14_Template, 4, 1, "p", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](15, "mat-action-row")(16, "button", 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Template_button_click_16_listener() {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r26);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](11, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ol_11_Template, 2, 1, "ol", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](12, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_12_Template, 7, 8, "ng-container", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](13, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_div_13_Template, 1, 1, "div", 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](14, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_14_Template, 3, 3, "p", 21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](15, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_15_Template, 5, 3, "p", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](16, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_p_16_Template, 4, 1, "p", 22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](17, "mat-action-row")(18, "button", 23);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵlistener"]("click", function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Template_button_click_18_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵrestoreView"](_r40);
       const chat_r5 = restoredCtx.$implicit;
-      const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r25.resume(chat_r5));
+      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵresetView"](ctx_r39.resume(chat_r5));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](17, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](18, "play_arrow");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](19, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](20, "play_arrow");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](20, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtext"](21);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipe"](22, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](21, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_21_Template, 5, 4, "button", 23);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](22, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_22_Template, 7, 7, "ng-container", 18);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](23, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_button_23_Template, 5, 4, "button", 24);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](24, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_ng_container_24_Template, 7, 7, "ng-container", 18);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -21239,13 +21330,17 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Templa
     const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵclassProp"]("ch-current", chat_r5.id === ctx_r4.currentId);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](chat_r5.title || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](5, 14, "CHAT_HISTORY.UNTITLED"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate"](chat_r5.title || _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](5, 16, "CHAT_HISTORY.UNTITLED"));
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", chat_r5.id === ctx_r4.currentId);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind2"](9, 16, chat_r5.lastActivityAt, "short"), "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind2"](9, 18, chat_r5.lastActivityAt, "short"), "");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", chat_r5.engine);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", chat_r5.recent.length);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", chat_r5.older.length);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", chat_r5.detailHtml);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
@@ -21257,7 +21352,7 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Templa
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("disabled", !chat_r5.fileExists || ctx_r4.busyId === chat_r5.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](20, 19, "CHAT_HISTORY.RESUME"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵpipeBind1"](22, 21, "CHAT_HISTORY.RESUME"), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngIf", ctx_r4.confirmDeleteId !== chat_r5.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵadvance"](1);
@@ -21267,7 +21362,7 @@ function ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Templa
 function ChatHistoryPanelComponent_mat_accordion_20_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "mat-accordion", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Template, 23, 21, "mat-expansion-panel", 15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵtemplate"](1, ChatHistoryPanelComponent_mat_accordion_20_mat_expansion_panel_1_Template, 25, 23, "mat-expansion-panel", 15);
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -21276,6 +21371,9 @@ function ChatHistoryPanelComponent_mat_accordion_20_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵproperty"]("ngForOf", ctx_r3.chats)("ngForTrackBy", ctx_r3.byId);
   }
 }
+/** How many points get a number emoji; the older ones become a plain list. */
+const RECENT_POINTS = 5;
+const KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 /**
  * The MarkAgent chat history (sprint 2026-11-24-Chat-Memorizzate, F6), in the big pane where the document is: the
  * project's chats, most recent first, each with its title and, opened, the detail the model keeps up to date. From a
@@ -21291,6 +21389,8 @@ class ChatHistoryPanelComponent {
     this.translate = translate;
     this.ref = ref;
     this.chats = [];
+    /** The chats whose older points are open. */
+    this.olderOpen = new Set();
     this.loading = false;
     this.error = '';
     /** The row waiting for the second click on «Elimina». */
@@ -21325,10 +21425,7 @@ class ChatHistoryPanelComponent {
     this.error = '';
     this.history.list(projectPath).subscribe({
       next: rows => {
-        this.chats = rows.map(r => ({
-          ...r,
-          detailHtml: this.toHtml(r.detail)
-        }));
+        this.chats = rows.map(r => this.toRow(r));
         this.loading = false;
         this.ref.detectChanges();
       },
@@ -21418,6 +21515,31 @@ class ChatHistoryPanelComponent {
   byId(_, chat) {
     return chat.id;
   }
+  toggleOlder(chat) {
+    if (this.olderOpen.has(chat.id)) this.olderOpen.delete(chat.id);else this.olderOpen.add(chat.id);
+  }
+  /**
+   * The detail is the log of the chat's points, one «- …» per line from the oldest (the model sends only the new
+   * point of each turn, MDE appends it). Shown upside down: the most recent on top with the highest number.
+   */
+  toRow(r) {
+    const lines = (r.detail || '').replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
+    const texts = lines.filter(l => l.startsWith('- ') || l.startsWith('* ')).map(l => l.substring(2).trim()).filter(l => l.length > 0);
+    const points = texts.map((text, i) => {
+      const n = i + 1;
+      return {
+        label: n < KEYCAPS.length ? KEYCAPS[n] : String(n),
+        emoji: n < KEYCAPS.length,
+        html: this.sanitizer.bypassSecurityTrustHtml(marked__WEBPACK_IMPORTED_MODULE_1__.marked.parseInline(text))
+      };
+    }).reverse();
+    return {
+      ...r,
+      recent: points.slice(0, RECENT_POINTS),
+      older: points.slice(RECENT_POINTS),
+      detailHtml: texts.length === 0 ? this.toHtml(r.detail) : null
+    };
+  }
   toHtml(markdown) {
     if (!markdown) return null;
     return this.sanitizer.bypassSecurityTrustHtml(marked__WEBPACK_IMPORTED_MODULE_1__.marked.parse(markdown, {
@@ -21435,7 +21557,7 @@ class ChatHistoryPanelComponent {
       selectors: [["app-chat-history-panel"]],
       decls: 21,
       vars: 13,
-      consts: [[1, "chat-history"], [1, "ch-header"], [1, "ch-title"], [1, "flexExpand"], ["mat-icon-button", "", 3, "matTooltip", "click"], [1, "ch-body"], ["class", "ch-center", 4, "ngIf"], ["class", "ch-center ch-problem", 4, "ngIf"], ["class", "ch-center ch-muted", 4, "ngIf"], ["multi", "", 4, "ngIf"], [1, "ch-center"], ["diameter", "28"], [1, "ch-center", "ch-problem"], [1, "ch-center", "ch-muted"], ["multi", ""], [3, "ch-current", 4, "ngFor", "ngForOf", "ngForTrackBy"], [1, "ch-chat-title"], ["class", "ch-badge", 4, "ngIf"], [4, "ngIf"], ["class", "ch-detail", 3, "innerHTML", 4, "ngIf"], ["class", "ch-muted", 4, "ngIf"], ["class", "ch-problem", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "disabled", "click"], ["mat-button", "", 3, "disabled", "click", 4, "ngIf"], [1, "ch-badge"], [1, "ch-detail", 3, "innerHTML"], [1, "ch-muted"], [1, "ch-problem"], ["inline", ""], ["mat-button", "", 3, "disabled", "click"], ["mat-button", "", 3, "click"], ["mat-flat-button", "", "color", "warn", 3, "disabled", "click"]],
+      consts: [[1, "chat-history"], [1, "ch-header"], [1, "ch-title"], [1, "flexExpand"], ["mat-icon-button", "", 3, "matTooltip", "click"], [1, "ch-body"], ["class", "ch-center", 4, "ngIf"], ["class", "ch-center ch-problem", 4, "ngIf"], ["class", "ch-center ch-muted", 4, "ngIf"], ["multi", "", 4, "ngIf"], [1, "ch-center"], ["diameter", "28"], [1, "ch-center", "ch-problem"], [1, "ch-center", "ch-muted"], ["multi", ""], [3, "ch-current", 4, "ngFor", "ngForOf", "ngForTrackBy"], [1, "ch-chat-title"], ["class", "ch-badge", 4, "ngIf"], [4, "ngIf"], ["class", "ch-points", 4, "ngIf"], ["class", "ch-detail", 3, "innerHTML", 4, "ngIf"], ["class", "ch-muted", 4, "ngIf"], ["class", "ch-problem", 4, "ngIf"], ["mat-button", "", "color", "primary", 3, "disabled", "click"], ["mat-button", "", 3, "disabled", "click", 4, "ngIf"], [1, "ch-badge"], [1, "ch-points"], [3, "ch-latest", 4, "ngFor", "ngForOf"], [1, "ch-num"], [1, "ch-point", 3, "innerHTML"], ["mat-button", "", 1, "ch-older-toggle", 3, "click"], ["class", "ch-older", 4, "ngIf"], [1, "ch-older"], [3, "innerHTML", 4, "ngFor", "ngForOf"], [3, "innerHTML"], [1, "ch-detail", 3, "innerHTML"], [1, "ch-muted"], [1, "ch-problem"], ["inline", ""], ["mat-button", "", 3, "disabled", "click"], ["mat-button", "", 3, "click"], ["mat-flat-button", "", "color", "warn", 3, "disabled", "click"]],
       template: function ChatHistoryPanelComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵelementStart"](0, "div", 0)(1, "div", 1)(2, "mat-icon");
@@ -21487,7 +21609,7 @@ class ChatHistoryPanelComponent {
         }
       },
       dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_10__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_10__.NgIf, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatAccordion, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatExpansionPanel, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatExpansionPanelActionRow, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatExpansionPanelHeader, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatExpansionPanelTitle, _angular_material_expansion__WEBPACK_IMPORTED_MODULE_11__.MatExpansionPanelDescription, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_12__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_13__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_14__.MatLegacyProgressSpinner, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_15__.MatLegacyTooltip, _angular_common__WEBPACK_IMPORTED_MODULE_10__.DatePipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__.TranslatePipe],
-      styles: ["[_nghost-%COMP%] {\n  display: block;\n  height: 100%;\n}\n\n.chat-history[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  height: 100%;\n}\n\n.ch-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 12px;\n  border-bottom: 1px solid var(--mat-sys-outline-variant, rgba(127, 127, 127, 0.3));\n}\n\n.ch-title[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n\n.ch-body[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  overflow: auto;\n  padding: 12px;\n}\n\n.ch-center[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 32px 0;\n}\n\n.ch-muted[_ngcontent-%COMP%] {\n  opacity: 0.7;\n}\n\n.ch-problem[_ngcontent-%COMP%] {\n  color: var(--mat-sys-error, #b3261e);\n}\n\n.ch-chat-title[_ngcontent-%COMP%] {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ch-badge[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  padding: 0 6px;\n  border-radius: 8px;\n  font-size: 0.8em;\n  border: 1px solid currentColor;\n}\n\n.ch-current[_ngcontent-%COMP%] {\n  border-left: 3px solid var(--mat-sys-primary, #3f51b5);\n}\n\n.ch-detail[_ngcontent-%COMP%] {\n  -webkit-user-select: text;\n          user-select: text;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9jaGF0LWhpc3RvcnktcGFuZWwvY2hhdC1oaXN0b3J5LXBhbmVsLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsY0FBQTtFQUNBLFlBQUE7QUFDRjs7QUFFQTtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLFlBQUE7QUFDRjs7QUFFQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLGlGQUFBO0FBQ0Y7O0FBRUE7RUFDRSxnQkFBQTtBQUNGOztBQUVBO0VBQ0UsY0FBQTtBQUNGOztBQUVBO0VBQ0UsY0FBQTtFQUNBLGNBQUE7RUFDQSxhQUFBO0FBQ0Y7O0FBRUE7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxtQkFBQTtFQUNBLHVCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsWUFBQTtBQUNGOztBQUVBO0VBQ0Usb0NBQUE7QUFDRjs7QUFFQTtFQUNFLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxtQkFBQTtBQUNGOztBQUVBO0VBQ0UsaUJBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtFQUNBLDhCQUFBO0FBQ0Y7O0FBRUE7RUFDRSxzREFBQTtBQUNGOztBQUVBO0VBQ0UseUJBQUE7VUFBQSxpQkFBQTtBQUNGIiwic291cmNlc0NvbnRlbnQiOlsiOmhvc3Qge1xuICBkaXNwbGF5OiBibG9jaztcbiAgaGVpZ2h0OiAxMDAlO1xufVxuXG4uY2hhdC1oaXN0b3J5IHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgaGVpZ2h0OiAxMDAlO1xufVxuXG4uY2gtaGVhZGVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG4gIHBhZGRpbmc6IDZweCAxMnB4O1xuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgdmFyKC0tbWF0LXN5cy1vdXRsaW5lLXZhcmlhbnQsIHJnYmEoMTI3LCAxMjcsIDEyNywgMC4zKSk7XG59XG5cbi5jaC10aXRsZSB7XG4gIGZvbnQtd2VpZ2h0OiA1MDA7XG59XG5cbi5mbGV4RXhwYW5kIHtcbiAgZmxleDogMSAxIGF1dG87XG59XG5cbi5jaC1ib2R5IHtcbiAgZmxleDogMSAxIGF1dG87XG4gIG92ZXJmbG93OiBhdXRvO1xuICBwYWRkaW5nOiAxMnB4O1xufVxuXG4uY2gtY2VudGVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gIHBhZGRpbmc6IDMycHggMDtcbn1cblxuLmNoLW11dGVkIHtcbiAgb3BhY2l0eTogMC43O1xufVxuXG4uY2gtcHJvYmxlbSB7XG4gIGNvbG9yOiB2YXIoLS1tYXQtc3lzLWVycm9yLCAjYjMyNjFlKTtcbn1cblxuLmNoLWNoYXQtdGl0bGUge1xuICBvdmVyZmxvdzogaGlkZGVuO1xuICB0ZXh0LW92ZXJmbG93OiBlbGxpcHNpcztcbiAgd2hpdGUtc3BhY2U6IG5vd3JhcDtcbn1cblxuLmNoLWJhZGdlIHtcbiAgbWFyZ2luLXJpZ2h0OiA4cHg7XG4gIHBhZGRpbmc6IDAgNnB4O1xuICBib3JkZXItcmFkaXVzOiA4cHg7XG4gIGZvbnQtc2l6ZTogMC44ZW07XG4gIGJvcmRlcjogMXB4IHNvbGlkIGN1cnJlbnRDb2xvcjtcbn1cblxuLmNoLWN1cnJlbnQge1xuICBib3JkZXItbGVmdDogM3B4IHNvbGlkIHZhcigtLW1hdC1zeXMtcHJpbWFyeSwgIzNmNTFiNSk7XG59XG5cbi5jaC1kZXRhaWwge1xuICB1c2VyLXNlbGVjdDogdGV4dDtcbn1cbiJdLCJzb3VyY2VSb290IjoiIn0= */"]
+      styles: ["@charset \"UTF-8\";\n[_nghost-%COMP%] {\n  display: block;\n  height: 100%;\n}\n\n.chat-history[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  height: 100%;\n}\n\n.ch-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 12px;\n  border-bottom: 1px solid var(--mat-sys-outline-variant, rgba(127, 127, 127, 0.3));\n}\n\n.ch-title[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n\n.ch-body[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n  overflow: auto;\n  padding: 12px;\n}\n\n.ch-center[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 32px 0;\n}\n\n.ch-muted[_ngcontent-%COMP%] {\n  opacity: 0.7;\n}\n\n.ch-problem[_ngcontent-%COMP%] {\n  color: var(--mat-sys-error, #b3261e);\n}\n\n.ch-chat-title[_ngcontent-%COMP%] {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ch-badge[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  padding: 0 6px;\n  border-radius: 8px;\n  font-size: 0.8em;\n  border: 1px solid currentColor;\n}\n\n.ch-current[_ngcontent-%COMP%] {\n  border-left: 3px solid var(--mat-sys-primary, #3f51b5);\n}\n\n.ch-detail[_ngcontent-%COMP%] {\n  -webkit-user-select: text;\n          user-select: text;\n}\n\n\n.ch-points[_ngcontent-%COMP%] {\n  list-style: none;\n  margin: 0 0 4px;\n  padding: 0;\n  -webkit-user-select: text;\n          user-select: text;\n}\n.ch-points[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: baseline;\n  gap: 8px;\n  padding: 3px 0;\n  opacity: 0.82;\n}\n.ch-points[_ngcontent-%COMP%]   li.ch-latest[_ngcontent-%COMP%] {\n  opacity: 1;\n  font-weight: 500;\n}\n\n.ch-num[_ngcontent-%COMP%] {\n  flex: 0 0 auto;\n  min-width: 1.6em;\n  font-size: 1.15em;\n  line-height: 1;\n  text-align: center;\n}\n\n.ch-num-text[_ngcontent-%COMP%] {\n  font-weight: 700;\n  font-size: 1em;\n}\n\n.ch-older-toggle[_ngcontent-%COMP%] {\n  margin: 0 0 4px -8px;\n  opacity: 0.8;\n}\n\n.ch-older[_ngcontent-%COMP%] {\n  margin: 0 0 8px;\n  padding-left: 22px;\n  opacity: 0.7;\n  -webkit-user-select: text;\n          user-select: text;\n}\n.ch-older[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  padding: 2px 0;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9jaGF0LWhpc3RvcnktcGFuZWwvY2hhdC1oaXN0b3J5LXBhbmVsLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGdCQUFnQjtBQUFoQjtFQUNFLGNBQUE7RUFDQSxZQUFBO0FBRUY7O0FBQ0E7RUFDRSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxZQUFBO0FBRUY7O0FBQ0E7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsaUJBQUE7RUFDQSxpRkFBQTtBQUVGOztBQUNBO0VBQ0UsZ0JBQUE7QUFFRjs7QUFDQTtFQUNFLGNBQUE7QUFFRjs7QUFDQTtFQUNFLGNBQUE7RUFDQSxjQUFBO0VBQ0EsYUFBQTtBQUVGOztBQUNBO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLGVBQUE7QUFFRjs7QUFDQTtFQUNFLFlBQUE7QUFFRjs7QUFDQTtFQUNFLG9DQUFBO0FBRUY7O0FBQ0E7RUFDRSxnQkFBQTtFQUNBLHVCQUFBO0VBQ0EsbUJBQUE7QUFFRjs7QUFDQTtFQUNFLGlCQUFBO0VBQ0EsY0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSw4QkFBQTtBQUVGOztBQUNBO0VBQ0Usc0RBQUE7QUFFRjs7QUFDQTtFQUNFLHlCQUFBO1VBQUEsaUJBQUE7QUFFRjs7QUFDQSwwR0FBQTtBQUNBO0VBQ0UsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsVUFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7QUFFRjtBQUFFO0VBQ0UsYUFBQTtFQUNBLHFCQUFBO0VBQ0EsUUFBQTtFQUNBLGNBQUE7RUFDQSxhQUFBO0FBRUo7QUFDRTtFQUNFLFVBQUE7RUFDQSxnQkFBQTtBQUNKOztBQUdBO0VBQ0UsY0FBQTtFQUNBLGdCQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0VBQ0Esa0JBQUE7QUFBRjs7QUFHQTtFQUNFLGdCQUFBO0VBQ0EsY0FBQTtBQUFGOztBQUdBO0VBQ0Usb0JBQUE7RUFDQSxZQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0Esa0JBQUE7RUFDQSxZQUFBO0VBQ0EseUJBQUE7VUFBQSxpQkFBQTtBQUFGO0FBRUU7RUFDRSxjQUFBO0FBQUoiLCJzb3VyY2VzQ29udGVudCI6WyI6aG9zdCB7XG4gIGRpc3BsYXk6IGJsb2NrO1xuICBoZWlnaHQ6IDEwMCU7XG59XG5cbi5jaGF0LWhpc3Rvcnkge1xuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xuICBoZWlnaHQ6IDEwMCU7XG59XG5cbi5jaC1oZWFkZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDhweDtcbiAgcGFkZGluZzogNnB4IDEycHg7XG4gIGJvcmRlci1ib3R0b206IDFweCBzb2xpZCB2YXIoLS1tYXQtc3lzLW91dGxpbmUtdmFyaWFudCwgcmdiYSgxMjcsIDEyNywgMTI3LCAwLjMpKTtcbn1cblxuLmNoLXRpdGxlIHtcbiAgZm9udC13ZWlnaHQ6IDUwMDtcbn1cblxuLmZsZXhFeHBhbmQge1xuICBmbGV4OiAxIDEgYXV0bztcbn1cblxuLmNoLWJvZHkge1xuICBmbGV4OiAxIDEgYXV0bztcbiAgb3ZlcmZsb3c6IGF1dG87XG4gIHBhZGRpbmc6IDEycHg7XG59XG5cbi5jaC1jZW50ZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBmbGV4LWRpcmVjdGlvbjogY29sdW1uO1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgcGFkZGluZzogMzJweCAwO1xufVxuXG4uY2gtbXV0ZWQge1xuICBvcGFjaXR5OiAwLjc7XG59XG5cbi5jaC1wcm9ibGVtIHtcbiAgY29sb3I6IHZhcigtLW1hdC1zeXMtZXJyb3IsICNiMzI2MWUpO1xufVxuXG4uY2gtY2hhdC10aXRsZSB7XG4gIG92ZXJmbG93OiBoaWRkZW47XG4gIHRleHQtb3ZlcmZsb3c6IGVsbGlwc2lzO1xuICB3aGl0ZS1zcGFjZTogbm93cmFwO1xufVxuXG4uY2gtYmFkZ2Uge1xuICBtYXJnaW4tcmlnaHQ6IDhweDtcbiAgcGFkZGluZzogMCA2cHg7XG4gIGJvcmRlci1yYWRpdXM6IDhweDtcbiAgZm9udC1zaXplOiAwLjhlbTtcbiAgYm9yZGVyOiAxcHggc29saWQgY3VycmVudENvbG9yO1xufVxuXG4uY2gtY3VycmVudCB7XG4gIGJvcmRlci1sZWZ0OiAzcHggc29saWQgdmFyKC0tbWF0LXN5cy1wcmltYXJ5LCAjM2Y1MWI1KTtcbn1cblxuLmNoLWRldGFpbCB7XG4gIHVzZXItc2VsZWN0OiB0ZXh0O1xufVxuXG4vKiBJIHB1bnRpIGRlbGxhIGNoYXQ6IGlsIHBpw4PCuSByZWNlbnRlIGluIGNpbWEgY29uIGlsIG51bWVybyBwacODwrkgYWx0bywgY29zw4PCrCBpbCB2ZXJzbyBzaSBsZWdnZSBkYWkgbnVtZXJpLiAqL1xuLmNoLXBvaW50cyB7XG4gIGxpc3Qtc3R5bGU6IG5vbmU7XG4gIG1hcmdpbjogMCAwIDRweDtcbiAgcGFkZGluZzogMDtcbiAgdXNlci1zZWxlY3Q6IHRleHQ7XG5cbiAgbGkge1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgYWxpZ24taXRlbXM6IGJhc2VsaW5lO1xuICAgIGdhcDogOHB4O1xuICAgIHBhZGRpbmc6IDNweCAwO1xuICAgIG9wYWNpdHk6IC44MjtcbiAgfVxuXG4gIGxpLmNoLWxhdGVzdCB7XG4gICAgb3BhY2l0eTogMTtcbiAgICBmb250LXdlaWdodDogNTAwO1xuICB9XG59XG5cbi5jaC1udW0ge1xuICBmbGV4OiAwIDAgYXV0bztcbiAgbWluLXdpZHRoOiAxLjZlbTtcbiAgZm9udC1zaXplOiAxLjE1ZW07XG4gIGxpbmUtaGVpZ2h0OiAxO1xuICB0ZXh0LWFsaWduOiBjZW50ZXI7XG59XG5cbi5jaC1udW0tdGV4dCB7XG4gIGZvbnQtd2VpZ2h0OiA3MDA7XG4gIGZvbnQtc2l6ZTogMWVtO1xufVxuXG4uY2gtb2xkZXItdG9nZ2xlIHtcbiAgbWFyZ2luOiAwIDAgNHB4IC04cHg7XG4gIG9wYWNpdHk6IC44O1xufVxuXG4uY2gtb2xkZXIge1xuICBtYXJnaW46IDAgMCA4cHg7XG4gIHBhZGRpbmctbGVmdDogMjJweDtcbiAgb3BhY2l0eTogLjc7XG4gIHVzZXItc2VsZWN0OiB0ZXh0O1xuXG4gIGxpIHtcbiAgICBwYWRkaW5nOiAycHggMDtcbiAgfVxufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }
@@ -61249,4 +61371,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.3f0bf02738e9489b.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.a10f6eed1afdb639.js.map

@@ -7,7 +7,7 @@ export interface ChatThreadSummary {
   id: string;
   /** Given by the model at the end of each turn; null until the first one. */
   title: string | null;
-  /** Markdown given by the model; for now a bulleted list of at most 5 points. */
+  /** The log of the chat points, one «- …» per line from the oldest: the model sends the new point, MDE appends it. */
   detail: string | null;
   engine: string | null;
   modelId: string | null;

@@ -18,7 +18,10 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Lo dà il modello a fine turno; null finché non arriva.</summary>
         public virtual string Title { get; set; }
 
-        /// <summary>Markdown, lo dà il modello. Per ora un elenco puntato di al massimo 5 punti (skill mde-mark-thread).</summary>
+        /// <summary>
+        /// Il registro dei punti della chat: un elenco puntato, un punto per riga, dal più vecchio. Il modello manda solo il
+        /// punto nuovo di ogni turno e MDE lo aggiunge in fondo (skill mde-mark-thread, 26/11/2026).
+        /// </summary>
         public virtual string Detail { get; set; }
 
         /// <summary>Il file JSONL della chat, relativo alla cartella delle chat (<c>&lt;hash progetto&gt;/&lt;Id&gt;.jsonl</c>).</summary>
