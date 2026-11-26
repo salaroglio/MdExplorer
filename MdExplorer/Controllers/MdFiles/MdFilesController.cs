@@ -715,9 +715,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var originalName = Path.GetFileNameWithoutExtension(file.FileName) ?? "image";
                     var sanitizedName = ruleReg.Replace(originalName, "-").Replace(" ", "-");
 
-                    // Add timestamp to ensure uniqueness
-                    var finalFileName = sanitizedName + "_" + DateTime.Now.ToString("yyyyMMddHHmmss") + extension;
-
                     // Create assets directory next to the document
                     var assetsDirectory = Path.Combine(
                         Path.GetDirectoryName(documentPath),
@@ -725,10 +722,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     );
                     Directory.CreateDirectory(assetsDirectory);
 
-                    // Save image to file system
-                    var imagePath = Path.Combine(assetsDirectory, finalFileName);
+                    // Il nome dell'immagine, e se c'è già «nome-2», «nome-3»: niente data attaccata (26/11/2026).
+                    var imagePath = MdExplorer.Features.Utilities.FreeFileName.For(assetsDirectory, sanitizedName, extension);
 
-                    using (var stream = new FileStream(imagePath, FileMode.Create))
+                    using (var stream = new FileStream(imagePath, FileMode.CreateNew))
                     {
                         await file.CopyToAsync(stream);
                     }
@@ -753,7 +750,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     _logger.LogInformation("UploadImage: API path for image: {RelativePath}", relativePath);
 
-                    return Ok(new { relativePath = relativePath, fileName = finalFileName });
+                    return Ok(new { relativePath = relativePath, fileName = Path.GetFileName(imagePath) });
                 }
                 finally
                 {
@@ -847,7 +844,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var ruleReg = new Regex("(^(PRN|AUX|NUL|CON|COM[1-9]|LPT[1-9]|(\\.+)$)(\\..*)?$)|(([\\x00-\\x1f\\?*:\";‌​|/<>])+)|([\\\\.\\s]+)");
                     var baseName = string.IsNullOrEmpty(request.ImageName) ? "screenshot" : request.ImageName;
                     var sanitizedName = ruleReg.Replace(baseName, "-").Replace(" ", "-");
-                    var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
                     // Paths first, writes later: the markdown block needs the image path, and the
                     // document edit must be decided (and possibly refused) BEFORE anything is
@@ -857,10 +853,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         Path.GetDirectoryName(request.DocumentPath),
                         "assets"
                     );
-                    var originalFileName = $"{sanitizedName}_original_{timestamp}.png";
-                    var originalImagePath = Path.Combine(assetsDirectory, originalFileName);
-                    var annotatedFileName = $"{sanitizedName}_annotated_{timestamp}.png";
-                    var annotatedImagePath = Path.Combine(assetsDirectory, annotatedFileName);
+                    // Originale e annotata con lo stesso nome libero, «nome-2» se c'è già: niente data attaccata (26/11/2026).
+                    var freeName = MdExplorer.Features.Utilities.FreeFileName.ForAll(assetsDirectory, sanitizedName, "_original.png", "_annotated.png");
+                    var originalImagePath = Path.Combine(assetsDirectory, freeName + "_original.png");
+                    var annotatedImagePath = Path.Combine(assetsDirectory, freeName + "_annotated.png");
 
                     // Calculate path relative to project root (with leading slash for absolute reference)
                     var projectPath = GetProjectPath();
@@ -929,11 +925,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     // The edit is decided: now the writes.
                     Directory.CreateDirectory(assetsDirectory);
-                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
+                    using (var stream = new FileStream(originalImagePath, FileMode.CreateNew))
                     {
                         await request.OriginalImage.CopyToAsync(stream);
                     }
-                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
+                    using (var stream = new FileStream(annotatedImagePath, FileMode.CreateNew))
                     {
                         await request.AnnotatedImage.CopyToAsync(stream);
                     }

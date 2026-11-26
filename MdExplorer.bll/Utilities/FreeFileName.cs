@@ -13,7 +13,14 @@ namespace MdExplorer.Features.Utilities
     {
         /// <summary>Il percorso completo di un file libero in <paramref name="folder"/>: <c>nome.ext</c> o <c>nome-N.ext</c>.</summary>
         public static string For(string folder, string name, string extension)
-            => Path.Combine(folder, First(name, n => !Taken(Path.Combine(folder, n + extension))) + extension);
+            => Path.Combine(folder, ForAll(folder, name, extension) + extension);
+
+        /// <summary>
+        /// Il nome di base libero per più file che vanno insieme (<c>nome_original.png</c> e <c>nome_annotated.png</c>):
+        /// libero vuol dire che nessuno dei <c>nome + suffisso</c> c'è già, così restano accoppiati con lo stesso numero.
+        /// </summary>
+        public static string ForAll(string folder, string name, params string[] suffixes)
+            => First(name, n => suffixes.All(suffix => !Taken(Path.Combine(folder, n + suffix))));
 
         /// <summary>
         /// Il nome di base libero per un documento convertito in markdown e quello che si porta dietro: <c>nome.md</c>, i

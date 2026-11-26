@@ -119,6 +119,73 @@ namespace MdExplorer.IntegrationTests
             Directory.Delete(outside, true);
         }
 
+        /// <summary>Un'immagine caricata nel documento due volte con lo stesso nome: <c>schema.png</c>, poi <c>schema-2.png</c>.</summary>
+        [TestMethod]
+        public async Task Name_an_uploaded_image_after_the_file_and_number_a_second_one()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, root) = ctx.SeedProject("carica-immagine");
+            var conn = "immagine-" + Guid.NewGuid().ToString("N");
+            var doc = Path.Combine(root, "nota.md");
+            File.WriteAllText(doc, "# Nota\n");
+            var (status, body) = await ctx.PostJson("/api/MdProjects/SetFolderProject?ConnectionId=" + conn, JsonSerializer.Serialize(new { path = root }));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            async Task<string> Upload(string content)
+            {
+                using var form = new System.Net.Http.MultipartFormDataContent();
+                form.Add(new System.Net.Http.ByteArrayContent(System.Text.Encoding.UTF8.GetBytes(content)), "file", "schema.png");
+                form.Add(new System.Net.Http.StringContent(doc), "documentPath");
+                var r = await ctx.Client.PostAsync("/api/mdfiles/UploadImage?ConnectionId=" + conn, form);
+                var b = await r.Content.ReadAsStringAsync();
+                Assert.IsTrue(r.IsSuccessStatusCode, b);
+                return JsonDocument.Parse(b).RootElement.GetProperty("fileName").GetString();
+            }
+
+            Assert.AreEqual("schema.png", await Upload("uno"));
+            Assert.AreEqual("schema-2.png", await Upload("due"));
+            Assert.AreEqual("uno", File.ReadAllText(Path.Combine(root, "assets", "schema.png")), "la prima non è stata sovrascritta");
+        }
+
+        /// <summary>
+        /// Due screenshot annotati: <c>screenshot_original.png</c> e <c>screenshot_annotated.png</c>, poi la coppia
+        /// <c>screenshot-2_…</c>; il documento porta all'annotata, senza data nel nome.
+        /// </summary>
+        [TestMethod]
+        public async Task Name_an_annotated_screenshot_pair_without_a_date_and_number_a_second_pair()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, root) = ctx.SeedProject("screenshot");
+            var conn = "screenshot-" + Guid.NewGuid().ToString("N");
+            var doc = Path.Combine(root, "nota.md");
+            File.WriteAllText(doc, "# Nota\n");
+            var (status, body) = await ctx.PostJson("/api/MdProjects/SetFolderProject?ConnectionId=" + conn, JsonSerializer.Serialize(new { path = root }));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            async Task Save()
+            {
+                using var form = new System.Net.Http.MultipartFormDataContent();
+                form.Add(new System.Net.Http.ByteArrayContent(new byte[] { 1, 2, 3 }), "OriginalImage", "o.png");
+                form.Add(new System.Net.Http.ByteArrayContent(new byte[] { 4, 5, 6 }), "AnnotatedImage", "a.png");
+                form.Add(new System.Net.Http.StringContent(doc), "DocumentPath");
+                form.Add(new System.Net.Http.StringContent("[]"), "DescriptionsJson");
+                form.Add(new System.Net.Http.StringContent("screenshot"), "ImageName");
+                form.Add(new System.Net.Http.StringContent(conn), "ConnectionId");
+                var r = await ctx.Client.PostAsync("/api/mdfiles/SaveAnnotatedScreenshot?ConnectionId=" + conn, form);
+                Assert.IsTrue(r.IsSuccessStatusCode, await r.Content.ReadAsStringAsync());
+            }
+
+            await Save();
+            await Save();
+            var assets = Path.Combine(root, "assets");
+            foreach (var f in new[] { "screenshot_original.png", "screenshot_annotated.png", "screenshot-2_original.png", "screenshot-2_annotated.png" })
+                Assert.IsTrue(File.Exists(Path.Combine(assets, f)), f);
+            var text = File.ReadAllText(doc);
+            StringAssert.Contains(text, "![screenshot](/assets/screenshot_annotated.png)");
+            StringAssert.Contains(text, "![screenshot](/assets/screenshot-2_annotated.png)");
+            Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(text, @"\d{14}"), text);
+        }
+
         private static string RepoFile(params string[] parts)
         {
             for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
