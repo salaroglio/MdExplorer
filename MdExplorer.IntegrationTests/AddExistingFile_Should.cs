@@ -1,0 +1,132 @@
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Threading.Tasks;
+using MdExplorer.IntegrationTests.Infrastructure;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace MdExplorer.IntegrationTests
+{
+    /// <summary>
+    /// «Aggiungi file esistente come link» (<c>POST api/mdfiles/AddExistingFileToMDEProject</c>, la chiamata del wizard):
+    /// la copia in <c>assets</c> tiene il nome del file, senza la data attaccata (26/11/2026); un secondo file con lo stesso
+    /// nome diventa <c>nome-2</c> e non sovrascrive il primo.
+    /// </summary>
+    [TestClass]
+    public class AddExistingFile_Should
+    {
+        [TestMethod]
+        public async Task Copy_the_file_with_its_own_name_and_number_a_second_one()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, root) = ctx.SeedProject("aggiungi-file");
+            var conn = "aggiungi-" + Guid.NewGuid().ToString("N");
+            Directory.CreateDirectory(Path.Combine(root, "docs"));
+            var doc = Path.Combine(root, "docs", "verbale.md");
+            File.WriteAllText(doc, "# Verbale\n");
+            var outside = Path.Combine(Path.GetTempPath(), "mde-aggiungi-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outside);
+            var source = Path.Combine(outside, "Contratto firmato.docx");
+            File.WriteAllText(source, "primo");
+
+            var (status, body) = await ctx.PostJson("/api/MdProjects/SetFolderProject?ConnectionId=" + conn, JsonSerializer.Serialize(new { path = root }));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            async Task<string> Add(bool first)
+            {
+                var (s, b) = await ctx.PostJson("/api/mdfiles/AddExistingFileToMDEProject?ConnectionId=" + conn, JsonSerializer.Serialize(new
+                {
+                    fullPath = source,
+                    mdFile = new { fullPath = doc },
+                    asBulletList = true,
+                    isFirst = first,
+                }));
+                Assert.AreEqual(System.Net.HttpStatusCode.OK, s, b);
+                return JsonDocument.Parse(b).RootElement.GetProperty("copiedFullPath").GetString();
+            }
+
+            var firstCopy = await Add(true);
+            File.WriteAllText(source, "secondo");
+            var secondCopy = await Add(false);
+
+            var assets = Path.Combine(root, "docs", "assets");
+            Assert.AreEqual(Path.Combine(assets, "Contratto-firmato.docx"), firstCopy, "il nome del file, senza data");
+            Assert.AreEqual(Path.Combine(assets, "Contratto-firmato-2.docx"), secondCopy);
+            Assert.AreEqual("primo", File.ReadAllText(firstCopy), "il primo non è stato sovrascritto");
+            Assert.AreEqual("secondo", File.ReadAllText(secondCopy));
+            Assert.AreEqual("# Verbale\n\n- [Contratto firmato.docx](/docs/assets/Contratto-firmato.docx)\n- [Contratto firmato.docx](/docs/assets/Contratto-firmato-2.docx)",
+                File.ReadAllText(doc).Replace("\r\n", "\n"));
+            Directory.Delete(outside, true);
+        }
+
+        /// <summary>
+        /// Il Word aggiunto e convertito in markdown: il documento convertito si chiama come il file (non più
+        /// <c>Contratto20261126143000.md</c>), e una seconda conversione dello stesso nome diventa <c>-2</c> invece di fermarsi.
+        /// </summary>
+        [TestMethod]
+        public async Task Name_the_converted_document_after_the_file_and_number_a_second_conversion()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, root) = ctx.SeedProject("converti-word");
+            var conn = "converti-" + Guid.NewGuid().ToString("N");
+            Directory.CreateDirectory(Path.Combine(root, "docs"));
+            var doc = Path.Combine(root, "docs", "verbale.md");
+            File.WriteAllText(doc, "# Verbale\n");
+            var word = RepoFile("MdExplorer.Features.Tests", "WordTests", "FilesDocx", "Test1.docx");
+            var outside = Path.Combine(Path.GetTempPath(), "mde-converti-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outside);
+            var source = Path.Combine(outside, "Contratto.docx");
+            File.Copy(word, source);
+
+            var (status, body) = await ctx.PostJson("/api/MdProjects/SetFolderProject?ConnectionId=" + conn, JsonSerializer.Serialize(new { path = root }));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+            async Task<string> AddAndConvert(bool first)
+            {
+                var (s, b) = await ctx.PostJson("/api/mdfiles/AddExistingFileToMDEProject?ConnectionId=" + conn, JsonSerializer.Serialize(new
+                {
+                    fullPath = source, mdFile = new { fullPath = doc }, asBulletList = false, isFirst = first,
+                }));
+                Assert.AreEqual(System.Net.HttpStatusCode.OK, s, b);
+                var copy = JsonDocument.Parse(b).RootElement.GetProperty("copiedFullPath").GetString();
+                (s, b) = await ctx.PostJson("/api/mdfiles/ConvertDocumentToMarkdown?ConnectionId=" + conn, JsonSerializer.Serialize(new
+                {
+                    mdFile = new { fullPath = doc }, sourceFullPath = copy,
+                }));
+                Assert.AreEqual(System.Net.HttpStatusCode.OK, s, b);
+                var id = JsonDocument.Parse(b).RootElement.GetProperty("id").GetString();
+                var deadline = DateTime.UtcNow.AddSeconds(60);
+                while (true)
+                {
+                    var r = await ctx.Client.GetAsync("/api/DocumentConversion/jobs/" + id);
+                    var job = JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement;
+                    var st = job.GetProperty("status").GetString();
+                    if (st == "done") return job.GetProperty("outputRelativePath").GetString();
+                    Assert.AreNotEqual("failed", st, job.ToString());
+                    Assert.IsTrue(DateTime.UtcNow < deadline, "conversione troppo lenta: " + job);
+                    await Task.Delay(300);
+                }
+            }
+
+            Assert.AreEqual("/docs/Contratto.md", await AddAndConvert(true));
+            Assert.AreEqual("/docs/Contratto-2.md", await AddAndConvert(false));
+            Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "assets", "Contratto.docx")));
+            Assert.IsTrue(File.Exists(Path.Combine(root, "docs", "assets", "Contratto-2.docx")));
+            var text = File.ReadAllText(doc);
+            StringAssert.Contains(text, "[Contratto.md](/docs/Contratto.md)");
+            StringAssert.Contains(text, "[Contratto-2.md](/docs/Contratto-2.md)");
+            Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(text, @"\d{14}"), "nessuna data attaccata: " + text);
+            Directory.Delete(outside, true);
+        }
+
+        private static string RepoFile(params string[] parts)
+        {
+            for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+            {
+                var candidate = Path.Combine(dir.FullName, Path.Combine(parts));
+                if (File.Exists(candidate)) return candidate;
+            }
+            throw new FileNotFoundException(Path.Combine(parts));
+        }
+    }
+}

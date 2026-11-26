@@ -529,23 +529,25 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var folderContainintMdFile = Path.GetDirectoryName(request.MdFile.FullPath);
             var destinationDirectory = Directory.CreateDirectory(folderContainintMdFile + Path.DirectorySeparatorChar + "assets");
             
-            var originalFileName = Path.GetFileNameWithoutExtension(request.FullPath);
-            var sanitizedFileName = SanitizeFileName(originalFileName);
-            var trueFileName = sanitizedFileName + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(request.FullPath);
-            var fullPathFileName = destinationDirectory.FullName 
-                + Path.DirectorySeparatorChar + trueFileName
-                ;
+            // Il nome del file, e se c'è già «nome-2», «nome-3»: niente data attaccata, che si leggeva in ogni link.
+            var sanitizedFileName = SanitizeFileName(Path.GetFileNameWithoutExtension(request.FullPath));
+            var fullPathFileName = MdExplorer.Features.Utilities.FreeFileName.For(destinationDirectory.FullName, sanitizedFileName,
+                Path.GetExtension(request.FullPath));
             SetFileSystemWatcherEnabled(false);
             try
             {
-                System.IO.File.Copy(request.FullPath, fullPathFileName);
+                System.IO.File.Copy(request.FullPath, fullPathFileName, false);
             }
             catch (IOException ex)
             {
-                _logger.LogInformation(ex.Message);
+                // Senza la copia il link porterebbe a un file che non c'è: meglio dirlo.
+                _logger.LogWarning(ex, "[AddExistingFile] copia di {From} in {To} non riuscita", request.FullPath, fullPathFileName);
+                return StatusCode(500, new { error = ex.Message });
             }
-
-            SetFileSystemWatcherEnabled(true);
+            finally
+            {
+                SetFileSystemWatcherEnabled(true);
+            }
             var allText = System.IO.File.ReadAllText(request.MdFile.FullPath);
             // Normalize both paths to forward slashes before replacing to get relative path
             var projectPathNormalized = GetProjectPath().Replace("\\", "/");

@@ -189,14 +189,10 @@ namespace MdExplorer.Service.Services.Ocr
             {
                 job.Status = "running";
                 var documentFolder = Path.GetDirectoryName(request.MdDocumentFullPath);
-                var baseName = Path.GetFileNameWithoutExtension(request.SourceFullPath);
+                // Il nome del file convertito; se c'è già (lui, i suoi allegati o le sue immagini) «nome-2», «nome-3».
+                var baseName = MdExplorer.Features.Utilities.FreeFileName.ForConvertedDocument(documentFolder,
+                    Path.GetFileNameWithoutExtension(request.SourceFullPath));
                 var outputPath = Path.Combine(documentFolder, baseName + ".md");
-                if (File.Exists(outputPath))
-                {
-                    throw new IOException(UiText.Say(
-                        $"Esiste già un file {outputPath}: non lo sovrascrivo.",
-                        $"A file {outputPath} already exists: it will not be overwritten."));
-                }
 
                 string markdown;
                 var attachedPdfs = new List<PendingPdfAttachment>();
