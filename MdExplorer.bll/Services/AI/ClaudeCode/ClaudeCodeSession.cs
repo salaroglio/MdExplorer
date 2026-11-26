@@ -163,6 +163,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             var disallowed = new List<string>();
             if (options.ToolPolicy == ClaudeCodeToolPolicy.NoExecution) disallowed.Add("Bash");
             disallowed.AddRange((options.DisallowedTools ?? Array.Empty<string>()).Where(r => !string.IsNullOrWhiteSpace(r)));
+            // ssh/scp & co. sempre: i file delle radici remote passano da MDE Remote, che tiene la codifica (provato su 2.1.332).
+            disallowed.AddRange(MdExplorer.Features.Services.AI.RemoteCopyShellRules.Claude);
             if (disallowed.Count > 0)
             {
                 sb.Append(" --disallowedTools");

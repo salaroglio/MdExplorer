@@ -45,6 +45,13 @@ namespace MdExplorer.Services.AgentRun
             // La regola di Claude (R4 della valutazione del 07/11): tutto vietato, tranne leggere, il web, il server MCP di
             // MdExplorer e — se il manifesto li dichiara — scrivere e la shell. Prima era «tutto permesso meno questi», compresi
             // gli strumenti dei server MCP personali dell'utente. «*» per primo: vince l'ultima regola che corrisponde.
+            // La shell sì, ma non ssh/scp & co.: i file delle radici remote passano da MDE Remote, che tiene la codifica.
+            JsonObject ShellWithoutRemoteCopy()
+            {
+                var bash = new JsonObject { ["*"] = "allow" };
+                foreach (var rule in MdExplorer.Features.Services.AI.RemoteCopyShellRules.OpenCode) bash[rule.Key] = rule.Value;
+                return bash;
+            }
             JsonObject Permissions() => new()
             {
                 ["*"] = "deny",
@@ -59,7 +66,7 @@ namespace MdExplorer.Services.AgentRun
                 ["websearch"] = "allow",
                 [ClaudeCodeMcp.ServerName + "_*"] = "allow",
                 ["edit"] = denyWrite ? "deny" : "allow",
-                ["bash"] = denyShell ? "deny" : "allow",
+                ["bash"] = denyShell ? (JsonNode)"deny" : ShellWithoutRemoteCopy(),
             };
             var config = new JsonObject
             {

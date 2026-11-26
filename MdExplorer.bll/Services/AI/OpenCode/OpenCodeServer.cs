@@ -57,6 +57,12 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         public OpenCodeServer(ILogger<OpenCodeServer> logger)
         {
             _logger = logger;
+            // Il server della chat: la configurazione dell'utente più i soli divieti su ssh/scp & co. (le radici remote
+            // passano da MDE Remote, che tiene la codifica).
+            _extraEnvironment = new Dictionary<string, string>
+            {
+                ["OPENCODE_CONFIG_CONTENT"] = MdExplorer.Features.Services.AI.RemoteCopyShellRules.OpenCodeChatConfig(),
+            };
         }
 
         /// <summary>

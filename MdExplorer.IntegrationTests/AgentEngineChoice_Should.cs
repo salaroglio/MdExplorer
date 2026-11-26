@@ -129,7 +129,8 @@ namespace MdExplorer.IntegrationTests
 
             StringAssert.Contains(arguments, "--permission-mode dontAsk");
             StringAssert.Contains(arguments, "--allowedTools mcp__mdexplorer,Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch");
-            Assert.IsFalse(arguments.Contains("--disallowedTools"), arguments);
+            // nessun divieto oltre a ssh/scp & co. (26/11/2026): i file delle radici remote passano da MDE Remote
+            StringAssert.Contains(arguments, "--disallowedTools \"Bash(ssh:*)\" \"Bash(scp:*)\" \"Bash(sftp:*)\" \"Bash(rsync:*)\" --");
             Assert.AreSame(env, options.Environment);
         }
 
@@ -173,8 +174,15 @@ namespace MdExplorer.IntegrationTests
                 new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "token-2" }))!;
 
             foreach (var permissions in new[] { config["permission"]!, config["agent"]!["build"]!["permission"]! })
-                foreach (var tool in new[] { "edit", "bash", "webfetch" })
+            {
+                foreach (var tool in new[] { "edit", "webfetch" })
                     Assert.AreEqual("allow", permissions[tool]!.GetValue<string>(), tool);
+                // la shell sì, ma non ssh/scp & co. (26/11/2026): i file delle radici remote passano da MDE Remote
+                var bash = permissions["bash"]!.AsObject();
+                Assert.AreEqual("allow", bash["*"]!.GetValue<string>());
+                foreach (var denied in new[] { "ssh", "ssh *", "scp *", "sftp *", "rsync *" })
+                    Assert.AreEqual("deny", bash[denied]!.GetValue<string>(), denied);
+            }
             var mcp = config["mcp"]!["mdexplorer"]!;
             CollectionAssert.AreEqual(new[] { "/opt/mde/MdExplorer.Mcp", "--groups", "core,git" },
                 mcp["command"]!.AsArray().Select(n => n!.GetValue<string>()).ToArray());
@@ -191,9 +199,10 @@ namespace MdExplorer.IntegrationTests
                 new AgentTurnRequest { Environment = new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "t" }, DeclaredTools = new[] { "read", "search" } });
             var arguments = ClaudeCodeSession.BuildArguments("sonnet", options);
 
-            Assert.IsFalse(arguments.Contains("Bash"), arguments);
-            Assert.IsFalse(arguments.Contains("Edit"), arguments);
-            Assert.IsFalse(arguments.Contains("Write"), arguments);
+            var allowed = arguments.Substring(arguments.IndexOf("--allowedTools", System.StringComparison.Ordinal));
+            Assert.IsFalse(allowed.Contains("Bash"), arguments);
+            Assert.IsFalse(allowed.Contains("Edit"), arguments);
+            Assert.IsFalse(allowed.Contains("Write"), arguments);
             StringAssert.Contains(arguments, "mcp__mdexplorer", "gli strumenti della città restano: leggerli è un diritto di cittadinanza");
         }
 

@@ -88,8 +88,10 @@ namespace MdExplorer.Features.Tests.ClaudeCode
         {
             var pieno = ClaudeCodeSession.BuildArguments("sonnet",
                 new ClaudeCodeSessionOptions { ToolPolicy = ClaudeCodeToolPolicy.Full });
-            Assert.IsFalse(pieno.Contains("--disallowedTools"),
-                "la policy Full è la parità con Copilot: nessun divieto");
+            Assert.IsFalse(pieno.Contains("--disallowedTools Bash "),
+                "la policy Full è la parità con Copilot: la shell resta");
+            // tranne ssh/scp & co. (26/11/2026): i file delle radici remote passano da MDE Remote, che tiene la codifica
+            StringAssert.Contains(pieno, "--disallowedTools \"Bash(ssh:*)\" \"Bash(scp:*)\" \"Bash(sftp:*)\" \"Bash(rsync:*)\"");
 
             var senzaEsecuzione = ClaudeCodeSession.BuildArguments("sonnet",
                 new ClaudeCodeSessionOptions { ToolPolicy = ClaudeCodeToolPolicy.NoExecution });

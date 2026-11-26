@@ -107,10 +107,10 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// Remote (remote_edit, remote_write), che tiene la codifica dell'estensione. Lo stesso elenco va a Copilot CLI come
         /// <c>--deny-tool=shell(…)</c> sul trasporto ACP (<see cref="DeniedShellRules"/>), dove decide il CLI.
         /// </summary>
-        public static readonly IReadOnlyList<string> RemoteCopyCommands = new[] { "ssh", "scp", "sftp", "rsync" };
+        public static IReadOnlyList<string> RemoteCopyCommands => MdExplorer.Features.Services.AI.RemoteCopyShellRules.Commands;
 
         /// <summary>Le regole <c>--deny-tool</c> per Copilot CLI: provato dal vivo (1.0.114), blocca anche «echo ciao &amp;&amp; ssh -V».</summary>
-        public static IEnumerable<string> DeniedShellRules => RemoteCopyCommands.Select(c => $"shell({c})");
+        public static IEnumerable<string> DeniedShellRules => MdExplorer.Features.Services.AI.RemoteCopyShellRules.Copilot;
 
         // Un comando in posizione di comando: a inizio riga o dopo ; & | ( ` $( , con davanti sudo, env, VAR=… o un percorso.
         private static readonly System.Text.RegularExpressions.Regex RemoteCopyInText = new(
