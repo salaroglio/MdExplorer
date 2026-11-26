@@ -2774,55 +2774,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return list;
         }
 
-        /// <remarks>
-        /// ⚠️ Non rinomina niente sul disco: restituisce i nodi dell'albero per «cartella/nome». L'albero dei documenti usa
-        /// <see cref="RenameMdFile"/> (sprint 2026-11-25-Spostamento-File-E-Link); resta solo per l'albero di pubblicazione.
-        /// </remarks>
-        [HttpPost]
-        public IActionResult RenameDirectory([FromBody] RenameDirectory fileData)
-        {
-            SetFileSystemWatcherEnabled(false);
-            var fullPath = fileData.DirectoryPath + Path.DirectorySeparatorChar + fileData.DirectoryName;
-
-            var relativePath = fullPath.Replace(GetProjectPath(), string.Empty, StringComparison.OrdinalIgnoreCase);
-
-            var list = new List<IFileInfoNode>();
-            var relativeSplitted = relativePath.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).SkipLast(1);
-
-            var dynamicRelativePath = string.Empty;
-            var currentLevel = 0;
-            foreach (var item in relativeSplitted)
-            {
-                dynamicRelativePath =
-                        relativeSplitted.First() == item ? string.Empty : dynamicRelativePath + Path.DirectorySeparatorChar.ToString();
-                dynamicRelativePath += item;
-
-                var node = new FileInfoNode
-                {
-                    Name = item,
-                    FullPath = GetProjectPath() + Path.DirectorySeparatorChar + dynamicRelativePath,
-                    RelativePath = dynamicRelativePath,
-                    Path = dynamicRelativePath,
-                    Type = "folder",
-                    Level = currentLevel,
-                };
-                currentLevel++;
-                list.Add(node);
-            }
-            var nodeFile = new FileInfoNode
-            {
-                Name = fileData.DirectoryName,
-                FullPath = fullPath,
-                Path = relativePath,
-                RelativePath = relativePath,
-                Type = "folder",
-                Level = currentLevel,
-            };
-            list.Add(nodeFile);
-            SetFileSystemWatcherEnabled(true);
-            return Ok(list);
-        }
-
         [HttpPost]
         public IActionResult CreateNewDirectoryEx([FromBody] NewDirectory fileData)
         {
@@ -4527,13 +4478,6 @@ public class NewFile
 }
 
 public class NewDirectory
-{
-    public string DirectoryName { get; set; }
-    public string DirectoryPath { get; set; }
-    public int DirectoryLevel { get; set; }
-}
-
-public class RenameDirectory
 {
     public string DirectoryName { get; set; }
     public string DirectoryPath { get; set; }

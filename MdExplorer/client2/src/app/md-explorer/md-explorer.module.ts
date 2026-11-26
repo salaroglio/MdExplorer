@@ -33,9 +33,7 @@ import { WorkingChangesComponent } from './components/working-changes/working-ch
 import { ChatHistoryPanelComponent } from './components/chat-history-panel/chat-history-panel.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
-import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
-import { PublishMdTreeComponent } from './components/publish-md-tree/publish-md-tree.component';
 import { GitlabSettingsComponent } from './components/gitlab-settings/gitlab-settings.component';
 import { DocumentSettingsComponent } from './components/document-settings/document-settings.component';
 import { CopyFromClipboardComponent } from './components/dialogs/copy-from-clipboard/copy-from-clipboard.component';
@@ -133,9 +131,7 @@ const routes: Routes = [
     MdTreeComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,
-    ChangeDirectoryComponent,
     DeleteMarkdownComponent,
-    PublishMdTreeComponent,
     GitlabSettingsComponent,
     DocumentSettingsComponent,
     CopyFromClipboardComponent,

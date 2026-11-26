@@ -1380,15 +1380,6 @@ export class MdFileService {
     return this.http.post<MdFile[]>(url, newData);
   }
 
-  RenameDirectory(path: string, directoryName: string, directoryLevel: number) {
-    const url = '../api/mdfiles/RenameDirectory';
-    var newData = {
-      directoryPath: path,
-      directoryName: directoryName,
-      directoryLevel: directoryLevel,
-    }
-    return this.http.post<MdFile[]>(url, newData);
-  }
   pasteFromClipboard(node: any) {
     const url = '../api/mdfiles/pasteFromClipboard';
     console.log('[MdFileService] pasteFromClipboard called with:', node);

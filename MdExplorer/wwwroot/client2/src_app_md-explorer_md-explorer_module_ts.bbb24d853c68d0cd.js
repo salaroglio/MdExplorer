@@ -22981,126 +22981,6 @@ class BulkExportProgressDialogComponent {
 
 /***/ }),
 
-/***/ 9730:
-/*!***********************************************************************************************!*\
-  !*** ./src/app/md-explorer/components/dialogs/change-directory/change-directory.component.ts ***!
-  \***********************************************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "ChangeDirectoryComponent": () => (/* binding */ ChangeDirectoryComponent)
-/* harmony export */ });
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../services/md-file.service */ 4169);
-/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
-/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../models/md-file */ 1115);
-
-
-
-
-
-
-
-
-
-
-
-class ChangeDirectoryComponent {
-  constructor(data, dialogRef, mdFileService) {
-    this.data = data;
-    this.dialogRef = dialogRef;
-    this.mdFileService = mdFileService;
-  }
-  ngOnInit() {}
-  dismiss() {
-    this.dialogRef.close();
-  }
-  save() {
-    this.mdFileService.RenameDirectory(this.data.fullPath, this.directoryName, this.data.level).subscribe(data => {
-      this.mdFileService.addNewDirectory(data);
-      this.mdFileService.setSelectedDirectoryFromNewDirectory(data[data.length - 1]);
-    });
-    this.dialogRef.close();
-  }
-  static {
-    this.ɵfac = function ChangeDirectoryComponent_Factory(t) {
-      return new (t || ChangeDirectoryComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MAT_LEGACY_DIALOG_DATA), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogRef), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_0__.MdFileService));
-    };
-  }
-  static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
-      type: ChangeDirectoryComponent,
-      selectors: [["app-change-directory"]],
-      decls: 22,
-      vars: 16,
-      consts: [[1, "simple-container"], ["appearance", "outline"], ["matInput", "", 3, "ngModel", "placeholder", "ngModelChange", "keyup.enter"], ["mat-button", "", "color", "primary", 3, "click"]],
-      template: function ChangeDirectoryComponent_Template(rf, ctx) {
-        if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "mat-dialog-content")(1, "div", 0)(2, "mat-form-field", 1)(3, "mat-label");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](6, "input", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function ChangeDirectoryComponent_Template_input_ngModelChange_6_listener($event) {
-            return ctx.directoryName = $event;
-          })("keyup.enter", function ChangeDirectoryComponent_Template_input_keyup_enter_6_listener() {
-            return ctx.save();
-          });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](7, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](8, "mat-hint");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](10, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](11, "mat-dialog-actions")(12, "button", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function ChangeDirectoryComponent_Template_button_click_12_listener() {
-            return ctx.save();
-          });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](13, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](14, "save");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](15);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](16, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](17, "button", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function ChangeDirectoryComponent_Template_button_click_17_listener() {
-            return ctx.dismiss();
-          });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](18, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](19, "cancel");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](20);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](21, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
-        }
-        if (rf & 2) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 6, "CHANGE_DIR.DIR_NAME"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.directoryName)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](7, 8, "CHANGE_DIR.DIR_PLACEHOLDER"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](10, 10, "CHANGE_DIR.HINT"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](16, 12, "COMMON.SAVE"), " ");
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](21, 14, "COMMON.CANCEL"), " ");
-        }
-      },
-      dependencies: [_angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyHint, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_4__.MatLegacyLabel, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_5__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_6__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_7__.MatIcon, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_3__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_8__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__.TranslatePipe],
-      styles: ["\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IiIsInNvdXJjZVJvb3QiOiIifQ== */"]
-    });
-  }
-}
-
-/***/ }),
-
 /***/ 485:
 /*!***************************************************************************************************!*\
   !*** ./src/app/md-explorer/components/dialogs/code-roots/code-root-encodings-dialog.component.ts ***!
@@ -46049,493 +45929,6 @@ class MilkdownReactHostComponent {
 
 /***/ }),
 
-/***/ 4121:
-/*!*************************************************************************************!*\
-  !*** ./src/app/md-explorer/components/publish-md-tree/publish-md-tree.component.ts ***!
-  \*************************************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "PublishMdTreeComponent": () => (/* binding */ PublishMdTreeComponent)
-/* harmony export */ });
-/* harmony import */ var _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/cdk/tree */ 5183);
-/* harmony import */ var _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/legacy-menu */ 1051);
-/* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../models/md-file */ 1115);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs */ 6646);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 635);
-/* harmony import */ var _dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../dialogs/new-markdown/new-markdown.component */ 5576);
-/* harmony import */ var _dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../dialogs/new-directory/new-directory.component */ 6645);
-/* harmony import */ var _dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../dialogs/change-directory/change-directory.component */ 9730);
-/* harmony import */ var _dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../dialogs/delete-markdown/delete-markdown.component */ 2142);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var _projects_new_project_new_project_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../../projects/new-project/new-project.component */ 5389);
-/* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../services/md-file.service */ 4169);
-/* harmony import */ var _services_projects_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../services/projects.service */ 9753);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/cdk/clipboard */ 6079);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/material/tree */ 3453);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function PublishMdTreeComponent_ng_template_3_button_1_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r15 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_1_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r15);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r13.renameDirectoryOn(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](1, "img", 14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_2_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r18 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 15);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_2_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r18);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r16 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r16.createDirectoryOn(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "create_new_folder");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_3_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r21 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_3_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r21);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r19.createMdOn(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "note_add");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_4_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r24 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 17);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_4_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r24);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r22.deleteFile(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "delete");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_5_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r27 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 18);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_5_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r27);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r25.getLinkFromNode(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "link");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_6_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r30 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 19);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_6_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r30);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r28 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r28.openGitlabSettingsFromNode(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](1, "img", 20);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_button_7_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r33 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_ng_template_3_button_7_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r33);
-      const item_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().item;
-      const ctx_r31 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r31.openFolderOn(item_r5));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "b", 22);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "Open");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, " directory on ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "b", 23);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5, "File Explorer");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-}
-function PublishMdTreeComponent_ng_template_3_Template(rf, ctx) {
-  if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](1, PublishMdTreeComponent_ng_template_3_button_1_Template, 2, 0, "button", 6);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, PublishMdTreeComponent_ng_template_3_button_2_Template, 3, 0, "button", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, PublishMdTreeComponent_ng_template_3_button_3_Template, 3, 0, "button", 8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](4, PublishMdTreeComponent_ng_template_3_button_4_Template, 3, 0, "button", 9);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](5, PublishMdTreeComponent_ng_template_3_button_5_Template, 3, 0, "button", 10);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](6, PublishMdTreeComponent_ng_template_3_button_6_Template, 2, 0, "button", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](7, PublishMdTreeComponent_ng_template_3_button_7_Template, 6, 0, "button", 12);
-  }
-  if (rf & 2) {
-    const item_r5 = ctx.item;
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "publishFolder");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "publishFolder" || item_r5.type === "root");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "publishFolder" || item_r5.type === "root");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "mdFile");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "mdFile");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "mdFile");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r5.type === "publishFolder" || item_r5.type === "root");
-  }
-}
-function PublishMdTreeComponent_mat_tree_node_5_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r36 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-tree-node", 24);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("contextmenu", function PublishMdTreeComponent_mat_tree_node_5_Template_mat_tree_node_contextmenu_0_listener($event) {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r36);
-      const node_r34 = restoredCtx.$implicit;
-      const ctx_r35 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r35.onRightClick($event, node_r34));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "button", 25)(2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "text_snippet");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "a", 26);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function PublishMdTreeComponent_mat_tree_node_5_Template_a_click_4_listener() {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r36);
-      const node_r34 = restoredCtx.$implicit;
-      const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r37.getNode(node_r34));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-  }
-  if (rf & 2) {
-    const node_r34 = ctx.$implicit;
-    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngClass", ctx_r2.activeNode === node_r34 ? "background-highlight" : "accent-link");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](node_r34.name);
-  }
-}
-function PublishMdTreeComponent_mat_tree_node_6_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-tree-node", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("contextmenu", function PublishMdTreeComponent_mat_tree_node_6_Template_mat_tree_node_contextmenu_0_listener($event) {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r40);
-      const node_r38 = restoredCtx.$implicit;
-      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r39.onRightClick($event, node_r38));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "button", 28)(2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-  }
-  if (rf & 2) {
-    const node_r38 = ctx.$implicit;
-    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵattribute"]("aria-label", "Toggle " + node_r38.name);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r3.treeControl.isExpanded(node_r38) ? "folder_open" : "folder", " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", node_r38.name, " ");
-  }
-}
-function PublishMdTreeComponent_mat_tree_node_7_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r43 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-tree-node", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("contextmenu", function PublishMdTreeComponent_mat_tree_node_7_Template_mat_tree_node_contextmenu_0_listener($event) {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r43);
-      const node_r41 = restoredCtx.$implicit;
-      const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r42.onRightClick($event, node_r41));
-    });
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "button", 28)(2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "folder");
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-  }
-  if (rf & 2) {
-    const node_r41 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵattribute"]("aria-label", "Toggle " + node_r41.name);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", node_r41.name, " ");
-  }
-}
-class DynamicDataSource {
-  get data() {
-    return this.dataChange.value;
-  }
-  set data(value) {
-    this._treeControl.dataNodes = value;
-    this.dataChange.next(value);
-  }
-  constructor(_treeControl, _database, _mdFileService) {
-    this._treeControl = _treeControl;
-    this._database = _database;
-    this._mdFileService = _mdFileService;
-    this.dataChange = new rxjs__WEBPACK_IMPORTED_MODULE_9__.BehaviorSubject([]);
-    this.data = _database.initialData();
-    this._mdFileService.loadPublishNodes('root', 0).subscribe(_ => {
-      this.data = _;
-    });
-  }
-  connect(collectionViewer) {
-    this._treeControl.expansionModel.changed.subscribe(change => {
-      if (change.added || change.removed) {
-        this.handleTreeControl(change);
-      }
-    });
-    return (0,rxjs__WEBPACK_IMPORTED_MODULE_10__.merge)(collectionViewer.viewChange, this.dataChange).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.map)(() => this.data));
-  }
-  disconnect(collectionViewer) {}
-  /** Handle expand/collapse behaviors */
-  handleTreeControl(change) {
-    if (change.added) {
-      change.added.forEach(node => this.toggleNode(node, true));
-    }
-    if (change.removed) {
-      change.removed.slice().reverse().forEach(node => this.toggleNode(node, false));
-    }
-  }
-  /**
-   * Toggle the node, remove from display list
-   */
-  toggleNode(node, expand) {
-    this._mdFileService.loadPublishNodes(node.path, node.level + 1).subscribe(_ => {
-      const children = _;
-      const index = this.data.indexOf(node);
-      if (!children || index < 0) {
-        // If no children, or cannot find the node, no op
-        return;
-      }
-      node.isLoading = true;
-      setTimeout(() => {
-        if (expand) {
-          const nodes = children; // punto per fare chiamata remota
-          this.data.splice(index + 1, 0, ...nodes);
-        } else {
-          let count = 0;
-          for (let i = index + 1; i < this.data.length && this.data[i].level > node.level; i++, count++) {}
-          this.data.splice(index + 1, count);
-        }
-        // notify the change
-        this.dataChange.next(this.data);
-        node.isLoading = false;
-      });
-    });
-  }
-}
-class PublishMdTreeComponent {
-  constructor(router, database, mdFileService, projectService, dialog, snackBar, clipboard) {
-    this.router = router;
-    this.database = database;
-    this.mdFileService = mdFileService;
-    this.projectService = projectService;
-    this.dialog = dialog;
-    this.snackBar = snackBar;
-    this.clipboard = clipboard;
-    this.menuTopLeftPosition = {
-      x: 0,
-      y: 0
-    };
-    this.isFolder = (_, node) => node.type == "publishFolder";
-    this.isEmptyRoot = (_, node) => node.type == "root";
-    this.getLevel = node => node.level;
-    this.isExpandable = node => node.expandable;
-    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_12__.FlatTreeControl(this.getLevel, this.isExpandable);
-    this.dataSource = new DynamicDataSource(this.treeControl, database, mdFileService);
-  }
-  ngOnInit() {}
-  getFolder(node) {
-    this.folder.name = node.name;
-    this.folder.path = node.path;
-  }
-  onRightClick(event, item) {
-    // preventDefault avoids to show the visualization of the right-click menu of the browser
-    event.preventDefault();
-    if (item == null) {
-      item = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile("root", "root", 0, false);
-      item.fullPath = "root";
-    }
-    // we record the mouse position in our object
-    this.menuTopLeftPosition.x = event.clientX;
-    this.menuTopLeftPosition.y = event.clientY;
-    // we open the menu
-    // we pass to the menu the information about our object
-    this.matMenuTrigger.menuData = {
-      item: item
-    };
-    // we open the menu
-    this.matMenuTrigger.openMenu();
-  }
-  createMdOn(node) {
-    this.dialog.open(_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_1__.NewMarkdownComponent, {
-      width: '300px',
-      //height:'400px',
-      data: node
-    });
-  }
-  createDirectoryOn(node) {
-    if (node == null) {
-      node = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_2__.NewDirectoryComponent, {
-      width: '300px',
-      data: node
-    });
-  }
-  renameDirectoryOn(node) {
-    if (node == null) {
-      node = new _models_md_file__WEBPACK_IMPORTED_MODULE_0__.MdFile("root", "root", 0, false);
-      node.fullPath = "root";
-    }
-    this.dialog.open(_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_3__.ChangeDirectoryComponent, {
-      width: '300px',
-      data: node
-    });
-  }
-  openFolderOn(node) {
-    this.mdFileService.openFolderOnFileExplorer(node).subscribe(_ => {
-      this.snackBar.open("file explorer open", "", {
-        duration: 500
-      });
-    });
-  }
-  getLinkFromNode(node) {
-    this.clipboard.copy(node.relativePath);
-  }
-  deleteFile(node) {
-    this.dialog.open(_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_4__.DeleteMarkdownComponent, {
-      width: '300px',
-      data: node
-    });
-  }
-  getNode(node) {
-    this.router.navigate(['/main/navigation/document']);
-    this.mdFileService.setSelectedMdFileFromSideNav(node);
-    this.activeNode = node;
-  }
-  openGitlabSettingsFromNode(node) {
-    this.router.navigate(['/main/navigation/gitlabsettings']);
-  }
-  static {
-    this.ɵfac = function PublishMdTreeComponent_Factory(t) {
-      return new (t || PublishMdTreeComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_projects_new_project_new_project_component__WEBPACK_IMPORTED_MODULE_5__.DynamicDatabase), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_6__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_7__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_14__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_16__.Clipboard));
-    };
-  }
-  static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineComponent"]({
-      type: PublishMdTreeComponent,
-      selectors: [["app-publish-md-tree"]],
-      viewQuery: function PublishMdTreeComponent_Query(rf, ctx) {
-        if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵviewQuery"](_angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__.MatLegacyMenuTrigger, 7);
-        }
-        if (rf & 2) {
-          let _t;
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵloadQuery"]()) && (ctx.matMenuTrigger = _t.first);
-        }
-      },
-      decls: 8,
-      vars: 9,
-      consts: [[2, "visibility", "hidden", "position", "fixed", 3, "matMenuTriggerFor"], ["rightMenu", "matMenu"], ["matMenuContent", ""], [3, "dataSource", "treeControl"], ["color", "accent", "matTreeNodePadding", "", "style", "cursor:pointer", 3, "contextmenu", 4, "matTreeNodeDef"], ["style", "cursor:pointer", "matTreeNodePadding", "", 3, "contextmenu", 4, "matTreeNodeDef", "matTreeNodeDefWhen"], ["mat-icon-button", "", "color", "accent", "matTooltip", "rename folder", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "matTooltip", "create new folder", "color", "primary", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "matTooltip", "create new document", "color", "primary", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "warn", "matTooltip", "delete document", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", "matTooltip", "copy link to clipboard", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "primary", "matTooltip", "Gitlab settings", 3, "click", 4, "ngIf"], ["mat-menu-item", "", 3, "click", 4, "ngIf"], ["mat-icon-button", "", "color", "accent", "matTooltip", "rename folder", 3, "click"], ["src", "/assets/rename.png", "alt", "Rename directory"], ["mat-icon-button", "", "matTooltip", "create new folder", "color", "primary", 3, "click"], ["mat-icon-button", "", "matTooltip", "create new document", "color", "primary", 3, "click"], ["mat-icon-button", "", "color", "warn", "matTooltip", "delete document", 3, "click"], ["mat-icon-button", "", "color", "primary", "matTooltip", "copy link to clipboard", 3, "click"], ["mat-icon-button", "", "color", "primary", "matTooltip", "Gitlab settings", 3, "click"], ["src", "/assets/gitlab.png"], ["mat-menu-item", "", 3, "click"], [1, "menu-verb-accent"], [1, "menu-target-accent"], ["color", "accent", "matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"], ["mat-icon-button", "", 2, "cursor", "pointer"], [3, "ngClass", "click"], ["matTreeNodePadding", "", 2, "cursor", "pointer", 3, "contextmenu"], ["mat-icon-button", "", "matTreeNodeToggle", "", "color", "accent"]],
-      template: function PublishMdTreeComponent_Template(rf, ctx) {
-        if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "div", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-menu", null, 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, PublishMdTreeComponent_ng_template_3_Template, 8, 7, "ng-template", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "mat-tree", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](5, PublishMdTreeComponent_mat_tree_node_5_Template, 6, 2, "mat-tree-node", 4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](6, PublishMdTreeComponent_mat_tree_node_6_Template, 5, 3, "mat-tree-node", 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](7, PublishMdTreeComponent_mat_tree_node_7_Template, 5, 2, "mat-tree-node", 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
-        }
-        if (rf & 2) {
-          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵreference"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵstyleProp"]("left", ctx.menuTopLeftPosition.x, "px")("top", ctx.menuTopLeftPosition.y, "px");
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matMenuTriggerFor", _r0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("dataSource", ctx.dataSource)("treeControl", ctx.treeControl);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.isFolder);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTreeNodeDefWhen", ctx.isEmptyRoot);
-        }
-      },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_18__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_18__.NgIf, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__.MatLegacyMenu, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__.MatLegacyMenuItem, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__.MatLegacyMenuTrigger, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_17__.MatLegacyMenuContent, _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__.MatTreeNodeDef, _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__.MatTreeNodePadding, _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__.MatTreeNodeToggle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__.MatTree, _angular_material_tree__WEBPACK_IMPORTED_MODULE_19__.MatTreeNode, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_20__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_21__.MatIcon, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_22__.MatLegacyTooltip],
-      styles: [".mat-tree-node[_ngcontent-%COMP%] {\n  min-height: 40px !important;\n}\n\n.red-icon[_ngcontent-%COMP%] {\n  color: red;\n}\n\n.accent-link[_ngcontent-%COMP%] {\n  color: blue;\n  border-bottom-width: 1px;\n  border-bottom: dashed;\n  border-bottom-color: palevioletred;\n}\n\n.background-highlight[_ngcontent-%COMP%] {\n  background-color: purple;\n  color: white;\n}\n\n.menu-verb-accent[_ngcontent-%COMP%] {\n  color: var(--mde-accent-secondary);\n}\n\n.menu-target-accent[_ngcontent-%COMP%] {\n  color: var(--mde-accent-primary);\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9wdWJsaXNoLW1kLXRyZWUvcHVibGlzaC1tZC10cmVlLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsMkJBQUE7QUFDRjs7QUFHQTtFQUNFLFVBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7RUFDQSx3QkFBQTtFQUNBLHFCQUFBO0VBQ0Esa0NBQUE7QUFBRjs7QUFHQTtFQUNFLHdCQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUlBO0VBQ0Usa0NBQUE7QUFERjs7QUFJQTtFQUNFLGdDQUFBO0FBREYiLCJzb3VyY2VzQ29udGVudCI6WyIubWF0LXRyZWUtbm9kZSB7XG4gIG1pbi1oZWlnaHQ6IDQwcHggIWltcG9ydGFudDtcbn1cblxuXG4ucmVkLWljb24ge1xuICBjb2xvcjogcmVkO1xufVxuXG4uYWNjZW50LWxpbmsge1xuICBjb2xvcjogYmx1ZTtcbiAgYm9yZGVyLWJvdHRvbS13aWR0aDogMXB4O1xuICBib3JkZXItYm90dG9tOiBkYXNoZWQ7XG4gIGJvcmRlci1ib3R0b20tY29sb3I6IHBhbGV2aW9sZXRyZWQ7XG59XG5cbi5iYWNrZ3JvdW5kLWhpZ2hsaWdodCB7XG4gIGJhY2tncm91bmQtY29sb3I6IHB1cnBsZTtcbiAgY29sb3I6IHdoaXRlO1xufVxuXG4vLyBQYXJvbGUgZXZpZGVuemlhdGUgbmVsIG1lbnUgY29udGVzdHVhbGUgKGV4IHN0aWxpIGlubGluZSB2aW9sZXQvYmx1ZSlcbi5tZW51LXZlcmItYWNjZW50IHtcbiAgY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtc2Vjb25kYXJ5KTtcbn1cblxuLm1lbnUtdGFyZ2V0LWFjY2VudCB7XG4gIGNvbG9yOiB2YXIoLS1tZGUtYWNjZW50LXByaW1hcnkpO1xufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
-    });
-  }
-}
-
-/***/ }),
-
 /***/ 5059:
 /*!*****************************************************************************************!*\
   !*** ./src/app/md-explorer/components/refactoring/rename-file/rename-file.component.ts ***!
@@ -52735,16 +52128,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MdExplorerModule": () => (/* binding */ MdExplorerModule)
 /* harmony export */ });
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_69__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_70__ = __webpack_require__(/*! @angular/cdk/drag-drop */ 7727);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_67__ = __webpack_require__(/*! @angular/common */ 4666);
+/* harmony import */ var _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_68__ = __webpack_require__(/*! @angular/cdk/drag-drop */ 7727);
 /* harmony import */ var _components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./components/sidenav/sidenav.component */ 5579);
 /* harmony import */ var _components_toolbar_toolbar_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./components/toolbar/toolbar.component */ 8173);
 /* harmony import */ var _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/main-content/main-content.component */ 9507);
 /* harmony import */ var _shared_material_module__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../shared/material.module */ 4872);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_71__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_72__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_69__ = __webpack_require__(/*! @angular/forms */ 2508);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_70__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 /* harmony import */ var _md_explorer_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./md-explorer.component */ 89);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_73__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_71__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _pipes_safePipe__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./pipes/safePipe */ 3016);
 /* harmony import */ var _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/dialogs/settings/settings.component */ 6350);
 /* harmony import */ var _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/refactoring/rename-file/rename-file.component */ 5059);
@@ -52767,48 +52160,46 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_chat_history_panel_chat_history_panel_component__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ./components/chat-history-panel/chat-history-panel.component */ 6882);
 /* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! ../signalR/dialogs/connection-lost/connection-lost.component */ 338);
 /* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! ../signalR/dialogs/parsing-project/parsing-project.component */ 851);
-/* harmony import */ var _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! ./components/dialogs/change-directory/change-directory.component */ 9730);
-/* harmony import */ var _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! ./components/dialogs/delete-markdown/delete-markdown.component */ 2142);
-/* harmony import */ var _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ./components/publish-md-tree/publish-md-tree.component */ 4121);
-/* harmony import */ var _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ./components/gitlab-settings/gitlab-settings.component */ 4353);
-/* harmony import */ var _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ./components/document-settings/document-settings.component */ 4057);
-/* harmony import */ var _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! ./components/dialogs/copy-from-clipboard/copy-from-clipboard.component */ 9744);
-/* harmony import */ var _git_git_module__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! ../git/git.module */ 1312);
-/* harmony import */ var _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! ./components/dialogs/move-md-file/move-md-file.component */ 898);
-/* harmony import */ var _components_dialogs_rename_document_rename_document_component__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! ./components/dialogs/rename-document/rename-document.component */ 6519);
-/* harmony import */ var _components_dialogs_ocr_for_attachments_ocr_for_attachments_component__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! ./components/dialogs/ocr-for-attachments/ocr-for-attachments.component */ 8193);
-/* harmony import */ var _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_37__ = __webpack_require__(/*! ./components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component */ 8074);
-/* harmony import */ var _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_38__ = __webpack_require__(/*! ./components/milkdown-react-host/milkdown-react-host.component */ 3316);
-/* harmony import */ var _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_39__ = __webpack_require__(/*! ./components/document-show/document-show.component */ 1579);
-/* harmony import */ var _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_40__ = __webpack_require__(/*! ../ai-chat/ai-chat.module */ 9577);
-/* harmony import */ var _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_41__ = __webpack_require__(/*! ../git-chat/components/git-chat/git-chat.component */ 1873);
-/* harmony import */ var _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_42__ = __webpack_require__(/*! ../git-chat/services/git-chat.service */ 8807);
-/* harmony import */ var _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_43__ = __webpack_require__(/*! ../git-chat/providers/chat-provider.interface */ 8234);
-/* harmony import */ var _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_44__ = __webpack_require__(/*! ../git-chat/providers/signalr-chat.provider */ 9946);
-/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_45__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ 9138);
-/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_46__ = __webpack_require__(/*! ./services/toc-progress.service */ 6394);
-/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_47__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ 8950);
-/* harmony import */ var _components_image_annotation_canvas_image_annotation_canvas_component__WEBPACK_IMPORTED_MODULE_48__ = __webpack_require__(/*! ./components/image-annotation-canvas/image-annotation-canvas.component */ 7647);
-/* harmony import */ var _components_dialogs_screenshot_annotation_wizard_screenshot_annotation_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_49__ = __webpack_require__(/*! ./components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component */ 9210);
-/* harmony import */ var _components_toolbar_p2p_status_widget_p2p_status_widget_component__WEBPACK_IMPORTED_MODULE_50__ = __webpack_require__(/*! ./components/toolbar/p2p-status-widget/p2p-status-widget.component */ 9469);
-/* harmony import */ var _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_51__ = __webpack_require__(/*! ./components/external-app/external-app.component */ 4018);
-/* harmony import */ var _components_external_apps_settings_external_apps_settings_component__WEBPACK_IMPORTED_MODULE_52__ = __webpack_require__(/*! ./components/external-apps-settings/external-apps-settings.component */ 5153);
-/* harmony import */ var _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_53__ = __webpack_require__(/*! ./components/app-store/app-store.component */ 5333);
-/* harmony import */ var _components_dialogs_install_wizard_install_wizard_component__WEBPACK_IMPORTED_MODULE_54__ = __webpack_require__(/*! ./components/dialogs/install-wizard/install-wizard.component */ 2125);
-/* harmony import */ var _components_dialogs_bulk_export_progress_bulk_export_progress_dialog_component__WEBPACK_IMPORTED_MODULE_55__ = __webpack_require__(/*! ./components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component */ 7878);
-/* harmony import */ var _components_app_show_app_show_component__WEBPACK_IMPORTED_MODULE_56__ = __webpack_require__(/*! ./components/app-show/app-show.component */ 2890);
-/* harmony import */ var _components_background_work_panel_background_work_panel_component__WEBPACK_IMPORTED_MODULE_57__ = __webpack_require__(/*! ./components/background-work-panel/background-work-panel.component */ 331);
-/* harmony import */ var _components_dialogs_ai_selection_dialog_ai_selection_dialog_component__WEBPACK_IMPORTED_MODULE_58__ = __webpack_require__(/*! ./components/dialogs/ai-selection-dialog/ai-selection-dialog.component */ 6972);
-/* harmony import */ var _components_mark_search_mark_search_component__WEBPACK_IMPORTED_MODULE_59__ = __webpack_require__(/*! ./components/mark-search/mark-search.component */ 3851);
-/* harmony import */ var _components_agent_launch_dialog_agent_launch_dialog_component__WEBPACK_IMPORTED_MODULE_60__ = __webpack_require__(/*! ./components/agent-launch-dialog/agent-launch-dialog.component */ 926);
-/* harmony import */ var _components_agent_turn_diary_dialog_agent_turn_diary_dialog_component__WEBPACK_IMPORTED_MODULE_61__ = __webpack_require__(/*! ./components/agent-turn-diary-dialog/agent-turn-diary-dialog.component */ 5542);
-/* harmony import */ var _components_agent_schedule_dialog_agent_schedule_dialog_component__WEBPACK_IMPORTED_MODULE_62__ = __webpack_require__(/*! ./components/agent-schedule-dialog/agent-schedule-dialog.component */ 5577);
-/* harmony import */ var _components_agent_registry_dialog_agent_registry_dialog_component__WEBPACK_IMPORTED_MODULE_63__ = __webpack_require__(/*! ./components/agent-registry-dialog/agent-registry-dialog.component */ 7983);
-/* harmony import */ var _components_agent_trust_dialog_agent_trust_dialog_component__WEBPACK_IMPORTED_MODULE_64__ = __webpack_require__(/*! ./components/agent-trust-dialog/agent-trust-dialog.component */ 3042);
-/* harmony import */ var _components_agent_memory_dialog_agent_memory_dialog_component__WEBPACK_IMPORTED_MODULE_65__ = __webpack_require__(/*! ./components/agent-memory-dialog/agent-memory-dialog.component */ 7046);
-/* harmony import */ var _components_agent_mail_agent_mail_component__WEBPACK_IMPORTED_MODULE_66__ = __webpack_require__(/*! ./components/agent-mail/agent-mail.component */ 2505);
-/* harmony import */ var _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_67__ = __webpack_require__(/*! ./components/leave-agent-copy-dialog/leave-agent-copy-dialog.component */ 5215);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_68__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! ./components/dialogs/delete-markdown/delete-markdown.component */ 2142);
+/* harmony import */ var _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! ./components/gitlab-settings/gitlab-settings.component */ 4353);
+/* harmony import */ var _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! ./components/document-settings/document-settings.component */ 4057);
+/* harmony import */ var _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! ./components/dialogs/copy-from-clipboard/copy-from-clipboard.component */ 9744);
+/* harmony import */ var _git_git_module__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! ../git/git.module */ 1312);
+/* harmony import */ var _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! ./components/dialogs/move-md-file/move-md-file.component */ 898);
+/* harmony import */ var _components_dialogs_rename_document_rename_document_component__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! ./components/dialogs/rename-document/rename-document.component */ 6519);
+/* harmony import */ var _components_dialogs_ocr_for_attachments_ocr_for_attachments_component__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! ./components/dialogs/ocr-for-attachments/ocr-for-attachments.component */ 8193);
+/* harmony import */ var _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! ./components/dialogs/add-new-file-to-mde/add-new-file-to-mde.component */ 8074);
+/* harmony import */ var _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! ./components/milkdown-react-host/milkdown-react-host.component */ 3316);
+/* harmony import */ var _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_37__ = __webpack_require__(/*! ./components/document-show/document-show.component */ 1579);
+/* harmony import */ var _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_38__ = __webpack_require__(/*! ../ai-chat/ai-chat.module */ 9577);
+/* harmony import */ var _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_39__ = __webpack_require__(/*! ../git-chat/components/git-chat/git-chat.component */ 1873);
+/* harmony import */ var _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_40__ = __webpack_require__(/*! ../git-chat/services/git-chat.service */ 8807);
+/* harmony import */ var _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_41__ = __webpack_require__(/*! ../git-chat/providers/chat-provider.interface */ 8234);
+/* harmony import */ var _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_42__ = __webpack_require__(/*! ../git-chat/providers/signalr-chat.provider */ 9946);
+/* harmony import */ var _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_43__ = __webpack_require__(/*! ./components/dialogs/toc-progress-dialog/toc-progress-dialog.component */ 9138);
+/* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_44__ = __webpack_require__(/*! ./services/toc-progress.service */ 6394);
+/* harmony import */ var _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_45__ = __webpack_require__(/*! ../commons/components/confirm-dialog/confirm-dialog.component */ 8950);
+/* harmony import */ var _components_image_annotation_canvas_image_annotation_canvas_component__WEBPACK_IMPORTED_MODULE_46__ = __webpack_require__(/*! ./components/image-annotation-canvas/image-annotation-canvas.component */ 7647);
+/* harmony import */ var _components_dialogs_screenshot_annotation_wizard_screenshot_annotation_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_47__ = __webpack_require__(/*! ./components/dialogs/screenshot-annotation-wizard/screenshot-annotation-wizard-dialog.component */ 9210);
+/* harmony import */ var _components_toolbar_p2p_status_widget_p2p_status_widget_component__WEBPACK_IMPORTED_MODULE_48__ = __webpack_require__(/*! ./components/toolbar/p2p-status-widget/p2p-status-widget.component */ 9469);
+/* harmony import */ var _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_49__ = __webpack_require__(/*! ./components/external-app/external-app.component */ 4018);
+/* harmony import */ var _components_external_apps_settings_external_apps_settings_component__WEBPACK_IMPORTED_MODULE_50__ = __webpack_require__(/*! ./components/external-apps-settings/external-apps-settings.component */ 5153);
+/* harmony import */ var _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_51__ = __webpack_require__(/*! ./components/app-store/app-store.component */ 5333);
+/* harmony import */ var _components_dialogs_install_wizard_install_wizard_component__WEBPACK_IMPORTED_MODULE_52__ = __webpack_require__(/*! ./components/dialogs/install-wizard/install-wizard.component */ 2125);
+/* harmony import */ var _components_dialogs_bulk_export_progress_bulk_export_progress_dialog_component__WEBPACK_IMPORTED_MODULE_53__ = __webpack_require__(/*! ./components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component */ 7878);
+/* harmony import */ var _components_app_show_app_show_component__WEBPACK_IMPORTED_MODULE_54__ = __webpack_require__(/*! ./components/app-show/app-show.component */ 2890);
+/* harmony import */ var _components_background_work_panel_background_work_panel_component__WEBPACK_IMPORTED_MODULE_55__ = __webpack_require__(/*! ./components/background-work-panel/background-work-panel.component */ 331);
+/* harmony import */ var _components_dialogs_ai_selection_dialog_ai_selection_dialog_component__WEBPACK_IMPORTED_MODULE_56__ = __webpack_require__(/*! ./components/dialogs/ai-selection-dialog/ai-selection-dialog.component */ 6972);
+/* harmony import */ var _components_mark_search_mark_search_component__WEBPACK_IMPORTED_MODULE_57__ = __webpack_require__(/*! ./components/mark-search/mark-search.component */ 3851);
+/* harmony import */ var _components_agent_launch_dialog_agent_launch_dialog_component__WEBPACK_IMPORTED_MODULE_58__ = __webpack_require__(/*! ./components/agent-launch-dialog/agent-launch-dialog.component */ 926);
+/* harmony import */ var _components_agent_turn_diary_dialog_agent_turn_diary_dialog_component__WEBPACK_IMPORTED_MODULE_59__ = __webpack_require__(/*! ./components/agent-turn-diary-dialog/agent-turn-diary-dialog.component */ 5542);
+/* harmony import */ var _components_agent_schedule_dialog_agent_schedule_dialog_component__WEBPACK_IMPORTED_MODULE_60__ = __webpack_require__(/*! ./components/agent-schedule-dialog/agent-schedule-dialog.component */ 5577);
+/* harmony import */ var _components_agent_registry_dialog_agent_registry_dialog_component__WEBPACK_IMPORTED_MODULE_61__ = __webpack_require__(/*! ./components/agent-registry-dialog/agent-registry-dialog.component */ 7983);
+/* harmony import */ var _components_agent_trust_dialog_agent_trust_dialog_component__WEBPACK_IMPORTED_MODULE_62__ = __webpack_require__(/*! ./components/agent-trust-dialog/agent-trust-dialog.component */ 3042);
+/* harmony import */ var _components_agent_memory_dialog_agent_memory_dialog_component__WEBPACK_IMPORTED_MODULE_63__ = __webpack_require__(/*! ./components/agent-memory-dialog/agent-memory-dialog.component */ 7046);
+/* harmony import */ var _components_agent_mail_agent_mail_component__WEBPACK_IMPORTED_MODULE_64__ = __webpack_require__(/*! ./components/agent-mail/agent-mail.component */ 2505);
+/* harmony import */ var _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_65__ = __webpack_require__(/*! ./components/leave-agent-copy-dialog/leave-agent-copy-dialog.component */ 5215);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_66__ = __webpack_require__(/*! @angular/core */ 2560);
 
 
 
@@ -52820,8 +52211,6 @@ __webpack_require__.r(__webpack_exports__);
 
 
 // HttpClientModule is imported in AppModule - DO NOT import here or interceptors won't work
-
-
 
 
 
@@ -52891,28 +52280,28 @@ const routes = [{
   component: _components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_0__.SidenavComponent
 }, {
   path: 'app-store',
-  component: _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_53__.AppStoreComponent
+  component: _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_51__.AppStoreComponent
 }, {
   path: 'navigation',
   component: _components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_0__.SidenavComponent,
   children: [{
     path: '',
-    component: _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_39__.DocumentShowComponent,
+    component: _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_37__.DocumentShowComponent,
     children: [{
       path: 'document',
       component: _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_2__.MainContentComponent
     }, {
       path: 'gitlabsettings',
-      component: _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_30__.GitlabSettingsComponent
+      component: _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_28__.GitlabSettingsComponent
     }, {
       path: 'documentsettings',
-      component: _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_31__.DocumentSettingsComponent
+      component: _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_29__.DocumentSettingsComponent
     }, {
       path: 'react-editor',
-      component: _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_38__.MilkdownReactHostComponent
+      component: _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_36__.MilkdownReactHostComponent
     }, {
       path: 'external-app',
-      component: _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_51__.ExternalAppComponent
+      component: _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_49__.ExternalAppComponent
     }, {
       path: 'ai-chat',
       loadChildren: () => Promise.resolve(/*! import() */).then(__webpack_require__.bind(__webpack_require__, /*! ../ai-chat/ai-chat.module */ 9577)).then(m => m.AiChatModule)
@@ -52935,28 +52324,28 @@ class MdExplorerModule {
     };
   }
   static {
-    this.ɵmod = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_68__["ɵɵdefineNgModule"]({
+    this.ɵmod = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_66__["ɵɵdefineNgModule"]({
       type: MdExplorerModule
     });
   }
   static {
-    this.ɵinj = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_68__["ɵɵdefineInjector"]({
+    this.ɵinj = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_66__["ɵɵdefineInjector"]({
       providers: [
       // MdFileService è già providedIn: 'root', non va qui
-      _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_46__.TocProgressService,
+      _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_44__.TocProgressService,
       // GitChat providers
       {
-        provide: _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_43__.CHAT_PROVIDER,
-        useClass: _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_44__.SignalRChatProvider
-      }, _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_42__.GitChatService],
-      imports: [_angular_common__WEBPACK_IMPORTED_MODULE_69__.CommonModule, _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_70__.DragDropModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_71__.FormsModule, _git_git_module__WEBPACK_IMPORTED_MODULE_33__.GitModule, _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_40__.AiChatModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_72__.TranslateModule, _angular_router__WEBPACK_IMPORTED_MODULE_73__.RouterModule.forChild(routes)]
+        provide: _git_chat_providers_chat_provider_interface__WEBPACK_IMPORTED_MODULE_41__.CHAT_PROVIDER,
+        useClass: _git_chat_providers_signalr_chat_provider__WEBPACK_IMPORTED_MODULE_42__.SignalRChatProvider
+      }, _git_chat_services_git_chat_service__WEBPACK_IMPORTED_MODULE_40__.GitChatService],
+      imports: [_angular_common__WEBPACK_IMPORTED_MODULE_67__.CommonModule, _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_68__.DragDropModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_69__.FormsModule, _git_git_module__WEBPACK_IMPORTED_MODULE_31__.GitModule, _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_38__.AiChatModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_70__.TranslateModule, _angular_router__WEBPACK_IMPORTED_MODULE_71__.RouterModule.forChild(routes)]
     });
   }
 }
 (function () {
-  (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_68__["ɵɵsetNgModuleScope"](MdExplorerModule, {
-    declarations: [_components_agent_review_agent_review_component__WEBPACK_IMPORTED_MODULE_22__.AgentReviewComponent, _components_working_changes_working_changes_component__WEBPACK_IMPORTED_MODULE_23__.WorkingChangesComponent, _components_chat_history_panel_chat_history_panel_component__WEBPACK_IMPORTED_MODULE_24__.ChatHistoryPanelComponent, _components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_0__.SidenavComponent, _components_toolbar_toolbar_component__WEBPACK_IMPORTED_MODULE_1__.ToolbarComponent, _pipes_safePipe__WEBPACK_IMPORTED_MODULE_5__.SafePipe, _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_2__.MainContentComponent, _md_explorer_component__WEBPACK_IMPORTED_MODULE_4__.MdExplorerComponent, _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_6__.SettingsComponent, _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_7__.RenameFileComponent, _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_8__.RulesComponent, _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_9__.NewMarkdownComponent, _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_10__.NewDirectoryComponent, _components_dialogs_dev_environment_dev_environment_dialog_component__WEBPACK_IMPORTED_MODULE_11__.DevEnvironmentDialogComponent, _components_dialogs_seed_analysis_seed_dialog_component__WEBPACK_IMPORTED_MODULE_12__.SeedDialogComponent, _components_dialogs_code_roots_code_roots_dialog_component__WEBPACK_IMPORTED_MODULE_13__.CodeRootsDialogComponent, _components_dialogs_code_roots_remote_folder_picker_dialog_component__WEBPACK_IMPORTED_MODULE_14__.RemoteFolderPickerDialogComponent, _components_dialogs_code_roots_code_root_name_dialog_component__WEBPACK_IMPORTED_MODULE_15__.CodeRootNameDialogComponent, _components_dialogs_code_roots_code_root_find_dialog_component__WEBPACK_IMPORTED_MODULE_16__.CodeRootFindDialogComponent, _components_dialogs_code_roots_remote_file_editor_dialog_component__WEBPACK_IMPORTED_MODULE_17__.RemoteFileEditorDialogComponent, _components_dialogs_code_roots_code_root_encodings_dialog_component__WEBPACK_IMPORTED_MODULE_18__.CodeRootEncodingsDialogComponent, _components_dialogs_code_roots_code_roots_reminder_dialog_component__WEBPACK_IMPORTED_MODULE_19__.CodeRootsReminderDialogComponent, _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_20__.MdTreeComponent, _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_25__.ConnectionLostComponent, _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_26__.ParsingProjectComponent, _components_dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_27__.ChangeDirectoryComponent, _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_28__.DeleteMarkdownComponent, _components_publish_md_tree_publish_md_tree_component__WEBPACK_IMPORTED_MODULE_29__.PublishMdTreeComponent, _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_30__.GitlabSettingsComponent, _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_31__.DocumentSettingsComponent, _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_32__.CopyFromClipboardComponent, _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_34__.MoveMdFileComponent, _components_dialogs_rename_document_rename_document_component__WEBPACK_IMPORTED_MODULE_35__.RenameDocumentComponent, _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_37__.AddNewFileToMDEComponent, _components_dialogs_ocr_for_attachments_ocr_for_attachments_component__WEBPACK_IMPORTED_MODULE_36__.OcrForAttachmentsComponent, _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_38__.MilkdownReactHostComponent, _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_39__.DocumentShowComponent, _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_45__.TocProgressDialogComponent, _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_47__.ConfirmDialogComponent, _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_41__.GitChatComponent, _components_image_annotation_canvas_image_annotation_canvas_component__WEBPACK_IMPORTED_MODULE_48__.ImageAnnotationCanvasComponent, _components_dialogs_screenshot_annotation_wizard_screenshot_annotation_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_49__.ScreenshotAnnotationWizardDialogComponent, _components_toolbar_p2p_status_widget_p2p_status_widget_component__WEBPACK_IMPORTED_MODULE_50__.P2PStatusWidgetComponent, _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_51__.ExternalAppComponent, _components_external_apps_settings_external_apps_settings_component__WEBPACK_IMPORTED_MODULE_52__.ExternalAppsSettingsComponent, _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_53__.AppStoreComponent, _components_dialogs_install_wizard_install_wizard_component__WEBPACK_IMPORTED_MODULE_54__.InstallWizardDialogComponent, _components_dialogs_bulk_export_progress_bulk_export_progress_dialog_component__WEBPACK_IMPORTED_MODULE_55__.BulkExportProgressDialogComponent, _components_app_show_app_show_component__WEBPACK_IMPORTED_MODULE_56__.AppShowComponent, _components_background_work_panel_background_work_panel_component__WEBPACK_IMPORTED_MODULE_57__.BackgroundWorkPanelComponent, _components_dialogs_ai_selection_dialog_ai_selection_dialog_component__WEBPACK_IMPORTED_MODULE_58__.AiSelectionDialogComponent, _components_mark_search_mark_search_component__WEBPACK_IMPORTED_MODULE_59__.MarkSearchComponent, _components_agent_launch_dialog_agent_launch_dialog_component__WEBPACK_IMPORTED_MODULE_60__.AgentLaunchDialogComponent, _components_agent_turn_diary_dialog_agent_turn_diary_dialog_component__WEBPACK_IMPORTED_MODULE_61__.AgentTurnDiaryDialogComponent, _components_agent_schedule_dialog_agent_schedule_dialog_component__WEBPACK_IMPORTED_MODULE_62__.AgentScheduleDialogComponent, _components_agent_registry_dialog_agent_registry_dialog_component__WEBPACK_IMPORTED_MODULE_63__.AgentRegistryDialogComponent, _components_agent_trust_dialog_agent_trust_dialog_component__WEBPACK_IMPORTED_MODULE_64__.AgentTrustDialogComponent, _components_agent_memory_dialog_agent_memory_dialog_component__WEBPACK_IMPORTED_MODULE_65__.AgentMemoryDialogComponent, _components_agent_mail_agent_mail_component__WEBPACK_IMPORTED_MODULE_66__.AgentMailComponent, _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_67__.LeaveAgentCopyDialogComponent, _components_e2e_dialog_e2e_dialog_component__WEBPACK_IMPORTED_MODULE_21__.E2eDialogComponent],
-    imports: [_angular_common__WEBPACK_IMPORTED_MODULE_69__.CommonModule, _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_70__.DragDropModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_71__.FormsModule, _git_git_module__WEBPACK_IMPORTED_MODULE_33__.GitModule, _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_40__.AiChatModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_72__.TranslateModule, _angular_router__WEBPACK_IMPORTED_MODULE_73__.RouterModule]
+  (typeof ngJitMode === "undefined" || ngJitMode) && _angular_core__WEBPACK_IMPORTED_MODULE_66__["ɵɵsetNgModuleScope"](MdExplorerModule, {
+    declarations: [_components_agent_review_agent_review_component__WEBPACK_IMPORTED_MODULE_22__.AgentReviewComponent, _components_working_changes_working_changes_component__WEBPACK_IMPORTED_MODULE_23__.WorkingChangesComponent, _components_chat_history_panel_chat_history_panel_component__WEBPACK_IMPORTED_MODULE_24__.ChatHistoryPanelComponent, _components_sidenav_sidenav_component__WEBPACK_IMPORTED_MODULE_0__.SidenavComponent, _components_toolbar_toolbar_component__WEBPACK_IMPORTED_MODULE_1__.ToolbarComponent, _pipes_safePipe__WEBPACK_IMPORTED_MODULE_5__.SafePipe, _components_main_content_main_content_component__WEBPACK_IMPORTED_MODULE_2__.MainContentComponent, _md_explorer_component__WEBPACK_IMPORTED_MODULE_4__.MdExplorerComponent, _components_dialogs_settings_settings_component__WEBPACK_IMPORTED_MODULE_6__.SettingsComponent, _components_refactoring_rename_file_rename_file_component__WEBPACK_IMPORTED_MODULE_7__.RenameFileComponent, _signalR_dialogs_rules_rules_component__WEBPACK_IMPORTED_MODULE_8__.RulesComponent, _components_dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_9__.NewMarkdownComponent, _components_dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_10__.NewDirectoryComponent, _components_dialogs_dev_environment_dev_environment_dialog_component__WEBPACK_IMPORTED_MODULE_11__.DevEnvironmentDialogComponent, _components_dialogs_seed_analysis_seed_dialog_component__WEBPACK_IMPORTED_MODULE_12__.SeedDialogComponent, _components_dialogs_code_roots_code_roots_dialog_component__WEBPACK_IMPORTED_MODULE_13__.CodeRootsDialogComponent, _components_dialogs_code_roots_remote_folder_picker_dialog_component__WEBPACK_IMPORTED_MODULE_14__.RemoteFolderPickerDialogComponent, _components_dialogs_code_roots_code_root_name_dialog_component__WEBPACK_IMPORTED_MODULE_15__.CodeRootNameDialogComponent, _components_dialogs_code_roots_code_root_find_dialog_component__WEBPACK_IMPORTED_MODULE_16__.CodeRootFindDialogComponent, _components_dialogs_code_roots_remote_file_editor_dialog_component__WEBPACK_IMPORTED_MODULE_17__.RemoteFileEditorDialogComponent, _components_dialogs_code_roots_code_root_encodings_dialog_component__WEBPACK_IMPORTED_MODULE_18__.CodeRootEncodingsDialogComponent, _components_dialogs_code_roots_code_roots_reminder_dialog_component__WEBPACK_IMPORTED_MODULE_19__.CodeRootsReminderDialogComponent, _components_md_tree_md_tree_component__WEBPACK_IMPORTED_MODULE_20__.MdTreeComponent, _signalR_dialogs_connection_lost_connection_lost_component__WEBPACK_IMPORTED_MODULE_25__.ConnectionLostComponent, _signalR_dialogs_parsing_project_parsing_project_component__WEBPACK_IMPORTED_MODULE_26__.ParsingProjectComponent, _components_dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_27__.DeleteMarkdownComponent, _components_gitlab_settings_gitlab_settings_component__WEBPACK_IMPORTED_MODULE_28__.GitlabSettingsComponent, _components_document_settings_document_settings_component__WEBPACK_IMPORTED_MODULE_29__.DocumentSettingsComponent, _components_dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_30__.CopyFromClipboardComponent, _components_dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_32__.MoveMdFileComponent, _components_dialogs_rename_document_rename_document_component__WEBPACK_IMPORTED_MODULE_33__.RenameDocumentComponent, _components_dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_35__.AddNewFileToMDEComponent, _components_dialogs_ocr_for_attachments_ocr_for_attachments_component__WEBPACK_IMPORTED_MODULE_34__.OcrForAttachmentsComponent, _components_milkdown_react_host_milkdown_react_host_component__WEBPACK_IMPORTED_MODULE_36__.MilkdownReactHostComponent, _components_document_show_document_show_component__WEBPACK_IMPORTED_MODULE_37__.DocumentShowComponent, _components_dialogs_toc_progress_dialog_toc_progress_dialog_component__WEBPACK_IMPORTED_MODULE_43__.TocProgressDialogComponent, _commons_components_confirm_dialog_confirm_dialog_component__WEBPACK_IMPORTED_MODULE_45__.ConfirmDialogComponent, _git_chat_components_git_chat_git_chat_component__WEBPACK_IMPORTED_MODULE_39__.GitChatComponent, _components_image_annotation_canvas_image_annotation_canvas_component__WEBPACK_IMPORTED_MODULE_46__.ImageAnnotationCanvasComponent, _components_dialogs_screenshot_annotation_wizard_screenshot_annotation_wizard_dialog_component__WEBPACK_IMPORTED_MODULE_47__.ScreenshotAnnotationWizardDialogComponent, _components_toolbar_p2p_status_widget_p2p_status_widget_component__WEBPACK_IMPORTED_MODULE_48__.P2PStatusWidgetComponent, _components_external_app_external_app_component__WEBPACK_IMPORTED_MODULE_49__.ExternalAppComponent, _components_external_apps_settings_external_apps_settings_component__WEBPACK_IMPORTED_MODULE_50__.ExternalAppsSettingsComponent, _components_app_store_app_store_component__WEBPACK_IMPORTED_MODULE_51__.AppStoreComponent, _components_dialogs_install_wizard_install_wizard_component__WEBPACK_IMPORTED_MODULE_52__.InstallWizardDialogComponent, _components_dialogs_bulk_export_progress_bulk_export_progress_dialog_component__WEBPACK_IMPORTED_MODULE_53__.BulkExportProgressDialogComponent, _components_app_show_app_show_component__WEBPACK_IMPORTED_MODULE_54__.AppShowComponent, _components_background_work_panel_background_work_panel_component__WEBPACK_IMPORTED_MODULE_55__.BackgroundWorkPanelComponent, _components_dialogs_ai_selection_dialog_ai_selection_dialog_component__WEBPACK_IMPORTED_MODULE_56__.AiSelectionDialogComponent, _components_mark_search_mark_search_component__WEBPACK_IMPORTED_MODULE_57__.MarkSearchComponent, _components_agent_launch_dialog_agent_launch_dialog_component__WEBPACK_IMPORTED_MODULE_58__.AgentLaunchDialogComponent, _components_agent_turn_diary_dialog_agent_turn_diary_dialog_component__WEBPACK_IMPORTED_MODULE_59__.AgentTurnDiaryDialogComponent, _components_agent_schedule_dialog_agent_schedule_dialog_component__WEBPACK_IMPORTED_MODULE_60__.AgentScheduleDialogComponent, _components_agent_registry_dialog_agent_registry_dialog_component__WEBPACK_IMPORTED_MODULE_61__.AgentRegistryDialogComponent, _components_agent_trust_dialog_agent_trust_dialog_component__WEBPACK_IMPORTED_MODULE_62__.AgentTrustDialogComponent, _components_agent_memory_dialog_agent_memory_dialog_component__WEBPACK_IMPORTED_MODULE_63__.AgentMemoryDialogComponent, _components_agent_mail_agent_mail_component__WEBPACK_IMPORTED_MODULE_64__.AgentMailComponent, _components_leave_agent_copy_dialog_leave_agent_copy_dialog_component__WEBPACK_IMPORTED_MODULE_65__.LeaveAgentCopyDialogComponent, _components_e2e_dialog_e2e_dialog_component__WEBPACK_IMPORTED_MODULE_21__.E2eDialogComponent],
+    imports: [_angular_common__WEBPACK_IMPORTED_MODULE_67__.CommonModule, _angular_cdk_drag_drop__WEBPACK_IMPORTED_MODULE_68__.DragDropModule, _shared_material_module__WEBPACK_IMPORTED_MODULE_3__.MaterialModule, _angular_forms__WEBPACK_IMPORTED_MODULE_69__.FormsModule, _git_git_module__WEBPACK_IMPORTED_MODULE_31__.GitModule, _ai_chat_ai_chat_module__WEBPACK_IMPORTED_MODULE_38__.AiChatModule, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_70__.TranslateModule, _angular_router__WEBPACK_IMPORTED_MODULE_71__.RouterModule]
   });
 })();
 
@@ -61798,4 +61187,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.0ef76123c36acaca.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.bbb24d853c68d0cd.js.map

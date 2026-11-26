@@ -301,13 +301,13 @@ function HttpLoaderFactory(http) {
 }
 const routes = [{
   path: 'main',
-  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190"), __webpack_require__.e("src_app_md-explorer_md-explorer_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./md-explorer/md-explorer.module */ 6567)).then(m => m.MdExplorerModule),
+  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1"), __webpack_require__.e("src_app_md-explorer_md-explorer_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./md-explorer/md-explorer.module */ 6567)).then(m => m.MdExplorerModule),
   data: {
     animation: 'main'
   }
 }, {
   path: 'projects',
-  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190"), __webpack_require__.e("src_app_projects_projects_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./projects/projects.module */ 132)).then(m => m.ProjectsModule),
+  loadChildren: () => Promise.all(/*! import() */[__webpack_require__.e("default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1"), __webpack_require__.e("src_app_projects_projects_module_ts")]).then(__webpack_require__.bind(__webpack_require__, /*! ./projects/projects.module */ 132)).then(m => m.ProjectsModule),
   data: {
     animation: 'projects'
   }
@@ -17096,15 +17096,6 @@ class MdFileService {
     };
     return this.http.post(url, newData);
   }
-  RenameDirectory(path, directoryName, directoryLevel) {
-    const url = '../api/mdfiles/RenameDirectory';
-    var newData = {
-      directoryPath: path,
-      directoryName: directoryName,
-      directoryLevel: directoryLevel
-    };
-    return this.http.post(url, newData);
-  }
   pasteFromClipboard(node) {
     const url = '../api/mdfiles/pasteFromClipboard';
     console.log('[MdFileService] pasteFromClipboard called with:', node);
@@ -23647,8 +23638,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.25.12',
-  buildTime: '2026.11.25 16:53:57'
+  version: '2026.11.26.1',
+  buildTime: '2026.11.26 11:53:42'
 };
 
 /***/ }),
@@ -23682,4 +23673,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.297c05e4af6bb2d9.js.map
+//# sourceMappingURL=main.5a07e69065692eb0.js.map
