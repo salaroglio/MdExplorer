@@ -281,6 +281,7 @@ namespace MdExplorer
             services.AddSingleton(_ => new MdExplorer.Features.Services.RootChanges.RootChangeStore(
                 Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "root-changes")));
             services.AddSingleton<Services.RootChanges.RootChangeGate>();
+            services.AddScoped<Services.RootChanges.RootChangeReview>();
             // «Impara da questa attività»: il prompt per il motore del tab e la lettura della risposta (skill che migliorano).
             services.AddSingleton<Services.SkillLearning.SkillLearningService>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',

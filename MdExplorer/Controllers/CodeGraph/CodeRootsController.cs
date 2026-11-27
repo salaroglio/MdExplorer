@@ -27,12 +27,63 @@ namespace MdExplorer.Controllers.CodeGraph
         private readonly IRemoteSessions _sessions;
         private readonly IRemoteServerSettings _servers;
         private readonly MdExplorer.Services.RootChanges.RootChangeGate _changes;
+        private readonly MdExplorer.Services.RootChanges.RootChangeReview _review;
 
         public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers,
-            MdExplorer.Services.RootChanges.RootChangeGate changes)
+            MdExplorer.Services.RootChanges.RootChangeGate changes, MdExplorer.Services.RootChanges.RootChangeReview review)
         {
-            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers; _changes = changes;
+            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers; _changes = changes; _review = review;
         }
+
+        public class ReviewRequest
+        {
+            public string ProjectPath { get; set; }
+            public string? Alias { get; set; }
+            /// <summary>Il percorso dentro la radice.</summary>
+            public string? Path { get; set; }
+            /// <summary>Il pezzo (indice) e la sua impronta; senza, tutto il file.</summary>
+            public int? Hunk { get; set; }
+            public string? Hash { get; set; }
+        }
+
+        /// <summary>
+        /// GET /api/coderoots/review?projectPath — i file delle radici cambiati da MarkAgent e non ancora rivisti (sprint
+        /// 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, F3): stato, righe aggiunte/tolte, pezzi, se è stato cambiato da altri.
+        /// </summary>
+        [HttpGet("review")]
+        public Task<IActionResult> Review([FromQuery] string projectPath, CancellationToken ct) => Guarded(async () =>
+            Ok(await _review.ListAsync(projectPath, ct)), projectPath);
+
+        /// <summary>GET /api/coderoots/review/file?projectPath&amp;alias&amp;path — l'originale, il file di adesso e i pezzi.</summary>
+        [HttpGet("review/file")]
+        public Task<IActionResult> ReviewFile([FromQuery] string projectPath, [FromQuery] string alias, [FromQuery] string path, CancellationToken ct) =>
+            Guarded(async () => Ok(await _review.DetailAsync(projectPath, alias, path, ct)), projectPath);
+
+        /// <summary>POST /api/coderoots/review/keep {projectPath, alias, path, hunk?, hash?} — Tieni un pezzo o tutto il file.</summary>
+        [HttpPost("review/keep")]
+        public Task<IActionResult> ReviewKeep([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            await _review.KeepAsync(request.ProjectPath, request.Alias, request.Path, request.Hunk, request.Hash, ct);
+            return Ok(new { kept = true });
+        }, request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/undo {projectPath, alias, path, hunk?, hash?} — Annulla un pezzo o tutto il file.</summary>
+        [HttpPost("review/undo")]
+        public Task<IActionResult> ReviewUndo([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            await _review.UndoAsync(request.ProjectPath, request.Alias, request.Path, request.Hunk, request.Hash, ct);
+            return Ok(new { undone = true });
+        }, request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/keep-all {projectPath} — Tieni tutto; i file che non riescono si elencano.</summary>
+        [HttpPost("review/keep-all")]
+        public Task<IActionResult> ReviewKeepAll([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+            Ok(new { problems = await _review.AllAsync(request.ProjectPath, keep: true, ct) }), request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/undo-all {projectPath} — Annulla tutto; i file che non riescono si elencano.</summary>
+        [HttpPost("review/undo-all")]
+        public Task<IActionResult> ReviewUndoAll([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+            Ok(new { problems = await _review.AllAsync(request.ProjectPath, keep: false, ct) }), request?.ProjectPath);
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
