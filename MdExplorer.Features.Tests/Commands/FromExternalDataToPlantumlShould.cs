@@ -314,7 +314,7 @@ namespace MdExplorer.Features.Tests.Commands
             AssertContains(transformed, "```plantuml\n@startuml\ntitle Il giro\n");
             AssertContains(transformed, "**Cerca i bandi**");
             AssertContains(transformed, "[[mde:.github/agents/tecnico.agent.md]]");
-            AssertContains(transformed, "actor \"responsabile di tecnico\" as p_tecnica");
+            AssertContains(transformed, "rectangle \"<&person> responsabile di tecnico · <i>avvia e approva</i>\" <<people>> as p_tecnica");
             AssertContains(transformed, "[[mde:altrove/legale.agent.md]]");
             Assert.IsFalse(transformed.Contains("[[mde:docs/schede/tecnica.md]]"), "un artefatto non ancora scritto non ha link");
             AssertContains(transformed, "file \"schede/tecnica.md\" as f_tecnica_0 #FFFFFF;line.dashed");
@@ -477,19 +477,22 @@ a2a:
             Console.WriteLine(transformed);
             Assert.IsFalse(transformed.Contains("mde-plantuml-include-error"), transformed);
 
-            // Gli omini sono i ruoli di responsabilita.md, con che cosa fanno sul passo.
-            AssertContains(transformed, "actor \"Account manager\" as p_ricerca");
-            AssertContains(transformed, "p_ricerca --> s_ricerca : lancia\\ne approva");
-            AssertContains(transformed, "p_tecnica --> s_tecnica : avvia\\ne approva");
-            AssertContains(transformed, "p_contratto --> s_contratto : avvia\n");
-            AssertContains(transformed, "actor \"Direzione\" as pa_contratto");
-            AssertContains(transformed, "pa_contratto --> s_contratto : approva");
-            AssertContains(transformed, "p_sintesi --> s_sintesi : approva\n");
+            // Le persone di un passo in UN riquadro (i ruoli di responsabilita.md, con che cosa fanno), e i documenti che legge in
+            // UN riquadro, uno per riga: affiancati allargavano ogni livello e il diagramma usciva orizzontale (27/11/2026).
+            AssertContains(transformed, "rectangle \"<&person> Account manager · <i>lancia e approva</i>\" <<people>> as p_ricerca");
+            AssertContains(transformed, "rectangle \"<&person> Responsabile tecnico · <i>avvia e approva</i>\" <<people>> as p_tecnica");
+            AssertContains(transformed, "rectangle \"<&person> Responsabile legale · <i>avvia</i>\\n<&check> Direzione · <i>approva</i>\" <<people>> as p_contratto");
+            AssertContains(transformed, "p_contratto --> s_contratto\n");
+            AssertContains(transformed, "rectangle \"<&person> Account manager · <i>approva</i>\" <<people>> as p_sintesi");
+            Assert.IsFalse(transformed.Contains("actor "), "niente omini affiancati");
+            Assert.IsFalse(transformed.Contains("pa_"), "chi approva sta nel riquadro delle persone del passo");
 
-            // In verde i documenti letti, dalla cartella del workflow, con il capitolo e la nota; in lilla quelli consegnati, col verbo.
-            AssertContains(transformed, "file \"portale/bandi.md\\n<size:10><i>i bandi del committente</i></size>\" <<input>> as r_ricerca_0 [[mde:docs/portale/bandi.md]]");
-            AssertContains(transformed, "file \"profilo.md · Tecnica\" <<input>> as r_tecnica_0");
-            AssertContains(transformed, "r_ricerca_2 ..> s_ricerca : legge");
+            // In verde i documenti letti, dalla cartella del workflow, con il capitolo e la nota, ciascuno col suo link; in lilla
+            // quelli consegnati, col verbo.
+            AssertContains(transformed, "file \"[[mde:docs/portale/bandi.md portale/bandi.md]] <size:10><i>— i bandi del committente</i></size>\\n[[mde:docs/registro-bandi.md registro-bandi.md]]");
+            AssertContains(transformed, "file \"[[mde:docs/profilo.md profilo.md · Tecnica]]\" <<input>> as r_tecnica\n");
+            AssertContains(transformed, "r_ricerca ..> s_ricerca : legge");
+            Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(transformed, "r_ricerca \\.\\.>").Count, "un riquadro e una freccia per i documenti del passo");
             AssertContains(transformed, "s_ricerca ..> f_ricerca_1 : scarica");
             AssertContains(transformed, "s_sintesi ..> f_sintesi_1 : aggiorna");
             AssertContains(transformed, "file \"registro-bandi.md\\n<size:10><i>la riga del bando</i></size>\" as f_sintesi_1 [[mde:docs/registro-bandi.md]]");
@@ -497,7 +500,7 @@ a2a:
             // Il pulsante con la sua etichetta e chi lo preme; l'incarico sulla freccia.
             AssertContains(transformed, "hexagon \"pulsante «Avvia il giro su {codice}»\\n<size:10>lo preme Account manager</size>\" as b_ricerca_avvia_giro");
             AssertContains(transformed, "s_ricerca --> b_ricerca_avvia_giro");
-            AssertContains(transformed, "b_ricerca_avvia_giro --> s_tecnica : incarico: codice, capitolato, criterio «2 — competenza»");
+            AssertContains(transformed, "b_ricerca_avvia_giro --> s_tecnica : incarico: codice, capitolato,\\ncriterio «2 — competenza»");
 
             // Le schede ricevute con «from» portano la freccia dal file approvato.
             AssertContains(transformed, "f_tecnica_0 --> j_sintesi : approvato");
@@ -522,11 +525,11 @@ a2a:
             Assert.IsFalse(transformed.Contains("mde-plantuml-include-error"), transformed);
 
             // Le parole di MDE in inglese; i nomi (passi, pulsanti, esiti, note) restano quelli dei file.
-            AssertContains(transformed, "p_ricerca --> s_ricerca : launches\\nand approves");
-            AssertContains(transformed, "r_ricerca_2 ..> s_ricerca : reads");
+            AssertContains(transformed, "<&person> Account manager · <i>launches and approves</i>");
+            AssertContains(transformed, "r_ricerca ..> s_ricerca : reads");
             AssertContains(transformed, "s_ricerca ..> f_ricerca_1 : downloads");
             AssertContains(transformed, "hexagon \"button «Avvia il giro su {codice}»\\n<size:10>pressed by Account manager</size>\"");
-            AssertContains(transformed, "b_ricerca_avvia_giro --> s_tecnica : assignment: codice, capitolato, criterio «2 — competenza»");
+            AssertContains(transformed, "b_ricerca_avvia_giro --> s_tecnica : assignment: codice, capitolato,\\ncriterio «2 — competenza»");
             AssertContains(transformed, "f_tecnica_0 --> j_sintesi : approved");
             AssertContains(transformed, "hexagon \"outcome «Non partecipiamo»\"");
             AssertContains(transformed, "a person's turn: they close it with an outcome");

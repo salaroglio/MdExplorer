@@ -85,6 +85,9 @@ namespace MdExplorer.Features.Agents.Workflow
             sb.AppendLine("  BackgroundColor<<person>> #FFFFFF");
             sb.AppendLine($"  BorderColor<<person>> {NeutralLine}");
             sb.AppendLine("  BorderThickness<<person>> 2");
+            sb.AppendLine("  BackgroundColor<<people>> #FFFFFF");
+            sb.AppendLine($"  BorderColor<<people>> {NeutralLine}");
+            sb.AppendLine("  FontSize<<people>> 11");
             sb.AppendLine("}");
             sb.AppendLine("skinparam file {");
             sb.AppendLine($"  BackgroundColor {Written}");
@@ -108,18 +111,23 @@ namespace MdExplorer.Features.Agents.Workflow
             string Role(WorkflowStep s) => s.IsPerson ? s.Person : roleOf(s.Agent) ?? Say($"responsabile di {s.Agent}", $"owner of {s.Agent}");
 
             // Per ogni passo, nell'ordine: chi lo lancia, avvia o approva, che cosa legge, il passo, che cosa consegna. Un
-            // omino per passo, come in un disegno a mano: un ruolo che lavora all'inizio e alla fine compare due volte,
-            // altrimenti le frecce risalirebbero.
+            // riquadro di persone per passo, come in un disegno a mano: un ruolo che lavora all'inizio e alla fine compare due
+            // volte, altrimenti le frecce risalirebbero. Le persone di un passo stanno in UN riquadro e i documenti che legge in
+            // UN riquadro, uno per riga (27/11/2026): affiancati, due omini e un riquadro per documento allargavano ogni livello
+            // e un workflow di quattro passi usciva largo più di 2.000 pixel — orizzontale, illeggibile.
             foreach (var s in steps)
             {
-                var verbs = PersonVerbs(s);
-                if (verbs != null) sb.AppendLine($"actor \"{Text(Role(s))}\" as {Actor(s.Id)}");
-                if (s.ApprovalBy != null) sb.AppendLine($"actor \"{Text(s.ApprovalBy)}\" as {Approver(s.Id)}");
-                for (var i = 0; i < s.Reads.Count; i++)
+                var people = PeopleLines(s, Role(s));
+                if (people != null) sb.AppendLine($"rectangle \"{people}\" <<people>> as {Actor(s.Id)}");
+                if (s.Reads.Count > 0)
                 {
-                    var r = s.Reads[i];
-                    var name = Shorten(r.Path, folder) + (string.IsNullOrWhiteSpace(r.Section) ? "" : " · " + r.Section);
-                    sb.AppendLine($"file \"{Text(name)}{Note(r.Note)}\" <<input>> as {ReadNode(s.Id, i)}{Link(r.Path)}");
+                    var lines = s.Reads.Select(r =>
+                    {
+                        var name = Shorten(r.Path, folder) + (string.IsNullOrWhiteSpace(r.Section) ? "" : " · " + r.Section);
+                        var note = string.IsNullOrWhiteSpace(r.Note) ? "" : $" <size:10><i>— {Text(r.Note)}</i></size>";
+                        return $"[[{LinkScheme}{r.Path.Replace('\\', '/').TrimStart('/')} {LinkText(name)}]]{note}";
+                    });
+                    sb.AppendLine($"file \"{string.Join("\\n", lines)}\" <<input>> as {ReadNode(s.Id)}");
                 }
 
                 if (s.IsPerson)
@@ -163,14 +171,11 @@ namespace MdExplorer.Features.Agents.Workflow
                 sb.AppendLine($"hexagon \"{(s.Trigger.Wait == WorkflowWait.All ? Say("attende tutti", "waits for all") : Say("basta il primo", "the first is enough"))}\" as {Join(s.Id)}");
             sb.AppendLine();
 
-            // Le persone e i documenti di ogni passo.
+            // Le persone e i documenti di ogni passo: che cosa fa ciascuno lo dice il riquadro delle persone.
             foreach (var s in steps)
             {
-                var verbs = PersonVerbs(s);
-                if (verbs != null) sb.AppendLine($"{Actor(s.Id)} --> {Node(s.Id)} : {verbs}");
-                if (s.ApprovalBy != null) sb.AppendLine($"{Approver(s.Id)} --> {Node(s.Id)} : {Say("approva", "approves")}");
-                for (var i = 0; i < s.Reads.Count; i++)
-                    sb.AppendLine($"{ReadNode(s.Id, i)} ..> {Node(s.Id)} : {Say("legge", "reads")}");
+                if (PeopleLines(s, Role(s)) != null) sb.AppendLine($"{Actor(s.Id)} --> {Node(s.Id)}");
+                if (s.Reads.Count > 0) sb.AppendLine($"{ReadNode(s.Id)} ..> {Node(s.Id)} : {Say("legge", "reads")}");
                 // Le uscite stanno sotto il passo, come in un disegno a mano: da lì vanno ai passi che le ricevono. A destra
                 // ci sono i cicli (PlantUML li mette sempre lì), e un'uscita di lato tirerebbe le frecce attraverso il diagramma.
                 for (var i = 0; i < s.Outputs.Count; i++)
@@ -259,7 +264,39 @@ namespace MdExplorer.Features.Agents.Workflow
             if (s.Start == WorkflowStart.Manual) verbs.Add(Say("lancia", "launches"));
             if (s.Start == WorkflowStart.AskOwner) verbs.Add(Say("avvia", "starts"));
             if (s.Outputs.Count > 0 && s.ApprovalBy == null) verbs.Add(Say("approva", "approves"));
-            return verbs.Count == 0 ? null : string.Join(Say("\\ne ", "\\nand "), verbs);
+            return verbs.Count == 0 ? null : string.Join(Say(" e ", " and "), verbs);
+        }
+
+        /// <summary>
+        /// Il riquadro delle persone di un passo, una riga ciascuna: chi lo lancia o lo avvia (e approva, se nessun altro), e chi
+        /// approva con <c>approval.by</c>. Null = nessuna persona su questo passo (parte da solo e non consegna, o è di una persona).
+        /// </summary>
+        private static string PeopleLines(WorkflowStep s, string role)
+        {
+            var lines = new List<string>();
+            var verbs = PersonVerbs(s);
+            if (verbs != null) lines.Add($"<&person> {Text(role)} · <i>{verbs}</i>");
+            if (s.ApprovalBy != null) lines.Add($"<&check> {Text(s.ApprovalBy)} · <i>{Say("approva", "approves")}</i>");
+            return lines.Count == 0 ? null : string.Join("\\n", lines);
+        }
+
+        /// <summary>
+        /// Un'etichetta di freccia lunga va a capo fra le parti separate da virgola, entro <paramref name="width"/> caratteri
+        /// per riga: su una riga sola spingeva il disegno di lato.
+        /// </summary>
+        public static string Wrap(string text, int width = 32)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= width) return text;
+            var lines = new List<string>();
+            var line = "";
+            foreach (var part in text.Split(", "))
+            {
+                var next = line.Length == 0 ? part : line + ", " + part;
+                if (line.Length > 0 && next.Length > width) { lines.Add(line + ","); line = part; }
+                else line = next;
+            }
+            lines.Add(line);
+            return string.Join("\\n", lines);
         }
 
         /// <summary>
@@ -304,7 +341,7 @@ namespace MdExplorer.Features.Agents.Workflow
             var parts = texts.Select(i => WorkflowParser.Placeholder.Match(i.Value.Text) is { Success: true } m && m.Value == i.Value.Text.Trim()
                 ? (m.Groups[1].Value == i.Key ? i.Key : $"{i.Key} = {m.Groups[1].Value}")
                 : $"{i.Key} «{Short(i.Value.Text)}»");
-            return (s.IsPerson ? Say("riceve ", "receives ") : Say("incarico: ", "assignment: ")) + string.Join(", ", parts);
+            return Wrap((s.IsPerson ? Say("riceve ", "receives ") : Say("incarico: ", "assignment: ")) + string.Join(", ", parts));
         }
 
         private static string Say(string it, string en) => UiText.Say(it, en);
@@ -357,12 +394,14 @@ namespace MdExplorer.Features.Agents.Workflow
         private static string Node(string id) => "s_" + Id(id);
         private static string Join(string id) => "j_" + Id(id);
         private static string Actor(string id) => "p_" + Id(id);
-        private static string Approver(string id) => "pa_" + Id(id);
-        private static string ReadNode(string id, int i) => $"r_{Id(id)}_{i}";
+        private static string ReadNode(string id) => $"r_{Id(id)}";
         private static string OutputNode(string id, int i) => $"f_{Id(id)}_{i}";
         private static string Button(string from, string reply) => $"b_{Id(from)}_{Id(reply)}";
         private static string Outcome(string step, string outcome) => $"o_{Id(step)}_{Id(outcome)}";
         private static string Link(string path) => string.IsNullOrWhiteSpace(path) ? "" : $" [[{LinkScheme}{path.Replace('\\', '/').TrimStart('/')}]]";
+
+        /// <summary>Il testo di un link dentro un'etichetta (<c>[[url testo]]</c>): niente parentesi quadre, che lo chiuderebbero.</summary>
+        private static string LinkText(string s) => Text(s).Replace("[", "(").Replace("]", ")");
 
         /// <summary>Un testo dentro le virgolette di PlantUML: le virgolette diventano apici, gli a capo spazi.</summary>
         private static string Text(string s) => (s ?? string.Empty).Replace('"', '\'').Replace("\r", " ").Replace("\n", " ");
