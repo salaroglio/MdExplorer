@@ -1099,8 +1099,19 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
+        /// La cartella della configurazione globale di opencode, dove opencode la LEGGE: <c>$XDG_CONFIG_HOME/opencode</c> se la
+        /// variabile è impostata, altrimenti <c>~/.config/opencode</c> (anche su Windows). Prima MDE scriveva sempre la seconda:
+        /// con <c>XDG_CONFIG_HOME</c> impostata opencode non vedeva il server di MDE (provato il 27/11/2026 con `opencode mcp list`:
+        /// «No MCP servers configured»; senza la variabile «mdexplorer connected»). Pura: si prova senza toccare l'ambiente.
+        /// </summary>
+        public static string OpenCodeConfigDirectory(string xdgConfigHome, string userHome)
+            => Path.Combine(!string.IsNullOrWhiteSpace(xdgConfigHome) && Path.IsPathRooted(xdgConfigHome)
+                ? xdgConfigHome
+                : Path.Combine(userHome, ".config"), "opencode");
+
+        /// <summary>
         /// Adds the MdExplorer server to opencode's global config
-        /// (<c>~/.config/opencode/opencode.json</c>, key <c>mcp</c>).
+        /// (<see cref="OpenCodeConfigDirectory"/>/<c>opencode.json</c>, key <c>mcp</c>).
         /// <para>
         /// Global and not the project's own <c>opencode.json</c> on purpose: the entry carries the
         /// absolute path of THIS installation's MCP executable, which committed in a project file
@@ -1116,8 +1127,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         {
             try
             {
-                var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                var configDir = Path.Combine(userHome, ".config", "opencode");
+                var configDir = OpenCodeConfigDirectory(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME"),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
                 Directory.CreateDirectory(configDir);
 
                 var configPath = Path.Combine(configDir, "opencode.json");
