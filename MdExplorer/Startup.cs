@@ -277,6 +277,10 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Features.Services.AI.ChatHistory.IChatFileStore>(_ => new MdExplorer.Features.Services.AI.ChatHistory.ChatFileStore(
                 Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "chats")));
             services.AddSingleton<Services.ChatHistory.ChatHistoryRecorder>();
+            // I file delle radici cambiati da MarkAgent, con il loro originale per la revisione (sprint 2026-11-27-Modifiche-Da-Approvare).
+            services.AddSingleton(_ => new MdExplorer.Features.Services.RootChanges.RootChangeStore(
+                Path.Combine(MdExplorer.Utilities.CrossPlatformPath.GetMdExplorerDataDirectory(), "root-changes")));
+            services.AddSingleton<Services.RootChanges.RootChangeGate>();
             // «Impara da questa attività»: il prompt per il motore del tab e la lettura della risposta (skill che migliorano).
             services.AddSingleton<Services.SkillLearning.SkillLearningService>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',

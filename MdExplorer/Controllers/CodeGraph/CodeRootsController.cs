@@ -26,10 +26,12 @@ namespace MdExplorer.Controllers.CodeGraph
         private readonly RemoteCodeRootFiles _remoteFiles;
         private readonly IRemoteSessions _sessions;
         private readonly IRemoteServerSettings _servers;
+        private readonly MdExplorer.Services.RootChanges.RootChangeGate _changes;
 
-        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers)
+        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers,
+            MdExplorer.Services.RootChanges.RootChangeGate changes)
         {
-            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers;
+            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers; _changes = changes;
         }
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
@@ -56,6 +58,11 @@ namespace MdExplorer.Controllers.CodeGraph
             public bool IgnoreCase { get; set; }
             /// <summary><c>find</c>: un pezzo del nome o un modello con <c>*</c> e <c>?</c> (20/11/2026, «Cerca file»).</summary>
             public string? Query { get; set; }
+            /// <summary>
+            /// MarkAgent (i tool <c>remote_*</c>): prima di scrivere, l'originale del file si salva per la revisione pezzo per
+            /// pezzo (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici). Falso per l'editor dei file, che è l'utente.
+            /// </summary>
+            public bool Review { get; set; }
         }
 
         /// <summary>GET /api/coderoots?projectPath — le radici dichiarate e il loro stato qui.</summary>
@@ -240,11 +247,15 @@ namespace MdExplorer.Controllers.CodeGraph
                 Exclude = request.Op is MdExplorer.RemoteProtocol.RemoteOps.Grep or MdExplorer.RemoteProtocol.RemoteOps.Find ? new List<string> { ".git" } : null,
             };
             MdExplorer.RemoteProtocol.RemoteResponse response;
+            var root = target.Root;
+            Task<MdExplorer.RemoteProtocol.RemoteResponse> Real(MdExplorer.RemoteProtocol.RemoteRequest r) => root.IsRemote
+                ? _remoteFiles.OperateAsync(root, r, ct)
+                : Task.FromResult(RemoteCodeRootFiles.OperateLocal(root, r));
             try
             {
-                response = target.Root.IsRemote
-                    ? await _remoteFiles.OperateAsync(target.Root, operation, ct)
-                    : RemoteCodeRootFiles.OperateLocal(target.Root, operation);
+                response = request.Review
+                    ? await _changes.OperateAsync(request.ProjectPath, root, operation, Real)
+                    : await Real(operation);
             }
             catch (RemoteOperationException ex) when (ex.Code == MdExplorer.RemoteProtocol.RemoteErrorCodes.Unsupported && request.Op == MdExplorer.RemoteProtocol.RemoteOps.Find)
             {
