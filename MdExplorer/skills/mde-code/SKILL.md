@@ -3,7 +3,7 @@ name: mde-code
 description: Answer questions about the project's source code through MdExplorer's code graph (the `code_*` tools). Use when the user asks what programs or files are in the graph, how far the scan or the description got, where a class/method/function is, who calls it, what breaks if it changes, how two pieces of code are connected, what a file is for, or to fix a description. Use it to check whether a document (design, analysis, specification) matches the code. Use it also BEFORE changing code or writing the analysis of a change — which files and methods to touch and what depends on them — including the external code roots `@alias/…`, instead of searching the files by hand. Triggers on "grafo del codice", "code graph", "programma", "scansione", "scan", "chi chiama", "who calls", "impatto", "impact", "cosa c'è nel grafo", "quali file modificare", "analisi della modifica", "verifica il documento", "document driven", "@alias", "rilevazione", "che cosa manca a MdExplorer", "findings for MdExplorer".
 mde:
   origin: mdexplorer
-  version: 44
+  version: 45
   updatePolicy: replace
 ---
 
@@ -145,7 +145,7 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
 | What breaks if X changes | `code_impact` |
 | How A reaches B | `code_path` |
 | Where the code is on this machine (external roots `@alias/…`) | `code_roots` |
-| Read, search or edit a REMOTE root (`remote` set in `code_roots`, a folder on an SSH server) | `remote_list`, `remote_read`, `remote_grep`, `remote_edit`, `remote_write` |
+| Change ANY code root file (local or remote); read, search a REMOTE root (`remote` set in `code_roots`) | `remote_edit`, `remote_write` (change); `remote_list`, `remote_read`, `remote_grep` (read) |
 | A description is wrong or missing | read the source, then `code_set_description` |
 | A chain stops at a STRING that names a method (`setX("method")`, `submit('alias.method')`): the graph cannot follow it | answer from the source, then `code_rule_try` → check the sample in the source → `code_rule_propose` |
 | Which enrichment rules are active, which further analyses were proposed | `code_rules` |
@@ -200,14 +200,17 @@ check that no `code_*` tool and no `code_query` question gives the answer — th
   part of the code. `code_inventory` tells how many files and symbols are described.
 - **Paths** are logical (`program/…`, `@alias/…`), the same on every machine; open `absolutePath`, which is where the
   file is on this machine.
+- **Changing code root files** (local or remote): only with `remote_edit` / `remote_write` (and `remote_delete`,
+  `remote_move` for single files) on the logical path `@alias/…`. MDE keeps the original of every file you change, so the
+  user reviews your change piece by piece and can undo it; your own Edit/Write are refused on code roots, and the shell
+  (`sed -i`, `echo >`) must not be used to write them. After a change, tell the user which files are waiting for review.
 - **Remote roots** (`code_roots` shows `remote: ssh://host/…`) are on an SSH server: there is no `absolutePath` and your own
-  file tools cannot reach them. Use the `remote_*` tools with the logical path `@alias/…`; search with `remote_grep`, which
-  runs on the server. They are not in the code graph yet.
+  file tools cannot reach them. Read them with the `remote_*` tools too; search with `remote_grep`, which runs on the
+  server. They are not in the code graph yet.
 - **Encodings.** Files of a code root are not always UTF-8: `code_roots` lists each root's `encodings` by extension
-  (e.g. `.cbl` → `ibm850` = CP-850), and `remote_read` states the encoding of a non-UTF-8 file. Before changing such a file:
-  edit through the `remote_*` tools when they are available (they keep the encoding); with your own tools (Edit, Write,
-  sed, perl) write the new text in the file's encoding. Never convert it to UTF-8 and never add UTF-8 text to it: the
-  file breaks for its compiler. If you are not sure, ask.
+  (e.g. `.cbl` → `ibm850` = CP-850), and `remote_read` states the encoding of a non-UTF-8 file. The `remote_*` tools keep
+  the encoding. Never convert a file to UTF-8 and never add UTF-8 text to it: the file breaks for its compiler. If you are
+  not sure, ask.
 
 ## Checking a document against the code
 

@@ -31,6 +31,7 @@ import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component
 import { AgentReviewComponent } from './components/agent-review/agent-review.component';
 import { WorkingChangesComponent } from './components/working-changes/working-changes.component';
 import { ChatHistoryPanelComponent } from './components/chat-history-panel/chat-history-panel.component';
+import { RootReviewPanelComponent } from './components/root-review/root-review-panel.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { DeleteMarkdownComponent } from './components/dialogs/delete-markdown/delete-markdown.component';
@@ -109,6 +110,7 @@ const routes: Routes = [
     AgentReviewComponent,
     WorkingChangesComponent,
     ChatHistoryPanelComponent,
+    RootReviewPanelComponent,
     SidenavComponent,
     ToolbarComponent,
     SafePipe,

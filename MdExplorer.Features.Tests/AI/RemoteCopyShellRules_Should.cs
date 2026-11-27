@@ -38,6 +38,7 @@ namespace MdExplorer.Features.Tests.AI
             var permission = JsonNode.Parse(RemoteCopyShellRules.OpenCodeChatConfig())!["permission"]!.AsObject();
             foreach (var web in MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.WebPermissions)
                 Assert.AreEqual("ask", permission[web]!.GetValue<string>(), web + ": il default di opencode («allow») apriva il web a ogni chat");
+            Assert.AreEqual("ask", permission["edit"]!.GetValue<string>(), "le scritture le decide la sessione: le radici solo coi remote_*");
         }
     }
 }

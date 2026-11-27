@@ -1035,3 +1035,22 @@
   .text { flex: 1 1 140px; }
   button { margin-left: auto; }
 }
+
+// I file delle radici cambiati da MarkAgent e non rivisti (Modifiche-Da-Approvare, D9): il contatore nella barra…
+.root-review-button {
+  position: relative;
+  .root-review-count {
+    position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    font-size: 10px; line-height: 16px; text-align: center; background: var(--mde-warning-fg); color: #fff;
+  }
+}
+
+// …e il riquadro sotto la risposta del turno che li ha cambiati.
+.root-changes-card {
+  margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--mde-border-color); border-left: 3px solid var(--mde-warning-fg);
+  border-radius: 6px; font-size: 13px;
+  .rcc-title { font-weight: 500; margin-bottom: 4px; }
+  .rcc-files { margin: 0 0 6px; padding-left: 18px; }
+  .rcc-files code { font-size: 12px; }
+  .rcc-counts { font-size: 12px; color: var(--mde-text-secondary); margin-left: 6px; }
+}

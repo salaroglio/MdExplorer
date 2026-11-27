@@ -79,7 +79,7 @@ public static class ToolGroups
             "Leggere e scrivere le issue di Redmine: le mie, cerca, una con le note, crea, aggiorna e aggiungi note.",
             b => b.WithTools<RedmineTools>()),
         new Group(Remote, typeof(RemoteTools), false,
-            "Le radici di codice remote (cartelle su un server via SSH): elencare, leggere, cercare sul server, modificare, creare, spostare e cancellare i file.",
+            "I file delle radici di codice, locali e remote (via SSH): elencare, leggere, cercare, e modificare, creare, spostare e cancellare tenendo l'originale per la revisione pezzo per pezzo.",
             b => b.WithTools<RemoteTools>()),
     };
 

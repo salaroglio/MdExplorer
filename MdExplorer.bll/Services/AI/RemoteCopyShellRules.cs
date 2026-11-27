@@ -42,6 +42,9 @@ namespace MdExplorer.Features.Services.AI
             foreach (var rule in OpenCode) bash[rule.Key] = rule.Value;
             var permission = new JsonObject { ["bash"] = bash };
             foreach (var web in MdExplorer.Features.Services.AI.OpenCode.OpenCodeSession.WebPermissions) permission[web] = "ask";
+            // Le scritture su «ask»: la sessione rifiuta quelle sulle radici di codice (si cambiano con remote_edit/remote_write,
+            // che ne tengono l'originale per la revisione) e approva le altre — sprint 2026-11-27-Modifiche-Da-Approvare, D4.
+            permission["edit"] = "ask";
             return new JsonObject { ["permission"] = permission }.ToJsonString();
         }
     }

@@ -184,10 +184,19 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// <param name="allowWeb">«Consenti alla chat l'accesso al web» di questo progetto: le domande sul web
         /// (<see cref="WebPermissions"/>, che la chat chiede sempre, vedi <c>RemoteCopyShellRules.OpenCodeChatConfig</c>) «once»
         /// se acceso, «reject» se spento.</param>
+        /// <param name="filePath">Il file che uno strumento di scrittura vuole cambiare (<c>metadata.filepath</c>, assoluto): per
+        /// <c>edit</c>, che la chat chiede sempre (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D4), dentro una radice
+        /// si rifiuta — le radici si cambiano solo con remote_edit/remote_write, che ne tengono l'originale per la revisione —
+        /// fuori «once», come faceva il default di opencode.</param>
         public static (string Response, string Note) ChatReply(string permission, IEnumerable<string> paths, IReadOnlyList<string> roots,
-            bool allowWeb = false)
+            bool allowWeb = false, string filePath = null)
         {
             var say = MdExplorer.Features.Services.UiText.Say;
+            if (permission == "edit")
+                return !string.IsNullOrWhiteSpace(filePath) && InsideRoots(new[] { filePath }, roots)
+                    ? ("reject", say($"edit · {filePath} è in una radice di codice: nella chat di MDE si modifica solo con remote_edit o remote_write (percorso @alias/…), che lo scrivono e ne tengono l'originale, così l'utente rivede e può annullare ogni pezzo",
+                        $"edit · {filePath} is in a code root: in the MDE chat it is changed only with remote_edit or remote_write (path @alias/…), which write it and keep the original, so the user reviews and can undo each piece"))
+                    : ("once", null);
             if (WebPermissions.Contains(permission))
                 return allowWeb
                     ? ("once", null)
@@ -606,9 +615,34 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private async Task RejectPermissionAsync(string sessionId, string permissionId, string what)
             => await ReplyPermissionAsync(sessionId, permissionId, what, "reject").ConfigureAwait(false);
 
-        private async Task ReplyPermissionAsync(string sessionId, string permissionId, string what, string response)
+        /// <summary>
+        /// La risposta a una domanda di permesso. Con <paramref name="message"/> (un rifiuto che dice perché e che cosa fare) va
+        /// all'endpoint nuovo <c>POST /permission/{id}/reply {reply, message}</c>: il modello legge il messaggio e CONTINUA il
+        /// turno (provato su opencode 1.18.30 il 27/11/2026). L'endpoint di prima non ha il messaggio e un rifiuto FERMA il turno;
+        /// resta per i «once» e per un opencode che il nuovo non lo conosce (404), detto nel log.
+        /// </summary>
+        private async Task ReplyPermissionAsync(string sessionId, string permissionId, string what, string response, string message = null)
         {
-            var url = $"/session/{sessionId}/permissions/{permissionId}?directory={Uri.EscapeDataString(WorkingDirectory)}";
+            var directory = Uri.EscapeDataString(WorkingDirectory);
+            if (!string.IsNullOrEmpty(message))
+            {
+                try
+                {
+                    using var res = await _client.PostAsJsonAsync($"/permission/{permissionId}/reply?directory={directory}", new { reply = response, message }).ConfigureAwait(false);
+                    if (res.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("[opencode] permesso {What}: {Response} col messaggio", what, response);
+                        return;
+                    }
+                    _logger.LogWarning("[opencode] permesso {What}: l'endpoint col messaggio risponde {Status}, uso quello di prima (il turno si fermerà)",
+                        what, (int)res.StatusCode);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[opencode] permesso {What}: l'endpoint col messaggio non risponde, uso quello di prima", what);
+                }
+            }
+            var url = $"/session/{sessionId}/permissions/{permissionId}?directory={directory}";
             for (var attempt = 1; attempt <= 3; attempt++)
             {
                 try
@@ -669,10 +703,14 @@ namespace MdExplorer.Features.Services.AI.OpenCode
                 var paths = new List<string>();
                 if (props.TryGetProperty("patterns", out var patterns) && patterns.ValueKind == JsonValueKind.Array)
                     foreach (var pattern in patterns.EnumerateArray()) paths.Add(pattern.GetString());
+                string filePath = null;
                 if (props.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object
-                    && meta.TryGetProperty("filepath", out var file)) paths.Add(file.GetString());
-                var (response, note) = ChatReply(permission, paths, _extraRoots, WebAccess);
-                _ = ReplyPermissionAsync(askingSession, askId, permission, response);
+                    && meta.TryGetProperty("filepath", out var file)) paths.Add(filePath = file.GetString());
+                var (response, note) = ChatReply(permission, paths, _extraRoots, WebAccess, filePath);
+                // Un rifiuto porta il motivo al modello, che continua il turno e sceglie un'altra strada (remote_edit…);
+                // doom_loop no: lì il rifiuto deve fermare la ripetizione.
+                _ = ReplyPermissionAsync(askingSession, askId, permission, response,
+                    response == "reject" && permission != "doom_loop" ? note : null);
                 if (note != null) _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, note));
                 return;
             }

@@ -214,9 +214,12 @@ namespace MdExplorer.IntegrationTests
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual("Read(//c/src/backend/**)", MdExplorer.Utilities.ClaudeCodeMcp.AbsoluteRule("Read", @"C:\src\backend"));
             var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(null, new[] { "/home/u/backend" });
             System.Linq.Enumerable.Single(options.AdditionalDirectories);
-            Microsoft.VisualStudio.TestTools.UnitTesting.CollectionAssert.IsSubsetOf(
-                new[] { "Read(//home/u/backend/**)", "Edit(//home/u/backend/**)", "Write(//home/u/backend/**)", "Edit(./**)" },
-                System.Linq.Enumerable.ToList(options.AllowedTools));
+            // la radice si legge; si cambia solo con remote_edit/remote_write (Modifiche-Da-Approvare, D4): Edit vietato.
+            // Write(…) non c'è più: Claude 2.1.332 dice che vale solo Edit(…), che copre ogni scrittura.
+            Microsoft.VisualStudio.TestTools.UnitTesting.CollectionAssert.AreEquivalent(
+                new[] { "Read(//home/u/backend/**)", "Edit(./**)" }, System.Linq.Enumerable.ToList(options.AllowedTools));
+            Microsoft.VisualStudio.TestTools.UnitTesting.CollectionAssert.AreEquivalent(
+                new[] { "Edit(//home/u/backend/**)" }, System.Linq.Enumerable.ToList(options.DisallowedTools));
         }
     }
 }

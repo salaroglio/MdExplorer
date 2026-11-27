@@ -35,13 +35,17 @@ namespace MdExplorer.Features.Tests.Agents
             };
 
         [TestMethod]
-        public void LetMarkAgentReadAndWriteInsideALinkedCodeRootButNotNextToIt()
+        public void LetMarkAgentReadInsideALinkedCodeRootButWriteItOnlyThroughTheReviewTools()
         {
-            // radici di codice esterne F3: la radice collegata vale come il progetto, una cartella sorella no
+            // radici di codice esterne F3: la radice collegata si legge come il progetto, una cartella sorella no.
+            // Si scrive solo con remote_edit/remote_write, che tengono l'originale per la revisione (Modifiche-Da-Approvare, D4).
             var backend = Path.Combine(Path.GetTempPath(), "clones", "backend");
             var roots = new[] { backend };
             Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(Read(Path.Combine(backend, "Api", "Foo.cs")), Project, roots).Approved);
-            Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(Write(Path.Combine(backend, "Api", "Foo.cs")), Project, roots).Approved);
+            var write = CopilotSdkPermissionPolicy.Decide(Write(Path.Combine(backend, "Api", "Foo.cs")), Project, roots);
+            Assert.IsFalse(write.Approved, "scrittura nativa sulla radice: rifiutata");
+            StringAssert.Contains(write.Reason, "remote_edit", "il motivo dice al modello che cosa usare");
+            Assert.IsTrue(Decide(Write(Path.Combine(Project, "doc.md"))).Approved, "nel progetto si scrive come prima");
             Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(Read(backend + "2" + Path.DirectorySeparatorChar + "x.cs"), Project, roots).Approved, "backend2 non è backend");
             Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(Read(Path.Combine(backend, "..", "segreti.txt")), Project, roots).Approved);
             Assert.IsFalse(Decide(Read(Path.Combine(backend, "Api", "Foo.cs"))).Approved, "senza radici collegate resta fuori");

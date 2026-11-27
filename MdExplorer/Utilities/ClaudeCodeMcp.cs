@@ -175,11 +175,14 @@ namespace MdExplorer.Utilities
             McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
             McpGroups = mcpGroupsArgument ?? string.Empty,   // cambiati → il pool riavvia con --resume (D28)
             AllowedMcpServers = new[] { ServerName },
-            // Le radici di codice esterne collegate (radici esterne F3, R3): MarkAgent le legge E le modifica. --add-dir
-            // da solo dà solo la lettura in dontAsk (F0): servono le regole con il percorso assoluto.
+            // Le radici di codice esterne collegate (radici esterne F3, R3): MarkAgent le LEGGE con i suoi strumenti, ma le
+            // modifica solo con remote_edit/remote_write, che passano dal cancello di MDE e ne tengono l'originale per la
+            // revisione (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D4). Solo le regole Edit(…) contano per la
+            // scrittura: coprono anche Write (Claude 2.1.332 avvisa che Write(percorso) non vale), quindi niente Write(…).
             AdditionalDirectories = codeRoots ?? Array.Empty<string>(),
-            AllowedTools = new[] { "Edit(./**)", "Write(./**)" }
-                .Concat((codeRoots ?? Array.Empty<string>()).SelectMany(r => new[] { AbsoluteRule("Read", r), AbsoluteRule("Edit", r), AbsoluteRule("Write", r) }))
+            DisallowedTools = (codeRoots ?? Array.Empty<string>()).Select(r => AbsoluteRule("Edit", r)).ToArray(),
+            AllowedTools = new[] { "Edit(./**)" }
+                .Concat((codeRoots ?? Array.Empty<string>()).Select(r => AbsoluteRule("Read", r)))
                 .Concat(webAccess ? WebTools : Array.Empty<string>())
                 .ToArray(),
         };

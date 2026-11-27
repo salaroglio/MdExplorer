@@ -1,4 +1,5 @@
 import { SkillLearningDialogComponent, SkillLearningDialogData } from './skill-learning-dialog/skill-learning-dialog.component';
+import { RootReviewService } from '../md-explorer/services/root-review.service';
 import { ChatHistoryService } from '../services/chat-history.service';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, Input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -148,6 +149,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   private isFirstMessagesEmission = true;
 
   constructor(
+    public rootReview: RootReviewService,
     private aiService: AiChatService,
     private router: Router,
     private sanitizer: DomSanitizer,
@@ -688,7 +690,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatHistory.toggle();
   }
 
-  newSession(): void {
+  async newSession(): Promise<void> {
+    // Una chat nuova spezza il contesto: i file delle radici non rivisti si dicono prima (Modifiche-Da-Approvare, D11).
+    if (!(await this.rootReview.guard('chat'))) return;
     this.aiService.clearMessages();
   }
 

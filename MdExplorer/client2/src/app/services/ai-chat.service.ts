@@ -54,6 +54,19 @@ export interface ChatMessage {
   isStreaming?: boolean;
   thinkingContent?: string;
   providerType?: string;
+  /**
+   * I file delle radici di codice che MarkAgent ha cambiato in questo turno, da rivedere (sprint
+   * 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D9): il riquadro «Rivedi» sotto la risposta.
+   */
+  rootChanges?: RootChangeCard[];
+}
+
+/** Un file del riquadro a fine turno. */
+export interface RootChangeCard {
+  logicalPath: string;
+  status: 'modified' | 'created' | 'deleted';
+  added: number;
+  removed: number;
 }
 
 @Injectable({
@@ -300,7 +313,9 @@ export class AiChatService {
       const ch = channelId || 'default';
       this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
       if (ch === 'default') {
+        const finished = this.currentStreamingMessageId;
         this.finalizeStreamingMessage();
+        this._turnCompleted$.next(finished);
         this._isStreaming$.next(false);
         // Il turno è finito: l'ultima attività sui tool non è più "sta facendo", è passato.
         this._toolActivity$.next(null);
@@ -694,6 +709,20 @@ export class AiChatService {
       filter(event => event.channelId === channelId),
       map(({ type, data }) => ({ type, data }))
     );
+  }
+
+  /** Un turno della chat del tab è finito: l'id del messaggio della risposta (null se non c'era). */
+  private _turnCompleted$ = new Subject<string | null>();
+  public turnCompleted$ = this._turnCompleted$.asObservable();
+
+  /** Aggancia alla risposta il riquadro dei file cambiati sulle radici, da rivedere. */
+  attachRootChanges(messageId: string | null, files: RootChangeCard[]): void {
+    const messages = this._messages$.value;
+    const index = messageId ? messages.findIndex(m => m.id === messageId) : -1;
+    const target = index >= 0 ? index : messages.map(m => m.role).lastIndexOf('assistant');
+    if (target < 0) return;
+    messages[target] = { ...messages[target], rootChanges: files };
+    this._messages$.next([...messages]);
   }
 
   private addMessage(role: 'user' | 'assistant' | 'system', content: string, id?: string, isStreaming?: boolean): void {

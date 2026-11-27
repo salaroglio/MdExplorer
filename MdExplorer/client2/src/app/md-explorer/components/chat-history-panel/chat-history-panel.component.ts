@@ -7,6 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 import { ChatHistoryService, ChatThreadSummary } from '../../../services/chat-history.service';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { ProjectsService } from '../../services/projects.service';
+import { RootReviewService } from '../../services/root-review.service';
 
 /** A point of the chat on its timeline: its text already turned into HTML, when and on which branch. */
 interface ChatPoint {
@@ -58,7 +59,7 @@ export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(
+  constructor(private rootReview: RootReviewService, 
     private history: ChatHistoryService,
     private aiChat: AiChatService,
     private projects: ProjectsService,
@@ -110,7 +111,9 @@ export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
     this.history.close();
   }
 
-  resume(chat: ChatRow): void {
+  async resume(chat: ChatRow): Promise<void> {
+    // Riprendere un'altra chat spezza il contesto: prima i file delle radici non rivisti (Modifiche-Da-Approvare, D11).
+    if (!(await this.rootReview.guard('chat'))) return;
     this.busyId = chat.id;
     this.rowProblem = null;
     this.history.content(chat.id).subscribe({

@@ -26,11 +26,64 @@ namespace MdExplorer.Controllers.CodeGraph
         private readonly RemoteCodeRootFiles _remoteFiles;
         private readonly IRemoteSessions _sessions;
         private readonly IRemoteServerSettings _servers;
+        private readonly MdExplorer.Services.RootChanges.RootChangeGate _changes;
+        private readonly MdExplorer.Services.RootChanges.RootChangeReview _review;
 
-        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers)
+        public CodeRootsController(ICodeRootService roots, RemoteCodeRootFiles remoteFiles, IRemoteSessions sessions, IRemoteServerSettings servers,
+            MdExplorer.Services.RootChanges.RootChangeGate changes, MdExplorer.Services.RootChanges.RootChangeReview review)
         {
-            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers;
+            _roots = roots; _remoteFiles = remoteFiles; _sessions = sessions; _servers = servers; _changes = changes; _review = review;
         }
+
+        public class ReviewRequest
+        {
+            public string ProjectPath { get; set; }
+            public string? Alias { get; set; }
+            /// <summary>Il percorso dentro la radice.</summary>
+            public string? Path { get; set; }
+            /// <summary>Il pezzo (indice) e la sua impronta; senza, tutto il file.</summary>
+            public int? Hunk { get; set; }
+            public string? Hash { get; set; }
+        }
+
+        /// <summary>
+        /// GET /api/coderoots/review?projectPath — i file delle radici cambiati da MarkAgent e non ancora rivisti (sprint
+        /// 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, F3): stato, righe aggiunte/tolte, pezzi, se è stato cambiato da altri.
+        /// </summary>
+        [HttpGet("review")]
+        public Task<IActionResult> Review([FromQuery] string projectPath, CancellationToken ct) => Guarded(async () =>
+            Ok(await _review.ListAsync(projectPath, ct)), projectPath);
+
+        /// <summary>GET /api/coderoots/review/file?projectPath&amp;alias&amp;path — l'originale, il file di adesso e i pezzi.</summary>
+        [HttpGet("review/file")]
+        public Task<IActionResult> ReviewFile([FromQuery] string projectPath, [FromQuery] string alias, [FromQuery] string path, CancellationToken ct) =>
+            Guarded(async () => Ok(await _review.DetailAsync(projectPath, alias, path, ct)), projectPath);
+
+        /// <summary>POST /api/coderoots/review/keep {projectPath, alias, path, hunk?, hash?} — Tieni un pezzo o tutto il file.</summary>
+        [HttpPost("review/keep")]
+        public Task<IActionResult> ReviewKeep([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            await _review.KeepAsync(request.ProjectPath, request.Alias, request.Path, request.Hunk, request.Hash, ct);
+            return Ok(new { kept = true });
+        }, request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/undo {projectPath, alias, path, hunk?, hash?} — Annulla un pezzo o tutto il file.</summary>
+        [HttpPost("review/undo")]
+        public Task<IActionResult> ReviewUndo([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            await _review.UndoAsync(request.ProjectPath, request.Alias, request.Path, request.Hunk, request.Hash, ct);
+            return Ok(new { undone = true });
+        }, request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/keep-all {projectPath} — Tieni tutto; i file che non riescono si elencano.</summary>
+        [HttpPost("review/keep-all")]
+        public Task<IActionResult> ReviewKeepAll([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+            Ok(new { problems = await _review.AllAsync(request.ProjectPath, keep: true, ct) }), request?.ProjectPath);
+
+        /// <summary>POST /api/coderoots/review/undo-all {projectPath} — Annulla tutto; i file che non riescono si elencano.</summary>
+        [HttpPost("review/undo-all")]
+        public Task<IActionResult> ReviewUndoAll([FromBody] ReviewRequest request, CancellationToken ct) => Guarded(async () =>
+            Ok(new { problems = await _review.AllAsync(request.ProjectPath, keep: false, ct) }), request?.ProjectPath);
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
@@ -56,6 +109,11 @@ namespace MdExplorer.Controllers.CodeGraph
             public bool IgnoreCase { get; set; }
             /// <summary><c>find</c>: un pezzo del nome o un modello con <c>*</c> e <c>?</c> (20/11/2026, «Cerca file»).</summary>
             public string? Query { get; set; }
+            /// <summary>
+            /// MarkAgent (i tool <c>remote_*</c>): prima di scrivere, l'originale del file si salva per la revisione pezzo per
+            /// pezzo (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici). Falso per l'editor dei file, che è l'utente.
+            /// </summary>
+            public bool Review { get; set; }
         }
 
         /// <summary>GET /api/coderoots?projectPath — le radici dichiarate e il loro stato qui.</summary>
@@ -68,8 +126,9 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Link([FromBody] LinkRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var state = await _roots.LinkAsync(request.ProjectPath, request.Alias, request.LocalPath, ct);
-            // una radice remota porta gli strumenti remote_* a MarkAgent subito (F4): come «Estrai la struttura» per code_*
-            if (state.IsRemote) TurnOnRemoteTools(request.ProjectPath);
+            // una radice porta gli strumenti remote_* a MarkAgent subito (F4): come «Estrai la struttura» per code_*. Dal
+            // 27/11/2026 anche una locale: le sue modifiche passano dai remote_* per la revisione (Modifiche-Da-Approvare, D5).
+            TurnOnRemoteTools(request.ProjectPath);
             return Ok(View(state));
         }, request?.ProjectPath);
 
@@ -240,11 +299,15 @@ namespace MdExplorer.Controllers.CodeGraph
                 Exclude = request.Op is MdExplorer.RemoteProtocol.RemoteOps.Grep or MdExplorer.RemoteProtocol.RemoteOps.Find ? new List<string> { ".git" } : null,
             };
             MdExplorer.RemoteProtocol.RemoteResponse response;
+            var root = target.Root;
+            Task<MdExplorer.RemoteProtocol.RemoteResponse> Real(MdExplorer.RemoteProtocol.RemoteRequest r) => root.IsRemote
+                ? _remoteFiles.OperateAsync(root, r, ct)
+                : Task.FromResult(RemoteCodeRootFiles.OperateLocal(root, r));
             try
             {
-                response = target.Root.IsRemote
-                    ? await _remoteFiles.OperateAsync(target.Root, operation, ct)
-                    : RemoteCodeRootFiles.OperateLocal(target.Root, operation);
+                response = request.Review
+                    ? await _changes.OperateAsync(request.ProjectPath, root, operation, Real)
+                    : await Real(operation);
             }
             catch (RemoteOperationException ex) when (ex.Code == MdExplorer.RemoteProtocol.RemoteErrorCodes.Unsupported && request.Op == MdExplorer.RemoteProtocol.RemoteOps.Find)
             {
