@@ -15,6 +15,18 @@ export interface ChatThreadSummary {
   lastActivityAt: string;
   /** False when the chat file is gone: the row says so instead of showing an empty chat. */
   fileExists: boolean;
+  /**
+   * The points with when they were written and on which branch, oldest first (chats from 27/11/2026 on); null for the
+   * older chats, which have only {@link detail}.
+   */
+  points?: ChatThreadPointSummary[] | null;
+}
+
+export interface ChatThreadPointSummary {
+  point: string;
+  at: string;
+  /** The branch of the project's repository at the end of the turn; null outside git. */
+  branch: string | null;
 }
 
 /** A line of the chat file, as the backend wrote it. */

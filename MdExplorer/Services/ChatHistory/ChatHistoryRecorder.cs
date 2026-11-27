@@ -233,9 +233,25 @@ namespace MdExplorer.Services.ChatHistory
             }
         }
 
-        internal void Touch(ThreadState state, string engine, string modelId, string engineSessionId, string title, string detail)
+        /// <summary>
+        /// Il ramo e lo SHA di HEAD del repository del progetto, adesso: (null, null) se la cartella non è un repository git.
+        /// La stessa lettura la fa «Genera descrizione» del commit (<c>GitCommitAiService</c>), così i due lati combaciano.
+        /// </summary>
+        public static (string Branch, string HeadSha) RepositoryPosition(MdExplorer.Services.Git.Interfaces.IModernGitService git, string repositoryPath)
+        {
+            if (git == null || string.IsNullOrWhiteSpace(repositoryPath) || !LibGit2Sharp.Repository.IsValid(repositoryPath)) return (null, null);
+            // Nessuna attesa vera dentro: legge con LibGit2Sharp e torna.
+            var head = git.GetCurrentBranchAsync(repositoryPath).GetAwaiter().GetResult();
+            return (head?.Name, head?.CommitHash);
+        }
+
+        internal void Touch(ThreadState state, string engine, string modelId, string engineSessionId, string title, string detail,
+            string point = null)
         {
             using var scope = _scopes.CreateScope();
+            // Il repository si legge PRIMA della transazione: dentro, solo le righe.
+            var (branch, headSha) = point == null ? (null, null)
+                : RepositoryPosition(scope.ServiceProvider.GetService<MdExplorer.Services.Git.Interfaces.IModernGitService>(), state.ProjectPath);
             var factory = scope.ServiceProvider.GetRequiredService<IDALFactory<IUserSettingsDB>>();
             using var session = factory.OpenSession();
             using var tx = session.BeginTransaction();
@@ -253,6 +269,12 @@ namespace MdExplorer.Services.ChatHistory
             if (title != null) { row.Title = title; lock (state) state.Title = title; }
             if (detail != null) { row.Detail = detail; lock (state) state.Detail = detail; }
             session.GetDal<ChatThread>().Save(row);
+            if (point != null)
+                session.GetDal<ChatThreadPoint>().Save(new ChatThreadPoint
+                {
+                    ThreadId = state.Id, ProjectPath = state.ProjectPath, Point = point, At = row.LastActivityAt,
+                    Branch = branch, HeadSha = headSha,
+                });
             tx.Commit();
         }
 
@@ -313,6 +335,8 @@ namespace MdExplorer.Services.ChatHistory
 
         private string _newTitle;
         private string _newDetail;
+        /// <summary>Il punto nuovo del turno, per la riga di <see cref="ChatThreadPoint"/>; null se il registro non cambia.</summary>
+        private string _newPoint;
 
         /// <summary>Vero se in questo turno al modello è stato chiesto il blocco titolo/dettaglio (solo il tab, F5).</summary>
         public bool ExpectsThreadBlock { get; private set; }
@@ -353,6 +377,7 @@ namespace MdExplorer.Services.ChatHistory
             string log;
             lock (_state) log = _state.Detail;
             _newDetail = ChatThreadBlock.AppendPoint(log, parsed.Point);
+            _newPoint = _newDetail == null ? null : parsed.Point.Trim();
             return parsed.Problems.Count == 0 ? null : UiText.Say(
                 "Titolo o dettaglio della chat non aggiornati: " + string.Join("; ", parsed.Problems) + ".",
                 "Chat title or detail not updated: " + string.Join("; ", parsed.Problems) + ".");
@@ -375,7 +400,7 @@ namespace MdExplorer.Services.ChatHistory
         {
             Run(a => a.Complete());
             if (!IsRecording) return;
-            try { _recorder.Touch(_state, _engine, _modelId, _engineSessionId, _newTitle, _newDetail); }
+            try { _recorder.Touch(_state, _engine, _modelId, _engineSessionId, _newTitle, _newDetail, _newPoint); }
             catch (Exception ex) { Fail(ex); }
         }
 

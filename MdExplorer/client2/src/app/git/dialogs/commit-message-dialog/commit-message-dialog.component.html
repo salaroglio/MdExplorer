@@ -46,6 +46,10 @@
     </mat-spinner>
   </div>
 
+  <div *ngIf="aiSource" class="ai-source-message">
+    <mat-icon class="ai-source-icon" inline>{{ aiSourcePoints > 0 ? 'history' : 'info' }}</mat-icon>
+    {{ aiSource }}
+  </div>
   <div *ngIf="aiError" class="ai-error-message">
     <mat-icon class="ai-error-icon">warning</mat-icon>
     {{ aiError }}

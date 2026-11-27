@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using LibGit2Sharp;
+using Ad.Tools.Dal.Extensions;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
 using MdExplorer.Abstractions.Services;
@@ -22,7 +23,7 @@ namespace MdExplorer.Services
     public interface IGitCommitAiService
     {
         /// <summary>The prompt for the changes of <paramref name="repositoryPath"/>; null when there is nothing to commit.</summary>
-        Task<string> BuildCommitPromptAsync(string repositoryPath, string language);
+        Task<CommitPromptBuild> BuildCommitPromptAsync(string repositoryPath, string language);
 
         /// <summary>
         /// The agent's answer as a commit message: a Conventional Commits header, a blank line, the
@@ -30,6 +31,9 @@ namespace MdExplorer.Services
         /// </summary>
         string CleanCommitMessage(string aiResponse);
     }
+
+    /// <summary>Il prompt del messaggio di commit e quanti punti delle chat ci sono dentro (0 = solo le modifiche).</summary>
+    public sealed record CommitPromptBuild(string Prompt, int ChatPoints);
 
     public class GitCommitAiService : IGitCommitAiService
     {
@@ -49,15 +53,19 @@ namespace MdExplorer.Services
             new System.Text.RegularExpressions.Regex(
                 @"^(?<type>[A-Za-z]+)\s*(?:\(\s*(?<scope>[^()]*?)\s*\))?\s*(?<bang>!)?\s*:\s*(?<description>\S.*)$");
 
+        private readonly MdExplorer.Abstractions.DB.IUserSettingsDB _userSettingsDB;
+
         public GitCommitAiService(
             ILogger<GitCommitAiService> logger,
-            IModernGitService modernGitService)
+            IModernGitService modernGitService,
+            MdExplorer.Abstractions.DB.IUserSettingsDB userSettingsDB = null)
         {
             _logger = logger;
             _modernGitService = modernGitService;
+            _userSettingsDB = userSettingsDB;
         }
 
-        public async Task<string> BuildCommitPromptAsync(string repositoryPath, string language)
+        public async Task<CommitPromptBuild> BuildCommitPromptAsync(string repositoryPath, string language)
         {
             var lang = NormalizeLanguage(language);
             var status = await _modernGitService.GetStatusAsync(repositoryPath);
@@ -67,7 +75,49 @@ namespace MdExplorer.Services
                 return null;
             }
             var changesInfo = await CollectChangesInfo(repositoryPath, status);
-            return BuildCommitPrompt(changesInfo, lang);
+            var points = ChatPointsSinceLastCommit(repositoryPath);
+            _logger.LogInformation("[GitCommitAi] {Count} punti delle chat per {RepositoryPath}", points.Count, repositoryPath);
+            return new CommitPromptBuild(BuildCommitPrompt(changesInfo, lang, points), points.Count);
+        }
+
+        /// <summary>
+        /// I punti delle chat scritti sul ramo corrente dopo l'ultimo commit: stesso ramo e stesso SHA di HEAD di adesso, letti
+        /// come li legge il registratore della cronologia (<see cref="ChatHistory.ChatHistoryRecorder.RepositoryPosition"/>).
+        /// Fuori da git, o senza DB, nessun punto.
+        /// </summary>
+        private IReadOnlyList<string> ChatPointsSinceLastCommit(string repositoryPath)
+        {
+            var (branch, headSha) = ChatHistory.ChatHistoryRecorder.RepositoryPosition(_modernGitService, repositoryPath);
+            if (_userSettingsDB == null || headSha == null) return Array.Empty<string>();
+            var rows = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.ChatThreadPoint>().GetList()
+                .Where(p => p.HeadSha == headSha).ToList();
+            return SelectPoints(rows, branch, headSha);
+        }
+
+        /// <summary>Le righe di <paramref name="branch"/> + <paramref name="headSha"/>, dalla più vecchia, una volta sola ciascuna.</summary>
+        public static IReadOnlyList<string> SelectPoints(IEnumerable<MdExplorer.Abstractions.Entities.UserDB.ChatThreadPoint> rows, string branch, string headSha)
+            => rows.Where(p => p.HeadSha == headSha && string.Equals(p.Branch, branch, StringComparison.Ordinal))
+                .OrderBy(p => p.At).ThenBy(p => p.Id)
+                .Select(p => p.Point.Trim()).Where(p => p.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        /// <summary>
+        /// La parte del prompt con i punti delle chat: sono la fonte del corpo del messaggio. Vuota se non ce ne sono.
+        /// </summary>
+        public static string ChatPointsSection(IReadOnlyList<string> points, bool isIt)
+        {
+            if (points == null || points.Count == 0) return string.Empty;
+            var sb = new StringBuilder();
+            sb.AppendLine(isIt
+                ? "ATTIVITÀ FATTE NELLE CHAT DI MARKAGENT su questo ramo dopo l'ultimo commit, dalla più vecchia. Sono la FONTE del corpo:"
+                : "ACTIVITIES DONE IN THE MARKAGENT CHATS on this branch since the last commit, oldest first. They are the SOURCE of the body:");
+            foreach (var p in points) sb.Append("  - ").AppendLine(p);
+            sb.AppendLine(isIt
+                ? "Riassumi queste attività nei punti del corpo (unisci quelle che parlano della stessa cosa, al massimo 6 punti). L'elenco dei file qui sotto serve solo a scegliere tipo e scope e a controllare che i punti dicano il vero."
+                : "Summarize these activities in the bullets of the body (merge those about the same thing, at most 6 bullets). The list of files below only serves to choose type and scope and to check that the bullets are true.");
+            sb.AppendLine();
+            return sb.ToString();
         }
 
         private static string NormalizeLanguage(string language)
@@ -212,7 +262,7 @@ namespace MdExplorer.Services
             return string.Empty;
         }
 
-        private string BuildCommitPrompt(ChangesInfo changesInfo, string language)
+        private string BuildCommitPrompt(ChangesInfo changesInfo, string language, IReadOnlyList<string> chatPoints)
         {
             var isIt = language == "it";
             var labels = GetPromptLabels(isIt);
@@ -261,6 +311,8 @@ namespace MdExplorer.Services
                 prompt.AppendLine("     when you know it, WHY, in 20 words at most. No rows of file names, no text outside the list.");
                 prompt.AppendLine();
             }
+
+            prompt.Append(ChatPointsSection(chatPoints, isIt));
 
             // Added files
             if (changesInfo.AddedFiles.Any())

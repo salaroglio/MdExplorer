@@ -69,38 +69,97 @@
   user-select: text;
 }
 
-/* I punti della chat: il più recente in cima con il numero più alto, così il verso si legge dai numeri. */
+/* La linea del tempo: una linea verticale con la freccia in cima, perché il tempo sale. Ogni punto è un pallino sulla
+   linea; il più recente, in alto, è pieno e in evidenza. */
+.ch-timeline {
+  position: relative;
+  margin: 0 0 4px;
+  padding-left: 22px;
+}
+
+.ch-arrow {
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--mde-border-color);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: -6px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 9px solid var(--mde-text-secondary);
+  }
+}
+
 .ch-points {
   list-style: none;
-  margin: 0 0 4px;
-  padding: 0;
+  margin: 0;
+  padding: 6px 0 0;
   user-select: text;
 
   li {
+    position: relative;
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 3px 0;
-    opacity: .82;
+    padding: 4px 0;
+    color: var(--mde-text-secondary);
   }
 
   li.ch-latest {
-    opacity: 1;
+    color: var(--mde-text-primary);
     font-weight: 500;
+
+    .ch-dot {
+      background: var(--mat-sys-primary, #3f51b5);
+      border-color: var(--mat-sys-primary, #3f51b5);
+    }
   }
 }
 
-.ch-num {
-  flex: 0 0 auto;
-  min-width: 1.6em;
-  font-size: 1.15em;
-  line-height: 1;
-  text-align: center;
+.ch-dot {
+  position: absolute;
+  left: -20px;
+  top: .55em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--mde-text-secondary);
+  background: var(--mde-bg-primary);
 }
 
-.ch-num-text {
-  font-weight: 700;
-  font-size: 1em;
+.ch-point {
+  flex: 1 1 auto;
+}
+
+.ch-meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: .8em;
+  color: var(--mde-text-hint);
+  font-weight: 400;
+}
+
+.ch-branch {
+  padding: 0 6px;
+  border: 1px solid var(--mde-border-color);
+  border-radius: 10px;
+  white-space: nowrap;
+
+  mat-icon {
+    margin-right: 2px;
+  }
+}
+
+.ch-time {
+  white-space: nowrap;
 }
 
 .ch-older-toggle {
@@ -108,13 +167,3 @@
   opacity: .8;
 }
 
-.ch-older {
-  margin: 0 0 8px;
-  padding-left: 22px;
-  opacity: .7;
-  user-select: text;
-
-  li {
-    padding: 2px 0;
-  }
-}

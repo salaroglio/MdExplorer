@@ -40,11 +40,12 @@ namespace MdExplorer.Controllers.AI
             if (!Directory.Exists(request.ProjectPath))
                 return BadRequest(new { error = $"Directory does not exist: {request.ProjectPath}" });
 
-            var prompt = await _gitCommitAiService.BuildCommitPromptAsync(request.ProjectPath, request.Language);
+            var built = await _gitCommitAiService.BuildCommitPromptAsync(request.ProjectPath, request.Language);
             var it = (request.Language ?? "en").Trim().ToLowerInvariant().StartsWith("it");
-            if (prompt == null)
+            if (built == null)
                 return Ok(new { noChanges = true, message = it ? "Nessuna modifica per un commit." : "No changes to commit." });
-            return Ok(new { prompt });
+            // chatPoints = 0: nessuna chat di questo ramo dopo l'ultimo commit, il messaggio nasce dalle sole modifiche.
+            return Ok(new { prompt = built.Prompt, chatPoints = built.ChatPoints });
         }
 
         /// <summary>The agent's answer as a commit message. 422 when nothing usable is left.</summary>

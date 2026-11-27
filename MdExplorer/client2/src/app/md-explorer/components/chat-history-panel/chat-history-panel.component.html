@@ -29,25 +29,24 @@
           </mat-panel-title>
           <mat-panel-description>
             <span *ngIf="chat.id === currentId" class="ch-badge">{{ 'CHAT_HISTORY.CURRENT' | translate }}</span>
-            {{ chat.lastActivityAt | date:'short' }}<span *ngIf="chat.engine">&nbsp;·&nbsp;{{ chat.engine }}</span>
+            {{ chat.lastActivity | date:'short' }}<span *ngIf="chat.engine">&nbsp;·&nbsp;{{ chat.engine }}</span>
           </mat-panel-description>
         </mat-expansion-panel-header>
 
-        <ol *ngIf="chat.recent.length" class="ch-points">
-          <li *ngFor="let p of chat.recent; let first = first" [class.ch-latest]="first">
-            <span class="ch-num" [class.ch-num-text]="!p.emoji">{{ p.label }}</span>
-            <span class="ch-point" [innerHTML]="p.html"></span>
-          </li>
-        </ol>
-        <ng-container *ngIf="chat.older.length">
-          <button mat-button class="ch-older-toggle" (click)="toggleOlder(chat)">
-            <mat-icon>{{ olderOpen.has(chat.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
-            {{ 'CHAT_HISTORY.OLDER_POINTS' | translate:{ count: chat.older.length } }}
-          </button>
-          <ul *ngIf="olderOpen.has(chat.id)" class="ch-older">
-            <li *ngFor="let p of chat.older" [innerHTML]="p.html"></li>
+        <!-- La linea del tempo sale: il punto più vecchio in basso, il più recente in cima, la freccia dice il verso. -->
+        <div *ngIf="chat.recent.length" class="ch-timeline" [attr.aria-label]="'CHAT_HISTORY.TIMELINE' | translate">
+          <div class="ch-arrow" aria-hidden="true"></div>
+          <ul class="ch-points">
+            <ng-container *ngTemplateOutlet="pointList; context: { $implicit: chat.recent, latest: true }"></ng-container>
+            <ng-container *ngIf="olderOpen.has(chat.id)">
+              <ng-container *ngTemplateOutlet="pointList; context: { $implicit: chat.older, latest: false }"></ng-container>
+            </ng-container>
           </ul>
-        </ng-container>
+          <button mat-button *ngIf="chat.older.length" class="ch-older-toggle" (click)="toggleOlder(chat)">
+            <mat-icon>{{ olderOpen.has(chat.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            {{ (olderOpen.has(chat.id) ? 'CHAT_HISTORY.HIDE_OLDER_POINTS' : 'CHAT_HISTORY.OLDER_POINTS') | translate:{ count: chat.older.length } }}
+          </button>
+        </div>
         <div *ngIf="chat.detailHtml" class="ch-detail" [innerHTML]="chat.detailHtml"></div>
         <p *ngIf="!chat.detail" class="ch-muted">{{ 'CHAT_HISTORY.NO_DETAIL' | translate }}</p>
         <p *ngIf="!chat.fileExists" class="ch-problem">
@@ -75,3 +74,14 @@
     </mat-accordion>
   </div>
 </div>
+
+<ng-template #pointList let-points let-latest="latest">
+  <li *ngFor="let p of points; let first = first" [class.ch-latest]="latest && first">
+    <span class="ch-dot" aria-hidden="true"></span>
+    <span class="ch-point" [innerHTML]="p.html"></span>
+    <span class="ch-meta">
+      <span *ngIf="p.branch" class="ch-branch" [matTooltip]="'CHAT_HISTORY.BRANCH' | translate"><mat-icon inline>call_split</mat-icon>{{ p.branch }}</span>
+      <span *ngIf="p.at" class="ch-time" [matTooltip]="(p.at | date:'medium') || ''">{{ p.at | date:'shortTime' }}</span>
+    </span>
+  </li>
+</ng-template>

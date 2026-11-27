@@ -279,21 +279,37 @@ __webpack_require__.r(__webpack_exports__);
 
 function CommitMessageDialogComponent_mat_spinner_32_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "mat-spinner", 15);
   }
 }
 function CommitMessageDialogComponent_div_33_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 15)(1, "mat-icon", 16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 16)(1, "mat-icon", 17);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
     const ctx_r1 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](ctx_r1.aiSourcePoints > 0 ? "history" : "info");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx_r1.aiSource, " ");
+  }
+}
+function CommitMessageDialogComponent_div_34_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 18)(1, "mat-icon", 19);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx_r1.aiError, " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx_r2.aiError, " ");
   }
 }
 class CommitMessageDialogComponent {
@@ -310,6 +326,9 @@ class CommitMessageDialogComponent {
     this.maxTitleLength = 72;
     this.isGeneratingMessage = false;
     this.aiError = null;
+    /** Da dove viene la descrizione generata: i punti delle chat del ramo dopo l'ultimo commit, o le sole modifiche. */
+    this.aiSource = null;
+    this.aiSourcePoints = 0;
     this.setMessage(data.defaultMessage || this.translate.instant('GIT_COMMIT.DEFAULT_MSG'));
   }
   /** Title, blank line, body — the shape git expects; the body only when there is one. */
@@ -348,6 +367,7 @@ class CommitMessageDialogComponent {
       }
       _this.isGeneratingMessage = true;
       _this.aiError = null;
+      _this.aiSource = null;
       try {
         const built = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_3__.firstValueFrom)(_this.http.post('/api/GitAi/commit-prompt', {
           projectPath: _this.data.projectPath,
@@ -362,6 +382,10 @@ class CommitMessageDialogComponent {
           raw
         }));
         _this.setMessage(cleaned.message);
+        _this.aiSourcePoints = built.chatPoints ?? 0;
+        _this.aiSource = _this.aiSourcePoints > 0 ? _this.translate.instant('GIT_COMMIT.FROM_CHAT_POINTS', {
+          count: _this.aiSourcePoints
+        }) : _this.translate.instant('GIT_COMMIT.FROM_CHANGES_ONLY');
       } catch (err) {
         console.error('Error generating commit message:', err);
         _this.aiError = err?.error?.error || err?.message || _this.translate.instant('GIT_COMMIT.GENERATION_ERROR');
@@ -379,9 +403,9 @@ class CommitMessageDialogComponent {
     this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineComponent"]({
       type: CommitMessageDialogComponent,
       selectors: [["app-commit-message-dialog"]],
-      decls: 40,
-      vars: 41,
-      consts: [["mat-dialog-title", ""], ["for", "commit-title", 1, "commit-field-label"], ["appearance", "outline", 1, "commit-field"], ["id", "commit-title", "matInput", "", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], ["align", "end"], ["for", "commit-body", 1, "commit-field-label"], ["id", "commit-body", "matInput", "", "rows", "10", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], [1, "commit-ai-row"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [1, "commit-ai-icon"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["class", "ai-error-message", 4, "ngIf"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [1, "ai-error-message"], [1, "ai-error-icon"]],
+      decls: 41,
+      vars: 42,
+      consts: [["mat-dialog-title", ""], ["for", "commit-title", 1, "commit-field-label"], ["appearance", "outline", 1, "commit-field"], ["id", "commit-title", "matInput", "", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], ["align", "end"], ["for", "commit-body", 1, "commit-field-label"], ["id", "commit-body", "matInput", "", "rows", "10", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], [1, "commit-ai-row"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], [1, "commit-ai-icon"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["class", "ai-source-message", 4, "ngIf"], ["class", "ai-error-message", 4, "ngIf"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [1, "ai-source-message"], ["inline", "", 1, "ai-source-icon"], [1, "ai-error-message"], [1, "ai-error-icon"]],
       template: function CommitMessageDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0);
@@ -437,57 +461,60 @@ class CommitMessageDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](32, CommitMessageDialogComponent_mat_spinner_32_Template, 1, 0, "mat-spinner", 10);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](33, CommitMessageDialogComponent_div_33_Template, 4, 1, "div", 11);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](33, CommitMessageDialogComponent_div_33_Template, 4, 2, "div", 11);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](34, CommitMessageDialogComponent_div_34_Template, 4, 1, "div", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](34, "mat-dialog-actions", 4)(35, "button", 12);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_35_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](35, "mat-dialog-actions", 4)(36, "button", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_36_listener() {
             return ctx.onCancel();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](36);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](37, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](37);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](38, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](38, "button", 13);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_38_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](39, "button", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function CommitMessageDialogComponent_Template_button_click_39_listener() {
             return ctx.onConfirm();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](39, " Commit ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](40, " Commit ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 21, "GIT_COMMIT.TITLE"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](2, 22, "GIT_COMMIT.TITLE"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 23, "GIT_COMMIT.TITLE_LABEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 24, "GIT_COMMIT.TITLE_LABEL"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitTitle)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](9, 25, "GIT_COMMIT.TITLE_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitTitle)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](9, 26, "GIT_COMMIT.TITLE_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 27, "GIT_COMMIT.TITLE_HINT"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 28, "GIT_COMMIT.TITLE_HINT"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵclassProp"]("title-too-long", ctx.commitTitle.length > ctx.maxTitleLength);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate2"]("", ctx.commitTitle.length, " / ", ctx.maxTitleLength, "");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](17, 29, "GIT_COMMIT.BODY_LABEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](17, 30, "GIT_COMMIT.BODY_LABEL"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitBody)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](20, 31, "GIT_COMMIT.BODY_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx.commitBody)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](20, 32, "GIT_COMMIT.BODY_PLACEHOLDER"))("disabled", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](24, 33, "GIT_COMMIT.HINT"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](24, 34, "GIT_COMMIT.HINT"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](30, 35, "GIT_COMMIT.GENERATING") : _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](31, 37, "GIT_COMMIT.GENERATE_AI"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", ctx.isGeneratingMessage ? _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](30, 36, "GIT_COMMIT.GENERATING") : _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](31, 38, "GIT_COMMIT.GENERATE_AI"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.isGeneratingMessage);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.aiSource);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.aiError);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](37, 39, "COMMON.CANCEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](38, 40, "COMMON.CANCEL"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", !ctx.commitTitle || !ctx.commitTitle.trim() || ctx.isGeneratingMessage);
         }
       },
       dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_7__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_8__.MatLegacyHint, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_9__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_11__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_12__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_13__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_6__.TranslatePipe],
-      styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-field-label[_ngcontent-%COMP%] {\n  display: block;\n  margin: 8px 0 4px;\n  font-weight: 500;\n}\n\n.commit-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.title-too-long[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-ai-row[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.commit-ai-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n}\n\n.ai-error-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  vertical-align: middle;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvY29tbWl0LW1lc3NhZ2UtZGlhbG9nL2NvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0Y7O0FBR0E7RUFDRSwwQkFBQTtBQUFGOztBQUdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjs7QUFHQTtFQUNFLDBCQUFBO0FBQUY7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFBRjs7QUFHQTtFQUNFLGlCQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0EsZUFBQTtBQUFGOztBQUdBO0VBQ0UsZUFBQTtFQUNBLHNCQUFBO0FBQUYiLCJzb3VyY2VzQ29udGVudCI6WyI6Om5nLWRlZXAgLm1hdC1kaWFsb2ctY29udGFpbmVyIHtcbiAgcGFkZGluZzogMjRweDtcbn1cblxubWF0LWRpYWxvZy1jb250ZW50IHtcbiAgbWFyZ2luOiAyMHB4IDA7XG59XG5cbm1hdC1mb3JtLWZpZWxkIHtcbiAgZm9udC1zaXplOiAxNHB4O1xufVxuXG50ZXh0YXJlYSB7XG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XG4gIGZvbnQtc2l6ZTogMTRweDtcbn1cblxubWF0LWRpYWxvZy1hY3Rpb25zIHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgcGFkZGluZzogMDtcbn1cblxuLy8gQ29sb3JlIHNwb3N0YXRvIGRhbGxvIHN0aWxlIGlubGluZSBkZWwgdGVtcGxhdGVcbi5haS1lcnJvci1tZXNzYWdlIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG4vLyBUaXRvbG8gZSBkZXNjcml6aW9uZSBzZXBhcmF0aSAoMTkvMTEvMjAyNik6IGV0aWNoZXR0YSBlc3BsaWNpdGEgc29wcmEgb2duaSBjYW1wby5cbi5jb21taXQtZmllbGQtbGFiZWwge1xuICBkaXNwbGF5OiBibG9jaztcbiAgbWFyZ2luOiA4cHggMCA0cHg7XG4gIGZvbnQtd2VpZ2h0OiA1MDA7XG59XG5cbi5jb21taXQtZmllbGQge1xuICB3aWR0aDogMTAwJTtcbn1cblxuLnRpdGxlLXRvby1sb25nIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG5cbi5jb21taXQtYWktcm93IHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG59XG5cbi5jb21taXQtYWktaWNvbiB7XG4gIG1hcmdpbi1yaWdodDogNHB4O1xufVxuXG4uYWktZXJyb3ItbWVzc2FnZSB7XG4gIG1hcmdpbi10b3A6IDhweDtcbiAgZm9udC1zaXplOiAxMnB4O1xufVxuXG4uYWktZXJyb3ItaWNvbiB7XG4gIGZvbnQtc2l6ZTogMTZweDtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbn1cbiJdLCJzb3VyY2VSb290IjoiIn0= */"]
+      styles: [".mat-dialog-container {\n  padding: 24px;\n}\n\nmat-dialog-content[_ngcontent-%COMP%] {\n  margin: 20px 0;\n}\n\nmat-form-field[_ngcontent-%COMP%] {\n  font-size: 14px;\n}\n\ntextarea[_ngcontent-%COMP%] {\n  font-family: monospace;\n  font-size: 14px;\n}\n\nmat-dialog-actions[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  padding: 0;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-field-label[_ngcontent-%COMP%] {\n  display: block;\n  margin: 8px 0 4px;\n  font-weight: 500;\n}\n\n.commit-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.title-too-long[_ngcontent-%COMP%] {\n  color: var(--mde-error-fg);\n}\n\n.commit-ai-row[_ngcontent-%COMP%] {\n  margin-top: 16px;\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.commit-ai-icon[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n\n.ai-error-message[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n}\n\n.ai-error-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  vertical-align: middle;\n}\n\n.ai-source-message[_ngcontent-%COMP%] {\n  margin-top: 8px;\n  font-size: 12px;\n  color: var(--mde-text-secondary);\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvZ2l0L2RpYWxvZ3MvY29tbWl0LW1lc3NhZ2UtZGlhbG9nL2NvbW1pdC1tZXNzYWdlLWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLGFBQUE7QUFDRjs7QUFFQTtFQUNFLGNBQUE7QUFDRjs7QUFFQTtFQUNFLGVBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxVQUFBO0FBQ0Y7O0FBR0E7RUFDRSwwQkFBQTtBQUFGOztBQUdBO0VBQ0UsY0FBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFBRjs7QUFHQTtFQUNFLFdBQUE7QUFBRjs7QUFHQTtFQUNFLDBCQUFBO0FBQUY7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7QUFBRjs7QUFHQTtFQUNFLGlCQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0EsZUFBQTtBQUFGOztBQUdBO0VBQ0UsZUFBQTtFQUNBLHNCQUFBO0FBQUY7O0FBSUE7RUFDRSxlQUFBO0VBQ0EsZUFBQTtFQUNBLGdDQUFBO0FBREYiLCJzb3VyY2VzQ29udGVudCI6WyI6Om5nLWRlZXAgLm1hdC1kaWFsb2ctY29udGFpbmVyIHtcbiAgcGFkZGluZzogMjRweDtcbn1cblxubWF0LWRpYWxvZy1jb250ZW50IHtcbiAgbWFyZ2luOiAyMHB4IDA7XG59XG5cbm1hdC1mb3JtLWZpZWxkIHtcbiAgZm9udC1zaXplOiAxNHB4O1xufVxuXG50ZXh0YXJlYSB7XG4gIGZvbnQtZmFtaWx5OiBtb25vc3BhY2U7XG4gIGZvbnQtc2l6ZTogMTRweDtcbn1cblxubWF0LWRpYWxvZy1hY3Rpb25zIHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgcGFkZGluZzogMDtcbn1cblxuLy8gQ29sb3JlIHNwb3N0YXRvIGRhbGxvIHN0aWxlIGlubGluZSBkZWwgdGVtcGxhdGVcbi5haS1lcnJvci1tZXNzYWdlIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG4vLyBUaXRvbG8gZSBkZXNjcml6aW9uZSBzZXBhcmF0aSAoMTkvMTEvMjAyNik6IGV0aWNoZXR0YSBlc3BsaWNpdGEgc29wcmEgb2duaSBjYW1wby5cbi5jb21taXQtZmllbGQtbGFiZWwge1xuICBkaXNwbGF5OiBibG9jaztcbiAgbWFyZ2luOiA4cHggMCA0cHg7XG4gIGZvbnQtd2VpZ2h0OiA1MDA7XG59XG5cbi5jb21taXQtZmllbGQge1xuICB3aWR0aDogMTAwJTtcbn1cblxuLnRpdGxlLXRvby1sb25nIHtcbiAgY29sb3I6IHZhcigtLW1kZS1lcnJvci1mZyk7XG59XG5cbi5jb21taXQtYWktcm93IHtcbiAgbWFyZ2luLXRvcDogMTZweDtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG59XG5cbi5jb21taXQtYWktaWNvbiB7XG4gIG1hcmdpbi1yaWdodDogNHB4O1xufVxuXG4uYWktZXJyb3ItbWVzc2FnZSB7XG4gIG1hcmdpbi10b3A6IDhweDtcbiAgZm9udC1zaXplOiAxMnB4O1xufVxuXG4uYWktZXJyb3ItaWNvbiB7XG4gIGZvbnQtc2l6ZTogMTZweDtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbn1cblxuLy8gRGEgZG92ZSB2aWVuZSBsYSBkZXNjcml6aW9uZSBnZW5lcmF0YSAocHVudGkgZGVsbGUgY2hhdCBkZWwgcmFtbywgbyBzb2xlIG1vZGlmaWNoZSkuXG4uYWktc291cmNlLW1lc3NhZ2Uge1xuICBtYXJnaW4tdG9wOiA4cHg7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXNlY29uZGFyeSk7XG59XG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
     });
   }
 }
@@ -9502,4 +9529,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.0047de009ea5f8be.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.28c935e52b0cb317.js.map

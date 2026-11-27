@@ -8,27 +8,29 @@ import { ChatHistoryService, ChatThreadSummary } from '../../../services/chat-hi
 import { AiChatService } from '../../../services/ai-chat.service';
 import { ProjectsService } from '../../services/projects.service';
 
-/** A point of the chat, numbered from the start of the chat: its label and its text already turned into HTML. */
+/** A point of the chat on its timeline: its text already turned into HTML, when and on which branch. */
 interface ChatPoint {
-  /** «7️⃣» up to 🔟, then the plain number (shown bold). */
-  label: string;
-  emoji: boolean;
   html: SafeHtml;
+  /** When it was written; null for the chats before 27/11/2026, which kept only the text. */
+  at: Date | null;
+  /** The branch label, only on the first point of a run on the same branch (reading upwards, as time goes). */
+  branch: string | null;
 }
 
 /** A row of the list, with its points already prepared (once, not at every change detection). */
 interface ChatRow extends ChatThreadSummary {
-  /** The last {@link RECENT_POINTS} points, most recent first, numbered: the number says the order. */
+  /** The last {@link RECENT_POINTS} points, most recent first: the top of the timeline. */
   recent: ChatPoint[];
-  /** The ones before, most recent first, as a plain list (closed until asked). */
+  /** The ones before, most recent first: the bottom of the timeline, closed until asked. */
   older: ChatPoint[];
   /** A detail that is not a list of points (none should be): shown as it is. */
   detailHtml: SafeHtml | null;
+  /** {@link lastActivityAt} as a date. */
+  lastActivity: Date | null;
 }
 
-/** How many points get a number emoji; the older ones become a plain list. */
+/** How many points are always on the timeline; the older ones open below them. */
 const RECENT_POINTS = 5;
-const KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
 /**
  * The MarkAgent chat history (sprint 2026-11-24-Chat-Memorizzate, F6), in the big pane where the document is: the
@@ -171,26 +173,39 @@ export class ChatHistoryPanelComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The detail is the log of the chat's points, one «- …» per line from the oldest (the model sends only the new
-   * point of each turn, MDE appends it). Shown upside down: the most recent on top with the highest number.
+   * The points on a timeline that goes up, as time does: the oldest at the bottom, the most recent on top. From the rows
+   * of the points (with time and branch) when the chat has them; for the older chats from the log in the detail, one
+   * «- …» per line from the oldest, as they were.
    */
   private toRow(r: ChatThreadSummary): ChatRow {
     const lines = (r.detail || '').replace(/\r\n/g, '\n').split('\n').map(l => l.trim());
     const texts = lines.filter(l => l.startsWith('- ') || l.startsWith('* ')).map(l => l.substring(2).trim()).filter(l => l.length > 0);
-    const points = texts.map((text, i) => {
-      const n = i + 1;
-      return {
-        label: n < KEYCAPS.length ? KEYCAPS[n] : String(n),
-        emoji: n < KEYCAPS.length,
-        html: this.sanitizer.bypassSecurityTrustHtml(marked.parseInline(text) as string),
-      } as ChatPoint;
-    }).reverse();
+    const oldestFirst: { text: string; at: Date | null; branch: string | null }[] = r.points?.length
+      ? r.points.map(p => ({ text: p.point, at: this.when(p.at), branch: p.branch }))
+      : texts.map(text => ({ text, at: null, branch: null }));
+    const points = oldestFirst.map((p, i) => ({
+      html: this.sanitizer.bypassSecurityTrustHtml(marked.parseInline(p.text) as string),
+      at: p.at,
+      // The label where the branch starts: on the first point, and where it differs from the point before.
+      branch: p.branch && (i === 0 || oldestFirst[i - 1].branch !== p.branch) ? p.branch : null,
+    } as ChatPoint)).reverse();
     return {
       ...r,
       recent: points.slice(0, RECENT_POINTS),
       older: points.slice(RECENT_POINTS),
-      detailHtml: texts.length === 0 ? this.toHtml(r.detail) : null,
+      detailHtml: texts.length === 0 && !r.points?.length ? this.toHtml(r.detail) : null,
+      lastActivity: this.when(r.lastActivityAt),
     };
+  }
+
+  /**
+   * The backend gives the local time without an offset (measured 27/11/2026: «09:05» with UTC at 08:05, the DB turns the
+   * UTC it is given into local time): read as it is, which for a date without offset is local time.
+   */
+  private when(at: string): Date | null {
+    if (!at) return null;
+    const d = new Date(at);
+    return isNaN(d.getTime()) ? null : d;
   }
 
   private toHtml(markdown: string | null): SafeHtml | null {

@@ -661,6 +661,8 @@
     "AGENT_WORKTREE_SLOTS_DESC": "How many agents can work at the same time: each workplace is a copy of the project on disk, and it is also the cap on concurrently running agents. Default {{def}}, maximum {{max}}."
   },
   "GIT_COMMIT": {
+    "FROM_CHAT_POINTS": "Written from the {{count}} chat points on this branch since the last commit.",
+    "FROM_CHANGES_ONLY": "No chat on this branch since the last commit: written from the changes only.",
     "TITLE": "Commit Message",
     "LABEL": "Enter commit message",
     "PLACEHOLDER": "Describe your changes...",
@@ -3196,6 +3198,9 @@
     "STATE_CHECKING": "checking…"
   },
   "CHAT_HISTORY": {
+    "TIMELINE": "Chat timeline: the most recent on top",
+    "HIDE_OLDER_POINTS": "Hide the earlier points ({{count}})",
+    "BRANCH": "Branch it was done on",
     "BUTTON": "Chat history",
     "TITLE": "Chat history",
     "REFRESH": "Refresh",

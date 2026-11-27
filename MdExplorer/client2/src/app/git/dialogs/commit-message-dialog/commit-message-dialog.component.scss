@@ -59,3 +59,10 @@ mat-dialog-actions {
   font-size: 16px;
   vertical-align: middle;
 }
+
+// Da dove viene la descrizione generata (punti delle chat del ramo, o sole modifiche).
+.ai-source-message {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mde-text-secondary);
+}

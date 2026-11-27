@@ -23,6 +23,9 @@ export class CommitMessageDialogComponent {
   readonly maxTitleLength = 72;
   isGeneratingMessage = false;
   aiError: string | null = null;
+  /** Da dove viene la descrizione generata: i punti delle chat del ramo dopo l'ultimo commit, o le sole modifiche. */
+  aiSource: string | null = null;
+  aiSourcePoints = 0;
 
   constructor(
     public dialogRef: MatDialogRef<CommitMessageDialogComponent>,
@@ -73,8 +76,9 @@ export class CommitMessageDialogComponent {
 
     this.isGeneratingMessage = true;
     this.aiError = null;
+    this.aiSource = null;
     try {
-      const built = await firstValueFrom(this.http.post<{ prompt?: string; noChanges?: boolean; message?: string }>(
+      const built = await firstValueFrom(this.http.post<{ prompt?: string; noChanges?: boolean; message?: string; chatPoints?: number }>(
         '/api/GitAi/commit-prompt', {
           projectPath: this.data.projectPath,
           language: this.translate.currentLang || this.translate.defaultLang || 'en'
@@ -87,6 +91,10 @@ export class CommitMessageDialogComponent {
       const cleaned = await firstValueFrom(this.http.post<{ message: string }>(
         '/api/GitAi/clean-commit-message', { raw }));
       this.setMessage(cleaned.message);
+      this.aiSourcePoints = built.chatPoints ?? 0;
+      this.aiSource = this.aiSourcePoints > 0
+        ? this.translate.instant('GIT_COMMIT.FROM_CHAT_POINTS', { count: this.aiSourcePoints })
+        : this.translate.instant('GIT_COMMIT.FROM_CHANGES_ONLY');
     } catch (err: any) {
       console.error('Error generating commit message:', err);
       this.aiError = err?.error?.error || err?.message || this.translate.instant('GIT_COMMIT.GENERATION_ERROR');

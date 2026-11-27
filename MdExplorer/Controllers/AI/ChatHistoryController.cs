@@ -44,11 +44,19 @@ namespace MdExplorer.Controllers.AI
                 .Where(t => t.ProjectPath == projectPath)
                 .OrderByDescending(t => t.LastActivityAt)
                 .ToList();
+            // I punti con ora e ramo (chat da questa versione in poi), dal più vecchio; lo SHA resta sul server.
+            var points = _userSettingsDB.GetDal<ChatThreadPoint>().GetList()
+                .Where(p => p.ProjectPath == projectPath)
+                .ToList()
+                .OrderBy(p => p.At).ThenBy(p => p.Id)
+                .GroupBy(p => p.ThreadId)
+                .ToDictionary(g => g.Key, g => g.Select(p => new { point = p.Point, at = p.At, branch = p.Branch }).ToList());
             return Ok(rows.Select(t => new
             {
                 id = t.Id,
                 title = t.Title,
                 detail = t.Detail,
+                points = points.TryGetValue(t.Id, out var mine) ? mine : null,
                 engine = t.Engine,
                 modelId = t.ModelId,
                 startedAt = t.StartedAt,
@@ -112,6 +120,8 @@ namespace MdExplorer.Controllers.AI
             var fileDeleted = _files.Delete(row.FilePath);
             _userSettingsDB.BeginTransaction();
             _userSettingsDB.GetDal<ChatThread>().Delete(row);
+            var pointDal = _userSettingsDB.GetDal<ChatThreadPoint>();
+            foreach (var point in pointDal.GetList().Where(p => p.ThreadId == id).ToList()) pointDal.Delete(point);
             _userSettingsDB.Commit();
             _logger.LogInformation("[ChatHistory] chat {ThreadId} eliminata (file {State})", id, fileDeleted ? "cancellato" : "già assente");
             return Ok(new { deleted = true, fileDeleted });

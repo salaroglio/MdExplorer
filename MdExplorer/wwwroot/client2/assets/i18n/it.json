@@ -661,6 +661,8 @@
     "AGENT_WORKTREE_SLOTS_DESC": "Quanti agenti possono lavorare insieme: ogni posto è una copia del progetto sul disco, ed è anche il tetto degli agenti in esecuzione contemporanea. Predefinito {{def}}, massimo {{max}}."
   },
   "GIT_COMMIT": {
+    "FROM_CHAT_POINTS": "Scritta dai {{count}} punti delle chat su questo ramo dopo l'ultimo commit.",
+    "FROM_CHANGES_ONLY": "Nessuna chat su questo ramo dopo l'ultimo commit: scritta dalle sole modifiche.",
     "TITLE": "Messaggio di Commit",
     "LABEL": "Inserisci messaggio di commit",
     "PLACEHOLDER": "Descrivi le tue modifiche...",
@@ -3196,6 +3198,9 @@
     "STATE_CHECKING": "controllo…"
   },
   "CHAT_HISTORY": {
+    "TIMELINE": "Linea del tempo della chat: il più recente in alto",
+    "HIDE_OLDER_POINTS": "Nascondi i punti precedenti ({{count}})",
+    "BRANCH": "Ramo su cui è stato fatto",
     "BUTTON": "Cronologia delle chat",
     "TITLE": "Cronologia delle chat",
     "REFRESH": "Aggiorna",
