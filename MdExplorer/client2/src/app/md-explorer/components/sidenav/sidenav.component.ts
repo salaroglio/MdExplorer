@@ -1,5 +1,6 @@
 
 import { ChangeDetectorRef, Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { RootReviewService } from '../../services/root-review.service';
 import { Router, NavigationEnd }                            from '@angular/router';
 import { BreakpointObserver, BreakpointState }   from '@angular/cdk/layout';
 import { HttpClient } from '@angular/common/http';
@@ -77,7 +78,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   private readonly MAX_WIDTH = 800;
   private debounceTimer: any;
 
-  constructor(
+  constructor(private rootReview: RootReviewService, 
     private breakpointObserver: BreakpointObserver,
     private mdFileService: MdFileService,
     private router: Router,
@@ -207,7 +208,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
   }
 
-  openProject(): void {
+  async openProject(): Promise<void> {
+    // Cambiare progetto spezza il contesto: prima i file delle radici non rivisti (Modifiche-Da-Approvare, D11).
+    if (!(await this.rootReview.guard('project'))) return;
     // Close current project resources on backend BEFORE navigating
     this.projectService.closeCurrentProject().subscribe({
       next: () => console.log('Project closed successfully'),

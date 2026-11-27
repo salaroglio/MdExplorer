@@ -1,0 +1,64 @@
+<div class="rr">
+  <div class="rr-header">
+    <mat-icon>rate_review</mat-icon>
+    <span class="rr-title">{{ 'ROOT_REVIEW.TITLE' | translate }}</span>
+    <span class="rr-sub" *ngIf="files.length">{{ 'ROOT_REVIEW.FILES_COUNT' | translate:{ count: files.length } }}</span>
+    <span class="flexExpand"></span>
+    <button mat-button (click)="all(true)" [disabled]="busy || !files.length">
+      <mat-icon>done_all</mat-icon> {{ 'ROOT_REVIEW.KEEP_ALL' | translate }}
+    </button>
+    <button mat-button color="warn" (click)="all(false)" [disabled]="busy || !files.length">
+      <mat-icon>undo</mat-icon> {{ 'ROOT_REVIEW.UNDO_ALL' | translate }}
+    </button>
+    <button mat-icon-button (click)="review.refresh()" [matTooltip]="'ROOT_REVIEW.REFRESH' | translate"><mat-icon>refresh</mat-icon></button>
+    <button mat-icon-button (click)="review.close()" [matTooltip]="'ROOT_REVIEW.CLOSE' | translate"><mat-icon>close</mat-icon></button>
+  </div>
+
+  <div class="rr-problems" *ngIf="problems.length">
+    <mat-icon inline>error_outline</mat-icon> {{ 'ROOT_REVIEW.PROBLEMS' | translate }}
+    <ul><li *ngFor="let p of problems">{{ p }}</li></ul>
+  </div>
+
+  <div class="rr-empty" *ngIf="!files.length">
+    <mat-icon>task_alt</mat-icon>
+    <p>{{ 'ROOT_REVIEW.EMPTY' | translate }}</p>
+  </div>
+
+  <div class="rr-body" *ngIf="files.length">
+    <ul class="rr-files">
+      <li *ngFor="let f of files; trackBy: trackFile" [class.rr-selected]="f.logicalPath === selected?.logicalPath" (click)="select(f)">
+        <span class="rr-status" [ngClass]="'rr-' + f.status">{{ statusLabel(f) }}</span>
+        <span class="rr-path">{{ f.logicalPath }}</span>
+        <span class="rr-counts"><span class="rr-plus">+{{ f.added }}</span> <span class="rr-minus">−{{ f.removed }}</span></span>
+        <mat-icon *ngIf="f.changedOutside" class="rr-outside" inline [matTooltip]="'ROOT_REVIEW.CHANGED_OUTSIDE' | translate">warning</mat-icon>
+      </li>
+    </ul>
+
+    <div class="rr-detail" *ngIf="selected">
+      <div class="rr-file-head">
+        <code class="rr-file-path">{{ selected.logicalPath }}</code>
+        <span class="rr-enc" *ngIf="detail?.encoding">{{ detail.encoding }}</span>
+        <span class="flexExpand"></span>
+        <button mat-stroked-button (click)="keepFile()" [disabled]="busy">{{ 'ROOT_REVIEW.KEEP_FILE' | translate }}</button>
+        <button mat-stroked-button color="warn" (click)="undoFile()" [disabled]="busy">{{ (selected.status === 'created' ? 'ROOT_REVIEW.UNDO_CREATED' : selected.status === 'deleted' ? 'ROOT_REVIEW.UNDO_DELETED' : 'ROOT_REVIEW.UNDO_FILE') | translate }}</button>
+      </div>
+      <div class="rr-warning" *ngIf="selected.changedOutside">
+        <mat-icon inline>warning</mat-icon> {{ 'ROOT_REVIEW.CHANGED_OUTSIDE_LONG' | translate }}
+      </div>
+      <div class="rr-error" *ngIf="error"><mat-icon inline>error_outline</mat-icon> {{ error }}</div>
+      <div class="rr-loading" *ngIf="!detail && !error"><mat-spinner diameter="24"></mat-spinner></div>
+
+      <div class="rr-hunk" *ngFor="let h of detail?.hunks; let i = index">
+        <div class="rr-hunk-head">
+          <span>{{ 'ROOT_REVIEW.HUNK' | translate:{ n: i + 1, total: detail.hunks.length } }}</span>
+          <span class="flexExpand"></span>
+          <ng-container *ngIf="!wholeFileOnly">
+            <button mat-button (click)="keepHunk(h)" [disabled]="busy"><mat-icon>check</mat-icon> {{ 'ROOT_REVIEW.KEEP' | translate }}</button>
+            <button mat-button color="warn" (click)="undoHunk(h)" [disabled]="busy"><mat-icon>undo</mat-icon> {{ 'ROOT_REVIEW.UNDO' | translate }}</button>
+          </ng-container>
+        </div>
+        <pre class="rr-lines"><div *ngFor="let r of rows[i]" class="rr-line" [ngClass]="'rr-' + r.kind"><span class="rr-num">{{ r.line }}</span><span class="rr-sign">{{ r.kind === 'del' ? '−' : r.kind === 'add' ? '+' : ' ' }}</span><span class="rr-text">{{ r.text }}</span></div></pre>
+      </div>
+    </div>
+  </div>
+</div>

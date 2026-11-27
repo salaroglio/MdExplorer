@@ -19172,6 +19172,9 @@ class AiChatService {
      * where the tab is and whether it exists (it needs a git repository). Returns false when it cannot.
      */
     this.showTabHandler = null;
+    /** Un turno della chat del tab è finito: l'id del messaggio della risposta (null se non c'era). */
+    this._turnCompleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
+    this.turnCompleted$ = this._turnCompleted$.asObservable();
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
@@ -19300,7 +19303,9 @@ class AiChatService {
         channelId: ch
       });
       if (ch === 'default') {
+        const finished = this.currentStreamingMessageId;
         this.finalizeStreamingMessage();
+        this._turnCompleted$.next(finished);
         this._isStreaming$.next(false);
         // Il turno è finito: l'ultima attività sui tool non è più "sta facendo", è passato.
         this._toolActivity$.next(null);
@@ -19663,6 +19668,18 @@ class AiChatService {
       type,
       data
     })));
+  }
+  /** Aggancia alla risposta il riquadro dei file cambiati sulle radici, da rivedere. */
+  attachRootChanges(messageId, files) {
+    const messages = this._messages$.value;
+    const index = messageId ? messages.findIndex(m => m.id === messageId) : -1;
+    const target = index >= 0 ? index : messages.map(m => m.role).lastIndexOf('assistant');
+    if (target < 0) return;
+    messages[target] = {
+      ...messages[target],
+      rootChanges: files
+    };
+    this._messages$.next([...messages]);
   }
   addMessage(role, content, id, isStreaming) {
     const messages = this._messages$.value;
@@ -23953,8 +23970,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.27.4',
-  buildTime: '2026.11.27 09:43:21'
+  version: '2026.11.27.8',
+  buildTime: '2026.11.27 11:47:50'
 };
 
 /***/ }),
@@ -23988,4 +24005,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.e88ccf2e95d9a174.js.map
+//# sourceMappingURL=main.84057fbfa30f06f7.js.map

@@ -46,6 +46,11 @@
             [matTooltip]="(chatThreadId ? 'SKILL_LEARNING.BUTTON' : 'SKILL_LEARNING.BUTTON_NO_CHAT') | translate">
       <mat-icon>school</mat-icon>
     </button>
+    <!-- I file delle radici cambiati da MarkAgent e non ancora rivisti: sempre visibili (Modifiche-Da-Approvare, D9). -->
+    <button mat-icon-button *ngIf="(rootReview.pending$ | async)?.length as pending" class="root-review-button"
+            (click)="rootReview.openPanel()" [matTooltip]="'ROOT_REVIEW.COUNTER' | translate:{ count: pending }">
+      <mat-icon>rate_review</mat-icon><span class="root-review-count">{{ pending }}</span>
+    </button>
     <!-- La cronologia delle chat: la lista si apre nel riquadro grande, dove sta il documento. -->
     <button mat-icon-button (click)="toggleChatHistory()" [class.active]="chatHistory.open$ | async"
             [matTooltip]="'CHAT_HISTORY.BUTTON' | translate">
@@ -232,6 +237,20 @@
              *ngIf="editingMessageId !== message.id"
              (click)="onMessageLinkClick($event)"
                [innerHTML]="formatMessageContent(message.content)"></div>
+
+        <!-- I file delle radici che MarkAgent ha cambiato in questo turno: si rivedono da qui (D9). -->
+        <div class="root-changes-card" *ngIf="message.rootChanges?.length">
+          <div class="rcc-title"><mat-icon inline>rate_review</mat-icon> {{ 'ROOT_REVIEW.CARD_TITLE' | translate:{ count: message.rootChanges.length } }}</div>
+          <ul class="rcc-files">
+            <li *ngFor="let f of message.rootChanges">
+              <code>{{ f.logicalPath }}</code>
+              <span class="rcc-counts">{{ ('ROOT_REVIEW.STATUS_' + f.status.toUpperCase()) | translate }} · +{{ f.added }} −{{ f.removed }}</span>
+            </li>
+          </ul>
+          <button mat-stroked-button color="primary" (click)="rootReview.openPanel(message.rootChanges[0].logicalPath)">
+            <mat-icon>rate_review</mat-icon> {{ 'ROOT_REVIEW.REVIEW' | translate }}
+          </button>
+        </div>
 
         <!-- Edit mode -->
         <div class="message-edit" *ngIf="editingMessageId === message.id">

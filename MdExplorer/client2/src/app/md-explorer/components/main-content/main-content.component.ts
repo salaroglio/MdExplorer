@@ -18,6 +18,7 @@ import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
 import { ChatHistoryService } from '../../../services/chat-history.service';
+import { RootReviewService } from '../../services/root-review.service';
 import { AgentTakeOverGuideService } from '../../services/agent-take-over-guide.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { AgentWorkspaceService } from '../../services/agent-workspace.service';
@@ -57,6 +58,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   diffRequest: DiffRequest | null = null;
   /** La cronologia delle chat è aperta qui, al posto del documento (sprint 2026-11-24-Chat-Memorizzate, F6). */
   chatHistoryOpen = false;
+  /** La revisione dei file delle radici cambiati da MarkAgent (Modifiche-Da-Approvare, D9). */
+  rootReviewOpen = false;
 
   /** L'agente di cui si sta guardando il lavoro (null = il proprio). */
   reviewAgent: string | null = null;
@@ -199,6 +202,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private themeService: ThemeService,
     private diffViewer: DiffViewerService,
     private chatHistory: ChatHistoryService,
+    private rootReview: RootReviewService,
     private workingChanges: WorkingChangesService,
     private navService: MdNavigationService,
     private reviewContext: ReviewContextService,
@@ -249,6 +253,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // proprio mentre si confrontava.
     this.chatHistory.open$.pipe(takeUntil(this.destroy$)).subscribe(open => {
       this.chatHistoryOpen = open;
+      this.ref.detectChanges();
+    });
+    this.rootReview.open$.pipe(takeUntil(this.destroy$)).subscribe(open => {
+      this.rootReviewOpen = open;
       this.ref.detectChanges();
     });
 
