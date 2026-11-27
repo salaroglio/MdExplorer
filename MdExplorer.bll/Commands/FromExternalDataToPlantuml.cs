@@ -215,7 +215,11 @@ namespace MdExplorer.Features.Commands
                 produced => File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))),
                 agent => MdExplorer.Features.Agents.AgentOwnerRule.RoleOf(ownership, agent),
                 folder == "." ? "" : folder);
-            var trimmedDirectives = extraDirectives.Trim('\r', '\n', ' ', '\t');
+            // Il workflow si disegna dall'alto in basso: una direzione scritta nel blocco si toglie, e il log lo dice.
+            var trimmedDirectives = WorkflowPlantuml.WithoutDirection(extraDirectives, out var removed).Trim('\r', '\n', ' ', '\t');
+            if (removed.Count > 0)
+                _logger.LogInformation("[FromExternalDataToPlantuml] @workflow {Path}: tolto dal blocco «{Lines}», il workflow si disegna dall'alto in basso",
+                    absolutePath, string.Join("», «", removed));
             if (trimmedDirectives.Length > 0)
                 diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");
             if (ClosesTheFence(diagram))

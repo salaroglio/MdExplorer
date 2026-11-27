@@ -3,7 +3,7 @@ name: mde-workflow
 description: Plan and change an agents' workflow for MdExplorer's agent city - the `*.workflow.json` that MdExplorer executes as a scheduler (which steps there are, which agent job or which person does each one, what starts it, what it receives, who approves it, which steps repeat), together with the interfaces of the agent cards it connects (inputs, reads, outputs, buttons) and the markdown document that draws it. Use when the user asks to design, describe, review, change or fix how the people and the agents of a project work together, or to add, remove or rewire an input or an output of an agent.
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -309,6 +309,9 @@ One or two sentences on how to read it.
 
 - **Never draw the workflow by hand.** The block `plantuml(@workflow, …)` draws it from the workflow, the cards and
   `responsabilita.md` every time. A workflow with errors is not drawn: the errors are shown instead.
+- **Leave the block empty**, or put only a `title` or a style in it. Never a direction (`left to right direction`): the
+  workflow is always drawn from top to bottom, in the order things happen — sideways a large workflow becomes thousands
+  of pixels wide and cannot be read. MdExplorer drops a direction written in the block.
 - What the diagram shows: the **roles** as people, with what they do on each step («launches», «starts», «approves»); each
   step with its agent (blue = launched by a person, amber = started by its owner, grey = starts by itself; white with a
   person icon = a person's step); in **green** the documents a job reads, in **lilac** the ones a step delivers, with

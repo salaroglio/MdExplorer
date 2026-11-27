@@ -20,6 +20,25 @@ namespace MdExplorer.Features.Agents.Workflow
         /// <summary>Prefisso dei link interni: il visualizzatore li apre in MdExplorer (percorso dalla radice del progetto).</summary>
         public const string LinkScheme = "mde:";
 
+        private static readonly System.Text.RegularExpressions.Regex DirectionLine = new(
+            @"^\s*(left\s+to\s+right|top\s+to\s+bottom)\s+direction\s*$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        /// <summary>
+        /// Il contenuto del blocco <c>plantuml(@workflow, …)</c> senza le righe di direzione: il diagramma di un workflow si legge
+        /// SEMPRE dall'alto in basso (27/11/2026: un workflow grande disegnato con «left to right direction» nel blocco era
+        /// largo 4.000 pixel, «inguardabile e non analizzabile»). Titolo e stile restano. <paramref name="removed"/> = le righe
+        /// tolte, da dire nel log.
+        /// </summary>
+        public static string WithoutDirection(string directives, out IReadOnlyList<string> removed)
+        {
+            var found = new List<string>();
+            var text = DirectionLine.Replace(directives ?? string.Empty, m => { found.Add(m.Value.Trim()); return string.Empty; });
+            removed = found;
+            // le righe tolte non lasciano righe vuote in mezzo
+            return string.Join("\n", text.Replace("\r\n", "\n").Split('\n').Where(l => l.Trim().Length > 0));
+        }
+
         // La palette della skill mde-plantuml: la tinta sopravvive al tema scuro, il significato sta nel colore.
         private const string Neutral = "#F1F3F4", NeutralLine = "#5F6368";
         private const string Attention = "#FEF7E0", AttentionLine = "#F29900";
@@ -48,6 +67,8 @@ namespace MdExplorer.Features.Agents.Workflow
             var anyMissing = false;
             var sb = new StringBuilder();
             sb.AppendLine("@startuml");
+            // Dall'alto in basso, sempre: il flusso si legge nell'ordine in cui le cose succedono (vedi WithoutDirection).
+            sb.AppendLine("top to bottom direction");
             sb.AppendLine("!theme plain");
             sb.AppendLine($"skinparam ArrowColor {NeutralLine}");
             sb.AppendLine($"skinparam ArrowFontColor {NeutralLine}");

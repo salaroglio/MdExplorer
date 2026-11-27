@@ -278,6 +278,31 @@ namespace MdExplorer.Features.Tests.Commands
         }
 
         [TestMethod]
+        public void DrawTheWorkflowFromTopToBottomEvenWhenTheBlockAsksOtherwise()
+        {
+            // 27/11/2026: un workflow grande con «left to right direction» nel blocco era largo 4.000 pixel e illeggibile.
+            Italian();
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
+            WriteSmallCards();
+
+            var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\ntitle Il giro\nLeft To Right Direction\n```");
+
+            AssertContains(transformed, "```plantuml\n@startuml\ntitle Il giro\ntop to bottom direction\n");
+            Assert.IsFalse(transformed.ToLowerInvariant().Contains("left to right"), "la direzione scritta nel blocco non passa");
+        }
+
+        [TestMethod]
+        public void RemoveOnlyTheDirectionLinesFromTheBlock()
+        {
+            var kept = MdExplorer.Features.Agents.Workflow.WorkflowPlantuml.WithoutDirection(
+                "title Il giro\r\n  left to right direction  \nskinparam ArrowColor red\ntop  to  bottom direction\n", out var removed);
+            Assert.AreEqual("title Il giro\nskinparam ArrowColor red", kept);
+            CollectionAssert.AreEqual(new[] { "left to right direction", "top  to  bottom direction" }, removed.ToList());
+            Assert.AreEqual("", MdExplorer.Features.Agents.Workflow.WorkflowPlantuml.WithoutDirection(null, out var none));
+            Assert.AreEqual(0, none.Count);
+        }
+
+        [TestMethod]
         public void DrawTheAgentsWorkflowWithLinksToCardsAndArtifacts()
         {
             Italian();
