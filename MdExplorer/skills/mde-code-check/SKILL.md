@@ -3,7 +3,7 @@ name: mde-code-check
 description: Check whether the relations of MdExplorer's code graph are TRUE against the source, and correct what produced a wrong one. Use when the user asks a precise question whose answer rests on a link of the graph («is it true that X calls Y?», «does this button really reach this procedure?», «who really handles this event?»), doubts an answer taken from the graph, asks to validate an enrichment rule, a language package or a kind of relation (events, dependency injection, calls to the database, project references), or wants to know how far the graph of a new language or of a new MdExplorer feature can be trusted. Triggers on "è giusta questa relazione", "verifica la relazione", "verifica il grafo", "controlla la regola", "valida le regole", "la regola è sbagliata", "il collegamento è sbagliato", "manca un collegamento", "posso fidarmi del grafo", "quanto è affidabile il grafo", "check the rule", "validate the rules", "validate the graph", "missing edge", "can I trust the graph".
 mde:
   origin: mdexplorer
-  version: 7
+  version: 8
   updatePolicy: replace
 ---
 
@@ -45,7 +45,7 @@ Two things can be wrong, and you look for both:
    or all of them when fewer, **spread over different files and folders** — never the first ten of one file. Take half
    from the graph (to find false links) and half from the source (to find missing ones: search the construct in the
    files with your search tools, then look for its edge in the graph).
-3. **The source.** Open every point at `absolutePath` and `line` (`remote_read` for a remote root) and read enough
+3. **The source.** Open every point at `absolutePath` and `line` (`remote_read` for a remote root; this check only reads: change nothing) and read enough
    around it to decide. Verdict for each: **right**, **wrong** (say what the source does instead), or **cannot be told
    from the code** (the target is chosen at run time: a variable, configuration, data).
 4. **Who made the link** decides what you can do (table below).

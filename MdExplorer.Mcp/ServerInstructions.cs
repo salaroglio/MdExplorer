@@ -11,15 +11,17 @@ public static class ServerInstructions
     // le mostra come presentazione del server nell'elenco degli strumenti differiti, tagliate a ~155 caratteri. Claude
     // Code le mette intere nel prompt di sistema.
     public const string CodeRootEncodings =
-        "Code root files may not be UTF-8 (e.g. CP-850): check the encoding with code_roots before an edit, keep it, " +
-        "never convert to UTF-8. " +
-        "Details: a MdExplorer project can link external code roots (@alias/...), often CP-850 or CP-1252 legacy code, and a root can assign an encoding per extension " +
-        "(e.g. .cbl, .cpy -> ibm850): code_roots lists each root's `encodings`, and remote_read states the encoding of a " +
-        "file that is not UTF-8. When the remote_* tools are available, edit through them: they keep the file's encoding. " +
-        "The files of a REMOTE root (ssh://host/path) are written ONLY with remote_edit/remote_write, never with ssh, scp, " +
-        "sftp or rsync from the shell: those skip the encoding and the MDE chat refuses them. " +
-        "With your own tools (Edit, Write, sed, perl...), write the new text in the file's own encoding. Never insert " +
-        "UTF-8 text into a non-UTF-8 file: it breaks the file for its compiler. If unsure, ask the user.";
+        "Change code root files (@alias/...) ONLY with remote_edit/remote_write: they keep the encoding (e.g. CP-850) and " +
+        "the user reviews each change. " +
+        "Details: a MdExplorer project can link external code roots (@alias/...), local folders or folders on an SSH server, " +
+        "often CP-850 or CP-1252 legacy code, and a root can assign an encoding per extension (e.g. .cbl, .cpy -> ibm850): " +
+        "code_roots lists each root's `encodings`, and remote_read states the encoding of a file that is not UTF-8. On EVERY " +
+        "code root, local or remote, files are created, changed, moved and deleted only with the remote_* tools: MDE keeps the " +
+        "original of each file, so the user reviews your change piece by piece and can undo it. Your own Edit/Write are refused " +
+        "there; never write them from the shell either (sed -i, perl -i, echo >, ssh, scp, sftp, rsync): that skips the review " +
+        "and the encoding. Reading with your own tools is fine for local roots. Never convert a file to UTF-8 and never insert " +
+        "UTF-8 text into a non-UTF-8 file: it breaks the file for its compiler. After a change, tell the user which files are " +
+        "waiting for review. If unsure, ask the user.";
 
     /// <summary>
     /// Solo con il gruppo <c>code</c>, DOPO le codifiche (la cui prima frase deve restare la prima, vedi sopra): il grafo
@@ -35,7 +37,10 @@ public static class ServerInstructions
         "this machine; the mde-code skill has the details. It is a tool to read, not something to complete: if the " +
         "graph has nothing for that code, say so before searching the files.";
 
-    /// <summary>Le istruzioni per i gruppi accesi, o null se nessuno ne ha.</summary>
+    /// <summary>
+    /// Le istruzioni per i gruppi accesi, o null se nessuno ne ha. La prima frase (le radici si cambiano solo coi remote_*) deve
+    /// bastare da sola: Copilot ne mostra ~155 caratteri (27/11/2026, sprint Modifiche-Da-Approvare-Sulle-Radici).
+    /// </summary>
     public static string? For(bool code, bool remote)
         => code ? CodeRootEncodings + " " + CodeGraphFirst
          : remote ? CodeRootEncodings

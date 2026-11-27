@@ -75,8 +75,9 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> Link([FromBody] LinkRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var state = await _roots.LinkAsync(request.ProjectPath, request.Alias, request.LocalPath, ct);
-            // una radice remota porta gli strumenti remote_* a MarkAgent subito (F4): come «Estrai la struttura» per code_*
-            if (state.IsRemote) TurnOnRemoteTools(request.ProjectPath);
+            // una radice porta gli strumenti remote_* a MarkAgent subito (F4): come «Estrai la struttura» per code_*. Dal
+            // 27/11/2026 anche una locale: le sue modifiche passano dai remote_* per la revisione (Modifiche-Da-Approvare, D5).
+            TurnOnRemoteTools(request.ProjectPath);
             return Ok(View(state));
         }, request?.ProjectPath);
 

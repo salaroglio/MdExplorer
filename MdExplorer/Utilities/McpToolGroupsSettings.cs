@@ -298,9 +298,10 @@ namespace MdExplorer.Utilities
                 groups.Add("code");
             }
 
-            // Le radici remote (sprint 2026-10-21-Cartella-Remota-Via-SSH, F4): la posizione ssh:// sta nello UserDB di
-            // QUESTA macchina, non nel .development.yml — un collega con il codice in locale non riceve i remote_*.
-            if (inputs.BindingLocalPaths.Any(p => p.StartsWith(MdExplorer.Features.Services.RemoteFolders.RemoteLocation.Scheme, StringComparison.Ordinal)))
+            // I file delle radici (sprint 2026-10-21-Cartella-Remota-Via-SSH, F4; dal 27/11/2026 anche le locali): su ogni
+            // radice MarkAgent scrive solo con i remote_*, che tengono l'originale per la revisione (sprint
+            // 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D5). La posizione sta nello UserDB di QUESTA macchina.
+            if (inputs.BindingLocalPaths.Count > 0)
             {
                 groups.Add("remote");
             }

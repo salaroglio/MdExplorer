@@ -6,22 +6,23 @@ using ModelContextProtocol.Server;
 namespace MdExplorer.Mcp;
 
 /// <summary>
-/// Gruppo <c>remote</c>: i file delle radici di codice REMOTE, cartelle su un server raggiunto via SSH (sprint
-/// 2026-10-21-Cartella-Remota-Via-SSH, F4). I CLI vedono solo il disco locale: per una radice remota leggono, cercano e
-/// scrivono con questi tool, che passano dal backend e da MDE Remote sul server (dentro la radice, niente link, impronta
-/// per scrivere). Acceso di default nei progetti con una radice remota collegata su questa macchina.
+/// Gruppo <c>remote</c>: i file delle radici di codice, locali e REMOTE (cartelle su un server raggiunto via SSH, sprint
+/// 2026-10-21-Cartella-Remota-Via-SSH, F4). Per una radice remota i CLI non vedono il disco del server; per TUTTE le radici
+/// le scritture passano da qui (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici): il backend tiene l'originale di
+/// ogni file cambiato, così l'utente rivede e annulla pezzo per pezzo (<c>review: true</c>). I nomi restano <c>remote_*</c>:
+/// li nominano i pacchetti di linguaggio. Acceso di default nei progetti con una radice collegata su questa macchina.
 /// </summary>
 [McpServerToolType]
 public sealed class RemoteTools : McpToolsBase
 {
     public RemoteTools(IHttpClientFactory httpClientFactory) : base(httpClientFactory) { }
 
-    private const string PathHelp = "Logical path of a REMOTE code root: '@alias' or '@alias/dir/file' (see code_roots: roots with a `remote` location).";
+    private const string PathHelp = "Logical path of a code root (local folder or remote SSH): '@alias' or '@alias/dir/file' (see code_roots).";
 
     [McpServerTool, Description(
-        "List a folder of a REMOTE code root (a folder on an SSH server, not on this disk): subfolders first, then files, " +
-        "each with its logical path '@alias/…' and whether it is text. Use the remote_* tools for every file of a root whose " +
-        "code_roots entry has `remote` set: your own file tools cannot reach it.")]
+        "List a folder of a code root (a local folder or one on an SSH server): subfolders first, then files, each with its " +
+        "logical path '@alias/…' and whether it is text. Use the remote_* tools to CHANGE every file of any code root (your own " +
+        "Edit/Write are refused there) and to read the files of a root whose code_roots entry has `remote` set.")]
     public async Task<string> remote_list(
         [Description("Project name (see GetProjects).")] string project,
         [Description(PathHelp)] string path)
@@ -41,7 +42,7 @@ public sealed class RemoteTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Read a text file of a REMOTE code root. Returns its text with line numbers ('  12| …') for reference — the numbers are NOT " +
+        "Read a text file of a code root (local or remote). Returns its text with line numbers ('  12| …') for reference — the numbers are NOT " +
         "part of the file — and its real encoding when it is not UTF-8 (e.g. CP-850), with a warning when it does not match the " +
         "root's rule for that extension. Binary files are refused.")]
     public async Task<string> remote_read(
@@ -72,8 +73,8 @@ public sealed class RemoteTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Search a .NET regular expression in the text files under a folder (or in one file) of a REMOTE code root. The search " +
-        "runs ON THE SERVER and returns only the matching lines (path '@alias/…', line number, text); `.git` is skipped. " +
+        "Search a .NET regular expression in the text files under a folder (or in one file) of a code root. For a remote root the " +
+        "search runs ON THE SERVER. It returns only the matching lines (path '@alias/…', line number, text); `.git` is skipped. " +
         "Prefer it to reading many files.")]
     public async Task<string> remote_grep(
         [Description("Project name.")] string project,
@@ -94,9 +95,12 @@ public sealed class RemoteTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Edit a text file of a REMOTE code root by replacing `old_text` with `new_text`. `old_text` must appear exactly once (add " +
-        "surrounding lines to make it unique), unless `replace_all` is true. Read the file with remote_read first; copy `old_text` " +
-        "WITHOUT the line-number prefix. The write is refused if the file changed on the server in the meantime: read it again.")]
+        "Edit a text file of a code root (local or remote) by replacing `old_text` with `new_text`: on code roots this is the way " +
+        "to change a file, your own Edit/Write are refused. `old_text` must appear exactly once (add surrounding lines to make it " +
+        "unique), unless `replace_all` is true. Read the file with remote_read first; copy `old_text` WITHOUT the line-number " +
+        "prefix. The write is refused if the file changed in the meantime: read it again. " +
+        "Your change is written to the file at once, and MDE keeps the original: the user reviews it piece by piece and can keep or undo each " +
+        "piece. Tell the user which files you changed and that they are waiting for review.")]
     public async Task<string> remote_edit(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path,
@@ -115,12 +119,13 @@ public sealed class RemoteTools : McpToolsBase
         if (count > 1 && replace_all != true) return $"Error: old_text appears {count} times in {path}: add surrounding lines to make it unique, or set replace_all.";
         var updated = replace_all == true ? text.Replace(old_text, new_text, StringComparison.Ordinal) : ReplaceFirst(text, old_text, new_text);
         var (written, result) = await FileOpAsync("remote_edit", project, new { op = "write", path, text = updated, stamp });
-        return written ? $"Edited {path}: {(replace_all == true ? count : 1)} replacement(s)." : result;
+        return written ? $"Edited {path}: {(replace_all == true ? count : 1)} replacement(s), waiting for the user's review." : result;
     }
 
     [McpServerTool, Description(
-        "Write a whole text file of a REMOTE code root: creates it (with missing folders) if it does not exist, otherwise replaces " +
-        "its content. The write goes through MDE Remote on the server and keeps the encoding: an existing file stays in its own " +
+        "Write a whole text file of a code root (local or remote): creates it (with missing folders) if it does not exist, otherwise " +
+        "replaces its content. " + "Your change is written to the file at once, and MDE keeps the original: the user reviews it piece by piece and can keep or undo each " +
+        "piece. Tell the user which files you changed and that they are waiting for review." + " The write keeps the encoding: an existing file stays in its own " +
         "encoding (and BOM), a new file gets the encoding the root assigns to its extension (e.g. CP-850 for .cbl), UTF-8 if none; " +
         "a character the encoding cannot hold is refused. For small changes to an existing file prefer remote_edit.")]
     public async Task<string> remote_write(
@@ -133,14 +138,14 @@ public sealed class RemoteTools : McpToolsBase
         {
             if (!IsCode(read, "not_found")) return read;
             var (created, result) = await FileOpAsync("remote_write", project, new { op = "create", path, text });
-            return created ? $"Created {path}." : result;
+            return created ? $"Created {path} (waiting for the user's review)." : result;
         }
         var stamp = JsonDocument.Parse(read).RootElement.GetProperty("stamp").GetString();
         var (written, writeResult) = await FileOpAsync("remote_write", project, new { op = "write", path, text, stamp });
-        return written ? $"Wrote {path}." : writeResult;
+        return written ? $"Wrote {path} (waiting for the user's review)." : writeResult;
     }
 
-    [McpServerTool, Description("Create a folder (and missing parents) in a REMOTE code root.")]
+    [McpServerTool, Description("Create a folder (and missing parents) in a code root (local or remote).")]
     public async Task<string> remote_mkdir(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path)
@@ -150,25 +155,25 @@ public sealed class RemoteTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Delete a file or a folder of a REMOTE code root. A non-empty folder needs `recursive` true. It cannot be undone: " +
-        "delete only what the user asked for.")]
+        "Delete a FILE of a code root (local or remote); delete only what the user asked for. A folder is refused: delete its " +
+        "files one by one, so that the user can review and undo each deletion (MDE keeps the original of every deleted file).")]
     public async Task<string> remote_delete(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path,
-        [Description("Delete a non-empty folder with everything in it (default false).")] bool? recursive = null)
+        [Description("Not used on code roots: folders are refused.")] bool? recursive = null)
     {
         var (ok, result) = await FileOpAsync("remote_delete", project, new { op = "delete", path, recursive = recursive ?? false });
-        return ok ? $"Deleted {path}." : result;
+        return ok ? $"Deleted {path} (waiting for the user's review)." : result;
     }
 
-    [McpServerTool, Description("Rename or move a file or folder inside the same REMOTE code root; the destination must not exist.")]
+    [McpServerTool, Description("Rename or move a FILE inside the same code root (local or remote); the destination must not exist. A folder is refused: move its files one by one, so the user can review and undo each move.")]
     public async Task<string> remote_move(
         [Description("Project name.")] string project,
         [Description(PathHelp)] string path,
         [Description("Destination logical path in the same root, e.g. '@alias/new/name.cs'.")] string to)
     {
         var (ok, result) = await FileOpAsync("remote_move", project, new { op = "move", path, to });
-        return ok ? $"Moved {path} to {to}." : result;
+        return ok ? $"Moved {path} to {to} (waiting for the user's review)." : result;
     }
 
     // ---- infrastruttura ----
@@ -189,6 +194,8 @@ public sealed class RemoteTools : McpToolsBase
         var payload = JsonSerializer.SerializeToElement(request);
         var fields = payload.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value);
         fields["projectPath"] = projectPath;
+        // MarkAgent: MDE tiene l'originale di ogni file che cambia, per la revisione (sprint 2026-11-27-Modifiche-Da-Approvare).
+        fields["review"] = true;
         try
         {
             var content = new StringContent(JsonSerializer.Serialize(fields), Encoding.UTF8, "application/json");

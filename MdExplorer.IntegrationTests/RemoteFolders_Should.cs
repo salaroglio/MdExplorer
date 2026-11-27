@@ -340,19 +340,22 @@ references:
         }
 
         /// <summary>
-        /// F4: gli strumenti remote_* (gruppo MCP «remote») si propongono accesi solo dove su QUESTA macchina c'è una radice
-        /// collegata via ssh://: un progetto con radici solo locali non ne paga il peso nel contesto.
+        /// F4: gli strumenti remote_* (gruppo MCP «remote») si propongono accesi dove su QUESTA macchina c'è una radice collegata,
+        /// ssh:// o locale (dal 27/11/2026, Modifiche-Da-Approvare-Sulle-Radici): un progetto senza radici non ne paga il peso.
         /// </summary>
         [TestMethod]
-        public void Propose_the_remote_tools_only_for_projects_with_a_remote_root_here()
+        public void Propose_the_remote_tools_for_projects_with_any_root_here()
         {
+            // Dal 27/11/2026 anche una radice locale accende remote: su ogni radice MarkAgent scrive solo coi remote_*, che ne
+            // tengono l'originale per la revisione (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D5).
+            var none = Path.Combine(_base, "senza-radici");
             using var ctx = new AgentCityContext();
             using var scope = ctx.Factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
             var withRemote = Path.Combine(_base, "con-remota");
             var onlyLocal = Path.Combine(_base, "solo-locale");
             db.BeginTransaction();
-            foreach (var p in new[] { withRemote, onlyLocal })
+            foreach (var p in new[] { withRemote, onlyLocal, none })
                 Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>(db)
                     .Save(new MdExplorer.Abstractions.Entities.UserDB.Project { Name = Path.GetFileName(p), Path = p, LastUpdate = DateTime.UtcNow });
             var bindings = Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.CodeRootBinding>(db);
@@ -364,9 +367,11 @@ references:
             var projects = Ad.Tools.Dal.Extensions.SessionExtensions.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>(db).GetList().ToList();
             var remote = MdExplorer.Utilities.McpToolGroupsSettings.DefaultFor(projects.Single(x => x.Path == withRemote), db);
             var local = MdExplorer.Utilities.McpToolGroupsSettings.DefaultFor(projects.Single(x => x.Path == onlyLocal), db);
+            var without = MdExplorer.Utilities.McpToolGroupsSettings.DefaultFor(projects.Single(x => x.Path == none), db);
             Ad.Tools.Dal.Extensions.SessionExtensions.Commit(db);
             CollectionAssert.Contains(remote.ToList(), "remote");
-            CollectionAssert.DoesNotContain(local.ToList(), "remote");
+            CollectionAssert.Contains(local.ToList(), "remote", "una radice locale si cambia anche lei coi remote_*");
+            CollectionAssert.DoesNotContain(without.ToList(), "remote", "senza radici, niente remote_* nel contesto");
             // 26/10: una radice collegata, locale o ssh://, accende il grafo del codice (code_roots dice a MarkAgent dove sta @alias).
             CollectionAssert.Contains(local.ToList(), "code", "una radice locale collegata accende code, come una ssh:// accende remote");
             CollectionAssert.Contains(remote.ToList(), "code");

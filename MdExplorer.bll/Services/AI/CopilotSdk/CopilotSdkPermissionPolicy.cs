@@ -132,6 +132,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             return match.Success ? match.Groups[1].Value.ToLowerInvariant() : null;
         }
 
+        /// <summary>Perché una scrittura nativa su una radice è rifiutata, e che cosa usare: lo legge il modello.</summary>
+        public static string RootWriteReason => MdExplorer.Features.Services.UiText.Say(
+            "è un file di una radice di codice: nella chat di MDE si modifica solo con remote_edit o remote_write (percorso @alias/…), che lo scrivono e ne tengono l'originale, così l'utente rivede e può annullare ogni pezzo",
+            "it is a file of a code root: in the MDE chat it is changed only with remote_edit or remote_write (path @alias/…), which write it and keep the original, so the user reviews and can undo each piece");
+
         private static string RemoteCopyReason(string command) => MdExplorer.Features.Services.UiText.Say(
             $"nella chat di MDE «{command}» non si usa: i file di una radice remota si leggono e si scrivono con remote_read, remote_edit e remote_write, che passano da MDE Remote e tengono la codifica della radice (CP-850…)",
             $"«{command}» is not used in the MDE chat: the files of a remote root are read and written with remote_read, remote_edit and remote_write, which go through MDE Remote and keep the root's encoding (CP-850…)");
@@ -202,7 +207,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                          || string.Equals(full, root, StringComparison.OrdinalIgnoreCase);
 
             if (!inside && extraRoots != null && extraRoots.Any(r => MdExplorer.Features.Utilities.PathContainment.IsInside(r, full)))
-                return new Verdict(true, what + " (radice di codice esterna collegata)", null);
+                // Le radici si leggono; si scrivono solo con remote_edit/remote_write, che ne tengono l'originale per la revisione
+                // (sprint 2026-11-27-Modifiche-Da-Approvare-Sulle-Radici, D4).
+                return verb == "scrivere"
+                    ? new Verdict(false, what, RootWriteReason)
+                    : new Verdict(true, what + " (radice di codice esterna collegata)", null);
 
             return inside
                 ? new Verdict(true, what, null)

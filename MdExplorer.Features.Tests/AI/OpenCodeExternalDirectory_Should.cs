@@ -30,12 +30,23 @@ namespace MdExplorer.Features.Tests.AI
         {
             var roots = new[] { Root };
             Assert.AreEqual(("once", (string)null), OpenCodeSession.ChatReply("external_directory", new[] { Root + "/*" }, roots));
-            foreach (var permission in new[] { "external_directory", "doom_loop", "bash", "webfetch", "edit" })
+            foreach (var permission in new[] { "external_directory", "doom_loop", "bash", "webfetch" })
             {
                 var (response, note) = OpenCodeSession.ChatReply(permission, new[] { "/altrove/*" }, roots);
                 Assert.AreEqual("reject", response, permission + ": mai senza risposta, che fermerebbe il turno");
                 StringAssert.StartsWith(note, permission + " · ", "la chat dice che cosa ha negato");
             }
+        }
+
+        [TestMethod]
+        public void Refuse_edits_inside_a_code_root_with_what_to_use_and_allow_the_others()
+        {
+            var roots = new[] { Root };
+            var (response, note) = OpenCodeSession.ChatReply("edit", new[] { "tmp/x" }, roots, filePath: Path.Combine(Root, "core", "A.java"));
+            Assert.AreEqual("reject", response);
+            StringAssert.Contains(note, "remote_edit", "il messaggio dice al modello che cosa usare");
+            Assert.AreEqual(("once", (string)null), OpenCodeSession.ChatReply("edit", new[] { "doc.md" }, roots, filePath: "/progetto/doc.md"), "fuori dalle radici: come il default di opencode");
+            Assert.AreEqual(("once", (string)null), OpenCodeSession.ChatReply("edit", new string[0], roots), "senza percorso: non è una radice");
         }
 
         [TestMethod]
