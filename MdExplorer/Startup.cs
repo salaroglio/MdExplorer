@@ -191,6 +191,8 @@ namespace MdExplorer
                 Services.Diagnostics.DiagnosticsPackageService.CurrentContext,
                 sp.GetRequiredService<Services.Diagnostics.ResourceMonitor>().SnapshotJson));
             services.AddSingleton<Services.Java.JavaHealthService>();
+            // «Installa adesso» di «Che cosa installare» (winget, solo Windows): singleton, le installazioni in corso vivono qui.
+            services.AddSingleton<MdExplorer.Features.Services.SetupGuide.WingetInstaller>();
             services.AddHostedService(sp => sp.GetRequiredService<Services.Java.JavaHealthService>());
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
             // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness

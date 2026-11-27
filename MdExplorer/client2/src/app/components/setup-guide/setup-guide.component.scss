@@ -345,3 +345,13 @@
   .scene .scan { opacity: 0 !important; }
   .scene .draw { stroke-dashoffset: 0; }
 }
+
+// «Installa adesso» (winget, Windows).
+.sg-install {
+  margin: 10px 0 6px;
+
+  button mat-spinner { display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .sg-install-line { margin: 6px 0 0; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; opacity: .85; overflow-wrap: anywhere; }
+  .sg-install-ok { margin: 6px 0 0; color: var(--mint); font-weight: 600; }
+  .sg-install-error { margin: 6px 0 0; color: var(--amber); font-weight: 600; }
+}

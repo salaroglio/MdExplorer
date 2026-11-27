@@ -28,13 +28,16 @@ namespace MdExplorer.Controllers.SetupGuide
         private readonly IUserSettingsDB _session;
         private readonly IAgenticEnvironmentProbe _harnessProbe;
         private readonly JavaHealthService _javaHealth;
+        private readonly MdExplorer.Features.Services.SetupGuide.WingetInstaller _installer;
         private readonly ILogger<SetupGuideController> _logger;
 
-        public SetupGuideController(IUserSettingsDB session, IAgenticEnvironmentProbe harnessProbe, JavaHealthService javaHealth, ILogger<SetupGuideController> logger)
+        public SetupGuideController(IUserSettingsDB session, IAgenticEnvironmentProbe harnessProbe, JavaHealthService javaHealth,
+            MdExplorer.Features.Services.SetupGuide.WingetInstaller installer, ILogger<SetupGuideController> logger)
         {
             _session = session;
             _harnessProbe = harnessProbe;
             _javaHealth = javaHealth;
+            _installer = installer;
             _logger = logger;
         }
 
@@ -86,7 +89,7 @@ namespace MdExplorer.Controllers.SetupGuide
         }
 
         /// <summary>
-        /// GET api/SetupGuide/Status — i tre controlli insieme: motori di MarkAgent, Java, Pandoc. Qualche secondo (il probe dei
+        /// GET api/SetupGuide/Status — i controlli insieme: git, motori di MarkAgent, Java, Pandoc. Qualche secondo (il probe dei
         /// motori aspetta fino a 20 s un CLI lento). Il controllo di Java è quello di salute: un Java 21 appena installato
         /// prende il posto di un JavaPath automatico non adatto.
         /// </summary>
@@ -95,9 +98,10 @@ namespace MdExplorer.Controllers.SetupGuide
         {
             var harnessTask = _harnessProbe.ProbeAsync(ct);
             var pandocTask = PandocProbe.ProbeAsync(ct);
+            var gitTask = GitProbe.ProbeAsync(ct);
             var javaTask = Task.Run(() => _javaHealth.Run(), ct);
 
-            object harness, java, pandoc;
+            object harness, java, pandoc, git;
             try
             {
                 var environments = await harnessTask;
@@ -144,11 +148,54 @@ namespace MdExplorer.Controllers.SetupGuide
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[SetupGuide] controllo di Pandoc fallito");
-                pandoc = new PandocStatus { Error = UiText.Say($"Il controllo di Pandoc non è riuscito: {ex.Message}", $"Checking Pandoc failed: {ex.Message}") };
+                pandoc = new ExecutableStatus { Error = UiText.Say($"Il controllo di Pandoc non è riuscito: {ex.Message}", $"Checking Pandoc failed: {ex.Message}") };
+            }
+
+            try
+            {
+                git = await gitTask;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetupGuide] controllo di git fallito");
+                git = new ExecutableStatus { Error = UiText.Say($"Il controllo di git non è riuscito: {ex.Message}", $"Checking git failed: {ex.Message}") };
             }
 
             var os = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
-            return Ok(new { os, copilotCliVersion = CopilotCliCompatibility.ExpectedCliVersion, harness, java, pandoc });
+            // «Installa adesso» c'è solo su Windows e solo con winget: la pagina mostra il pulsante o dice perché manca.
+            var winget = OperatingSystem.IsWindows() ? new { available = MdExplorer.Features.Services.SetupGuide.WingetInstaller.FindWinget() != null } : null;
+            return Ok(new { os, copilotCliVersion = CopilotCliCompatibility.ExpectedCliVersion, git, harness, java, pandoc, winget });
+        }
+
+        /// <summary>
+        /// POST api/SetupGuide/Install — «Installa adesso» (solo Windows): fa partire <c>winget install</c> per git, java o pandoc e
+        /// torna subito con lo stato; poi la pagina chiede <see cref="InstallStatus"/>. 422 col motivo se non si può.
+        /// </summary>
+        [HttpPost]
+        public IActionResult Install([FromBody] InstallRequest request)
+        {
+            try
+            {
+                return Ok(_installer.Start(request?.Tool));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return UnprocessableEntity(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>GET api/SetupGuide/InstallStatus?tool=git — lo stato dell'installazione; 404 se non ne è partita nessuna.</summary>
+        [HttpGet]
+        public IActionResult InstallStatus([FromQuery] string tool)
+        {
+            var status = _installer.Status(tool);
+            return status == null ? NotFound(new { error = UiText.Say($"Nessuna installazione di «{tool}».", $"No install of «{tool}».") }) : Ok(status);
+        }
+
+        public class InstallRequest
+        {
+            public string? Tool { get; set; }
         }
     }
 }

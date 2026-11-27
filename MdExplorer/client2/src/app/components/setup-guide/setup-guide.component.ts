@@ -1,16 +1,16 @@
-import { Component, EventEmitter, HostBinding, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, HostBinding, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { HarnessEnvironment, SetupGuideStatus } from './setup-guide.models';
+import { HarnessEnvironment, InstallJob, SetupGuideStatus } from './setup-guide.models';
 
 export type StepState = 'checking' | 'ok' | 'missing' | 'restart' | 'attention' | 'error';
-export type SetupStep = 'harness' | 'java' | 'pandoc';
+export type SetupStep = 'git' | 'harness' | 'java' | 'pandoc';
 
 interface InstallCommand { label?: string; command: string; }
 
 /**
  * «Che cosa installare» (19/11/2026, rifatto il 20/11 con l'aspetto del carosello di welcome.html): tre schede, una per ciò
- * che MDE non porta con sé — un motore per MarkAgent, Java 21, Pandoc. Ogni scheda dice a che cosa serve, com'è il computer
+ * che MDE non porta con sé — git, un motore per MarkAgent, Java 21, Pandoc (git dal 27/11/2026). Ogni scheda dice a che cosa serve, com'è il computer
  * ADESSO (il controllo vero del servizio) e come installarlo per il sistema in uso, accanto a una scena SVG animata.
  *
  * Un solo pezzo grafico in due posti: `mode="page"` nella colonna di sinistra della pagina dei progetti alla prima
@@ -22,15 +22,15 @@ interface InstallCommand { label?: string; command: string; }
   templateUrl: './setup-guide.component.html',
   styleUrls: ['./setup-guide.component.scss'],
 })
-export class SetupGuideComponent implements OnInit {
+export class SetupGuideComponent implements OnInit, OnDestroy {
   @Input() mode: 'page' | 'window' = 'page';
   @Output() done = new EventEmitter<void>();
   @HostBinding('class.page-mode') get pageMode(): boolean { return this.mode === 'page'; }
 
-  readonly steps: readonly SetupStep[] = ['harness', 'java', 'pandoc'];
+  readonly steps: readonly SetupStep[] = ['git', 'harness', 'java', 'pandoc'];
   index = 0;
   /** La scheda in vista, in un array che cambia SOLO quando cambia la scheda: l'*ngFor ridisegna la scena e le animazioni ripartono. */
-  stepView: SetupStep[] = ['harness'];
+  stepView: SetupStep[] = [this.steps[0]];
   /** Da che parte entra la scheda nuova. */
   dir: 'forward' | 'back' = 'forward';
   status: SetupGuideStatus | null = null;
@@ -38,12 +38,52 @@ export class SetupGuideComponent implements OnInit {
   loadError = '';
   copied = '';
 
+  /** Le installazioni con winget lanciate da qui, per programma. */
+  installs: Record<string, InstallJob> = {};
+  installErrors: Record<string, string> = {};
+  private polls: Record<string, any> = {};
+
   readonly engineNames: Record<string, string> = { copilot: 'GitHub Copilot CLI', claude: 'Claude Code', opencode: 'opencode' };
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
     this.recheck();
+  }
+
+  ngOnDestroy(): void {
+    Object.values(this.polls).forEach(t => clearTimeout(t));
+  }
+
+  /** «Installa adesso»: solo Windows, solo per i programmi che winget conosce, e solo se il programma manca. */
+  canInstall(step: string): boolean {
+    return this.os === 'windows' && ['git', 'java', 'pandoc'].includes(step) && this.stateOf(step) !== 'ok';
+  }
+
+  async install(step: string): Promise<void> {
+    this.installErrors[step] = '';
+    try {
+      const job = await firstValueFrom(this.http.post<InstallJob>('../api/SetupGuide/Install', { tool: step }));
+      this.installs[step] = job;
+      this.poll(step);
+    } catch (e: any) {
+      this.installErrors[step] = e?.error?.error || e?.message || String(e);
+    }
+  }
+
+  /** Chiede lo stato finché winget lavora; alla fine ricontrolla il computer. */
+  private poll(step: string): void {
+    clearTimeout(this.polls[step]);
+    if (this.installs[step]?.state !== 'running') { this.recheck(); return; }
+    this.polls[step] = setTimeout(async () => {
+      try {
+        this.installs[step] = await firstValueFrom(this.http.get<InstallJob>('../api/SetupGuide/InstallStatus', { params: { tool: step } }));
+      } catch (e: any) {
+        this.installErrors[step] = e?.error?.error || e?.message || String(e);
+        return;
+      }
+      this.poll(step);
+    }, 1500);
   }
 
   get step(): SetupStep { return this.steps[this.index]; }
@@ -90,8 +130,10 @@ export class SetupGuideComponent implements OnInit {
         if (j.ok) return 'ok';
         return j.outcome === 'UserPathNotSuitable' ? 'attention' : 'missing';
       }
+      case 'git':
       case 'pandoc': {
-        const p = this.status.pandoc;
+        const p = step === 'git' ? this.status.git : this.status.pandoc;
+        if (!p) return 'error';
         if (p.usable) return 'ok';
         if (p.needsRestart) return 'restart';
         return p.error ? 'error' : 'missing';
@@ -138,6 +180,10 @@ export class SetupGuideComponent implements OnInit {
         return os === 'windows' ? [{ command: 'winget install EclipseAdoptium.Temurin.21.JDK' }]
           : os === 'macos' ? [{ command: 'brew install --cask temurin@21' }]
           : [{ command: 'sudo apt install openjdk-21-jre' }];
+      case 'git':
+        return os === 'windows' ? [{ command: 'winget install --id Git.Git -e' }]
+          : os === 'macos' ? [{ command: 'brew install git' }]
+          : [{ command: 'sudo apt install git' }];
       case 'pandoc':
         return os === 'windows' ? [{ command: 'winget install --id JohnMacFarlane.Pandoc' }]
           : os === 'macos' ? [{ command: 'brew install pandoc' }]
@@ -148,6 +194,7 @@ export class SetupGuideComponent implements OnInit {
 
   link(step: string): string {
     switch (step) {
+      case 'git': return 'https://git-scm.com/downloads';
       case 'harness': return 'https://nodejs.org/';
       case 'java': return 'https://adoptium.net/temurin/releases/?version=21';
       case 'pandoc': return 'https://pandoc.org/installing.html';

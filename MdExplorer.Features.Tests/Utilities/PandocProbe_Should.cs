@@ -19,6 +19,16 @@ namespace MdExplorer.Features.Tests.Utilities
         }
 
         [TestMethod]
+        public void Read_the_version_of_git_on_every_system()
+        {
+            Assert.AreEqual("2.43.0", GitProbe.ParseVersion("git version 2.43.0\n"));
+            Assert.AreEqual("2.45.1", GitProbe.ParseVersion("git version 2.45.1.windows.1\r\n"));
+            Assert.AreEqual("2.39.3", GitProbe.ParseVersion("git version 2.39.3 (Apple Git-145)\n"));
+            Assert.IsNull(GitProbe.ParseVersion("git: command not found"));
+            Assert.IsNull(GitProbe.ParseVersion(null));
+        }
+
+        [TestMethod]
         public void Find_the_executable_in_the_first_folder_of_the_path_that_has_it()
         {
             var root = Path.Combine(Path.GetTempPath(), "pandoc-probe-" + Guid.NewGuid().ToString("N"));

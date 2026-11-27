@@ -61,6 +61,14 @@
               <span *ngIf="!status.java.error && !status.java.ok && status.java.outcome !== 'UserPathNotSuitable'">{{ 'SETUP_GUIDE.JAVA_MISSING' | translate: { min: status.java.minimum } }}</span>
             </ng-container>
 
+            <ng-container *ngSwitchCase="'git'">
+              <mat-icon>{{ stateIcon(stateOf('git')) }}</mat-icon>
+              <span *ngIf="status.git?.usable">{{ 'SETUP_GUIDE.GIT_OK' | translate: { version: status.git.version, path: status.git.path } }}</span>
+              <span *ngIf="status.git?.needsRestart">{{ 'SETUP_GUIDE.GIT_RESTART' | translate: { path: status.git.path } }}</span>
+              <span *ngIf="status.git && !status.git.usable && !status.git.needsRestart && status.git.error">{{ status.git.error }}</span>
+              <span *ngIf="status.git && !status.git.usable && !status.git.needsRestart && !status.git.error">{{ 'SETUP_GUIDE.GIT_MISSING' | translate }}</span>
+            </ng-container>
+
             <ng-container *ngSwitchCase="'pandoc'">
               <mat-icon>{{ stateIcon(stateOf('pandoc')) }}</mat-icon>
               <span *ngIf="status.pandoc.usable">{{ 'SETUP_GUIDE.PANDOC_OK' | translate: { version: status.pandoc.version, path: status.pandoc.path } }}</span>
@@ -84,6 +92,24 @@
             </button>
           </div>
           <p class="sg-how-hint" *ngIf="s === 'harness'">{{ 'SETUP_GUIDE.HARNESS_LOGIN_HINT' | translate }}</p>
+          <!-- Windows: un clic, winget scarica la versione giusta e la installa. -->
+          <div class="sg-install" *ngIf="canInstall(s)">
+            <ng-container *ngIf="status.winget?.available; else noWinget">
+              <button mat-raised-button color="primary" (click)="install(s)" [disabled]="installs[s]?.state === 'running'">
+                <mat-spinner *ngIf="installs[s]?.state === 'running'" diameter="16"></mat-spinner>
+                <mat-icon *ngIf="installs[s]?.state !== 'running'">download</mat-icon>
+                {{ (installs[s]?.state === 'running' ? 'SETUP_GUIDE.INSTALLING' : 'SETUP_GUIDE.INSTALL_NOW') | translate }}
+              </button>
+              <p class="sg-how-hint" *ngIf="!installs[s]">{{ 'SETUP_GUIDE.INSTALL_NOW_HINT' | translate }}</p>
+              <p class="sg-install-line" *ngIf="installs[s]?.state === 'running' && installs[s]?.lastLine">{{ installs[s].lastLine }}</p>
+              <p class="sg-install-ok" *ngIf="installs[s]?.state === 'succeeded'">
+                {{ (installs[s].alreadyInstalled ? 'SETUP_GUIDE.INSTALL_ALREADY' : 'SETUP_GUIDE.INSTALL_DONE') | translate }}
+              </p>
+              <p class="sg-install-error" *ngIf="installs[s]?.state === 'failed'">{{ installs[s].error }}</p>
+            </ng-container>
+            <ng-template #noWinget><p class="sg-how-hint">{{ 'SETUP_GUIDE.NO_WINGET' | translate }}</p></ng-template>
+            <p class="sg-install-error" *ngIf="installErrors[s]">{{ installErrors[s] }}</p>
+          </div>
           <button mat-stroked-button class="sg-link" (click)="openLink(link(s))">
             <mat-icon>open_in_new</mat-icon>
             {{ ('SETUP_GUIDE.' + s.toUpperCase() + '_LINK') | translate }}
@@ -93,6 +119,30 @@
       </div>
 
       <div class="scene-wrap" [ngSwitch]="s" aria-hidden="true">
+        <!-- 0. git: la linea principale, un ramo che si stacca, due commit, e si riunisce. -->
+        <svg *ngSwitchCase="'git'" class="scene" viewBox="0 0 360 260">
+          <g class="float">
+            <rect class="panel" x="16" y="14" width="328" height="232" rx="18" />
+            <path class="draw" pathLength="1" style="--d: 0.2s; --t: 1.2s" d="M50 150 H 310" fill="none" stroke="var(--sky)" stroke-width="5" stroke-linecap="round" />
+            <path class="draw" pathLength="1" style="--d: 0.9s; --t: 0.6s" d="M110 150 C 130 150, 130 92, 152 92" fill="none" stroke="var(--amber)" stroke-width="5" stroke-linecap="round" />
+            <path class="draw" pathLength="1" style="--d: 1.5s; --t: 0.6s" d="M152 92 H 220" fill="none" stroke="var(--amber)" stroke-width="5" stroke-linecap="round" />
+            <path class="draw" pathLength="1" style="--d: 2.1s; --t: 0.6s" d="M220 92 C 242 92, 242 150, 262 150" fill="none" stroke="var(--amber)" stroke-width="5" stroke-linecap="round" />
+            <circle class="pop" style="--d: 0.3s" cx="58" cy="150" r="11" fill="var(--sky)" />
+            <circle class="pop" style="--d: 0.7s" cx="110" cy="150" r="11" fill="var(--sky)" />
+            <circle class="pop" style="--d: 1.3s" cx="152" cy="92" r="11" fill="var(--amber)" />
+            <circle class="pop" style="--d: 1.8s" cx="220" cy="92" r="11" fill="var(--amber)" />
+            <circle class="pop" style="--d: 1.6s" cx="190" cy="150" r="11" fill="var(--sky)" />
+            <g class="pop" style="--d: 2.7s">
+              <circle cx="262" cy="150" r="14" fill="var(--mint)" />
+              <path d="M255 150 l5 5 l9 -10" fill="none" stroke="#0d4a35" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+            </g>
+            <circle class="pop" style="--d: 3.0s" cx="306" cy="150" r="11" fill="var(--sky)" />
+            <text class="fade" style="--d: 0.6s" x="66" y="186" font-size="12">main</text>
+            <text class="fade" style="--d: 1.5s" x="160" y="70" font-size="12">feat/…</text>
+            <text class="fade" style="--d: 0.6s" x="180" y="222" text-anchor="middle" font-size="15" font-weight="700">git</text>
+          </g>
+        </svg>
+
         <!-- 1. Il motore: si installa dal terminale, i tre motori compaiono e si collegano a Mark, che risponde. -->
         <svg *ngSwitchCase="'harness'" class="scene" viewBox="0 0 360 260">
           <g class="float">
