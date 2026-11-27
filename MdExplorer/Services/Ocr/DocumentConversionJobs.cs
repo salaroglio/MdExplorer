@@ -18,7 +18,10 @@ namespace MdExplorer.Service.Services.Ocr
         /// <summary>Il pdf o il Word, già copiato nel progetto.</summary>
         public string SourceFullPath { get; set; }
 
-        /// <summary>Il documento markdown che riceve il collegamento.</summary>
+        /// <summary>
+        /// Il documento markdown che riceve il collegamento; il convertito nasce nella sua cartella. Null (MarkAgent su un pdf
+        /// già nel progetto, 27/11/2026): il convertito nasce accanto al pdf e nessun documento cambia.
+        /// </summary>
         public string MdDocumentFullPath { get; set; }
 
         public string ProjectPath { get; set; }
@@ -147,7 +150,7 @@ namespace MdExplorer.Service.Services.Ocr
                     $"MdExplorer converte in markdown i .pdf e i .docx, non i «{extension}».",
                     $"MdExplorer converts .pdf and .docx files to markdown, not \"{extension}\" files."));
             }
-            foreach (var path in new[] { request.SourceFullPath, request.MdDocumentFullPath })
+            foreach (var path in new[] { request.SourceFullPath, request.MdDocumentFullPath }.Where(p => p != null))
             {
                 if (!PathContainment.IsInside(request.ProjectPath, path) || !File.Exists(path))
                 {
@@ -188,7 +191,7 @@ namespace MdExplorer.Service.Services.Ocr
             try
             {
                 job.Status = "running";
-                var documentFolder = Path.GetDirectoryName(request.MdDocumentFullPath);
+                var documentFolder = Path.GetDirectoryName(request.MdDocumentFullPath ?? request.SourceFullPath);
                 // Il nome del file convertito; se c'è già (lui, i suoi allegati o le sue immagini) «nome-2», «nome-3».
                 var baseName = MdExplorer.Features.Utilities.FreeFileName.ForConvertedDocument(documentFolder,
                     Path.GetFileNameWithoutExtension(request.SourceFullPath));
@@ -243,7 +246,8 @@ namespace MdExplorer.Service.Services.Ocr
 
                 File.WriteAllText(outputPath, markdown);
                 job.OutputRelativePath = ProjectLink(request.ProjectPath, outputPath);
-                AppendLink(request.MdDocumentFullPath, Path.GetFileName(outputPath), job.OutputRelativePath);
+                if (request.MdDocumentFullPath != null)
+                    AppendLink(request.MdDocumentFullPath, Path.GetFileName(outputPath), job.OutputRelativePath);
                 if (attachedPdfModel != null)
                 {
                     job.FollowUpJobIds = QueueAttachedPdfs(attachedPdfs, attachedPdfModel, request.ProjectPath).Select(queued => queued.Id).ToList();

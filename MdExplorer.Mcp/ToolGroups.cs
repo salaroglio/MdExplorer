@@ -55,7 +55,7 @@ public static class ToolGroups
     public static readonly IReadOnlyList<Group> All = new[]
     {
         new Group(Core, typeof(CoreTools), true,
-            "Scoprire i progetti e cercare nei documenti. Sempre acceso: senza, l'AI non sa quali progetti esistono.",
+            "Scoprire i progetti, cercare nei documenti, leggere le chat e convertire in markdown un pdf o un Word del progetto. Sempre acceso: senza, l'AI non sa quali progetti esistono.",
             b => b.WithTools<CoreTools>()),
         new Group(PlantUml, typeof(PlantUmlTools), false,
             "Verificare un diagramma PlantUML prima di scriverlo in un documento.",

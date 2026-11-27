@@ -110,4 +110,96 @@ public sealed class CoreTools : McpToolsBase
             return $"Error connecting to MdExplorer: {ex.Message}. Ensure MdExplorer is running.";
         }
     }
+
+    // ---- documenti in markdown (27/11/2026): lo stesso motore del wizard «Aggiungi file esistente come collegamento» ----
+
+    [McpServerTool, Description(
+        "Convert a PDF (with MdExplorer's local OCR model) or a Word .docx that is ALREADY in the project into a markdown copy, " +
+        "with the same engine as the tree's «Add existing file as link» wizard. Returns at once with a conversion id: follow it " +
+        "with document_conversion_status (a PDF takes about 3-30 seconds per page). The markdown is created next to the source, " +
+        "or next to `document` when given (and a link to it is added there); a free name, never overwriting. RULES: the PDF/Word " +
+        "stays the authoritative source, the markdown is a working copy — check tables, numbering and page references against " +
+        "the source before relying on them, and tell the user about truncated pages. Do not convert without the user's consent " +
+        "when the document is long.")]
+    public async Task<string> document_convert(
+        [Description("Project name (see GetProjects).")] string project,
+        [Description("The .pdf or .docx, path from the project root (e.g. 'docs/assets/syllabus.pdf').")] string source,
+        [Description("Optional: the markdown document that gets a link to the converted copy (path from the project root).")] string? document = null,
+        [Description("Optional: the OCR model id; without it, the first downloaded one.")] string? modelId = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var projectPath = await ResolveProjectPathAsync(client, project);
+        if (projectPath == null) return $"Project '{project}' not found. Use GetProjects to list the available names.";
+        try
+        {
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { projectPath, source, document, modelId });
+            var resp = await client.PostAsync("/api/DocumentConversion/convert",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"));
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("document_convert", project, source, body);
+            if (!resp.IsSuccessStatusCode) return ConversionError(resp, body);
+            var id = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("id").GetString();
+            return $"Conversion started (id {id}). Follow it with document_conversion_status.";
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. Ensure MdExplorer is running.";
+        }
+    }
+
+    [McpServerTool, Description(
+        "The state of a conversion started with document_convert: queued, running (page N of M), done (with the markdown path " +
+        "from the project root, truncated pages and warnings) or error. Conversions run one at a time.")]
+    public async Task<string> document_conversion_status(
+        [Description("The conversion id returned by document_convert.")] string id)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var resp = await client.GetAsync("/api/DocumentConversion/jobs/" + Uri.EscapeDataString(id));
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) return ConversionError(resp, body);
+            var job = System.Text.Json.JsonDocument.Parse(body).RootElement;
+            string Str(string name) => job.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+            int Int(string name) => job.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetInt32() : 0;
+            List<string> List(string name) => job.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? v.EnumerateArray().Select(e => e.ToString()).ToList() : new List<string>();
+            var file = Str("fileName");
+            switch (Str("status"))
+            {
+                case "queued": return $"{file}: waiting (another conversion is running).";
+                case "running": return Int("pages") > 0 ? $"{file}: page {Int("page")} of {Int("pages")}." : $"{file}: running.";
+                case "error": return $"{file}: failed — {Str("error")}";
+                case "done":
+                    var sb = new System.Text.StringBuilder($"{file}: done → {Str("outputRelativePath")}.");
+                    var truncated = List("truncatedPages");
+                    if (truncated.Count > 0) sb.Append($" WARNING: pages {string.Join(", ", truncated)} were not finished by the model: check them in the source and tell the user.");
+                    var warnings = List("warnings");
+                    if (warnings.Count > 0) sb.Append(" Warnings: ").Append(string.Join("; ", warnings)).Append('.');
+                    var follow = List("followUpJobIds");
+                    if (follow.Count > 0) sb.Append($" Attached PDFs are being converted too: {string.Join(", ", follow)}.");
+                    sb.Append(" The source stays authoritative: verify tables, numbering and page references before relying on the copy.");
+                    return sb.ToString();
+                default: return body;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. Ensure MdExplorer is running.";
+        }
+    }
+
+    private static string ConversionError(HttpResponseMessage resp, string body)
+    {
+        try
+        {
+            var root = System.Text.Json.JsonDocument.Parse(body).RootElement;
+            var message = root.TryGetProperty("error", out var e) ? e.GetString() : body;
+            // needsModel: il messaggio del servizio dice già all'utente dove si scarica il modello.
+            return root.TryGetProperty("needsModel", out var n) && n.ValueKind == System.Text.Json.JsonValueKind.True
+                ? $"Error: {message} Tell the user, do not try another way."
+                : $"Error: {message}";
+        }
+        catch (System.Text.Json.JsonException) { return $"Error: MdExplorer answered {(int)resp.StatusCode}: {body}"; }
+    }
 }
