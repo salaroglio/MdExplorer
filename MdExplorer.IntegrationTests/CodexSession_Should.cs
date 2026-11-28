@@ -109,6 +109,66 @@ namespace MdExplorer.IntegrationTests
             Assert.IsNull(CodexSession.VersionOf(null));
         }
 
+        [TestMethod]
+        public void Put_a_filesystem_profile_in_place_of_the_sandbox()
+        {
+            var config = new CodexSessionOptions
+            {
+                FileSystemProfile = new Dictionary<string, string> { ["**/credenziali-*.txt"] = "deny", ["AGENTS.md"] = "read", ["/fuori/segreti.txt"] = "deny" },
+            }.BuildConfig(null);
+
+            Assert.AreEqual(CodexSessionOptions.ProfileName, (string)config["default_permissions"]);
+            var profile = config["permissions"][CodexSessionOptions.ProfileName];
+            Assert.AreEqual(":workspace", (string)profile["extends"]);
+            Assert.AreEqual("deny", (string)profile["filesystem"][":workspace_roots"]["**/credenziali-*.txt"]);
+            Assert.AreEqual("read", (string)profile["filesystem"][":workspace_roots"]["AGENTS.md"]);
+            Assert.AreEqual("deny", (string)profile["filesystem"]["/fuori/segreti.txt"], "un percorso assoluto vale ovunque");
+        }
+
+        [TestMethod]
+        public void Build_the_e2e_profile_from_credentials_protected_paths_and_existing_instructions()
+        {
+            var dir = NewProject();
+            Directory.CreateDirectory(Path.Combine(dir, "sotto"));
+            File.WriteAllText(Path.Combine(dir, "sotto", "AGENTS.md"), "# istruzioni\n");
+            var outside = Path.Combine(Path.GetTempPath(), "segreti-" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+
+            var profile = MdExplorer.Services.E2e.E2eLaunchService.CodexE2eProfile(dir, new[] { Path.Combine(dir, "sotto", "s.txt"), outside });
+
+            Assert.AreEqual("deny", profile["**/credenziali-*.txt"]);
+            Assert.AreEqual("read", profile[".codex"]);
+            Assert.AreEqual("read", profile["AGENTS.md"]);
+            Assert.AreEqual("read", profile["sotto/AGENTS.md"], "un file di istruzioni che c'è già, per percorso esatto");
+            Assert.AreEqual("deny", profile["sotto/s.txt"]);
+            Assert.AreEqual("deny", profile[Path.GetFullPath(outside)]);
+            Assert.IsFalse(profile.Keys.Any(k => k.Contains("**/AGENTS.md")), "Codex accetta glob solo con deny, e deny su AGENTS.md ferma il thread");
+        }
+
+        [TestMethod]
+        public async Task Keep_credentials_and_agent_configuration_out_of_reach_in_an_e2e_session()
+        {
+            RequireCodex();
+            var dir = NewProject();
+            File.WriteAllText(Path.Combine(dir, "AGENTS.md"), "Rispondi in italiano.\n");
+            File.WriteAllText(Path.Combine(dir, "credenziali-prova.txt"), "PASSWORD=segretissima\n");
+            await using var session = new CodexSession(NullLogger.Instance, dir, null, new CodexSessionOptions
+            {
+                FileSystemProfile = MdExplorer.Services.E2e.E2eLaunchService.CodexE2eProfile(dir, Array.Empty<string>()),
+            });
+            await session.StartAsync();
+
+            var (_, chunks) = await AskAsync(session,
+                "Esegui esattamente, senza commenti, in un solo comando: echo x >> AGENTS.md ; echo y > ok.txt ; cat credenziali-prova.txt");
+
+            Assert.AreEqual("Rispondi in italiano.\n", File.ReadAllText(Path.Combine(dir, "AGENTS.md")), "le istruzioni restano in sola lettura");
+            Assert.IsFalse(chunks.Any(c => (c.Record?.Content ?? c.Text ?? string.Empty).Contains("segretissima")), "le credenziali non si leggono");
+            // Il modello a volte si rifiuta di lanciare un comando che legge credenziali: è una sua scelta, non il sandbox.
+            if (!chunks.Any(c => c.Kind == CodexChunk.KindTool && (c.Text ?? string.Empty).StartsWith("shell", StringComparison.Ordinal)))
+                Assert.Inconclusive("Codex non ha eseguito il comando: la scrittura del resto del progetto non è stata provata.");
+            Assert.IsTrue(File.Exists(Path.Combine(dir, "ok.txt")), "il resto del progetto si scrive: " +
+                string.Join(" | ", chunks.Select(c => c.Kind + ":" + (c.Record?.Content ?? c.Text))));
+        }
+
         // ---- Con Codex vero ----
 
         private static void RequireCodex()

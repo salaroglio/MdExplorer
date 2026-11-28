@@ -114,12 +114,16 @@ namespace MdExplorer.Features.Services.AI.Codex
             var parameters = new JsonObject
             {
                 ["cwd"] = _workingDirectory,
-                ["sandbox"] = _options.SandboxId,
                 ["approvalPolicy"] = _options.ApprovalPolicyId,
                 ["config"] = _options.BuildConfig(personal),
                 ["serviceName"] = "mdexplorer",
             };
             if (_modelId != null) parameters["model"] = _modelId;
+            // Un profilo di permessi e il sandbox «vecchio» non vanno insieme: con `sandbox` Codex ignorerebbe il profilo.
+            if (_options.FileSystemProfile == null) parameters["sandbox"] = _options.SandboxId;
+            else if (_options.Approve != null)
+                throw new InvalidOperationException(UiText.Say("Un profilo di permessi di Codex va senza approvazioni: un comando approvato esce dal sandbox.",
+                    "A Codex permission profile goes without approvals: an approved command leaves the sandbox."));
 
             JsonElement result;
             if (!string.IsNullOrWhiteSpace(_options.ResumeThreadId))

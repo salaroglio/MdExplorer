@@ -139,6 +139,19 @@ namespace MdExplorer.Features.Services.AI.Codex
         /// <summary>Cartelle in più dove il sandbox <c>workspace-write</c> lascia scrivere (<c>sandbox_workspace_write.writable_roots</c>).</summary>
         public IReadOnlyList<string> WritableRoots { get; init; }
 
+        /// <summary>
+        /// Un profilo di permessi del filesystem al posto del <see cref="Sandbox"/> (i test e2e): percorso → <c>read</c> | <c>write</c> |
+        /// <c>deny</c>, sopra il profilo <c>:workspace</c>. Le chiavi relative valgono dentro la cartella di lavoro (anche glob, come
+        /// <c>**/credenziali-*.txt</c>), quelle assolute ovunque. Misurato il 28/11 con <c>command/exec</c>: un file in <c>deny</c> dà
+        /// «Permission denied» a <c>cat</c>, glob, <c>grep -r</c>, Python, <c>cp</c> e link simbolici; i glob si espandono all'avvio del
+        /// sandbox. ⚠️ Vale solo per i comandi che girano NEL sandbox: con approvazioni un comando approvato ne esce, quindi un
+        /// profilo va con <see cref="Approve"/> null.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> FileSystemProfile { get; init; }
+
+        /// <summary>Il nome del profilo che MdExplorer scrive nel <c>config</c> del thread.</summary>
+        public const string ProfileName = "mdexplorer-session";
+
         /// <summary>Conversazione da riprendere (<c>thread/resume</c>): l'id del thread, anche di un processo precedente.</summary>
         public string ResumeThreadId { get; init; }
 
@@ -220,7 +233,24 @@ namespace MdExplorer.Features.Services.AI.Codex
                 ["web_search"] = WebSearch ? "live" : "disabled",
                 ["mcp_servers"] = servers,
             };
-            if (Sandbox == CodexSandbox.WorkspaceWrite && WritableRoots != null && WritableRoots.Count > 0)
+            if (FileSystemProfile != null)
+            {
+                var inside = new JsonObject();
+                var filesystem = new JsonObject { [":workspace_roots"] = inside };
+                foreach (var (path, access) in FileSystemProfile)
+                {
+                    if (access is not ("read" or "write" or "deny"))
+                        throw new ArgumentException($"Permesso '{access}' non valido per '{path}': read, write o deny.");
+                    if (System.IO.Path.IsPathRooted(path)) filesystem[path] = access;
+                    else inside[path] = access;
+                }
+                config["default_permissions"] = ProfileName;
+                config["permissions"] = new JsonObject
+                {
+                    [ProfileName] = new JsonObject { ["extends"] = ":workspace", ["filesystem"] = filesystem },
+                };
+            }
+            if (FileSystemProfile == null && Sandbox == CodexSandbox.WorkspaceWrite && WritableRoots != null && WritableRoots.Count > 0)
                 config["sandbox_workspace_write"] = new JsonObject
                 {
                     ["writable_roots"] = new JsonArray(WritableRoots.Select(r => (JsonNode)r).ToArray()),
@@ -237,6 +267,7 @@ namespace MdExplorer.Features.Services.AI.Codex
             WebSearch = WebSearch,
             Shell = Shell,
             WritableRoots = WritableRoots,
+            FileSystemProfile = FileSystemProfile,
             ResumeThreadId = threadId,
             Environment = Environment,
             ProfileKey = ProfileKey,
