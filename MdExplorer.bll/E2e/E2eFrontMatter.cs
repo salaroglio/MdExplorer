@@ -54,7 +54,7 @@ namespace MdExplorer.Features.E2e
         public const string ModelKey = "model";
 
         /// <summary>The engines a test can ask for.</summary>
-        public static readonly IReadOnlyList<string> Engines = new[] { "claude", "copilot", "opencode" };
+        public static readonly IReadOnlyList<string> Engines = new[] { "claude", "copilot", "opencode", "codex" };
         public const string CommitAfterRunKey = "commitAfterRun";
         public const string HeadlessKey = "headless";
 

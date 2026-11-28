@@ -574,7 +574,7 @@ namespace MdExplorer.Controllers.A2A
             if (!string.IsNullOrWhiteSpace(request?.Provider))
             {
                 if (!MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Provider, out var engine))
-                    return BadRequest(new { error = UiText.Say($"Motore '{request.Provider}' sconosciuto: claude, copilot oppure opencode.", $"Unknown engine '{request.Provider}': claude, copilot or opencode.") });
+                    return BadRequest(new { error = UiText.Say($"Motore '{request.Provider}' sconosciuto: claude, copilot, opencode oppure codex.", $"Unknown engine '{request.Provider}': claude, copilot, opencode or codex.") });
                 provider = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine);
             }
             return UpdateAwaiting(messageId, m =>

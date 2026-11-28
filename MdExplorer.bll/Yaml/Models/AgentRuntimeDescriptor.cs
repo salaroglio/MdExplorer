@@ -27,7 +27,7 @@ namespace MdExplorer.Features.Yaml.Models
     public class AgentRuntimeDescriptor
     {
         /// <summary>
-        /// Motore richiesto: <c>claude</c>, <c>copilot</c> o <c>opencode</c> (anche <c>copilot-cli</c>,
+        /// Motore richiesto: <c>claude</c>, <c>copilot</c>, <c>opencode</c> o <c>codex</c> (anche <c>copilot-cli</c>,
         /// <c>claude-code</c>). Vuoto = il motore del progetto, quello del tab MarkAgent (sprint
         /// 2026-09-29-Motore-LLM-Unico, D3). Un valore sconosciuto fa fallire il turno, dicendolo.
         /// </summary>
@@ -35,7 +35,7 @@ namespace MdExplorer.Features.Yaml.Models
 
         /// <summary>
         /// Modello richiesto, nel vocabolario del motore (Copilot CLI: il valore di <c>--model</c>;
-        /// Claude Code: <c>sonnet</c>, <c>opus</c> o il nome pieno; opencode: <c>fornitore/modello</c>).
+        /// Claude Code: <c>sonnet</c>, <c>opus</c> o il nome pieno; opencode: <c>fornitore/modello</c>; Codex: l'id di <c>model/list</c>).
         /// Vuoto = il modello del progetto se il motore è quello del progetto, altrimenti il predefinito
         /// del motore.
         /// </summary>

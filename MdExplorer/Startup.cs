@@ -262,6 +262,7 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.CopilotTurnRunner>();
             services.AddSingleton<Services.AgentRun.ClaudeCodeTurnRunner>();
             services.AddSingleton<Services.AgentRun.OpenCodeTurnRunner>();
+            services.AddSingleton<Services.AgentRun.CodexTurnRunner>();
             services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.EngineTurnRunner>();
             // Who is working right now: every turn passes through EngineTurnRunner, which records it here, and
             // the broadcaster tells the open windows (the toolbar's «agents at work» indicator).

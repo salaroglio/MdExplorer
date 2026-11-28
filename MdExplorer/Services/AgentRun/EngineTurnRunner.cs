@@ -33,8 +33,8 @@ namespace MdExplorer.Services.AgentRun
                 if (projectEngine == MarkAgentEngine.None)
                 {
                     error = MdExplorer.Features.Services.UiText.Say("Il progetto non ha un motore di MarkAgent e l'agente non ne dichiara uno: scegli il motore nel tab " +
-                            "MarkAgent, oppure scrivi 'runtime: provider: claude | copilot | opencode' nella scheda dell'agente.", "The project has no MarkAgent engine and the agent does not declare one: choose the engine in the MarkAgent " +
-                            "tab, or write 'runtime: provider: claude | copilot | opencode' in the agent's card.");
+                            "MarkAgent, oppure scrivi 'runtime: provider: claude | copilot | opencode | codex' nella scheda dell'agente.", "The project has no MarkAgent engine and the agent does not declare one: choose the engine in the MarkAgent " +
+                            "tab, or write 'runtime: provider: claude | copilot | opencode | codex' in the agent's card.");
                     return null;
                 }
                 return new AgentEngineChoice(projectEngine, model ?? projectModel, true);
@@ -42,7 +42,7 @@ namespace MdExplorer.Services.AgentRun
 
             if (!TryParseProvider(requestedProvider, out var engine))
             {
-                error = MdExplorer.Features.Services.UiText.Say($"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode, default.", $"Unknown engine '{requestedProvider.Trim()}': allowed values are claude, copilot, opencode, default.");
+                error = MdExplorer.Features.Services.UiText.Say($"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode, codex, default.", $"Unknown engine '{requestedProvider.Trim()}': allowed values are claude, copilot, opencode, codex, default.");
                 return null;
             }
             var fromProject = engine == projectEngine;
@@ -63,6 +63,7 @@ namespace MdExplorer.Services.AgentRun
             if (id.StartsWith("copilot", StringComparison.Ordinal)) { engine = MarkAgentEngine.Copilot; return true; }
             if (id == "claude" || id == "claudecode") { engine = MarkAgentEngine.Claude; return true; }
             if (id == "opencode") { engine = MarkAgentEngine.OpenCode; return true; }
+            if (id == "codex" || id == "openaicodex") { engine = MarkAgentEngine.Codex; return true; }
             engine = MarkAgentEngine.None;
             return false;
         }
@@ -71,13 +72,14 @@ namespace MdExplorer.Services.AgentRun
     /// <summary>
     /// The <see cref="IAgentTurnRunner"/> MdExplorer registers: it chooses the engine of the turn
     /// (<see cref="AgentEngineChoice.Resolve"/>) and hands the turn to the runner of that engine — Copilot CLI,
-    /// Claude Code or opencode — each in a session of its own for the turn (agents work alone, also in parallel).
+    /// Claude Code, opencode or Codex — each in a session of its own for the turn (agents work alone, also in parallel).
     /// </summary>
     public sealed class EngineTurnRunner : IAgentTurnRunner
     {
         private readonly CopilotTurnRunner _copilot;
         private readonly ClaudeCodeTurnRunner _claude;
         private readonly OpenCodeTurnRunner _openCode;
+        private readonly CodexTurnRunner _codex;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentActivityBoard _activity;
         private readonly IAgentTurnDiary _diary;
@@ -85,8 +87,9 @@ namespace MdExplorer.Services.AgentRun
 
         public EngineTurnRunner(CopilotTurnRunner copilot, ClaudeCodeTurnRunner claude, OpenCodeTurnRunner openCode,
             IServiceScopeFactory scopeFactory, IAgentActivityBoard activity, ILogger<EngineTurnRunner> logger,
-            IAgentTurnDiary diary = null)
+            IAgentTurnDiary diary = null, CodexTurnRunner codex = null)
         {
+            _codex = codex;
             _activity = activity;
             _diary = diary;
             _copilot = copilot;
@@ -156,6 +159,7 @@ namespace MdExplorer.Services.AgentRun
                     MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, stoppable.Token),
                     MarkAgentEngine.Claude => await _claude.RunTurnAsync(turn, stoppable.Token),
                     MarkAgentEngine.OpenCode => await _openCode.RunTurnAsync(turn, stoppable.Token),
+                    MarkAgentEngine.Codex when _codex != null => await _codex.RunTurnAsync(turn, stoppable.Token),
                     _ => AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, $"Agente '{request.AgentName}': nessun esecutore per {choice.Label}."),
                 };
                 // Un motore che, fermato, torna un esito invece di sollevare: resta «fermato», non «errore del motore».

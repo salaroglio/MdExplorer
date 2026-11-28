@@ -17,6 +17,7 @@ using MdExplorer.bll.Models.AI;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Features.Services.AI.ClaudeCode;
 using MdExplorer.Features.Services.AI.OpenCode;
+using MdExplorer.Features.Services.AI.Codex;
 using MdExplorer.Features.Services.AI.CopilotChat;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
@@ -40,6 +41,7 @@ namespace MdExplorer.Hubs
         private readonly Services.E2e.E2eLaunchService _e2eLaunch;
         private readonly IHubContext<AiChatHub> _hubContext;
         private readonly OpenCodeSessionPool _openCodePool;
+        private readonly CodexSessionPool _codexPool;
         /// <summary>Serve per una cosa sola: sapere quali gruppi di funzionalità MCP accendere per il progetto.</summary>
         private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -60,6 +62,8 @@ namespace MdExplorer.Hubs
         private Services.ChatHistory.ChatTurnRecording _turnRecording;
         /// <summary>Connessioni a cui si è già detto che il CLI di Claude non dà il testo del ragionamento: una volta sola.</summary>
         private static readonly ConcurrentDictionary<string, byte> _toldNoClaudeThinking = new();
+        /// <summary>Connessioni a cui si è già detto che Codex non ha mandato il testo del ragionamento: una volta sola.</summary>
+        private static readonly ConcurrentDictionary<string, byte> _toldNoCodexThinking = new();
 
         private string ConnectionId => _turnConnectionId ?? Context.ConnectionId;
         private IClientProxy Caller => _turnCaller ?? Clients.Caller;
@@ -132,8 +136,10 @@ namespace MdExplorer.Hubs
             Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher,
             IServiceScopeFactory scopeFactory,
             Services.ChatHistory.ChatHistoryRecorder chatHistory,
-            ICopilotChatTransportSource copilotTransport)
+            ICopilotChatTransportSource copilotTransport,
+            CodexSessionPool codexPool = null)
         {
+            _codexPool = codexPool;
             _chatHistory = chatHistory;
             _copilotTransport = copilotTransport;
             _scopeFactory = scopeFactory;
@@ -216,7 +222,8 @@ namespace MdExplorer.Hubs
             var cancelledCopilot = _copilotChatPool?.CancelActivePrompt(ConnectionId) ?? false;
             var cancelledClaude = _claudeCodePool?.CancelActivePrompt(ConnectionId) ?? false;
             var cancelledOpenCode = _openCodePool?.CancelActivePrompt(ConnectionId) ?? false;
-            var cancelled = cancelledCopilot || cancelledClaude || cancelledOpenCode;
+            var cancelledCodex = _codexPool?.CancelActivePrompt(ConnectionId) ?? false;
+            var cancelled = cancelledCopilot || cancelledClaude || cancelledOpenCode || cancelledCodex;
             if (!cancelled)
             {
                 // Niente in volo per questa connessione. Dirlo al client conta: prima si
@@ -630,6 +637,30 @@ namespace MdExplorer.Hubs
                         }
                         _logger.LogInformation($"[SendMessage] opencode streaming completato, lunghezza risposta: {response?.Length ?? 0}");
                     }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.Codex)
+                    {
+                        // Codex: un `codex app-server` per sessione, thread conservato fra i turni. Nessun ripiego.
+                        string response;
+                        try
+                        {
+                            response = await StreamCodexResponseAsync(WithThreadInstruction(message, channelId), chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (CodexMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[SendMessage] Codex interrotto a metà stream");
+                            await Caller.SendAsync("ReceiveError",
+                                MdExplorer.Features.Services.UiText.Say("Stream di Codex interrotto: ", "Codex stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                            response = string.Empty;
+                        }
+                        catch (Exception cxEx)
+                        {
+                            _logger.LogError(cxEx, "[SendMessage] Codex fallito prima dello streaming");
+                            await Caller.SendAsync("ReceiveError",
+                                MdExplorer.Features.Services.UiText.Say("Codex non è partito: ", "Codex did not start: ") + cxEx.Message, channelId);
+                            response = string.Empty;
+                        }
+                        _logger.LogInformation($"[SendMessage] Codex streaming completato, lunghezza risposta: {response?.Length ?? 0}");
+                    }
                     else
                     {
                         // Other providers: use ChatWithToolsAsync (with tool calling)
@@ -839,6 +870,7 @@ namespace MdExplorer.Hubs
             _connectionProjectConnectionIds.TryRemove(ConnectionId, out _);
             _chatHistory.Forget(ConnectionId);
             _toldNoClaudeThinking.TryRemove(ConnectionId, out _);
+            _toldNoCodexThinking.TryRemove(ConnectionId, out _);
             // La fila dei turni: chi la sta usando ne tiene il riferimento e la rilascia lo stesso.
             _turnGates.TryRemove(ConnectionId, out _);
             // Kill any persistent Copilot session (SDK or ACP) attached to this connection.
@@ -853,6 +885,12 @@ namespace MdExplorer.Hubs
             {
                 try { await _claudeCodePool.ReleaseAsync(ConnectionId); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Rilascio del pool Claude Code fallito per {ConnectionId}", ConnectionId); }
+            }
+            // Idem per Codex: un `codex app-server` per sessione, che senza rilascio resterebbe orfano.
+            if (_codexPool != null)
+            {
+                try { await _codexPool.ReleaseAsync(ConnectionId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Rilascio del pool Codex fallito per {ConnectionId}", ConnectionId); }
             }
             await base.OnDisconnectedAsync(exception);
         }
@@ -906,11 +944,12 @@ namespace MdExplorer.Hubs
             var gate = _turnGates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
             var logger = _logger;
             var client = _hubContext.Clients.Client(connectionId);
-            var (copilot, claude, opencode) = (_copilotChatPool, _claudeCodePool, _openCodePool);
+            var (copilot, claude, opencode, codex) = (_copilotChatPool, _claudeCodePool, _openCodePool, _codexPool);
             _connectionHistories.TryRemove(connectionId, out _);
             copilot?.CancelActivePrompt(connectionId);
             claude?.CancelActivePrompt(connectionId);
             opencode?.CancelActivePrompt(connectionId);
+            codex?.CancelActivePrompt(connectionId);
             _ = Task.Run(async () =>
             {
                 await gate.WaitAsync();
@@ -919,11 +958,13 @@ namespace MdExplorer.Hubs
                     await Task.WhenAll(
                         copilot?.ReleaseAsync(connectionId) ?? Task.CompletedTask,
                         claude?.ReleaseAsync(connectionId) ?? Task.CompletedTask,
-                        opencode?.ReleaseAsync(connectionId) ?? Task.CompletedTask);
+                        opencode?.ReleaseAsync(connectionId) ?? Task.CompletedTask,
+                        codex?.ReleaseAsync(connectionId) ?? Task.CompletedTask);
                     switch (current)
                     {
                         case "claudecode": claude?.ResumeNextSession(connectionId, sessionId); break;
                         case "opencode": opencode?.ResumeNextSession(connectionId, sessionId); break;
+                        case "codex": codex?.ResumeNextSession(connectionId, sessionId); break;
                         case "copilotcli": copilot?.ResumeNextSession(connectionId, sessionId); break;
                     }
                     logger.LogInformation("[ResumeChatThread] {ConnectionId}: la prossima domanda riprende la sessione {SessionId} di {Engine}", connectionId, sessionId, current);
@@ -969,9 +1010,10 @@ namespace MdExplorer.Hubs
                 _copilotChatPool?.CancelActivePrompt(connectionId);
                 _claudeCodePool?.CancelActivePrompt(connectionId);
                 _openCodePool?.CancelActivePrompt(connectionId);
+                _codexPool?.CancelActivePrompt(connectionId);
                 var gate = _turnGates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
                 var logger = _logger;
-                var (copilot, claude, opencode) = (_copilotChatPool, _claudeCodePool, _openCodePool);
+                var (copilot, claude, opencode, codex) = (_copilotChatPool, _claudeCodePool, _openCodePool, _codexPool);
                 _ = Task.Run(async () =>
                 {
                     await gate.WaitAsync();
@@ -991,6 +1033,11 @@ namespace MdExplorer.Hubs
                         {
                             try { await opencode.ReleaseAsync(connectionId); }
                             catch (Exception ex) { logger.LogWarning(ex, "[ClearHistory] rilascio del pool opencode fallito per {ConnectionId}", connectionId); }
+                        }
+                        if (codex != null)
+                        {
+                            try { await codex.ReleaseAsync(connectionId); }
+                            catch (Exception ex) { logger.LogWarning(ex, "[ClearHistory] rilascio del pool Codex fallito per {ConnectionId}", connectionId); }
                         }
                     }
                     finally { gate.Release(); }
@@ -1040,6 +1087,11 @@ namespace MdExplorer.Hubs
                     // Null resta null: lo sceglie il server (il suo default e' dichiarato in
                     // /config/providers). Un nome inventato qui sarebbe sbagliato su meta' delle
                     // installazioni, perche' i modelli dipendono dai provider collegati.
+                    chatMode.ModelId = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
+                    break;
+                case "codex":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.Codex;
+                    // Null resta null: vale il predefinito che Codex dichiara per l'account (D8).
                     chatMode.ModelId = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
                     break;
                 default:
@@ -1104,9 +1156,10 @@ namespace MdExplorer.Hubs
             _claudeCodePool?.RegisterActivePrompt(connectionId, cts);
             _copilotChatPool?.RegisterActivePrompt(connectionId, cts);
             _openCodePool?.RegisterActivePrompt(connectionId, cts);
+            _codexPool?.RegisterActivePrompt(connectionId, cts);
             var logger = _logger;
             var launch = _e2eLaunch;
-            var (claude, copilot, opencode) = (_claudeCodePool, _copilotChatPool, _openCodePool);
+            var (claude, copilot, opencode, codex) = (_claudeCodePool, _copilotChatPool, _openCodePool, _codexPool);
 
             _ = Task.Run(async () =>
             {
@@ -1133,6 +1186,7 @@ namespace MdExplorer.Hubs
                     claude?.UnregisterActivePrompt(connectionId, cts);
                     copilot?.UnregisterActivePrompt(connectionId, cts);
                     opencode?.UnregisterActivePrompt(connectionId, cts);
+                    codex?.UnregisterActivePrompt(connectionId, cts);
                     cts.Dispose();
                     try { await client.SendAsync("StreamComplete", channelId); } catch { /* connection gone */ }
                 }
@@ -1224,6 +1278,12 @@ namespace MdExplorer.Hubs
         {
             public OpenCodeMidStreamException(Exception inner)
                 : base(MdExplorer.Features.Services.UiText.Say("Lo stream di opencode è fallito dopo il primo frammento", "The opencode stream failed after the first chunk"), inner) { }
+        }
+
+        private sealed class CodexMidStreamException : Exception
+        {
+            public CodexMidStreamException(Exception inner)
+                : base(MdExplorer.Features.Services.UiText.Say("Lo stream di Codex è fallito dopo il primo frammento", "The Codex stream failed after the first chunk"), inner) { }
         }
 
 
@@ -1534,6 +1594,152 @@ namespace MdExplorer.Hubs
                     streamedText.Length, authoritative.Length);
             }
 
+            history.Messages.Add(new bll.Models.AI.ConversationMessage
+            {
+                Role = "model",
+                Content = finalResponse
+            });
+            return finalResponse;
+        }
+
+        /// <summary>
+        /// Turno di chat servito da <b>Codex</b> (<c>codex app-server</c> su stdio), con la sessione del
+        /// <see cref="CodexSessionPool"/>. Gemello di <see cref="StreamClaudeCodeResponseAsync"/> e
+        /// <see cref="StreamOpenCodeResponseAsync"/>: stessi eventi SignalR, più <c>ReceiveCodexUsage</c> per token e quota.
+        /// Sprint docs-internal/Sprints/2026-11-28-Motore-Codex.md, F2.
+        /// </summary>
+        private async Task<string> StreamCodexResponseAsync(string userMessage, string modelId, string currentDoc, ConversationHistory history, string channelId = "default")
+        {
+            var projectPath = GetProjectPath(out _);
+            if (projectPath != null) await _turnRefresher.BeforeTurnAsync(projectPath);
+            try { return await StreamCodexResponseCoreAsync(userMessage, modelId, currentDoc, history, channelId); }
+            finally { if (projectPath != null) _turnRefresher.AfterTurn(projectPath); }
+        }
+
+        private async Task<string> StreamCodexResponseCoreAsync(
+            string userMessage,
+            string modelId,
+            string currentDoc,
+            ConversationHistory history,
+            string channelId = "default")
+        {
+            if (_codexPool == null)
+            {
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("CodexSessionPool non registrato", "CodexSessionPool not registered"));
+            }
+
+            var projectPath = GetProjectPath(out var whyNoProject);
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new InvalidOperationException(
+                    MdExplorer.Features.Services.UiText.Say("Non so in quale progetto lavorare, e Codex va lanciato dentro il progetto, non altrove: "
+                    + $"{whyNoProject}. Riapri il progetto.",
+                    "I do not know which project to work in, and Codex must run inside the project, nowhere else: "
+                    + $"{whyNoProject}. Reopen the project."));
+            }
+
+            // Server MCP di MdExplorer coi gruppi del progetto, regole sulle approvazioni (niente ssh/scp, niente modifiche
+            // native nelle radici di codice), web secondo la rotella: cambiati, il pool riavvia riprendendo il thread.
+            var options = MdExplorer.Utilities.CodexChat.ChatOptions(
+                MdExplorer.Service.ProjectsManager.McpGroupsArgument(UserSettings, projectPath),
+                await LinkedCodeRootsAsync(projectPath),
+                MdExplorer.Service.ProjectsManager.ChatWebAccessEnabled(UserSettings, projectPath));
+            var session = await _codexPool.GetOrCreateAsync(ConnectionId, projectPath, modelId, options);
+
+            await Caller.SendAsync("ReceiveStreamMeta",
+                new { providerType = "codex", modelId = modelId ?? session.EffectiveModel, transport = "app-server" }, channelId);
+
+            var promptText = string.IsNullOrEmpty(currentDoc)
+                ? userMessage
+                : $"[Documento corrente: {currentDoc}]\n\n{userMessage}";
+
+            var streamed = new StringBuilder();
+            int chunksSent = 0;
+
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(ConnectionAborted);
+            _codexPool.RegisterActivePrompt(ConnectionId, promptCts);
+            try
+            {
+                await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
+                {
+                    if (chunk.Kind == CodexChunk.KindMessage)
+                    {
+                        await Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        streamed.Append(chunk.Text);
+                        chunksSent++;
+                    }
+                    else if (chunk.Kind == CodexChunk.KindThinking)
+                    {
+                        await Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                    }
+                    else if (chunk.Kind == CodexChunk.KindTool)
+                    {
+                        // La chiamata e il risultato interi vanno nella cronologia; a video resta la riga corta.
+                        if (chunk.Record != null) _turnRecording?.Tool(chunk.Record);
+                        if (!string.IsNullOrEmpty(chunk.Text))
+                            await Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (promptCts.IsCancellationRequested)
+            {
+                _logger.LogInformation("[AiChatHub] Turno Codex annullato dall'utente (frammenti={ChunksSent})", chunksSent);
+            }
+            catch (Exception ex) when (chunksSent > 0)
+            {
+                throw new CodexMidStreamException(ex);
+            }
+            finally
+            {
+                _codexPool.UnregisterActivePrompt(ConnectionId, promptCts);
+                promptCts.Dispose();
+            }
+
+            _turnRecording?.EngineSession(session.SessionId);
+
+            // Codex spende token di ragionamento ma con alcuni modelli e piani non ne manda il testo (misurato il 28/11 con
+            // gpt-6-luna sul piano free): lo si dice una volta, non lo si nasconde.
+            if (!session.LastTurnHadReasoning && (session.LastTurnUsage?.ReasoningTokens ?? 0) > 0 && _toldNoCodexThinking.TryAdd(ConnectionId, 0))
+            {
+                await Caller.SendAsync("ReceiveMessage", "system", MdExplorer.Features.Services.UiText.Say(
+                    $"Codex ({session.ModelId ?? session.EffectiveModel ?? "modello predefinito"}) ha ragionato ma non ne ha mandato il testo: qui e nella cronologia resta solo la risposta.",
+                    $"Codex ({session.ModelId ?? session.EffectiveModel ?? "default model"}) reasoned but did not send the text of it: here and in the history only the answer stays."));
+            }
+
+            try
+            {
+                var usage = session.LastTurnUsage;
+                var quota = session.LastRateLimit;
+                if (usage != null)
+                {
+                    await Caller.SendAsync("ReceiveCodexUsage", new
+                    {
+                        modelId = usage.Model,
+                        inputTokens = usage.InputTokens,
+                        cachedInputTokens = usage.CachedInputTokens,
+                        outputTokens = usage.OutputTokens,
+                        reasoningTokens = usage.ReasoningTokens,
+                        totalTokens = usage.TotalTokens,
+                        threadTotalTokens = usage.ThreadTotalTokens,
+                        contextWindow = usage.ContextWindow,
+                        durationMs = usage.DurationMs,
+                        planType = quota?.PlanType,
+                        primaryUsedPercent = quota?.PrimaryUsedPercent,
+                        primaryWindowMinutes = quota?.PrimaryWindowMinutes,
+                        primaryResetsAt = quota?.PrimaryResetsAt,
+                        secondaryUsedPercent = quota?.SecondaryUsedPercent,
+                        secondaryWindowMinutes = quota?.SecondaryWindowMinutes,
+                        secondaryResetsAt = quota?.SecondaryResetsAt,
+                    }, channelId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // La telemetria non deve mai far fallire un turno andato a buon fine.
+                _logger.LogWarning(ex, "[AiChatHub] invio del consuntivo Codex fallito");
+            }
+
+            var finalResponse = streamed.ToString().TrimEnd();
             history.Messages.Add(new bll.Models.AI.ConversationMessage
             {
                 Role = "model",
@@ -1880,6 +2086,25 @@ namespace MdExplorer.Hubs
                             _logger.LogError(ocEx, "[RegenerateAiResponse] opencode fallito prima dello streaming");
                             await Caller.SendAsync("ReceiveError",
                                 MdExplorer.Features.Services.UiText.Say("opencode non è partito: ", "opencode did not start: ") + ocEx.Message, channelId);
+                        }
+                    }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.Codex)
+                    {
+                        try
+                        {
+                            await StreamCodexResponseAsync(WithThreadInstruction(lastUserMessage, channelId), chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (CodexMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[RegenerateAiResponse] Codex interrotto a metà stream");
+                            await Caller.SendAsync("ReceiveError",
+                                MdExplorer.Features.Services.UiText.Say("Stream di Codex interrotto: ", "Codex stream interrupted: ") + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                        }
+                        catch (Exception cxEx)
+                        {
+                            _logger.LogError(cxEx, "[RegenerateAiResponse] Codex fallito prima dello streaming");
+                            await Caller.SendAsync("ReceiveError",
+                                MdExplorer.Features.Services.UiText.Say("Codex non è partito: ", "Codex did not start: ") + cxEx.Message, channelId);
                         }
                     }
                     else
