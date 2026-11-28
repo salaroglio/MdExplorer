@@ -19,6 +19,9 @@ namespace MdExplorer.Utilities
 
         /// <summary>Claude Code CLI.</summary>
         Claude = 3,
+
+        /// <summary>OpenAI Codex (<c>codex app-server</c>).</summary>
+        Codex = 4,
     }
 
     /// <summary>
@@ -39,16 +42,18 @@ namespace MdExplorer.Utilities
         public const string CopilotId = "copilot";
         public const string OpenCodeId = "opencode";
         public const string ClaudeId = "claude";
+        public const string CodexId = "codex";
         public const string NoneId = "none";
 
         /// <summary>Valori ammessi per <c>Project.MarkAgentEngine</c>, da mostrare in un errore.</summary>
-        public static string AllowedIds => $"{CopilotId}, {OpenCodeId}, {ClaudeId}, {NoneId}";
+        public static string AllowedIds => $"{CopilotId}, {OpenCodeId}, {ClaudeId}, {CodexId}, {NoneId}";
 
         public static string IdOf(MarkAgentEngine engine) => engine switch
         {
             MarkAgentEngine.Copilot => CopilotId,
             MarkAgentEngine.OpenCode => OpenCodeId,
             MarkAgentEngine.Claude => ClaudeId,
+            MarkAgentEngine.Codex => CodexId,
             MarkAgentEngine.None => NoneId,
             _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),
         };
@@ -60,6 +65,7 @@ namespace MdExplorer.Utilities
                 case CopilotId: engine = MarkAgentEngine.Copilot; return true;
                 case OpenCodeId: engine = MarkAgentEngine.OpenCode; return true;
                 case ClaudeId: engine = MarkAgentEngine.Claude; return true;
+                case CodexId: engine = MarkAgentEngine.Codex; return true;
                 case NoneId: engine = MarkAgentEngine.None; return true;
                 default: engine = MarkAgentEngine.None; return false;
             }
@@ -74,6 +80,7 @@ namespace MdExplorer.Utilities
             HarnessTarget.Copilot => MarkAgentEngine.Copilot,
             HarnessTarget.OpenCode => MarkAgentEngine.OpenCode,
             HarnessTarget.Claude => MarkAgentEngine.Claude,
+            HarnessTarget.Codex => MarkAgentEngine.Codex,
             HarnessTarget.None => MarkAgentEngine.None,
             _ => throw new ArgumentOutOfRangeException(nameof(harness), harness, MdExplorer.Features.Services.UiText.Say("Harness sconosciuto.", "Unknown harness.")),
         };
@@ -110,7 +117,8 @@ namespace MdExplorer.Utilities
         /// <summary>
         /// Il modello predefinito di un motore: Claude Code <see cref="ClaudeDefaultModel"/>, Copilot
         /// <see cref="CopilotDefaultModel"/>; opencode <c>null</c>, lo sceglie il server, perché i suoi modelli
-        /// dipendono dai provider collegati a quella installazione.
+        /// dipendono dai provider collegati a quella installazione; Codex <c>null</c>, vale il predefinito che dichiara per
+        /// l'account (D8 dello sprint 2026-11-28-Motore-Codex: i modelli dipendono dal piano).
         /// </summary>
         public static string DefaultModelOf(MarkAgentEngine engine) => engine switch
         {
@@ -122,7 +130,7 @@ namespace MdExplorer.Utilities
         /// <summary>
         /// Il modello di «Descrivi con Mark» quando non ne è stato scelto uno (decisione dell'utente 22/10/2026): le
         /// descrizioni sono migliaia di domande, si parte dal modello leggero del motore — Claude Code <c>haiku</c> (il tab
-        /// resta su <c>sonnet</c>), Copilot <c>gpt-6-luna</c> (il tab su <c>gpt-6-terra</c>). opencode: <c>null</c>, come il tab.
+        /// resta su <c>sonnet</c>), Copilot <c>gpt-6-luna</c> (il tab su <c>gpt-6-terra</c>). opencode e Codex: <c>null</c>, come il tab.
         /// </summary>
         public static string CodeDescriptionDefaultModelOf(MarkAgentEngine engine) => engine switch
         {
@@ -157,6 +165,7 @@ namespace MdExplorer.Utilities
                 MarkAgentEngine.Copilot => project?.CopilotChatModel,
                 MarkAgentEngine.Claude => project?.ClaudeCodeChatModel,
                 MarkAgentEngine.OpenCode => project?.OpenCodeChatModel,
+                MarkAgentEngine.Codex => project?.CodexChatModel,
                 _ => null,
             };
 
@@ -168,6 +177,7 @@ namespace MdExplorer.Utilities
                 MarkAgentEngine.Copilot => project?.CopilotCodeDescriptionModel,
                 MarkAgentEngine.Claude => project?.ClaudeCodeDescriptionModel,
                 MarkAgentEngine.OpenCode => project?.OpenCodeCodeDescriptionModel,
+                MarkAgentEngine.Codex => project?.CodexCodeDescriptionModel,
                 _ => null,
             };
             return string.IsNullOrWhiteSpace(chosen) ? null : chosen.Trim();
@@ -182,6 +192,7 @@ namespace MdExplorer.Utilities
                 case MarkAgentEngine.Copilot: project.CopilotCodeDescriptionModel = value; break;
                 case MarkAgentEngine.Claude: project.ClaudeCodeDescriptionModel = value; break;
                 case MarkAgentEngine.OpenCode: project.OpenCodeCodeDescriptionModel = value; break;
+                case MarkAgentEngine.Codex: project.CodexCodeDescriptionModel = value; break;
                 default: throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
                     "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.",
                     "The project has no MarkAgent engine: choose it in the project settings."));
@@ -194,6 +205,7 @@ namespace MdExplorer.Utilities
             MarkAgentEngine.Copilot => HarnessTarget.Copilot,
             MarkAgentEngine.OpenCode => HarnessTarget.OpenCode,
             MarkAgentEngine.Claude => HarnessTarget.Claude,
+            MarkAgentEngine.Codex => HarnessTarget.Codex,
             MarkAgentEngine.None => HarnessTarget.None,
             _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),
         };
@@ -229,6 +241,7 @@ namespace MdExplorer.Utilities
             MarkAgentEngine.Copilot => "copilot",
             MarkAgentEngine.OpenCode => "opencode",
             MarkAgentEngine.Claude => "claude",
+            MarkAgentEngine.Codex => "codex",
             MarkAgentEngine.None => throw new InvalidOperationException(
                 MdExplorer.Features.Services.UiText.Say("Questo progetto non ha un ambiente agentico: non c'è nessun CLI da aprire.", "This project has no agentic environment: there is no CLI to open.")),
             _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, MdExplorer.Features.Services.UiText.Say("Motore di MarkAgent sconosciuto.", "Unknown MarkAgent engine.")),

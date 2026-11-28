@@ -47,6 +47,13 @@
         /// per conversazione: un solo server per istanza di MdExplorer serve tutti i progetti,
         /// passando la cartella nel parametro <c>directory</c>.
         /// </summary>
-        OpenCode
+        OpenCode,
+
+        /// <summary>
+        /// OpenAI Codex, pilotato da <c>codex app-server</c> su stdio (JSON-RPC, un processo per sessione). Distinto da
+        /// <see cref="OpenAI"/>, che è l'API HTTP con API key: qui si pilota il CLI installato, che gira sull'accesso
+        /// dell'utente (ChatGPT o chiave). In minuscolo (<c>codex</c>) è il modo della chat e il motore della cronologia.
+        /// </summary>
+        Codex
     }
 }

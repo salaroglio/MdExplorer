@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GitHub.Copilot;
 using MdExplorer.Features.Services.AI.ClaudeCode;
+using MdExplorer.Features.Services.AI.Codex;
 using MdExplorer.Features.Services.AI.CopilotAcp;
 using MdExplorer.Features.Services.AI.CopilotSdk;
 using MdExplorer.Features.Services.AI.OpenCode;
@@ -18,6 +19,44 @@ namespace MdExplorer.Features.Services.AI.AgenticEnvironments
         public const string Copilot = "copilot";
         public const string Claude = "claude";
         public const string OpenCode = "opencode";
+        public const string Codex = "codex";
+    }
+
+    /// <summary>
+    /// OpenAI Codex: <c>codex login status</c> (misurato il 28/11/2026 su 0.172.0): «Logged in using ChatGPT» con exit 0,
+    /// «Not logged in» con exit 1. Nessun turno speso.
+    /// </summary>
+    public sealed class CodexEnvironmentCheck : IAgenticEnvironmentCheck
+    {
+        public string Id => AgenticEnvironmentIds.Codex;
+
+        public string ResolvePath() => CodexProcessLauncher.ResolvePath();
+
+        public async Task<AgenticEnvironmentUsability> CheckUsableAsync(CancellationToken ct)
+        {
+            var result = await CliCommand.RunAsync(ResolvePath(), new[] { "login", "status" }, ct).ConfigureAwait(false);
+            return Interpret(result.ExitCode, result.Stdout, result.Stderr);
+        }
+
+        /// <summary>Legge la risposta di <c>codex login status</c>. Pura: si prova senza il CLI.</summary>
+        public static AgenticEnvironmentUsability Interpret(int exitCode, string stdout, string stderr)
+        {
+            // Il CLI scrive l'esito su uno dei due flussi, e su stderr anche gli avvisi: si leggono insieme.
+            var lines = ((stdout ?? string.Empty) + "\n" + (stderr ?? string.Empty)).Split('\n').Select(l => l.Trim()).ToList();
+            if (lines.Any(l => l.StartsWith("Not logged in", StringComparison.OrdinalIgnoreCase)))
+                return AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.NotLoggedIn,
+                    MdExplorer.Features.Services.UiText.Say("Codex è installato ma l'accesso non è stato fatto: lancia `codex login` (o `codex login --device-auth`).",
+                        "Codex is installed but not logged in: run `codex login` (or `codex login --device-auth`)."));
+            var loggedIn = lines.FirstOrDefault(l => l.StartsWith("Logged in", StringComparison.OrdinalIgnoreCase));
+            if (exitCode == 0 && loggedIn != null)
+                return AgenticEnvironmentUsability.Ok(MdExplorer.Features.Services.UiText.Say("Accesso fatto", "Logged in") +
+                    (loggedIn.Length > "Logged in".Length ? " (" + loggedIn.Substring("Logged in".Length).Trim() + ")." : "."));
+
+            return AgenticEnvironmentUsability.No(AgenticEnvironmentReasons.Error,
+                MdExplorer.Features.Services.UiText.Say($"`codex login status` non ha detto se l'accesso c'è (exit {exitCode}): ",
+                    $"`codex login status` did not say whether you are logged in (exit {exitCode}): ") +
+                $"{ClaudeCodeEnvironmentCheck.FirstLine(string.IsNullOrWhiteSpace(stderr) ? stdout : stderr)}.");
+        }
     }
 
     /// <summary>

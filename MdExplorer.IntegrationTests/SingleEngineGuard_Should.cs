@@ -28,6 +28,7 @@ namespace MdExplorer.IntegrationTests
             ["MdExplorer.Controllers.AI.CopilotCliController"] = "settings of Copilot CLI: version, models, system prompt (no chat)",
             ["MdExplorer.Controllers.AI.ClaudeCodeController"] = "settings of Claude Code: version, models (no chat)",
             ["MdExplorer.Controllers.AI.OpenCodeController"] = "settings of opencode: models (no chat)",
+            ["MdExplorer.Controllers.AI.CodexController"] = "settings of Codex: version, models (no chat)",
             ["MdExplorer.Controllers.AI.OpenAiController"] = "OpenAI, outside the rule for now (D4)",
             ["MdExplorer.Controllers.AI.AiModelsController"] = "local model management: download, load, prompts (no chat; D4)",
         };

@@ -22,6 +22,9 @@ namespace MdExplorer.Utilities
 
         /// <summary>Claude Code — the <c>.claude/</c> layout, with <c>CLAUDE.md</c> at the root.</summary>
         Claude = 3,
+
+        /// <summary>OpenAI Codex — the <c>.codex/</c> layout, with <c>AGENTS.md</c> at the root.</summary>
+        Codex = 4,
     }
 
     /// <summary>
@@ -180,8 +183,30 @@ namespace MdExplorer.Utilities
             instructionsResource: "MdExplorer.Service.claude-instructions.md",
             gitignorePatterns: new[] { ".claude/**/mde-*" });
 
+        /// <summary>
+        /// OpenAI Codex layout. Verified with functional probes on Codex 0.172.0 (28/11/2026, <c>codex app-server</c>):
+        /// <c>skills/list</c> reads <c>.codex/skills/&lt;name&gt;/SKILL.md</c> (and <c>.agents/skills</c>, the documented path,
+        /// left aside so the engine keeps ONE root folder — user's choice, 28/11), a SKILL.md without <c>name</c> is taken
+        /// by its folder name; custom agents are TOML files in <c>.codex/agents/</c> (a table Codex does not know, like
+        /// <c>[mde]</c>, makes it drop the whole agent, so MdExplorer's marker is a TOML comment); instructions in a root
+        /// <c>AGENTS.md</c>. Codex has no prompt files: MdExplorer's prompts are installed as skills (user's choice, 28/11),
+        /// hence a prompt path ending in <c>/SKILL.md</c>. Sprint: docs-internal/Sprints/2026-11-28-Motore-Codex.md.
+        /// </summary>
+        public static readonly HarnessLayout Codex = new(
+            target: HarnessTarget.Codex,
+            id: "codex",
+            rootFolder: ".codex",
+            skillsFolder: ".codex/skills",
+            agentsFolder: ".codex/agents",
+            promptsFolder: ".codex/skills",
+            agentFileSuffix: ".toml",
+            promptFileSuffix: "/SKILL.md",
+            instructionsFile: "AGENTS.md",
+            instructionsResource: "MdExplorer.Service.AGENTS.md",
+            gitignorePatterns: new[] { ".codex/**/mde-*" });
+
         /// <summary>Every layout that actually installs files (<see cref="HarnessTarget.None"/> excluded).</summary>
-        public static IReadOnlyList<HarnessLayout> All { get; } = new[] { Copilot, OpenCode, Claude };
+        public static IReadOnlyList<HarnessLayout> All { get; } = new[] { Copilot, OpenCode, Claude, Codex };
 
         /// <summary>
         /// Layout for a target. Throws for <see cref="HarnessTarget.None"/>: "no harness" is a
@@ -194,6 +219,7 @@ namespace MdExplorer.Utilities
                 case HarnessTarget.Copilot: return Copilot;
                 case HarnessTarget.OpenCode: return OpenCode;
                 case HarnessTarget.Claude: return Claude;
+                case HarnessTarget.Codex: return Codex;
                 case HarnessTarget.None:
                     throw new InvalidOperationException(
                         "HarnessTarget.None has no layout: a project with no harness installs nothing. " +
@@ -231,7 +257,7 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>Allowed <c>harness.target</c> values, for error messages.</summary>
-        public static string AllowedIds => "copilot, opencode, claude, none";
+        public static string AllowedIds => "copilot, opencode, claude, codex, none";
 
         public override string ToString() => Id;
     }

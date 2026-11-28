@@ -537,7 +537,7 @@ namespace MdExplorer.Controllers.CodeGraph
 
             // le skill del pacchetto subito, per i motori che il progetto ha (la loro cartella delle skill c'è)
             var installed = new System.Collections.Generic.List<string>();
-            foreach (var layout in new[] { HarnessLayout.Claude, HarnessLayout.Copilot, HarnessLayout.OpenCode })
+            foreach (var layout in HarnessLayout.All)
                 if (Directory.Exists(Path.Combine(request.ProjectPath, layout.SkillsFolder.Replace('/', Path.DirectorySeparatorChar))))
                     installed.AddRange(LanguageSkillInstaller.Sync(request.ProjectPath, layout));
             _logger.LogInformation("[CodeGraph] pacchetto di linguaggio '{Id}' v{Version} importato da {Source}{Replaced}; skill: {Skills}",

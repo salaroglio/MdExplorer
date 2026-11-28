@@ -319,6 +319,7 @@
     <EmbeddedResource Include="skills\mde-skillcreator\agent.copilot.yml" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.opencode.yml" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.claude.yml" />
+    <EmbeddedResource Include="skills\mde-skillcreator\agent.codex.toml" />
     <EmbeddedResource Include="skills\mde-codegen-graph\prompt.md" />
     <EmbeddedResource Include="skills\mde-mark-summarize\prompt.md" />
     <EmbeddedResource Include="skills\mde-mark-thread\prompt.md" />
