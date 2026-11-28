@@ -14,7 +14,7 @@ A development environment has an editor, a compiler, a runtime, version control 
 
 - **Documents are data.** A document includes the real files of the project, draws them as diagrams and stays aligned by itself. Nothing is copied, so nothing goes stale.
 - **Documents are algorithms.** A skill, a house rule, a workflow, a test written in plain words: text files that tell an AI agent how to work, reviewed and approved like any other document.
-- **The AI is the runtime.** GitHub Copilot, Claude Code or opencode: one engine, chosen once per project. There is no built-in model.
+- **The AI is the runtime.** GitHub Copilot, Claude Code, opencode or OpenAI Codex: one engine, chosen once per project. There is no built-in model.
 - **Git is the control.** Everything an agent writes is a change you read before accepting it. Every change has an author and a date.
 
 It runs on Windows and Linux. Your documents stay on your computer and in your git.
@@ -49,7 +49,7 @@ Download the installer for Windows or the AppImage for Linux from **[mdexplorer.
 
 The fastest way to see everything is the demo project: after installing, open Mark's guide (the question mark) and choose «Create demo project». The same project is public at [salaroglio/mdexplorer-demo](https://github.com/salaroglio/mdexplorer-demo) (branch `main` in Italian, branch `en` in English).
 
-To use the AI functions, install and sign in to one of the command-line tools `copilot`, `claude` or `opencode`. → [Getting started](https://www.mdexplorer.net/docs/)
+To use the AI functions, install and sign in to one of the command-line tools `copilot`, `claude`, `opencode` or `codex`. → [Getting started](https://www.mdexplorer.net/docs/)
 
 ## For AI agents
 
@@ -79,7 +79,7 @@ cd ElectronMdExplorer && npm install && npm start                   # desktop ap
 - **Desktop**: Electron, with automatic updates
 - **Git**: LibGit2Sharp
 - **Code graph**: Roslyn, tree-sitter, RDF/Turtle, SPARQL
-- **Agents**: an MCP server (`MdExplorer.Mcp`) and the command-line tools of GitHub Copilot, Claude Code and opencode
+- **Agents**: an MCP server (`MdExplorer.Mcp`) and the command-line tools of GitHub Copilot, Claude Code, opencode and OpenAI Codex
 
 ### Repository
 

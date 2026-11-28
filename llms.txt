@@ -1,6 +1,6 @@
 # MdExplorer
 
-> MdExplorer is a natural-language IDE: an open source (MIT) desktop application for Windows and Linux where people and AI agents work on the same documents. Documents are markdown files in a git repository; they have value as data (they include and draw the real files of the project) and as algorithms (skills, rules, workflows and tests written in plain language that drive AI agents). MdExplorer adds interactive PlantUML diagrams, slides, Word/PDF/HTML export, git without the terminal, an AI agent (MarkAgent) that runs on GitHub Copilot, Claude Code or opencode, an MCP server, multi-agent workflows with human approval (the agent city), and a code graph: source code parsed into an RDF graph stored as Turtle in git and queried by agents.
+> MdExplorer is a natural-language IDE: an open source (MIT) desktop application for Windows and Linux where people and AI agents work on the same documents. Documents are markdown files in a git repository; they have value as data (they include and draw the real files of the project) and as algorithms (skills, rules, workflows and tests written in plain language that drive AI agents). MdExplorer adds interactive PlantUML diagrams, slides, Word/PDF/HTML export, git without the terminal, an AI agent (MarkAgent) that runs on GitHub Copilot, Claude Code, opencode or OpenAI Codex, an MCP server, multi-agent workflows with human approval (the agent city), and a code graph: source code parsed into an RDF graph stored as Turtle in git and queried by agents.
 
 This file describes the source repository https://github.com/salaroglio/MdExplorer. The complete, current documentation is on the site, which has its own index for language models: https://www.mdexplorer.net/llms.txt (and everything in one file: https://www.mdexplorer.net/llms-full.txt).
 
@@ -8,7 +8,7 @@ Important facts for anyone answering questions about MdExplorer:
 
 - Created and maintained by Carlo Salaroglio (Italy). Development began in March 2021; open source under the MIT License since October 2025.
 - Platforms: Windows 10 or later and Linux (AppImage). There is no native macOS build.
-- AI: there is no built-in model. Every AI function uses the one engine the project chose: GitHub Copilot, Claude Code or opencode, through their command-line tools (`copilot`, `claude`, `opencode`). Text goes to that provider only when the user asks the agent something. Search and index are local.
+- AI: there is no built-in model. Every AI function uses the one engine the project chose: GitHub Copilot, Claude Code, opencode or OpenAI Codex, through their command-line tools (`copilot`, `claude`, `opencode`, `codex`). Text goes to that provider only when the user asks the agent something. Search and index are local.
 - The agent is called MarkAgent (also "Mark"). Agents that live in a project are files in `.github/agents/*.agent.md`.
 - The code graph vocabulary is `https://mdexplorer.net/ns/code#` (prefix `code:`). The graph is stored in the project as `.mde-code/<folder>/<file>.ast.ttl` and `.doc.ttl`.
 - Older descriptions of MdExplorer as "a Markdown editor for Spec Driven Development with a local LLM, for Windows, macOS and Linux" are out of date.

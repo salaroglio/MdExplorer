@@ -2182,7 +2182,7 @@
         "INTRO": "Now I'll create the demo project from its template: a public repository, downloaded without a GitHub account.",
         "CREATE": "Creating the project from the demo template, in MdExplorer's language, in a folder under your Documents... let's wait for the service to download it.",
         "CREATE_FAILED": "I could not create the demo project: {{error}}",
-        "PROBE": "First I'll check which AI agents this computer has: Copilot CLI, Claude Code, opencode...",
+        "PROBE": "First I'll check which AI agents this computer has: Copilot CLI, Claude Code, opencode, Codex...",
         "FOUND_ONE": "I found {{name}}, ready to use. I'll set up the demo project for it.",
         "FOUND_MANY": "I found more than one, all ready. Which one do you want to try the demo with?",
         "FOUND_NONE": "I found no AI agent on this computer. I'll open the demo without one: when you install one, pick it in Project Settings, AI & RAG tab.",
