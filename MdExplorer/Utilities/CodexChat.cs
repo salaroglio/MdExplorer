@@ -111,3 +111,79 @@ namespace MdExplorer.Utilities
         }
     }
 }
+
+namespace MdExplorer.Utilities
+{
+    /// <summary>
+    /// Il server MCP di MdExplorer per il Codex che l'utente apre nel terminale: <c>[mcp_servers.mdexplorer]</c> nel
+    /// <c>config.toml</c> di <c>$CODEX_HOME</c>, scritto con il writer di Codex (<c>config/value/write</c> dell'app-server), che
+    /// conserva il resto del file, come <c>claude mcp add</c> per Claude Code. Con <c>env_vars</c> = <c>DOTNET_ROOT</c>: senza,
+    /// Codex avvia il server .NET in un ambiente ripulito e quello muore (misurato il 28/11).
+    /// <para>Sprint: docs-internal/Sprints/2026-11-28-Motore-Codex.md, fase F5.</para>
+    /// </summary>
+    public static class CodexMcp
+    {
+        private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
+
+        /// <summary>Registra (o aggiorna) il server per l'utente, e lo dice a log. Niente scrittura se è già com'è.</summary>
+        public static void RegisterInstallationForUser(string mcpGroupsArgument)
+        {
+            var server = CodexChat.MdExplorerServer(mcpGroupsArgument);
+            if (server == null) return;
+            if (!CodexProcessLauncher.IsResolvable())
+            {
+                Console.WriteLine("[CodexMcp] Codex non è nel PATH: il server MCP di MdExplorer non viene registrato per il terminale.");
+                return;
+            }
+            try
+            {
+                var outcome = RegisterAsync(server).GetAwaiter().GetResult();
+                Console.WriteLine($"[CodexMcp] {outcome}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CodexMcp] registrazione del server MCP di MdExplorer non riuscita: {ex.Message}");
+            }
+        }
+
+        /// <summary>Il valore di <c>mcp_servers.mdexplorer</c> che MdExplorer scrive. Pubblico per i test.</summary>
+        public static System.Text.Json.Nodes.JsonObject Entry(CodexMcpServer server) => new()
+        {
+            ["command"] = server.Command,
+            ["args"] = new System.Text.Json.Nodes.JsonArray(server.Args.Select(a => (System.Text.Json.Nodes.JsonNode)a).ToArray()),
+            ["env_vars"] = new System.Text.Json.Nodes.JsonArray(CodexSessionOptions.McpForwardedVariables.Select(v => (System.Text.Json.Nodes.JsonNode)v).ToArray()),
+        };
+
+        public static async System.Threading.Tasks.Task<string> RegisterAsync(CodexMcpServer server, IReadOnlyDictionary<string, string> environment = null)
+        {
+            using var cts = new System.Threading.CancellationTokenSource(Timeout);
+            await using var app = new CodexAppServer(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, Path.GetTempPath(), environment);
+            await app.StartAsync(cts.Token).ConfigureAwait(false);
+
+            var entry = Entry(server);
+            var read = await app.RequestAsync("config/read", new { }, cts.Token).ConfigureAwait(false);
+            if (read.TryGetProperty("config", out var config) && config.TryGetProperty("mcp_servers", out var servers)
+                && servers.ValueKind == System.Text.Json.JsonValueKind.Object && servers.TryGetProperty(ClaudeCodeMcp.ServerName, out var current)
+                && Same(current, entry))
+                return $"server MCP '{ClaudeCodeMcp.ServerName}' già registrato in {app.CodexHome}: niente da scrivere";
+
+            await app.RequestAsync("config/value/write", new
+            {
+                keyPath = "mcp_servers." + ClaudeCodeMcp.ServerName,
+                mergeStrategy = "replace",
+                value = entry,
+            }, cts.Token).ConfigureAwait(false);
+            return $"server MCP '{ClaudeCodeMcp.ServerName}' registrato in {app.CodexHome}/config.toml ({server.Command} {string.Join(" ", server.Args)})";
+        }
+
+        private static bool Same(System.Text.Json.JsonElement current, System.Text.Json.Nodes.JsonObject wanted)
+        {
+            string Text(System.Text.Json.JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+            string[] List(System.Text.Json.JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? v.EnumerateArray().Select(x => x.GetString()).ToArray() : Array.Empty<string>();
+            return Text(current, "command") == (string)wanted["command"]
+                && List(current, "args").SequenceEqual(wanted["args"].AsArray().Select(a => (string)a))
+                && List(current, "env_vars").SequenceEqual(wanted["env_vars"].AsArray().Select(a => (string)a));
+        }
+    }
+}

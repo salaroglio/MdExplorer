@@ -1092,6 +1092,11 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     ClaudeCodeMcp.RegisterInstallationForUser(mcpGroupsArgument);
                     break;
 
+                case HarnessTarget.Codex:
+                    // User scope through Codex's own config writer: same reasoning as Claude Code.
+                    CodexMcp.RegisterInstallationForUser(mcpGroupsArgument);
+                    break;
+
                 default:
                     Console.WriteLine("[ProjectsManager] harness.target = none: no MCP server registration.");
                     break;

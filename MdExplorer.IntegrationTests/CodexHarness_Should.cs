@@ -106,6 +106,29 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async System.Threading.Tasks.Task Register_mdexplorer_for_the_terminal_and_keep_the_rest_of_the_users_config()
+        {
+            if (!CodexProcessLauncher.IsResolvable()) Assert.Inconclusive("Codex non è nel PATH.");
+            var home = Path.Combine(_root, "codex-home");
+            Directory.CreateDirectory(home);
+            File.WriteAllText(Path.Combine(home, "config.toml"), "model = \"gpt-6-luna\"\n\n[mcp_servers.personale]\ncommand = \"true\"\n");
+            var env = new System.Collections.Generic.Dictionary<string, string> { [CodexProcessLauncher.HomeVariable] = home };
+            var server = new CodexMcpServer { Name = "mdexplorer", Command = "/x/MdExplorer.Mcp", Args = new[] { "--groups", "core" } };
+
+            var first = await CodexMcp.RegisterAsync(server, env);
+            var second = await CodexMcp.RegisterAsync(server, env);
+
+            var toml = File.ReadAllText(Path.Combine(home, "config.toml"));
+            StringAssert.Contains(toml, "[mcp_servers.mdexplorer]");
+            StringAssert.Contains(toml, "/x/MdExplorer.Mcp");
+            StringAssert.Contains(toml, "DOTNET_ROOT");
+            StringAssert.Contains(toml, "[mcp_servers.personale]", "il resto del file resta");
+            StringAssert.Contains(toml, "gpt-6-luna");
+            StringAssert.Contains(first, "registrato in");
+            StringAssert.Contains(second, "niente da scrivere");
+        }
+
+        [TestMethod]
         public void Tell_whether_codex_is_logged_in_from_login_status()
         {
             Assert.IsTrue(CodexEnvironmentCheck.Interpret(0, "Logged in using ChatGPT\n", "").Usable);

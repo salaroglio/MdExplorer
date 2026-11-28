@@ -201,7 +201,7 @@ namespace MdExplorer.Service.Models
     public class HarnessConfig
     {
         /// <summary>
-        /// <c>copilot</c>, <c>opencode</c> oppure <c>none</c>. Resta uno scalare: la scelta è
+        /// <c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>codex</c> oppure <c>none</c> (i valori di <c>HarnessLayout.AllowedIds</c>). Resta uno scalare: la scelta è
         /// esclusiva, e modellarla come lista prima che serva davvero sarebbe prematuro.
         /// </summary>
         public string Target { get; set; }
