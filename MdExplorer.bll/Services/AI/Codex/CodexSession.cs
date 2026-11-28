@@ -393,6 +393,13 @@ namespace MdExplorer.Features.Services.AI.Codex
                     var output = item.TryGetProperty("aggregatedOutput", out var o) && o.ValueKind == JsonValueKind.String ? o.GetString() : string.Empty;
                     var exitCode = item.TryGetProperty("exitCode", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetInt32() : (int?)null;
                     failed |= exitCode is not null and not 0;
+                    // Un .md scritto con la shell (`cat > x.md <<EOF`, `>>`, `tee`) non passa da fileChange: senza, la verifica dei
+                    // diagrammi non lo vede (visto in F7, 28/11).
+                    if (!failed && _diagrams != null && item.TryGetProperty("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
+                    {
+                        var written = MarkdownWrittenByCommand(cmd.GetString());
+                        if (written.Count > 0) _diagrams.ToolInput(JsonSerializer.SerializeToElement(written));
+                    }
                     Emit(new CodexChunk(CodexChunk.KindTool, Outcome(status, failed), Outcome(status, failed),
                         ChatToolRecord.Result("shell", id, output, item.Clone(), failed)));
                     break;
@@ -510,6 +517,14 @@ namespace MdExplorer.Features.Services.AI.Codex
         }
 
         private void Emit(CodexChunk chunk) => _activeChannel?.Writer.TryWrite(chunk);
+
+        private static readonly System.Text.RegularExpressions.Regex ShellWrite = new(
+            @"(?:>>?|\btee\s+(?:-a\s+)?)\s*['""]?(?<path>[^\s'""<>|;&]+\.md)\b", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>I file .md a cui un comando scrive (redirezione o <c>tee</c>): non quelli che legge soltanto.</summary>
+        public static IReadOnlyList<string> MarkdownWrittenByCommand(string command)
+            => string.IsNullOrEmpty(command) ? Array.Empty<string>()
+                : ShellWrite.Matches(command).Select(m => m.Groups["path"].Value).Distinct(StringComparer.Ordinal).ToList();
 
         internal static IReadOnlyList<string> ChangedPaths(JsonElement item)
         {

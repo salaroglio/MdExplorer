@@ -2475,7 +2475,7 @@
     "ENGINE_FROM_PROJECT": "Il motore del progetto, quello del tab MarkAgent. Puoi cambiarlo per questo lancio.",
     "ENGINE_CHOSEN": "Scelto per questo lancio: la scheda e il progetto non cambiano.",
     "ENGINE_NONE": "Il progetto non ha un motore e la scheda non ne dichiara uno: scegline uno.",
-    "ENGINE_CARD_INVALID": "La scheda dichiara un motore sconosciuto («{{provider}}»): correggi runtime.provider (claude, copilot, opencode).",
+    "ENGINE_CARD_INVALID": "La scheda dichiara un motore sconosciuto («{{provider}}»): correggi runtime.provider (claude, copilot, opencode, codex).",
     "MODELS_LOADING": "Leggo i modelli del motore…",
     "MODELS_NONE": "Il motore non ha restituito nessun modello: parte con il suo predefinito.",
     "MODELS_ERROR": "Non riesco a leggere i modelli del motore: {{error}}",

@@ -103,6 +103,23 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public void See_the_markdown_a_shell_command_writes_but_not_the_one_it_reads()
+        {
+            CollectionAssert.AreEqual(new[] { "note/prova.md" },
+                CodexSession.MarkdownWrittenByCommand("/bin/bash -lc \"mkdir -p note && cat > note/prova.md <<'EOF'\n# T\nEOF\"").ToList());
+            CollectionAssert.AreEqual(new[] { "a.md", "b.md" },
+                CodexSession.MarkdownWrittenByCommand("echo x >> a.md; echo y | tee -a 'b.md'").ToList());
+            Assert.AreEqual(0, CodexSession.MarkdownWrittenByCommand("cat docs/diagramma.md").Count);
+        }
+
+        [TestMethod]
+        public void Forward_to_mcp_servers_what_they_need_to_find_the_service()
+        {
+            foreach (var v in new[] { "DOTNET_ROOT", "HOME", "XDG_CONFIG_HOME", "APPDATA", "USERPROFILE", "MDEXPLORER_PORT" })
+                CollectionAssert.Contains(CodexSessionOptions.McpForwardedVariables.ToList(), v);
+        }
+
+        [TestMethod]
         public void Read_the_cli_version_from_the_user_agent()
         {
             Assert.AreEqual("0.172.0", CodexSession.VersionOf("mdexplorer/0.172.0 (Ubuntu 22.4.0; x86_64) gnome-terminal (mdexplorer; 0.0)"));

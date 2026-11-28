@@ -2475,7 +2475,7 @@
     "ENGINE_FROM_PROJECT": "The project's engine, the MarkAgent tab's. You can change it for this launch.",
     "ENGINE_CHOSEN": "Chosen for this launch: the card and the project stay as they are.",
     "ENGINE_NONE": "The project has no engine and the card declares none: choose one.",
-    "ENGINE_CARD_INVALID": "The card declares an unknown engine (“{{provider}}”): fix runtime.provider (claude, copilot, opencode).",
+    "ENGINE_CARD_INVALID": "The card declares an unknown engine (“{{provider}}”): fix runtime.provider (claude, copilot, opencode, codex).",
     "MODELS_LOADING": "Reading the engine's models…",
     "MODELS_NONE": "The engine returned no models: it starts with its default.",
     "MODELS_ERROR": "Cannot read the engine's models: {{error}}",

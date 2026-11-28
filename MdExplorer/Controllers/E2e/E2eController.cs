@@ -44,7 +44,7 @@ namespace MdExplorer.Controllers.E2e
         {
             public string Path { get; set; }
             public string ProjectPath { get; set; }
-            /// <summary>claude, copilot, opencode; null = the project's engine (D10).</summary>
+            /// <summary>claude, copilot, opencode, codex; null = the project's engine (D10).</summary>
             public string? Engine { get; set; }
             /// <summary>The model of <see cref="Engine"/>; null = the engine's (the project's, for the project's engine).</summary>
             public string? Model { get; set; }

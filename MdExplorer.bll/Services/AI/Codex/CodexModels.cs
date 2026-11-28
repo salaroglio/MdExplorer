@@ -175,10 +175,18 @@ namespace MdExplorer.Features.Services.AI.Codex
         public static readonly IReadOnlyList<string> AlwaysDisabledFeatures = new[] { "apps", "browser_use", "computer_use", "image_generation" };
 
         /// <summary>
-        /// Le variabili da passare ai server MCP: Codex li avvia con un ambiente ripulito, e senza <c>DOTNET_ROOT</c>
-        /// <c>MdExplorer.Mcp</c> muore con «You must install .NET» (misurato il 28/11 sulla VM).
+        /// Le variabili da passare ai server MCP: Codex li avvia con un ambiente ripulito (misurato il 28/11 sulla VM).
+        /// Senza <c>DOTNET_ROOT</c> <c>MdExplorer.Mcp</c> muore con «You must install .NET»; senza le cartelle dell'utente
+        /// (<c>HOME</c>/<c>XDG_CONFIG_HOME</c> su Linux, <c>APPDATA</c>/<c>USERPROFILE</c> su Windows) o <c>MDEXPLORER_PORT</c>
+        /// non trova la porta del servizio (<c>port.txt</c>) e cerca su 5000: visto in F7 col servizio isolato
+        /// («MdExplorer non è raggiungibile su localhost:5000»). Una variabile che non c'è non si inoltra.
         /// </summary>
-        public static readonly IReadOnlyList<string> McpForwardedVariables = new[] { "DOTNET_ROOT", "DOTNET_ROOT_X64", "PATH" };
+        public static readonly IReadOnlyList<string> McpForwardedVariables = new[]
+        {
+            "DOTNET_ROOT", "DOTNET_ROOT_X64", "PATH",
+            "HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+            "MDEXPLORER_PORT",
+        };
 
         public static readonly CodexSessionOptions Default = new();
 

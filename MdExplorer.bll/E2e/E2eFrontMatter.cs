@@ -19,7 +19,7 @@ namespace MdExplorer.Features.E2e
     /// The execution settings under <c>e2e.run</c>. A null value means "not said here": it is inherited
     /// from the folders above (D22, D23).
     /// </summary>
-    /// <param name="Engine">The engine that runs the tests (claude, copilot, opencode); null = the project's (D10 of
+    /// <param name="Engine">The engine that runs the tests (claude, copilot, opencode, codex); null = the project's (D10 of
     /// sprint 2026-09-29-Motore-LLM-Unico: the tests have an engine of their own, their session is always dedicated).</param>
     /// <param name="Model">The model of <paramref name="Engine"/>: said only together with it.</param>
     public sealed record E2eRunSettings(string Engine, string Model, bool? CommitAfterRun, bool? Headless)

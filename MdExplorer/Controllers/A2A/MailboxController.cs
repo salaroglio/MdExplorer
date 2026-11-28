@@ -1206,7 +1206,7 @@ namespace MdExplorer.Controllers.A2A
     {
         /// <summary>Le indicazioni del responsabile: l'agente le riceve insieme all'incarico.</summary>
         public string? Note { get; set; }
-        /// <summary>claude, copilot, opencode; vuoto = quello della scheda o del progetto.</summary>
+        /// <summary>claude, copilot, opencode, codex; vuoto = quello della scheda o del progetto.</summary>
         public string? Provider { get; set; }
         public string? Model { get; set; }
     }
