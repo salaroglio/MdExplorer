@@ -1252,6 +1252,21 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
                 logPhase("opencode availability (PATH scan)");
 
+                // Codex: anche qui una scansione del PATH; il `codex app-server` nasce al primo messaggio della chat.
+                bool codexAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.Codex;
+                bool codexAvailable = false;
+                string codexDefaultModel = null;
+                if (codexAutoSelect)
+                {
+                    codexAvailable = MdExplorer.Features.Services.AI.Codex.CodexProcessLauncher.IsResolvable();
+                    // Mai scelto = null: vale il predefinito che Codex dichiara per l'account (D8).
+                    codexDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.Codex);
+                    logger?.LogInformation(
+                        "🤖 Codex: available={Available}, model={Model}, cwd={Cwd}",
+                        codexAvailable, codexDefaultModel ?? "(predefinito dell'account)", request.Path);
+                }
+                logPhase("Codex availability (PATH scan)");
+
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
 
@@ -1274,6 +1289,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     openCodeAutoSelect = openCodeAutoSelect,
                     openCodeAvailable = openCodeAvailable,
                     openCodeDefaultModel = openCodeDefaultModel,
+                    codexAutoSelect = codexAutoSelect,
+                    codexAvailable = codexAvailable,
+                    codexDefaultModel = codexDefaultModel,
                     markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
                     markAgentEngineLinked = markAgentEngineLinked,
                 });

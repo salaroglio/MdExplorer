@@ -214,8 +214,13 @@ namespace MdExplorer.Services.E2e
                             await RunWithClaudeAsync(request, item, server, deniedFiles, key, modelId, Forward, temporaryConfigs, launchNonce, ct);
                         else if (engine == MdExplorer.Utilities.MarkAgentEngine.Copilot)
                             await RunWithCopilotAsync(request, item, server, deniedFiles, key, modelId, Forward, ct);
-                        else
+                        else if (engine == MdExplorer.Utilities.MarkAgentEngine.OpenCode)
                             await RunWithOpenCodeAsync(request, item, server, deniedFiles, modelId, Forward, ct);
+                        else if (engine == MdExplorer.Utilities.MarkAgentEngine.Codex)
+                            await RunWithCodexAsync(request, item, server, deniedFiles, modelId, Forward, ct);
+                        else
+                            // D10 dello sprint 2026-11-28-Motore-Codex: un motore senza esecutore lo dice, non finisce su un altro.
+                            throw new InvalidOperationException(UiText.Say($"Nessun esecutore dei test e2e per il motore {engine}.", $"No e2e test runner for engine {engine}."));
                     }
                     finally
                     {
@@ -303,7 +308,9 @@ namespace MdExplorer.Services.E2e
             {
                 MdExplorer.Utilities.MarkAgentEngine.Claude => MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeProcessLauncher.IsResolvable(),
                 MdExplorer.Utilities.MarkAgentEngine.Copilot => MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable(),
-                _ => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
+                MdExplorer.Utilities.MarkAgentEngine.OpenCode => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
+                MdExplorer.Utilities.MarkAgentEngine.Codex => MdExplorer.Features.Services.AI.Codex.CodexProcessLauncher.IsResolvable(),
+                _ => throw new InvalidOperationException(UiText.Say($"Nessun esecutore dei test e2e per il motore {engine}.", $"No e2e test runner for engine {engine}.")),
             };
             if (!resolvable)
                 return (engine, model, UiText.Say($"{item.RelativeTestFile}: il CLI di {MdExplorer.Utilities.MarkAgentEngines.CommandOf(engine)} non si trova nel PATH del servizio.",
@@ -509,6 +516,100 @@ namespace MdExplorer.Services.E2e
             }
         }
 
+        /// <summary>
+        /// Codex (sprint 2026-11-28-Motore-Codex, F4): un <c>codex app-server</c> per il test, con i server MCP di MdExplorer e di
+        /// Playwright (senza i due strumenti pericolosi) e un profilo di permessi del filesystem (<see cref="CodexE2eProfile"/>):
+        /// i file delle credenziali e dei segreti illeggibili, la configurazione degli agenti in sola lettura. Codex legge i file
+        /// solo con la shell, quindi la shell resta e il divieto lo fa il sandbox, misurato il 28/11 su ogni via di lettura.
+        /// Nessuna approvazione: un comando approvato uscirebbe dal sandbox.
+        /// </summary>
+        private async Task RunWithCodexAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
+            IReadOnlyList<string> deniedFiles, string modelId, Func<string, string, Task> forward, CancellationToken ct)
+        {
+            var servers = new List<MdExplorer.Features.Services.AI.Codex.CodexMcpServer>
+            {
+                new()
+                {
+                    Name = E2ePlaywrightServer.Name,
+                    Command = server.Command,
+                    Args = server.Args.ToList(),
+                    Env = server.Env,
+                    DisabledTools = E2ePlaywrightServer.BannedTools.ToList(),
+                },
+            };
+            var mdexplorer = MdExplorer.Utilities.CodexChat.MdExplorerServer(request.McpGroupsArgument);
+            if (mdexplorer != null) servers.Add(mdexplorer);
+            else _logger.LogWarning("[E2e] MdExplorer.Mcp non trovato: la sessione Codex dei test parte senza gli strumenti di MdExplorer");
+
+            var options = new MdExplorer.Features.Services.AI.Codex.CodexSessionOptions
+            {
+                Approve = null,
+                FileSystemProfile = CodexE2eProfile(request.ProjectPath, deniedFiles),
+                McpServers = servers,
+                WebSearch = false,
+                ProfileKey = "e2e",
+            };
+            await using var session = new MdExplorer.Features.Services.AI.Codex.CodexSession(
+                _loggerFactory.CreateLogger<MdExplorer.Features.Services.AI.Codex.CodexSession>(), request.ProjectPath, modelId, options);
+            await session.StartAsync(ct);
+            await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                await forward(chunk.Kind, chunk.Text);
+        }
+
+        /// <summary>
+        /// Il profilo di permessi di Codex per un test e2e, misurato il 28/11 su Codex 0.172.0:
+        /// <list type="bullet">
+        /// <item><description><c>deny</c> su ogni <c>credenziali-*.txt</c> del progetto (glob) e sui file di segreti del lancio (percorso);</description></item>
+        /// <item><description><c>read</c> sulla configurazione degli agenti alla radice (<see cref="ProtectedPaths"/>), anche dove non esiste ancora:
+        /// un percorso esatto che manca resta non scrivibile;</description></item>
+        /// <item><description><c>read</c> su ogni <c>CLAUDE.md</c>/<c>AGENTS.md</c> che c'è già nelle sottocartelle, per percorso esatto.</description></item>
+        /// </list>
+        /// ⚠️ Codex accetta glob solo con <c>deny</c>, e li espande all'avvio: un file che nasce dopo non è coperto. Per le credenziali non
+        /// conta (le prepara MdExplorer prima del lancio); per le istruzioni vuol dire che un <c>CLAUDE.md</c>/<c>AGENTS.md</c> NUOVO in una
+        /// sottocartella si può creare. <c>deny</c> sulle istruzioni non si può usare: Codex legge <c>AGENTS.md</c> attraverso il sandbox
+        /// e il thread non parte («failed to load AGENTS.md instructions: Permission denied»). Pubblico e statico per i test.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> CodexE2eProfile(string projectPath, IEnumerable<string> deniedFiles)
+        {
+            var profile = new Dictionary<string, string>(StringComparer.Ordinal) { ["**/" + CredentialsNamePattern] = "deny" };
+            foreach (var p in ProtectedPaths)
+                profile[p.TrimEnd('/')] = "read";
+            foreach (var file in ExistingInstructionFiles(projectPath))
+                profile[Path.GetRelativePath(projectPath, file).Replace('\\', '/')] = "read";
+            foreach (var file in deniedFiles ?? Array.Empty<string>())
+            {
+                if (E2eRunPlanner.IsInside(file, projectPath))
+                    profile[Path.GetRelativePath(projectPath, file).Replace('\\', '/')] = "deny";
+                else
+                    profile[Path.GetFullPath(file)] = "deny";
+            }
+            return profile;
+        }
+
+        /// <summary>I <c>CLAUDE.md</c>/<c>AGENTS.md</c> del progetto, fuori da <c>.git</c> e <c>node_modules</c>.</summary>
+        private static IEnumerable<string> ExistingInstructionFiles(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath)) yield break;
+            var pending = new Stack<string>();
+            pending.Push(projectPath);
+            while (pending.Count > 0)
+            {
+                var dir = pending.Pop();
+                string[] files, dirs;
+                try { files = Directory.GetFiles(dir); dirs = Directory.GetDirectories(dir); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { continue; }
+                foreach (var file in files)
+                    if (ProtectedFileNames.Contains(Path.GetFileName(file), StringComparer.Ordinal)) yield return file;
+                foreach (var sub in dirs)
+                {
+                    var name = Path.GetFileName(sub);
+                    if (name is ".git" or "node_modules") continue;
+                    if ((File.GetAttributes(sub) & FileAttributes.ReparsePoint) != 0) continue;   // niente link: si resta nel progetto
+                    pending.Push(sub);
+                }
+            }
+        }
+
         /// <summary>The naming convention of the skill for credentials files: every one of them is off limits.</summary>
         public const string CredentialsNamePattern = "credenziali-*.txt";
 
@@ -518,7 +619,7 @@ namespace MdExplorer.Services.E2e
         /// </summary>
         public static readonly IReadOnlyList<string> ProtectedPaths = new[]
         {
-            ".claude/", ".github/", ".opencode/", ".vscode/", ".md/", "opencode.json", ".mcp.json", "CLAUDE.md", "AGENTS.md",
+            ".claude/", ".github/", ".opencode/", ".codex/", ".vscode/", ".md/", "opencode.json", ".mcp.json", "CLAUDE.md", "AGENTS.md",
         };
 
         /// <summary>Instruction files the agents read in any folder they work in: protected wherever they are.</summary>

@@ -79,6 +79,7 @@ export class AgentLaunchDialogComponent implements OnInit {
     { id: 'claude', label: 'Claude Code' },
     { id: 'copilot', label: 'Copilot' },
     { id: 'opencode', label: 'opencode' },
+    { id: 'codex', label: 'Codex' },
   ];
   engineInfo: AgentEngineInfo | null = null;
   engineChoice: string | null = null;
@@ -159,12 +160,8 @@ export class AgentLaunchDialogComponent implements OnInit {
     this.models = [];
     this.modelsError = null;
     if (!engine) { this.modelsLoading = false; return; }
-    const cached = (): Observable<{ id: string; name: string }[]> => engine === 'claude' ? this.aiChat.getClaudeCodeChatModels()
-      : engine === 'copilot' ? this.aiChat.getCopilotChatModels()
-      : this.aiChat.getOpenCodeChatModels();
-    const refresh = (): Observable<unknown> => engine === 'claude' ? this.aiChat.refreshClaudeCodeModels()
-      : engine === 'copilot' ? this.aiChat.refreshCopilotCliModels()
-      : this.aiChat.refreshOpenCodeModels();
+    const cached = (): Observable<{ id: string; name: string }[]> => this.aiChat.getChatModelsFor(engine);
+    const refresh = (): Observable<unknown> => this.aiChat.refreshModelsFor(engine);
     this.modelsLoading = true;
     cached().pipe(
       switchMap(list => list.length ? of(list) : refresh().pipe(switchMap(() => cached()))),

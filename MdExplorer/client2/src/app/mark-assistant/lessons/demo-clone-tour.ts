@@ -19,8 +19,8 @@ import {
  *
  * The demo opens already configured for the agentic environment of THIS
  * computer (sprint 2026-10-02-Demo-Ambiente-Agentico-Rilevato):
- *   - before cloning, Mark asks the service to probe Copilot CLI, Claude Code
- *     and opencode;
+ *   - before cloning, Mark asks the service to probe Copilot CLI, Claude Code,
+ *     opencode and Codex;
  *   - one usable → that one; more than one → Mark asks the user; none → the
  *     demo opens with no environment and Mark says why. Never a silent
  *     default to Copilot;
@@ -50,6 +50,7 @@ const ENVIRONMENT_NAMES: { [id: string]: string } = {
   copilot: 'GitHub Copilot',
   claude: 'Claude Code',
   opencode: 'opencode',
+  codex: 'OpenAI Codex',
 };
 const nameOf = (id: string): string => ENVIRONMENT_NAMES[id] || id;
 

@@ -81,6 +81,12 @@ export class ProjectsService {
    */
   openCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
 
+  /**
+   * Quarta gemella, per Codex (sprint 2026-11-28-Motore-Codex). Come opencode: `available` è la presenza del CLI
+   * nel PATH, il `codex app-server` nasce al primo messaggio; `defaultModel` null = il predefinito dell'account.
+   */
+  codexAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -207,6 +213,7 @@ export class ProjectsService {
       this.emitCopilotCliAutoConfig(response);
       this.emitClaudeCodeAutoConfig(response);
       this.emitOpenCodeAutoConfig(response);
+      this.emitCodexAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -288,6 +295,7 @@ export class ProjectsService {
       this.emitCopilotCliAutoConfig(response);
       this.emitClaudeCodeAutoConfig(response);
       this.emitOpenCodeAutoConfig(response);
+      this.emitCodexAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -481,6 +489,21 @@ export class ProjectsService {
       available: response.openCodeAvailable === true,
       // null = mai scelto: lo decide il server. Non si inventa un nome qui.
       defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
+
+  /** Gemella di emitOpenCodeAutoConfig per Codex: la disponibilità è una scansione del PATH del backend. */
+  private emitCodexAutoConfig(response: any): void {
+    if (response == null) return;
+    if (typeof response.codexAutoSelect !== 'boolean') {
+      this.codexAutoConfig$.next(null);
+      return;
+    }
+    this.codexAutoConfig$.next({
+      autoSelect: response.codexAutoSelect === true,
+      available: response.codexAvailable === true,
+      // null = mai scelto: vale il predefinito che Codex dichiara per l'account.
+      defaultModel: response.codexDefaultModel ?? null
     });
   }
 

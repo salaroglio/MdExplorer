@@ -1,4 +1,5 @@
 using MdExplorer.Features.Services.AI.ClaudeCode;
+using MdExplorer.Features.Services.AI.Codex;
 using MdExplorer.Features.Services.AI.CopilotChat;
 using MdExplorer.Features.Services.AI.OpenCode;
 using MdExplorer.Utilities;
@@ -75,12 +76,34 @@ namespace MdExplorer.Services.LlmSessions
             return config.ToJsonString();
         }
 
+        /// <summary>
+        /// Codex: sandbox <c>read-only</c> con <c>approvalPolicy: "never"</c> (una scrittura fallisce, misurato il 28/11), il solo
+        /// server MCP di MdExplorer, niente web. Con <paramref name="noFiles"/> anche la shell spenta (<c>features.shell_tool</c>):
+        /// Codex legge i file con la shell, e senza risponde che non ha strumenti (misurato il 28/11).
+        /// </summary>
+        public static CodexSessionOptions CodexOptions(string profileKey, string mcpGroupsArgument, string resumeThreadId = null, bool noFiles = false)
+        {
+            var server = CodexChat.MdExplorerServer(mcpGroupsArgument);
+            return new CodexSessionOptions
+            {
+                Sandbox = CodexSandbox.ReadOnly,
+                Approve = null,
+                McpServers = server == null ? Array.Empty<CodexMcpServer>() : new[] { server },
+                WebSearch = false,
+                Shell = !noFiles,
+                ResumeThreadId = resumeThreadId,
+                ProfileKey = profileKey,
+                McpGroups = mcpGroupsArgument ?? string.Empty,
+            };
+        }
+
         /// <summary>Whether the engine's CLI can be found in the service's PATH; null for no engine.</summary>
         public static bool? IsResolvable(MarkAgentEngine engine) => engine switch
         {
             MarkAgentEngine.Claude => ClaudeCodeProcessLauncher.IsResolvable(),
             MarkAgentEngine.Copilot => MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable(),
             MarkAgentEngine.OpenCode => OpenCodeProcessLauncher.IsResolvable(),
+            MarkAgentEngine.Codex => CodexProcessLauncher.IsResolvable(),
             _ => null,
         };
 
@@ -101,6 +124,7 @@ namespace MdExplorer.Services.LlmSessions
                 MarkAgentEngine.Claude => "Claude Code",
                 MarkAgentEngine.Copilot => "Copilot",
                 MarkAgentEngine.OpenCode => "opencode",
+                MarkAgentEngine.Codex => "Codex",
                 _ => engine.ToString(),
             };
             return string.IsNullOrWhiteSpace(model) ? name : $"{name} ({model})";
@@ -143,11 +167,15 @@ namespace MdExplorer.Services.LlmSessions
         /// Il <c>--mcp-config</c> di Claude con il solo MdExplorer e i gruppi di strumenti del progetto. Senza l'eseguibile
         /// MCP (pacchetto incompleto) un file VUOTO: la sessione resta isolata dai server dell'utente, e il log lo dice.
         /// </summary>
+        private string McpGroups(string projectPath)
+        {
+            using var scope = _scopes.CreateScope();
+            return MdExplorer.Service.ProjectsManager.McpGroupsArgument(scope.ServiceProvider, projectPath);
+        }
+
         private string ClaudeMcpConfig(string projectPath)
         {
-            string groups;
-            using (var scope = _scopes.CreateScope())
-                groups = MdExplorer.Service.ProjectsManager.McpGroupsArgument(scope.ServiceProvider, projectPath);
+            var groups = McpGroups(projectPath);
             var path = ClaudeCodeMcp.WriteSessionConfig(groups);
             if (path != null) return path;
             _loggerFactory.CreateLogger<OneShotReadOnlySession>().LogWarning("[OneShot] MdExplorer.Mcp non trovato: la domanda parte senza server MCP");
@@ -206,6 +234,20 @@ namespace MdExplorer.Services.LlmSessions
                             // Un pezzo che porta solo il record per la cronologia non ha testo da mostrare.
                             else if (chunk.Kind == OpenCodeChunk.KindTool && !string.IsNullOrEmpty(chunk.Text)) onActivity?.Invoke(ActivityTool, chunk.Text);
                         }
+                    break;
+                }
+                case MarkAgentEngine.Codex:
+                {
+                    // Un processo per la domanda, chiuso subito: come per gli altri motori, niente memoria fra le domande.
+                    await using var session = new CodexSession(_loggerFactory.CreateLogger<CodexSession>(), projectPath, model,
+                        ReadOnlyEngineSessions.CodexOptions(profileKey, McpGroups(projectPath), noFiles: noFiles));
+                    await session.StartAsync(ct).ConfigureAwait(false);
+                    await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
+                    {
+                        if (chunk.Kind == CodexChunk.KindMessage) answer.Append(chunk.Text);
+                        else if (chunk.Kind == CodexChunk.KindThinking) onActivity?.Invoke(ActivityThinking, chunk.Text);
+                        else if (chunk.Kind == CodexChunk.KindTool && !string.IsNullOrEmpty(chunk.Text)) onActivity?.Invoke(ActivityTool, chunk.Text);
+                    }
                     break;
                 }
                 default:

@@ -15,33 +15,37 @@ namespace MdExplorer.IntegrationTests
     [TestClass]
     public class MdeSkillVersions_Should
     {
-        /// <summary>Ciò che il pacchetto distribuisce: tipo/nome → versione e impronta (di tutti gli ambienti agentici).</summary>
+        /// <summary>
+        /// Ciò che il pacchetto distribuisce: tipo/nome → versione e impronta (di tutti gli ambienti agentici).
+        /// 28/11/2026: impronte cambiate SENZA alzare le versioni perché si è aggiunto l'ambiente Codex; calcolate senza Codex
+        /// coincidevano tutte con le precedenti, cioè i file degli altri tre ambienti sono identici (sprint 2026-11-28-Motore-Codex).
+        /// </summary>
         private static readonly Dictionary<string, (int Version, string Hash)> Known = new()
         {
-            ["agent/mde-skillcreator"] = (4, "f9346eaf140f8548"),
-            ["prompt/mde-code-doc"] = (12, "b093e8a244d73267"),
-            ["prompt/mde-codegen-graph"] = (1, "b8d892587efab736"),
-            ["prompt/mde-doc-tidy"] = (2, "8e0082344957edb7"),
-            ["prompt/mde-doc-tidy-redraw"] = (1, "c399c9958bd7cd5e"),
-            ["prompt/mde-mark-folder-synthesis"] = (2, "1526a5a6329b9195"),
-            ["prompt/mde-mark-summarize"] = (2, "c69e11c1bca86639"),
-            ["skill/mde-abox"] = (5, "fcbe1b9b473c9c16"),
-            ["skill/mde-agent"] = (10, "8348d262de9c1a1d"),
-            ["skill/mde-code"] = (45, "8bb64835328faf5d"),
-            ["skill/mde-code-check"] = (8, "116689d8fb487a4a"),
-            ["skill/mde-doc"] = (9, "89503e394ca2dbf7"),
-            ["skill/mde-e2e"] = (9, "83edd59bbc973ad3"),
-            ["skill/mde-e2e-signals"] = (1, "5284bec8166f03f6"),
-            ["skill/mde-features"] = (5, "ece7e9e39a175525"),
-            ["skill/mde-ownership"] = (3, "b2a90adacaf25045"),
-            ["skill/mde-plantuml"] = (6, "6f250184b3b7ac66"),
-            ["skill/mde-prompt-for-agents"] = (2, "e29712a329f1eb83"),
-            ["skill/mde-readme"] = (8, "e05171345ea9ceaa"),
-            ["skill/mde-shacl"] = (5, "8dcd1b6f2b894105"),
-            ["skill/mde-slide"] = (18, "27ffa0ab64a1128e"),
-            ["skill/mde-tbox"] = (5, "7d00e1aa4dac8778"),
-            ["skill/mde-template"] = (7, "7feca705c2e8cb23"),
-            ["skill/mde-workflow"] = (8, "cd84bca0adb6d35c"),
+            ["agent/mde-skillcreator"] = (4, "d6ff9cc4732bcc5c"),
+            ["prompt/mde-code-doc"] = (12, "cd4ca488bd2264fb"),
+            ["prompt/mde-codegen-graph"] = (1, "4321e161ac595062"),
+            ["prompt/mde-doc-tidy"] = (2, "3991d6b084912880"),
+            ["prompt/mde-doc-tidy-redraw"] = (1, "199b3b7ae0e68bea"),
+            ["prompt/mde-mark-folder-synthesis"] = (2, "1bc0f5b264683526"),
+            ["prompt/mde-mark-summarize"] = (2, "39bb16f575d46cbe"),
+            ["skill/mde-abox"] = (5, "edc8d8d16eff9edc"),
+            ["skill/mde-agent"] = (10, "80a06f232bbd8d9c"),
+            ["skill/mde-code"] = (45, "0d11bfca963e5b47"),
+            ["skill/mde-code-check"] = (8, "296e450c3dd75967"),
+            ["skill/mde-doc"] = (9, "e9b11ecab1facc82"),
+            ["skill/mde-e2e"] = (9, "54dd8a6ffd27fe9b"),
+            ["skill/mde-e2e-signals"] = (1, "f5c70a65468fa8f0"),
+            ["skill/mde-features"] = (5, "bb0bcbf5f4e3e9dd"),
+            ["skill/mde-ownership"] = (3, "1c6f881d8651d723"),
+            ["skill/mde-plantuml"] = (6, "b5cbae63bbbad8cc"),
+            ["skill/mde-prompt-for-agents"] = (2, "a30d10eaa3f6c0d1"),
+            ["skill/mde-readme"] = (8, "b95569ec12c3e57f"),
+            ["skill/mde-shacl"] = (5, "2e75cb22a95d46cb"),
+            ["skill/mde-slide"] = (18, "0a61c39e60b99d58"),
+            ["skill/mde-tbox"] = (5, "c440fdf168323680"),
+            ["skill/mde-template"] = (7, "7d947b0d4c90862b"),
+            ["skill/mde-workflow"] = (8, "1517a76bb093dbf4"),
         };
 
         private static Dictionary<string, (int Version, string Hash)> Current()

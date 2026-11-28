@@ -3858,6 +3858,7 @@ class PromptLabService {
       claudecode: 'Claude Code',
       copilotcli: 'Copilot',
       opencode: 'opencode',
+      codex: 'Codex',
       local: 'Local',
       gemini: 'Gemini',
       openai: 'OpenAI'
@@ -3896,4 +3897,4 @@ class PromptLabService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_promptlab_promptlab_module_ts.ddf8b562ec7467a9.js.map
+//# sourceMappingURL=src_app_promptlab_promptlab_module_ts.7d7294738a49dbce.js.map

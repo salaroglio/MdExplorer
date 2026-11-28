@@ -4,7 +4,7 @@ import { Injectable, Inject, forwardRef } from '@angular/core';
 import { applySignalrTimeouts } from '../signalR/signalr-timeouts';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
-import { Observable, Subject, BehaviorSubject, of } from 'rxjs';
+import { Observable, Subject, BehaviorSubject, of, throwError } from 'rxjs';
 import { filter, map, tap, shareReplay, finalize } from 'rxjs/operators';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
@@ -134,6 +134,13 @@ export class AiChatService {
    */
   private _copilotUsage$ = new BehaviorSubject<any | null>(null);
   public copilotUsage$ = this._copilotUsage$.asObservable();
+
+  /**
+   * Consuntivo dell'ultimo turno di Codex (evento SignalR `ReceiveCodexUsage`): token del turno e della
+   * conversazione, finestra di contesto, quota del piano. Null per ogni altro motore.
+   */
+  private _codexUsage$ = new BehaviorSubject<any | null>(null);
+  public codexUsage$ = this._codexUsage$.asObservable();
 
   /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
   private _toolActivity$ = new BehaviorSubject<string | null>(null);
@@ -290,6 +297,13 @@ export class AiChatService {
     this.hubConnection.on('ReceiveCopilotUsage', (usage: any, channelId?: string) => {
       if ((channelId || 'default') === 'default') {
         this._copilotUsage$.next(usage ?? null);
+      }
+    });
+
+    // Consuntivo di Codex: token e quota. Come sopra, conta solo la chat.
+    this.hubConnection.on('ReceiveCodexUsage', (usage: any, channelId?: string) => {
+      if ((channelId || 'default') === 'default') {
+        this._codexUsage$.next(usage ?? null);
       }
     });
 
@@ -1233,6 +1247,67 @@ export class AiChatService {
       shareReplay(1)
     );
     return this._openCodeRefreshInFlight;
+  }
+
+  /** I modelli di Codex salvati (AvailableModel, provider Codex). Istantaneo: se la tabella è vuota tocca al refresh. */
+  getCodexChatModels(): Observable<{ id: string; name: string; description: string | null }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'Codex' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({
+        id: m.id, name: m.name || m.id, description: m.description || null
+      })))
+    );
+  }
+
+  private _codexRefreshInFlight: Observable<any> | null = null;
+
+  /** Chiede a Codex i modelli dell'account e li salva (`defaultModel` = il predefinito dichiarato). Chiamate concorrenti condivise. */
+  refreshCodexModels(): Observable<any> {
+    if (this._codexRefreshInFlight) {
+      return this._codexRefreshInFlight;
+    }
+    this._codexRefreshInFlight = this.http.post('/api/codex/refresh-models', {}).pipe(
+      finalize(() => { this._codexRefreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._codexRefreshInFlight;
+  }
+
+  /**
+   * I modelli salvati di un motore per id (`claude`, `copilot`, `opencode`, `codex`), per le finestre che scelgono il
+   * motore (lancio degli agenti, ambiente di sviluppo). Un motore sconosciuto è un errore, mai un altro motore al suo
+   * posto (D10 dello sprint 2026-11-28-Motore-Codex: prima l'ultimo ramo cadeva su opencode).
+   */
+  getChatModelsFor(engine: string): Observable<{ id: string; name: string; description?: string | null }[]> {
+    switch (engine) {
+      case 'claude': return this.getClaudeCodeChatModels();
+      case 'copilot': return this.getCopilotChatModels();
+      case 'opencode': return this.getOpenCodeChatModels();
+      case 'codex': return this.getCodexChatModels();
+      default: return throwError(() => new Error(`Motore sconosciuto: ${engine}`));
+    }
+  }
+
+  /** Chiede al motore i suoi modelli e li salva: gemello di {@link getChatModelsFor}. */
+  refreshModelsFor(engine: string): Observable<unknown> {
+    switch (engine) {
+      case 'claude': return this.refreshClaudeCodeModels();
+      case 'copilot': return this.refreshCopilotCliModels();
+      case 'opencode': return this.refreshOpenCodeModels();
+      case 'codex': return this.refreshCodexModels();
+      default: return throwError(() => new Error(`Motore sconosciuto: ${engine}`));
+    }
+  }
+
+  notifyCodexConnected(modelId: string | null): void {
+    this._isModelLoaded$.next(true);
+    // null = il predefinito dell'account: dirlo, invece di stampare "null".
+    this._currentModel$.next(`Codex: ${modelId || 'predefinito'}`);
+  }
+
+  notifyCodexDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    this._codexUsage$.next(null);
   }
 
   notifyCopilotCliConnected(modelId: string | null): void {

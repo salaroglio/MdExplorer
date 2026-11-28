@@ -743,6 +743,43 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Salva il modello di Codex per MarkAgent in un progetto (sprint 2026-11-28-Motore-Codex, F2). <c>ModelId</c> null o
+        /// vuoto = torna a «mai scelto», e vale il predefinito che Codex dichiara. Quarto gemello di
+        /// <see cref="SetCopilotChatModelSetting"/>, con la stessa transazione propria.
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetCodexChatModelSetting([FromBody] SetCodexChatModelRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var project = FindProject(request.ProjectPath);
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning("[SetCodexChatModelSetting] Project not found for path: '{Path}'", request.ProjectPath);
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.CodexChatModel = string.IsNullOrWhiteSpace(request.ModelId) ? null : request.ModelId.Trim();
+                _userSettingsDB.GetDal<Project>().Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { modelId = project.CodexChatModel });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving CodexChatModel setting");
+                return StatusCode(500, new { error = "Failed to save CodexChatModel setting" });
+            }
+        }
+
         [HttpGet]
         /// <summary>
         /// Isolamento worktree per-agente: preferenza di QUESTA macchina (UserDB), non del repo.
@@ -1056,6 +1093,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
     /// </summary>
     /// <summary><c>ModelId</c> nullable: null e' un valore valido (= decide il server).</summary>
     public class SetOpenCodeChatModelRequest
+    {
+        public string? ProjectPath { get; set; }
+        public string? ModelId { get; set; }
+    }
+
+    public class SetCodexChatModelRequest
     {
         public string? ProjectPath { get; set; }
         public string? ModelId { get; set; }

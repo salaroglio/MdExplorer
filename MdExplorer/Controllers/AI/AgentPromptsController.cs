@@ -154,7 +154,7 @@ namespace MdExplorer.Controllers.AI
 
             if (!string.IsNullOrWhiteSpace(request.Engine)
                 && !MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Engine, out _))
-                return BadRequest(new { success = false, error = MdExplorer.Features.Services.UiText.Say($"Motore '{request.Engine}' sconosciuto: i valori ammessi sono claude, copilot, opencode.", $"Unknown engine '{request.Engine}': allowed values are claude, copilot, opencode.") });
+                return BadRequest(new { success = false, error = MdExplorer.Features.Services.UiText.Say($"Motore '{request.Engine}' sconosciuto: i valori ammessi sono claude, copilot, opencode, codex.", $"Unknown engine '{request.Engine}': allowed values are claude, copilot, opencode, codex.") });
 
             var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
             {
@@ -429,7 +429,7 @@ namespace MdExplorer.Controllers.AI
         /// progetto, sul ramo dell'utente. Assente = come dice l'impostazione del progetto.
         /// </summary>
         public bool? UseWorktree { get; set; }
-        /// <summary>The engine chosen in the dialog (claude, copilot, opencode) and its model; absent = the card's, then the project's.</summary>
+        /// <summary>The engine chosen in the dialog (claude, copilot, opencode, codex) and its model; absent = the card's, then the project's.</summary>
         public string? Engine { get; set; }
         public string? Model { get; set; }
         /// <summary>Il ramo da cui parte il posto isolato (la casella «nel nuovo ramo», B2); assente = il ramo di default di origin.</summary>

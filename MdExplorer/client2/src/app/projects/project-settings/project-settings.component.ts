@@ -539,7 +539,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
    * <br>Non basta che sia stato fissato a mano: fissare «Copilot CLI» su un progetto il cui
    * ambiente è già Copilot non è un disaccoppiamento, e dirlo sarebbe una bugia (la scelta resta
    * tua, ma oggi coincide col predefinito). Gli identificativi dell'ambiente e
-   * del motore coincidono — 'copilot', 'opencode', 'claude', 'none' — perché sono la stessa
+   * del motore coincidono — 'copilot', 'opencode', 'claude', 'codex', 'none' — perché sono la stessa
    * scelta vista da due lati, quindi il confronto è diretto.
    */
   get engineDecoupled(): boolean {
@@ -758,6 +758,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       case 'copilot': return 'PROJECT_SETTINGS.ENGINE_COPILOT';
       case 'opencode': return 'PROJECT_SETTINGS.ENGINE_OPENCODE';
       case 'claude': return 'PROJECT_SETTINGS.ENGINE_CLAUDE';
+      case 'codex': return 'PROJECT_SETTINGS.ENGINE_CODEX';
       default: return 'PROJECT_SETTINGS.ENGINE_NONE';
     }
   }
@@ -767,6 +768,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       case 'copilot': return 'PROJECT_SETTINGS.HARNESS_COPILOT';
       case 'opencode': return 'PROJECT_SETTINGS.HARNESS_OPENCODE';
       case 'claude': return 'PROJECT_SETTINGS.HARNESS_CLAUDE';
+      case 'codex': return 'PROJECT_SETTINGS.HARNESS_CODEX';
       default: return 'PROJECT_SETTINGS.HARNESS_NONE';
     }
   }

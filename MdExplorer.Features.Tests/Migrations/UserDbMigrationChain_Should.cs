@@ -101,8 +101,10 @@ namespace MdExplorer.Features.Tests.Migrations
 
                 // Scelta del modello di Claude Code (M2026_09_13_001): le due colonne nullable esistono.
                 // Modello di «Descrivi con Mark» per motore (M2026_10_22_001): tre colonne nullable.
+                // I due modelli di Codex, il quarto motore (M2026_11_28_001): due colonne nullable.
                 foreach (var (table, column) in new[] { ("Project", "ClaudeCodeChatModel"), ("AvailableModel", "Description"),
-                             ("Project", "CopilotCodeDescriptionModel"), ("Project", "ClaudeCodeDescriptionModel"), ("Project", "OpenCodeCodeDescriptionModel") })
+                             ("Project", "CopilotCodeDescriptionModel"), ("Project", "ClaudeCodeDescriptionModel"), ("Project", "OpenCodeCodeDescriptionModel"),
+                             ("Project", "CodexChatModel"), ("Project", "CodexCodeDescriptionModel") })
                 {
                     using var cmd = conn.CreateCommand();
                     cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}' AND \"notnull\" = 0";

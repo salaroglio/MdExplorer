@@ -522,6 +522,13 @@
                   </span>
                   <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_CLAUDE' | translate }}</span>
                 </mat-radio-button>
+                <mat-radio-button value="codex" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline">code</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_CODEX' | translate }}
+                  </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_CODEX' | translate }}</span>
+                </mat-radio-button>
                 <mat-radio-button value="none" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline">block</mat-icon>
@@ -588,6 +595,9 @@
                   </mat-radio-button>
                   <mat-radio-button value="claude" class="ide-radio">
                     <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_CLAUDE' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="codex" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_CODEX' | translate }}</span>
                   </mat-radio-button>
                   <mat-radio-button value="none" class="ide-radio">
                     <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_NONE' | translate }}</span>

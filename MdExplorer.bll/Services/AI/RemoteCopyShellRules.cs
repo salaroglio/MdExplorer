@@ -26,6 +26,17 @@ namespace MdExplorer.Features.Services.AI
         /// <summary>Per Claude Code (<c>--disallowedTools</c>).</summary>
         public static IEnumerable<string> Claude => Commands.Select(c => $"Bash({c}:*)");
 
+        /// <summary>
+        /// Per Codex (28/11/2026): Codex chiede il permesso per ogni comando con la riga intera (<c>/bin/bash -lc "scp a b"</c>),
+        /// e MdExplorer risponde. Vero se uno dei comandi compare come comando, non dentro una parola o un percorso.
+        /// </summary>
+        public static bool IsRemoteCopy(string commandLine)
+            => !string.IsNullOrWhiteSpace(commandLine) && CodexCommand.IsMatch(commandLine);
+
+        private static readonly System.Text.RegularExpressions.Regex CodexCommand = new(
+            @"(?:^|[\s;&|(""'`])(?:\S*/)?(?:" + string.Join("|", Commands) + @")(?=$|[\s;&|)""'`])",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
         /// <summary>Per opencode: le regole di <c>permission.bash</c>, il comando da solo e con argomenti.</summary>
         public static IEnumerable<KeyValuePair<string, string>> OpenCode
             => Commands.SelectMany(c => new[] { new KeyValuePair<string, string>(c, "deny"), new KeyValuePair<string, string>(c + " *", "deny") });

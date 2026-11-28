@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
@@ -52,11 +53,13 @@ namespace MdExplorer.Utilities
         {
             private readonly string _frontmatterResource;   // null → _bodyResource is a whole file
             private readonly string _bodyResource;
+            private readonly bool _toml;
 
-            private AssetSource(string frontmatterResource, string bodyResource)
+            private AssetSource(string frontmatterResource, string bodyResource, bool toml = false)
             {
                 _frontmatterResource = frontmatterResource;
                 _bodyResource = bodyResource;
+                _toml = toml;
             }
 
             /// <summary>One embedded file, frontmatter included, installed verbatim.</summary>
@@ -65,6 +68,14 @@ namespace MdExplorer.Utilities
             /// <summary>A per-layout frontmatter joined to a shared body.</summary>
             public static AssetSource Composed(string frontmatterResource, string bodyResource)
                 => new(frontmatterResource, bodyResource);
+
+            /// <summary>
+            /// A Codex agent (28/11/2026): a TOML file, the per-layout header (comment with the <c>mde:</c> marker,
+            /// <c>name</c>, <c>description</c>) followed by the shared body as <c>developer_instructions</c>, a literal
+            /// multi-line string — the body must not contain <c>'''</c>, checked when read.
+            /// </summary>
+            public static AssetSource ComposedToml(string headerResource, string bodyResource)
+                => new(headerResource, bodyResource, toml: true);
 
             /// <summary>Full file content, or null when an embedded piece is missing.</summary>
             public string Read()
@@ -84,6 +95,12 @@ namespace MdExplorer.Utilities
                     return null;
                 }
                 if (!frontmatter.EndsWith("\n")) frontmatter += "\n";
+                if (_toml)
+                {
+                    if (body.Contains("'''"))
+                        throw new InvalidOperationException($"{_bodyResource} contains ''' and cannot become a TOML literal string for a Codex agent.");
+                    return frontmatter + "developer_instructions = '''\n" + body.TrimEnd('\n', '\r') + "\n'''\n";
+                }
                 return "---\n" + frontmatter + "---\n" + body;
             }
         }
@@ -154,6 +171,7 @@ namespace MdExplorer.Utilities
                 [HarnessTarget.Copilot] = source,
                 [HarnessTarget.OpenCode] = source,
                 [HarnessTarget.Claude] = source,
+                [HarnessTarget.Codex] = source,
             };
         }
 
@@ -232,6 +250,9 @@ namespace MdExplorer.Utilities
                     [HarnessTarget.Claude] = AssetSource.Composed(
                         "MdExplorer.Service.skills.mde_skillcreator.agent.claude.yml",
                         "MdExplorer.Service.skills.mde_skillcreator.agent.body.md"),
+                    [HarnessTarget.Codex] = AssetSource.ComposedToml(
+                        "MdExplorer.Service.skills.mde_skillcreator.agent.codex.toml",
+                        "MdExplorer.Service.skills.mde_skillcreator.agent.body.md"),
                 }),
         };
 
@@ -262,7 +283,7 @@ namespace MdExplorer.Utilities
             var list = new List<ShippedAsset>();
             foreach (var (kind, catalog) in new[] { ("skill", BuiltInSkills), ("agent", BuiltInAgents), ("prompt", BuiltInPrompts) })
                 foreach (var entry in catalog)
-                    foreach (var target in new[] { HarnessTarget.Copilot, HarnessTarget.OpenCode, HarnessTarget.Claude })
+                    foreach (var target in HarnessLayout.All.Select(l => l.Target))
                     {
                         var content = entry.SourceFor(target).Read()
                             ?? throw new InvalidOperationException($"Embedded resource missing for {kind} '{entry.Name}' ({target}).");
@@ -287,6 +308,14 @@ namespace MdExplorer.Utilities
         private static readonly Regex MdeBlockRegex = new(
             @"^mde:\s*\r?\n((?:[ \t]+\S[^\r\n]*\r?\n?)+)",
             RegexOptions.Compiled | RegexOptions.Multiline);
+
+        // The same block as TOML comments at the top of a Codex agent: `# mde:` then `#   key: value` lines.
+        private static readonly Regex TomlMdeBlockRegex = new(
+            @"\A(?:[ \t]*\r?\n)*#[ \t]*mde:[ \t]*\r?\n((?:#[ \t]+\S[^\r\n]*\r?\n?)+)",
+            RegexOptions.Compiled);
+
+        // The `#` that opens each line of that block (the indentation after it stays, as in YAML).
+        private static readonly Regex TomlCommentPrefix = new(@"^#", RegexOptions.Compiled | RegexOptions.Multiline);
 
         // Captures indented `key: value` pairs (one per line) inside the mde: block.
         private static readonly Regex MdeKeyValueRegex = new(
@@ -549,14 +578,22 @@ namespace MdExplorer.Utilities
         public static MdeMarker ExtractMdeMarker(string content)
         {
             if (string.IsNullOrEmpty(content)) return default;
+            string block;
             var fm = FrontmatterRegex.Match(content);
-            if (!fm.Success) return default;
+            if (fm.Success)
+            {
+                var blockMatch = MdeBlockRegex.Match(fm.Groups[1].Value);
+                if (!blockMatch.Success) return default;
+                block = blockMatch.Groups[1].Value;
+            }
+            else
+            {
+                // A Codex agent is TOML, with no frontmatter: the marker is a comment at the top (28/11/2026).
+                var toml = TomlMdeBlockRegex.Match(content);
+                if (!toml.Success) return default;
+                block = TomlCommentPrefix.Replace(toml.Groups[1].Value, string.Empty);
+            }
 
-            var fmBody = fm.Groups[1].Value;
-            var blockMatch = MdeBlockRegex.Match(fmBody);
-            if (!blockMatch.Success) return default;
-
-            var block = blockMatch.Groups[1].Value;
             string origin = null;
             int? version = null;
             string updatePolicy = null;

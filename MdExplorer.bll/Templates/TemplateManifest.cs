@@ -406,7 +406,7 @@ namespace MdExplorer.Features.Templates
 
         /// <summary>Un seme nasce fra i file del gruppo: mai nella cartella di un template, fra le skill, in git o nei file di MDE.</summary>
         private static bool IsGroupPath(string path)
-            => !new[] { TemplateManifest.Folder + "/", ".claude/skills/", ".github/skills/", ".opencode/skills/", ".git/", ".md/" }.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            => !new[] { TemplateManifest.Folder + "/", ".claude/skills/", ".github/skills/", ".opencode/skills/", ".codex/skills/", ".git/", ".md/" }.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))
                && !string.Equals(path, DevelopmentFile, StringComparison.OrdinalIgnoreCase);
 
         private static void CheckPath(TemplateManifest m, string key, string path, List<string> problems)

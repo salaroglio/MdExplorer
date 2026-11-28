@@ -6,7 +6,7 @@
 
     <span class="spacer"></span>
 
-    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected || claudeCodeAutoSelected">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected || claudeCodeAutoSelected || codexAutoSelected">
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
@@ -176,6 +176,53 @@
     </span>
   </div>
 
+  <!-- Modello di Codex: la stessa riga degli altri motori. L'elenco è quello dell'account (model/list), la scelta
+       vale per il progetto e il cambio non tocca la conversazione (il modello viaggia col turno). A destra token e
+       quota del piano, i numeri esatti nei tooltip. -->
+  <div class="copilot-model-bar codex-model-bar" *ngIf="codexAutoSelected">
+    <label class="copilot-model-label" for="codex-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field"
+                    [matTooltip]="selectedCodexModelDescription" [matTooltipDisabled]="!selectedCodexModelDescription">
+      <!-- '' e non null per la voce predefinita: con null mat-select non disegna nessuna etichetta. -->
+      <mat-select id="codex-model-select"
+                  [value]="selectedCodexModel || ''"
+                  [disabled]="isConfiguringProvider || codexModelsLoading"
+                  (selectionChange)="selectCodexModel($event.value)">
+        <mat-option [value]="''">{{ 'AI_CHAT.CODEX_ACCOUNT_DEFAULT' | translate }}</mat-option>
+        <mat-option *ngFor="let m of codexModelChoices; trackBy: trackClaudeModel" [value]="m.id" [disabled]="m.unavailable"
+                    [matTooltip]="m.description || ''" [matTooltipDisabled]="!m.description" matTooltipPosition="right">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshCodexModels()"
+            [disabled]="codexModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="codexModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="codexModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="codexModelsError && !codexModelsLoading" [matTooltip]="codexModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
+    </span>
+    <span class="copilot-usage" *ngIf="codexUsage">
+      <span class="usage-item" *ngIf="codexUsage.primaryUsedPercent != null"
+            [class.usage-high]="(codexUsage.primaryUsedPercent || 0) >= 80"
+            [matTooltip]="'AI_CHAT.CODEX_USAGE_QUOTA_TOOLTIP' | translate:{ plan: codexUsage.planType || '?', reset: formatDay(codexUsage.primaryResetsAt) }">
+        {{ 'AI_CHAT.COPILOT_USAGE_QUOTA' | translate }}
+        <strong>{{ formatCopilotPercent(codexUsage.primaryUsedPercent) }}</strong>
+      </span>
+      <ng-container *ngIf="codexUsage.contextWindow">
+        <span class="usage-sep" *ngIf="codexUsage.primaryUsedPercent != null">·</span>
+        <span class="usage-item" [class.usage-high]="(codexUsage.threadTotalTokens || 0) * 100 / codexUsage.contextWindow >= 80"
+              [matTooltip]="'AI_CHAT.COPILOT_USAGE_CONTEXT_TOOLTIP' | translate:{ tokens: formatCount(codexUsage.threadTotalTokens), limit: formatCount(codexUsage.contextWindow) }">
+          {{ 'AI_CHAT.COPILOT_USAGE_CONTEXT' | translate }}
+          <strong>{{ formatCopilotPercent((codexUsage.threadTotalTokens || 0) * 100 / codexUsage.contextWindow, 0) }}</strong>
+        </span>
+      </ng-container>
+    </span>
+  </div>
+
   <!-- Model Manager Panel -->
   <div class="model-manager-panel" *ngIf="showModelManager" #modelManagerPanel>
     <app-model-manager (contentChanged)="onModelManagerContentChanged()"></app-model-manager>
@@ -306,6 +353,19 @@
     <div class="banner-text">
       <strong>{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE' | translate }}</strong>
       <span class="banner-hint">{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE_HINT' | translate }}</span>
+    </div>
+    <button mat-stroked-button (click)="toggleModelManager()">
+      <mat-icon>settings</mat-icon>
+      {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
+    </button>
+  </div>
+
+  <!-- Codex non installato: stesso trattamento dei gemelli -->
+  <div *ngIf="codexUnavailable" class="copilot-cli-unavailable-banner">
+    <mat-icon>warning</mat-icon>
+    <div class="banner-text">
+      <strong>{{ 'AI_CHAT.CODEX_UNAVAILABLE' | translate }}</strong>
+      <span class="banner-hint">{{ 'AI_CHAT.CODEX_UNAVAILABLE_HINT' | translate }}</span>
     </div>
     <button mat-stroked-button (click)="toggleModelManager()">
       <mat-icon>settings</mat-icon>

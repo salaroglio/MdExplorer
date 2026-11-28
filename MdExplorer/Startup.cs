@@ -262,6 +262,7 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.CopilotTurnRunner>();
             services.AddSingleton<Services.AgentRun.ClaudeCodeTurnRunner>();
             services.AddSingleton<Services.AgentRun.OpenCodeTurnRunner>();
+            services.AddSingleton<Services.AgentRun.CodexTurnRunner>();
             services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.EngineTurnRunner>();
             // Who is working right now: every turn passes through EngineTurnRunner, which records it here, and
             // the broadcaster tells the open windows (the toolbar's «agents at work» indicator).
@@ -357,6 +358,7 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
             services.AddSingleton<IAiProvider, ClaudeCodeProvider>();
             services.AddSingleton<IAiProvider, OpenCodeProvider>();
+            services.AddSingleton<IAiProvider, CodexProvider>();
 
             // Agenti algoritmici (città degli agenti, §6 Agent-Harness-A2A): cittadini
             // C# deterministici, stessa cittadinanza degli agenti .agent.md. Ogni
@@ -384,6 +386,10 @@ namespace MdExplorer
             services.AddHostedService(sp => sp.GetRequiredService<MdExplorer.Features.Services.AI.OpenCode.OpenCodeServer>());
             services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeSessionPool>();
 
+            // Sessioni Codex: un `codex app-server` su stdio per sessione (D2 dello sprint 2026-11-28-Motore-Codex),
+            // stessa politica del pool di Claude Code.
+            services.AddSingleton<MdExplorer.Features.Services.AI.Codex.CodexSessionPool>();
+
             // Source map md→HTML per la feature "Usa AI" su selezione
             services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();
 
@@ -396,6 +402,8 @@ namespace MdExplorer
             services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
             services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, OpenCodeModelDiscovery>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.Codex.CodexModelSource>();
+            services.AddSingleton<IModelDiscoveryProvider, CodexModelDiscovery>();
 
             // Probe degli ambienti agentici del computer (Copilot CLI, Claude Code, opencode): lo usa
             // Mark per aprire il progetto demo già configurato. L'ordine qui è l'ordine in cui gli
@@ -406,6 +414,8 @@ namespace MdExplorer
                 MdExplorer.Features.Services.AI.AgenticEnvironments.ClaudeCodeEnvironmentCheck>();
             services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck,
                 MdExplorer.Features.Services.AI.AgenticEnvironments.OpenCodeEnvironmentCheck>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck,
+                MdExplorer.Features.Services.AI.AgenticEnvironments.CodexEnvironmentCheck>();
             services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentProbe>(sp =>
                 new MdExplorer.Features.Services.AI.AgenticEnvironments.AgenticEnvironmentProbe(
                     sp.GetServices<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck>(),

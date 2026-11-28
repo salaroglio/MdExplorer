@@ -126,7 +126,7 @@ export async function buildDemoClonePath(repoName = 'mdexplorer-demo'): Promise<
 
 /** One agentic environment as the service's probe reports it (GET /api/AgenticEnvironments/Probe). */
 export interface AgenticEnvironmentStatus {
-  /** Same id as the project's harness: 'copilot' | 'claude' | 'opencode'. */
+  /** Same id as the project's harness: 'copilot' | 'claude' | 'opencode' | 'codex'. */
   id: string;
   installed: boolean;
   path: string | null;

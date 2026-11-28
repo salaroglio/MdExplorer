@@ -272,12 +272,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.descriptionModels = [];
     this.descriptionModelsError = '';
     if (engine === 'none') { this.updateDescriptionModelChoices(); return; }
-    const cached = (): Observable<{ id: string; name: string }[]> => engine === 'claude' ? this.aiChat.getClaudeCodeChatModels()
-      : engine === 'copilot' ? this.aiChat.getCopilotChatModels()
-      : this.aiChat.getOpenCodeChatModels();
-    const refresh = (): Observable<unknown> => engine === 'claude' ? this.aiChat.refreshClaudeCodeModels()
-      : engine === 'copilot' ? this.aiChat.refreshCopilotCliModels()
-      : this.aiChat.refreshOpenCodeModels();
+    const cached = (): Observable<{ id: string; name: string }[]> => this.aiChat.getChatModelsFor(engine);
+    const refresh = (): Observable<unknown> => this.aiChat.refreshModelsFor(engine);
     this.descriptionModelsLoading = true;
     cached().pipe(
       switchMap(list => list.length ? of(list) : refresh().pipe(switchMap(() => cached()))),

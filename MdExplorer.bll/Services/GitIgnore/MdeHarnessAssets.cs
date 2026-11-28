@@ -13,7 +13,7 @@ namespace MdExplorer.Features.Services.GitIgnore
     public static class MdeHarnessAssets
     {
         /// <summary>Le cartelle radice dei motori: le stesse di <c>HarnessLayout.All</c> nel servizio (un test le confronta).</summary>
-        public static readonly string[] HarnessRoots = { ".github", ".claude", ".opencode" };
+        public static readonly string[] HarnessRoots = { ".github", ".claude", ".opencode", ".codex" };
 
         private const string AssetPrefix = "mde-";
 

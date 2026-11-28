@@ -92,6 +92,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string CopilotCodeDescriptionModel { get; set; }
         public virtual string ClaudeCodeDescriptionModel { get; set; }
         public virtual string OpenCodeCodeDescriptionModel { get; set; }
+
+        /// <summary>
+        /// I modelli di Codex (sprint 2026-11-28-Motore-Codex): quello del tab MarkAgent e quello di «Descrivi con Mark».
+        /// <c>null</c> = il predefinito che Codex dichiara per l'account. Migrazione M2026_11_28_001.
+        /// </summary>
+        public virtual string CodexChatModel { get; set; }
+        public virtual string CodexCodeDescriptionModel { get; set; }
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

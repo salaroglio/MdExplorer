@@ -107,7 +107,7 @@ namespace MdExplorer.Controllers.CodeGraph
         private static List<string> SyncSkills(string projectPath)
         {
             var log = new List<string>();
-            foreach (var layout in new[] { HarnessLayout.Claude, HarnessLayout.Copilot, HarnessLayout.OpenCode })
+            foreach (var layout in HarnessLayout.All)
                 if (Directory.Exists(Path.Combine(projectPath, layout.SkillsFolder.Replace('/', Path.DirectorySeparatorChar))))
                     log.AddRange(LanguageSkillInstaller.Sync(projectPath, layout));
             return log;

@@ -34,6 +34,7 @@ namespace MdExplorer.Services.MarkDiagram
 
         private readonly ClaudeCodeSessionPool _claude;
         private readonly CopilotChatSessionPool _copilot;
+        private readonly MdExplorer.Features.Services.AI.Codex.CodexSessionPool _codex;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<MarkDiagramSessions> _logger;
 
@@ -56,10 +57,12 @@ namespace MdExplorer.Services.MarkDiagram
         }
 
         public MarkDiagramSessions(ClaudeCodeSessionPool claude, CopilotChatSessionPool copilot,
-            ILoggerFactory loggerFactory, ILogger<MarkDiagramSessions> logger)
+            ILoggerFactory loggerFactory, ILogger<MarkDiagramSessions> logger,
+            MdExplorer.Features.Services.AI.Codex.CodexSessionPool codex = null)
         {
             _claude = claude;
             _copilot = copilot;
+            _codex = codex;
             _loggerFactory = loggerFactory;
             _logger = logger;
         }
@@ -77,7 +80,7 @@ namespace MdExplorer.Services.MarkDiagram
         public async IAsyncEnumerable<string> AskAsync(string connectionId, string projectPath, string document,
             MarkAgentEngine engine, string model, string prompt, [EnumeratorCancellation] CancellationToken ct)
         {
-            if (engine is not (MarkAgentEngine.Claude or MarkAgentEngine.Copilot or MarkAgentEngine.OpenCode))
+            if (engine is not (MarkAgentEngine.Claude or MarkAgentEngine.Copilot or MarkAgentEngine.OpenCode or MarkAgentEngine.Codex))
                 throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.", "The project has no MarkAgent engine: choose it in the project settings."));
 
             var state = _states.GetOrAdd(connectionId, _ => new State());
@@ -131,6 +134,18 @@ namespace MdExplorer.Services.MarkDiagram
                         if (state.OpenCodeSession.SessionId != null) state.Remembered[Remember(document, engine)] = state.OpenCodeSession.SessionId;
                         break;
                     }
+                    case MarkAgentEngine.Codex:
+                    {
+                        if (_codex == null) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("CodexSessionPool non registrato", "CodexSessionPool not registered"));
+                        // Sola lettura (il blocco mde-edit lo applica MdExplorer), con MdExplorer fra i server MCP; il thread del
+                        // documento si riprende per id, anche da un processo nuovo (misurato il 28/11).
+                        var options = LlmSessions.ReadOnlyEngineSessions.CodexOptions(ProfileKey, null, resume);
+                        var session = await _codex.GetOrCreateAsync(PoolKey(connectionId), projectPath, model, options, ct).ConfigureAwait(false);
+                        await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
+                            if (chunk.Kind == MdExplorer.Features.Services.AI.Codex.CodexChunk.KindMessage) yield return chunk.Text;
+                        if (session.SessionId != null) state.Remembered[Remember(document, engine)] = session.SessionId;
+                        break;
+                    }
                 }
             }
             finally
@@ -149,7 +164,7 @@ namespace MdExplorer.Services.MarkDiagram
             await state.Gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                foreach (var engine in new[] { MarkAgentEngine.Claude, MarkAgentEngine.Copilot, MarkAgentEngine.OpenCode })
+                foreach (var engine in new[] { MarkAgentEngine.Claude, MarkAgentEngine.Copilot, MarkAgentEngine.OpenCode, MarkAgentEngine.Codex })
                     state.Remembered.TryRemove(Remember(document, engine), out _);
                 if (state.LiveDocument == document) await CloseLiveAsync(connectionId, state).ConfigureAwait(false);
                 _logger.LogInformation("[MarkDiagramSessions] {Connection}: nuova conversazione su {Document}", connectionId, document);
@@ -190,6 +205,9 @@ namespace MdExplorer.Services.MarkDiagram
                     state.OpenCodeServer?.Dispose();
                     state.OpenCodeSession = null;
                     state.OpenCodeServer = null;
+                    break;
+                case MarkAgentEngine.Codex:
+                    if (_codex != null) await _codex.ReleaseAsync(PoolKey(connectionId)).ConfigureAwait(false);
                     break;
             }
             state.LiveDocument = null;

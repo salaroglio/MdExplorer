@@ -43,7 +43,7 @@ export class SetupGuideComponent implements OnInit, OnDestroy {
   installErrors: Record<string, string> = {};
   private polls: Record<string, any> = {};
 
-  readonly engineNames: Record<string, string> = { copilot: 'GitHub Copilot CLI', claude: 'Claude Code', opencode: 'opencode' };
+  readonly engineNames: Record<string, string> = { copilot: 'GitHub Copilot CLI', claude: 'Claude Code', opencode: 'opencode', codex: 'OpenAI Codex' };
 
   constructor(private http: HttpClient) {}
 
@@ -155,7 +155,7 @@ export class SetupGuideComponent implements OnInit, OnDestroy {
   get allReady(): boolean { return !!this.status && this.steps.every(s => this.stateOf(s) === 'ok'); }
 
   engines(): HarnessEnvironment[] {
-    const order = ['copilot', 'claude', 'opencode'];
+    const order = ['copilot', 'claude', 'opencode', 'codex'];
     return [...(this.status?.harness.environments ?? [])].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }
 
@@ -174,6 +174,7 @@ export class SetupGuideComponent implements OnInit, OnDestroy {
           { label: 'GitHub Copilot CLI', command: `npm install -g ${copilot}` },
           { label: 'Claude Code', command: 'npm install -g @anthropic-ai/claude-code' },
           { label: 'opencode', command: 'npm install -g opencode-ai' },
+          { label: 'OpenAI Codex', command: 'npm install -g @openai/codex' },
         ];
       }
       case 'java':

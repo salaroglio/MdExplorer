@@ -78,12 +78,16 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public void Switch_off_a_value_this_mde_does_not_know_and_accept_the_known_ones_in_any_case()
         {
-            var codex = DevelopmentSchemaCheck.Run("harness:\n  target: codex\n");
-            Assert.AreEqual(SchemaMismatchKind.ValueNotAllowed, codex.SwitchedOff.Single().Mismatches.Single().Kind);
-            StringAssert.Contains(codex.Describe(Say), "codex");
+            // Un motore che questo MDE non conosce (fino al 28/11/2026 era codex, poi diventato il quarto motore).
+            var unknown = DevelopmentSchemaCheck.Run("harness:\n  target: cursor\n");
+            Assert.AreEqual(SchemaMismatchKind.ValueNotAllowed, unknown.SwitchedOff.Single().Mismatches.Single().Kind);
+            StringAssert.Contains(unknown.Describe(Say), "cursor");
 
             foreach (var ok in new[] { "Claude", "none", "copilot", "opencode" })
                 Assert.IsTrue(DevelopmentSchemaCheck.Run($"harness:\n  target: {ok}\n").AllGood, ok);
+            // codex esiste dallo schema 5: un file senza numero è dello schema 1, dove non c'era.
+            Assert.IsTrue(DevelopmentSchemaCheck.Run("# mde-schema: 5\nharness:\n  target: codex\n  model: \n").AllGood, "codex nello schema 5");
+            Assert.IsFalse(DevelopmentSchemaCheck.Run("harness:\n  target: codex\n").AllGood, "codex nello schema 1");
             Assert.IsFalse(DevelopmentSchemaCheck.Run("folders:\n- path: a\n  codeGraph:\n    describe: sometimes\n").AllGood);
             Assert.IsFalse(DevelopmentSchemaCheck.Run("redmine:\n  baseUrl: https://r\n  textFormatting: html\n").AllGood);
         }
@@ -216,6 +220,7 @@ namespace MdExplorer.IntegrationTests
             [2] = "a7cd33ba715b2bd78dec6cb45b9589edec7ec8425eaba40e087737adee8e90ad",
             [3] = "9088b2ab284de70c79d14cb97d7ade77857934eedfe646eb23539309c987ddeb",   // il gruppo agentCards (R8, 08/11)
             [4] = "c556a0455337ae518c7781784379ffed8f1e785b8200153130f0a66898871431",   // il gruppo seeds, i semi del grafo del codice (F3b, 10/11)
+            [5] = "d2c76ee96623d4bda27f6aeff7ddda86b30b5cd8c6ea0b120db095ee26c935e0",   // codex fra i valori di harness.target (sprint 2026-11-28-Motore-Codex)
         };
 
         private static string SnapshotText(int version)

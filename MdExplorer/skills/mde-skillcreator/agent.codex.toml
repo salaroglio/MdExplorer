@@ -1,0 +1,11 @@
+# mde:
+#   origin: mdexplorer
+#   version: 4
+#   updatePolicy: replace
+#
+# MdExplorer-managed agent for OpenAI Codex. The `mde:` block above marks this file as distributed by MdExplorer:
+# when you open the project MdExplorer overwrites it to keep it aligned. To customise it and keep your edits,
+# remove the `mde:` block (or change `origin`). It is a TOML comment on purpose: Codex drops an agent file that
+# carries a table it does not know.
+name = "mde-skillcreator"
+description = "Tutor che crea skill custom MdE per estrarre grafi di concetti specifici di dominio. Use when: nuova skill, skill per mapping, skill per requirement, skill per architettura, estrarre concetti da documenti tecnici, creare convenzione di estrazione concetti, mde-skillcreator."
