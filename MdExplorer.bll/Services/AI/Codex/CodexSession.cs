@@ -505,8 +505,45 @@ namespace MdExplorer.Features.Services.AI.Codex
             _logger.LogInformation("[CodexSession] {Method} {What} → {Decision} {Reason}", method,
                 Truncate(request.Command ?? string.Join(", ", request.Paths), 200), decision.Accept ? "accept" : "decline", decision.Reason);
             if (!decision.Accept && !string.IsNullOrWhiteSpace(decision.Reason))
+            {
                 Emit(new CodexChunk(CodexChunk.KindTool, UiText.Say("MdExplorer ha rifiutato: ", "MdExplorer declined: ") + decision.Reason));
+                TellTheModelWhy(decision.Reason);
+            }
             return decision.Accept;
+        }
+
+        /// <summary>
+        /// La risposta a un'approvazione di Codex non ha un campo per il motivo (solo <c>decision</c>): il modello sa che è stato
+        /// rifiutato, non perché. Visto in F7 (28/11): rifiutata la modifica nativa di una radice, Codex si fermava invece di
+        /// passare a <c>remote_edit</c>. Il motivo gli arriva con <c>turn/steer</c> nel turno in corso, dopo la risposta.
+        /// </summary>
+        private void TellTheModelWhy(string reason)
+        {
+            var turnId = _activeTurnId;
+            var server = _server;
+            if (turnId == null || server == null) return;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(100).ConfigureAwait(false);   // dopo la risposta all'approvazione, che parte in sequenza
+                    await server.RequestAsync("turn/steer", new JsonObject
+                    {
+                        ["threadId"] = SessionId,
+                        ["expectedTurnId"] = turnId,
+                        ["input"] = new JsonArray(new JsonObject
+                        {
+                            ["type"] = "text",
+                            ["text"] = UiText.Say("MdExplorer ha rifiutato l'ultima operazione. Motivo: ", "MdExplorer declined the last operation. Reason: ") + reason,
+                        }),
+                    }, CancellationToken.None, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Il turno può essere già finito: il motivo resta nella chat per l'utente.
+                    _logger.LogInformation("[CodexSession] motivo del rifiuto non mandato al modello: {Error}", ex.Message);
+                }
+            });
         }
 
         private void OnServerExited(string reason)
