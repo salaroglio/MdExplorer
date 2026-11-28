@@ -6126,14 +6126,20 @@ function SetupGuideComponent_article_11__svg_svg_27_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](27, "text", 109);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](28, "opencode");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](29, "circle", 110)(30, "circle", 111);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](31, "g", 112);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](32, "circle", 113);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](33, "text", 114);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](34, "M");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](29, "path", 110);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](30, "g", 111);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](31, "rect", 112);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](32, "text", 113);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](33, "Codex");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](35, "g", 115);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](36, "rect", 116)(37, "rect", 117)(38, "rect", 118);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](34, "circle", 114)(35, "circle", 115);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](36, "g", 116);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](37, "circle", 117);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](38, "text", 118);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](39, "M");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](40, "g", 119);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](41, "rect", 120)(42, "rect", 121)(43, "rect", 122);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
   }
 }
@@ -6141,24 +6147,24 @@ function SetupGuideComponent_article_11__svg_svg_28_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnamespaceSVG"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "svg", 70)(1, "g", 71);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](2, "rect", 72)(3, "path", 119)(4, "path", 120)(5, "path", 121);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "g", 122);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](7, "path", 123)(8, "path", 124)(9, "rect", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](2, "rect", 72)(3, "path", 123)(4, "path", 124)(5, "path", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](6, "g", 126);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](7, "path", 127)(8, "path", 128)(9, "rect", 129);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](10, "text", 126);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](10, "text", 130);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11, "Java 21");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](12, "path", 127)(13, "path", 128)(14, "path", 129);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "g", 130);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](16, "rect", 131)(17, "rect", 132)(18, "path", 133)(19, "rect", 134);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](12, "path", 131)(13, "path", 132)(14, "path", 133);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "g", 134);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](16, "rect", 135)(17, "rect", 136)(18, "path", 137)(19, "rect", 138);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "g", 135);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](21, "rect", 136)(22, "path", 137)(23, "circle", 138)(24, "circle", 139)(25, "circle", 140);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "g", 139);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](21, "rect", 140)(22, "path", 141)(23, "circle", 142)(24, "circle", 143)(25, "circle", 144);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](26, "g", 141);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](27, "rect", 142)(28, "circle", 143);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](26, "g", 145);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](27, "rect", 146)(28, "circle", 147);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](29, "rect", 144)(30, "rect", 145)(31, "rect", 146);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](29, "rect", 148)(30, "rect", 149)(31, "rect", 150);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
   }
 }
@@ -6167,26 +6173,26 @@ function SetupGuideComponent_article_11__svg_svg_29_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnamespaceSVG"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "svg", 70)(1, "g", 71);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](2, "rect", 72);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "g", 122);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](4, "rect", 147);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "text", 148);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "g", 126);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](4, "rect", 151);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "text", 152);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6, ".md");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](7, "rect", 149)(8, "rect", 150)(9, "rect", 151)(10, "rect", 152)(11, "rect", 153)(12, "rect", 154);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](7, "rect", 153)(8, "rect", 154)(9, "rect", 155)(10, "rect", 156)(11, "rect", 157)(12, "rect", 158);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](13, "rect", 155)(14, "path", 156);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "g", 157);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](16, "circle", 158)(17, "circle", 159)(18, "circle", 160);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](13, "rect", 159)(14, "path", 160);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](15, "g", 161);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](16, "circle", 162)(17, "circle", 163)(18, "circle", 164);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](19, "path", 161);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "g", 162);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](21, "rect", 163)(22, "rect", 164);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](23, "text", 165);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](19, "path", 165);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "g", 166);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](21, "rect", 167)(22, "rect", 168);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](23, "text", 169);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](24, "W");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](25, "rect", 166)(26, "rect", 167)(27, "rect", 168)(28, "rect", 169)(29, "rect", 170);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](30, "g", 171);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](31, "circle", 172)(32, "path", 173);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](25, "rect", 170)(26, "rect", 171)(27, "rect", 172)(28, "rect", 173)(29, "rect", 174);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](30, "g", 175);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](31, "circle", 176)(32, "path", 177);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](33, "text", 88);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](34, "Pandoc");
@@ -6230,7 +6236,7 @@ function SetupGuideComponent_article_11_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](25, "div", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](26, SetupGuideComponent_article_11__svg_svg_26_Template, 22, 0, "svg", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](27, SetupGuideComponent_article_11__svg_svg_27_Template, 39, 0, "svg", 31);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](27, SetupGuideComponent_article_11__svg_svg_27_Template, 44, 0, "svg", 31);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](28, SetupGuideComponent_article_11__svg_svg_28_Template, 32, 0, "svg", 31);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](29, SetupGuideComponent_article_11__svg_svg_29_Template, 35, 0, "svg", 31);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()()();
@@ -6278,7 +6284,7 @@ function SetupGuideComponent_article_11_Template(rf, ctx) {
 function SetupGuideComponent_button_12_Template(rf, ctx) {
   if (rf & 1) {
     const _r74 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 174);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 178);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function SetupGuideComponent_button_12_Template_button_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r74);
       const ctx_r73 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
@@ -6295,7 +6301,7 @@ function SetupGuideComponent_button_12_Template(rf, ctx) {
 function SetupGuideComponent_button_13_Template(rf, ctx) {
   if (rf & 1) {
     const _r76 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 175);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 179);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function SetupGuideComponent_button_13_Template_button_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r76);
       const ctx_r75 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
@@ -6312,15 +6318,15 @@ function SetupGuideComponent_button_13_Template(rf, ctx) {
 function SetupGuideComponent_button_15_Template(rf, ctx) {
   if (rf & 1) {
     const _r80 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 176);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 180);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function SetupGuideComponent_button_15_Template_button_click_0_listener() {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r80);
       const i_r78 = restoredCtx.index;
       const ctx_r79 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r79.goTo(i_r78));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "span", 177);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "span", 178);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](1, "span", 181);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](2, "span", 182);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](4, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
@@ -6340,7 +6346,7 @@ function SetupGuideComponent_button_15_Template(rf, ctx) {
 function SetupGuideComponent_button_23_Template(rf, ctx) {
   if (rf & 1) {
     const _r82 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 179);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 183);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function SetupGuideComponent_button_23_Template_button_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r82);
       const ctx_r81 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
@@ -6389,7 +6395,8 @@ class SetupGuideComponent {
     this.engineNames = {
       copilot: 'GitHub Copilot CLI',
       claude: 'Claude Code',
-      opencode: 'opencode'
+      opencode: 'opencode',
+      codex: 'OpenAI Codex'
     };
   }
   ngOnInit() {
@@ -6526,7 +6533,7 @@ class SetupGuideComponent {
     return !!this.status && this.steps.every(s => this.stateOf(s) === 'ok');
   }
   engines() {
-    const order = ['copilot', 'claude', 'opencode'];
+    const order = ['copilot', 'claude', 'opencode', 'codex'];
     return [...(this.status?.harness.environments ?? [])].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   }
   engineState(e) {
@@ -6549,6 +6556,9 @@ class SetupGuideComponent {
           }, {
             label: 'opencode',
             command: 'npm install -g opencode-ai'
+          }, {
+            label: 'OpenAI Codex',
+            command: 'npm install -g @openai/codex'
           }];
         }
       case 'java':
@@ -6626,7 +6636,7 @@ class SetupGuideComponent {
       },
       decls: 27,
       vars: 25,
-      consts: [[1, "sg"], [1, "sg-head"], [1, "sg-head-text"], [1, "sg-title"], [1, "sg-subtitle"], ["mat-icon-button", "", "class", "sg-close", 3, "click", 4, "ngIf"], [1, "sg-stage"], ["class", "slide", "aria-roledescription", "slide", 3, "from-back", 4, "ngFor", "ngForOf"], ["class", "nav prev", 3, "click", 4, "ngIf"], ["class", "nav next", 3, "click", 4, "ngIf"], ["role", "tablist", 1, "dots"], ["role", "tab", 3, "active", "click", 4, "ngFor", "ngForOf"], [1, "sg-actions"], ["mat-stroked-button", "", 3, "disabled", "click"], [1, "sg-spacer"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-icon-button", "", 1, "sg-close", 3, "click"], ["aria-roledescription", "slide", 1, "slide"], [1, "slide-grid"], [1, "copy"], [1, "kicker-row"], [1, "kicker"], [1, "state-chip", 3, "ngClass"], ["diameter", "12", 4, "ngIf"], [4, "ngIf"], [1, "sg-step-title"], [1, "sg-why"], ["role", "status", 1, "glass", "sg-status", 3, "ngClass", "ngSwitch"], ["class", "glass sg-how", 4, "ngIf"], ["aria-hidden", "true", 1, "scene-wrap", 3, "ngSwitch"], ["class", "scene", "viewBox", "0 0 360 260", 4, "ngSwitchCase"], ["diameter", "12"], ["diameter", "18"], [4, "ngSwitchCase"], [1, "sg-engines"], ["class", "sg-engine", 3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "sg-engine st-error", 4, "ngIf"], [1, "sg-verdict"], [1, "sg-engine", 3, "ngClass"], [1, "sg-engine-name"], [1, "sg-engine-state"], ["class", "sg-engine-detail", 4, "ngIf"], [1, "sg-engine-detail"], [1, "sg-engine", "st-error"], [1, "glass", "sg-how"], [1, "sg-how-title"], ["class", "sg-how-hint", 4, "ngIf"], ["class", "sg-cmd", 4, "ngFor", "ngForOf"], ["class", "sg-install", 4, "ngIf"], ["mat-stroked-button", "", 1, "sg-link", 3, "click"], [1, "sg-how-hint", "sg-restart-hint"], [1, "sg-how-hint"], [1, "sg-cmd"], ["class", "sg-cmd-label", 4, "ngIf"], [1, "sg-cmd-text"], ["mat-icon-button", "", 1, "sg-cmd-copy", 3, "matTooltip", "click"], [1, "sg-cmd-label"], [1, "sg-install"], [4, "ngIf", "ngIfElse"], ["noWinget", ""], ["class", "sg-install-error", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "16", 4, "ngIf"], ["class", "sg-install-line", 4, "ngIf"], ["class", "sg-install-ok", 4, "ngIf"], ["diameter", "16"], [1, "sg-install-line"], [1, "sg-install-ok"], [1, "sg-install-error"], ["viewBox", "0 0 360 260", 1, "scene"], [1, "float"], ["x", "16", "y", "14", "width", "328", "height", "232", "rx", "18", 1, "panel"], ["pathLength", "1", "d", "M50 150 H 310", "fill", "none", "stroke", "var(--sky)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "0.2s", "--t", "1.2s"], ["pathLength", "1", "d", "M110 150 C 130 150, 130 92, 152 92", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "0.9s", "--t", "0.6s"], ["pathLength", "1", "d", "M152 92 H 220", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "1.5s", "--t", "0.6s"], ["pathLength", "1", "d", "M220 92 C 242 92, 242 150, 262 150", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "2.1s", "--t", "0.6s"], ["cx", "58", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "0.3s"], ["cx", "110", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "0.7s"], ["cx", "152", "cy", "92", "r", "11", "fill", "var(--amber)", 1, "pop", 2, "--d", "1.3s"], ["cx", "220", "cy", "92", "r", "11", "fill", "var(--amber)", 1, "pop", 2, "--d", "1.8s"], ["cx", "190", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "1.6s"], [1, "pop", 2, "--d", "2.7s"], ["cx", "262", "cy", "150", "r", "14", "fill", "var(--mint)"], ["d", "M255 150 l5 5 l9 -10", "fill", "none", "stroke", "#0d4a35", "stroke-width", "2.6", "stroke-linecap", "round", "stroke-linejoin", "round"], ["cx", "306", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "3.0s"], ["x", "66", "y", "186", "font-size", "12", 1, "fade", 2, "--d", "0.6s"], ["x", "160", "y", "70", "font-size", "12", 1, "fade", 2, "--d", "1.5s"], ["x", "180", "y", "222", "text-anchor", "middle", "font-size", "15", "font-weight", "700", 1, "fade", 2, "--d", "0.6s"], [1, "pop", 2, "--d", "0.15s"], ["x", "34", "y", "32", "width", "204", "height", "118", "rx", "12", 1, "panel2"], ["cx", "50", "cy", "46", "r", "4", "fill", "var(--rose)"], ["cx", "63", "cy", "46", "r", "4", "fill", "var(--amber)"], ["cx", "76", "cy", "46", "r", "4", "fill", "var(--mint)"], ["x", "48", "y", "78", "font-size", "11", 1, "type", 2, "--d", "0.6s"], ["x", "48", "y", "92", "width", "168", "height", "6", "rx", "3", 1, "bar", "grow", 2, "--d", "1.9s"], ["x", "48", "y", "106", "width", "120", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "2.15s"], ["x", "48", "y", "134", "font-size", "11", "font-weight", "700", 1, "fade", 2, "--d", "2.5s", "fill", "var(--mint)"], ["pathLength", "1", "d", "M258 57 C 236 70, 232 150, 206 182", 1, "wire", "draw", 2, "--d", "3.3s"], ["pathLength", "1", "d", "M258 99 C 240 112, 232 160, 208 188", 1, "wire", "draw", 2, "--d", "3.45s"], ["pathLength", "1", "d", "M258 141 C 244 152, 236 172, 210 194", 1, "wire", "draw", 2, "--d", "3.6s"], [1, "pop", 2, "--d", "2.8s"], ["x", "258", "y", "44", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "61", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#3b3fa8"], [1, "pop", 2, "--d", "3.0s"], ["x", "258", "y", "86", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "103", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#8a3a17"], [1, "pop", 2, "--d", "3.2s"], ["x", "258", "y", "128", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "145", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#0d4a35"], ["cx", "186", "cy", "200", "r", "22", "fill", "none", "stroke", "var(--amber)", "stroke-width", "2", "opacity", "0", 1, "ring", 2, "--d", "4.3s"], ["cx", "186", "cy", "200", "r", "22", "fill", "none", "stroke", "var(--amber)", "stroke-width", "2", "opacity", "0", 1, "ring", 2, "--d", "5.2s"], [1, "pop", 2, "--d", "3.9s"], ["cx", "186", "cy", "200", "r", "22", "fill", "var(--amber)"], ["x", "186", "y", "207", "text-anchor", "middle", "font-size", "20", "font-weight", "700", 2, "fill", "#4a3a00"], [1, "pop", 2, "--d", "4.6s"], ["x", "42", "y", "180", "width", "118", "height", "40", "rx", "14", "fill", "rgba(255,255,255,0.92)"], ["x", "56", "y", "192", "width", "84", "height", "6", "rx", "3", "fill", "#5b63d6"], ["x", "56", "y", "204", "width", "56", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["pathLength", "1", "d", "M76 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "0.8s", "--t", "1s"], ["pathLength", "1", "d", "M96 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "1.0s", "--t", "1s"], ["pathLength", "1", "d", "M116 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "1.2s", "--t", "1s"], [1, "pop", 2, "--d", "0.2s"], ["d", "M56 100 h80 v48 a28 28 0 0 1 -28 28 h-24 a28 28 0 0 1 -28 -28 z", "fill", "rgba(255,255,255,0.92)"], ["d", "M136 112 h8 a14 14 0 0 1 0 28 h-8", "fill", "none", "stroke", "rgba(255,255,255,0.92)", "stroke-width", "7"], ["x", "66", "y", "108", "width", "60", "height", "8", "rx", "4", "fill", "#b86b2b"], ["x", "96", "y", "212", "text-anchor", "middle", "font-size", "15", "font-weight", "700", 1, "fade", 2, "--d", "0.6s"], ["d", "M160 138 C 186 138, 186 62, 206 62", 1, "flowline", "flow"], ["d", "M160 138 H 206", 1, "flowline", "flow"], ["d", "M160 138 C 186 138, 186 206, 206 206", 1, "flowline", "flow"], [1, "pop", 2, "--d", "1.7s"], ["x", "208", "y", "38", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["x", "222", "y", "52", "width", "28", "height", "20", "rx", "4", "fill", "var(--sky)"], ["d", "M252 62 h22 m-6 -5 l6 5 l-6 5", "fill", "none", "stroke", "#fff", "stroke-width", "2", "stroke-linecap", "round", "stroke-linejoin", "round"], ["x", "278", "y", "52", "width", "34", "height", "20", "rx", "4", "fill", "var(--rose)"], [1, "pop", 2, "--d", "2.1s"], ["x", "208", "y", "114", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["d", "M232 144 L262 126 L298 146 M232 144 L298 146", "fill", "none", "stroke", "rgba(255,255,255,0.7)", "stroke-width", "1.6"], ["cx", "232", "cy", "144", "r", "7", "fill", "var(--mint)", 1, "glow"], ["cx", "262", "cy", "126", "r", "7", "fill", "var(--sky)", 1, "glow", 2, "--d", "0.4s"], ["cx", "298", "cy", "146", "r", "7", "fill", "var(--amber)", 1, "glow", 2, "--d", "0.8s"], [1, "pop", 2, "--d", "2.5s"], ["x", "208", "y", "182", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["cx", "226", "cy", "206", "r", "8", "fill", "var(--amber)"], ["x", "242", "y", "194", "width", "68", "height", "6", "rx", "3", 1, "bar", "grow", 2, "--d", "2.9s"], ["x", "242", "y", "204", "width", "52", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "3.1s"], ["x", "242", "y", "214", "width", "60", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "3.3s"], ["x", "34", "y", "40", "width", "98", "height", "146", "rx", "10", "fill", "rgba(255,255,255,0.92)"], ["x", "83", "y", "74", "text-anchor", "middle", "font-size", "19", "font-weight", "800", 2, "fill", "#4a56d6"], ["x", "48", "y", "90", "width", "70", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "104", "width", "56", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "48", "y", "118", "width", "64", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "132", "width", "44", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "48", "y", "146", "width", "66", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "160", "width", "38", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "38", "y", "48", "width", "90", "height", "3", "rx", "1.5", "fill", "var(--sky)", 1, "scan"], ["d", "M136 113 H 158", 1, "flowline", "flow"], [1, "spin"], ["cx", "180", "cy", "113", "r", "18", "fill", "none", "stroke", "var(--amber)", "stroke-width", "9", "stroke-dasharray", "6 5.3"], ["cx", "180", "cy", "113", "r", "12", "fill", "var(--amber)"], ["cx", "180", "cy", "113", "r", "4.5", "fill", "#4a3a00"], ["d", "M202 113 H 224", 1, "flowline", "flow"], [1, "pop", 2, "--d", "1.4s"], ["x", "228", "y", "40", "width", "98", "height", "146", "rx", "10", "fill", "rgba(255,255,255,0.92)"], ["x", "242", "y", "54", "width", "32", "height", "28", "rx", "5", "fill", "#2b5cd6"], ["x", "258", "y", "74", "text-anchor", "middle", "font-size", "17", "font-weight", "800", 2, "fill", "#fff"], ["x", "242", "y", "96", "width", "70", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "1.9s"], ["x", "242", "y", "110", "width", "56", "height", "6", "rx", "3", "fill", "#b8c8f2", 1, "grow", 2, "--d", "2.1s"], ["x", "242", "y", "124", "width", "64", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "2.3s"], ["x", "242", "y", "138", "width", "44", "height", "6", "rx", "3", "fill", "#b8c8f2", 1, "grow", 2, "--d", "2.5s"], ["x", "242", "y", "152", "width", "66", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "2.7s"], [1, "pop", 2, "--d", "3.1s"], ["cx", "316", "cy", "176", "r", "14", "fill", "var(--mint)"], ["d", "M309 176 l5 5 l9 -10", "fill", "none", "stroke", "#0d4a35", "stroke-width", "2.6", "stroke-linecap", "round", "stroke-linejoin", "round"], [1, "nav", "prev", 3, "click"], [1, "nav", "next", 3, "click"], ["role", "tab", 3, "click"], [1, "dot-state", 3, "ngClass"], [1, "dot-label"], ["mat-button", "", 3, "click"]],
+      consts: [[1, "sg"], [1, "sg-head"], [1, "sg-head-text"], [1, "sg-title"], [1, "sg-subtitle"], ["mat-icon-button", "", "class", "sg-close", 3, "click", 4, "ngIf"], [1, "sg-stage"], ["class", "slide", "aria-roledescription", "slide", 3, "from-back", 4, "ngFor", "ngForOf"], ["class", "nav prev", 3, "click", 4, "ngIf"], ["class", "nav next", 3, "click", 4, "ngIf"], ["role", "tablist", 1, "dots"], ["role", "tab", 3, "active", "click", 4, "ngFor", "ngForOf"], [1, "sg-actions"], ["mat-stroked-button", "", 3, "disabled", "click"], [1, "sg-spacer"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mat-icon-button", "", 1, "sg-close", 3, "click"], ["aria-roledescription", "slide", 1, "slide"], [1, "slide-grid"], [1, "copy"], [1, "kicker-row"], [1, "kicker"], [1, "state-chip", 3, "ngClass"], ["diameter", "12", 4, "ngIf"], [4, "ngIf"], [1, "sg-step-title"], [1, "sg-why"], ["role", "status", 1, "glass", "sg-status", 3, "ngClass", "ngSwitch"], ["class", "glass sg-how", 4, "ngIf"], ["aria-hidden", "true", 1, "scene-wrap", 3, "ngSwitch"], ["class", "scene", "viewBox", "0 0 360 260", 4, "ngSwitchCase"], ["diameter", "12"], ["diameter", "18"], [4, "ngSwitchCase"], [1, "sg-engines"], ["class", "sg-engine", 3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "sg-engine st-error", 4, "ngIf"], [1, "sg-verdict"], [1, "sg-engine", 3, "ngClass"], [1, "sg-engine-name"], [1, "sg-engine-state"], ["class", "sg-engine-detail", 4, "ngIf"], [1, "sg-engine-detail"], [1, "sg-engine", "st-error"], [1, "glass", "sg-how"], [1, "sg-how-title"], ["class", "sg-how-hint", 4, "ngIf"], ["class", "sg-cmd", 4, "ngFor", "ngForOf"], ["class", "sg-install", 4, "ngIf"], ["mat-stroked-button", "", 1, "sg-link", 3, "click"], [1, "sg-how-hint", "sg-restart-hint"], [1, "sg-how-hint"], [1, "sg-cmd"], ["class", "sg-cmd-label", 4, "ngIf"], [1, "sg-cmd-text"], ["mat-icon-button", "", 1, "sg-cmd-copy", 3, "matTooltip", "click"], [1, "sg-cmd-label"], [1, "sg-install"], [4, "ngIf", "ngIfElse"], ["noWinget", ""], ["class", "sg-install-error", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "16", 4, "ngIf"], ["class", "sg-install-line", 4, "ngIf"], ["class", "sg-install-ok", 4, "ngIf"], ["diameter", "16"], [1, "sg-install-line"], [1, "sg-install-ok"], [1, "sg-install-error"], ["viewBox", "0 0 360 260", 1, "scene"], [1, "float"], ["x", "16", "y", "14", "width", "328", "height", "232", "rx", "18", 1, "panel"], ["pathLength", "1", "d", "M50 150 H 310", "fill", "none", "stroke", "var(--sky)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "0.2s", "--t", "1.2s"], ["pathLength", "1", "d", "M110 150 C 130 150, 130 92, 152 92", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "0.9s", "--t", "0.6s"], ["pathLength", "1", "d", "M152 92 H 220", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "1.5s", "--t", "0.6s"], ["pathLength", "1", "d", "M220 92 C 242 92, 242 150, 262 150", "fill", "none", "stroke", "var(--amber)", "stroke-width", "5", "stroke-linecap", "round", 1, "draw", 2, "--d", "2.1s", "--t", "0.6s"], ["cx", "58", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "0.3s"], ["cx", "110", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "0.7s"], ["cx", "152", "cy", "92", "r", "11", "fill", "var(--amber)", 1, "pop", 2, "--d", "1.3s"], ["cx", "220", "cy", "92", "r", "11", "fill", "var(--amber)", 1, "pop", 2, "--d", "1.8s"], ["cx", "190", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "1.6s"], [1, "pop", 2, "--d", "2.7s"], ["cx", "262", "cy", "150", "r", "14", "fill", "var(--mint)"], ["d", "M255 150 l5 5 l9 -10", "fill", "none", "stroke", "#0d4a35", "stroke-width", "2.6", "stroke-linecap", "round", "stroke-linejoin", "round"], ["cx", "306", "cy", "150", "r", "11", "fill", "var(--sky)", 1, "pop", 2, "--d", "3.0s"], ["x", "66", "y", "186", "font-size", "12", 1, "fade", 2, "--d", "0.6s"], ["x", "160", "y", "70", "font-size", "12", 1, "fade", 2, "--d", "1.5s"], ["x", "180", "y", "222", "text-anchor", "middle", "font-size", "15", "font-weight", "700", 1, "fade", 2, "--d", "0.6s"], [1, "pop", 2, "--d", "0.15s"], ["x", "34", "y", "32", "width", "204", "height", "118", "rx", "12", 1, "panel2"], ["cx", "50", "cy", "46", "r", "4", "fill", "var(--rose)"], ["cx", "63", "cy", "46", "r", "4", "fill", "var(--amber)"], ["cx", "76", "cy", "46", "r", "4", "fill", "var(--mint)"], ["x", "48", "y", "78", "font-size", "11", 1, "type", 2, "--d", "0.6s"], ["x", "48", "y", "92", "width", "168", "height", "6", "rx", "3", 1, "bar", "grow", 2, "--d", "1.9s"], ["x", "48", "y", "106", "width", "120", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "2.15s"], ["x", "48", "y", "134", "font-size", "11", "font-weight", "700", 1, "fade", 2, "--d", "2.5s", "fill", "var(--mint)"], ["pathLength", "1", "d", "M258 57 C 236 70, 232 150, 206 182", 1, "wire", "draw", 2, "--d", "3.3s"], ["pathLength", "1", "d", "M258 99 C 240 112, 232 160, 208 188", 1, "wire", "draw", 2, "--d", "3.45s"], ["pathLength", "1", "d", "M258 141 C 244 152, 236 172, 210 194", 1, "wire", "draw", 2, "--d", "3.6s"], [1, "pop", 2, "--d", "2.8s"], ["x", "258", "y", "44", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "61", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#3b3fa8"], [1, "pop", 2, "--d", "3.0s"], ["x", "258", "y", "86", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "103", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#8a3a17"], [1, "pop", 2, "--d", "3.2s"], ["x", "258", "y", "128", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "145", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#0d4a35"], ["pathLength", "1", "d", "M258 183 C 246 190, 236 198, 212 200", 1, "wire", "draw", 2, "--d", "3.75s"], [1, "pop", 2, "--d", "3.4s"], ["x", "258", "y", "170", "width", "72", "height", "26", "rx", "13", "fill", "rgba(255,255,255,0.92)"], ["x", "294", "y", "187", "text-anchor", "middle", "font-size", "10", "font-weight", "700", 2, "fill", "#1f2937"], ["cx", "186", "cy", "200", "r", "22", "fill", "none", "stroke", "var(--amber)", "stroke-width", "2", "opacity", "0", 1, "ring", 2, "--d", "4.3s"], ["cx", "186", "cy", "200", "r", "22", "fill", "none", "stroke", "var(--amber)", "stroke-width", "2", "opacity", "0", 1, "ring", 2, "--d", "5.2s"], [1, "pop", 2, "--d", "3.9s"], ["cx", "186", "cy", "200", "r", "22", "fill", "var(--amber)"], ["x", "186", "y", "207", "text-anchor", "middle", "font-size", "20", "font-weight", "700", 2, "fill", "#4a3a00"], [1, "pop", 2, "--d", "4.6s"], ["x", "42", "y", "180", "width", "118", "height", "40", "rx", "14", "fill", "rgba(255,255,255,0.92)"], ["x", "56", "y", "192", "width", "84", "height", "6", "rx", "3", "fill", "#5b63d6"], ["x", "56", "y", "204", "width", "56", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["pathLength", "1", "d", "M76 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "0.8s", "--t", "1s"], ["pathLength", "1", "d", "M96 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "1.0s", "--t", "1s"], ["pathLength", "1", "d", "M116 92 q-10 -14 0 -28 q10 -14 0 -28", 1, "wire", "draw", 2, "--d", "1.2s", "--t", "1s"], [1, "pop", 2, "--d", "0.2s"], ["d", "M56 100 h80 v48 a28 28 0 0 1 -28 28 h-24 a28 28 0 0 1 -28 -28 z", "fill", "rgba(255,255,255,0.92)"], ["d", "M136 112 h8 a14 14 0 0 1 0 28 h-8", "fill", "none", "stroke", "rgba(255,255,255,0.92)", "stroke-width", "7"], ["x", "66", "y", "108", "width", "60", "height", "8", "rx", "4", "fill", "#b86b2b"], ["x", "96", "y", "212", "text-anchor", "middle", "font-size", "15", "font-weight", "700", 1, "fade", 2, "--d", "0.6s"], ["d", "M160 138 C 186 138, 186 62, 206 62", 1, "flowline", "flow"], ["d", "M160 138 H 206", 1, "flowline", "flow"], ["d", "M160 138 C 186 138, 186 206, 206 206", 1, "flowline", "flow"], [1, "pop", 2, "--d", "1.7s"], ["x", "208", "y", "38", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["x", "222", "y", "52", "width", "28", "height", "20", "rx", "4", "fill", "var(--sky)"], ["d", "M252 62 h22 m-6 -5 l6 5 l-6 5", "fill", "none", "stroke", "#fff", "stroke-width", "2", "stroke-linecap", "round", "stroke-linejoin", "round"], ["x", "278", "y", "52", "width", "34", "height", "20", "rx", "4", "fill", "var(--rose)"], [1, "pop", 2, "--d", "2.1s"], ["x", "208", "y", "114", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["d", "M232 144 L262 126 L298 146 M232 144 L298 146", "fill", "none", "stroke", "rgba(255,255,255,0.7)", "stroke-width", "1.6"], ["cx", "232", "cy", "144", "r", "7", "fill", "var(--mint)", 1, "glow"], ["cx", "262", "cy", "126", "r", "7", "fill", "var(--sky)", 1, "glow", 2, "--d", "0.4s"], ["cx", "298", "cy", "146", "r", "7", "fill", "var(--amber)", 1, "glow", 2, "--d", "0.8s"], [1, "pop", 2, "--d", "2.5s"], ["x", "208", "y", "182", "width", "118", "height", "48", "rx", "10", 1, "panel2"], ["cx", "226", "cy", "206", "r", "8", "fill", "var(--amber)"], ["x", "242", "y", "194", "width", "68", "height", "6", "rx", "3", 1, "bar", "grow", 2, "--d", "2.9s"], ["x", "242", "y", "204", "width", "52", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "3.1s"], ["x", "242", "y", "214", "width", "60", "height", "6", "rx", "3", 1, "bar-soft", "grow", 2, "--d", "3.3s"], ["x", "34", "y", "40", "width", "98", "height", "146", "rx", "10", "fill", "rgba(255,255,255,0.92)"], ["x", "83", "y", "74", "text-anchor", "middle", "font-size", "19", "font-weight", "800", 2, "fill", "#4a56d6"], ["x", "48", "y", "90", "width", "70", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "104", "width", "56", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "48", "y", "118", "width", "64", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "132", "width", "44", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "48", "y", "146", "width", "66", "height", "6", "rx", "3", "fill", "#9aa0e8"], ["x", "48", "y", "160", "width", "38", "height", "6", "rx", "3", "fill", "#c3c7f2"], ["x", "38", "y", "48", "width", "90", "height", "3", "rx", "1.5", "fill", "var(--sky)", 1, "scan"], ["d", "M136 113 H 158", 1, "flowline", "flow"], [1, "spin"], ["cx", "180", "cy", "113", "r", "18", "fill", "none", "stroke", "var(--amber)", "stroke-width", "9", "stroke-dasharray", "6 5.3"], ["cx", "180", "cy", "113", "r", "12", "fill", "var(--amber)"], ["cx", "180", "cy", "113", "r", "4.5", "fill", "#4a3a00"], ["d", "M202 113 H 224", 1, "flowline", "flow"], [1, "pop", 2, "--d", "1.4s"], ["x", "228", "y", "40", "width", "98", "height", "146", "rx", "10", "fill", "rgba(255,255,255,0.92)"], ["x", "242", "y", "54", "width", "32", "height", "28", "rx", "5", "fill", "#2b5cd6"], ["x", "258", "y", "74", "text-anchor", "middle", "font-size", "17", "font-weight", "800", 2, "fill", "#fff"], ["x", "242", "y", "96", "width", "70", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "1.9s"], ["x", "242", "y", "110", "width", "56", "height", "6", "rx", "3", "fill", "#b8c8f2", 1, "grow", 2, "--d", "2.1s"], ["x", "242", "y", "124", "width", "64", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "2.3s"], ["x", "242", "y", "138", "width", "44", "height", "6", "rx", "3", "fill", "#b8c8f2", 1, "grow", 2, "--d", "2.5s"], ["x", "242", "y", "152", "width", "66", "height", "6", "rx", "3", "fill", "#7d9be8", 1, "grow", 2, "--d", "2.7s"], [1, "pop", 2, "--d", "3.1s"], ["cx", "316", "cy", "176", "r", "14", "fill", "var(--mint)"], ["d", "M309 176 l5 5 l9 -10", "fill", "none", "stroke", "#0d4a35", "stroke-width", "2.6", "stroke-linecap", "round", "stroke-linejoin", "round"], [1, "nav", "prev", 3, "click"], [1, "nav", "next", 3, "click"], ["role", "tab", 3, "click"], [1, "dot-state", 3, "ngClass"], [1, "dot-label"], ["mat-button", "", 3, "click"]],
       template: function SetupGuideComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 0)(1, "header", 1)(2, "div", 2)(3, "h2", 3);
@@ -12545,8 +12555,8 @@ __webpack_require__.r(__webpack_exports__);
  *
  * The demo opens already configured for the agentic environment of THIS
  * computer (sprint 2026-10-02-Demo-Ambiente-Agentico-Rilevato):
- *   - before cloning, Mark asks the service to probe Copilot CLI, Claude Code
- *     and opencode;
+ *   - before cloning, Mark asks the service to probe Copilot CLI, Claude Code,
+ *     opencode and Codex;
  *   - one usable → that one; more than one → Mark asks the user; none → the
  *     demo opens with no environment and Mark says why. Never a silent
  *     default to Copilot;
@@ -12572,7 +12582,8 @@ const demoLanguageFor = language => DEMO_LANGUAGES.indexOf(language) >= 0 ? lang
 const ENVIRONMENT_NAMES = {
   copilot: 'GitHub Copilot',
   claude: 'Claude Code',
-  opencode: 'opencode'
+  opencode: 'opencode',
+  codex: 'OpenAI Codex'
 };
 const nameOf = id => ENVIRONMENT_NAMES[id] || id;
 /** Harness id for "no agentic environment": an explicit choice, written in the project. */
@@ -17723,6 +17734,11 @@ class ProjectsService {
      * «c'è» sarebbe un processo a vuoto.
      */
     this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
+    /**
+     * Quarta gemella, per Codex (sprint 2026-11-28-Motore-Codex). Come opencode: `available` è la presenza del CLI
+     * nel PATH, il `codex app-server` nasce al primo messaggio; `defaultModel` null = il predefinito dell'account.
+     */
+    this.codexAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
     this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_6__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
@@ -17831,6 +17847,7 @@ class ProjectsService {
         _this3.emitCopilotCliAutoConfig(response);
         _this3.emitClaudeCodeAutoConfig(response);
         _this3.emitOpenCodeAutoConfig(response);
+        _this3.emitCodexAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.MdExplorer;
@@ -17904,6 +17921,7 @@ class ProjectsService {
         _this4.emitCopilotCliAutoConfig(response);
         _this4.emitClaudeCodeAutoConfig(response);
         _this4.emitOpenCodeAutoConfig(response);
+        _this4.emitCodexAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_2__.CompatibilityMode.MdExplorer;
@@ -18100,6 +18118,20 @@ class ProjectsService {
       available: response.openCodeAvailable === true,
       // null = mai scelto: lo decide il server. Non si inventa un nome qui.
       defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
+  /** Gemella di emitOpenCodeAutoConfig per Codex: la disponibilità è una scansione del PATH del backend. */
+  emitCodexAutoConfig(response) {
+    if (response == null) return;
+    if (typeof response.codexAutoSelect !== 'boolean') {
+      this.codexAutoConfig$.next(null);
+      return;
+    }
+    this.codexAutoConfig$.next({
+      autoSelect: response.codexAutoSelect === true,
+      available: response.codexAvailable === true,
+      // null = mai scelto: vale il predefinito che Codex dichiara per l'account.
+      defaultModel: response.codexDefaultModel ?? null
     });
   }
   emitClaudeCodeAutoConfig(response) {
@@ -19046,21 +19078,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AiChatService": () => (/* binding */ AiChatService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_signalr_timeouts__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/signalr-timeouts */ 367);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 833);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 745);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! rxjs */ 5474);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 116);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 635);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 9337);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 2313);
 /* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 9196);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 
 
 
@@ -19133,6 +19166,12 @@ class AiChatService {
      */
     this._copilotUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.copilotUsage$ = this._copilotUsage$.asObservable();
+    /**
+     * Consuntivo dell'ultimo turno di Codex (evento SignalR `ReceiveCodexUsage`): token del turno e della
+     * conversazione, finestra di contesto, quota del piano. Null per ogni altro motore.
+     */
+    this._codexUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this.codexUsage$ = this._codexUsage$.asObservable();
     /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
     this._toolActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
     this.toolActivity$ = this._toolActivity$.asObservable();
@@ -19189,6 +19228,7 @@ class AiChatService {
     this.copilotProblem$ = new rxjs__WEBPACK_IMPORTED_MODULE_5__.Subject();
     this._claudeRefreshInFlight = null;
     this._openCodeRefreshInFlight = null;
+    this._codexRefreshInFlight = null;
     this.initializeSignalR();
   }
   initializeSignalR() {
@@ -19271,6 +19311,12 @@ class AiChatService {
     this.hubConnection.on('ReceiveCopilotUsage', (usage, channelId) => {
       if ((channelId || 'default') === 'default') {
         this._copilotUsage$.next(usage ?? null);
+      }
+    });
+    // Consuntivo di Codex: token e quota. Come sopra, conta solo la chat.
+    this.hubConnection.on('ReceiveCodexUsage', (usage, channelId) => {
+      if ((channelId || 'default') === 'default') {
+        this._codexUsage$.next(usage ?? null);
       }
     });
     // Attività sui tool: "sta leggendo X", "sta eseguendo Y". È una riga di stato, non la
@@ -20165,6 +20211,72 @@ class AiChatService {
     }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.shareReplay)(1));
     return this._openCodeRefreshInFlight;
   }
+  /** I modelli di Codex salvati (AvailableModel, provider Codex). Istantaneo: se la tabella è vuota tocca al refresh. */
+  getCodexChatModels() {
+    return this.http.get('/api/aimodels/cached', {
+      params: {
+        provider: 'Codex'
+      }
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(response => (response?.models || []).map(m => ({
+      id: m.id,
+      name: m.name || m.id,
+      description: m.description || null
+    }))));
+  }
+  /** Chiede a Codex i modelli dell'account e li salva (`defaultModel` = il predefinito dichiarato). Chiamate concorrenti condivise. */
+  refreshCodexModels() {
+    if (this._codexRefreshInFlight) {
+      return this._codexRefreshInFlight;
+    }
+    this._codexRefreshInFlight = this.http.post('/api/codex/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.finalize)(() => {
+      this._codexRefreshInFlight = null;
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.shareReplay)(1));
+    return this._codexRefreshInFlight;
+  }
+  /**
+   * I modelli salvati di un motore per id (`claude`, `copilot`, `opencode`, `codex`), per le finestre che scelgono il
+   * motore (lancio degli agenti, ambiente di sviluppo). Un motore sconosciuto è un errore, mai un altro motore al suo
+   * posto (D10 dello sprint 2026-11-28-Motore-Codex: prima l'ultimo ramo cadeva su opencode).
+   */
+  getChatModelsFor(engine) {
+    switch (engine) {
+      case 'claude':
+        return this.getClaudeCodeChatModels();
+      case 'copilot':
+        return this.getCopilotChatModels();
+      case 'opencode':
+        return this.getOpenCodeChatModels();
+      case 'codex':
+        return this.getCodexChatModels();
+      default:
+        return (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.throwError)(() => new Error(`Motore sconosciuto: ${engine}`));
+    }
+  }
+  /** Chiede al motore i suoi modelli e li salva: gemello di {@link getChatModelsFor}. */
+  refreshModelsFor(engine) {
+    switch (engine) {
+      case 'claude':
+        return this.refreshClaudeCodeModels();
+      case 'copilot':
+        return this.refreshCopilotCliModels();
+      case 'opencode':
+        return this.refreshOpenCodeModels();
+      case 'codex':
+        return this.refreshCodexModels();
+      default:
+        return (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.throwError)(() => new Error(`Motore sconosciuto: ${engine}`));
+    }
+  }
+  notifyCodexConnected(modelId) {
+    this._isModelLoaded$.next(true);
+    // null = il predefinito dell'account: dirlo, invece di stampare "null".
+    this._currentModel$.next(`Codex: ${modelId || 'predefinito'}`);
+  }
+  notifyCodexDisconnected() {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    this._codexUsage$.next(null);
+  }
   notifyCopilotCliConnected(modelId) {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
     this._isModelLoaded$.next(true);
@@ -20281,11 +20393,11 @@ class AiChatService {
   }
   static {
     this.ɵfac = function AiChatService_Factory(t) {
-      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_14__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_13__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__.MdServerMessagesService)), _angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_15__.TranslateService));
+      return new (t || AiChatService)(_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_15__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"]((0,_angular_core__WEBPACK_IMPORTED_MODULE_14__.forwardRef)(() => _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_3__.MdServerMessagesService)), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__.TranslateService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_13__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵdefineInjectable"]({
       token: AiChatService,
       factory: AiChatService.ɵfac,
       providedIn: 'root'
@@ -23970,8 +24082,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.11.27.8',
-  buildTime: '2026.11.27 11:47:50'
+  version: '2026.11.28.1',
+  buildTime: '2026.11.28 10:43:28'
 };
 
 /***/ }),
@@ -24005,4 +24117,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.84057fbfa30f06f7.js.map
+//# sourceMappingURL=main.a877894487461985.js.map

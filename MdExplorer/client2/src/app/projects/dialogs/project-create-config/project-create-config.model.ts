@@ -4,7 +4,7 @@
  * scritta in .development.yml, che è committato: viaggia col repository invece di essere
  * ridomandata a ogni macchina.
  */
-export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
+export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'codex' | 'none';
 
 /** Una voce dell'elenco dei template che viaggia con MdExplorer (project-templates.json, P4). */
 export interface TemplateCatalogEntry {

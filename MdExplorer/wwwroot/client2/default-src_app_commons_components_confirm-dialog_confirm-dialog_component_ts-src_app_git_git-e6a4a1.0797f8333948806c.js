@@ -4845,6 +4845,14 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  /** Il modello di Codex per MarkAgent in questo progetto; null = il predefinito dell'account. */
+  setCodexChatModelSetting(modelId, projectPath) {
+    const url = '../api/ProjectSettings/SetCodexChatModelSetting';
+    return this.http.post(url, {
+      modelId,
+      projectPath
+    });
+  }
   setTextIndexingSetting(enabled, extensions, projectPath) {
     const url = '../api/ProjectSettings/SetTextIndexingSetting';
     return this.http.post(url, {
@@ -9529,4 +9537,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.28c935e52b0cb317.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-e6a4a1.0797f8333948806c.js.map

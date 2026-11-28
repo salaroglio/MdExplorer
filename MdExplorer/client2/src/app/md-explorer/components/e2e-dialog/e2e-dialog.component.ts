@@ -16,7 +16,7 @@ export interface E2eDialogData {
 
 type Choice = 'inherit' | 'yes' | 'no';
 type SettingKey = 'commitAfterRun' | 'headless';
-type EngineChoice = 'inherit' | 'claude' | 'copilot' | 'opencode';
+type EngineChoice = 'inherit' | 'claude' | 'copilot' | 'opencode' | 'codex';
 
 interface LogLine {
   kind: 'tool' | 'step' | 'error';
@@ -55,6 +55,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     { id: 'claude', label: 'Claude Code' },
     { id: 'copilot', label: 'Copilot' },
     { id: 'opencode', label: 'opencode' },
+    { id: 'codex', label: 'Codex' },
   ];
   engineChoice: EngineChoice = 'inherit';
   modelText = '';

@@ -491,7 +491,7 @@ export class PromptLabService implements OnDestroy {
   engineLabel(): string {
     const mode = this.aiChatService.chatMode;
     if (!mode) return '';
-    const names: Record<string, string> = { claudecode: 'Claude Code', copilotcli: 'Copilot', opencode: 'opencode', local: 'Local', gemini: 'Gemini', openai: 'OpenAI' };
+    const names: Record<string, string> = { claudecode: 'Claude Code', copilotcli: 'Copilot', opencode: 'opencode', codex: 'Codex', local: 'Local', gemini: 'Gemini', openai: 'OpenAI' };
     const name = names[mode.provider] ?? mode.provider;
     return mode.modelId ? `${name} (${mode.modelId})` : name;
   }

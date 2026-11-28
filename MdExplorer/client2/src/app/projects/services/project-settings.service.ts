@@ -20,7 +20,7 @@ export interface RelaySettings {
  * Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
  * Vive in .development.yml, quindi è una scelta del repository condivisa dal team.
  */
-export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
+export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'codex' | 'none';
 
 export interface HarnessSetting {
   target: HarnessTarget;
@@ -38,7 +38,7 @@ export interface HarnessSetting {
  * sono la stessa decisione vista da due lati — l'harness dice dove stanno skill, agenti e prompt,
  * il motore chi li legge.
  */
-export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'none';
+export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'codex' | 'none';
 
 /**
  * Un gruppo di funzionalità del server MCP. L'elenco arriva dal server stesso
@@ -250,6 +250,12 @@ export class ProjectSettingsService {
    */
   setOpenCodeChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
     const url = '../api/ProjectSettings/SetOpenCodeChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  /** Il modello di Codex per MarkAgent in questo progetto; null = il predefinito dell'account. */
+  setCodexChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetCodexChatModelSetting';
     return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
   }
 

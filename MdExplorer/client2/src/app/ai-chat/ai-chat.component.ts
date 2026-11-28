@@ -111,6 +111,23 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   openCodeModelsLoading = false;
   openCodeModelsError: string | null = null;
 
+  // Codex (sprint 2026-11-28-Motore-Codex): stessa forma di opencode. null = il predefinito che Codex dichiara.
+  /** Codex è il motore di questo progetto e il CLI c'è. */
+  codexAutoSelected = false;
+  /** …è il motore, ma Codex non è installato su questa macchina: la chat resta bloccata. */
+  codexUnavailable = false;
+  selectedCodexModel: string | null = null;
+  codexModels: ClaudeModel[] = [];
+  private codexModelChoicesCache: {
+    models: ClaudeModel[];
+    selected: string | null;
+    choices: ClaudeModelChoice[];
+  } | null = null;
+  codexModelsLoading = false;
+  codexModelsError: string | null = null;
+  /** Consuntivo dell'ultimo turno di Codex: token, contesto, quota del piano. Null con gli altri motori. */
+  codexUsage: any | null = null;
+
   /**
    * Consuntivo dell'ultimo turno di Claude Code: costo del turno, cumulato della sessione,
    * token e quanta parte delle finestre a 5 ore e 7 giorni è già bruciata.
@@ -415,6 +432,39 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
       });
 
+    // Quarta gemella, per Codex: come opencode.
+    this.projectsService.codexAutoConfig$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(config => {
+        if (!config) {
+          this.codexUnavailable = false;
+          this.codexAutoSelected = false;
+          this.selectedCodexModel = null;
+          return;
+        }
+        if (config.autoSelect && config.available) {
+          // null = il predefinito dell'account: nessun nome inventato qui.
+          const model = config.defaultModel || null;
+          console.log('[AiChatComponent] Codex come motore, modello:', model ?? '(predefinito)');
+          this.codexUnavailable = false;
+          this.codexAutoSelected = true;
+          this.selectedCodexModel = model;
+          this.aiService.setProvider('codex', model);
+          this.aiService.notifyCodexConnected(model);
+          this.loadCodexModels();
+        } else if (config.autoSelect && !config.available) {
+          console.log('[AiChatComponent] Codex è il motore del progetto ma non è installato — chat bloccata');
+          this.codexUnavailable = true;
+          this.codexAutoSelected = false;
+          this.selectedCodexModel = null;
+          this.aiService.notifyCodexDisconnected();
+        } else {
+          this.codexUnavailable = false;
+          this.codexAutoSelected = false;
+          this.selectedCodexModel = null;
+        }
+      });
+
     // Stessa manopola, per Claude Code. Il backend garantisce che al massimo UNO dei due
     // auto-select arrivi acceso, quindi queste due sottoscrizioni non si contendono la chat.
     this.projectsService.claudeCodeAutoConfig$
@@ -459,6 +509,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.copilotUsage$
       .pipe(takeUntil(this.destroy$))
       .subscribe(usage => { this.copilotUsage = usage; });
+
+    this.aiService.codexUsage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(usage => { this.codexUsage = usage; });
   }
 
   ngAfterViewChecked(): void {
@@ -915,6 +969,88 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.projectSettingsService.setOpenCodeChatModelSetting(wanted, projectPath).subscribe({
       next: () => console.log('[AiChatComponent] Modello opencode salvato per il progetto:', wanted ?? '(default)'),
       error: err => console.error('[AiChatComponent] Salvataggio del modello opencode per il progetto fallito:', err)
+    });
+  }
+
+  /** Le voci della combo di Codex: stesse regole di quella di opencode. */
+  get codexModelChoices(): ClaudeModelChoice[] {
+    const cache = this.codexModelChoicesCache;
+    if (cache && cache.models === this.codexModels && cache.selected === this.selectedCodexModel) {
+      return cache.choices;
+    }
+    const choices: ClaudeModelChoice[] = this.codexModels.map(m => ({ ...m, unavailable: false }));
+    const selected = this.selectedCodexModel;
+    if (selected && !choices.some(c => c.id === selected)) {
+      choices.unshift({ id: selected, name: selected, description: null, unavailable: this.codexModels.length > 0 });
+    }
+    this.codexModelChoicesCache = { models: this.codexModels, selected, choices };
+    return choices;
+  }
+
+  get selectedCodexModelDescription(): string {
+    return this.codexModels.find(m => m.id === this.selectedCodexModel)?.description || '';
+  }
+
+  /** Modelli salvati (istantaneo); se non ce ne sono, li chiede a Codex (model/list, nessun token). */
+  loadCodexModels(): void {
+    this.codexModelsLoading = true;
+    this.codexModelsError = null;
+    this.aiService.getCodexChatModels().subscribe({
+      next: models => {
+        if (models.length) {
+          this.codexModels = models;
+          this.codexModelsLoading = false;
+        } else {
+          this.refreshCodexModels();
+        }
+      },
+      error: err => this.failCodexModels(err)
+    });
+  }
+
+  refreshCodexModels(): void {
+    this.codexModelsLoading = true;
+    this.codexModelsError = null;
+    this.aiService.refreshCodexModels().subscribe({
+      next: () => this.aiService.getCodexChatModels().subscribe({
+        next: models => {
+          this.codexModels = models;
+          this.codexModelsLoading = false;
+        },
+        error: err => this.failCodexModels(err)
+      }),
+      error: err => this.failCodexModels(err)
+    });
+  }
+
+  private failCodexModels(err: any): void {
+    this.codexModelsLoading = false;
+    this.codexModelsError = err?.error?.error || err?.message || String(err);
+    console.error('[AiChatComponent] Elenco modelli Codex non disponibile:', this.codexModelsError);
+  }
+
+  async selectCodexModel(modelId: string | null): Promise<void> {
+    if (!this.codexAutoSelected) return;
+    const wanted = modelId ? modelId : null;
+    if (this.selectedCodexModel === wanted) return;
+    if (this.isConfiguringProvider) return;
+    this.selectedCodexModel = wanted;
+    try {
+      // Il modello viaggia col turno (turn/start): vale dalla domanda successiva, la conversazione resta.
+      await this.aiService.setProviderAsync('codex', wanted);
+      this.aiService.notifyCodexConnected(wanted);
+    } catch (err) {
+      console.error('[AiChatComponent] Cambio di modello Codex fallito:', err);
+      return;
+    }
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) {
+      console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
+      return;
+    }
+    this.projectSettingsService.setCodexChatModelSetting(wanted, projectPath).subscribe({
+      next: () => console.log('[AiChatComponent] Modello Codex salvato per il progetto:', wanted ?? '(predefinito)'),
+      error: err => console.error('[AiChatComponent] Salvataggio del modello Codex per il progetto fallito:', err)
     });
   }
 
